@@ -1,0 +1,82 @@
+/*
+ * Copyright (c) 2024-2026 Shinwa Solutions. All rights reserved.
+ *
+ * <%= displayName %> 更新请求类
+ * 
+ * 由 @brix/create-brix <%= date %> 自动生成
+ * 
+ * 【设计说明】
+ * Request 类位于 API 模块，用于接收客户端请求参数：
+ * 1. 使用 @Schema 注解提供 OpenAPI 文档
+ * 2. 使用 @Valid 相关注解进行参数校验
+ * 3. 与 DTO 分离，支持不同的字段集合
+ * 
+ * @author <%= author %>
+ * @since <%= date %>
+ */
+package <%= packageName %>.api.request;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+/**
+ * <%= displayName %> 更新请求
+ *
+ * <p>用于 PUT/PATCH 接口的请求体。
+ * 更新请求允许部分字段为 null（表示不更新该字段）。</p>
+ *
+ * @author <%= author %>
+ * @since <%= date %>
+ */
+@Schema(description = "<%= displayName %>更新请求")
+public class Update<%= classPrefix %>Request {
+
+    /**
+     * 名称
+     */
+    @Schema(description = "名称", example = "更新后的名称")
+    @Size(max = 100, message = "名称长度不能超过 100 个字符")
+    private String name;
+
+    /**
+     * 描述
+     */
+    @Schema(description = "描述", example = "更新后的描述信息")
+    @Size(max = 500, message = "描述长度不能超过 500 个字符")
+    private String description;
+
+    /**
+     * 状态
+     */
+    @Schema(description = "状态（ACTIVE/INACTIVE）", example = "ACTIVE")
+    private String status;
+
+    // ========================================================================
+    // Getters / Setters
+    // ========================================================================
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+}

@@ -1,0 +1,191 @@
+# ==============================================================================
+# <%= displayName %> 应用配置
+# ==============================================================================
+# 【v3.0 架构说明】
+# 本配置文件包含服务的基础配置，环境特定配置通过 profile 覆盖
+# 所有敏感配置（如密码、密钥）应通过环境变量注入
+# 
+# @author <%= author %>
+# @date <%= date %>
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 服务信息
+# ------------------------------------------------------------------------------
+spring:
+  application:
+    name: <%= name %>
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+# ------------------------------------------------------------------------------
+# 服务端口配置
+# ------------------------------------------------------------------------------
+server:
+  port: ${SERVER_PORT:<%= serverPort %>}
+  servlet:
+    context-path: /<%= apiPrefix %>
+
+# ------------------------------------------------------------------------------
+# Runtime Context 配置（v3.0 能力契约）
+# ------------------------------------------------------------------------------
+runtime:
+  # 模块元数据
+  module:
+    id: <%= name %>
+    name: <%= displayName %>
+    version: <%= version %>
+    description: <%= description %>
+  
+  # 能力声明
+  capabilities:
+    # HTTP 客户端能力
+    http:
+      enabled: true
+      timeout: 30000
+      retry:
+        max-attempts: 3
+        backoff: 1000
+<% if (features.messaging) { %>
+    # 消息队列能力
+    messaging:
+      enabled: true
+      provider: kafka
+<% } %>
+<% if (features.cache) { %>
+    # 缓存能力
+    cache:
+      enabled: true
+      provider: redis
+      ttl: 3600
+<% } %>
+<% if (features.storage) { %>
+    # 存储能力
+    storage:
+      enabled: true
+      provider: minio
+<% } %>
+
+<% if (features.database) { %>
+# ------------------------------------------------------------------------------
+# 数据库配置
+# ------------------------------------------------------------------------------
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:<%= name.replace(/-/g, '_') %>}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      pool-name: <%= classPrefix %>HikariCP
+      max-lifetime: 1800000
+      connection-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+<% } %>
+
+<% if (features.messaging) { %>
+# ------------------------------------------------------------------------------
+# Kafka 配置（消息能力实现）
+# ------------------------------------------------------------------------------
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    consumer:
+      group-id: <%= name %>-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+<% } %>
+
+<% if (features.cache) { %>
+# ------------------------------------------------------------------------------
+# Redis 配置（缓存能力实现）
+# ------------------------------------------------------------------------------
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 10000
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: -1ms
+<% } %>
+
+# ------------------------------------------------------------------------------
+# 可观测性配置
+# ------------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: <%= name %>
+      module: <%= name %>
+
+# ------------------------------------------------------------------------------
+# 日志配置
+# ------------------------------------------------------------------------------
+logging:
+  level:
+    root: INFO
+    <%= packageName %>: DEBUG
+    com.shinwa.runtime: DEBUG
+    org.springframework: INFO
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-}] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/<%= name %>.log
+
+# ------------------------------------------------------------------------------
+# OpenAPI 文档配置
+# ------------------------------------------------------------------------------
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  info:
+    title: <%= displayName %> API
+    description: <%= description %>
+    version: <%= version %>

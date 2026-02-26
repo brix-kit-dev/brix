@@ -1,0 +1,7 @@
+io.brix.platform.starter.autoconfigure.PlatformCoreAutoConfiguration
+io.brix.platform.starter.autoconfigure.WebMvcAutoConfiguration
+io.brix.platform.starter.autoconfigure.FlywayAutoConfiguration
+io.brix.platform.starter.autoconfigure.ServiceRegistrationAutoConfiguration
+io.brix.platform.starter.autoconfigure.JacksonAutoConfig
+io.brix.platform.starter.autoconfigure.CorsAutoConfiguration
+io.brix.platform.starter.autoconfigure.OpenApiAutoConfiguration

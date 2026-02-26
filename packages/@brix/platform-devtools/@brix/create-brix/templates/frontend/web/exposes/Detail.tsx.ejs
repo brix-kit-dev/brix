@@ -1,0 +1,16 @@
+/**
+ * <%= classPrefix %>Detail 模块导出包装器
+ * 
+ * 用于 Module Federation exposes 配置
+ * 确保模块导出干净，避免 rspack 初始化顺序问题
+ * 
+ * @module @shinwa/<%= name %>-web
+ * @generated <%= date %>
+ * 
+ * @see https://github.com/module-federation/module-federation-examples/issues/1361
+ */
+
+// 确保插件翻译资源已加载到基座 i18n 实例
+import './init';
+
+export { default } from '../pages/<%= classPrefix %>Detail';

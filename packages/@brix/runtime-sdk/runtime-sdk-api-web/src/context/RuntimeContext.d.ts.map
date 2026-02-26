@@ -1,0 +1,1 @@
+{"version":3,"file":"RuntimeContext.d.ts","sourceRoot":"","sources":["RuntimeContext.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;GAaG;AAMH;;;;;;;;;;;;;;;;;GAiBG;AACH,MAAM,WAAW,cAAc;IAC7B;;;;OAIG;IACH,QAAQ,CAAC,QAAQ,EAAE,MAAM,CAAC;IAE1B;;;;OAIG;IACH,QAAQ,CAAC,QAAQ,EAAE,MAAM,CAAC;IAE1B;;;;;OAKG;IACH,aAAa,CAAC,CAAC,EAAE,cAAc,EAAE,MAAM,GAAG,CAAC,GAAG,SAAS,CAAC;CACzD"}

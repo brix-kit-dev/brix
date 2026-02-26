@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    ============================================================================
+    Platform Commons - 通用平台能力（统一 POM 根）
+    ============================================================================
+    
+    【模块说明】
+    platform-commons 是开源框架的通用平台能力层。
+    提供可开箱即用的平台基础能力，任何人都能用它搭建自己的平台。
+    
+    【4.5 修复 — POM 双树统一】
+    此前存在两棵独立 POM 树（根 pom.xml 与 packages/server/pom.xml），
+    Spring Cloud（2023.0.0 vs 2025.0.0）、JJWT（0.12.3 vs 0.12.6）、
+    Lombok（1.18.30 vs 1.18.38）、OpenTelemetry（1.32.0 vs 1.44.1）
+    版本不一致，存在运行时类冲突风险。
+    
+    修复后合并为单棵 POM 树，所有 7 个 Java 子模块归入本聚合根。
+    原 packages/server/pom.xml（platform-packages-java 中间层）已移除。
+    版本统一取两棵树的较新值。
+    
+    【目录结构】
+    packages/
+    ├── client/                  # 客户端能力实现（TypeScript, pnpm 管理）
+    └── server/                  # 服务端能力实现（Java, 本 pom.xml 统一管理）
+        ├── platform-parent/         # 统一依赖管理 BOM（可供外部项目继承）
+        ├── platform-common/         # 公共 Entity/DTO/Exception
+        ├── platform-common-starter/ # 服务注册/心跳/路由扫描/自动配置
+        ├── platform-gateway/        # API 网关（路由、限流、熔断）
+        ├── platform-auth/           # 基础认证（JWT 验证、权限注解）
+        ├── platform-observability/  # 可观测性（链路追踪、日志、指标）
+        └── platform-config/         # 配置中心（基础配置下发）
+    
+    【开源协议】
+    Apache License 2.0
+    ============================================================================
+    -->
+
+    <groupId>io.brix.platform</groupId>
+    <artifactId>platform-commons</artifactId>
+    <version>3.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Platform Commons</name>
+    <description>开源框架 - 通用平台能力（统一 POM 根）</description>
+
+    <properties>
+        <!-- 项目编码与编译 -->
+        <java.version>17</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        
+        <!--
+        =============================================
+        Spring 版本（所有模块必须使用同一版本）
+        Spring Cloud 2025.0.0 对应 Spring Boot 3.5.x
+        =============================================
+        -->
+        <spring-boot.version>3.5.9</spring-boot.version>
+        <spring-cloud.version>2025.0.0</spring-cloud.version>
+        
+        <!-- 可观测性（通过 OpenTelemetry BOM 统一管理） -->
+        <opentelemetry.version>1.44.1</opentelemetry.version>
+        
+        <!-- 韧性 -->
+        <resilience4j.version>2.1.0</resilience4j.version>
+        
+        <!-- JWT 认证 -->
+        <jjwt.version>0.12.6</jjwt.version>
+        
+        <!-- 数据库 -->
+        <postgresql.version>42.7.5</postgresql.version>
+        <flyway.version>11.8.0</flyway.version>
+        
+        <!-- 工具 -->
+        <lombok.version>1.18.38</lombok.version>
+        
+        <!-- 测试 -->
+        <testcontainers.version>1.20.4</testcontainers.version>
+        
+        <!-- OpenAPI 文档生成（Phase 5: OpenAPI 驱动的前后端契约自动化） -->
+        <springdoc-openapi.version>2.8.5</springdoc-openapi.version>
+    </properties>
+
+    <!--
+    =============================================
+    【4.5 修复】统一模块聚合
+    所有 Java 子模块归入此单棵 POM 树。
+    原 packages/server/pom.xml (platform-packages-java) 中间层已移除。
+    =============================================
+    -->
+    <modules>
+        <!-- 依赖管理 BOM POM（可供外部项目继承，优先构建） -->
+        <module>packages/server/platform-parent</module>
+        <!-- 公共基础模块 -->
+        <module>packages/server/platform-common</module>
+        <module>packages/server/platform-common-starter</module>
+        <!-- 平台能力模块 -->
+        <module>packages/server/platform-gateway</module>
+        <module>packages/server/platform-auth</module>
+        <module>packages/server/platform-observability</module>
+        <module>packages/server/platform-config</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- ========== Spring Boot BOM ========== -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!-- ========== Spring Cloud BOM ========== -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!--
+            ========== OpenTelemetry BOM ==========
+            【4.5 修复】替代原先逐个声明的 opentelemetry-api/sdk/exporter-otlp，
+            通过 BOM 统一管理所有 io.opentelemetry 组件版本。
+            -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!-- ========== Testcontainers BOM ========== -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!-- ========== 内部模块依赖（统一使用 ${project.version}） ========== -->
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-common-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-gateway</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-auth</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-observability</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-config</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            
+            <!-- ========== Resilience4j ========== -->
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-spring-boot3</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-reactor</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-ratelimiter</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-circuitbreaker</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-bulkhead</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            
+            <!-- ========== 数据库 ========== -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            
+            <!-- ========== JWT 认证 ========== -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            
+            <!-- ========== OpenAPI 文档（Phase 5: OpenAPI 驱动的前后端契约自动化）========== -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc-openapi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-common</artifactId>
+                <version>${springdoc-openapi.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!--
+                Maven 编译器配置
+                - 使用 release 代替 source/target（Java 9+ 推荐）
+                - 启用 parameters 保留方法参数名（Spring MVC 需要）
+                - 内置 Lombok 注解处理器
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.11.0</version>
+                    <configuration>
+                        <release>${maven.compiler.release}</release>
+                        <encoding>${project.build.sourceEncoding}</encoding>
+                        <parameters>true</parameters>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.3.0</version>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                                <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                            </manifest>
+                        </archive>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

@@ -1,0 +1,39 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  
+  # 网关路由配置 (本地开发环境)
+  cloud:
+    gateway:
+      routes:
+        # 将 /api/plugin-engine/** 转发到本地启动的插件引擎
+        - id: plugin-engine-local
+          uri: ${PLUGIN_ENGINE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/plugin-engine/**
+          filters:
+            - StripPrefix=1
+        
+        # 示例：将 /api/user/** 转发到本地启动的用户插件 (假设运行在 8082)
+        - id: user-plugin-local
+          uri: ${USER_PLUGIN_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+
+# ========== CORS 本地开发配置 ==========
+# 本地开发环境允许所有来源，便于前端调试
+gateway:
+  cors:
+    # 本地开发允许所有来源（也可通过 GATEWAY_ALLOWED_ORIGINS 覆盖）
+    allowed-origin-patterns: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*,*}
+    warn-on-wildcard: false  # 本地开发环境关闭警告
+    block-wildcard-in-production: false
+
+# 日志配置
+logging:
+  level:
+    io.brix.platform: DEBUG
+    org.springframework.cloud.gateway: DEBUG

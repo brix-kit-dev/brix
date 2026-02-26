@@ -1,0 +1,53 @@
+# ========== 开发环境配置 ==========
+# 本文件仅用于本地开发，不应部署到生产环境
+#
+# 启用方式：设置环境变量 SPRING_PROFILES_ACTIVE=dev
+# 或 JVM 参数：-Dspring.profiles.active=dev
+#
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+gateway:
+  security:
+    api-key:
+      # 开发环境可选择禁用认证（仅限本地开发）
+      # ⚠️ 警告：生产环境必须启用认证！
+      enabled: ${GATEWAY_AUTH_ENABLED:false}
+      
+      # 开发环境使用的测试 Key（仅限本地开发）
+      # 这些 Key 不应在任何非本地环境中使用
+      keys:
+        - name: dev-frontend
+          key: shinwa-frontend-web-api-key-v1
+          secret: shinwa-frontend-web-api-secret-v1-32chars
+          allowed-paths: []
+        - name: dev-engine
+          key: shinwa-plugin-engine-api-key-v1
+          secret: shinwa-plugin-engine-api-secret-v1-32chars
+          allowed-paths:
+            - /api/plugin-engine/**
+        - name: dev-plugin
+          key: shinwa-plugin-service-api-key-v1
+          secret: shinwa-plugin-service-api-secret-v1-32chars
+          allowed-paths:
+            - /api/plugins/**
+        - name: dev-mobile
+          key: shinwa-mobile-app-api-key-v1
+          secret: shinwa-mobile-app-api-secret-v1-32chars
+          allowed-paths: []
+
+    header-strip:
+      # 开发环境记录被剥离的值，便于调试
+      log-stripped-value: true
+
+    log-sanitization:
+      # 开发环境可以看到更多字符，便于调试
+      visible-chars: 6
+
+logging:
+  level:
+    io.brix.platform.gateway: DEBUG
+    io.brix.platform.gateway.security: DEBUG

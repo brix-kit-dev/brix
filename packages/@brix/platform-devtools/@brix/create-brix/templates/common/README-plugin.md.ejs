@@ -1,0 +1,82 @@
+# <%= name %>
+
+> 生成时间: <%= date %>
+
+## 概述
+
+<%= description %>
+
+## 模块结构
+
+```text
+<%= name %>/
+├── pom.xml                     # 父 POM
+├── README.md
+<% if (withApi) { %>
+├── <%= name %>-api/            # API 模块（供其他插件依赖）
+│   ├── pom.xml
+│   └── src/
+<% } %>
+├── <%= name %>-core/           # Core 模块
+│   ├── pom.xml
+│   └── src/
+<% if (withWeb) { %>
+├── <%= name %>-web/            # Web 前端模块
+│   ├── package.json
+│   └── src/
+<% } %>
+<% if (withMobile) { %>
+└── <%= name %>-mobile/         # Mobile 前端模块
+    ├── package.json
+    └── src/
+<% } %>
+```
+
+## 快速开始
+
+### 构建
+
+```bash
+# 构建后端
+mvn clean install
+
+<% if (withWeb) { %>
+# 构建 Web 前端
+cd <%= name %>-web && pnpm install && pnpm build
+<% } %>
+
+<% if (withMobile) { %>
+# 构建 Mobile 前端
+cd <%= name %>-mobile && pnpm install && pnpm build
+<% } %>
+```
+
+### 在服务中使用
+
+```xml
+<dependency>
+    <groupId>shinwa.plugin</groupId>
+    <artifactId><%= name %>-core</artifactId>
+    <version><%= version %></version>
+</dependency>
+```
+
+## Flyway 迁移
+
+迁移脚本位于：`<%= name %>-core/src/main/resources/db/migration/<%= name %>/`
+
+命名规范：`V<%= flywayPrefix %>_{版本号}__{描述}.sql`
+
+示例：
+- `V<%= flywayPrefix %>_001__<%= name.replace('plugin-', '') %>_init.sql`
+- `V<%= flywayPrefix %>_002__<%= name.replace('plugin-', '') %>_add_index.sql`
+
+## 配置项
+
+| 配置项 | 说明 | 默认值 |
+|---|---|---|
+| `shinwa.plugin.<%= name.replace('plugin-', '').replace(/-/g, '.') %>.enabled` | 是否启用插件 | `true` |
+
+## License
+
+MIT

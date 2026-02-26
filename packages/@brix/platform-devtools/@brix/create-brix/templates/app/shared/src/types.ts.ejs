@@ -1,0 +1,110 @@
+/**
+ * @file <%= displayName %> 类型定义
+ * @description 业务类型定义（对应后端 DTO）
+ * @module @shinwa/<%= name %>-shared
+ * @version <%= version %>
+ *
+ * 【设计说明】
+ * 本文件定义 <%= displayName %> 的核心业务类型。
+ * 类型与后端 Java DTO 保持一致，确保前后端类型安全。
+ *
+ * 【类型来源】
+ * 1. 手动定义：常用的核心类型（本文件）
+ * 2. 自动生成：从 OpenAPI 生成的类型（generated/types/）
+ *
+ * 【使用方式】
+ * ```typescript
+ * import type { <%= classPrefix %>, <%= classPrefix %>Status } from '@shinwa/<%= name %>-shared';
+ * ```
+ */
+
+// ============================================================================
+// 状态枚举
+// ============================================================================
+
+/**
+ * <%= displayName %> 状态
+ */
+export type <%= classPrefix %>Status = 
+  | 'DRAFT'      // 草稿
+  | 'ACTIVE'     // 激活
+  | 'INACTIVE'   // 未激活
+  | 'DELETED';   // 已删除
+
+// ============================================================================
+// 核心实体类型
+// ============================================================================
+
+/**
+ * <%= displayName %> 实体
+ *
+ * 对应后端 <%= packageName %>.api.dto.<%= classPrefix %>DTO
+ */
+export interface <%= classPrefix %> {
+  /** 唯一标识 */
+  id: number;
+  /** 名称 */
+  name: string;
+  /** 描述 */
+  description?: string;
+  /** 状态 */
+  status: <%= classPrefix %>Status;
+  /** 创建时间（ISO 8601 格式） */
+  createdAt: string;
+  /** 更新时间（ISO 8601 格式） */
+  updatedAt: string;
+  /** 创建人 ID */
+  createdBy?: string;
+  /** 租户 ID */
+  tenantId?: string;
+}
+
+// ============================================================================
+// 请求/响应类型
+// ============================================================================
+
+/**
+ * 创建 <%= displayName %> 请求
+ *
+ * 对应后端 Create<%= classPrefix %>Request
+ */
+export interface Create<%= classPrefix %>Request {
+  /** 名称（必填） */
+  name: string;
+  /** 描述 */
+  description?: string;
+}
+
+/**
+ * 更新 <%= displayName %> 请求
+ *
+ * 对应后端 Update<%= classPrefix %>Request
+ */
+export interface Update<%= classPrefix %>Request {
+  /** 名称 */
+  name?: string;
+  /** 描述 */
+  description?: string;
+  /** 状态 */
+  status?: <%= classPrefix %>Status;
+}
+
+/**
+ * 分页响应
+ */
+export interface PagedResponse<T> {
+  /** 数据列表 */
+  content: T[];
+  /** 总元素数 */
+  totalElements: number;
+  /** 总页数 */
+  totalPages: number;
+  /** 当前页码（从 0 开始） */
+  number: number;
+  /** 每页大小 */
+  size: number;
+  /** 是否第一页 */
+  first: boolean;
+  /** 是否最后一页 */
+  last: boolean;
+}

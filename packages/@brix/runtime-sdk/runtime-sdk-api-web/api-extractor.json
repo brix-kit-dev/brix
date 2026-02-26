@@ -1,0 +1,76 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+  
+  /**
+   * API Extractor 配置
+   * 
+   * 【架构说明】
+   * 实现 v3.0 架构蓝图 4.5-2 任务：
+   * CI 增加 TypeScript API 兼容性检查：使用 @microsoft/api-extractor 生成 .api.md + .api.json
+   * 
+   * 【使用方法】
+   * pnpm build
+   * pnpm api-extractor run --local
+   * 
+   * 【输出文件】
+   * - runtime-sdk-api-web.api.md   - API 报告（提交到 Git，PR 中审核）
+   * - runtime-sdk-api-web.api.json - API 模型（CI 比较用）
+   * - dist/runtime-sdk-api-web.d.ts - 合并的类型定义
+   */
+  
+  "mainEntryPointFilePath": "./dist/index.d.ts",
+  
+  "bundledPackages": [],
+  
+  "compiler": {
+    "tsconfigFilePath": "./tsconfig.json"
+  },
+  
+  "apiReport": {
+    "enabled": true,
+    "reportFileName": "runtime-sdk-api-web.api.md",
+    "reportFolder": "./",
+    "reportTempFolder": "./temp/",
+    "includeForgottenExports": true
+  },
+  
+  "docModel": {
+    "enabled": true,
+    "apiJsonFilePath": "./<unscopedPackageName>.api.json"
+  },
+  
+  "dtsRollup": {
+    "enabled": true,
+    "untrimmedFilePath": "./dist/<unscopedPackageName>.d.ts",
+    "betaTrimmedFilePath": "",
+    "publicTrimmedFilePath": ""
+  },
+  
+  "tsdocMetadata": {
+    "enabled": false
+  },
+  
+  "messages": {
+    "compilerMessageReporting": {
+      "default": {
+        "logLevel": "warning"
+      }
+    },
+    "extractorMessageReporting": {
+      "default": {
+        "logLevel": "warning"
+      },
+      "ae-missing-release-tag": {
+        "logLevel": "none"
+      },
+      "ae-forgotten-export": {
+        "logLevel": "warning"
+      }
+    },
+    "tsdocMessageReporting": {
+      "default": {
+        "logLevel": "warning"
+      }
+    }
+  }
+}

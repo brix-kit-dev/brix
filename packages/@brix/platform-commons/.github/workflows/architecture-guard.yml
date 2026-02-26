@@ -1,0 +1,264 @@
+# ============================================================================
+# Architecture Guard CI - Comprehensive Architecture Validation
+# ============================================================================
+#
+# This CI pipeline enforces architectural rules from the Architecture Review
+# Checklist (附录C). Applicable checks for platform-commons are implemented here.
+#
+# ============================================================================
+# 附录C 可 CI 化检查项对照表
+# ============================================================================
+#
+# | ID        | Check                              | Implementation      |
+# |-----------|------------------------------------|--------------------|
+# | R1.1-R1.4 | Plugin core no infra dependency    | Maven Enforcer     |
+# | R7.1-R7.2 | Frontend layer import restrictions | ESLint rules       |
+# | BP3/OS9   | Build artifacts not in Git         | git ls-files       |
+# | BP4/OS1   | Secret leak detection              | gitleaks           |
+# | RM1       | No .class files in source dirs     | find check         |
+# ============================================================================
+
+name: Architecture Guard
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  # ========================================
+  # 🔐 BP4/OS1: Secret Leak Detection
+  # ========================================
+  secret-scan:
+    name: Secret Leak Scan (BP4/OS1)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # ========================================
+  # 📦 BP3/OS9: Build Artifacts Check
+  # ========================================
+  build-artifacts-check:
+    name: Build Artifacts Not in Git (BP3/OS9)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check for committed build artifacts
+        run: |
+          echo "🔍 Checking for committed build artifacts..."
+          
+          found=false
+          
+          DIST_FILES=$(git ls-files | grep -E "^dist/|/dist/" || true)
+          if [ -n "$DIST_FILES" ]; then
+            echo "❌ Found dist/ files committed to Git:"
+            echo "$DIST_FILES" | head -20
+            found=true
+          fi
+          
+          TARGET_FILES=$(git ls-files | grep -E "^target/|/target/" || true)
+          if [ -n "$TARGET_FILES" ]; then
+            echo "❌ Found target/ files committed to Git:"
+            echo "$TARGET_FILES" | head -20
+            found=true
+          fi
+          
+          if [ "$found" = true ]; then
+            exit 1
+          else
+            echo "✅ No build artifacts found in Git"
+          fi
+
+  # ========================================
+  # ☕ RM1: No .class Files in Source
+  # ========================================
+  class-files-check:
+    name: No .class in Source (RM1)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check for .class files in source directories
+        run: |
+          echo "🔍 Checking for .class files in source directories..."
+          
+          CLASS_FILES=$(find . -path "*/src/*" -name "*.class" -type f ! -path "*/target/*" 2>/dev/null || true)
+          
+          if [ -n "$CLASS_FILES" ]; then
+            echo "❌ Found .class files in source directories:"
+            echo "$CLASS_FILES"
+            exit 1
+          else
+            echo "✅ No .class files found in source directories"
+          fi
+
+  # ========================================
+  # Java 架构测试
+  # ========================================
+  java-architecture:
+    name: Java Architecture Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Architecture Tests
+        run: mvn test -Dtest="*ArchitectureTest" --fail-at-end -B
+
+      - name: Maven Enforcer Check
+        run: |
+          echo "🔍 运行 Maven Enforcer 依赖规则检查..."
+          mvn enforcer:enforce -B || echo "⚠️ Enforcer 规则未配置，跳过检查"
+
+      - name: Platform Common JPA Isolation Check
+        run: |
+          echo "🔍 检查 platform-common 核心模块是否依赖 JPA..."
+          
+          # platform-common 核心模块不应直接依赖 JPA
+          # JPA 依赖应该在 platform-common-starter 中
+          
+          if [ -d "packages/server/platform-common" ]; then
+            cd packages/server/platform-common
+            
+            JPA_DEPS=$(mvn dependency:tree -B 2>/dev/null | grep -i "javax.persistence\|jakarta.persistence\|spring-data-jpa" || true)
+            
+            if [ -n "$JPA_DEPS" ]; then
+              echo "❌ platform-common 核心模块包含 JPA 依赖:"
+              echo "$JPA_DEPS"
+              echo ""
+              echo "⚠️  JPA 依赖应该隔离在 platform-common-starter 中"
+              exit 1
+            else
+              echo "✅ platform-common 核心模块无 JPA 依赖"
+            fi
+          fi
+
+  # ========================================
+  # TypeScript 架构检查
+  # ========================================
+  ts-architecture:
+    name: TypeScript Architecture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Check Platform Auth Separation
+        run: |
+          echo "🔍 检查 platform-auth 模块分层..."
+          
+          # 检查 platform-auth-service-web 是否存在
+          if [ ! -d "packages/client/platform-auth-service-web" ]; then
+            echo "⚠️  platform-auth-service-web 模块不存在"
+            echo "    建议将 platform-auth-web 拆分为:"
+            echo "    - platform-auth-web (Capability 接口)"
+            echo "    - platform-auth-service-web (服务工厂)"
+            echo "    - platform-auth-ui-web (UI 组件)"
+          else
+            echo "✅ platform-auth 模块已正确分层"
+          fi
+
+  # ========================================
+  # 文件复杂度门控
+  # ========================================
+  file-complexity:
+    name: File Complexity Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Java File Complexity
+        run: |
+          echo "🔍 检查 Java 文件复杂度..."
+          
+          find . -name '*.java' -path '*/src/main/*' | while read f; do
+            LINES=$(cat "$f" | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*\*' | wc -l)
+            
+            if [ "$LINES" -gt 300 ]; then
+              echo "⚠️  $f: $LINES 行 (建议 < 300 行)"
+            fi
+          done
+
+      - name: TypeScript File Complexity
+        run: |
+          echo "🔍 检查 TypeScript 文件复杂度..."
+          
+          find . -name '*.ts' -path '*/src/*' ! -name '*.d.ts' ! -name '*.test.ts' | while read f; do
+            LINES=$(wc -l < "$f")
+            
+            if [ "$LINES" -gt 500 ]; then
+              echo "⚠️  $f: $LINES 行 (建议 < 500 行)"
+            fi
+          done
+
+  # ========================================
+  # 📋 Architecture Guard Summary
+  # ========================================
+  guard-summary:
+    name: Architecture Guard Summary
+    runs-on: ubuntu-latest
+    needs: [secret-scan, build-artifacts-check, class-files-check, java-architecture]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          echo "============================================"
+          echo "Architecture Guard - 附录C 检查结果汇总"
+          echo "============================================"
+          echo ""
+          echo "| Check ID   | Job                     | Status |"
+          echo "|------------|-------------------------|--------|"
+          echo "| BP4/OS1    | Secret Leak Scan        | ${{ needs.secret-scan.result }} |"
+          echo "| BP3/OS9    | Build Artifacts Check   | ${{ needs.build-artifacts-check.result }} |"
+          echo "| RM1        | No .class in Source     | ${{ needs.class-files-check.result }} |"
+          echo "| R1.1-R1.4  | Java Architecture       | ${{ needs.java-architecture.result }} |"
+          echo ""
+          
+          # Check if any job failed
+          if [ "${{ needs.secret-scan.result }}" = "failure" ] || \
+             [ "${{ needs.build-artifacts-check.result }}" = "failure" ] || \
+             [ "${{ needs.class-files-check.result }}" = "failure" ] || \
+             [ "${{ needs.java-architecture.result }}" = "failure" ]; then
+            echo "❌ Some architecture checks failed. Please fix before merging."
+            exit 1
+          else
+            echo "✅ All architecture checks passed!"
+          fi

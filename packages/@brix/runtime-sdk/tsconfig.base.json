@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    /* 基础配置 */
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    
+    /* 严格模式 */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    
+    /* 输出配置 */
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    
+    /* JSX */
+    "jsx": "react-jsx",
+    
+    /* 路径映射 */
+    "baseUrl": ".",
+    "paths": {
+      "@brix/runtime-sdk-api-web": ["./runtime-sdk-api-web/src"],
+      "@brix/runtime-orchestrator-web": ["./runtime-orchestrator-web/src"],
+      "@brix/runtime-manifest-web": ["./runtime-manifest-web/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", "coverage"]
+}

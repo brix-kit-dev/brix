@@ -1,0 +1,105 @@
+# ==========================================================================
+# Gateway 可观测性配置
+#
+# 包含：分布式链路追踪（OpenTelemetry + Jaeger）、健康探针、
+#       日志级别、Actuator 端点
+# ==========================================================================
+
+gateway:
+  # ========== P106: 分布式链路追踪配置（OpenTelemetry + Jaeger）==========
+  # Micrometer Tracing + OpenTelemetry + Jaeger 实现分布式追踪
+  tracing:
+    # 是否启用链路追踪
+    enabled: ${GATEWAY_TRACING_ENABLED:true}
+    # 服务名称（在 Jaeger UI 中显示）
+    service-name: ${GATEWAY_TRACING_SERVICE_NAME:platform-gateway}
+    # 采样率（0.0 ~ 1.0）
+    # 生产环境高流量建议设置 0.1（10%采样）
+    sampling-probability: ${GATEWAY_TRACING_SAMPLING:1.0}
+    # 是否将 traceId 注入日志 MDC
+    log-mdc-enabled: ${GATEWAY_TRACING_MDC_ENABLED:true}
+    # OTLP 配置（用于 Jaeger）
+    otlp:
+      # Jaeger OTLP gRPC 端点（Jaeger 1.35+ 原生支持）
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+      # 导出超时（毫秒）
+      timeout: 10000
+      # 压缩方式（none, gzip）
+      compression: none
+    # 传播格式配置
+    propagation:
+      # W3C: W3C Trace Context 标准（推荐，CNCF 标准）
+      # B3: Zipkin B3 单头格式（兼容旧系统）
+      # B3_MULTI: Zipkin B3 多头格式
+      type: ${GATEWAY_TRACING_PROPAGATION:W3C}
+    # 排除追踪的路径（如健康检查）
+    excluded-paths:
+      - /actuator/**
+      - /health/**
+      - /ready/**
+      - /live/**
+
+  # ========== Gateway 健康探针配置 ==========
+  health:
+    # 是否启用健康检查增强功能
+    enabled: ${GATEWAY_HEALTH_ENABLED:true}
+    # 是否启用插件引擎健康检查（就绪探针依赖）
+    engine-check-enabled: ${GATEWAY_HEALTH_ENGINE_CHECK_ENABLED:true}
+    # 插件引擎服务 URL
+    engine-url: ${PLUGIN_ENGINE_URL:http://localhost:8085}
+    # 插件引擎健康检查路径
+    engine-health-path: ${GATEWAY_HEALTH_ENGINE_PATH:/actuator/health/liveness}
+    # 插件引擎健康检查超时（毫秒）
+    engine-timeout-ms: ${GATEWAY_HEALTH_ENGINE_TIMEOUT_MS:3000}
+    # 是否启用 Redis 健康检查
+    redis-check-enabled: ${GATEWAY_HEALTH_REDIS_ENABLED:true}
+    # 健康状态缓存 TTL（秒）
+    cache-ttl-seconds: ${GATEWAY_HEALTH_CACHE_TTL:5}
+    # 是否显示详细信息
+    show-details: ${GATEWAY_HEALTH_SHOW_DETAILS:true}
+
+logging:
+  level:
+    root: INFO
+    io.brix.platform: DEBUG
+    org.springframework.cloud.gateway: INFO
+
+# ========== Actuator 健康探针配置（M006 MVP 红线）==========
+# MVP 红线要求：
+#   - Gateway: /actuator/health + liveness/readiness
+#   - 就绪探针需依赖 Engine 健康状态
+management:
+  endpoints:
+    web:
+      exposure:
+        # 暴露健康检查和信息端点
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      # 显示完整健康详情（生产环境可设为 never 或 when_authorized）
+      show-details: ${ACTUATOR_HEALTH_SHOW_DETAILS:always}
+      # 显示所有健康指示器的组件
+      show-components: ${ACTUATOR_HEALTH_SHOW_COMPONENTS:always}
+      # 探针配置
+      probes:
+        enabled: true
+      # 分组配置
+      group:
+        # 存活探针组 - 仅检查应用本身是否存活
+        liveness:
+          include: livenessState
+          show-details: never
+        # 就绪探针组 - 检查依赖服务是否就绪
+        readiness:
+          include: readinessState,redis,pluginEngine
+          show-details: always
+  health:
+    # 启用 liveness/readiness 状态
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    # 启用 Redis 健康检查
+    redis:
+      enabled: ${GATEWAY_HEALTH_REDIS_ENABLED:true}

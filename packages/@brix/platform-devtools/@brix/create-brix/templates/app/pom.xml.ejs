@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  v3.0 业务应用模块父 POM
+  
+  模块结构：
+  - <%= name %>-api:  API 模块（DTO、Event、Request）
+  - <%= name %>-core: 业务逻辑模块
+  - <%= name %>-ui:   前端界面模块（NPM 包）
+  - <%= name %>-app:  可独立运行的启动模块
+  
+  遵循 v3.0 运行壳架构设计蓝图：
+  - 仅依赖 io.runtime:runtime-sdk（能力契约）
+  - 不直接依赖 Kafka/Redis/HTTP 等基础设施
+  
+  @author <%= author %>
+  @date <%= date %>
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 父 POM：继承 shinwa-solutions 统一管理 -->
+    <parent>
+        <groupId>com.shinwa.solutions</groupId>
+        <artifactId>shinwa-solutions</artifactId>
+        <version>3.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>com.shinwa.app</groupId>
+    <artifactId><%= fullName %></artifactId>
+    <version><%= version %></version>
+    <packaging>pom</packaging>
+
+    <name><%= displayName %></name>
+    <description><%= description %></description>
+
+    <!-- 子模块 -->
+    <modules>
+<% if (withApi) { -%>
+        <<%= name %>-api></<%= name %>-api>
+<% } -%>
+<% if (withCore) { -%>
+        <<%= name %>-core></<%= name %>-core>
+<% } -%>
+<% if (withApp) { -%>
+        <<%= name %>-app></<%= name %>-app>
+<% } -%>
+    </modules>
+
+    <properties>
+        <!-- 版本管理 -->
+        <runtime-sdk.version>3.0.0-SNAPSHOT</runtime-sdk.version>
+        <spring-boot.version>3.2.0</spring-boot.version>
+        
+        <!-- 编译配置 -->
+        <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- 依赖管理 -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- v3.0 运行时 SDK（能力契约） -->
+            <dependency>
+                <groupId>io.runtime</groupId>
+                <artifactId>runtime-sdk-api</artifactId>
+                <version>${runtime-sdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.runtime</groupId>
+                <artifactId>runtime-sdk</artifactId>
+                <version>${runtime-sdk.version}</version>
+            </dependency>
+            
+            <!-- 内部模块 -->
+<% if (withApi) { -%>
+            <dependency>
+                <groupId>com.shinwa.app</groupId>
+                <artifactId><%= name %>-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+<% } -%>
+<% if (withCore) { -%>
+            <dependency>
+                <groupId>com.shinwa.app</groupId>
+                <artifactId><%= name %>-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+<% } -%>
+            
+            <!-- Spring Boot BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.11.0</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <encoding>UTF-8</encoding>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

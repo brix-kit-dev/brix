@@ -1,0 +1,137 @@
+/*
+ * Copyright 2026 Runtime SDK Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.runtime.manifest.model;
+
+/**
+ * Event Subscribe Configuration.
+ *
+ * <p>Declares events subscribed by the module and their handlers for declarative event binding.</p>
+ * <p>【事件订阅配置】声明模块订阅的事件及其处理器，实现声明式事件绑定。</p>
+ *
+ * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
+ * to keep each file under 500 lines per code quality guidelines.</p>
+ *
+ * @author Runtime SDK Team
+ * @since 3.0.0
+ * @see EventsConfig
+ */
+public class EventSubscribeConfig {
+
+    /**
+     * Event type (fully qualified class name).
+     * 事件类型（完整类名）
+     */
+    private String type;
+
+    /**
+     * Handler method (fully qualified class name.method name).
+     * 处理器方法（完整类名.方法名）
+     */
+    private String handler;
+
+    /**
+     * Retry configuration.
+     * 重试配置
+     */
+    private RetryConfig retry;
+
+    /**
+     * Whether idempotent handling is required.
+     * 是否要求幂等处理
+     */
+    private boolean idempotent = true;
+
+    /**
+     * Whether subscription is optional (no error if event doesn't exist).
+     * 是否可选订阅（事件不存在也不报错）
+     */
+    private boolean optional = false;
+
+    // ==================== Getters and Setters ====================
+
+    public String getType() { 
+        return type; 
+    }
+    
+    public void setType(String type) { 
+        this.type = type; 
+    }
+    
+    public String getHandler() { 
+        return handler; 
+    }
+    
+    public void setHandler(String handler) { 
+        this.handler = handler; 
+    }
+    
+    public RetryConfig getRetry() { 
+        return retry; 
+    }
+    
+    public void setRetry(RetryConfig retry) { 
+        this.retry = retry; 
+    }
+    
+    public boolean isIdempotent() { 
+        return idempotent; 
+    }
+    
+    public void setIdempotent(boolean idempotent) { 
+        this.idempotent = idempotent; 
+    }
+    
+    public boolean isOptional() { 
+        return optional; 
+    }
+    
+    public void setOptional(boolean optional) { 
+        this.optional = optional; 
+    }
+
+    // ==================== Convenience Methods ====================
+
+    /**
+     * Gets handler class name.
+     *
+     * @return Fully qualified handler class name
+     */
+    public String getHandlerClass() {
+        if (handler == null || !handler.contains(".")) {
+            return null;
+        }
+        int lastDot = handler.lastIndexOf('.');
+        return handler.substring(0, lastDot);
+    }
+
+    /**
+     * Gets handler method name.
+     *
+     * @return Handler method name
+     */
+    public String getHandlerMethod() {
+        if (handler == null || !handler.contains(".")) {
+            return handler;
+        }
+        int lastDot = handler.lastIndexOf('.');
+        return handler.substring(lastDot + 1);
+    }
+
+    @Override
+    public String toString() {
+        return "EventSubscribeConfig{type='" + type + "', handler='" + handler + "'}";
+    }
+}

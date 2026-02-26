@@ -1,0 +1,28 @@
+﻿{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "brix-platform/platform-commons"
+    }
+  ],
+  "commit": false,
+  "fixed": [],
+  "linked": [
+    [
+      "@brix/platform-auth-service-web",
+      "@brix/platform-auth-ui-web",
+      "@brix/platform-auth-web",
+      "@brix/platform-navigation-web",
+      "@brix/platform-shared"
+    ]
+  ],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
+  }
+}
+

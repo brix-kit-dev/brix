@@ -1,0 +1,38 @@
+package <%= packageName %>.core.config;
+
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+
+/**
+ * <%= displayName %> 模块配置类
+ * 
+ * <p>模块的 Spring 配置入口，负责组件扫描和 JPA 仓储配置。</p>
+ * 
+ * <p>【v3.0 架构说明】</p>
+ * <ul>
+ *   <li>作为 Spring 配置类，由 Host 自动扫描加载</li>
+ *   <li>配置组件扫描范围为当前模块包</li>
+ *   <li>配置 JPA 仓储扫描</li>
+ * </ul>
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ * @version <%= version %>
+ */
+@Configuration
+@ComponentScan(basePackages = "<%= packageName %>.core")
+@EnableJpaRepositories(basePackages = "<%= packageName %>.core.repository")
+public class <%= classPrefix %>ModuleConfiguration {
+
+    /**
+     * 模块 ID 常量
+     * <p>与 module-manifest.yaml 中的 id 保持一致</p>
+     */
+    public static final String MODULE_ID = "<%= fullName %>";
+
+    /**
+     * 模块版本常量
+     */
+    public static final String MODULE_VERSION = "<%= version %>";
+}

@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix</groupId>
+        <artifactId>infra-adapters</artifactId>
+        <version>3.1.0-SNAPSHOT</version>
+        <relativePath>../../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>infra-adapter-kafka-outbox</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Brix Infra Adapter - Kafka Outbox</name>
+    <description>
+        Outbox 模式事件发布适配器（开源）
+        
+        本模块提供基于 Outbox 模式的事务性事件发布机制，保证
+        业务操作与事件发布的数据一致性（AtLeastOnce 语义）。
+        
+        核心组件：
+        - OutboxEvent：Outbox 事件 JPA 实体
+        - OutboxEventPublisher：定时发布器（processOutbox / retryFailedEvents / cleanupOldEvents）
+        - OutboxEventRepository：Spring Data JPA 仓储
+        - OutboxAutoConfiguration：Spring Boot 自动配置
+        
+        设计说明：
+        Outbox 是跨基础设施的模式（需要 DB + MQ 协同），独立为模块以避免
+        infra-adapter-kafka 引入 JPA 依赖。本模块作为 infra-adapter-kafka
+        的可选增强，需要同时引入 kafka 适配器和 JPA 依赖方可激活。
+        
+        命名规范：
+        - Maven GroupId: io.brix（品牌）
+        - Java Package: io.infra.adapter.outbox（中立）
+        
+        属于开源平台层（Layer 2.5: Adapter 层）
+    </description>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <dependencies>
+        <!-- ========== Brix Runtime SDK API（开源核心层） ========== -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+        </dependency>
+
+        <!-- ========== 依赖 Kafka Core（同一聚合模块内的子模块依赖） ========== -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>infra-adapter-kafka-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- ========== Spring Boot ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ========== 数据库（Outbox 模式核心依赖） ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- ========== Kafka（发送事件） ========== -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- ========== JSON 序列化 ========== -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <!-- ========== 日志 ========== -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- ========== 测试 ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

@@ -1,0 +1,56 @@
+# ============================================================================
+# Platform Commons - pnpm Workspace 配置
+# ============================================================================
+#
+# 【说明】
+# platform-commons 是前后端共用的平台通用能力仓库。
+# 后端模块使用 Maven 构建，前端模块使用 pnpm workspace 管理。
+#
+# 【目录结构】
+# packages/
+# ├── client/              # 客户端能力实现（Web/Mobile）
+# │   ├── platform-auth-web/
+# │   ├── platform-eventbus-web/
+# │   ├── platform-state-web/
+# │   ├── platform-navigation-web/
+# │   ├── platform-router-web/
+# │   ├── platform-i18n-web/
+# │   └── platform-shared/
+# │
+# └── server/              # 服务端能力实现（Java）
+#     ├── platform-auth/
+#     ├── platform-gateway/
+#     ├── platform-config/
+#     └── platform-observability/
+#
+# 【命名规范】
+# - platform-xxx-web：Web 端能力实现
+# - platform-xxx-mobile：移动端能力实现（预留）
+# - platform-shared：多端共享代码
+#
+# ============================================================================
+
+packages:
+  # ═══════ 客户端能力实现模块（packages/client）═══════
+  - 'packages/client/platform-router-web'          # 路由服务（平台内部）
+  - 'packages/client/platform-navigation-web'      # 导航能力实现
+  - 'packages/client/platform-state-web'           # 插件状态能力实现
+  - 'packages/client/platform-eventbus-web'        # 事件总线能力实现
+  - 'packages/client/platform-auth-web'            # 认证能力实现（v3.1 拆分后仅保留 AuthCapabilityImpl）
+  - 'packages/client/platform-auth-ui-web'         # 认证 UI 组件（v3.1 从 platform-auth-web 拆分）
+  - 'packages/client/platform-auth-service-web'    # 认证服务工厂（v3.1 从 platform-auth-web 拆分）
+  - 'packages/client/platform-i18n-web'            # 国际化能力实现
+
+  # ═══════ 多端共享模块 ═══════
+  - 'packages/client/platform-shared'              # 客户端共享代码
+
+  # ═══════ Mobile 能力实现模块（预留）═══════
+  # - 'packages/client/platform-navigation-mobile'
+  # - 'packages/client/platform-auth-mobile'
+  # - 'packages/client/platform-theme-mobile'
+  # platform-shell-mobile 已移至 shinwa-platform/shinwa-platform-shell-mobile（私有模块）
+
+  # ═══════ 注意 ═══════
+  # - platform-theme-web 已合并至 shinwa-platform/shinwa-platform-shell-web
+  # - platform-shell-web 已移至 shinwa-platform/shinwa-platform-shell-web（私有模块）
+  # - platform-layout-web 已合并至 shinwa-platform/shinwa-platform-shell-web

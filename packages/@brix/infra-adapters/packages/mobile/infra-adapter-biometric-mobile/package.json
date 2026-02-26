@@ -1,0 +1,54 @@
+{
+  "name": "@brix/infra-adapter-biometric-mobile",
+  "version": "3.1.0",
+  "description": "Biometric authentication adapter for Brix Runtime SDK Mobile",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.72.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "react-native": "^0.73.0",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2"
+  },
+  "keywords": [
+    "brix",
+    "runtime-sdk",
+    "biometric",
+    "fingerprint",
+    "face-id",
+    "mobile",
+    "react-native"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix/infra-adapters.git",
+    "directory": "packages/mobile/infra-adapter-biometric-mobile"
+  },
+  "sideEffects": false
+}

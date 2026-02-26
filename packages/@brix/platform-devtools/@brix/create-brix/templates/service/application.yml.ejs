@@ -1,0 +1,104 @@
+# =========================================================
+# <%= displayName %> 服务配置
+# 生成时间: <%= date %>
+# =========================================================
+
+# ==================== 服务注册配置 ====================
+shinwa:
+  service:
+    name: <%= fullName %>
+    base-url: ${PLATFORM_HOST_URL:<%= baseUrl %>}
+    heartbeat-interval: <%= heartbeatInterval %>
+    registration-enabled: true
+    
+    # API 认证（建议使用环境变量）
+    api-key: <%= apiKey %>
+    api-secret: <%= apiSecret %>
+    
+    # 路由扫描
+    route-scan:
+      enabled: true
+      base-packages:
+<% plugins.forEach(plugin => { %>
+        - com.shinwa.plugin.<%= plugin.name.replace('plugin-', '').replace(/-/g, '') %>
+<% }); %>
+<% if (plugins.length === 0) { %>
+        - com.shinwa.plugin
+<% } %>
+  
+  # API 版本配置
+  api:
+    version: ""
+    include-version-in-routes: false
+  
+  # CORS 配置 - 禁用，由网关统一处理
+  cors:
+    enabled: false
+
+# ==================== Spring 配置 ====================
+spring:
+  application:
+    name: ${shinwa.service.name}
+  
+  # 数据源配置（Docker 环境使用环境变量覆盖）
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shinwa_<%= name %>}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  # JPA 配置
+  jpa:
+    hibernate:
+      # update: 自动更新表结构（开发环境推荐）
+      # validate: 仅验证（生产环境推荐，配合 Flyway）
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  # Flyway 配置（生产环境启用）
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    baseline-on-migrate: true
+    locations:
+      - classpath:db/migration
+  
+  # Redis 配置
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+  
+  # Kafka 配置
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+# ==================== 服务器配置 ====================
+server:
+  port: ${SERVER_PORT:<%= port %>}
+  servlet:
+    context-path: /
+
+# ==================== Actuator 配置 ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# ==================== 日志配置 ====================
+logging:
+  level:
+    shinwa: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG

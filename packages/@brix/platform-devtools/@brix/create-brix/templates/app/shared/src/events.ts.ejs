@@ -1,0 +1,141 @@
+/**
+ * @file <%= displayName %> 事件类型定义
+ * @description 领域事件类型定义（前后端共享）
+ * @module @shinwa/<%= name %>-shared
+ * @version <%= version %>
+ *
+ * 【设计说明】
+ * 本文件定义 <%= displayName %> 的领域事件类型。
+ * 事件类型与后端 Java Event 类保持一致。
+ *
+ * 【使用方式】
+ * ```typescript
+ * import { <%= classPrefix.toUpperCase() %>_EVENTS, type <%= classPrefix %>CreatedEvent } from '@shinwa/<%= name %>-shared/events';
+ * 
+ * // 订阅事件
+ * eventBus.subscribe(<%= classPrefix.toUpperCase() %>_EVENTS.CREATED, (event: <%= classPrefix %>CreatedEvent) => {
+ *   console.log('Created:', event.payload.id);
+ * });
+ * ```
+ *
+ * 【架构红线 R8】
+ * 事件发布必须通过 EventBusCapability，不允许直接 import EventEmitter
+ */
+
+import type { <%= classPrefix %> } from './types.js';
+
+// ============================================================================
+// 事件类型常量
+// ============================================================================
+
+/**
+ * <%= displayName %> 事件类型常量
+ *
+ * 命名规范：{module}:{entity}:{action}
+ */
+export const <%= classPrefix.toUpperCase() %>_EVENTS = {
+  /** 创建事件 */
+  CREATED: '<%= name %>:<%= name.replace(/-/g, '') %>:created',
+  /** 更新事件 */
+  UPDATED: '<%= name %>:<%= name.replace(/-/g, '') %>:updated',
+  /** 删除事件 */
+  DELETED: '<%= name %>:<%= name.replace(/-/g, '') %>:deleted',
+  /** 状态变更事件 */
+  STATUS_CHANGED: '<%= name %>:<%= name.replace(/-/g, '') %>:status-changed',
+} as const;
+
+/**
+ * 事件类型联合
+ */
+export type <%= classPrefix %>EventType = typeof <%= classPrefix.toUpperCase() %>_EVENTS[keyof typeof <%= classPrefix.toUpperCase() %>_EVENTS];
+
+// ============================================================================
+// 事件载荷类型
+// ============================================================================
+
+/**
+ * 基础事件结构
+ */
+export interface Base<%= classPrefix %>Event<T = unknown> {
+  /** 事件 ID（UUID） */
+  eventId: string;
+  /** 事件类型 */
+  type: <%= classPrefix %>EventType;
+  /** 事件时间戳（ISO 8601） */
+  timestamp: string;
+  /** 事件来源模块 */
+  source: '<%= name %>';
+  /** 事件载荷 */
+  payload: T;
+  /** 租户 ID */
+  tenantId?: string;
+  /** 触发用户 ID */
+  userId?: string;
+  /** 追踪 ID（用于链路追踪） */
+  traceId?: string;
+}
+
+/**
+ * <%= displayName %> 创建事件
+ */
+export interface <%= classPrefix %>CreatedEvent extends Base<%= classPrefix %>Event<{
+  /** 新创建的资源 ID */
+  id: number;
+  /** 资源名称 */
+  name: string;
+  /** 创建人 */
+  createdBy: string;
+}> {
+  type: typeof <%= classPrefix.toUpperCase() %>_EVENTS.CREATED;
+}
+
+/**
+ * <%= displayName %> 更新事件
+ */
+export interface <%= classPrefix %>UpdatedEvent extends Base<%= classPrefix %>Event<{
+  /** 资源 ID */
+  id: number;
+  /** 变更字段列表 */
+  changedFields: string[];
+  /** 更新前的值（部分字段） */
+  before: Partial<<%= classPrefix %>>;
+  /** 更新后的值（部分字段） */
+  after: Partial<<%= classPrefix %>>;
+}> {
+  type: typeof <%= classPrefix.toUpperCase() %>_EVENTS.UPDATED;
+}
+
+/**
+ * <%= displayName %> 删除事件
+ */
+export interface <%= classPrefix %>DeletedEvent extends Base<%= classPrefix %>Event<{
+  /** 被删除的资源 ID */
+  id: number;
+  /** 删除原因 */
+  reason?: string;
+}> {
+  type: typeof <%= classPrefix.toUpperCase() %>_EVENTS.DELETED;
+}
+
+/**
+ * <%= displayName %> 状态变更事件
+ */
+export interface <%= classPrefix %>StatusChangedEvent extends Base<%= classPrefix %>Event<{
+  /** 资源 ID */
+  id: number;
+  /** 变更前状态 */
+  fromStatus: string;
+  /** 变更后状态 */
+  toStatus: string;
+}> {
+  type: typeof <%= classPrefix.toUpperCase() %>_EVENTS.STATUS_CHANGED;
+}
+
+/**
+ * 所有事件类型联合
+ */
+export type <%= classPrefix %>Event =
+  | <%= classPrefix %>CreatedEvent
+  | <%= classPrefix %>UpdatedEvent
+  | <%= classPrefix %>DeletedEvent
+  | <%= classPrefix %>StatusChangedEvent;

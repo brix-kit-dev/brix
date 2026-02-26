@@ -1,0 +1,70 @@
+/**
+ * <%= displayName %> Mobile - 国际化配置
+ * 
+ * @module @shinwa/<%= name %>-mobile
+ * @generated <%= date %>
+ */
+
+/**
+ * 国际化资源定义
+ */
+export const resources = {
+  zh: {
+    translation: {
+      '<%= name.replace('plugin-', '') %>': {
+        title: '<%= displayName %>',
+        list: {
+          title: '列表',
+          loading: '加载中...',
+          empty: '暂无数据',
+          error: '加载失败',
+          retry: '重试',
+        },
+        detail: {
+          title: '详情',
+          loading: '加载中...',
+          notFound: '数据不存在',
+          back: '返回',
+          description: '描述',
+          createdAt: '创建时间',
+          status: '状态',
+        },
+        status: {
+          active: '启用',
+          inactive: '禁用',
+          pending: '待处理',
+        },
+      },
+    },
+  },
+  en: {
+    translation: {
+      '<%= name.replace('plugin-', '') %>': {
+        title: '<%= displayName %>',
+        list: {
+          title: 'List',
+          loading: 'Loading...',
+          empty: 'No data',
+          error: 'Load failed',
+          retry: 'Retry',
+        },
+        detail: {
+          title: 'Detail',
+          loading: 'Loading...',
+          notFound: 'Data not found',
+          back: 'Back',
+          description: 'Description',
+          createdAt: 'Created At',
+          status: 'Status',
+        },
+        status: {
+          active: 'Active',
+          inactive: 'Inactive',
+          pending: 'Pending',
+        },
+      },
+    },
+  },
+};
+
+export default resources;

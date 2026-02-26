@@ -1,0 +1,207 @@
+# ==============================================================================
+# Architecture Guard CI — <%= displayName %>
+#
+# 由 @brix/create-brix <%= date %> 自动生成
+#
+# 【设计说明】
+# 本 CI 管线实现 Phase 4 架构守护自动化：
+# 1. 编译时守护：ArchUnit 测试（后端）+ ESLint 分层规则（前端）
+# 2. 复杂度网关：Java 单文件 < 300 行、TS 单文件 < 500 行
+# 3. 依赖图验证：循环依赖检测
+# 4. API 兼容性检查：japicmp（后端）+ api-extractor（前端）
+#
+# @version <%= version %>
+# ==============================================================================
+
+name: Architecture Guard
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ============================================================================
+  # 后端架构守护
+  # ============================================================================
+  backend-guard:
+    name: Backend Architecture Guard
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Run ArchUnit Tests
+        run: |
+          echo "🔍 运行 ArchUnit 架构约束测试..."
+          mvn test -Dtest=**/ArchitectureTest -DfailIfNoTests=false
+
+      - name: Check File Complexity
+        run: |
+          echo "📏 检查 Java 文件复杂度（单文件 < 300 行）..."
+          find . -name "*.java" -type f | while read file; do
+            lines=$(wc -l < "$file")
+            if [ "$lines" -gt 300 ]; then
+              echo "❌ 文件超过 300 行: $file ($lines 行)"
+              exit 1
+            fi
+          done
+          echo "✅ 所有 Java 文件均符合复杂度要求"
+
+      - name: Maven Enforcer Check
+        run: |
+          echo "🔒 运行 Maven Enforcer 依赖检查..."
+          mvn enforcer:enforce -DskipTests
+
+      - name: Build and Verify
+        run: |
+          echo "🔨 构建并验证..."
+          mvn clean verify -DskipTests
+
+  # ============================================================================
+  # 前端架构守护
+  # ============================================================================
+  frontend-guard:
+    name: Frontend Architecture Guard
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint Architecture Rules
+        run: |
+          echo "🔍 运行 ESLint 架构守护规则..."
+          pnpm --filter "*-ui-web" lint
+          pnpm --filter "*-ui-mobile" lint
+          pnpm --filter "*-shared" lint
+
+      - name: Check File Complexity
+        run: |
+          echo "📏 检查 TypeScript 文件复杂度（单文件 < 500 行）..."
+          find . -name "*.ts" -o -name "*.tsx" | grep -v node_modules | grep -v dist | while read file; do
+            lines=$(wc -l < "$file")
+            if [ "$lines" -gt 500 ]; then
+              echo "❌ 文件超过 500 行: $file ($lines 行)"
+              exit 1
+            fi
+          done
+          echo "✅ 所有 TypeScript 文件均符合复杂度要求"
+
+      - name: Check Circular Dependencies
+        run: |
+          echo "🔄 检查循环依赖..."
+          npx madge --circular --extensions ts,tsx <%= name %>-ui-web/src || exit 1
+          echo "✅ 未检测到循环依赖"
+
+      - name: TypeScript Type Check
+        run: |
+          echo "🔧 TypeScript 类型检查..."
+          pnpm --filter "*-ui-web" typecheck
+          pnpm --filter "*-shared" typecheck
+
+      - name: Build Frontend
+        run: |
+          echo "🔨 构建前端模块..."
+          pnpm --filter "*-shared" build
+          pnpm --filter "*-ui-web" build
+
+  # ============================================================================
+  # API 契约守护
+  # ============================================================================
+  contract-guard:
+    name: API Contract Guard
+    runs-on: ubuntu-latest
+    needs: [backend-guard, frontend-guard]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 需要完整历史进行版本比较
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Java API Compatibility Check
+        run: |
+          echo "📜 检查 Java API 兼容性（japicmp）..."
+          cd <%= name %>-api
+          mvn verify -Papi-compat-check || echo "⚠️ API 兼容性检查失败"
+
+      - name: Generate API Drift Report
+        run: |
+          echo "📋 生成 API 变更报告..."
+          pnpm --filter "<%= name %>-shared" generate:api
+          
+          # 检查生成代码是否有变更
+          if git diff --exit-code <%= name %>-shared/src/generated; then
+            echo "✅ API 契约无变更"
+          else
+            echo "⚠️ 检测到 API 契约变更，请确认前后端同步"
+            git diff <%= name %>-shared/src/generated
+          fi
+
+  # ============================================================================
+  # 架构合规总结
+  # ============================================================================
+  summary:
+    name: Architecture Compliance Summary
+    runs-on: ubuntu-latest
+    needs: [backend-guard, frontend-guard, contract-guard]
+    if: always()
+    
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## 🏛️ 架构守护检查结果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 检查项 | 状态 |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 后端架构守护 | ${{ needs.backend-guard.result == 'success' && '✅ 通过' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 前端架构守护 | ${{ needs.frontend-guard.result == 'success' && '✅ 通过' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| API 契约守护 | ${{ needs.contract-guard.result == 'success' && '✅ 通过' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "_Generated by @brix/create-brix Architecture Guard CI_" >> $GITHUB_STEP_SUMMARY

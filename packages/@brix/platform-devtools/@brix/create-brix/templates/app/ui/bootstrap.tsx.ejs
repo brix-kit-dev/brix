@@ -1,0 +1,17 @@
+/**
+ * <%= displayName %> UI 模块 - 应用入口
+ * 
+ * Module Federation 要求异步加载入口，避免共享依赖加载问题
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ */
+import('./App').then(({ default: App }) => {
+  import('react-dom/client').then(({ createRoot }) => {
+    const container = document.getElementById('root');
+    if (container) {
+      const root = createRoot(container);
+      root.render(<App />);
+    }
+  });
+});

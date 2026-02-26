@@ -1,0 +1,18 @@
+# =====================================================================
+# Brix Platform Gateway - Spring Boot 3 AutoConfiguration Registration
+# =====================================================================
+# 本文件注册网关模块的所有自动配置类，使其可被 Spring Boot 3 自动发现
+# 
+# 核心配置
+io.brix.platform.gateway.config.CorsConfig
+io.brix.platform.gateway.config.GatewayRouteConfig
+# 
+# 弹性配置 (Resilience4j)
+io.brix.platform.gateway.config.resilience.ResilienceConfig
+io.brix.platform.gateway.config.resilience.RedisResilienceConfig
+io.brix.platform.gateway.config.resilience.bulkhead.BulkheadConfiguration
+io.brix.platform.gateway.config.resilience.circuitbreaker.CircuitBreakerConfiguration
+io.brix.platform.gateway.config.resilience.ratelimit.RateLimitConfig
+# 
+# 链路追踪配置 (OpenTelemetry)
+io.brix.platform.gateway.config.tracing.TracingConfig

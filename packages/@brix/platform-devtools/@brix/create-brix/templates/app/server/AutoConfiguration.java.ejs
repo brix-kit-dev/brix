@@ -1,0 +1,55 @@
+/*
+ * Copyright (c) 2024-2026 Shinwa Solutions. All rights reserved.
+ *
+ * <%= displayName %> Spring AutoConfiguration
+ * 
+ * 由 @brix/create-brix <%= date %> 自动生成
+ * 
+ * 【设计说明】
+ * 本 AutoConfiguration 遵循 v3.0 运行壳架构设计蓝图：
+ * 1. 仅做组件扫描配置，不包含任何业务逻辑
+ * 2. Host 层通过 spring.factories 自动发现并加载
+ * 3. 配置类保持极薄，所有实现在 Core 模块
+ * 
+ * 【架构红线 R6】
+ * - Host 层 AutoConfiguration 不允许包含 if-else 验证逻辑
+ * - Host 层 AutoConfiguration 不允许直接实例化 Service/Repository
+ * - 所有配置属性通过 @ConfigurationProperties 绑定
+ * 
+ * @author <%= author %>
+ * @since <%= date %>
+ */
+package <%= packageName %>.server.config;
+
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Import;
+
+import <%= packageName %>.core.config.<%= classPrefix %>ModuleConfiguration;
+
+/**
+ * <%= displayName %> 模块自动配置类
+ *
+ * <p>自动配置 <%= displayName %> 模块的所有组件。
+ * 通过 {@code @Import} 导入 Core 模块的配置类，确保业务逻辑在 Core 层。</p>
+ *
+ * <p>本配置类遵循「Host 层极薄」原则：
+ * <ul>
+ *   <li>不包含任何 {@code @Bean} 方法（Bean 定义在 Core 配置类）</li>
+ *   <li>不包含任何 if-else 验证逻辑</li>
+ *   <li>仅做组件扫描和配置导入</li>
+ * </ul>
+ * </p>
+ *
+ * @see <%= classPrefix %>ModuleConfiguration Core 模块配置类
+ */
+@AutoConfiguration
+@Import(<%= classPrefix %>ModuleConfiguration.class)
+@ComponentScan(basePackages = "<%= packageName %>.server.controller")
+@EnableConfigurationProperties(<%= classPrefix %>Properties.class)
+public class <%= classPrefix %>AutoConfiguration {
+    // 遵循「Host 层极薄」原则，本类不包含任何方法
+    // 所有 Bean 定义在 Core 模块的 ModuleConfiguration 中
+}

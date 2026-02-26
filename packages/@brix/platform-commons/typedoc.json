@@ -1,0 +1,53 @@
+﻿{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "packages/client/platform-auth-service-web/src/index.ts",
+    "packages/client/platform-auth-ui-web/src/index.ts",
+    "packages/client/platform-auth-web/src/index.ts",
+    "packages/client/platform-navigation-web/src/index.ts",
+    "packages/client/platform-shared/src/index.ts"
+  ],
+  "out": "docs/api",
+  "name": "Brix Platform Commons API Documentation",
+  "readme": "README.md",
+  "navigationLinks": {
+    "GitHub": "https://github.com/brix-platform/platform-commons",
+    "npm": "https://www.npmjs.com/org/brix"
+  },
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "excludeNotDocumented": false,
+  "categorizeByGroup": true,
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Authentication",
+    "Navigation",
+    "Components",
+    "Hooks",
+    "Types",
+    "Utils",
+    "Other"
+  ],
+  "sort": ["kind", "alphabetical"],
+  "visibilityFilters": {
+    "protected": false,
+    "@internal": false
+  },
+  "plugin": ["typedoc-plugin-markdown"],
+  "theme": "default",
+  "cleanOutputDir": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "requiredToBeDocumented": ["Class", "Interface", "Function", "TypeAlias", "Enum"],
+  "treatWarningsAsErrors": false,
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "moduleResolution": "bundler"
+  }
+}
+

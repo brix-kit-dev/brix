@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.brix</groupId>
+    <artifactId>runtime-sdk-parent</artifactId>
+    <version>3.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Brix Runtime SDK Parent</name>
+    <description>
+        Brix Runtime SDK - 运行壳能力契约与编排引擎
+        
+        本项目提供模块化应用的运行时抽象层，包含：
+        - 能力契约接口（Capability Contract）
+        - 模块生命周期管理
+        - 声明式事件分发
+        - Manifest 解析与校验
+        
+        模块仅依赖此 SDK，不依赖任何具体基础设施实现。
+    </description>
+    <url>https://github.com/aspect-brix/runtime-sdk</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <modules>
+        <module>runtime-sdk-api</module>
+        <!-- runtime-sdk 已合并到 runtime-sdk-api，保留目录但标记为废弃 -->
+        <!-- <module>runtime-sdk</module> -->
+        <module>runtime-manifest</module>
+        <module>runtime-orchestrator</module>
+    </modules>
+
+    <properties>
+        <!-- 编译配置 -->
+        <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- 依赖版本管理 -->
+        <slf4j.version>2.0.9</slf4j.version>
+        <jackson.version>2.16.1</jackson.version>
+        <snakeyaml.version>2.2</snakeyaml.version>
+        <jakarta-validation.version>3.0.2</jakarta-validation.version>
+        <junit.version>5.10.1</junit.version>
+        <mockito.version>5.8.0</mockito.version>
+        <assertj.version>3.27.7</assertj.version>
+        <!-- Spring Boot 版本（用于可选的自动配置支持） -->
+        <spring-boot.version>3.2.2</spring-boot.version>
+
+        <!-- Maven 插件版本 -->
+        <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.2.3</maven-surefire-plugin.version>
+        <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 内部模块依赖 -->
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>runtime-sdk-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!--
+            【9.4 修复】移除 runtime-sdk 幽灵依赖
+            runtime-sdk 模块已废弃并合并到 runtime-sdk-api，
+            该 artifactId 对应的模块目录已不存在，属于无效声明。
+            -->
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>runtime-orchestrator</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>runtime-manifest</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- 日志门面 -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+
+            <!-- JSON 序列化 -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jsr310</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <!-- YAML 解析 -->
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${snakeyaml.version}</version>
+            </dependency>
+
+            <!-- Jakarta 验证 API -->
+            <dependency>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>${jakarta-validation.version}</version>
+            </dependency>
+
+            <!-- Spring Boot AutoConfigure（可选，用于能力自动配置） -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-autoconfigure</artifactId>
+                <version>${spring-boot.version}</version>
+            </dependency>
+
+            <!-- Spring Web（可选，用于插件注册表 REST 端点） -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-web</artifactId>
+                <version>6.1.3</version>
+            </dependency>
+
+            <!-- 测试依赖 -->
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <encoding>${project.build.sourceEncoding}</encoding>
+                        <parameters>true</parameters>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${maven-source-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar-no-fork</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>${maven-javadoc-plugin.version}</version>
+                    <configuration>
+                        <charset>UTF-8</charset>
+                        <encoding>UTF-8</encoding>
+                        <docencoding>UTF-8</docencoding>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- 发布配置 -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!-- 
+        API 兼容性检查配置
+        
+        【架构说明】
+        实现 v3.0 架构蓝图 4.5-1 任务：
+        CI 增加 Java API 兼容性检查：使用 japicmp-maven-plugin 检测 {name}-api 模块的 Breaking Change
+        
+        【使用方法】
+        mvn verify -P api-compat-check -Dprevious.release.version=3.0.0
+        
+        【检查规则】
+        - 检查二进制兼容性（Binary Compatibility）
+        - 检查源码兼容性（Source Compatibility）
+        - Breaking Change 将导致构建失败
+        
+        【版本策略】
+        - {name}-api 模块使用语义化版本
+        - Breaking Change 需要大版本号升级
+        - @Deprecated 注解的 API 在下一个大版本移除
+        -->
+        <profile>
+            <id>api-compat-check</id>
+            <properties>
+                <!-- 上一个发布版本，CI 中动态设置 -->
+                <previous.release.version>3.0.0</previous.release.version>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>0.21.2</version>
+                        <configuration>
+                            <!-- 旧版本：上一个发布版本 -->
+                            <oldVersion>
+                                <dependency>
+                                    <groupId>io.brix</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${previous.release.version}</version>
+                                    <type>jar</type>
+                                </dependency>
+                            </oldVersion>
+                            <!-- 新版本：当前构建版本 -->
+                            <newVersion>
+                                <file>
+                                    <path>${project.build.directory}/${project.build.finalName}.jar</path>
+                                </file>
+                            </newVersion>
+                            <parameter>
+                                <!-- 仅显示修改的 API -->
+                                <onlyModified>true</onlyModified>
+                                <!-- 二进制不兼容时构建失败 -->
+                                <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                                <!-- 源码不兼容时构建失败 -->
+                                <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+                                <!-- 包含合成类（如 Lambda） -->
+                                <includeSynthetic>true</includeSynthetic>
+                                <!-- 忽略被标记为 @Deprecated 且即将删除的 API -->
+                                <ignoreMissingClasses>false</ignoreMissingClasses>
+                                <!-- 只检查公共 API -->
+                                <accessModifier>public</accessModifier>
+                                <!-- 排除内部包 -->
+                                <excludes>
+                                    <exclude>io.brix.internal</exclude>
+                                    <exclude>io.runtime.internal</exclude>
+                                </excludes>
+                            </parameter>
+                            <!-- 跳过非 API 模块 -->
+                            <skip>${skipApiCompatCheck}</skip>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>check-api-compatibility</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>cmp</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

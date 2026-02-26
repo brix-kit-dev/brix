@@ -1,0 +1,203 @@
+# ==============================================================================
+# <%= displayName %> Docker Compose 本地开发配置
+# ==============================================================================
+# 【v3.0 架构说明】
+# 用于本地开发环境的 Docker Compose 配置，包含服务及其依赖的基础设施
+# 
+# 使用方法：
+#   启动所有服务：docker-compose up -d
+#   仅启动基础设施：docker-compose up -d postgres redis kafka
+#   查看日志：docker-compose logs -f <%= name %>
+#   停止服务：docker-compose down
+# 
+# @author <%= author %>
+# @date <%= date %>
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # 应用服务
+  # ============================================================================
+  <%= name %>:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: <%= name %>
+    ports:
+      - "<%= serverPort %>:<%= serverPort %>"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVER_PORT=<%= serverPort %>
+<% if (features.database) { %>
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=<%= name.replace(/-/g, '_') %>
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+<% } %>
+<% if (features.messaging) { %>
+      - KAFKA_SERVERS=kafka:9092
+<% } %>
+<% if (features.cache) { %>
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+<% } %>
+    depends_on:
+<% if (features.database) { %>
+      postgres:
+        condition: service_healthy
+<% } %>
+<% if (features.cache) { %>
+      redis:
+        condition: service_healthy
+<% } %>
+<% if (features.messaging) { %>
+      kafka:
+        condition: service_healthy
+<% } %>
+    networks:
+      - <%= name %>-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:<%= serverPort %>/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+<% if (features.database) { %>
+  # ============================================================================
+  # PostgreSQL 数据库
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: <%= name %>-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=<%= name.replace(/-/g, '_') %>
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - <%= name %>-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+<% } %>
+
+<% if (features.cache) { %>
+  # ============================================================================
+  # Redis 缓存
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: <%= name %>-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - <%= name %>-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+<% } %>
+
+<% if (features.messaging) { %>
+  # ============================================================================
+  # Kafka 消息队列
+  # ============================================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: <%= name %>-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - <%= name %>-network
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: <%= name %>-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - <%= name %>-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+<% } %>
+
+<% if (features.storage) { %>
+  # ============================================================================
+  # MinIO 对象存储
+  # ============================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: <%= name %>-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - <%= name %>-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+<% } %>
+
+# ==============================================================================
+# 网络配置
+# ==============================================================================
+networks:
+  <%= name %>-network:
+    driver: bridge
+
+# ==============================================================================
+# 数据卷配置
+# ==============================================================================
+volumes:
+<% if (features.database) { %>
+  postgres-data:
+<% } %>
+<% if (features.cache) { %>
+  redis-data:
+<% } %>
+<% if (features.storage) { %>
+  minio-data:
+<% } %>

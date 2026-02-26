@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix</groupId>
+        <artifactId>infra-adapters</artifactId>
+        <version>3.1.0-SNAPSHOT</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>infra-adapter-kafka-parent</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Brix Infra Adapter - Kafka (Aggregator)</name>
+    <description>
+        Kafka 事件总线适配器聚合模块（开源）
+        
+        本聚合模块包含两个子模块：
+        - infra-adapter-kafka-core: Kafka EventBusCapability 核心实现
+        - infra-adapter-kafka-outbox: Outbox 事务性事件发布扩展（需要 JPA）
+        
+        架构说明：
+        Outbox 模式天然需要依赖 Kafka 发送能力，将其作为 Kafka 的子模块
+        符合"组合优于隔离"的务实设计原则。使用方可按需引入：
+        - 只需 Kafka: 引入 infra-adapter-kafka-core
+        - 需要 Outbox: 引入 infra-adapter-kafka-outbox（自动传递 core）
+        
+        属于开源平台层（Layer 2.5: Adapter 层）
+    </description>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <modules>
+        <module>infra-adapter-kafka-core</module>
+        <module>infra-adapter-kafka-outbox</module>
+    </modules>
+
+</project>

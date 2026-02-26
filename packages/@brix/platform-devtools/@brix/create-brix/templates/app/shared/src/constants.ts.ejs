@@ -1,0 +1,120 @@
+/**
+ * @file <%= displayName %> 常量定义
+ * @description 业务常量定义（状态枚举、权限代码、API 路径等）
+ * @module @shinwa/<%= name %>-shared
+ * @version <%= version %>
+ *
+ * 【设计说明】
+ * 本文件定义 <%= displayName %> 的业务常量。
+ * 常量在前后端共享，确保值的一致性。
+ */
+
+// ============================================================================
+// API 路径常量
+// ============================================================================
+
+/**
+ * API 路径前缀
+ */
+export const API_BASE_PATH = '/api/v1/<%= name.replace(/-/g, '/') %>';
+
+/**
+ * API 端点
+ */
+export const API_ENDPOINTS = {
+  /** 列表 */
+  LIST: API_BASE_PATH,
+  /** 详情 */
+  DETAIL: (id: number | string) => `${API_BASE_PATH}/${id}`,
+  /** 创建 */
+  CREATE: API_BASE_PATH,
+  /** 更新 */
+  UPDATE: (id: number | string) => `${API_BASE_PATH}/${id}`,
+  /** 删除 */
+  DELETE: (id: number | string) => `${API_BASE_PATH}/${id}`,
+} as const;
+
+// ============================================================================
+// 状态枚举
+// ============================================================================
+
+/**
+ * <%= displayName %> 状态枚举
+ */
+export const <%= classPrefix.toUpperCase() %>_STATUS = {
+  /** 草稿 */
+  DRAFT: 'DRAFT',
+  /** 激活 */
+  ACTIVE: 'ACTIVE',
+  /** 未激活 */
+  INACTIVE: 'INACTIVE',
+  /** 已删除 */
+  DELETED: 'DELETED',
+} as const;
+
+/**
+ * 状态显示名称映射
+ */
+export const <%= classPrefix.toUpperCase() %>_STATUS_LABELS: Record<string, string> = {
+  [<%= classPrefix.toUpperCase() %>_STATUS.DRAFT]: '草稿',
+  [<%= classPrefix.toUpperCase() %>_STATUS.ACTIVE]: '激活',
+  [<%= classPrefix.toUpperCase() %>_STATUS.INACTIVE]: '未激活',
+  [<%= classPrefix.toUpperCase() %>_STATUS.DELETED]: '已删除',
+};
+
+// ============================================================================
+// 权限代码
+// ============================================================================
+
+/**
+ * <%= displayName %> 权限代码
+ *
+ * 命名规范：{module}:{resource}:{action}
+ * 与 module-manifest.yaml 中的 permissions 保持一致
+ */
+export const <%= classPrefix.toUpperCase() %>_PERMISSIONS = {
+  /** 查看列表 */
+  VIEW: '<%= name %>:list:view',
+  /** 查看详情 */
+  VIEW_DETAIL: '<%= name %>:detail:view',
+  /** 创建 */
+  CREATE: '<%= name %>:create',
+  /** 更新 */
+  UPDATE: '<%= name %>:update',
+  /** 删除 */
+  DELETE: '<%= name %>:delete',
+  /** 管理员 */
+  ADMIN: '<%= name %>:admin',
+} as const;
+
+// ============================================================================
+// 分页默认值
+// ============================================================================
+
+/**
+ * 默认分页配置
+ */
+export const DEFAULT_PAGINATION = {
+  /** 默认页码 */
+  PAGE: 0,
+  /** 默认每页大小 */
+  SIZE: 20,
+  /** 最大每页大小 */
+  MAX_SIZE: 100,
+} as const;
+
+// ============================================================================
+// 缓存 Key
+// ============================================================================
+
+/**
+ * 缓存 Key 前缀
+ */
+export const CACHE_KEYS = {
+  /** 列表缓存 */
+  LIST: '<%= name %>:list',
+  /** 详情缓存 */
+  DETAIL: (id: number | string) => `<%= name %>:detail:${id}`,
+  /** 统计缓存 */
+  STATS: '<%= name %>:stats',
+} as const;

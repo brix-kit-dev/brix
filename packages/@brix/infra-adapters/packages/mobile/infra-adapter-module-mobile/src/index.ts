@@ -1,0 +1,48 @@
+/**
+ * @file infra-adapter-module-mobile Module Entry
+ * @description Brix UI Mobile Module Loading Adapter - React Native dynamic module loading implementation
+ * @module @brix/infra-adapter-module-mobile
+ * @version 3.0.0
+ * 
+ * Module Description:
+ * This module is the Mobile module loading adapter layer in the v3.0 Runtime Shell architecture.
+ * It is responsible for dynamic loading of plugin modules in React Native environment.
+ * 
+ * Architecture Position:
+ * - This module is an internal dependency of the Mobile Host layer
+ * - Plugins should NOT use this module directly
+ * - Plugins declare module dependencies through PluginModuleCapability
+ * 
+ * v3.0 Boundary Constraints:
+ * ❌ Plugins must NOT directly use require()
+ * ❌ Plugins must NOT access Native Module registry
+ * ❌ Plugins must NOT access other modules bypassing the loader
+ * ✅ Plugins declare module dependencies through capability contract
+ * ✅ Module loading is managed by Host
+ * 
+ * Usage (Host layer only):
+ * ```typescript
+ * import { RNModuleLoader } from '@brix/infra-adapter-module-mobile';
+ * 
+ * const loader = new RNModuleLoader({
+ *   registry: moduleRegistry,
+ *   cacheEnabled: true,
+ * });
+ * 
+ * const module = await loader.loadModule('booking');
+ * ```
+ */
+
+export {
+  RNModuleLoader,
+  type ModuleSource,
+  type ModuleMetadata,
+  type ModuleRegistry,
+  type LoadedModule,
+  type RNModuleLoaderOptions,
+  type RNScreenComponent,
+  type StandardModuleExports,
+} from './RNModuleLoader';
+
+// ========== Version Info ==========
+export const VERSION = '3.0.0';

@@ -1,0 +1,93 @@
+/**
+ * 国际化配置
+ * 
+ * @module @shinwa/<%= name %>-web
+ * @generated <%= date %>
+ * 
+ * 使用说明：
+ * 1. 在 locales 目录下添加各语言的翻译文件
+ * 2. 在组件中使用 useTranslation hook 获取 t 函数
+ * 3. 调用 addPluginTranslations() 将翻译资源添加到基座 i18n 实例
+ */
+
+import i18n from 'i18next';
+
+// 中文翻译
+const zhCN = {
+  '<%= name.replace('plugin-', '') %>': {
+    list: {
+      title: '<%= displayName %>列表',
+      searchPlaceholder: '搜索<%= displayName %>...',
+      add: '新增<%= displayName %>',
+      name: '名称',
+      createdAt: '创建时间',
+    },
+    detail: {
+      title: '<%= displayName %>详情',
+      basicInfo: '基本信息',
+      id: 'ID',
+      name: '名称',
+      description: '描述',
+      status: '状态',
+      createdAt: '创建时间',
+      updatedAt: '更新时间',
+    },
+  },
+};
+
+// 英文翻译
+const enUS = {
+  '<%= name.replace('plugin-', '') %>': {
+    list: {
+      title: '<%= displayName %> List',
+      searchPlaceholder: 'Search <%= displayName %>...',
+      add: 'Add <%= displayName %>',
+      name: 'Name',
+      createdAt: 'Created At',
+    },
+    detail: {
+      title: '<%= displayName %> Detail',
+      basicInfo: 'Basic Information',
+      id: 'ID',
+      name: 'Name',
+      description: 'Description',
+      status: 'Status',
+      createdAt: 'Created At',
+      updatedAt: 'Updated At',
+    },
+  },
+};
+
+// 标记是否已添加翻译
+let translationsAdded = false;
+
+/**
+ * 将插件翻译资源添加到基座的 i18n 实例
+ * 
+ * 该函数应该在每个暴露的组件入口处调用，
+ * 确保翻译资源在组件渲染前已添加到 i18n 实例
+ */
+export function addPluginTranslations(): void {
+  if (translationsAdded) {
+    return;
+  }
+
+  // 检查 i18n 是否已初始化
+  if (!i18n.isInitialized) {
+    console.warn('[<%= name %>-web] i18n not initialized yet, translations will be added later');
+    return;
+  }
+
+  // 添加中文翻译
+  i18n.addResourceBundle('zh-CN', 'translation', zhCN, true, true);
+  i18n.addResourceBundle('zh', 'translation', zhCN, true, true);
+  
+  // 添加英文翻译
+  i18n.addResourceBundle('en-US', 'translation', enUS, true, true);
+  i18n.addResourceBundle('en', 'translation', enUS, true, true);
+
+  translationsAdded = true;
+  console.debug('[<%= name %>-web] Plugin translations added to i18n instance');
+}
+
+export default { zhCN, enUS };

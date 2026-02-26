@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  <%= fullName %>-api 模块
+  
+  API 模块包含：
+  - DTO（数据传输对象）
+  - Event（领域事件定义）
+  - Request（请求对象）
+  
+  【v3.0 架构约束】
+  - 此模块仅包含类型定义，不包含业务逻辑
+  - 供其他模块依赖，用于模块间通信
+  
+  @author <%= author %>
+  @date <%= date %>
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.shinwa.app</groupId>
+        <artifactId><%= fullName %></artifactId>
+        <version><%= version %></version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId><%= name %>-api</artifactId>
+    <packaging>jar</packaging>
+
+    <name><%= displayName %> - API</name>
+    <description><%= displayName %> API 模块（DTO、Event、Request）</description>
+
+    <dependencies>
+        <!-- v3.0 运行时 SDK API（事件基类） -->
+        <dependency>
+            <groupId>io.runtime</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+        </dependency>
+
+        <!-- Lombok（可选，简化代码） -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Jakarta Validation（DTO 校验） -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>

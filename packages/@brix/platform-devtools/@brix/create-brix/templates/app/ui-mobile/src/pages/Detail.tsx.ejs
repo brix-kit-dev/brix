@@ -1,0 +1,187 @@
+/**
+ * @file <%= displayName %> 详情页（Mobile）
+ * @description React Native 详情页组件
+ * @module @shinwa/<%= name %>-ui-mobile
+ * @version <%= version %>
+ *
+ * 由 @brix/create-brix <%= date %> 自动生成
+ */
+
+import React from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+import { use<%= classPrefix %>Detail } from '../hooks/use<%= classPrefix %>.js';
+
+/**
+ * 组件属性
+ */
+interface <%= classPrefix %>DetailProps {
+  /** 资源 ID（从路由参数获取） */
+  id: string;
+}
+
+/**
+ * <%= displayName %> 详情页组件
+ */
+export default function <%= classPrefix %>Detail({ id }: <%= classPrefix %>DetailProps): React.ReactElement {
+  const { item, isLoading, error } = use<%= classPrefix %>Detail(id);
+
+  // 加载状态
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#1976D2" />
+        <Text style={styles.loadingText}>加载中...</Text>
+      </View>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>加载失败: {error.message}</Text>
+      </View>
+    );
+  }
+
+  // 空状态
+  if (!item) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyText}>数据不存在</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{item.name}</Text>
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusText}>{item.status}</Text>
+        </View>
+      </View>
+
+      {item.description && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>描述</Text>
+          <Text style={styles.description}>{item.description}</Text>
+        </View>
+      )}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>基本信息</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>ID</Text>
+          <Text style={styles.infoValue}>{item.id}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>创建时间</Text>
+          <Text style={styles.infoValue}>
+            {new Date(item.createdAt).toLocaleString()}
+          </Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>更新时间</Text>
+          <Text style={styles.infoValue}>
+            {new Date(item.updatedAt).toLocaleString()}
+          </Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ============================================================================
+// 样式
+// ============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#D32F2F',
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+  },
+  header: {
+    backgroundColor: '#FFF',
+    padding: 20,
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#212121',
+    marginBottom: 8,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#1976D2',
+    fontWeight: '500',
+  },
+  section: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  description: {
+    fontSize: 16,
+    color: '#424242',
+    lineHeight: 24,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#212121',
+    fontWeight: '500',
+  },
+});

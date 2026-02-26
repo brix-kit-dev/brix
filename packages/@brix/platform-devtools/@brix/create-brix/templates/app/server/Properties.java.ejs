@@ -1,0 +1,110 @@
+/*
+ * Copyright (c) 2024-2026 Shinwa Solutions. All rights reserved.
+ *
+ * <%= displayName %> 配置属性类
+ * 
+ * 由 @brix/create-brix <%= date %> 自动生成
+ * 
+ * 【设计说明】
+ * 本配置属性类对应 application.yml 中的配置项：
+ * shinwa.app.<%= name.replace(/-/g, '.') %>.*
+ * 
+ * 【架构红线 R6】
+ * - 模块配置必须通过 ConfigCapability 或 @ConfigurationProperties 获取
+ * - 禁止在代码中硬编码配置值
+ * - 禁止直接读取 System.getenv() 或 System.getProperty()
+ * 
+ * @author <%= author %>
+ * @since <%= date %>
+ */
+package <%= packageName %>.server.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * <%= displayName %> 配置属性
+ *
+ * <p>绑定 {@code application.yml} 中以 {@code shinwa.app.<%= name.replace(/-/g, '.') %>} 为前缀的配置项。</p>
+ *
+ * <p>配置示例：</p>
+ * <pre>
+ * shinwa:
+ *   app:
+ *     <%= name.replace(/-/g, '.') %>:
+ *       enabled: true
+ *       cache:
+ *         enabled: true
+ *         ttl-seconds: 300
+ * </pre>
+ *
+ * @author <%= author %>
+ * @since <%= date %>
+ */
+@ConfigurationProperties(prefix = "shinwa.app.<%= name.replace(/-/g, '.') %>")
+public class <%= classPrefix %>Properties {
+
+    /**
+     * 是否启用模块（默认 true）
+     */
+    private boolean enabled = true;
+
+    /**
+     * 缓存配置
+     */
+    private CacheProperties cache = new CacheProperties();
+
+    // ========================================================================
+    // Getters / Setters
+    // ========================================================================
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public CacheProperties getCache() {
+        return cache;
+    }
+
+    public void setCache(CacheProperties cache) {
+        this.cache = cache;
+    }
+
+    // ========================================================================
+    // 内部配置类
+    // ========================================================================
+
+    /**
+     * 缓存配置
+     */
+    public static class CacheProperties {
+        /**
+         * 是否启用缓存（默认 true）
+         */
+        private boolean enabled = true;
+
+        /**
+         * 缓存过期时间（秒，默认 300）
+         */
+        private int ttlSeconds = 300;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getTtlSeconds() {
+            return ttlSeconds;
+        }
+
+        public void setTtlSeconds(int ttlSeconds) {
+            this.ttlSeconds = ttlSeconds;
+        }
+    }
+}

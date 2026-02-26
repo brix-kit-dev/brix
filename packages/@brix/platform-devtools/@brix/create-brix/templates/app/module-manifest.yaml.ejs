@@ -1,0 +1,131 @@
+# ================================================================
+# v3.0 模块声明文件（Module Manifest）
+# 
+# 这是 v3.0 运行壳架构的核心配置文件，声明模块的：
+# - 基本信息（ID、版本、类型）
+# - 生命周期（启动顺序、依赖）
+# - 能力需求（必需/可选能力）
+# - 事件通信（发布/订阅的事件）
+# - 权限声明
+# - 配置项
+# 
+# 【重要】模块通过此文件与 Runtime Shell 交互，而非直接依赖基础设施
+# 
+# @author <%= author %>
+# @date <%= date %>
+# ================================================================
+
+# ===== 模块基本信息 =====
+module:
+  id: "<%= fullName %>"                          # 模块唯一标识
+  version: "<%= version %>"                      # 模块版本
+  type: "<%= moduleType %>"                      # 模块类型：business | infrastructure
+  description: "<%= description %>"              # 模块描述
+
+# ===== 生命周期与依赖 =====
+lifecycle:
+  # 启动优先级（数字越小越先启动，默认 100）
+  # - 10: 基础设施模块（gateway、identity）
+  # - 50: 核心业务模块
+  # - 100: 普通业务模块
+  startup-order: <%= startupOrder %>
+  
+  # 依赖的模块（必须先于本模块启动）
+  depends-on:
+<% if (dependsOn.length === 0) { -%>
+    []
+<% } else { -%>
+<% dependsOn.forEach(dep => { -%>
+    - "<%= dep %>"
+<% }); -%>
+<% } -%>
+
+# ===== 能力需求声明 =====
+capabilities:
+  # 必需能力（缺失则启动失败）
+  required:
+<% if (requiredCapabilities.length === 0) { -%>
+    []
+<% } else { -%>
+<% requiredCapabilities.forEach(cap => { -%>
+    - "<%= cap %>"
+<% }); -%>
+<% } -%>
+  
+  # 可选能力（缺失则降级运行）
+  optional:
+<% if (optionalCapabilities.length === 0) { -%>
+    []
+<% } else { -%>
+<% optionalCapabilities.forEach(cap => { -%>
+    - "<%= cap %>"
+<% }); -%>
+<% } -%>
+
+# ===== 事件通信声明 =====
+events:
+  # 发布的事件（模块产生的领域事件/集成事件）
+  publishes:
+<% if (publishesEvents.length === 0) { -%>
+    # 示例：预约创建事件
+    # - type: "<%= classPrefix %>CreatedEvent"
+    #   category: "domain"                       # domain | integration
+    #   description: "<%= displayName %>创建事件"
+    []
+<% } else { -%>
+<% publishesEvents.forEach(event => { -%>
+    - type: "<%= event %>"
+      category: "domain"
+<% }); -%>
+<% } -%>
+  
+  # 订阅的事件（模块关心的外部事件）
+  subscribes:
+<% if (subscribesEvents.length === 0) { -%>
+    # 示例：用户创建事件
+    # - type: "UserCreatedEvent"
+    #   handler: "<%= classPrefix %>EventHandler.onUserCreated"
+    []
+<% } else { -%>
+<% subscribesEvents.forEach(event => { -%>
+    - type: "<%= event %>"
+<% }); -%>
+<% } -%>
+
+# ===== 权限声明 =====
+permissions:
+  # 模块定义的权限点
+  - id: "<%= name %>:read"
+    name: "查看<%= displayName %>"
+    description: "允许查看<%= displayName %>数据"
+  - id: "<%= name %>:write"
+    name: "编辑<%= displayName %>"
+    description: "允许创建、修改、删除<%= displayName %>数据"
+
+# ===== 配置项声明 =====
+config:
+  # 模块需要的配置项（由 Host 提供）
+  - key: "<%= name %>.enabled"
+    type: "boolean"
+    default: true
+    description: "是否启用<%= displayName %>模块"
+  # - key: "<%= name %>.max-items"
+  #   type: "integer"
+  #   default: 100
+  #   description: "最大条目数"
+
+# ===== 容错配置 =====
+resilience:
+  # 熔断器配置
+  circuit-breaker:
+    enabled: true
+    failure-rate-threshold: 50          # 失败率阈值（%）
+    slow-call-rate-threshold: 100       # 慢调用率阈值（%）
+    slow-call-duration-threshold: "5s"  # 慢调用判定时间
+    wait-duration-in-open-state: "30s"  # 熔断等待时间
+  
+  # 限流配置
+  rate-limiter:
+    enabled: false
+    # limit-for-period: 100             # 周期内请求限制
+    # limit-refresh-period: "1s"        # 限制刷新周期

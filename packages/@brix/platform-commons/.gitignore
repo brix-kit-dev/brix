@@ -1,0 +1,63 @@
+# ============================================================
+# platform-commons .gitignore
+# Java / Maven + Node.js / pnpm 混合项目
+# ============================================================
+
+# ---------------------- Java / Maven ----------------------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+
+# ---------------------- Node.js / pnpm -------------------
+node_modules/
+dist/
+.pnpm-debug.log
+*.tsbuildinfo
+
+# ---------------------- IDE ------------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+.LCK*
+
+# ---------------------- OS -------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------- 环境与密钥 -----------------------
+# 【关键】Phase 0 安全止血要求：必须忽略所有密钥文件
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*client_secret*.json
+private.pem
+cert.pem
+jwt-keystore.p12
+
+# ---------------------- 构建产物与残留 --------------------
+# 【关键】Phase 0 要求：忽略编译产物和临时文件
+jar-temp/
+tsup.config.bundled_*.mjs
+
+# ---------------------- 日志与临时文件 --------------------
+*.log
+*.tmp
+*.bak
+hs_err_pid*

@@ -1,0 +1,4 @@
+spring:
+  cloud:
+    config:
+      enabled: false # MVP 阶段暂不启用配置中心

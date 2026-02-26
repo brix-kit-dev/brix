@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    ============================================================================
+    Platform Parent - 统一依赖管理 BOM（可选继承）
+    ============================================================================
+    
+    【4.5 修复 — POM 双树统一】
+    此前 platform-parent 是一棵独立 POM 树的依赖管理中心，
+    与根 pom.xml 存在 Spring Cloud、JJWT、Lombok、OpenTelemetry 版本冲突。
+    
+    修复后：
+    - platform-parent 继承根 platform-commons POM，
+      所有版本属性和 dependencyManagement 从根 POM 统一继承
+    - 不再充当聚合 POM（modules 列表移至根 POM）
+    - 保留为可安装的薄 BOM 模块，供外部项目按需继承
+    
+    【开源协议】
+    Apache License 2.0
+    ============================================================================
+    -->
+
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.1.0-SNAPSHOT</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-parent</artifactId>
+    <packaging>pom</packaging>
+    <name>Platform Parent</name>
+    <description>Shinwa 平台统一依赖治理 BOM — 所有版本属性和依赖管理继承自根 platform-commons POM</description>
+
+    <!--
+    注意：本 POM 不再定义 <properties>、<dependencyManagement> 和 <modules>，
+    这些内容已统一收归根 platform-commons POM（../../../pom.xml）。
+    外部项目若需继承平台依赖管理，可将本模块作为 <parent>。
+    -->
+
+</project>

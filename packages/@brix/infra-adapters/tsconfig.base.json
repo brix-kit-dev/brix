@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    /* 基础配置 */
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    
+    /* 严格模式 */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    
+    /* 输出配置 */
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    
+    /* JSX */
+    "jsx": "react-jsx",
+    
+    /* 路径映射 - 前端适配器 */
+    "baseUrl": ".",
+    "paths": {
+      /* Web 适配器 */
+      "@brix/infra-adapter-http-web": ["./packages/web/infra-adapter-http-web/src"],
+      "@brix/infra-adapter-mf-web": ["./packages/web/infra-adapter-mf-web/src"],
+      "@brix/infra-adapter-iframe-web": ["./packages/web/infra-adapter-iframe-web/src"],
+      "@brix/infra-adapter-native-web": ["./packages/web/infra-adapter-native-web/src"],
+      "@brix/infra-adapter-ui-native": ["./packages/web/infra-adapter-ui-native/src"],
+      "@brix/infra-adapter-router-web": ["./packages/web/infra-adapter-router-web/src"],
+      "@brix/infra-adapter-state-web": ["./packages/web/infra-adapter-state-web/src"],
+      /* Mobile 适配器 */
+      "@brix/infra-adapter-module-mobile": ["./packages/mobile/infra-adapter-module-mobile/src"],
+      "@brix/infra-adapter-navigation-mobile": ["./packages/mobile/infra-adapter-navigation-mobile/src"],
+      "@brix/infra-adapter-storage-mobile": ["./packages/mobile/infra-adapter-storage-mobile/src"],
+      "@brix/infra-adapter-device-mobile": ["./packages/mobile/infra-adapter-device-mobile/src"],
+      "@brix/infra-adapter-push-mobile": ["./packages/mobile/infra-adapter-push-mobile/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", "coverage"]
+}

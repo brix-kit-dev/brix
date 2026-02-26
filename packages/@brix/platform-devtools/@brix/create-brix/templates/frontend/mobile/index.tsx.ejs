@@ -1,0 +1,51 @@
+/**
+ * @file index.tsx
+ * @description <%= displayName %> Mobile 前端入口
+ * @module @shinwa/<%= name %>-mobile
+ * 
+ * 生成时间: <%= date %>
+ */
+
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+/**
+ * <%= displayName %> 主组件
+ */
+export const <%= classPrefix %>Plugin: React.FC = () => {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}><%= displayName %></Text>
+      <Text style={styles.description}><%= description %></Text>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 16,
+    color: '#666',
+  },
+});
+
+/**
+ * 插件元信息
+ */
+export const pluginMeta = {
+  name: '<%= name %>',
+  displayName: '<%= displayName %>',
+  version: '<%= version %>',
+  description: '<%= description %>',
+};
+
+export default <%= classPrefix %>Plugin;

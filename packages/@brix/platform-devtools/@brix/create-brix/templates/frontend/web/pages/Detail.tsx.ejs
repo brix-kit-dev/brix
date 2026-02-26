@@ -1,0 +1,232 @@
+/**
+ * <%= classPrefix %> 详情页面
+ * 
+ * @module @shinwa/<%= name %>-web
+ * @generated <%= date %>
+ * 
+ * 功能说明：
+ * - 展示 <%= displayName %> 详情信息
+ * - 支持编辑和返回列表
+ */
+
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  CircularProgress,
+  Alert,
+  Stack,
+  Button,
+  Divider,
+  Grid,
+  Chip,
+} from '@mui/material';
+import {
+  ArrowBack,
+  Edit,
+  Delete,
+} from '@mui/icons-material';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
+/**
+ * 详情字段组件
+ */
+interface DetailFieldProps {
+  label: string;
+  value: React.ReactNode;
+}
+
+const DetailField: React.FC<DetailFieldProps> = ({ label, value }) => (
+  <Box sx={{ mb: 2 }}>
+    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+      {label}
+    </Typography>
+    <Typography variant="body1">{value || '-'}</Typography>
+  </Box>
+);
+
+/**
+ * <%= displayName %> 详情页面组件
+ */
+export default function <%= classPrefix %>Detail(): React.ReactElement {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { id } = useParams<{ id: string }>();
+  
+  // 状态管理
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 加载详情数据
+  const fetchDetail = useCallback(async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      // TODO: 替换为实际的 API 调用
+      // const response = await api.get<%= classPrefix %>Detail(id);
+      // setData(response.data);
+      
+      // 模拟数据
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setData({
+        id,
+        name: '<%= displayName %> 示例',
+        description: '这是一个示例描述',
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载详情失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  // 首次加载
+  useEffect(() => {
+    fetchDetail();
+  }, [fetchDetail]);
+
+  // 返回列表
+  const handleBack = () => {
+    navigate('/<%= name.replace('plugin-', '') %>');
+  };
+
+  // 编辑
+  const handleEdit = () => {
+    navigate(`/<%= name.replace('plugin-', '') %>/${id}/edit`);
+  };
+
+  // 删除确认
+  const handleDelete = async () => {
+    if (!window.confirm(t('common.deleteConfirm', '确定要删除吗？'))) {
+      return;
+    }
+    
+    try {
+      // TODO: 替换为实际的 API 调用
+      // await api.delete<%= classPrefix %>(id);
+      navigate('/<%= name.replace('plugin-', '') %>');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '删除失败');
+    }
+  };
+
+  // 加载中状态
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" action={
+          <Button color="inherit" size="small" onClick={fetchDetail}>
+            {t('common.retry', '重试')}
+          </Button>
+        }>
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
+
+  // 数据不存在
+  if (!data) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning">
+          {t('common.notFound', '数据不存在')}
+        </Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* 页面标题和操作栏 */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Button startIcon={<ArrowBack />} onClick={handleBack}>
+            {t('common.back', '返回')}
+          </Button>
+          <Typography variant="h5" component="h1">
+            {t('<%= name.replace('plugin-', '') %>.detail.title', '<%= displayName %>详情')}
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<Edit />} onClick={handleEdit}>
+            {t('common.edit', '编辑')}
+          </Button>
+          <Button variant="outlined" color="error" startIcon={<Delete />} onClick={handleDelete}>
+            {t('common.delete', '删除')}
+          </Button>
+        </Stack>
+      </Stack>
+
+      {/* 详情内容 */}
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          {t('<%= name.replace('plugin-', '') %>.detail.basicInfo', '基本信息')}
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <DetailField 
+              label={t('<%= name.replace('plugin-', '') %>.detail.id', 'ID')} 
+              value={data.id} 
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DetailField 
+              label={t('<%= name.replace('plugin-', '') %>.detail.name', '名称')} 
+              value={data.name} 
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DetailField 
+              label={t('<%= name.replace('plugin-', '') %>.detail.status', '状态')} 
+              value={
+                <Chip 
+                  label={data.status} 
+                  color={data.status === 'ACTIVE' ? 'success' : 'default'}
+                  size="small"
+                />
+              } 
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <DetailField 
+              label={t('<%= name.replace('plugin-', '') %>.detail.description', '描述')} 
+              value={data.description} 
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DetailField 
+              label={t('<%= name.replace('plugin-', '') %>.detail.createdAt', '创建时间')} 
+              value={new Date(data.createdAt).toLocaleString()} 
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DetailField 
+              label={t('<%= name.replace('plugin-', '') %>.detail.updatedAt', '更新时间')} 
+              value={new Date(data.updatedAt).toLocaleString()} 
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+    </Box>
+  );
+}

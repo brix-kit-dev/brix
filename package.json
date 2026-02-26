@@ -1,0 +1,49 @@
+﻿{
+  "name": "@brix/monorepo",
+  "version": "3.1.0",
+  "private": true,
+  "description": "Brix Runtime Shell Framework - Open Source Monorepo",
+  "keywords": [
+    "brix",
+    "runtime-shell",
+    "capability-contract",
+    "plugin-architecture",
+    "modular-framework"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-framework/brix"
+  },
+  "homepage": "https://brix.dev",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm -r run dev",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "clean": "pnpm -r run clean && rimraf node_modules",
+    "typecheck": "pnpm -r run typecheck",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish",
+    "release": "pnpm build && pnpm changeset:publish",
+    "docs": "typedoc",
+    "prepare": "echo 'Brix workspace ready'"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "@changesets/changelog-github": "^0.5.0",
+    "@types/node": "^20.10.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "rimraf": "^5.0.5",
+    "typedoc": "^0.25.7",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

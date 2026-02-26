@@ -1,0 +1,46 @@
+-- =========================================================
+-- <%= displayName %> 初始化脚本
+-- 版本: V<%= flywayPrefix %>_001
+-- 生成时间: <%= date %>
+-- =========================================================
+
+-- 示例表结构（请根据实际业务修改）
+CREATE TABLE IF NOT EXISTS <%= name.replace('plugin-', '').replace(/-/g, '_') %>_example (
+    id              BIGSERIAL PRIMARY KEY,
+    tenant_id       VARCHAR(64) NOT NULL,
+    name            VARCHAR(255) NOT NULL,
+    description     TEXT,
+    status          VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by      VARCHAR(64),
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by      VARCHAR(64),
+    version         INTEGER NOT NULL DEFAULT 0
+);
+
+-- 租户索引（多租户数据隔离）
+CREATE INDEX IF NOT EXISTS idx_<%= name.replace('plugin-', '').replace(/-/g, '_') %>_example_tenant 
+    ON <%= name.replace('plugin-', '').replace(/-/g, '_') %>_example(tenant_id);
+
+<% if (includeOutbox) { %>
+-- =========================================================
+-- Outbox 表（事件一致性保障）
+-- =========================================================
+CREATE TABLE IF NOT EXISTS <%= name.replace('plugin-', '').replace(/-/g, '_') %>_outbox (
+    id              BIGSERIAL PRIMARY KEY,
+    tenant_id       VARCHAR(64) NOT NULL,
+    aggregate_type  VARCHAR(255) NOT NULL,
+    aggregate_id    VARCHAR(255) NOT NULL,
+    event_type      VARCHAR(255) NOT NULL,
+    payload         JSONB NOT NULL,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at    TIMESTAMP,
+    retry_count     INTEGER NOT NULL DEFAULT 0,
+    status          VARCHAR(32) NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX IF NOT EXISTS idx_<%= name.replace('plugin-', '').replace(/-/g, '_') %>_outbox_status 
+    ON <%= name.replace('plugin-', '').replace(/-/g, '_') %>_outbox(status, created_at);
+<% } %>
+
+COMMENT ON TABLE <%= name.replace('plugin-', '').replace(/-/g, '_') %>_example IS '<%= displayName %> 示例表';

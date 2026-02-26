@@ -1,0 +1,121 @@
+package <%= packageName %>.core.handler;
+
+import io.runtime.sdk.annotation.EventHandler;
+import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.context.RuntimeContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+/**
+ * <%= displayName %> 事件处理器
+ * 
+ * <p>处理模块订阅的外部事件。</p>
+ * 
+ * <p>【v3.0 事件处理机制】</p>
+ * <ul>
+ *   <li>使用 @EventHandler 注解声明事件处理方法</li>
+ *   <li>订阅的事件需在 module-manifest.yaml 的 events.subscribes 中声明</li>
+ *   <li>Runtime Shell 根据 manifest 配置自动路由事件</li>
+ *   <li>处理器方法必须是幂等的（支持重试）</li>
+ * </ul>
+ * 
+ * <p>【使用示例】</p>
+ * <pre>{@code
+ * // 在 module-manifest.yaml 中声明订阅
+ * events:
+ *   subscribes:
+ *     - type: "UserCreatedEvent"
+ *       handler: "<%= classPrefix %>EventHandler.onUserCreated"
+ * }</pre>
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ * @version <%= version %>
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class <%= classPrefix %>EventHandler {
+
+    /**
+     * 【v3.0 核心】运行时上下文
+     */
+    private final RuntimeContext runtimeContext;
+
+    /**
+     * 处理用户创建事件（示例）
+     * 
+     * <p>当 UserCreatedEvent 发布时，此方法被 Runtime Shell 自动调用。</p>
+     * 
+     * <p>【幂等性要求】</p>
+     * <ul>
+     *   <li>使用事件 ID 进行去重</li>
+     *   <li>重复处理不应产生副作用</li>
+     *   <li>建议记录处理状态到数据库</li>
+     * </ul>
+     * 
+     * @param event 用户创建事件
+     */
+    @EventHandler(eventType = "UserCreatedEvent")
+    public void onUserCreated(DomainEvent event) {
+        // 【幂等性检查】检查事件是否已处理
+        String eventId = event.getEventId();
+        if (isEventProcessed(eventId)) {
+            log.info("[<%= displayName %>] 事件已处理，跳过: eventId={}", eventId);
+            return;
+        }
+
+        try {
+            // 业务处理逻辑
+            log.info("[<%= displayName %>] 收到用户创建事件: eventId={}, aggregateId={}", 
+                eventId, event.getAggregateId());
+
+            // TODO: 实现具体的业务逻辑
+            // 例如：为新用户创建默认的 <%= displayName %> 数据
+
+            // 记录处理完成
+            markEventProcessed(eventId);
+
+            // 记录审计日志
+            runtimeContext.getObservability().log(
+                io.runtime.sdk.capability.ObservabilityCapability.LogLevel.INFO,
+                "[<%= displayName %>] 用户创建事件处理完成: eventId={}", eventId
+            );
+
+        } catch (Exception e) {
+            // 记录错误（让 Runtime Shell 决定是否重试）
+            runtimeContext.getObservability().log(
+                io.runtime.sdk.capability.ObservabilityCapability.LogLevel.ERROR,
+                "[<%= displayName %>] 事件处理失败: eventId={}, error={}", eventId, e.getMessage()
+            );
+            throw e; // 抛出异常，触发重试机制
+        }
+    }
+
+    /**
+     * 检查事件是否已处理（幂等性）
+     * 
+     * @param eventId 事件 ID
+     * @return 是否已处理
+     */
+    private boolean isEventProcessed(String eventId) {
+        // 【推荐实现】使用 StateStoreCapability 检查
+        // return runtimeContext.getStateStore()
+        //     .exists("event:processed:" + eventId);
+        
+        // 简单实现：暂时返回 false
+        return false;
+    }
+
+    /**
+     * 标记事件已处理
+     * 
+     * @param eventId 事件 ID
+     */
+    private void markEventProcessed(String eventId) {
+        // 【推荐实现】使用 StateStoreCapability 记录
+        // runtimeContext.getStateStore()
+        //     .put("event:processed:" + eventId, true, Duration.ofDays(7));
+    }
+}

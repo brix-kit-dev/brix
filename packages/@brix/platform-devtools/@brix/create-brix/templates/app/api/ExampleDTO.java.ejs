@@ -1,0 +1,81 @@
+package <%= packageName %>.api.dto;
+
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
+/**
+ * <%= displayName %> 数据传输对象
+ * 
+ * <p>用于模块间数据传输的标准 DTO，包含基本业务字段。</p>
+ * 
+ * <p>【v3.0 架构说明】</p>
+ * <ul>
+ *   <li>DTO 放置在 api 模块，供其他模块依赖</li>
+ *   <li>仅包含数据字段，不包含业务逻辑</li>
+ *   <li>使用 Lombok 简化代码</li>
+ * </ul>
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ * @version <%= version %>
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class <%= classPrefix %>DTO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 唯一标识
+     */
+    private String id;
+
+    /**
+     * 名称
+     */
+    private String name;
+
+    /**
+     * 描述
+     */
+    private String description;
+
+    /**
+     * 状态
+     * <p>可选值：DRAFT, ACTIVE, COMPLETED, CANCELLED</p>
+     */
+    private String status;
+
+    /**
+     * 租户 ID
+     * <p>多租户架构下的租户标识</p>
+     */
+    private String tenantId;
+
+    /**
+     * 创建者 ID
+     */
+    private String createdBy;
+
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createdAt;
+
+    /**
+     * 更新者 ID
+     */
+    private String updatedBy;
+
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updatedAt;
+}

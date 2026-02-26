@@ -1,0 +1,31 @@
+/**
+ * <%= displayName %> UI 模块 - 根组件
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ */
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import <%= classPrefix %>List from './pages/<%= classPrefix %>List';
+import <%= classPrefix %>Detail from './pages/<%= classPrefix %>Detail';
+
+/**
+ * 应用根组件
+ * 
+ * 【v3.0 说明】
+ * - 独立运行时使用 BrowserRouter
+ * - 作为远程模块加载时，路由由宿主控制
+ */
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/<%= name.replace(/-/g, '') %>" element={<<%= classPrefix %>List />} />
+        <Route path="/<%= name.replace(/-/g, '') %>/:id" element={<<%= classPrefix %>Detail />} />
+        <Route path="/" element={<<%= classPrefix %>List />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+export default App;

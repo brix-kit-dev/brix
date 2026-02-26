@@ -1,0 +1,90 @@
+# ==========================================================================
+# Gateway 路由配置
+#
+# Spring Cloud Gateway 静态路由与 HTTP 客户端。
+# 所有插件路由通过 Redis 动态注册机制加载，无需在此配置。
+# ==========================================================================
+
+spring:
+  cloud:
+    gateway:
+      # ========== 全局 HTTP 客户端配置 ==========
+      httpclient:
+        connect-timeout: ${GATEWAY_HTTP_CONNECT_TIMEOUT:5000}
+        response-timeout: ${GATEWAY_HTTP_RESPONSE_TIMEOUT:30s}
+      discovery:
+        locator:
+          enabled: false # 禁用默认的服务发现路由，完全依赖 Redis 动态路由
+      # 全局默认过滤器
+      default-filters:
+        # 去除路由前缀，/api/plugin-engine/xxx -> /xxx
+        - StripPrefix=1
+        # 处理下游服务返回的重复 CORS 头
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers, RETAIN_UNIQUE
+      routes:
+        # ==========================================================
+        # 静态路由：仅保留基座核心服务
+        # 所有插件路由通过动态注册机制加载（从 Redis）
+        # ==========================================================
+        
+        # Auth Center 认证中心（独立认证服务，优先级最高）
+        # Auth Center 的实际路径是 /api/v1/auth/**
+        - id: auth-center
+          uri: ${AUTH_CENTER_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            # 保留完整路径，因为 Auth Center 的 API 路径就是 /api/v1/auth/**
+            - StripPrefix=0
+        
+        # 兼容旧路径：/api/plugin-engine/auth/** -> /api/v1/auth/**
+        # 前端使用 /api/plugin-engine/auth/oauth/token，需要重写到 Auth Center
+        - id: auth-compat
+          uri: ${AUTH_CENTER_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/plugin-engine/auth/**
+          filters:
+            # 重写路径：/api/plugin-engine/auth/** -> /api/v1/auth/**
+            - RewritePath=/api/plugin-engine/auth/(?<segment>.*), /api/v1/auth/$\{segment}
+        
+        # 插件引擎 - plugins 接口需要重写路径（前端请求 /api/plugin-engine/plugins，后端定义 /api/v1/plugin-engine/plugins）
+        - id: plugin-engine-plugins
+          uri: ${PLUGIN_ENGINE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/plugin-engine/plugins,/api/plugin-engine/plugins/**
+          filters:
+            # 重写路径：/api/plugin-engine/plugins -> /api/v1/plugin-engine/plugins
+            - RewritePath=/api/plugin-engine/plugins(?<segment>.*), /api/v1/plugin-engine/plugins$\{segment}
+        
+        # 插件引擎 - menus 接口需要重写路径（前端请求 /api/plugin-engine/menus，后端定义 /api/v1/plugin-engine/menus）
+        - id: plugin-engine-menus
+          uri: ${PLUGIN_ENGINE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/plugin-engine/menus,/api/plugin-engine/menus/**
+          filters:
+            # 重写路径：/api/plugin-engine/menus -> /api/v1/plugin-engine/menus
+            - RewritePath=/api/plugin-engine/menus(?<segment>.*), /api/v1/plugin-engine/menus$\{segment}
+        
+        # 插件引擎（基座核心服务 - 其他路径不需要重写，如 register, heartbeat, cache 等）
+        - id: plugin-engine
+          uri: ${PLUGIN_ENGINE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/plugin-engine/**
+          filters:
+            # 保留完整路径，因为 register/heartbeat/cache 等 API 路径就是 /api/plugin-engine/**
+            - StripPrefix=0
+        
+        # ==========================================================
+        # 插件路由（动态注册）
+        # 
+        # 所有插件的路由不再静态配置，而是通过以下机制动态加载：
+        # 1. 插件启动时向 /api/plugin-engine/register 注册能力契约
+        # 2. 插件引擎将路由写入 Redis (shinwa:gateway:routes)
+        # 3. 网关通过 GatewayRouteConfig 从 Redis 动态加载路由
+        # 4. 插件心跳超时后，路由自动移除
+        #
+        # 优势：
+        # - 插件可独立部署，无需修改网关配置
+        # - 支持热插拔，无需重启网关
+        # - 符合大厂插件化架构最佳实践
+        # ==========================================================

@@ -1,0 +1,70 @@
+{
+  "name": "@brix/platform-auth-ui-web",
+  "version": "3.1.0",
+  "description": "Web Auth UI Components - Provides login forms, registration forms, permission guards and other UI components",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.mjs",
+      "require": "./dist/components/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.mjs",
+      "require": "./dist/hooks/index.js"
+    },
+    "./pages": {
+      "types": "./dist/pages/index.d.ts",
+      "import": "./dist/pages/index.mjs",
+      "require": "./dist/pages/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-router-dom": "^6.0.0",
+    "@brix/runtime-sdk-react": "^3.2.0"
+  },
+  "devDependencies": {
+    "@brix/runtime-sdk-react": "link:../../../../runtime-sdk/runtime-sdk-react",
+    "@types/react": "^18.2.43",
+    "react": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2"
+  },
+  "keywords": [
+    "brix",
+    "platform",
+    "auth",
+    "ui",
+    "components"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "sideEffects": false
+}

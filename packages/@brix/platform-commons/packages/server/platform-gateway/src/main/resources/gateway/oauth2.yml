@@ -1,0 +1,65 @@
+# ==========================================================================
+# Gateway OAuth2 第三方登录配置
+#
+# P112: 支持 Google、微信、GitHub 等第三方身份提供商登录
+# ==========================================================================
+
+platform:
+  oauth2:
+    # 是否启用 OAuth2 登录
+    # 开发环境默认启用，方便测试；生产环境需要配置实际的 Client ID/Secret
+    enabled: ${OAUTH2_ENABLED:true}
+    # OAuth2 回调后的前端跳转地址
+    frontend-callback-url: ${OAUTH2_FRONTEND_CALLBACK:/login/callback}
+    # 登录成功后默认跳转地址
+    default-success-url: /
+    # 登录失败后跳转地址
+    failure-url: /login?error=oauth2
+    # 自动注册新用户
+    auto-register: ${OAUTH2_AUTO_REGISTER:true}
+    # state 参数有效期（秒）
+    state-expire-seconds: 300
+    # 身份提供商配置
+    providers:
+      # Google OAuth2
+      google:
+        # 开发环境默认启用，显示登录按钮；真正登录需要配置 Client ID/Secret
+        enabled: ${OAUTH2_GOOGLE_ENABLED:true}
+        display-name: Google
+        icon: google
+        client-id: ${OAUTH2_GOOGLE_CLIENT_ID:}
+        client-secret: ${OAUTH2_GOOGLE_CLIENT_SECRET:}
+        redirect-uri: ${OAUTH2_GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/oauth2/callback/google}
+        scope: openid,profile,email
+        user-id-attribute: sub
+        user-name-attribute: name
+        email-attribute: email
+        avatar-attribute: picture
+      # 微信开放平台
+      wechat:
+        enabled: ${OAUTH2_WECHAT_ENABLED:false}
+        display-name: 微信
+        icon: wechat
+        client-id: ${OAUTH2_WECHAT_APP_ID:}
+        client-secret: ${OAUTH2_WECHAT_APP_SECRET:}
+        redirect-uri: ${OAUTH2_WECHAT_REDIRECT_URI:http://localhost:8080/api/v1/oauth2/callback/wechat}
+        scope: snsapi_login
+        user-id-attribute: openid
+        user-name-attribute: nickname
+        avatar-attribute: headimgurl
+        additional-params:
+          # 微信扫码登录需要添加此参数
+          appid: ${OAUTH2_WECHAT_APP_ID:}
+      # GitHub OAuth2
+      github:
+        enabled: ${OAUTH2_GITHUB_ENABLED:false}
+        display-name: GitHub
+        icon: github
+        client-id: ${OAUTH2_GITHUB_CLIENT_ID:}
+        client-secret: ${OAUTH2_GITHUB_CLIENT_SECRET:}
+        redirect-uri: ${OAUTH2_GITHUB_REDIRECT_URI:http://localhost:8080/api/v1/oauth2/callback/github}
+        scope: read:user,user:email
+        user-id-attribute: id
+        user-name-attribute: login
+        email-attribute: email
+        avatar-attribute: avatar_url

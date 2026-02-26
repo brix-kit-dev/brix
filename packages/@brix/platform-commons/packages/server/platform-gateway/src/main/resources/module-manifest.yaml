@@ -1,0 +1,208 @@
+# ===========================================================================================
+# platform-gateway 模块声明文件
+# ===========================================================================================
+# 
+# 本文件定义 API 网关模块的能力需求、生命周期配置和事件订阅关系。
+# 遵循 Brix Runtime SDK 的 module-manifest.yaml 规范。
+#
+# 版本: 3.0.0
+# 更新: 2026-01-27
+# ===========================================================================================
+
+# ===========================================================================================
+# 模块基本信息
+# ===========================================================================================
+module:
+  # 模块唯一标识
+  id: "platform-gateway"
+  
+  # 模块名称（用于展示）
+  name: "API 网关"
+  
+  # 模块版本号
+  version: "3.0.0"
+  
+  # 模块类型：infrastructure（基础设施）- 最先启动，最后关闭
+  type: "infrastructure"
+  
+  # 模块描述
+  description: |
+    Shinwa Platform API 网关模块
+    
+    核心职责：
+    - 统一入口：所有 API 请求的统一入口
+    - 动态路由：基于模块注册的动态路由分发
+    - 身份验证：JWT Token 验证和用户身份提取
+    - 租户解析：多租户模式下的租户 ID 解析
+    - 熔断限流：基于 Resilience4j 的熔断和限流保护
+    - 链路追踪：OpenTelemetry 分布式追踪入口
+    
+    v3.0 改造：
+    - 路由刷新从 Redis Pub/Sub 改为 EventBus 事件订阅
+    - 身份验证通过 AuthContextCapability 获取
+    - 熔断限流通过 ResilienceCapability 实现
+
+# ===========================================================================================
+# 生命周期配置
+# ===========================================================================================
+lifecycle:
+  # 启动优先级（数字越小越先启动）
+  # 网关是基础设施，需要最先启动，优先级设为 10
+  startup-order: 10
+  
+  # 依赖的模块（启动前必须就绪）
+  # 网关是最底层基础设施，不依赖其他业务模块
+  depends-on: []
+  
+  # 健康检查配置
+  health-check:
+    # 健康检查端点路径
+    path: "/healthz"
+    # 检查间隔（秒）
+    interval: 30
+    # 超时时间（秒）
+    timeout: 5
+
+# ===========================================================================================
+# 能力需求声明
+# ===========================================================================================
+capabilities:
+  # 必需能力（缺失则启动失败）
+  required:
+    # 事件总线：用于订阅模块启动/停止事件，刷新路由
+    - event-bus
+    # 认证上下文：用于验证请求身份
+    - auth-context
+    # 韧性能力：用于熔断和限流
+    - resilience
+    # 可观测性：用于日志、指标和追踪
+    - observability
+    # 配置存储：用于读取网关配置
+    - config-store
+    
+  # 可选能力（缺失时降级运行）
+  optional:
+    # 状态存储：用于缓存路由信息（无则每次重新加载）
+    - state-store
+
+# ===========================================================================================
+# 事件声明
+# ===========================================================================================
+events:
+  # 发布的事件
+  publishes:
+    # 网关启动完成事件
+    - type: "io.platform.gateway.event.GatewayStartedEvent"
+      description: "网关启动完成时发布"
+    
+    # 网关路由更新事件
+    - type: "io.platform.gateway.event.RouteUpdatedEvent"
+      description: "路由表更新时发布"
+  
+  # 订阅的事件
+  subscribes:
+    # 模块启动事件 —— 用于注册新路由
+    - type: "io.brix.event.ModuleStartedEvent"
+      handler: "io.platform.gateway.route.EventDrivenRouteRefresher.onModuleStarted"
+      description: "当模块启动时，注册该模块的路由"
+    
+    # 模块停止事件 —— 用于移除路由
+    - type: "io.brix.event.ModuleStoppedEvent"
+      handler: "io.platform.gateway.route.EventDrivenRouteRefresher.onModuleStopped"
+      description: "当模块停止时，移除该模块的路由"
+    
+    # 路由刷新请求事件 —— 用于强制刷新所有路由
+    - type: "io.platform.gateway.event.RouteRefreshRequestedEvent"
+      handler: "io.platform.gateway.route.EventDrivenRouteRefresher.onRouteRefreshRequested"
+      description: "收到路由刷新请求时，重新加载所有路由"
+
+# ===========================================================================================
+# 权限声明
+# ===========================================================================================
+permissions:
+  # 网关管理权限
+  - id: "gateway:manage"
+    name: "网关管理"
+    description: "管理网关配置、路由、限流规则等"
+  
+  # 路由查看权限
+  - id: "gateway:route:read"
+    name: "查看路由"
+    description: "查看当前生效的路由列表"
+  
+  # 路由刷新权限
+  - id: "gateway:route:refresh"
+    name: "刷新路由"
+    description: "强制刷新路由配置"
+
+# ===========================================================================================
+# 配置项声明
+# ===========================================================================================
+config:
+  # 路由刷新间隔
+  - key: "gateway.route.refresh-interval"
+    type: "duration"
+    default: "60s"
+    description: "路由自动刷新间隔"
+  
+  # 全局超时配置
+  - key: "gateway.timeout.connect"
+    type: "duration"
+    default: "5s"
+    description: "连接超时时间"
+  
+  - key: "gateway.timeout.read"
+    type: "duration"
+    default: "30s"
+    description: "读取超时时间"
+  
+  # 限流配置
+  - key: "gateway.rate-limit.default-qps"
+    type: "int"
+    default: "1000"
+    description: "默认 QPS 限制"
+  
+  # 熔断配置
+  - key: "gateway.circuit-breaker.failure-rate-threshold"
+    type: "int"
+    default: "50"
+    description: "熔断器失败率阈值（百分比）"
+  
+  - key: "gateway.circuit-breaker.wait-duration"
+    type: "duration"
+    default: "60s"
+    description: "熔断器打开后等待时间"
+
+# ===========================================================================================
+# 容错配置
+# ===========================================================================================
+resilience:
+  # 熔断器配置
+  circuit-breaker:
+    # 失败率阈值（百分比）
+    failure-rate-threshold: 50
+    # 打开状态等待时间
+    wait-duration-in-open-state: "60s"
+    # 滑动窗口大小
+    sliding-window-size: 100
+    # 半开状态允许的请求数
+    permitted-calls-in-half-open-state: 10
+  
+  # 限流器配置
+  rate-limiter:
+    # 每秒请求数限制
+    limit-for-period: 1000
+    # 刷新周期
+    limit-refresh-period: "1s"
+    # 获取许可超时时间
+    timeout-duration: "500ms"
+
+# ===========================================================================================
+# 端口配置（参考端口规划方案）
+# ===========================================================================================
+# 
+# 根据 docs-dev/端口规划方案.md：
+# - platform-gateway: 8900
+# 
+# 实际端口配置在 application.yml 中，此处仅作为文档记录
+# ===========================================================================================

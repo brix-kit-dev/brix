@@ -1,0 +1,56 @@
+{
+  "name": "@brix/infra-adapter-http-web",
+  "version": "3.1.0",
+  "type": "module",
+  "description": "Brix HTTP Infrastructure Adapter - Implements HttpCapability with retry and cache support",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web"
+  },
+  "peerDependencies": {
+    "@brix/runtime-sdk-api-web": "^3.1.0"
+  },
+  "keywords": [
+    "brix",
+    "infra-adapter",
+    "http",
+    "retry",
+    "cache",
+    "client",
+    "capability"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-framework/infra-adapters",
+    "directory": "packages/web/infra-adapter-http-web"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.3.0",
+    "rimraf": "^5.0.0"
+  }
+}

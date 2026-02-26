@@ -1,0 +1,131 @@
+/**
+ * <%= displayName %> UI 模块 - Rspack 配置
+ * 
+ * 【v3.0 Module Federation 架构】
+ * - 作为远程模块供宿主应用动态加载
+ * - 暴露页面组件和 hooks
+ * - 共享 React 和 runtime 依赖
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ */
+const { ModuleFederationPlugin } = require('@rspack/core').container;
+const path = require('path');
+
+const isDev = process.env.NODE_ENV === 'development';
+
+/** @type {import('@rspack/core').Configuration} */
+module.exports = {
+  entry: './src/bootstrap.tsx',
+
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    publicPath: isDev ? 'http://localhost:<%= webPort %>/' : 'auto',
+    filename: '[name].[contenthash].js',
+    clean: true,
+  },
+
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js', '.jsx'],
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
+
+  module: {
+    rules: [
+      {
+        test: /\.(ts|tsx)$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'builtin:swc-loader',
+          options: {
+            jsc: {
+              parser: {
+                syntax: 'typescript',
+                tsx: true,
+              },
+              transform: {
+                react: {
+                  runtime: 'automatic',
+                  development: isDev,
+                  refresh: isDev,
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'],
+      },
+    ],
+  },
+
+  plugins: [
+    /**
+     * Module Federation 配置
+     * 
+     * 【远程模块说明】
+     * - name: 模块名称，宿主通过此名称引用
+     * - filename: 远程入口文件名
+     * - exposes: 暴露的组件/模块
+     * - shared: 共享依赖（避免重复加载）
+     */
+    new ModuleFederationPlugin({
+      name: '<%= name.replace(/-/g, '_') %>',
+      filename: 'remoteEntry.js',
+      
+      // 暴露的组件
+      exposes: {
+        './List': './src/pages/<%= classPrefix %>List.tsx',
+        './Detail': './src/pages/<%= classPrefix %>Detail.tsx',
+        './hooks': './src/hooks/use<%= classPrefix %>.ts',
+      },
+      
+      // 共享依赖
+      shared: {
+        react: {
+          singleton: true,
+          requiredVersion: '^18.0.0',
+        },
+        'react-dom': {
+          singleton: true,
+          requiredVersion: '^18.0.0',
+        },
+        'react-router-dom': {
+          singleton: true,
+          requiredVersion: '^6.0.0',
+        },
+        '@runtime/ui-sdk': {
+          singleton: true,
+          requiredVersion: '^3.0.0',
+        },
+      },
+    }),
+
+    // HTML 模板（开发时使用）
+    isDev && new (require('@rspack/core').HtmlRspackPlugin)({
+      template: './public/index.html',
+      title: '<%= displayName %>',
+    }),
+  ].filter(Boolean),
+
+  devServer: {
+    port: <%= webPort %>,
+    hot: true,
+    historyApiFallback: true,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+    },
+  },
+
+  // 开发模式配置
+  ...(isDev && {
+    devtool: 'source-map',
+    optimization: {
+      minimize: false,
+    },
+  }),
+};

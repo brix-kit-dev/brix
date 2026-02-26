@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  =========================================================
+  <%= fullName %> 服务
+  
+  生成时间: <%= date %>
+  描述: <%= description %>
+  =========================================================
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>shinwa.platform</groupId>
+        <artifactId>platform-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>shinwa.service</groupId>
+    <artifactId><%= fullName %></artifactId>
+    <version><%= version %></version>
+    <packaging>jar</packaging>
+
+    <name><%= displayName %></name>
+    <description><%= description %></description>
+
+    <dependencies>
+        <!-- =====================================================
+             Platform Common Starter
+             提供服务注册、心跳、路由扫描等能力
+             ===================================================== -->
+        <dependency>
+            <groupId>shinwa.platform</groupId>
+            <artifactId>platform-common-starter</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- =====================================================
+             组装的插件
+             ===================================================== -->
+<% plugins.forEach(plugin => { %>
+        <dependency>
+            <groupId><%= plugin.groupId %></groupId>
+            <artifactId><%= plugin.artifactId %></artifactId>
+            <version><%= plugin.version %></version>
+        </dependency>
+<% }); %>
+<% if (plugins.length === 0) { %>
+        <!-- 暂无组装的插件，请根据需要添加 -->
+<% } %>
+
+        <!-- =====================================================
+             Spring Boot Web
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- =====================================================
+             数据库
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- =====================================================
+             测试依赖
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- 架构守护（ArchUnit 红线约束） -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.5.9</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

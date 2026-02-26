@@ -1,0 +1,68 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# UI Manifest — <%= displayName %> Mobile UI 声明清单
+#
+# 由 @brix/create-brix <%= date %> 自动生成
+# 
+# 【设计原则】遵循 v3.0 Manifest-Driven 架构
+# 1. 所有 UI 配置在此声明，插件代码不包含任何注册逻辑
+# 2. Host 读取此文件进行统一装配
+# 3. 插件只声明，Host 拥有最终决策权
+# 
+# @version <%= version %>
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ============================================================================
+# 插件基本信息
+# ============================================================================
+plugin:
+  id: "<%= name %>"
+  name: "<%= displayName %>"
+  version: "<%= version %>"
+  description: "<%= description %>"
+  vendor: "Shinwa Solutions"
+  platform: "mobile"
+
+# ============================================================================
+# 页面声明（React Native）
+# ============================================================================
+pages:
+  # 列表页
+  - id: "<%= name %>-list"
+    name: "<%= displayName %>列表"
+    component: "./pages/<%= classPrefix %>List"
+    route: "/<%= name.replace(/-/g, '/') %>"
+    icon: "list"
+    navigation:
+      showInMenu: true
+      menuOrder: 100
+
+  # 详情页
+  - id: "<%= name %>-detail"
+    name: "<%= displayName %>详情"
+    component: "./pages/<%= classPrefix %>Detail"
+    route: "/<%= name.replace(/-/g, '/') %>/:id"
+    navigation:
+      showInMenu: false
+
+# ============================================================================
+# 能力依赖声明
+# ============================================================================
+capabilities:
+  required:
+    - HttpCapability       # HTTP 请求能力
+    - AuthContextCapability  # 认证上下文能力
+    - NavigationCapability   # 导航能力
+  optional:
+    - StorageCapability      # 本地存储能力
+    - NotificationCapability # 通知能力
+
+# ============================================================================
+# 权限声明
+# ============================================================================
+permissions:
+  - code: "<%= name %>:list:view"
+    name: "查看<%= displayName %>列表"
+    description: "允许查看<%= displayName %>列表"
+  - code: "<%= name %>:detail:view"
+    name: "查看<%= displayName %>详情"
+    description: "允许查看<%= displayName %>详情"

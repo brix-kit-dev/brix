@@ -1,0 +1,39 @@
+# ========== 生产环境配置 ==========
+# 本文件用于生产环境部署
+#
+# 启用方式：设置环境变量 SPRING_PROFILES_ACTIVE=prod
+#
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+gateway:
+  cors:
+    # 生产环境阻止通配符配置
+    block-wildcard-in-production: true
+    warn-on-wildcard: true
+
+  security:
+    api-key:
+      # 生产环境必须启用认证
+      enabled: true
+      enforce-in-production: true
+      # 生产环境不记录认证失败详情
+      log-auth-failure-details: false
+
+    header-strip:
+      # 生产环境不记录被剥离的原始值
+      log-stripped-value: false
+
+    log-sanitization:
+      # 生产环境减少可见字符数
+      visible-chars: 2
+
+logging:
+  level:
+    root: WARN
+    io.brix.platform: INFO
+    io.brix.platform.gateway.security: INFO
+    org.springframework.cloud.gateway: WARN

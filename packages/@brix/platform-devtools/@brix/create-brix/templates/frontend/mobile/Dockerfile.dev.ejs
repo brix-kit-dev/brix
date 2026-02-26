@@ -1,0 +1,28 @@
+# ==============================================================================
+# <%= displayName %> Mobile - 开发 Dockerfile
+# 
+# @module @shinwa/<%= name %>-mobile
+# @generated <%= date %>
+#
+# 注意：Mobile 组件通常不需要 Docker 容器运行
+# 此文件仅用于开发环境的一致性
+# ==============================================================================
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# 复制依赖配置
+COPY package.json pnpm-lock.yaml* ./
+
+# 安装依赖
+RUN pnpm install --frozen-lockfile
+
+# 复制源代码
+COPY . .
+
+# 构建
+CMD ["pnpm", "build"]

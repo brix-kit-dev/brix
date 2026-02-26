@@ -1,0 +1,220 @@
+# ==========================================================================
+# Gateway 安全配置
+#
+# 包含：签名校验、IP 白名单、CORS 跨域、API Key 认证、
+#       敏感请求头剥离、日志脱敏
+# ==========================================================================
+
+gateway:
+  # ========== P105: 请求签名校验配置 ==========
+  # HMAC-SHA256 签名验证，防止请求篡改和重放攻击
+  signature:
+    # 是否启用签名校验
+    enabled: ${GATEWAY_SIGNATURE_ENABLED:true}
+    # H-011: 签名密钥（生产环境必须通过 GATEWAY_SIGNATURE_SECRET 环境变量配置）
+    # ⚠️ 安全警告：未配置时使用空字符串，网关启动时会校验并报错
+    secret-key: ${GATEWAY_SIGNATURE_SECRET:}
+    # 时间戳容忍时间（秒），超过此时间的请求视为重放攻击
+    timestamp-tolerance-seconds: ${GATEWAY_SIGNATURE_TOLERANCE:300}
+    # 签名请求头名称
+    signature-header: X-Signature
+    # 时间戳请求头名称
+    timestamp-header: X-Timestamp
+    # Nonce 请求头名称（防重放）
+    nonce-header: X-Nonce
+    # 签名算法
+    algorithm: HmacSHA256
+    # 需要签名校验的路径（仅对外部开放接口生效）
+    protected-paths:
+      - /open-api/**
+
+  # ========== P105: IP 白名单配置 ==========
+  # 限制访问来源 IP，仅允许白名单内的 IP 访问
+  ip-whitelist:
+    # 是否启用 IP 白名单
+    enabled: ${GATEWAY_IP_WHITELIST_ENABLED:true}
+    # 是否信任 X-Forwarded-For 请求头（使用反向代理时设为 true）
+    trust-x-forwarded-for: ${GATEWAY_TRUST_XFF:true}
+    # 配置刷新间隔（秒）
+    refresh-interval-seconds: 30
+    # 允许的 IP 地址列表（支持 CIDR 格式）
+    allowed-ips:
+      - 127.0.0.1                    # 本地回环
+      - 0:0:0:0:0:0:0:1              # IPv6 本地回环
+      - 192.168.0.0/16               # 私有网络
+      - 10.0.0.0/8                   # 私有网络
+      - 172.16.0.0/12                # 私有网络
+    # 需要 IP 白名单校验的路径
+    protected-paths:
+      - /open-api/**
+
+  # ========== CORS 跨域配置 ==========
+  # ⚠️ 安全警告：生产环境必须配置具体的域名白名单！
+  # 
+  # 配置方式（优先级从高到低）：
+  #   1. 环境变量 GATEWAY_ALLOWED_ORIGINS（逗号分隔，如: https://a.com,https://b.com）
+  #   2. application-{profile}.yml 中的 gateway.cors.allowed-origin-patterns
+  #   3. 本文件中的默认值（仅限开发环境）
+  #
+  cors:
+    # 允许的来源模式（支持通配符）
+    # 生产环境必须配置具体域名，可通过环境变量 GATEWAY_ALLOWED_ORIGINS 覆盖
+    # 示例：GATEWAY_ALLOWED_ORIGINS=https://www.example.com,https://*.example.com
+    allowed-origin-patterns: ${GATEWAY_ALLOWED_ORIGINS:*}
+    # 允许的 HTTP 方法
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+      - HEAD
+    # 允许的请求头（生产环境可根据需要限制）
+    allowed-headers:
+      - "*"
+    # 暴露给客户端的响应头
+    exposed-headers:
+      - X-Trace-Id
+      - X-Request-Id
+    # 是否允许携带凭证（Cookie、Authorization）
+    allow-credentials: true
+    # 预检请求缓存时间（秒）
+    max-age: 3600
+    # 是否在启动时对通配符配置发出警告
+    warn-on-wildcard: true
+    # H-007: 生产环境阻止通配符配置（必须配置 GATEWAY_ALLOWED_ORIGINS）
+    block-wildcard-in-production: ${GATEWAY_CORS_BLOCK_WILDCARD:true}
+
+  # ========== API Key 认证配置 ==========
+  # MVP 红线要求：API Key + Secret（环境变量注入）
+  # 
+  # ⚠️ 安全警告：
+  #   - 生产环境必须通过环境变量配置 API Key/Secret
+  #   - Key 长度建议 >= 16 字符
+  #   - Secret 长度建议 >= 32 字符
+  #
+  security:
+    api-key:
+      # 是否启用 API Key 认证（生产环境必须为 true）
+      enabled: ${GATEWAY_AUTH_ENABLED:true}
+      # API Key 请求头名称
+      header-name: X-API-Key
+      # API Secret 请求头名称
+      secret-header-name: X-API-Secret
+      # 是否在生产环境强制启用认证
+      enforce-in-production: true
+      # 是否记录认证失败详情（生产环境建议 false）
+      log-auth-failure-details: ${GATEWAY_LOG_AUTH_DETAILS:false}
+      # API Key 配置列表（通过环境变量注入）
+      # 注意：以下默认值为明显不可用的占位符，生产环境必须通过环境变量覆盖
+      keys:
+        # 前端 Web 应用专用 Key（Web 端和移动端 WebView 共用）
+        - name: frontend-web
+          key: ${FRONTEND_WEB_API_KEY:CHANGE-ME-frontend-web-api-key}
+          secret: ${FRONTEND_WEB_API_SECRET:CHANGE-ME-frontend-web-api-secret}
+          # 限制可访问的路径（为空则允许所有）
+          allowed-paths: []
+        # 插件引擎专用 Key（内部服务间通信）
+        - name: plugin-engine
+          key: ${PLUGIN_ENGINE_API_KEY:CHANGE-ME-plugin-engine-api-key}
+          secret: ${PLUGIN_ENGINE_API_SECRET:CHANGE-ME-plugin-engine-api-secret}
+          allowed-paths:
+            - /api/plugin-engine/**
+        # 插件服务专用 Key（插件后端注册和心跳）
+        - name: plugin-service
+          key: ${PLUGIN_SERVICE_API_KEY:CHANGE-ME-plugin-service-api-key}
+          secret: ${PLUGIN_SERVICE_API_SECRET:CHANGE-ME-plugin-service-api-secret}
+          allowed-paths:
+            - /api/plugins/**
+            - /api/plugin-engine/register
+            - /api/plugin-engine/cache/plugins/*/heartbeat
+        # 移动端应用专用 Key
+        - name: mobile-app
+          key: ${MOBILE_API_KEY:CHANGE-ME-mobile-api-key}
+          secret: ${MOBILE_API_SECRET:CHANGE-ME-mobile-api-secret}
+          allowed-paths: []
+      # 排除认证的路径（健康检查、公开接口等）
+      exclude-paths:
+        - /actuator/health
+        - /actuator/health/**
+        - /actuator/info
+        - /healthz
+        - /health/ping
+        - /favicon.ico
+        # Auth Center 认证相关（P112）- 登录、注册、OAuth 回调必须公开
+        - /api/v1/auth/**
+        # OAuth 认证相关（P112）- 兼容旧路径
+        - /api/plugin-engine/auth/**
+        # 插件列表接口 - 移动端/Web端需要在登录前获取插件清单
+        - /api/plugin-engine/plugins
+        - /api/plugin-engine/plugins/**
+        # 菜单聚合接口 - 登录后需要获取菜单，但菜单本身应该公开（无需API Key认证）
+        - /api/plugin-engine/menus
+        - /api/plugin-engine/menus/**
+
+    # ========== 敏感请求头剥离配置 ==========
+    # MVP 红线要求：剥离 x-user-id/x-tenant-id/x-role
+    #
+    # 防止客户端伪造身份信息，这些头将由后续的认证服务重新注入
+    #
+    header-strip:
+      # 是否启用敏感头剥离
+      enabled: true
+      # 需要剥离的请求头列表（不区分大小写）
+      headers:
+        - x-user-id
+        - x-tenant-id
+        - x-role
+        - x-roles
+        - x-permissions
+        - x-user-name
+        - x-internal-call
+        - x-forwarded-user
+        - x-auth-user
+      # 是否记录剥离操作
+      log-stripped: true
+      # 是否在日志中显示被剥离的原始值（生产环境必须为 false）
+      log-stripped-value: ${GATEWAY_LOG_STRIPPED_VALUE:false}
+      # 排除剥离的路径（内部服务间调用可能需要保留）
+      exclude-paths: []
+
+    # ========== 日志脱敏配置 ==========
+    # MVP 红线要求：token/Authorization 字段脱敏
+    #
+    # 防止敏感信息泄露到日志中
+    #
+    log-sanitization:
+      # 是否启用日志脱敏
+      enabled: true
+      # 需要脱敏的请求头（不区分大小写）
+      sensitive-headers:
+        - authorization
+        - x-api-key
+        - x-api-secret
+        - cookie
+        - set-cookie
+        - x-auth-token
+        - x-access-token
+        - x-refresh-token
+        - proxy-authorization
+      # 需要脱敏的正则表达式模式
+      sensitive-patterns:
+        # Bearer token
+        - "Bearer\\s+[A-Za-z0-9-_=]+\\.[A-Za-z0-9-_=]+\\.[A-Za-z0-9-_.+/=]*"
+        # Basic auth
+        - "Basic\\s+[A-Za-z0-9+/=]+"
+        # Generic token patterns
+        - "token\\s*[=:]\\s*[\"']?[A-Za-z0-9-_]+[\"']?"
+        # Password patterns
+        - "password\\s*[=:]\\s*[\"']?[^\\s\"'&]+[\"']?"
+        # API Key patterns
+        - "api[_-]?key\\s*[=:]\\s*[\"']?[A-Za-z0-9-_]+[\"']?"
+        # Secret patterns
+        - "secret\\s*[=:]\\s*[\"']?[A-Za-z0-9-_]+[\"']?"
+      # 脱敏使用的掩码字符
+      mask-char: "*"
+      # 保留可见的字符数（前后各保留）
+      visible-chars: 4
+      # 完全掩盖的最小长度
+      full-mask-threshold: 8

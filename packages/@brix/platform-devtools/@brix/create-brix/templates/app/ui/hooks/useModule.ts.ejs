@@ -1,0 +1,364 @@
+/**
+ * @file <%= displayName %> Hooks（Web）
+ * @description ViewModel 层 — 业务逻辑和状态管理
+ * @module @shinwa/<%= name %>-ui-web
+ * @version <%= version %>
+ *
+ * 由 @brix/create-brix <%= date %> 自动生成
+ *
+ * 【设计说明】
+ * 遵循 v3.0.4 蓝图 MVVM 分层架构，Hooks 作为 ViewModel 层：
+ * 1. 封装业务逻辑和状态管理
+ * 2. 通过 useHttp() 获取 HttpCapability
+ * 3. 调用 Repository 层获取数据
+ * 4. 向 View 层提供响应式状态和操作方法
+ *
+ * 【架构红线】
+ * - Hooks 通过 Repository 层访问数据，禁止直接使用 fetch/axios
+ * - Hooks 不包含 UI 渲染逻辑
+ * - HttpCapability 通过 useHttp() 注入
+ *
+ * @author <%= author %>
+ * @date <%= date %>
+ */
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useHttp } from '@brix/runtime-sdk-react';
+import type { <%= classPrefix %>, Create<%= classPrefix %>Request, Update<%= classPrefix %>Request, PagedResponse } from '@shinwa/<%= name %>-shared';
+import { create<%= classPrefix %>Repository, type <%= classPrefix %>QueryParams } from '../repositories';
+
+// ============================================================================
+// 列表 Hook
+// ============================================================================
+
+/**
+ * <%= displayName %> 列表 Hook 返回类型
+ */
+export interface Use<%= classPrefix %>ListResult {
+  /** 数据列表 */
+  items: <%= classPrefix %>[];
+  /** 是否正在加载 */
+  isLoading: boolean;
+  /** 错误信息 */
+  error: Error | null;
+  /** 分页信息 */
+  pagination: {
+    page: number;
+    size: number;
+    total: number;
+    totalPages: number;
+  };
+  /** 刷新列表 */
+  refresh: () => Promise<void>;
+  /** 切换页码 */
+  setPage: (page: number) => void;
+  /** 设置每页大小 */
+  setPageSize: (size: number) => void;
+  /** 搜索 */
+  search: (keyword: string) => void;
+  /** 按状态筛选 */
+  filterByStatus: (status: string | undefined) => void;
+  /** 删除项目 */
+  deleteItem: (id: number) => Promise<void>;
+}
+
+/**
+ * <%= displayName %> 列表 Hook
+ *
+ * 封装列表数据获取、分页、搜索、筛选等业务逻辑。
+ *
+ * @returns 列表状态和操作方法
+ *
+ * @example
+ * ```tsx
+ * const { items, isLoading, error, pagination, refresh, deleteItem } = use<%= classPrefix %>List();
+ * ```
+ */
+export function use<%= classPrefix %>List(): Use<%= classPrefix %>ListResult {
+  // 通过 useHttp 获取 HttpCapability
+  const http = useHttp();
+
+  // 状态
+  const [items, setItems] = useState<<%= classPrefix %>[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [params, setParams] = useState<<%= classPrefix %>QueryParams>({
+    page: 0,
+    size: 20,
+  });
+  const [pagination, setPagination] = useState({
+    page: 0,
+    size: 20,
+    total: 0,
+    totalPages: 0,
+  });
+
+  // 创建 Repository 实例（使用 useMemo 避免重复创建）
+  const repository = useMemo(
+    () => create<%= classPrefix %>Repository(http),
+    [http]
+  );
+
+  // 加载数据
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response: PagedResponse<<%= classPrefix %>> = await repository.list(params);
+
+      setItems(response.content);
+      setPagination({
+        page: response.number,
+        size: response.size,
+        total: response.totalElements,
+        totalPages: response.totalPages,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [repository, params]);
+
+  // 参数变化时重新加载
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // 刷新
+  const refresh = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
+
+  // 切换页码
+  const setPage = useCallback((page: number) => {
+    setParams(prev => ({ ...prev, page }));
+  }, []);
+
+  // 设置每页大小
+  const setPageSize = useCallback((size: number) => {
+    setParams(prev => ({ ...prev, size, page: 0 }));
+  }, []);
+
+  // 搜索
+  const search = useCallback((keyword: string) => {
+    setParams(prev => ({ ...prev, keyword: keyword || undefined, page: 0 }));
+  }, []);
+
+  // 按状态筛选
+  const filterByStatus = useCallback((status: string | undefined) => {
+    setParams(prev => ({ ...prev, status, page: 0 }));
+  }, []);
+
+  // 删除项目
+  const deleteItem = useCallback(async (id: number) => {
+    try {
+      await repository.delete(id);
+      // 删除成功后刷新列表
+      await loadData();
+    } catch (err) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+  }, [repository, loadData]);
+
+  return {
+    items,
+    isLoading,
+    error,
+    pagination,
+    refresh,
+    setPage,
+    setPageSize,
+    search,
+    filterByStatus,
+    deleteItem,
+  };
+}
+
+// ============================================================================
+// 详情 Hook
+// ============================================================================
+
+/**
+ * <%= displayName %> 详情 Hook 返回类型
+ */
+export interface Use<%= classPrefix %>DetailResult {
+  /** 详情数据 */
+  item: <%= classPrefix %> | null;
+  /** 是否正在加载 */
+  isLoading: boolean;
+  /** 错误信息 */
+  error: Error | null;
+  /** 刷新详情 */
+  refresh: () => Promise<void>;
+  /** 更新 */
+  updateItem: (data: Update<%= classPrefix %>Request) => Promise<<%= classPrefix %>>;
+  /** 删除 */
+  deleteItem: () => Promise<void>;
+}
+
+/**
+ * <%= displayName %> 详情 Hook
+ *
+ * 封装详情数据获取、更新、删除等业务逻辑。
+ *
+ * @param id 资源 ID
+ * @returns 详情状态和操作方法
+ *
+ * @example
+ * ```tsx
+ * const { item, isLoading, error, updateItem, deleteItem } = use<%= classPrefix %>Detail(id);
+ * ```
+ */
+export function use<%= classPrefix %>Detail(id: number | string): Use<%= classPrefix %>DetailResult {
+  const http = useHttp();
+  const numericId = typeof id === 'string' ? Number(id) : id;
+
+  // 状态
+  const [item, setItem] = useState<<%= classPrefix %> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  // 创建 Repository 实例
+  const repository = useMemo(
+    () => create<%= classPrefix %>Repository(http),
+    [http]
+  );
+
+  // 加载详情
+  const loadDetail = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const data = await repository.getById(numericId);
+      setItem(data);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [repository, numericId]);
+
+  // ID 变化时重新加载
+  useEffect(() => {
+    if (numericId) {
+      loadDetail();
+    }
+  }, [numericId, loadDetail]);
+
+  // 更新
+  const updateItem = useCallback(async (data: Update<%= classPrefix %>Request): Promise<<%= classPrefix %>> => {
+    try {
+      const updated = await repository.update(numericId, data);
+      setItem(updated);
+      return updated;
+    } catch (err) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+  }, [repository, numericId]);
+
+  // 删除
+  const deleteItem = useCallback(async () => {
+    try {
+      await repository.delete(numericId);
+      setItem(null);
+    } catch (err) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+  }, [repository, numericId]);
+
+  return {
+    item,
+    isLoading,
+    error,
+    refresh: loadDetail,
+    updateItem,
+    deleteItem,
+  };
+}
+
+// ============================================================================
+// 创建/编辑 Hook
+// ============================================================================
+
+/**
+ * <%= displayName %> 创建 Hook 返回类型
+ */
+export interface Use<%= classPrefix %>CreateResult {
+  /** 是否正在提交 */
+  isSubmitting: boolean;
+  /** 错误信息 */
+  error: Error | null;
+  /** 创建 */
+  create: (data: Create<%= classPrefix %>Request) => Promise<<%= classPrefix %>>;
+  /** 重置错误 */
+  resetError: () => void;
+}
+
+/**
+ * <%= displayName %> 创建 Hook
+ *
+ * 封装创建业务逻辑。
+ *
+ * @returns 创建状态和操作方法
+ *
+ * @example
+ * ```tsx
+ * const { isSubmitting, error, create } = use<%= classPrefix %>Create();
+ * const handleSubmit = async (data) => {
+ *   const created = await create(data);
+ *   navigate(`/<%= name.replace(/-/g, '/') %>/${created.id}`);
+ * };
+ * ```
+ */
+export function use<%= classPrefix %>Create(): Use<%= classPrefix %>CreateResult {
+  const http = useHttp();
+
+  // 状态
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  // 创建 Repository 实例
+  const repository = useMemo(
+    () => create<%= classPrefix %>Repository(http),
+    [http]
+  );
+
+  // 创建
+  const create = useCallback(async (data: Create<%= classPrefix %>Request): Promise<<%= classPrefix %>> => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const created = await repository.create(data);
+      return created;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [repository]);
+
+  // 重置错误
+  const resetError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  return {
+    isSubmitting,
+    error,
+    create,
+    resetError,
+  };
+}
+
+// ============================================================================
+// 导出
+// ============================================================================
+
+// 默认导出列表 Hook（向后兼容）
+export default use<%= classPrefix %>List;

@@ -1,0 +1,56 @@
+package <%= packageName %>.api.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
+import java.io.Serializable;
+
+/**
+ * 创建<%= displayName %>请求对象
+ * 
+ * <p>用于接收创建<%= displayName %>的 API 请求参数。</p>
+ * 
+ * <p>【v3.0 架构说明】</p>
+ * <ul>
+ *   <li>Request 对象放置在 api 模块</li>
+ *   <li>使用 Jakarta Validation 进行参数校验</li>
+ *   <li>与 DTO 分离，Request 用于输入，DTO 用于输出</li>
+ * </ul>
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ * @version <%= version %>
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Create<%= classPrefix %>Request implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 名称
+     * <p>必填，长度 1-100 字符</p>
+     */
+    @NotBlank(message = "名称不能为空")
+    @Size(min = 1, max = 100, message = "名称长度必须在 1-100 字符之间")
+    private String name;
+
+    /**
+     * 描述
+     * <p>可选，最大 500 字符</p>
+     */
+    @Size(max = 500, message = "描述长度不能超过 500 字符")
+    private String description;
+
+    /**
+     * 扩展属性（JSON 格式）
+     * <p>可选，用于存储额外的业务数据</p>
+     */
+    private String extendedData;
+}

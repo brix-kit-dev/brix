@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "brix-framework/infra-adapters"
+    }
+  ],
+  "commit": false,
+  "fixed": [],
+  "linked": [
+    [
+      "@brix/infra-adapter-http-web",
+      "@brix/infra-adapter-iframe-web",
+      "@brix/infra-adapter-mf-web",
+      "@brix/infra-adapter-native-web",
+      "@brix/infra-adapter-router-web",
+      "@brix/infra-adapter-state-web"
+    ]
+  ],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
+  }
+}

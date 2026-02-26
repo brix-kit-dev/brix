@@ -1,0 +1,161 @@
+/**
+ * @file <%= displayName %> Repository（Web）
+ * @description 数据访问层 — 封装 API 调用
+ * @module @shinwa/<%= name %>-ui-web
+ * @version <%= version %>
+ *
+ * 由 @brix/create-brix <%= date %> 自动生成
+ *
+ * 【设计说明】
+ * Repository 层封装所有数据访问逻辑：
+ * 1. 调用 HttpCapability 发起 HTTP 请求
+ * 2. 数据格式转换
+ * 3. 错误处理标准化
+ *
+ * 【架构红线 R3 合规】
+ * - 所有 HTTP 请求通过 HttpCapability 发起
+ * - 禁止直接使用 fetch/axios
+ * - HttpCapability 通过 RuntimeContext 注入
+ *
+ * @see HttpCapability 定义于 @brix/runtime-sdk-api-web
+ */
+
+import type { HttpCapability } from '@brix/runtime-sdk-api-web';
+import type { 
+  <%= classPrefix %>, 
+  Create<%= classPrefix %>Request,
+  Update<%= classPrefix %>Request,
+  PagedResponse,
+} from '@shinwa/<%= name %>-shared';
+import { API_ENDPOINTS } from '@shinwa/<%= name %>-shared/constants';
+
+// ============================================================================
+// 类型定义
+// ============================================================================
+
+/**
+ * 查询参数
+ */
+export interface <%= classPrefix %>QueryParams {
+  /** 页码（从 0 开始） */
+  page?: number;
+  /** 每页大小 */
+  size?: number;
+  /** 状态过滤 */
+  status?: string;
+  /** 搜索关键字 */
+  keyword?: string;
+}
+
+/**
+ * <%= displayName %> Repository 接口
+ */
+export interface <%= classPrefix %>Repository {
+  /**
+   * 获取分页列表
+   */
+  list(params?: <%= classPrefix %>QueryParams): Promise<PagedResponse<<%= classPrefix %>>>;
+
+  /**
+   * 根据 ID 获取详情
+   */
+  getById(id: number): Promise<<%= classPrefix %>>;
+
+  /**
+   * 创建
+   */
+  create(request: Create<%= classPrefix %>Request): Promise<<%= classPrefix %>>;
+
+  /**
+   * 更新
+   */
+  update(id: number, request: Update<%= classPrefix %>Request): Promise<<%= classPrefix %>>;
+
+  /**
+   * 删除
+   */
+  delete(id: number): Promise<void>;
+}
+
+// ============================================================================
+// Repository 实现
+// ============================================================================
+
+/**
+ * 创建 <%= displayName %> Repository 实例
+ *
+ * @param http HttpCapability 实例
+ * @returns Repository 实例
+ *
+ * @example
+ * ```typescript
+ * const runtimeContext = useRuntimeContext();
+ * const http = runtimeContext.getCapability<HttpCapability>('HttpCapability');
+ * const repository = create<%= classPrefix %>Repository(http);
+ * ```
+ */
+export function create<%= classPrefix %>Repository(http: HttpCapability): <%= classPrefix %>Repository {
+  return {
+    /**
+     * 获取分页列表
+     */
+    async list(params?: <%= classPrefix %>QueryParams): Promise<PagedResponse<<%= classPrefix %>>> {
+      const response = await http.request<PagedResponse<<%= classPrefix %>>>({
+        url: API_ENDPOINTS.LIST,
+        method: 'GET',
+        params: {
+          page: params?.page ?? 0,
+          size: params?.size ?? 20,
+          status: params?.status,
+          keyword: params?.keyword,
+        },
+      });
+      return response.data;
+    },
+
+    /**
+     * 根据 ID 获取详情
+     */
+    async getById(id: number): Promise<<%= classPrefix %>> {
+      const response = await http.request<<%= classPrefix %>>({
+        url: API_ENDPOINTS.DETAIL(id),
+        method: 'GET',
+      });
+      return response.data;
+    },
+
+    /**
+     * 创建
+     */
+    async create(request: Create<%= classPrefix %>Request): Promise<<%= classPrefix %>> {
+      const response = await http.request<<%= classPrefix %>>({
+        url: API_ENDPOINTS.CREATE,
+        method: 'POST',
+        data: request,
+      });
+      return response.data;
+    },
+
+    /**
+     * 更新
+     */
+    async update(id: number, request: Update<%= classPrefix %>Request): Promise<<%= classPrefix %>> {
+      const response = await http.request<<%= classPrefix %>>({
+        url: API_ENDPOINTS.UPDATE(id),
+        method: 'PUT',
+        data: request,
+      });
+      return response.data;
+    },
+
+    /**
+     * 删除
+     */
+    async delete(id: number): Promise<void> {
+      await http.request<void>({
+        url: API_ENDPOINTS.DELETE(id),
+        method: 'DELETE',
+      });
+    },
+  };
+}

@@ -1,0 +1,127 @@
+# ========================================================================
+# 生产环境配置示例 - application-prod.yml
+# ========================================================================
+# 
+# ⚠️ 重要安全提示：
+# 1. 此文件为生产环境配置模板，请根据实际情况修改后使用
+# 2. 请勿将包含敏感信息的配置文件提交到版本控制系统
+# 3. 建议使用环境变量或配置中心管理敏感配置
+#
+# 使用方式：
+#   java -jar platform-gateway.jar --spring.profiles.active=prod
+#
+# 环境变量配置方式（推荐）：
+#   PLUGIN_ENGINE_URL=http://plugin-engine:8085
+#   GATEWAY_ALLOWED_ORIGINS=https://www.your-domain.com,https://admin.your-domain.com
+#   REDIS_HOST=redis.your-domain.com
+#   REDIS_PASSWORD=your-secure-password
+# ========================================================================
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # Redis 配置（生产环境）
+  data:
+    redis:
+      host: ${REDIS_HOST:redis.your-domain.com}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}  # ⚠️ 生产环境必须设置密码
+      database: ${REDIS_DATABASE:0}
+      timeout: 5000
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 10
+          min-idle: 5
+          max-wait: 5000ms
+
+  # 网关路由配置（生产环境）
+  cloud:
+    gateway:
+      # 全局默认过滤器
+      default-filters:
+        # 去除路由前缀，/api/plugin-engine/xxx -> /xxx
+        - StripPrefix=1
+        # 处理下游服务返回的重复 CORS 头
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers, RETAIN_UNIQUE
+      routes:
+        # 插件引擎路由
+        - id: plugin-engine
+          uri: ${PLUGIN_ENGINE_URL:http://plugin-engine:8085}
+          predicates:
+            - Path=/api/plugin-engine/**
+          filters:
+            - StripPrefix=1
+        
+        # 其他业务插件路由示例
+        # - id: user-plugin
+        #   uri: ${USER_PLUGIN_URL:http://user-plugin:8082}
+        #   predicates:
+        #     - Path=/api/user/**
+        #   filters:
+        #     - StripPrefix=1
+
+# ========== CORS 生产环境配置 ==========
+# ⚠️ 安全关键：必须配置具体的域名白名单！
+#
+# 配置方式（二选一）：
+#   方式1: 环境变量（推荐）
+#     GATEWAY_ALLOWED_ORIGINS=https://www.your-domain.com,https://admin.your-domain.com
+#
+#   方式2: YAML 配置
+#     gateway.cors.allowed-origin-patterns: 列表形式配置
+#
+gateway:
+  cors:
+    # 允许的来源（必须配置具体域名，通过环境变量 GATEWAY_ALLOWED_ORIGINS 设置）
+    # 格式：逗号分隔的域名列表，如：https://a.com,https://b.com
+    # ⚠️ 生产环境禁止使用 "*"
+    allowed-origin-patterns: ${GATEWAY_ALLOWED_ORIGINS}
+    
+    # 允许的 HTTP 方法（根据实际 API 需求配置）
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+      - HEAD
+    
+    # 允许的请求头（建议限制为实际需要的）
+    allowed-headers:
+      - Content-Type
+      - Authorization
+      - X-Requested-With
+      - X-Trace-Id
+      - Accept
+      - Origin
+    
+    # 暴露给客户端的响应头
+    exposed-headers:
+      - X-Trace-Id
+      - X-Request-Id
+    
+    # 允许携带凭证
+    allow-credentials: true
+    
+    # 预检请求缓存时间（1小时）
+    max-age: 3600
+    
+    # 启动时输出通配符警告
+    warn-on-wildcard: true
+    
+    # ⚠️ 生产环境安全开关：阻止通配符配置
+    # 设置为 true 时，如果 allowed-origin-patterns 包含 "*"，应用将无法启动
+    block-wildcard-in-production: true
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    shinwa.platform: INFO
+    org.springframework.cloud.gateway: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

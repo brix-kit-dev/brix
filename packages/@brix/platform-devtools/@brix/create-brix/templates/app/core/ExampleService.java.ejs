@@ -1,0 +1,183 @@
+package <%= packageName %>.core.service;
+
+import <%= packageName %>.api.dto.<%= classPrefix %>DTO;
+import <%= packageName %>.api.event.<%= classPrefix %>CreatedEvent;
+import <%= packageName %>.api.request.Create<%= classPrefix %>Request;
+import <%= packageName %>.core.entity.<%= classPrefix %>Entity;
+import <%= packageName %>.core.repository.<%= classPrefix %>Repository;
+import io.runtime.sdk.context.RuntimeContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/**
+ * <%= displayName %> 业务服务
+ * 
+ * <p>提供<%= displayName %>的核心业务逻辑实现。</p>
+ * 
+ * <p>【v3.0 核心架构约束】</p>
+ * <ul>
+ *   <li>★ 通过 {@link RuntimeContext} 访问所有能力，而非直接依赖基础设施</li>
+ *   <li>★ 事件发布通过 EventBusCapability，不直接使用 KafkaTemplate</li>
+ *   <li>★ 认证信息通过 AuthContextCapability 获取</li>
+ *   <li>★ 日志/指标通过 ObservabilityCapability 记录</li>
+ * </ul>
+ * 
+ * <p>【使用示例】</p>
+ * <pre>{@code
+ * // 获取当前用户
+ * String userId = context.getAuthContext().getCurrentUserId();
+ * 
+ * // 发布事件
+ * context.getEventBus().publish(event);
+ * 
+ * // 记录日志
+ * context.getObservability().log(LogLevel.INFO, "操作完成");
+ * }</pre>
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ * @version <%= version %>
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class <%= classPrefix %>Service {
+
+    /**
+     * 【v3.0 核心】运行时上下文
+     * <p>通过 RuntimeContext 获取所有能力，禁止直接依赖 Kafka/Redis 等基础设施</p>
+     */
+    private final RuntimeContext runtimeContext;
+
+    /**
+     * 数据仓储
+     */
+    private final <%= classPrefix %>Repository repository;
+
+    /**
+     * 创建<%= displayName %>
+     * 
+     * <p>创建新记录并发布领域事件通知其他模块。</p>
+     * 
+     * @param request 创建请求
+     * @return 创建的 DTO
+     * @throws IllegalArgumentException 如果名称已存在
+     */
+    @Transactional
+    public <%= classPrefix %>DTO create(Create<%= classPrefix %>Request request) {
+        // 【v3.0】通过 RuntimeContext 获取租户 ID 和用户 ID
+        String tenantId = runtimeContext.getTenantId();
+        String userId = runtimeContext.getAuthContext().getCurrentUserId();
+
+        // 检查名称是否重复
+        if (repository.existsByTenantIdAndName(tenantId, request.getName())) {
+            throw new IllegalArgumentException("名称已存在: " + request.getName());
+        }
+
+        // 创建实体
+        <%= classPrefix %>Entity entity = <%= classPrefix %>Entity.builder()
+            .name(request.getName())
+            .description(request.getDescription())
+            .status("DRAFT")
+            .tenantId(tenantId)
+            .createdBy(userId)
+            .build();
+
+        // 保存实体
+        entity = repository.save(entity);
+
+        // 【v3.0 核心】发布领域事件（通过 EventBusCapability，而非 KafkaTemplate）
+        <%= classPrefix %>CreatedEvent event = <%= classPrefix %>CreatedEvent.builder()
+            .<%= name.replace(/-/g, '') %>Id(entity.getId())
+            .<%= name.replace(/-/g, '') %>Name(entity.getName())
+            .createdBy(userId)
+            .tenantId(tenantId)
+            .build();
+        runtimeContext.getEventBus().publish(event);
+
+        // 【v3.0】记录审计日志
+        runtimeContext.getObservability().log(
+            io.runtime.sdk.capability.ObservabilityCapability.LogLevel.INFO,
+            "<%= displayName %>创建成功: id={}, name={}", entity.getId(), entity.getName()
+        );
+
+        return toDTO(entity);
+    }
+
+    /**
+     * 根据 ID 查询
+     * 
+     * @param id 记录 ID
+     * @return DTO（可选）
+     */
+    @Transactional(readOnly = true)
+    public Optional<<%= classPrefix %>DTO> findById(String id) {
+        return repository.findById(id).map(this::toDTO);
+    }
+
+    /**
+     * 分页查询
+     * 
+     * @param pageable 分页参数
+     * @return 分页结果
+     */
+    @Transactional(readOnly = true)
+    public Page<<%= classPrefix %>DTO> findAll(Pageable pageable) {
+        String tenantId = runtimeContext.getTenantId();
+        return repository.findByTenantId(tenantId, pageable).map(this::toDTO);
+    }
+
+    /**
+     * 搜索
+     * 
+     * @param keyword 搜索关键词
+     * @param pageable 分页参数
+     * @return 分页结果
+     */
+    @Transactional(readOnly = true)
+    public Page<<%= classPrefix %>DTO> search(String keyword, Pageable pageable) {
+        String tenantId = runtimeContext.getTenantId();
+        return repository.searchByName(tenantId, keyword, pageable).map(this::toDTO);
+    }
+
+    /**
+     * 删除
+     * 
+     * @param id 记录 ID
+     */
+    @Transactional
+    public void delete(String id) {
+        repository.deleteById(id);
+        
+        runtimeContext.getObservability().log(
+            io.runtime.sdk.capability.ObservabilityCapability.LogLevel.INFO,
+            "<%= displayName %>删除成功: id={}", id
+        );
+    }
+
+    /**
+     * 实体转 DTO
+     * 
+     * @param entity 实体
+     * @return DTO
+     */
+    private <%= classPrefix %>DTO toDTO(<%= classPrefix %>Entity entity) {
+        return <%= classPrefix %>DTO.builder()
+            .id(entity.getId())
+            .name(entity.getName())
+            .description(entity.getDescription())
+            .status(entity.getStatus())
+            .tenantId(entity.getTenantId())
+            .createdBy(entity.getCreatedBy())
+            .createdAt(entity.getCreatedAt())
+            .updatedBy(entity.getUpdatedBy())
+            .updatedAt(entity.getUpdatedAt())
+            .build();
+    }
+}

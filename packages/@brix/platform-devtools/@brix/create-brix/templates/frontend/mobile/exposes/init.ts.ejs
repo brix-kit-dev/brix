@@ -1,0 +1,72 @@
+/**
+ * <%= displayName %> Mobile - i18n 初始化
+ * 
+ * @module @shinwa/<%= name %>-mobile
+ * @generated <%= date %>
+ * 
+ * 本模块提供国际化初始化函数
+ * 
+ * 使用方式：
+ * import { init } from '@shinwa/<%= name %>-mobile';
+ * init(); // 在 App 启动时调用
+ */
+
+import i18n from 'i18next';
+
+/**
+ * 国际化资源定义
+ */
+const resources = {
+  zh: {
+    translation: {
+      '<%= name.replace('plugin-', '') %>': {
+        title: '<%= displayName %>',
+        list: '列表',
+        detail: '详情',
+        loading: '加载中...',
+        empty: '暂无数据',
+        error: '加载失败',
+        retry: '重试',
+      },
+    },
+  },
+  en: {
+    translation: {
+      '<%= name.replace('plugin-', '') %>': {
+        title: '<%= displayName %>',
+        list: 'List',
+        detail: 'Detail',
+        loading: 'Loading...',
+        empty: 'No data',
+        error: 'Load failed',
+        retry: 'Retry',
+      },
+    },
+  },
+};
+
+/**
+ * 初始化 i18n
+ * 
+ * 如果 i18n 已经初始化，则添加资源；否则完整初始化
+ */
+export function init(): void {
+  if (i18n.isInitialized) {
+    // 已初始化，添加资源
+    Object.entries(resources).forEach(([lng, resource]) => {
+      i18n.addResourceBundle(lng, 'translation', resource.translation, true, true);
+    });
+  } else {
+    // 未初始化，完整初始化
+    i18n.init({
+      resources,
+      lng: 'zh',
+      fallbackLng: 'en',
+      interpolation: {
+        escapeValue: false,
+      },
+    });
+  }
+}
+
+export default init;

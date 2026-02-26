@@ -1,0 +1,90 @@
+package <%= packageName %>.api.event;
+
+import io.runtime.sdk.event.DomainEvent;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
+/**
+ * <%= displayName %>创建事件
+ * 
+ * <p>当新的<%= displayName %>被创建时发布此领域事件。</p>
+ * 
+ * <p>【v3.0 事件模型说明】</p>
+ * <ul>
+ *   <li>继承自 {@link DomainEvent}，由 Runtime Shell 统一路由</li>
+ *   <li>在 module-manifest.yaml 中声明 publishes</li>
+ *   <li>模块不直接操作 Kafka/RabbitMQ，而是通过 EventBusCapability 发布</li>
+ * </ul>
+ * 
+ * <p>【使用示例】</p>
+ * <pre>{@code
+ * // 在 Service 中发布事件
+ * var event = <%= classPrefix %>CreatedEvent.builder()
+ *     .<%= name.replace(/-/g, '') %>Id(entity.getId())
+ *     .<%= name.replace(/-/g, '') %>Name(entity.getName())
+ *     .createdBy(context.getAuthContext().getCurrentUserId())
+ *     .build();
+ * context.getEventBus().publish(event);
+ * }</pre>
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ * @version <%= version %>
+ * @see io.runtime.sdk.event.DomainEvent
+ */
+@Data
+@SuperBuilder
+@NoArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+public class <%= classPrefix %>CreatedEvent extends DomainEvent {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 事件类型常量
+     */
+    public static final String EVENT_TYPE = "<%= classPrefix %>CreatedEvent";
+
+    /**
+     * <%= displayName %> ID
+     */
+    private String <%= name.replace(/-/g, '') %>Id;
+
+    /**
+     * <%= displayName %> 名称
+     */
+    private String <%= name.replace(/-/g, '') %>Name;
+
+    /**
+     * 创建者 ID
+     */
+    private String createdBy;
+
+    /**
+     * 租户 ID
+     */
+    private String tenantId;
+
+    /**
+     * 获取事件类型
+     * 
+     * @return 事件类型字符串
+     */
+    @Override
+    public String getEventType() {
+        return EVENT_TYPE;
+    }
+
+    /**
+     * 获取聚合根 ID
+     * <p>用于事件路由和分区（保证同一聚合根的事件顺序）</p>
+     * 
+     * @return 聚合根 ID
+     */
+    @Override
+    public String getAggregateId() {
+        return <%= name.replace(/-/g, '') %>Id;
+    }
+}

@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.brix</groupId>
+    <artifactId>infra-adapters</artifactId>
+    <version>3.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Brix Infrastructure Adapters</name>
+    <description>
+        Brix 基础设施适配器层（开源）
+        
+        提供 runtime-sdk 能力接口的各种基础设施实现，按运行平台分组：
+        - server/  后端 Java 适配器
+          - infra-adapter-kafka: Kafka 事件总线实现
+          - infra-adapter-redis: Redis 状态存储/分布式锁实现
+          - infra-adapter-outbox: Outbox 事务性事件发布
+          - infra-adapter-database: 数据库能力实现
+          - infra-adapter-minio: 对象存储能力实现
+          - infra-adapter-otel: OpenTelemetry 可观测性实现
+          - infra-adapter-simple: 轻量简单实现
+          - infra-adapter-webhook: HTTP Webhook 实现
+          - infra-adapter-fallback: 最小化 Fallback 默认实现
+        - web/     前端 Web TypeScript 适配器
+        - mobile/  前端 Mobile TypeScript 适配器
+        
+        架构分层：Layer 2.5 - Adapter 层
+        许可证：Apache 2.0
+    </description>
+
+    <url>https://github.com/brix-framework/infra-adapters</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git://github.com/brix-framework/infra-adapters.git</connection>
+        <developerConnection>scm:git:ssh://github.com:brix-framework/infra-adapters.git</developerConnection>
+        <url>https://github.com/brix-framework/infra-adapters</url>
+    </scm>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <!-- Brix 版本 -->
+        <runtime-sdk.version>3.1.0-SNAPSHOT</runtime-sdk.version>
+        
+        <!-- Spring Boot -->
+        <spring-boot.version>3.2.1</spring-boot.version>
+        
+        <!-- 其他依赖版本 -->
+        <jackson.version>2.16.1</jackson.version>
+        <slf4j.version>2.0.9</slf4j.version>
+    </properties>
+
+    <modules>
+        <!-- ========== 后端适配器（Java / Spring Boot）========== -->
+        <module>packages/server/infra-adapter-kafka</module>
+        <module>packages/server/infra-adapter-redis</module>
+        <module>packages/server/infra-adapter-database</module>
+        <module>packages/server/infra-adapter-minio</module>
+        <module>packages/server/infra-adapter-simple</module>
+        <module>packages/server/infra-adapter-webhook</module>
+        <module>packages/server/infra-adapter-otel</module>
+        <module>packages/server/infra-adapter-fallback</module>
+        <module>packages/server/infra-adapter-idgen</module>
+        <module>packages/server/infra-adapter-dataaccess</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!-- Brix Runtime SDK -->
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>runtime-sdk-api</artifactId>
+                <version>${runtime-sdk.version}</version>
+            </dependency>
+            
+            <!-- Infra Adapter - Kafka Core（Outbox 模块的依赖项） -->
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>infra-adapter-kafka-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            
+            <!-- Infra Adapter - Kafka Outbox -->
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>infra-adapter-kafka-outbox</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            
+            <!-- Infra Adapter - Fallback（Simple 模块的依赖项） -->
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>infra-adapter-fallback</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.12.1</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <encoding>UTF-8</encoding>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.0</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar-no-fork</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.6.3</version>
+                    <configuration>
+                        <doclint>none</doclint>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

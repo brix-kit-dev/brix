@@ -1,0 +1,329 @@
+/**
+ * <%= displayName %> Mobile - 列表页面
+ * 
+ * @module @shinwa/<%= name %>-mobile
+ * @generated <%= date %>
+ * 
+ * 列表页面实现（供 exposes 包装器调用）
+ */
+
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+
+/**
+ * 列表项数据接口
+ */
+export interface ListItem {
+  id: number;
+  title: string;
+  description?: string;
+  createdAt?: string;
+  status?: string;
+}
+
+/**
+ * 列表页面属性
+ */
+export interface <%= classPrefix %>ListPageProps {
+  /**
+   * 点击项回调
+   */
+  onItemPress?: (item: ListItem) => void;
+  
+  /**
+   * API 基础路径
+   */
+  apiBasePath?: string;
+}
+
+/**
+ * <%= displayName %>列表页面组件
+ */
+const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
+  onItemPress,
+  apiBasePath = '/api/v1/<%= name.replace('plugin-', '') %>',
+}) => {
+  const [data, setData] = useState<ListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  /**
+   * 加载数据
+   */
+  const loadData = useCallback(async (pageNum: number, isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+        setError(null);
+      } else if (pageNum === 1) {
+        setLoading(true);
+      }
+
+      // TODO: 替换为实际的 API 调用
+      // const response = await fetch(`${apiBasePath}?page=${pageNum}&size=20`);
+      // const result = await response.json();
+      
+      await new Promise(resolve => setTimeout(resolve, 800));
+      const mockData: ListItem[] = Array.from({ length: 10 }, (_, i) => ({
+        id: (pageNum - 1) * 10 + i + 1,
+        title: `项目 ${(pageNum - 1) * 10 + i + 1}`,
+        description: '这是一段描述文字',
+        createdAt: new Date().toISOString(),
+        status: i % 2 === 0 ? 'active' : 'pending',
+      }));
+
+      if (isRefresh || pageNum === 1) {
+        setData(mockData);
+      } else {
+        setData(prev => [...prev, ...mockData]);
+      }
+      
+      setHasMore(pageNum < 3); // 模拟最多3页
+      setPage(pageNum);
+    } catch (err) {
+      setError('加载失败，请重试');
+      console.error('加载数据失败:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [apiBasePath]);
+
+  useEffect(() => {
+    loadData(1);
+  }, [loadData]);
+
+  /**
+   * 下拉刷新
+   */
+  const handleRefresh = useCallback(() => {
+    loadData(1, true);
+  }, [loadData]);
+
+  /**
+   * 加载更多
+   */
+  const handleLoadMore = useCallback(() => {
+    if (!loading && hasMore) {
+      loadData(page + 1);
+    }
+  }, [loading, hasMore, page, loadData]);
+
+  /**
+   * 渲染列表项
+   */
+  const renderItem = useCallback(({ item }: { item: ListItem }) => (
+    <TouchableOpacity
+      style={styles.item}
+      onPress={() => onItemPress?.(item)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.itemHeader}>
+        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+        {item.status && (
+          <View style={[
+            styles.statusBadge,
+            item.status === 'active' ? styles.statusActive : styles.statusPending
+          ]}>
+            <Text style={styles.statusText}>
+              {item.status === 'active' ? '启用' : '待处理'}
+            </Text>
+          </View>
+        )}
+      </View>
+      {item.description && (
+        <Text style={styles.description} numberOfLines={2}>
+          {item.description}
+        </Text>
+      )}
+      {item.createdAt && (
+        <Text style={styles.date}>
+          {new Date(item.createdAt).toLocaleDateString('zh-CN')}
+        </Text>
+      )}
+    </TouchableOpacity>
+  ), [onItemPress]);
+
+  /**
+   * 渲染列表底部
+   */
+  const renderFooter = () => {
+    if (!hasMore) {
+      return (
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>没有更多数据了</Text>
+        </View>
+      );
+    }
+    if (loading && data.length > 0) {
+      return (
+        <View style={styles.footer}>
+          <ActivityIndicator size="small" color="#1976d2" />
+        </View>
+      );
+    }
+    return null;
+  };
+
+  if (loading && data.length === 0) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#1976d2" />
+        <Text style={styles.loadingText}>加载中...</Text>
+      </View>
+    );
+  }
+
+  if (error && data.length === 0) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+          <Text style={styles.retryText}>重试</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id.toString()}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#1976d2']}
+            tintColor="#1976d2"
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>暂无数据</Text>
+          </View>
+        }
+        contentContainerStyle={data.length === 0 ? styles.emptyContainer : undefined}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  item: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  statusActive: {
+    backgroundColor: '#e8f5e9',
+  },
+  statusPending: {
+    backgroundColor: '#fff3e0',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  date: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
+  },
+  footer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#999',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#f44336',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#1976d2',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 4,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+  },
+});
+
+export default <%= classPrefix %>ListPage;

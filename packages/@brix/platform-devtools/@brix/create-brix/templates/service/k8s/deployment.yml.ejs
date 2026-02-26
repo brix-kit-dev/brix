@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <%= serviceName %>
+  namespace: <%= namespace || 'default' %>
+  labels:
+    app: <%= serviceName %>
+    version: "1.0.0"
+spec:
+  replicas: <%= replicas || 1 %>
+  selector:
+    matchLabels:
+      app: <%= serviceName %>
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: <%= serviceName %>
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: <%= serviceName %>
+          image: <%= registry || 'ghcr.io' %>/<%= organization || 'shinwa' %>/<%= serviceName %>:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "<%= profile || 'prod' %>"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1024m"
+            - name: TZ
+              value: "Asia/Tokyo"
+          envFrom:
+            - configMapRef:
+                name: <%= serviceName %>-config
+                optional: true
+            - secretRef:
+                name: <%= serviceName %>-secrets
+                optional: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: logs
+          emptyDir: {}
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: <%= serviceName %>-config
+  namespace: <%= namespace || 'default' %>
+data:
+  SERVER_PORT: "8080"
+  LOGGING_LEVEL_ROOT: "INFO"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus"

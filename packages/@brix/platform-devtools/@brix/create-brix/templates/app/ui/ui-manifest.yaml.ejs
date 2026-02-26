@@ -1,0 +1,56 @@
+# ================================================================
+# <%= displayName %> UI 模块声明
+# 
+# 声明 UI 模块的路由、菜单、权限等配置
+# 由宿主应用读取并动态注册
+# 
+# @author <%= author %>
+# @date <%= date %>
+# ================================================================
+
+# 模块基本信息
+module:
+  id: "<%= name %>-ui"
+  version: "<%= version %>"
+  name: "<%= displayName %>"
+  description: "<%= description %> 前端模块"
+
+# 远程模块配置（Module Federation）
+remote:
+  name: "<%= name.replace(/-/g, '_') %>"
+  entry: "http://localhost:<%= webPort %>/remoteEntry.js"
+
+# 路由配置
+routes:
+  - path: "/<%= name.replace(/-/g, '') %>"
+    name: "<%= displayName %>列表"
+    component: "./List"
+    meta:
+      title: "<%= displayName %>"
+      icon: "list"
+      permission: "<%= name %>:read"
+  
+  - path: "/<%= name.replace(/-/g, '') %>/:id"
+    name: "<%= displayName %>详情"
+    component: "./Detail"
+    meta:
+      title: "<%= displayName %>详情"
+      hidden: true
+      permission: "<%= name %>:read"
+
+# 菜单配置
+menus:
+  - id: "<%= name %>-menu"
+    name: "<%= displayName %>"
+    icon: "folder"
+    path: "/<%= name.replace(/-/g, '') %>"
+    order: 100
+    permission: "<%= name %>:read"
+    children: []
+
+# 权限配置（与后端 module-manifest.yaml 保持一致）
+permissions:
+  - id: "<%= name %>:read"
+    name: "查看<%= displayName %>"
+  - id: "<%= name %>:write"
+    name: "编辑<%= displayName %>"

@@ -1,0 +1,33 @@
+/**
+ * @file index.tsx
+ * @description <%= displayName %> Web 前端入口
+ * @module @shinwa/<%= name %>-web
+ * 
+ * 生成时间: <%= date %>
+ */
+
+import React from 'react';
+
+/**
+ * <%= displayName %> 主组件
+ */
+export const <%= classPrefix %>Plugin: React.FC = () => {
+  return (
+    <div className="<%= name %>-container">
+      <h1><%= displayName %></h1>
+      <p><%= description %></p>
+    </div>
+  );
+};
+
+/**
+ * 插件元信息
+ */
+export const pluginMeta = {
+  name: '<%= name %>',
+  displayName: '<%= displayName %>',
+  version: '<%= version %>',
+  description: '<%= description %>',
+};
+
+export default <%= classPrefix %>Plugin;

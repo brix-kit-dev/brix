@@ -1,0 +1,55 @@
+{
+  "name": "@brix/runtime-orchestrator-web",
+  "version": "3.1.0",
+  "description": "Brix Runtime Orchestrator Web - Web runtime orchestration",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "brix",
+    "runtime",
+    "orchestrator",
+    "web",
+    "micro-frontend"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aspect-brix/runtime-sdk",
+    "directory": "runtime-orchestrator-web"
+  },
+  "dependencies": {
+    "@brix/runtime-sdk-api-web": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "jsdom": "^24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

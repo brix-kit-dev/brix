@@ -1,0 +1,33 @@
+{
+  "name": "@brix/runtime-sdk-api-web",
+  "version": "3.1.0",
+  "description": "Brix Runtime SDK Web API - UI capability contracts and shared types (merged from runtime-sdk-shared)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup && tsc --declaration --emitDeclarationOnly --outDir ./dist/types",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:update": "vitest run -u"
+  },
+  "dependencies": {
+    "@types/react": "^18.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^1.2.0"
+  }
+}

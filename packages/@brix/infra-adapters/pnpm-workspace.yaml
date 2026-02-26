@@ -1,0 +1,31 @@
+# Brix Infrastructure Adapters - pnpm workspace 配置
+# 定义前端适配器模块工作区，与后端 Maven 模块并行
+#
+# 【架构说明】
+# 本仓库是前后端统一的基础设施适配器仓库，按运行平台分组：
+# - 后端适配器（server/）：Maven 管理（packages/server/infra-adapter-kafka 等）
+# - 前端 Web 适配器（web/）：pnpm 管理（packages/web/infra-adapter-*-web 等）
+# - 前端 Mobile 适配器（mobile/）：pnpm 管理（packages/mobile/infra-adapter-*-mobile 等）
+#
+# 【与 runtime-sdk 的关系】
+# runtime-sdk 定义能力契约接口（Port），本仓库提供具体实现（Adapter）
+# runtime-sdk-api-web  →  infra-adapter-*-web
+# runtime-sdk-api-mobile  →  infra-adapter-*-mobile
+packages:
+  # ═══════ Web 适配器（packages/web/）═══════
+  - 'packages/web/infra-adapter-http-web'         # HTTP 运行时工具（重试、缓存）
+  - 'packages/web/infra-adapter-mf-web'           # Module Federation 插件加载
+  - 'packages/web/infra-adapter-iframe-web'       # iframe 隔离加载
+  - 'packages/web/infra-adapter-native-web'       # 原生 dynamic import
+  - 'packages/web/infra-adapter-ui-native'        # Native UI 适配器（纯 CSS 原子组件）
+  - 'packages/web/infra-adapter-ui-mui'           # MUI UI 适配器（Material UI 原子组件）
+  - 'packages/web/infra-adapter-router-web'       # react-router 适配
+  - 'packages/web/infra-adapter-state-web'        # Zustand 状态管理适配
+  
+  # ═══════ Mobile 适配器（packages/mobile/）——Phase 2 ═══════
+  # Note: Cross-workspace dependencies require full monorepo setup
+  - 'packages/mobile/infra-adapter-module-mobile'    # RN 动态模块加载
+  - 'packages/mobile/infra-adapter-navigation-mobile'  # React Navigation 适配
+  - 'packages/mobile/infra-adapter-storage-mobile'   # AsyncStorage 适配
+  - 'packages/mobile/infra-adapter-device-mobile'    # 设备能力适配
+  - 'packages/mobile/infra-adapter-push-mobile'      # 推送适配

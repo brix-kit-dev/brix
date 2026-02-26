@@ -1,0 +1,37 @@
+{
+  "name": "<%= name %>-web",
+  "version": "<%= version %>",
+  "private": true,
+  "description": "<%= displayName %> Web 前端 - v2.1 架构规范",
+  "scripts": {
+    "start": "rspack serve",
+    "build": "rspack build",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:ci": "eslint src --ext .ts,.tsx --max-warnings 0",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^5.16.14",
+    "@mui/material": "^5.16.14",
+    "@shinwa/platform-headers": "workspace:*",
+    "@shinwa/types": "workspace:*",
+    "@shinwa/utils": "workspace:*",
+    "axios": "^1.7.9",
+    "i18next": "^23.16.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15.1.3",
+    "react-router-dom": "^6.28.0",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^1.6.8",
+    "@rspack/core": "^1.6.8",
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.14",
+    "@types/react-dom": "^18.3.2",
+    "typescript": "^5.7.2"
+  }
+}

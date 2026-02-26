@@ -1,0 +1,52 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "runtime-sdk-api-web/src/index.ts",
+    "runtime-sdk-api-mobile/src/index.ts",
+    "runtime-sdk-react/src/index.ts",
+    "runtime-orchestrator-web/src/index.ts",
+    "runtime-manifest-web/src/index.ts"
+  ],
+  "out": "docs/api",
+  "name": "Brix Runtime SDK API Documentation",
+  "readme": "README.md",
+  "navigationLinks": {
+    "GitHub": "https://github.com/aspect-brix/runtime-sdk",
+    "npm": "https://www.npmjs.com/org/brix"
+  },
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "excludeNotDocumented": false,
+  "categorizeByGroup": true,
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Capabilities",
+    "Events",
+    "Types",
+    "Hooks",
+    "Utils",
+    "Other"
+  ],
+  "sort": ["kind", "alphabetical"],
+  "visibilityFilters": {
+    "protected": false,
+    "@internal": false
+  },
+  "plugin": ["typedoc-plugin-markdown"],
+  "theme": "default",
+  "cleanOutputDir": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "requiredToBeDocumented": ["Class", "Interface", "Function", "TypeAlias", "Enum"],
+  "treatWarningsAsErrors": false,
+  "treatValidationWarningsAsErrors": false,
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "moduleResolution": "bundler"
+  }
+}

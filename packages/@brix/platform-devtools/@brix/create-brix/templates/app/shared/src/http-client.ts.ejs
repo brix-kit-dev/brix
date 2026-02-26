@@ -1,0 +1,93 @@
+/**
+ * @file HttpCapability 客户端适配器
+ * @description orval 自定义 HTTP 客户端 — 使用 HttpCapability 替代 axios/fetch
+ * @module @shinwa/<%= name %>-shared
+ * @version <%= version %>
+ *
+ * 【设计说明】
+ * 本文件实现 orval 的自定义 mutator，将生成的 API 调用
+ * 路由到 HttpCapability 而非直接使用 axios/fetch。
+ *
+ * 【架构红线 R3 合规】
+ * - 禁止直接使用 fetch/axios/got/undici 等 HTTP 客户端
+ * - 所有 HTTP 请求必须通过 HttpCapability 发起
+ * - HttpCapability 由 Host 层注入，插件层通过 RuntimeContext 获取
+ *
+ * 【使用方式】
+ * 本文件被 orval.config.ts 引用，生成的 Repository 会自动使用此适配器
+ */
+
+import type { HttpCapability, HttpRequestConfig, HttpResponse } from '@brix/runtime-sdk-api-web';
+
+/**
+ * HttpCapability 实例（由 Host 注入）
+ *
+ * 在应用启动时通过 setHttpCapability 设置
+ */
+let httpCapability: HttpCapability | null = null;
+
+/**
+ * 设置 HttpCapability 实例
+ *
+ * @param capability HttpCapability 实例
+ *
+ * @example
+ * ```typescript
+ * // 在 bootstrap.tsx 中设置
+ * import { setHttpCapability } from '@shinwa/<%= name %>-shared/generated';
+ * import { useRuntimeContext } from '@brix/runtime-sdk-api-web';
+ * 
+ * const runtimeContext = useRuntimeContext();
+ * setHttpCapability(runtimeContext.getCapability('HttpCapability'));
+ * ```
+ */
+export function setHttpCapability(capability: HttpCapability): void {
+  httpCapability = capability;
+}
+
+/**
+ * orval 自定义 HTTP 客户端
+ *
+ * @param config HTTP 请求配置
+ * @returns Promise<HttpResponse>
+ *
+ * @throws Error 如果 HttpCapability 未设置
+ */
+export async function httpCapabilityClient<T = unknown>(
+  config: {
+    url: string;
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    data?: unknown;
+    params?: Record<string, unknown>;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+  }
+): Promise<T> {
+  if (!httpCapability) {
+    throw new Error(
+      '[<%= name %>-shared] HttpCapability 未设置。' +
+      '请在应用启动时调用 setHttpCapability() 设置 HttpCapability 实例。'
+    );
+  }
+
+  // 构建请求配置
+  const requestConfig: HttpRequestConfig = {
+    url: config.url,
+    method: config.method,
+    data: config.data,
+    params: config.params,
+    headers: config.headers,
+    signal: config.signal,
+  };
+
+  // 通过 HttpCapability 发起请求
+  const response = await httpCapability.request<T>(requestConfig);
+
+  // 返回响应数据
+  return response.data;
+}
+
+/**
+ * 导出类型供 orval 生成代码使用
+ */
+export type { HttpCapability, HttpRequestConfig, HttpResponse };

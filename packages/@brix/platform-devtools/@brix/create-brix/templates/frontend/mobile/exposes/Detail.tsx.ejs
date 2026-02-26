@@ -1,0 +1,284 @@
+/**
+ * <%= displayName %> Mobile - 详情组件
+ * 
+ * @module @shinwa/<%= name %>-mobile
+ * @generated <%= date %>
+ * 
+ * React Native 详情组件
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
+
+/**
+ * 详情数据接口
+ */
+interface DetailData {
+  id: number;
+  title: string;
+  description?: string;
+  createdAt?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 详情组件属性
+ */
+interface <%= classPrefix %>DetailProps {
+  /**
+   * 数据 ID
+   */
+  id: number;
+  
+  /**
+   * 返回按钮回调
+   */
+  onBack?: () => void;
+  
+  /**
+   * 自定义样式
+   */
+  style?: object;
+}
+
+/**
+ * <%= displayName %>详情组件
+ * 
+ * 使用示例：
+ * ```tsx
+ * import { <%= classPrefix %>Detail } from '@shinwa/<%= name %>-mobile';
+ * 
+ * <{@classPrefix}Detail 
+ *   id={123} 
+ *   onBack={() => navigation.goBack()} 
+ * />
+ * ```
+ */
+export const <%= classPrefix %>Detail: React.FC<<%= classPrefix %>DetailProps> = ({
+  id,
+  onBack,
+  style,
+}) => {
+  const [data, setData] = useState<DetailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * 加载详情数据
+   */
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // TODO: 替换为实际的 API 调用
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setData({
+        id,
+        title: `示例项目 ${id}`,
+        description: '这是一段详细的描述文字，用于展示详情页面的内容布局。',
+        createdAt: new Date().toISOString(),
+        status: 'active',
+      });
+    } catch (err) {
+      setError('加载数据失败，请重试');
+      console.error('加载详情失败:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center, style]}>
+        <ActivityIndicator size="large" color="#1976d2" />
+        <Text style={styles.loadingText}>加载中...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.center, style]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadData}>
+          <Text style={styles.retryText}>重试</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!data) {
+    return (
+      <View style={[styles.container, styles.center, style]}>
+        <Text style={styles.emptyText}>数据不存在</Text>
+        {onBack && (
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backText}>返回</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={[styles.container, style]}>
+      {/* 标题 */}
+      <View style={styles.header}>
+        <Text style={styles.title}>{data.title}</Text>
+        {data.status && (
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusText}>{data.status}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* 详情内容 */}
+      <View style={styles.content}>
+        {data.description && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>描述</Text>
+            <Text style={styles.sectionContent}>{data.description}</Text>
+          </View>
+        )}
+
+        {data.createdAt && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>创建时间</Text>
+            <Text style={styles.sectionContent}>
+              {new Date(data.createdAt).toLocaleString('zh-CN')}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* 操作按钮 */}
+      <View style={styles.actions}>
+        {onBack && (
+          <TouchableOpacity style={styles.actionButton} onPress={onBack}>
+            <Text style={styles.actionText}>返回</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    backgroundColor: '#fff',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    flex: 1,
+  },
+  statusBadge: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#1976d2',
+    fontWeight: '500',
+  },
+  content: {
+    backgroundColor: '#fff',
+    marginTop: 12,
+    padding: 16,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  sectionContent: {
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 24,
+  },
+  actions: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  actionButton: {
+    backgroundColor: '#1976d2',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#f44336',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#1976d2',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 16,
+  },
+  backButton: {
+    backgroundColor: '#e0e0e0',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  backText: {
+    color: '#333',
+    fontSize: 14,
+  },
+});
+
+export default <%= classPrefix %>Detail;

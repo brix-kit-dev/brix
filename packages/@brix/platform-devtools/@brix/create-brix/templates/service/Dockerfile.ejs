@@ -1,0 +1,31 @@
+# =========================================================
+# <%= displayName %> Dockerfile
+# 生成时间: <%= date %>
+# =========================================================
+
+FROM eclipse-temurin:17-jre-alpine
+
+LABEL maintainer="<%= author %>"
+LABEL description="<%= description %>"
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制 JAR 文件
+COPY target/<%= fullName %>-<%= version %>.jar app.jar
+
+# 暴露端口
+EXPOSE <%= port %>
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget -q --spider http://localhost:<%= port %>/actuator/health || exit 1
+
+# JVM 参数 - 包含 UTF-8 编码支持
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC" \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8"
+
+# 启动命令
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

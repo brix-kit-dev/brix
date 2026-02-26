@@ -1,0 +1,22 @@
+/**
+ * @file <%= displayName %> Mobile App 入口
+ * @description React Native 移动端应用入口组件
+ * @module @shinwa/<%= name %>-ui-mobile
+ * @version <%= version %>
+ *
+ * 由 @brix/create-brix <%= date %> 自动生成
+ *
+ * 【设计说明】
+ * Mobile UI 作为 npm 包发布，由 Host 应用（shinwa-platform-shell-mobile）动态加载。
+ * 本文件导出页面组件供 Host 装配使用。
+ */
+
+// 页面组件导出
+export { default as <%= classPrefix %>List } from './pages/<%= classPrefix %>List.js';
+export { default as <%= classPrefix %>Detail } from './pages/<%= classPrefix %>Detail.js';
+
+// Hooks 导出
+export { use<%= classPrefix %> } from './hooks/use<%= classPrefix %>.js';
+
+// 类型重导出
+export type * from '@shinwa/<%= name %>-shared';

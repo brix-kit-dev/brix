@@ -1,0 +1,407 @@
+/**
+ * <%= displayName %> Mobile - 详情页面
+ * 
+ * @module @shinwa/<%= name %>-mobile
+ * @generated <%= date %>
+ * 
+ * 详情页面实现（供 exposes 包装器调用）
+ */
+
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+
+/**
+ * 详情数据接口
+ */
+export interface DetailData {
+  id: number;
+  title: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 详情页面属性
+ */
+export interface <%= classPrefix %>DetailPageProps {
+  /**
+   * 数据 ID
+   */
+  id: number;
+  
+  /**
+   * 返回回调
+   */
+  onBack?: () => void;
+  
+  /**
+   * 编辑回调
+   */
+  onEdit?: (data: DetailData) => void;
+  
+  /**
+   * API 基础路径
+   */
+  apiBasePath?: string;
+}
+
+/**
+ * <%= displayName %>详情页面组件
+ */
+const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> = ({
+  id,
+  onBack,
+  onEdit,
+  apiBasePath = '/api/v1/<%= name.replace('plugin-', '') %>',
+}) => {
+  const [data, setData] = useState<DetailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * 加载详情数据
+   */
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // TODO: 替换为实际的 API 调用
+      // const response = await fetch(`${apiBasePath}/${id}`);
+      // const result = await response.json();
+      
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setData({
+        id,
+        title: `项目 ${id}`,
+        description: '这是一段详细的描述文字，用于展示详情页面的内容布局。可以包含多行文字，支持换行显示。',
+        createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'active',
+      });
+    } catch (err) {
+      setError('加载详情失败，请重试');
+      console.error('加载详情失败:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, apiBasePath]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  /**
+   * 处理删除
+   */
+  const handleDelete = useCallback(() => {
+    Alert.alert(
+      '确认删除',
+      '确定要删除此项目吗？此操作不可恢复。',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // TODO: 调用删除 API
+              // await fetch(`${apiBasePath}/${id}`, { method: 'DELETE' });
+              Alert.alert('提示', '删除成功');
+              onBack?.();
+            } catch (err) {
+              Alert.alert('错误', '删除失败，请重试');
+            }
+          },
+        },
+      ]
+    );
+  }, [id, apiBasePath, onBack]);
+
+  /**
+   * 渲染状态标签
+   */
+  const renderStatus = (status: string) => {
+    const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
+      active: { label: '启用', color: '#2e7d32', bgColor: '#e8f5e9' },
+      inactive: { label: '禁用', color: '#c62828', bgColor: '#ffebee' },
+      pending: { label: '待处理', color: '#ef6c00', bgColor: '#fff3e0' },
+    };
+    
+    const config = statusConfig[status] || statusConfig.pending;
+    
+    return (
+      <View style={[styles.statusBadge, { backgroundColor: config.bgColor }]}>
+        <Text style={[styles.statusText, { color: config.color }]}>{config.label}</Text>
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#1976d2" />
+        <Text style={styles.loadingText}>加载中...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadData}>
+          <Text style={styles.retryText}>重试</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!data) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={styles.emptyText}>数据不存在</Text>
+        {onBack && (
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>返回</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        {/* 标题区域 */}
+        <View style={styles.header}>
+          <Text style={styles.title}>{data.title}</Text>
+          {data.status && renderStatus(data.status)}
+        </View>
+
+        {/* 详情内容 */}
+        <View style={styles.content}>
+          {data.description && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>描述</Text>
+              <Text style={styles.sectionContent}>{data.description}</Text>
+            </View>
+          )}
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoGrid}>
+            {data.createdAt && (
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>创建时间</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(data.createdAt).toLocaleString('zh-CN')}
+                </Text>
+              </View>
+            )}
+            {data.updatedAt && (
+              <View style={styles.infoItem}>
+                <Text style={styles.infoLabel}>更新时间</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(data.updatedAt).toLocaleString('zh-CN')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* 底部操作栏 */}
+      <View style={styles.bottomBar}>
+        {onBack && (
+          <TouchableOpacity style={styles.secondaryButton} onPress={onBack}>
+            <Text style={styles.secondaryButtonText}>返回</Text>
+          </TouchableOpacity>
+        )}
+        {onEdit && (
+          <TouchableOpacity 
+            style={styles.primaryButton} 
+            onPress={() => onEdit(data)}
+          >
+            <Text style={styles.primaryButtonText}>编辑</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={styles.dangerButton} onPress={handleDelete}>
+          <Text style={styles.dangerButtonText}>删除</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#fff',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  content: {
+    backgroundColor: '#fff',
+    marginTop: 12,
+    padding: 16,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  sectionContent: {
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 24,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16,
+  },
+  infoGrid: {
+    gap: 12,
+  },
+  infoItem: {
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#333',
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    gap: 12,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#1976d2',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dangerButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#f44336',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  dangerButtonText: {
+    color: '#f44336',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#f44336',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#1976d2',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 4,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 16,
+  },
+  backButton: {
+    backgroundColor: '#e0e0e0',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 4,
+  },
+  backButtonText: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+});
+
+export default <%= classPrefix %>DetailPage;

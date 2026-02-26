@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  v3.0 platform-common-starter 模块
+  
+  定位：平台通用 Starter（能力实现层）
+  
+  【v3.0 架构位置】
+  Layer 3 能力实现层 - platform-commons/packages/server/
+  
+  提供能力：
+  - 服务注册：向基座注册服务元信息（包括路由清单）
+  - 心跳维护：定时向基座发送心跳
+  - 路由扫描：自动扫描组装的插件暴露的 REST 端点
+  - 自动配置：CORS/Jackson/Flyway 等公共配置
+  - 全局异常处理
+  - 审计切面
+  - 熔断降级（Resilience）
+  - 多租户上下文
+  
+  【已迁移】
+  - Kafka 相关 → infra-adapter-kafka
+  - Redis 相关 → infra-adapter-redis
+  - Outbox 相关 → infra-adapter-kafka
+  
+  依赖关系：
+  - 依赖 platform-common（Entity/DTO/Exception）
+  - 被 shinwa-host-assembly 组装
+  - 插件不直接依赖此 Starter
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    【4.5 修复】统一继承根 platform-commons POM，
+    替代此前的 platform-parent:1.0.0-SNAPSHOT 独立树。
+    版本从 1.0.0-SNAPSHOT 升级至 3.0.0-SNAPSHOT，与全平台统一。
+    -->
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.1.0-SNAPSHOT</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-common-starter</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Platform Common Starter</name>
+    <description>
+        v3.0 平台公共 Starter - 仅供 Service 使用
+        
+        提供能力：
+        • 服务注册（向基座注册，包含路由清单）
+        • 心跳维护（定时向基座发送心跳）
+        • 路由扫描（扫描插件的 @RestController）
+        • 自动配置（Redis/Kafka/CORS/Jackson）
+        • 全局异常处理
+        • 审计切面
+    </description>
+
+    <dependencies>
+        <!-- =====================================================
+             平台公共模块
+             包含 Entity/DTO/Exception 等基础类
+             ===================================================== -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-common</artifactId>
+        </dependency>
+
+        <!-- =====================================================
+             Spring Boot 核心依赖
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- =====================================================
+             自动配置支持
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- =====================================================
+             Redis - 已迁移到 infra-adapter-redis
+             以下依赖仅用于编译时类型检查，运行时由 Host 层注入
+             如果完全不需要 Redis 相关代码，可删除此依赖
+             ===================================================== -->
+        <!-- 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <optional>true</optional>
+        </dependency>
+        -->
+
+        <!-- =====================================================
+             Kafka - 已迁移到 infra-adapter-kafka
+             以下依赖仅用于编译时类型检查，运行时由 Host 层注入
+             如果完全不需要 Kafka 相关代码，可删除此依赖
+             ===================================================== -->
+        <!--
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+            <optional>true</optional>
+        </dependency>
+        -->
+
+        <!-- =====================================================
+             Spring Retry - 已迁移到 infra-adapter-kafka
+             ===================================================== -->
+        <!--
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+            <optional>true</optional>
+        </dependency>
+        -->
+
+        <!-- =====================================================
+             Flyway（数据库迁移，可选）
+             ===================================================== -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- =====================================================
+             HTTP 客户端（用于向基座注册）
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <!-- =====================================================
+             工具依赖
+             ===================================================== -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- =====================================================
+             测试依赖
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- =====================================================
+             OpenAPI 文档生成（Phase 5: OpenAPI 驱动的前后端契约自动化）
+             
+             提供能力：
+             - Swagger UI（/swagger-ui.html）
+             - OpenAPI JSON/YAML（/v3/api-docs）
+             - 自动扫描 @RestController 生成 API 文档
+             - 支持 @Operation、@Tag、@Schema 等标准注解
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

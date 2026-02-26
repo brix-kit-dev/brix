@@ -1,0 +1,41 @@
+import { defineConfig } from 'tsup';
+
+/**
+ * tsup 构建配置 — <%= displayName %> Shared 模块
+ *
+ * @description <%= name %>-shared 多端共享模块的构建配置
+ * @version <%= version %>
+ *
+ * 【设计说明】
+ * 本模块包含 <%= name %> 插件的多端共享类型定义：
+ * - types/: 业务类型定义（DTO 对应的 TypeScript 类型）
+ * - events/: 事件类型定义（领域事件类型）
+ * - constants/: 常量定义（状态枚举等）
+ * - generated/: orval 自动生成的 API 客户端（来自 OpenAPI）
+ *
+ * 这些定义被 <%= name %>-ui-web 和 <%= name %>-ui-mobile 共同引用，
+ * 确保多端类型一致性。
+ *
+ * 【架构红线】
+ * - Shared 模块不包含任何运行时逻辑
+ * - Shared 模块不依赖任何框架（React/Vue 等）
+ * - Shared 模块仅包含类型定义和常量
+ */
+export default defineConfig({
+  entry: [
+    'src/index.ts',
+    'src/types/index.ts',
+    'src/events/index.ts',
+    'src/constants/index.ts',
+    'src/generated/index.ts',
+  ],
+  format: ['cjs', 'esm'],
+  dts: true,
+  splitting: false,
+  sourcemap: true,
+  clean: true,
+  treeshake: true,
+  external: [
+    '@brix/runtime-sdk-api-web',
+  ],
+});

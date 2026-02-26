@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  =========================================================
+  <%= name %> 插件父 POM
+  生成时间: <%= date %>
+  =========================================================
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-parent</artifactId>
+        <version>3.2.0-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>io.brix.plugin</groupId>
+    <artifactId><%= name %></artifactId>
+    <version><%= version %></version>
+    <packaging>pom</packaging>
+
+    <name><%= displayName %></name>
+    <description><%= description %></description>
+
+    <modules>
+<% if (withApi) { %>
+        <module><%= name %>-api</module>
+<% } %>
+        <module><%= name %>-core</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>17</java.version>
+    </properties>
+</project>

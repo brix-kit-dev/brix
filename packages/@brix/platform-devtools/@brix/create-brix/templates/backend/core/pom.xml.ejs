@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  =========================================================
+  <%= name %>-core 核心模块
+  生成时间: <%= date %>
+  =========================================================
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>shinwa.plugin</groupId>
+        <artifactId><%= name %></artifactId>
+        <version><%= version %></version>
+    </parent>
+
+    <artifactId><%= name %>-core</artifactId>
+    <packaging>jar</packaging>
+
+    <name><%= displayName %> Core</name>
+    <description><%= name %> 核心模块</description>
+
+    <dependencies>
+        <!-- Platform Common（仅依赖公共类，不依赖 Starter） -->
+        <dependency>
+            <groupId>shinwa.platform</groupId>
+            <artifactId>platform-common</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>
+
+<% if (withApi) { %>
+        <!-- API 模块 -->
+        <dependency>
+            <groupId>shinwa.plugin</groupId>
+            <artifactId><%= name %>-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+<% } %>
+
+        <!-- Spring Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Spring Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- 架构守护（ArchUnit 红线约束） -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

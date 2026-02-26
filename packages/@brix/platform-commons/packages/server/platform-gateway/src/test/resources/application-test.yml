@@ -1,0 +1,135 @@
+# ========================================
+# Shinwa Platform Gateway - Test Profile
+# ========================================
+# MVP M014: Test Configuration for E2E and Unit Tests
+# ========================================
+
+server:
+  port: 0  # Random port for tests
+
+spring:
+  application:
+    name: shinwa-platform-gateway-test
+  
+  cloud:
+    gateway:
+      routes:
+        # Static test route
+        - id: test-health
+          uri: http://localhost:${server.port}
+          predicates:
+            - Path=/test/**
+
+# ========== Gateway Security Configuration ==========
+gateway:
+  # ========== CORS Configuration ==========
+  cors:
+    allowed-origin-patterns:
+      - "*"  # Allow all in tests
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - "*"
+    allow-credentials: true
+    max-age: 3600
+    warn-on-wildcard: false
+    block-wildcard-in-production: false
+
+  # ========== API Key Authentication ==========
+  security:
+    api-key:
+      enabled: false  # Disable auth in tests
+      header-name: X-API-Key
+      secret-header-name: X-API-Secret
+      exclude-paths:
+        - /actuator/**
+        - /healthz
+        - /test/**
+      keys: []
+
+    # ========== Sensitive Header Stripping ==========
+    header-strip:
+      enabled: true
+      headers:
+        - x-user-id
+        - x-tenant-id
+        - x-role
+        - x-roles
+        - x-permissions
+        - x-user-name
+        - x-internal-call
+
+    # ========== Log Sanitization ==========
+    log-sanitization:
+      enabled: true
+      sensitive-headers:
+        - authorization
+        - cookie
+        - x-api-key
+        - x-api-secret
+      patterns:
+        - "password=[^&]*"
+        - "token=[^&]*"
+        - "secret=[^&]*"
+
+  # ========== Resilience Configuration ==========
+  resilience:
+    http:
+      enabled: true
+      connect-timeout-ms: 1000
+      response-timeout-ms: 5000
+      global-timeout-ms: 10000
+    retry:
+      enabled: true
+      max-attempts: 2
+      initial-backoff-ms: 50
+      max-backoff-ms: 500
+      multiplier: 2.0
+      jitter-enabled: true
+      jitter-factor: 0.3
+      retryable-methods:
+        - GET
+        - HEAD
+        - OPTIONS
+      retry-on-connection-failure: true
+      retry-on-timeout: true
+    redis:
+      command-timeout-ms: 1000
+      connect-timeout-ms: 1000
+      max-retries: 1
+
+  # ========== Health Check Configuration ==========
+  health:
+    enabled: true
+    engine-check-enabled: false  # Disable engine health check in tests
+    engine-url: http://localhost:8085
+    cache-ttl-seconds: 1
+
+# ========== Logging Configuration ==========
+logging:
+  level:
+    root: WARN
+    io.brix.platform: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.boot.test: INFO
+
+# ========== Management Endpoints ==========
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

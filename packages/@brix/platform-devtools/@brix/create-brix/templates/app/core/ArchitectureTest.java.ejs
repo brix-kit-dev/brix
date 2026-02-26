@@ -1,0 +1,50 @@
+/*
+ * Copyright (c) 2024-2026 Shinwa Solutions. All rights reserved.
+ *
+ * 架构约束测试 — 由 @brix/create-brix 脚手架自动生成
+ *
+ * 本文件接入 Brix Architecture Guard 全部 13 条架构红线：
+ *   红线1:  禁止直接依赖基础设施适配器
+ *   红线2:  禁止直接使用 Kafka/Redis 等中间件客户端
+ *   红线3:  禁止使用 RestTemplate/WebClient 调用其他服务
+ *   红线4:  跨模块通信必须通过 Capability 接口
+ *   红线5:  禁止依赖 Spring 容器特定 API
+ *   红线6:  配置必须通过 ConfigCapability 获取
+ *   红线7:  日志规范（Domain/Entity 层禁止直接使用 LoggerFactory）
+ *   红线8:  禁止跨插件直接访问数据库 Repository
+ *   红线9:  禁止插件之间直接耦合依赖
+ *   红线10: 禁止抛出泛型异常
+ *   红线11: 禁止循环依赖
+ *   红线12: 安全能力必须通过 AuthCapability 获取
+ *   红线13: 关键事件必须通过 Transactional Outbox 发布
+ *
+ * @author <%= author %>
+ * @since <%= date %>
+ */
+package <%= packageName %>;
+
+import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.junit.ArchTests;
+import io.brix.architecture.guard.BrixArchitectureRules;
+
+/**
+ * <%= displayName %> 架构约束测试
+ *
+ * <p>自动启用全部 13 条架构红线守护（42 条 ArchUnit 规则）。
+ * 任何违反红线的代码提交都将导致 {@code mvn test} 失败。</p>
+ *
+ * <p>如需切换为 Host 层宽松规则集，请将 {@code pluginProfile()} 替换为 {@code hostProfile()}。</p>
+ *
+ * @see BrixArchitectureRules#pluginProfile()
+ */
+@AnalyzeClasses(
+    packages = "<%= packageName %>",
+    importOptions = ImportOption.DoNotIncludeTests.class
+)
+class ArchitectureTest {
+
+    @ArchTest
+    static final ArchTests rules = BrixArchitectureRules.pluginProfile();
+}

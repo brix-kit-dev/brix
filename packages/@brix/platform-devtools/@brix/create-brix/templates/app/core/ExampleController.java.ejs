@@ -1,0 +1,102 @@
+package <%= packageName %>.core.controller;
+
+import <%= packageName %>.api.dto.<%= classPrefix %>DTO;
+import <%= packageName %>.api.request.Create<%= classPrefix %>Request;
+import <%= packageName %>.core.service.<%= classPrefix %>Service;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * <%= displayName %> REST 控制器
+ * 
+ * <p>提供<%= displayName %>的 RESTful API 接口。</p>
+ * 
+ * <p>【v3.0 API 规范】</p>
+ * <ul>
+ *   <li>统一使用 /api/v1/{module} 路径前缀</li>
+ *   <li>返回标准 ApiResponse 格式</li>
+ *   <li>权限校验通过 AuthContextCapability 完成</li>
+ *   <li>请求参数使用 Jakarta Validation 校验</li>
+ * </ul>
+ * 
+ * @author <%= author %>
+ * @date <%= date %>
+ * @version <%= version %>
+ */
+@RestController
+@RequestMapping("/api/v1/<%= name.replace(/-/g, '') %>")
+@RequiredArgsConstructor
+public class <%= classPrefix %>Controller {
+
+    private final <%= classPrefix %>Service service;
+
+    /**
+     * 创建<%= displayName %>
+     * 
+     * @param request 创建请求
+     * @return 创建的 DTO
+     */
+    @PostMapping
+    public ResponseEntity<<%= classPrefix %>DTO> create(@Valid @RequestBody Create<%= classPrefix %>Request request) {
+        <%= classPrefix %>DTO dto = service.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+    }
+
+    /**
+     * 根据 ID 查询
+     * 
+     * @param id 记录 ID
+     * @return DTO
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<<%= classPrefix %>DTO> findById(@PathVariable String id) {
+        return service.findById(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * 分页查询
+     * 
+     * @param pageable 分页参数（page, size, sort）
+     * @return 分页结果
+     */
+    @GetMapping
+    public ResponseEntity<Page<<%= classPrefix %>DTO>> findAll(Pageable pageable) {
+        Page<<%= classPrefix %>DTO> page = service.findAll(pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * 搜索
+     * 
+     * @param keyword 搜索关键词
+     * @param pageable 分页参数
+     * @return 分页结果
+     */
+    @GetMapping("/search")
+    public ResponseEntity<Page<<%= classPrefix %>DTO>> search(
+        @RequestParam String keyword,
+        Pageable pageable
+    ) {
+        Page<<%= classPrefix %>DTO> page = service.search(keyword, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * 删除
+     * 
+     * @param id 记录 ID
+     * @return 无内容
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+}

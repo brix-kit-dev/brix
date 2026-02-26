@@ -1,0 +1,207 @@
+/**
+ * @file <%= displayName %> 列表页（Mobile）
+ * @description React Native 列表页组件
+ * @module @shinwa/<%= name %>-ui-mobile
+ * @version <%= version %>
+ *
+ * 由 @brix/create-brix <%= date %> 自动生成
+ *
+ * 【设计说明】
+ * 遵循 MVVM 分层架构：
+ * - View 层（本文件）：纯 UI 渲染，不包含业务逻辑
+ * - ViewModel 层（hooks/）：业务逻辑和状态管理
+ * - Repository 层：数据访问（通过 shared 模块）
+ *
+ * 【架构红线】
+ * - 禁止在 View 层直接调用 Repository
+ * - 禁止直接使用 fetch/axios
+ * - 所有能力通过 RuntimeContext 获取
+ */
+
+import React from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+import { use<%= classPrefix %> } from '../hooks/use<%= classPrefix %>.js';
+import type { <%= classPrefix %> } from '@shinwa/<%= name %>-shared';
+
+/**
+ * <%= displayName %> 列表页组件
+ */
+export default function <%= classPrefix %>List(): React.ReactElement {
+  const {
+    items,
+    isLoading,
+    isRefreshing,
+    error,
+    onRefresh,
+    onLoadMore,
+    onItemPress,
+  } = use<%= classPrefix %>();
+
+  // 加载状态
+  if (isLoading && items.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#1976D2" />
+        <Text style={styles.loadingText}>加载中...</Text>
+      </View>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>加载失败: {error.message}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+          <Text style={styles.retryText}>重试</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // 空状态
+  if (items.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyText}>暂无数据</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => (
+          <<%= classPrefix %>Item item={item} onPress={() => onItemPress(item)} />
+        )}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+        onEndReached={onLoadMore}
+        onEndReachedThreshold={0.5}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
+    </View>
+  );
+}
+
+/**
+ * 列表项组件
+ */
+interface <%= classPrefix %>ItemProps {
+  item: <%= classPrefix %>;
+  onPress: () => void;
+}
+
+function <%= classPrefix %>Item({ item, onPress }: <%= classPrefix %>ItemProps): React.ReactElement {
+  return (
+    <TouchableOpacity style={styles.item} onPress={onPress}>
+      <View style={styles.itemContent}>
+        <Text style={styles.itemTitle}>{item.name}</Text>
+        {item.description && (
+          <Text style={styles.itemDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
+        <View style={styles.itemMeta}>
+          <Text style={styles.itemStatus}>{item.status}</Text>
+          <Text style={styles.itemDate}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ============================================================================
+// 样式
+// ============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#D32F2F',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#1976D2',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+  },
+  item: {
+    backgroundColor: '#FFF',
+    padding: 16,
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212121',
+    marginBottom: 4,
+  },
+  itemDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  itemMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemStatus: {
+    fontSize: 12,
+    color: '#1976D2',
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  itemDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+});

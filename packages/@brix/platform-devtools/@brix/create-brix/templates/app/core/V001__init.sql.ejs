@@ -1,0 +1,57 @@
+-- ================================================================
+-- <%= displayName %> 数据库初始化脚本
+-- 
+-- 模块: <%= fullName %>
+-- 版本: <%= version %>
+-- 日期: <%= date %>
+-- 作者: <%= author %>
+-- 
+-- 【v3.0 多租户说明】
+-- - 所有业务表必须包含 tenant_id 字段
+-- - 使用复合唯一约束保证租户内数据唯一性
+-- ================================================================
+
+-- 创建 <%= displayName %> 主表
+CREATE TABLE IF NOT EXISTS <%= name.replace(/-/g, '_') %> (
+    -- 主键
+    id VARCHAR(36) PRIMARY KEY,
+    
+    -- 业务字段
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(500),
+    status VARCHAR(20) DEFAULT 'DRAFT',
+    
+    -- 多租户字段（必需）
+    tenant_id VARCHAR(36) NOT NULL,
+    
+    -- 审计字段
+    created_by VARCHAR(36),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(36),
+    updated_at TIMESTAMP,
+    
+    -- 索引
+    CONSTRAINT uk_<%= name.replace(/-/g, '_') %>_tenant_name UNIQUE (tenant_id, name)
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_<%= name.replace(/-/g, '_') %>_tenant_id 
+    ON <%= name.replace(/-/g, '_') %>(tenant_id);
+
+CREATE INDEX IF NOT EXISTS idx_<%= name.replace(/-/g, '_') %>_status 
+    ON <%= name.replace(/-/g, '_') %>(tenant_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_<%= name.replace(/-/g, '_') %>_created_at 
+    ON <%= name.replace(/-/g, '_') %>(tenant_id, created_at DESC);
+
+-- 添加表注释
+COMMENT ON TABLE <%= name.replace(/-/g, '_') %> IS '<%= displayName %>主表';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.id IS '主键 ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.name IS '名称';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.description IS '描述';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.status IS '状态：DRAFT/ACTIVE/COMPLETED/CANCELLED';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.tenant_id IS '租户 ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.created_by IS '创建者 ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.created_at IS '创建时间';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.updated_by IS '更新者 ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.updated_at IS '更新时间';

@@ -1,0 +1,16 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@brix/runtime-sdk-api-web": ["../../../../runtime-sdk/runtime-sdk-api-web/src"],
+      "@brix/runtime-sdk-api-web/*": ["../../../../runtime-sdk/runtime-sdk-api-web/src/*"],
+      "@brix/platform-auth-web": ["../platform-auth-web/src"],
+      "@brix/platform-auth-web/*": ["../platform-auth-web/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+}

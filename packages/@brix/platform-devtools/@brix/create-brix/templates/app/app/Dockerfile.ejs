@@ -1,0 +1,68 @@
+# ==============================================================================
+# <%= displayName %> Dockerfile
+# ==============================================================================
+# 【v3.0 架构说明】
+# 多阶段构建镜像，利用 Spring Boot 分层 JAR 优化镜像大小和构建速度
+# 
+# @author <%= author %>
+# @date <%= date %>
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 阶段 1：提取分层 JAR
+# ------------------------------------------------------------------------------
+FROM eclipse-temurin:21-jre-alpine AS builder
+
+WORKDIR /app
+
+# 复制构建产物
+COPY target/<%= artifactId %>-app-*.jar application.jar
+
+# 提取分层
+RUN java -Djarmode=layertools -jar application.jar extract
+
+# ------------------------------------------------------------------------------
+# 阶段 2：构建最终镜像
+# ------------------------------------------------------------------------------
+FROM eclipse-temurin:21-jre-alpine
+
+LABEL maintainer="<%= author %>"
+LABEL description="<%= displayName %> - Shinwa Platform v3.0"
+LABEL version="<%= version %>"
+
+# 创建非 root 用户
+RUN addgroup -g 1001 shinwa && \
+    adduser -u 1001 -G shinwa -s /bin/sh -D shinwa
+
+WORKDIR /app
+
+# 按照变化频率从低到高复制分层
+COPY --from=builder /app/dependencies/ ./
+COPY --from=builder /app/spring-boot-loader/ ./
+COPY --from=builder /app/snapshot-dependencies/ ./
+COPY --from=builder /app/application/ ./
+
+# 设置文件所有者
+RUN chown -R shinwa:shinwa /app
+
+# 切换到非 root 用户
+USER shinwa
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget -q --spider http://localhost:<%= serverPort %>/actuator/health || exit 1
+
+# 暴露端口
+EXPOSE <%= serverPort %>
+
+# JVM 配置
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+               -XX:MaxRAMPercentage=75.0 \
+               -XX:InitialRAMPercentage=50.0 \
+               -XX:+UseG1GC \
+               -XX:+HeapDumpOnOutOfMemoryError \
+               -XX:HeapDumpPath=/app/logs/heapdump.hprof \
+               -Djava.security.egd=file:/dev/./urandom"
+
+# 启动命令
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]

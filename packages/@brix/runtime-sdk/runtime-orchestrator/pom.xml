@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>io.brix</groupId>
+        <artifactId>runtime-sdk-parent</artifactId>
+        <version>3.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    
+    <artifactId>runtime-orchestrator</artifactId>
+    <name>Brix Runtime Orchestrator</name>
+    <description>
+        运行时编排引擎，负责模块的注册、生命周期管理和事件分发�?
+        Host 层通过此模块管理和协调所有模块的运行�?
+    </description>
+    
+    <dependencies>
+        <!-- Runtime SDK API（包含契约接口和便利包装） -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+        </dependency>
+        
+        <!-- Runtime Manifest（用于 ManifestDrivenEventDispatcher 和能力验证） -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-manifest</artifactId>
+        </dependency>
+        
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!--
+          Spring Boot AutoConfigure（可选依赖）
+          
+          用于 CapabilityAutoConfiguration 的自动配置支持。
+          设为 optional=true，不强制引入 Spring Boot。
+          如果使用方不需要自动配置，可以不引入 Spring Boot。
+          
+          v3.0.4 架构红线修复：从 Host 层提取能力扫描逻辑到编排层
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <!--
+          Spring Web（可选依赖）
+          
+          用于 PluginRegistryEndpoint 暴露 /api/plugins REST 端点。
+          设为 optional=true，仅在 Host 引入 spring-boot-starter-web 时激活。
+          
+          v3.0.5 插件动态发现：从 ModuleRegistry 读取已注册模块，暴露给前端
+        -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Jakarta Annotation API（用于 @PostConstruct） -->
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Jackson（用于 UI Manifest JSON 解析） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.3</version>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Test -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

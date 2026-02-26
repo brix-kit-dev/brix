@@ -1,0 +1,45 @@
+# ==========================================================================
+# Platform Gateway 主配置
+#
+# P-11: 按关注点拆分，将 611 行单体配置拆为 5 个子配置文件
+#
+#   gateway/routes.yml        - Spring Cloud Gateway 路由与 HTTP 客户端
+#   gateway/security.yml      - 签名校验、IP 白名单、CORS、API Key、头剥离、日志脱敏
+#   gateway/resilience.yml    - 限流、熔断、并发隔离、HTTP/Redis 超时与重试
+#   gateway/observability.yml - 链路追踪、健康探针、日志级别、Actuator
+#   gateway/oauth2.yml        - OAuth2 第三方登录（Google、微信、GitHub）
+#
+# 修改某一关注点时只需编辑对应子文件，降低合并冲突概率
+# ==========================================================================
+
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: shinwa-platform-gateway
+  main:
+    web-application-type: reactive
+  config:
+    import:
+      - classpath:gateway/routes.yml
+      - classpath:gateway/security.yml
+      - classpath:gateway/resilience.yml
+      - classpath:gateway/observability.yml
+      - classpath:gateway/oauth2.yml
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:5000}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:50}
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}
+          min-idle: ${REDIS_POOL_MIN_IDLE:5}
+          max-wait: ${REDIS_POOL_MAX_WAIT:5000}
+
+

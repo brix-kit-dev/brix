@@ -1,0 +1,38 @@
+package <%= packageName %>;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.ComponentScan;
+
+/**
+ * <%= displayName %> 启动类
+ * 
+ * <p>生成时间: <%= date %></p>
+ * <p>描述: <%= description %></p>
+ * 
+ * <p>组装的插件：</p>
+ * <ul>
+<% plugins.forEach(plugin => { %>
+ *   <li><%= plugin.name %></li>
+<% }); %>
+<% if (plugins.length === 0) { %>
+ *   <li>（暂无）</li>
+<% } %>
+ * </ul>
+ * 
+ * @author <%= author %>
+ */
+@SpringBootApplication
+@ComponentScan(basePackages = {
+    "<%= packageName %>",
+<% plugins.forEach(plugin => { %>
+    "com.shinwa.plugin.<%= plugin.name.replace('plugin-', '').replace(/-/g, '') %>",
+<% }); %>
+    "shinwa.platform.starter"
+})
+public class <%= classPrefix %>Application {
+
+    public static void main(String[] args) {
+        SpringApplication.run(<%= classPrefix %>Application.class, args);
+    }
+}

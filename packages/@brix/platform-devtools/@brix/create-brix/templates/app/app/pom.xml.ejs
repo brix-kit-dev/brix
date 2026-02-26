@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  <%= displayName %> 聚合启动模块 POM
+  
+  【v3.0 架构说明】
+  app 模块是服务的聚合启动器，它：
+  1. 依赖 api 模块和 core 模块
+  2. 包含 Spring Boot 应用入口
+  3. 包含服务配置和 Docker 部署文件
+  
+  @author <%= author %>
+  @date <%= date %>
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId><%= groupId %></groupId>
+        <artifactId><%= artifactId %></artifactId>
+        <version><%= version %></version>
+    </parent>
+
+    <artifactId><%= artifactId %>-app</artifactId>
+    <packaging>jar</packaging>
+    <name><%= displayName %> :: App</name>
+    <description><%= displayName %> 聚合启动模块</description>
+
+    <dependencies>
+        <!-- 本模块 API -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId><%= artifactId %>-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- 本模块 Core -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId><%= artifactId %>-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Runtime SDK（运行时能力入口） -->
+        <dependency>
+            <groupId>com.shinwa.runtime</groupId>
+            <artifactId>runtime-sdk</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Web Starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- 可观测性 Starter -->
+        <dependency>
+            <groupId>com.shinwa.platform</groupId>
+            <artifactId>platform-observability-starter</artifactId>
+        </dependency>
+
+        <!-- 安全 Starter -->
+        <dependency>
+            <groupId>com.shinwa.platform</groupId>
+            <artifactId>platform-security-starter</artifactId>
+        </dependency>
+<% if (features.database) { %>
+        <!-- PostgreSQL 驱动 -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Flyway 数据库迁移 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+<% } %>
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven 插件 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass><%= packageName %>.<%= classPrefix %>Application</mainClass>
+                    <layers>
+                        <enabled>true</enabled>
+                    </layers>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Git Commit ID 插件（用于版本追踪） -->
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>5.0.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

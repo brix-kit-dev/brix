@@ -1,0 +1,193 @@
+/**
+ * <%= displayName %> Mobile - 列表组件
+ * 
+ * @module @shinwa/<%= name %>-mobile
+ * @generated <%= date %>
+ * 
+ * React Native 列表组件
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+
+/**
+ * 列表项数据接口
+ */
+interface ListItem {
+  id: number;
+  title: string;
+  description?: string;
+}
+
+/**
+ * 列表组件属性
+ */
+interface <%= classPrefix %>ListProps {
+  /**
+   * 点击项回调
+   */
+  onItemPress?: (item: ListItem) => void;
+  
+  /**
+   * 自定义样式
+   */
+  style?: object;
+}
+
+/**
+ * <%= displayName %>列表组件
+ * 
+ * 使用示例：
+ * ```tsx
+ * import { <%= classPrefix %>List } from '@shinwa/<%= name %>-mobile';
+ * 
+ * <{@classPrefix}List 
+ *   onItemPress={(item) => navigation.navigate('Detail', { id: item.id })} 
+ * />
+ * ```
+ */
+export const <%= classPrefix %>List: React.FC<<%= classPrefix %>ListProps> = ({
+  onItemPress,
+  style,
+}) => {
+  const [data, setData] = useState<ListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  /**
+   * 加载数据
+   */
+  const loadData = async () => {
+    try {
+      // TODO: 替换为实际的 API 调用
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setData([
+        { id: 1, title: '示例项目 1', description: '这是示例描述' },
+        { id: 2, title: '示例项目 2', description: '这是示例描述' },
+        { id: 3, title: '示例项目 3', description: '这是示例描述' },
+      ]);
+    } catch (error) {
+      console.error('加载数据失败:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  /**
+   * 下拉刷新
+   */
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  /**
+   * 渲染列表项
+   */
+  const renderItem = ({ item }: { item: ListItem }) => (
+    <TouchableOpacity
+      style={styles.item}
+      onPress={() => onItemPress?.(item)}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.title}>{item.title}</Text>
+      {item.description && (
+        <Text style={styles.description}>{item.description}</Text>
+      )}
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center, style]}>
+        <ActivityIndicator size="large" color="#1976d2" />
+        <Text style={styles.loadingText}>加载中...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, style]}>
+      <FlatList
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id.toString()}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#1976d2']}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>暂无数据</Text>
+          </View>
+        }
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  item: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+  },
+});
+
+export default <%= classPrefix %>List;
