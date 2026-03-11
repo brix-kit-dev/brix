@@ -35,15 +35,15 @@ import org.slf4j.LoggerFactory;
  * <p>Handles token validation via OAuth 2.0 Token Introspection endpoint
  * with caching support to minimize remote calls.</p>
  * 
- * <h3>Architecture Note (架构说明)</h3>
+ * <h3>Architecture Note</h3>
  * <p>Extracted from DelegatedAuthContextCapability to separate token validation
  * concerns from authentication context management. This follows the Single
  * Responsibility Principle.</p>
  * 
- * <p>【中文技术要点】
- * 从 DelegatedAuthContextCapability 提取的 Token 验证服务，
- * 负责调用 OAuth 2.0 Introspection 端点验证令牌有效性。
- * 包含本地缓存以减少远程调用。</p>
+ * <p><b>Technical Notes:</b>
+ * This token validation service is extracted from DelegatedAuthContextCapability.
+ * It is responsible for calling the OAuth 2.0 Introspection endpoint to validate
+ * token validity. Includes local cache to reduce remote calls.</p>
  *
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -61,7 +61,6 @@ public class TokenIntrospectionService {
 
     /**
      * Token validation result cache (Token -> CachedAuthInfo)
-     * 【Token 验证结果缓存】
      */
     private final Map<String, CachedAuthInfo> authCache = new ConcurrentHashMap<>();
 
@@ -98,10 +97,12 @@ public class TokenIntrospectionService {
      * <p>First checks the local cache. If not found or expired,
      * calls the remote introspection endpoint.</p>
      * 
-     * 【验证流程】
-     * 1. 检查本地缓存
-     * 2. 若缓存未命中，调用远程 SSO
-     * 3. 解析响应并缓存结果
+     * <p><b>Validation Flow:</b></p>
+     * <ol>
+     *   <li>Check local cache</li>
+     *   <li>If cache miss, call remote SSO</li>
+     *   <li>Parse response and cache result</li>
+     * </ol>
      *
      * @param token Bearer token to validate (without "Bearer " prefix)
      * @return DelegatedPrincipal if valid, null otherwise

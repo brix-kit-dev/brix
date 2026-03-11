@@ -25,23 +25,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
- * Webhook 重试处理器
+ * Webhook Retry Handler
  * 
- * <p>提供指数退避重试策略，用于处理 Webhook 发送失败的情况。</p>
+ * <p>Provides exponential backoff retry strategy for handling Webhook delivery failures.</p>
  * 
- * <h2>重试策略</h2>
+ * <h2>Retry Strategy</h2>
  * <ul>
- *   <li>指数退避：每次重试延迟翻倍</li>
- *   <li>最大延迟限制：防止延迟过长</li>
- *   <li>抖动：随机抖动防止雷鸣群问题</li>
+ *   <li>Exponential backoff: Delay doubles with each retry</li>
+ *   <li>Maximum delay limit: Prevents excessively long delays</li>
+ *   <li>Jitter: Random jitter prevents thundering herd problem</li>
  * </ul>
  * 
- * <h2>延迟计算</h2>
+ * <h2>Delay Calculation</h2>
  * <pre>
  * delay = min(baseDelay * 2^attempt, maxDelay) * (1 + random * jitterFactor)
  * </pre>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
  * WebhookRetryHandler retryHandler = WebhookRetryHandler.builder()
  *     .maxRetries(3)
@@ -61,59 +61,59 @@ import java.util.function.Supplier;
 public final class WebhookRetryHandler {
     
     /**
-     * 默认最大重试次数
+     * Default maximum retry count
      */
     private static final int DEFAULT_MAX_RETRIES = 3;
     
     /**
-     * 默认基础延迟
+     * Default base delay
      */
     private static final Duration DEFAULT_BASE_DELAY = Duration.ofSeconds(1);
     
     /**
-     * 默认最大延迟
+     * Default maximum delay
      */
     private static final Duration DEFAULT_MAX_DELAY = Duration.ofMinutes(5);
     
     /**
-     * 默认抖动因子
+     * Default jitter factor
      */
     private static final double DEFAULT_JITTER_FACTOR = 0.1;
     
     /**
-     * 最大重试次数
+     * Maximum retry count
      */
     private final int maxRetries;
     
     /**
-     * 基础延迟时间
+     * Base delay time
      */
     private final Duration baseDelay;
     
     /**
-     * 最大延迟时间
+     * Maximum delay time
      */
     private final Duration maxDelay;
     
     /**
-     * 抖动因子（0.0 - 1.0）
+     * Jitter factor (0.0 - 1.0)
      */
     private final double jitterFactor;
     
     /**
-     * 调度执行器（用于延迟执行重试）
+     * Scheduled executor (for delayed retry execution)
      */
     private final ScheduledExecutorService scheduler;
     
     /**
-     * 是否为内部创建的调度器（需要关闭）
+     * Whether scheduler is internally created (needs shutdown)
      */
     private final boolean ownScheduler;
     
     /**
-     * 私有构造函数，通过 Builder 创建实例
+     * Private constructor, instances created via Builder
      *
-     * @param builder 构建器实例
+     * @param builder Builder instance
      */
     private WebhookRetryHandler(Builder builder) {
         this.maxRetries = builder.maxRetries > 0 ? builder.maxRetries : DEFAULT_MAX_RETRIES;
@@ -136,49 +136,49 @@ public final class WebhookRetryHandler {
     }
     
     /**
-     * 创建新的构建器实例
+     * Creates a new Builder instance
      *
-     * @return Builder 实例
+     * @return Builder instance
      */
     public static Builder builder() {
         return new Builder();
     }
     
     /**
-     * 创建默认配置的重试处理器
+     * Creates a retry handler with default configuration
      *
-     * @return 默认配置的重试处理器
+     * @return Default configured retry handler
      */
     public static WebhookRetryHandler createDefault() {
         return builder().build();
     }
     
     /**
-     * 带重试执行操作
+     * Executes operation with retry
      * 
-     * <p>如果操作失败，将按照配置的重试策略进行重试。</p>
+     * <p>If operation fails, will retry according to configured retry policy.</p>
      *
-     * @param <T> 返回值类型
-     * @param operation 要执行的操作
-     * @return 异步结果
+     * @param <T> Return type
+     * @param operation Operation to execute
+     * @return Async result
      */
     public <T> CompletableFuture<T> executeWithRetry(Supplier<T> operation) {
         return executeWithRetry(operation, 0, null);
     }
     
     /**
-     * 带重试执行异步操作
+     * Executes async operation with retry
      *
-     * @param <T> 返回值类型
-     * @param asyncOperation 要执行的异步操作
-     * @return 异步结果
+     * @param <T> Return type
+     * @param asyncOperation Async operation to execute
+     * @return Async result
      */
     public <T> CompletableFuture<T> executeAsyncWithRetry(Supplier<CompletableFuture<T>> asyncOperation) {
         return executeAsyncWithRetryInternal(asyncOperation, 0, null);
     }
     
     /**
-     * 内部重试执行方法
+     * Internal retry execution method
      */
     private <T> CompletableFuture<T> executeWithRetry(
             Supplier<T> operation, 
@@ -192,14 +192,14 @@ public final class WebhookRetryHandler {
             future.complete(result);
         } catch (Exception e) {
             if (currentAttempt >= maxRetries) {
-                // 达到最大重试次数，返回失败
+                // Max retries reached, return failure
                 RuntimeException finalException = new RuntimeException(
-                        String.format("重试 %d 次后仍然失败", maxRetries),
+                        String.format("Still failed after %d retries", maxRetries),
                         e
                 );
                 future.completeExceptionally(finalException);
             } else {
-                // 计算延迟并重试
+                // Calculate delay and retry
                 long delayMs = calculateDelay(currentAttempt);
                 scheduler.schedule(
                         () -> executeWithRetry(operation, currentAttempt + 1, e)
@@ -220,7 +220,7 @@ public final class WebhookRetryHandler {
     }
     
     /**
-     * 内部异步重试执行方法
+     * Internal async retry execution method
      */
     private <T> CompletableFuture<T> executeAsyncWithRetryInternal(
             Supplier<CompletableFuture<T>> asyncOperation,
@@ -235,7 +235,7 @@ public final class WebhookRetryHandler {
                     result.complete(value);
                 } else if (currentAttempt >= maxRetries) {
                     RuntimeException finalException = new RuntimeException(
-                            String.format("重试 %d 次后仍然失败", maxRetries),
+                            String.format("Still failed after %d retries", maxRetries),
                             ex
                     );
                     result.completeExceptionally(finalException);
@@ -258,7 +258,7 @@ public final class WebhookRetryHandler {
         } catch (Exception e) {
             if (currentAttempt >= maxRetries) {
                 result.completeExceptionally(new RuntimeException(
-                        String.format("重试 %d 次后仍然失败", maxRetries), e));
+                        String.format("Still failed after %d retries", maxRetries), e));
             } else {
                 long delayMs = calculateDelay(currentAttempt);
                 scheduler.schedule(
@@ -280,28 +280,28 @@ public final class WebhookRetryHandler {
     }
     
     /**
-     * 计算重试延迟（带指数退避和抖动）
+     * Calculates retry delay (with exponential backoff and jitter)
      *
-     * @param attempt 当前重试次数（从 0 开始）
-     * @return 延迟毫秒数
+     * @param attempt Current retry count (starting from 0)
+     * @return Delay in milliseconds
      */
     long calculateDelay(int attempt) {
-        // 指数退避：baseDelay * 2^attempt
+        // Exponential backoff: baseDelay * 2^attempt
         long exponentialDelay = baseDelay.toMillis() * (1L << attempt);
         
-        // 限制最大延迟
+        // Cap maximum delay
         long cappedDelay = Math.min(exponentialDelay, maxDelay.toMillis());
         
-        // 添加抖动
+        // Add jitter
         double jitter = 1.0 + (Math.random() * jitterFactor * 2 - jitterFactor);
         
         return (long) (cappedDelay * jitter);
     }
     
     /**
-     * 关闭重试处理器
+     * Shuts down retry handler
      * 
-     * <p>如果使用内部创建的调度器，将关闭调度器。</p>
+     * <p>If using internally created scheduler, will shut it down.</p>
      */
     public void shutdown() {
         if (ownScheduler && !scheduler.isShutdown()) {
@@ -317,39 +317,39 @@ public final class WebhookRetryHandler {
         }
     }
     
-    // ========== Getter 方法 ==========
+    // ========== Getter methods ==========
     
     /**
-     * 获取最大重试次数
+     * Gets maximum retry count
      *
-     * @return 最大重试次数
+     * @return Maximum retry count
      */
     public int getMaxRetries() {
         return maxRetries;
     }
     
     /**
-     * 获取基础延迟
+     * Gets base delay
      *
-     * @return 基础延迟
+     * @return Base delay
      */
     public Duration getBaseDelay() {
         return baseDelay;
     }
     
     /**
-     * 获取最大延迟
+     * Gets maximum delay
      *
-     * @return 最大延迟
+     * @return Maximum delay
      */
     public Duration getMaxDelay() {
         return maxDelay;
     }
     
     /**
-     * 获取抖动因子
+     * Gets jitter factor
      *
-     * @return 抖动因子
+     * @return Jitter factor
      */
     public double getJitterFactor() {
         return jitterFactor;
@@ -366,7 +366,7 @@ public final class WebhookRetryHandler {
     }
     
     /**
-     * WebhookRetryHandler 构建器
+     * WebhookRetryHandler Builder
      */
     public static final class Builder {
         
@@ -380,10 +380,10 @@ public final class WebhookRetryHandler {
         }
         
         /**
-         * 设置最大重试次数
+         * Sets maximum retry count
          *
-         * @param maxRetries 最大重试次数
-         * @return Builder 实例
+         * @param maxRetries Maximum retry count
+         * @return Builder instance
          */
         public Builder maxRetries(int maxRetries) {
             this.maxRetries = maxRetries;
@@ -391,10 +391,10 @@ public final class WebhookRetryHandler {
         }
         
         /**
-         * 设置基础延迟
+         * Sets base delay
          *
-         * @param baseDelay 基础延迟
-         * @return Builder 实例
+         * @param baseDelay Base delay
+         * @return Builder instance
          */
         public Builder baseDelay(Duration baseDelay) {
             this.baseDelay = baseDelay;
@@ -402,10 +402,10 @@ public final class WebhookRetryHandler {
         }
         
         /**
-         * 设置最大延迟
+         * Sets maximum delay
          *
-         * @param maxDelay 最大延迟
-         * @return Builder 实例
+         * @param maxDelay Maximum delay
+         * @return Builder instance
          */
         public Builder maxDelay(Duration maxDelay) {
             this.maxDelay = maxDelay;
@@ -413,10 +413,10 @@ public final class WebhookRetryHandler {
         }
         
         /**
-         * 设置抖动因子
+         * Sets jitter factor
          *
-         * @param jitterFactor 抖动因子（0.0 - 1.0）
-         * @return Builder 实例
+         * @param jitterFactor Jitter factor (0.0 - 1.0)
+         * @return Builder instance
          */
         public Builder jitterFactor(double jitterFactor) {
             this.jitterFactor = jitterFactor;
@@ -424,10 +424,10 @@ public final class WebhookRetryHandler {
         }
         
         /**
-         * 设置自定义调度器
+         * Sets custom scheduler
          *
-         * @param scheduler 调度执行器
-         * @return Builder 实例
+         * @param scheduler Scheduled executor service
+         * @return Builder instance
          */
         public Builder scheduler(ScheduledExecutorService scheduler) {
             this.scheduler = scheduler;
@@ -435,9 +435,9 @@ public final class WebhookRetryHandler {
         }
         
         /**
-         * 构建 WebhookRetryHandler 实例
+         * Builds WebhookRetryHandler instance
          *
-         * @return WebhookRetryHandler 实例
+         * @return WebhookRetryHandler instance
          */
         public WebhookRetryHandler build() {
             return new WebhookRetryHandler(this);
@@ -445,9 +445,9 @@ public final class WebhookRetryHandler {
     }
     
     /**
-     * 重试上下文
+     * Retry Context
      * 
-     * <p>用于在重试过程中传递上下文信息</p>
+     * <p>Used for passing context information during retry process</p>
      */
     public static final class RetryContext {
         
@@ -457,12 +457,12 @@ public final class WebhookRetryHandler {
         private final long nextDelayMs;
         
         /**
-         * 创建重试上下文
+         * Creates retry context
          *
-         * @param attempt 当前重试次数
-         * @param maxAttempts 最大重试次数
-         * @param lastException 上次异常
-         * @param nextDelayMs 下次延迟毫秒数
+         * @param attempt Current retry count
+         * @param maxAttempts Maximum retry count
+         * @param lastException Last exception
+         * @param nextDelayMs Next delay in milliseconds
          */
         public RetryContext(int attempt, int maxAttempts, Throwable lastException, long nextDelayMs) {
             this.attempt = attempt;
@@ -472,45 +472,45 @@ public final class WebhookRetryHandler {
         }
         
         /**
-         * 获取当前重试次数
+         * Gets current retry count
          *
-         * @return 当前重试次数
+         * @return Current retry count
          */
         public int getAttempt() {
             return attempt;
         }
         
         /**
-         * 获取最大重试次数
+         * Gets maximum retry count
          *
-         * @return 最大重试次数
+         * @return Maximum retry count
          */
         public int getMaxAttempts() {
             return maxAttempts;
         }
         
         /**
-         * 获取上次异常
+         * Gets last exception
          *
-         * @return 上次异常
+         * @return Last exception
          */
         public Throwable getLastException() {
             return lastException;
         }
         
         /**
-         * 获取下次延迟毫秒数
+         * Gets next delay in milliseconds
          *
-         * @return 下次延迟毫秒数
+         * @return Next delay in milliseconds
          */
         public long getNextDelayMs() {
             return nextDelayMs;
         }
         
         /**
-         * 是否还有重试机会
+         * Whether there are more retry attempts remaining
          *
-         * @return 是否可以继续重试
+         * @return Whether can continue retrying
          */
         public boolean hasMoreAttempts() {
             return attempt < maxAttempts;

@@ -1,4 +1,4 @@
-# <%= displayName %>
+﻿# <%= displayName %>
 
 <%= description %>
 
@@ -6,21 +6,21 @@
 
 ```
 <%= artifactId %>/
-├── <%= artifactId %>-api/        # API 契约模块（DTO、事件、请求/响应）
-├── <%= artifactId %>-core/       # 核心业务模块（实体、服务、控制器）
-├── <%= artifactId %>-ui/         # 前端 UI 模块（React + Module Federation）
-├── <%= artifactId %>-app/        # 聚合启动模块（Spring Boot 应用）
-├── module-manifest.yaml          # v3.0 模块清单
+├── <%= artifactId %>-api/        # API 契约module（DTO、事件、请求/响应）
+├── <%= artifactId %>-core/       # 核心业务module（实体、服务、Controller）
+├── <%= artifactId %>-ui/         # 前端 UI module（React + Module Federation）
+├── <%= artifactId %>-app/        # 聚合启动module（Spring Boot 应用）
+├── module-manifest.yaml          # v3.0 module清单
 └── pom.xml                       # 父 POM
 ```
 
 ## v3.0 架构说明
 
-本模块遵循 **Shinwa Platform v3.0 运行壳架构**，核心特点：
+本module遵循 **Shinwa Platform v3.0 运行壳架构**，核心特点：
 
 ### 1. 能力契约（Capability Contract）
 
-模块不直接依赖基础设施，而是通过 `RuntimeContext` 声明式获取能力：
+module不直接依赖基础设施，but through `RuntimeContext` 声明式获取能力：
 
 ```java
 @Service
@@ -39,15 +39,15 @@ public class ExampleService {
         // 获取缓存能力
         CacheCapability cache = runtime.getCapability(CacheCapability.class);
         
-        // 获取消息能力
+        // 获Cancel息能力
         MessagingCapability messaging = runtime.getCapability(MessagingCapability.class);
     }
 }
 ```
 
-### 2. 模块清单（Module Manifest）
+### 2. module清单（Module Manifest）
 
-`module-manifest.yaml` 定义了模块的元数据和能力需求：
+`module-manifest.yaml` 定义了module的元数据和能力需求：
 
 ```yaml
 module:
@@ -62,13 +62,13 @@ capabilities:
     - messaging
 ```
 
-### 3. UI 模块联邦（Module Federation）
+### 3. UI module联邦（Module Federation）
 
-UI 模块使用 Rspack Module Federation 实现微前端架构：
+UI module使用 Rspack Module Federation 实现微前端架构：
 
 - 独立开发和部署
 - 运行时动态加载
-- 共享依赖管理
+- Total享依赖管理
 
 ## 快速开始
 
@@ -78,7 +78,7 @@ UI 模块使用 Rspack Module Federation 实现微前端架构：
 - Maven 3.9+
 - Node.js 20+
 - pnpm 8+
-- Docker & Docker Compose（可选）
+- Docker & Docker Compose（Optional）
 
 ### 本地开发
 
@@ -92,10 +92,10 @@ docker-compose up -d postgres redis kafka
 #### 2. 构建项目
 
 ```bash
-# 构建所有模块
+# 构建所有module
 mvn clean install
 
-# 仅构建后端模块
+# 仅构建后端module
 mvn clean install -pl !<%= artifactId %>-ui
 ```
 
@@ -123,60 +123,60 @@ UI 将在 `http://localhost:<%= uiPort %>` 启动。
 启动后访问 Swagger UI：
 - http://localhost:<%= serverPort %>/<%= apiPrefix %>/swagger-ui.html
 
-## 模块说明
+## module说明
 
-### API 模块 (`<%= artifactId %>-api`)
+### API module (`<%= artifactId %>-api`)
 
-定义模块的公共契约：
+定义module的公Total契约：
 
-- **DTO**：数据传输对象
+- **DTO**：Data Transfer Object
 - **Event**：领域事件
 - **Request/Response**：API 请求响应对象
 
-### Core 模块 (`<%= artifactId %>-core`)
+### Core module (`<%= artifactId %>-core`)
 
 实现核心业务逻辑：
 
 - **Entity**：JPA 实体
-- **Repository**：数据访问层
+- **Repository**：Data Access Layer
 - **Service**：业务服务层
-- **Controller**：REST API 控制器
+- **Controller**：REST API Controller
 - **EventHandler**：事件处理器
 
-### UI 模块 (`<%= artifactId %>-ui`)
+### UI module (`<%= artifactId %>-ui`)
 
 React 前端应用：
 
-- **pages/**：页面组件
+- **pages/**：pages面组件
 - **hooks/**：业务 Hooks
 - **components/**：通用组件
 
-### App 模块 (`<%= artifactId %>-app`)
+### App module (`<%= artifactId %>-app`)
 
-Spring Boot 启动模块：
+Spring Boot 启动module：
 
 - 应用入口类
-- 配置文件
+- Configuration file
 - Docker 部署文件
 
 ## 配置说明
 
 ### 环境变量
 
-| 变量名 | 说明 | 默认值 |
+| 变量名 | 说明 | Default值 |
 |--------|------|--------|
-| `SERVER_PORT` | 服务端口 | `<%= serverPort %>` |
-| `SPRING_PROFILES_ACTIVE` | 激活的配置文件 | `dev` |
+| `SERVER_PORT` | 服务Port | `<%= serverPort %>` |
+| `SPRING_PROFILES_ACTIVE` | 激活的Configuration file | `dev` |
 <% if (features.database) { %>
 | `DB_HOST` | 数据库主机 | `localhost` |
-| `DB_PORT` | 数据库端口 | `5432` |
-| `DB_NAME` | 数据库名称 | `<%= name.replace(/-/g, '_') %>` |
+| `DB_PORT` | 数据库Port | `5432` |
+| `DB_NAME` | 数据库Name | `<%= name.replace(/-/g, '_') %>` |
 | `DB_USERNAME` | 数据库用户名 | `postgres` |
 | `DB_PASSWORD` | 数据库密码 | `postgres` |
 <% } %>
 <% if (features.cache) { %>
 | `REDIS_HOST` | Redis 主机 | `localhost` |
-| `REDIS_PORT` | Redis 端口 | `6379` |
+| `REDIS_PORT` | Redis Port | `6379` |
 <% } %>
 <% if (features.messaging) { %>
 | `KAFKA_SERVERS` | Kafka 服务器 | `localhost:9092` |
@@ -218,4 +218,4 @@ mvn verify -P integration-test
 
 ---
 
-> 由 `create-shinwa` 脚手架自动生成 | Shinwa Platform v3.0
+> 由 `create-shinwa` 脚手架Auto-generated | Shinwa Platform v3.0

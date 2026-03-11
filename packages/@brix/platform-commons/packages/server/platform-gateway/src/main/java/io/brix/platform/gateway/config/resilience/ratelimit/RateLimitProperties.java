@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience.ratelimit;
 
 import java.time.Duration;
@@ -8,34 +23,34 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * 限流配置属性类
+ * Rate Limit Configuration Propertiesclass
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 配置前缀：{@code gateway.ratelimit}
+ * configurationbeforefix：{@code gateway.ratelimit}
  * </p>
  * 
- * <h3>配置示例</h3>
+ * <h3>configurationexample</h3>
  * <pre>{@code
  * gateway:
  *   ratelimit:
  *     enabled: true
  *     default-config:
- *       limit-for-period: 100          # 每个周期允许的请求数
- *       limit-refresh-period: PT1S     # 刷新周期秒）
- *       timeout-duration: PT0S         # 获取许可超时时间
+ *       limit-for-period: 100          # each periodallowofrequestcount
+ *       limit-refresh-period: PT1S     # refreshperiodseconds）
+ *       timeout-duration: PT0S         # obtainpermittimeouttime
  *     routes:
- *       plugin-engine:                 # 路由级别配置
+ *       plugin-engine:                 # routelevelconfiguration
  *         limit-for-period: 200
  *         limit-refresh-period: PT1S
  * }</pre>
  * 
- * <h3>核心配置项说</h3>
+ * <h3>coreconfigurationitemsay</h3>
  * <ul>
- *   <li>{@code limitForPeriod} - 每个刷新周期内允许的最大请求数（QPS控制的核心参数）</li>
- *   <li>{@code limitRefreshPeriod} - 限流计数器刷新周期，默认1秒，配合 limitForPeriod 实现 QPS 限制</li>
- *   <li>{@code timeoutDuration} - 等待获取许可的超时时间，PT0S 表示立即拒绝</li>
+ *   <li>{@code limitForPeriod} - each refreshperiodinallowofmaximumrequestcount（QPScontrolofcoreparameter）</li>
+ *   <li>{@code limitRefreshPeriod} - rate limitcountcounterrefreshperiod，default1seconds，configurationcombine limitForPeriod implementation QPS limit</li>
+ *   <li>{@code timeoutDuration} - waitobtainpermitoftimeouttime，PT0S representsestablishthat isrejected</li>
  * </ul>
  *
  * @author Brix Platform Authors Platform Team
@@ -49,26 +64,26 @@ import org.springframework.validation.annotation.Validated;
 public class RateLimitProperties {
 
     /**
-     * 是否启用限流功能
+     * Whether to enable rate limitingfunctionality
      * <p>
-     * 生产环境建议设置true，以保护后端服务不被突发流量击垮
+     * productionenvironmentrecommendedsettrue，toprotectafterendservicenotbebreaksendflowamountoverwhelm
      * </p>
      */
     private boolean enabled = true;
 
     /**
-     * 默认限流配置
+     * defaultrate limitconfiguration
      * <p>
-     * 当路由没有单独配置时使用此默认配
+     * whenroutenohassinglealoneconfigurationtimeusethisdefaultconfiguration
      * </p>
      */
     private RateLimitConfig defaultConfig = new RateLimitConfig();
 
     /**
-     * 路由级别限流配置
+     * Route-level rate limit configuration
      * <p>
-     * Key: 路由ID（如 plugin-engine
-     * Value: 该路由的限流配置
+     * Key: routeID（like plugin-engine
+     * Value: thisrouteofrate limitconfiguration
      * </p>
      */
     private Map<String, RateLimitConfig> routes = new HashMap<>();
@@ -100,48 +115,48 @@ public class RateLimitProperties {
     }
 
     /**
-     * 获取指定路由的限流配
+     * obtainspecifyrouteofrate limitconfiguration
      * <p>
-     * 优先使用路由级别配置，如果没有则返回默认配置
+     * priorityuseroutelevelconfiguration，ifnohasrulereturndefaultconfiguration
      * </p>
      * 
-     * @param routeId 路由ID
-     * @return 限流配置
+     * @param routeId routeID
+     * @return rate limitconfiguration
      */
     public RateLimitConfig getConfigForRoute(String routeId) {
         return routes.getOrDefault(routeId, defaultConfig);
     }
 
     /**
-     * 单个限流配置
+     * singlerate limitconfiguration
      * <p>
-     * 基于滑动窗口算法实现 QPS 限制
+     * based onslidingwindowalgorithmimplementation QPS limit
      * </p>
      */
     public static class RateLimitConfig {
 
         /**
-         * 每个刷新周期允许的请求数（即 QPS 上限
+         * each refreshperiodallowofrequestcount（that is QPS uplimit
          * <p>
-         * 默认值：100，表示每秒最多允100 个请
+         * defaultvalue：100，representseachsecondsat mostallow100  please
          * </p>
          */
         private int limitForPeriod = 100;
 
         /**
-         * 限流计数器刷新周
+         * rate limitcountcounterrefreshcycle
          * <p>
-         * 默认值：PT1S秒），配limitForPeriod 实现 QPS 控制
-         * 技术点：使ISO-8601 时间格式，如 PT1S=1 PT500MS=500毫秒
+         * defaultvalue：PT1Sseconds），configurationlimitForPeriod implementation QPS control
+         * technical point：useISO-8601 timeformat，like PT1S=1 PT500MS=500ms
          * </p>
          */
         private Duration limitRefreshPeriod = Duration.ofSeconds(1);
 
         /**
-         * 获取许可的超时时
+         * obtainpermitoftimeouttime
          * <p>
-         * 默认值：PT0S秒），表示如果没有可用许可立即拒绝请
-         * 设置为正值时会等待指定时间尝试获取许
+         * defaultvalue：PT0Sseconds），representsifnohascanusepermitestablishthat isrejectedplease
+         * setiscorrectvaluetimewillwaitspecifytimeattemptobtainallow
          * </p>
          */
         private Duration timeoutDuration = Duration.ZERO;

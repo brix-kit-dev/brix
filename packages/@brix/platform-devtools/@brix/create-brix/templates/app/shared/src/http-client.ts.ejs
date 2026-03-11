@@ -1,11 +1,11 @@
-/**
+﻿/**
  * @file HttpCapability 客户端适配器
  * @description orval 自定义 HTTP 客户端 — 使用 HttpCapability 替代 axios/fetch
- * @module @shinwa/<%= name %>-shared
+ * @module @brix/<%= name %>-shared
  * @version <%= version %>
  *
- * 【设计说明】
- * 本文件实现 orval 的自定义 mutator，将生成的 API 调用
+ * [Design Notes]
+ * 本文件实现 orval 的自定义 mutator，将生成的 API Calls
  * 路由到 HttpCapability 而非直接使用 axios/fetch。
  *
  * 【架构红线 R3 合规】
@@ -34,7 +34,7 @@ let httpCapability: HttpCapability | null = null;
  * @example
  * ```typescript
  * // 在 bootstrap.tsx 中设置
- * import { setHttpCapability } from '@shinwa/<%= name %>-shared/generated';
+ * import { setHttpCapability } from '@brix/<%= name %>-shared/generated';
  * import { useRuntimeContext } from '@brix/runtime-sdk-api-web';
  * 
  * const runtimeContext = useRuntimeContext();
@@ -66,7 +66,7 @@ export async function httpCapabilityClient<T = unknown>(
   if (!httpCapability) {
     throw new Error(
       '[<%= name %>-shared] HttpCapability 未设置。' +
-      '请在应用启动时调用 setHttpCapability() 设置 HttpCapability 实例。'
+      '请在应用启动时Calls setHttpCapability() 设置 HttpCapability 实例。'
     );
   }
 
@@ -83,11 +83,11 @@ export async function httpCapabilityClient<T = unknown>(
   // 通过 HttpCapability 发起请求
   const response = await httpCapability.request<T>(requestConfig);
 
-  // 返回响应数据
+  // Back响应数据
   return response.data;
 }
 
 /**
- * 导出类型供 orval 生成代码使用
+ * ExportType供 orval 生成代码使用
  */
 export type { HttpCapability, HttpRequestConfig, HttpResponse };

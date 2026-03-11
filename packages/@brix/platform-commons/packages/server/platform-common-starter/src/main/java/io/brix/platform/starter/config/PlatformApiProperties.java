@@ -1,127 +1,142 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 平台 API 配置属
+ * Platform API Configuration Properties
  * 
- * <p>统一管理 API 版本、路径前缀、注册端点等配置
- * 解决 API 版本路径不统一的问题</p>
+ * <p>Unified management of API version, path prefix, registration endpoints etc.
+ * Resolves API version path inconsistency issues.</p>
  * 
- * <p>设计目的</p>
+ * <p>Design Purpose:</p>
  * <ul>
- *   <li>解决问题4：API 版本前缀不统一v1 vs 无版本）</li>
- *   <li>配置API 版本路径</li>
- *   <li>统一注册端点路径</li>
+ *   <li>Resolve Issue 4: API version prefix inconsistency (v1 vs no version)</li>
+ *   <li>Configure API version path</li>
+ *   <li>Unify registration endpoint paths</li>
  * </ul>
  * 
- * <p>配置示例</p>
+ * <p>Configuration Example:</p>
  * <pre>
- * shinwa:
+ * brix:
  *   api:
- *     version: ""                    # 无版本前缀（默认）
- *     # version: "v1"                # 使用 /v1 前缀
+ *     version: ""                    # No version prefix (default)
+ *     # version: "v1"                # Use /v1 prefix
  *     include-version-in-routes: false
  *     registration-endpoint: /api/plugin-engine/register
  *     heartbeat-endpoint: /api/plugin-engine/cache/plugins/{name}/heartbeat
  * </pre>
  * 
- * <p>版本前缀规则</p>
+ * <p>Version Prefix Rules:</p>
  * <ul>
- *   <li>空字符串：不添加版本前缀（推荐）</li>
- *   <li>"v1"：添/v1 前缀</li>
- *   <li>"v2"：添/v2 前缀</li>
+ *   <li>Empty string: No version prefix (recommended)</li>
+ *   <li>"v1": Add /v1 prefix</li>
+ *   <li>"v2": Add /v2 prefix</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
  * @since v2.1
  * @see ServiceProperties
  */
-@ConfigurationProperties(prefix = "shinwa.api")
+@ConfigurationProperties(prefix = "brix.api")
 public class PlatformApiProperties {
     
     /**
-     * API 版本前缀
+     * API version prefix
      * 
-     * <p>用于API 路径前添加版本号</p>
-     * <p>空字符串表示不添加版本前缀（推荐）</p>
-     * <p>例如v1" 会使路径变为 /v1/api/xxx</p>
+     * <p>Used to add version number before API paths.</p>
+     * <p>Empty string means no version prefix (recommended).</p>
+     * <p>For example, "v1" will change path to /v1/api/xxx</p>
      * 
-     * <p>默认值：空字符串（无版本前缀</p>
+     * <p>Default: empty string (no version prefix)</p>
      */
     private String version = "";
     
     /**
-     * 是否在注册路由时包含版本前缀
+     * Whether to include version prefix in registered routes
      * 
-     * <p>true 时，注册的路由会包含版本前缀</p>
-     * <p>false 时，路由不包含版本前缀</p>
+     * <p>When true, registered routes will include version prefix.</p>
+     * <p>When false, routes won't include version prefix.</p>
      * 
-     * <p>默认值：false</p>
+     * <p>Default: false</p>
      */
     private boolean includeVersionInRoutes = false;
     
     /**
-     * Plugin Engine 注册端点路径
+     * Plugin Engine registration endpoint path
      * 
-     * <p>服务向基座注册时使用API 端点</p>
-     * <p>必须Plugin Engine 的注册接口路径一</p>
+     * <p>API endpoint used when service registers with base.</p>
+     * <p>Must match Plugin Engine's registration interface path.</p>
      * 
-     * <p>默认值：/api/plugin-engine/register</p>
+     * <p>Default: /api/plugin-engine/register</p>
      */
     private String registrationEndpoint = "/api/plugin-engine/register";
     
     /**
-     * Plugin Engine 心跳端点路径
+     * Plugin Engine heartbeat endpoint path
      * 
-     * <p>服务向基座发送心跳时使用API 端点</p>
-     * <p>{name} 会被替换为服务名</p>
+     * <p>API endpoint used when service sends heartbeat to base.</p>
+     * <p>{name} will be replaced with service name.</p>
      * 
-     * <p>默认值：/api/plugin-engine/cache/plugins/{name}/heartbeat</p>
+     * <p>Default: /api/plugin-engine/cache/plugins/{name}/heartbeat</p>
      */
     private String heartbeatEndpoint = "/api/plugin-engine/cache/plugins/{name}/heartbeat";
     
     /**
-     * 网关路由前缀
+     * Gateway route prefix
      * 
-     * <p>网关路由到服务时使用的前缀</p>
-     * <p>用于生成服务的路由规</p>
+     * <p>Prefix used when gateway routes to service</p>
+     * <p>Used to generate routing rules for services</p>
      * 
-     * <p>默认值：/api</p>
+     * <p>Default: /api</p>
      */
     private String gatewayRoutePrefix = "/api";
     
-    // ===== 构建方法 =====
+    // ===== Builder Methods =====
     
     /**
-     * 构建带版本的路径
+     * Build path with version
      * 
-     * <p>如果配置了版本前缀，则在路径前添加版本</p>
+     * <p>If version prefix is configured, add version before path</p>
      * 
-     * @param basePath 基础路径，必须以 / 开
-     * @return 带版本的完整路径
+     * @param basePath Base path, must start with /
+     * @return Complete path with version
      */
     public String buildVersionedPath(String basePath) {
-        // 如果未配置版本前缀，直接返回原路径
+        // If version prefix is not configured, return original path directly
         if (version == null || version.isEmpty()) {
             return basePath;
         }
         
-        // 确保基础路径/ 开
+        // Ensure base path starts with /
         String normalizedPath = basePath.startsWith("/") ? basePath : "/" + basePath;
         
-        // 确保版本前缀格式正确
+        // Ensure version prefix format is correct
         String normalizedVersion = version.startsWith("/") ? version : "/" + version;
         
         return normalizedVersion + normalizedPath;
     }
     
     /**
-     * 获取实际的注册端点路
+     * Get actual registration endpoint path
      * 
-     * <p>根据配置决定是否包含版本前缀</p>
+     * <p>Decides whether to include version prefix based on configuration</p>
      * 
-     * @return 注册端点路径
+     * @return Registration endpoint path
      */
     public String getActualRegistrationEndpoint() {
         if (includeVersionInRoutes) {
@@ -131,10 +146,10 @@ public class PlatformApiProperties {
     }
     
     /**
-     * 获取实际的心跳端点路
+     * Get actual heartbeat endpoint path
      * 
-     * @param serviceName 服务名称，用于替{name} 占位
-     * @return 心跳端点路径
+     * @param serviceName Service name, used to replace {name} placeholder
+     * @return Heartbeat endpoint path
      */
     public String getActualHeartbeatEndpoint(String serviceName) {
         String endpoint = includeVersionInRoutes 

@@ -16,13 +16,13 @@
 package io.runtime.orchestrator.lifecycle;
 
 /**
- * 模块生命周期管理包
+ * Module Lifecycle Management Package.
  * 
- * <p>本包提供模块生命周期管理功能：</p>
+ * <p>This package provides module lifecycle management functionality:</p>
  * <ul>
- *   <li>{@link ModuleLifecycleManager} - 生命周期管理器接口</li>
- *   <li>{@link DefaultModuleLifecycleManager} - 默认实现</li>
- *   <li>{@link LifecycleListener} - 生命周期事件监听器</li>
+ *   <li>{@link ModuleLifecycleManager} - Lifecycle manager interface</li>
+ *   <li>{@link DefaultModuleLifecycleManager} - Default implementation</li>
+ *   <li>{@link LifecycleListener} - Lifecycle event listener</li>
  * </ul>
  * 
  * @since 3.0.0

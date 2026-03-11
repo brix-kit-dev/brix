@@ -77,12 +77,12 @@ import java.util.List;
  *   <li>Embedded Host: UUID or customer-provided ID generator</li>
  * </ul>
  *
- * <p>【ID生成能力契约】</p>
- * <p>提供分布式唯一ID生成能力，插件通过此接口生成唯一标识符：</p>
+ * <p><b>ID Generation Capability Contract</b></p>
+ * <p>Provides distributed unique ID generation capability. Plugins use this interface to generate unique identifiers:</p>
  * <ul>
- *   <li>generate(): 生成单个唯一ID</li>
- *   <li>generate(prefix): 生成带业务前缀的ID</li>
- *   <li>generateBatch(count): 批量生成ID，优化性能</li>
+ *   <li>generate(): Generate a single unique ID</li>
+ *   <li>generate(prefix): Generate an ID with business prefix</li>
+ *   <li>generateBatch(count): Batch generate IDs for performance optimization</li>
  * </ul>
  *
  * @author Runtime SDK Team

@@ -1,13 +1,13 @@
-/**
+﻿/**
  * Rspack 配置 - Module Federation
  * 
- * @module @shinwa/<%= name %>-web
+ * @module @brix/<%= name %>-web
  * @generated <%= date %>
  * 
  * v2.1 架构规范：
  * - 使用 Module Federation 暴露组件
  * - exposes 目录下的包装器确保初始化顺序
- * - 与基座共享 react, react-dom, react-router-dom, @mui/material
+ * - 与基座Total享 react, react-dom, react-router-dom, @mui/material
  */
 
 import { defineConfig } from '@rspack/cli';
@@ -17,7 +17,7 @@ import path from 'path';
 const isDev = process.env.NODE_ENV !== 'production';
 const PORT = process.env.PORT || <%= webPort || 3000 %>;
 
-// Module Federation 的 scope 名称（驼峰命名）
+// Module Federation 的 scope Name（驼峰命名）
 const SCOPE_NAME = '<%= name.replace('plugin-', '').replace(/-./g, x => x[1].toUpperCase()) %>';
 
 export default defineConfig({
@@ -71,9 +71,9 @@ export default defineConfig({
       name: SCOPE_NAME,
       filename: 'remoteEntry.js',
       exposes: {
-        // 暴露列表页面
+        // 暴露列表pages面
         './<%= classPrefix %>List': './src/exposes/<%= classPrefix %>List.tsx',
-        // 暴露详情页面
+        // 暴露Detail Page
         './<%= classPrefix %>Detail': './src/exposes/<%= classPrefix %>Detail.tsx',
       },
       shared: {
@@ -132,6 +132,6 @@ export default defineConfig({
     allowedHosts: 'all',
   },
   optimization: {
-    splitChunks: false, // Module Federation 需要禁用 splitChunks
+    splitChunks: false, // Module Federation 需要Disabled splitChunks
   },
 });

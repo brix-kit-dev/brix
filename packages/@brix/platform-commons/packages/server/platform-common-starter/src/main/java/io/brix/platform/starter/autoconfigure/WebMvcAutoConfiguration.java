@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.autoconfigure;
 
 import org.slf4j.Logger;
@@ -26,24 +41,24 @@ import io.brix.platform.starter.header.TraceHeaderInterceptor;
 import java.util.List;
 
 /**
- * Web MVC 自动配置
+ * Web MVC Auto-Configuration
  * 
- * <p>自动配置 Web 层相Bean，包括租户过滤器、请求拦截器CORS 配置</p>
+ * <p>Auto-configures Web layer beans including tenant filters, request interceptors and CORS configuration.</p>
  * 
- * <p>配置条件</p>
+ * <p>Configuration Conditions:</p>
  * <ul>
- *   <li>Servlet Web 应用</li>
- *   <li>classpath 中存在 DispatcherServlet </li>
- *   <li>shinwa.web.enabled=true（默认）</li>
+ *   <li>Servlet Web application</li>
+ *   <li>DispatcherServlet class exists in classpath</li>
+ *   <li>brix.web.enabled=true (default)</li>
  * </ul>
  * 
- * <p>提供的功能：</p>
+ * <p>Provided Features:</p>
  * <ul>
- *   <li>TenantHeaderFilter：自动提X-Tenant-Id、X-User-Id 等请求头</li>
- *   <li>TraceHeaderInterceptor：分布式链路追踪头注</li>
- *   <li>ApiKeyAuthInterceptor：API Key/Secret 自动注入</li>
- *   <li>PlatformHeadersInterceptor：统一平台头注</li>
- *   <li>CORS 配置：跨域请求支</li>
+ *   <li>TenantHeaderFilter: Automatically extracts X-Tenant-Id, X-User-Id and other request headers</li>
+ *   <li>TraceHeaderInterceptor: Distributed tracing header injection</li>
+ *   <li>ApiKeyAuthInterceptor: API Key/Secret auto-injection</li>
+ *   <li>PlatformHeadersInterceptor: Unified platform header injection</li>
+ *   <li>CORS configuration: Cross-origin request support</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -54,7 +69,7 @@ import java.util.List;
 @AutoConfiguration(after = PlatformCoreAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(DispatcherServlet.class)
-@ConditionalOnProperty(prefix = "shinwa.web", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "brix.web", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(CorsProperties.class)
 public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     
@@ -64,29 +79,29 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     private final ServiceProperties serviceProperties;
     
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param corsProperties    CORS 配置
-     * @param serviceProperties 服务配置
+     * @param corsProperties    CORS configuration
+     * @param serviceProperties Service configuration
      */
     public WebMvcAutoConfiguration(CorsProperties corsProperties, ServiceProperties serviceProperties) {
         this.corsProperties = corsProperties;
         this.serviceProperties = serviceProperties;
-        log.info("[WebMvcAutoConfiguration] 初始Web MVC 自动配置");
+        log.info("[WebMvcAutoConfiguration] Initializing Web MVC auto-configuration");
     }
     
     /**
-     * 租户请求头过滤器
+     * Tenant Header Filter
      * 
-     * <p>优先级最高，确保在所有处理之前提取租户信</p>
+     * <p>Highest priority to ensure tenant information is extracted before all other processing.</p>
      * 
-     * @return 过滤器注Bean
+     * @return Filter registration bean
      */
     @Bean
     @ConditionalOnMissingBean(TenantHeaderFilter.class)
-    @ConditionalOnProperty(prefix = "shinwa.web.tenant", name = "enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "brix.web.tenant", name = "enabled", havingValue = "true", matchIfMissing = true)
     public FilterRegistrationBean<TenantHeaderFilter> tenantHeaderFilter() {
-        log.info("[WebMvcAutoConfiguration] 注册租户请求头过滤器");
+        log.info("[WebMvcAutoConfiguration] Registering tenant header filter");
         
         FilterRegistrationBean<TenantHeaderFilter> registrationBean = 
             new FilterRegistrationBean<>();
@@ -100,9 +115,9 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     }
     
     /**
-     * 链路追踪头拦截器
+     * Trace Header Interceptor
      * 
-     * @return 链路追踪头拦截器
+     * @return Trace header interceptor
      */
     @Bean
     @ConditionalOnMissingBean
@@ -111,9 +126,9 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     }
     
     /**
-     * API Key 认证拦截
+     * API Key Auth Interceptor
      * 
-     * @return API Key 认证拦截
+     * @return API Key auth interceptor
      */
     @Bean
     @ConditionalOnMissingBean
@@ -122,9 +137,9 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     }
     
     /**
-     * 平台统一头拦截器
+     * Platform Unified Header Interceptor
      * 
-     * @return 平台统一头拦截器
+     * @return Platform unified header interceptor
      */
     @Bean
     @ConditionalOnMissingBean
@@ -133,14 +148,14 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     }
     
     /**
-     * 配置 RestTemplate 拦截器列
+     * Configure RestTemplate interceptor list
      * 
-     * <p>用于出站 HTTP 请求的头信息注入</p>
+     * <p>Used for header injection in outbound HTTP requests</p>
      * 
-     * @param traceInterceptor    链路追踪拦截
-     * @param apiKeyInterceptor   API Key 拦截
-     * @param platformInterceptor 平台头拦截器
-     * @return 拦截器列
+     * @param traceInterceptor    Trace header interceptor
+     * @param apiKeyInterceptor   API Key interceptor
+     * @param platformInterceptor Platform header interceptor
+     * @return Interceptor list
      */
     @Bean
     @ConditionalOnClass(RestTemplate.class)
@@ -153,18 +168,18 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     }
     
     /**
-     * 配置 CORS
+     * Configure CORS
      * 
-     * @param registry CORS 注册
+     * @param registry CORS registry
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         if (!corsProperties.isEnabled()) {
-            log.info("[WebMvcAutoConfiguration] CORS 宸茬");
+            log.info("[WebMvcAutoConfiguration] CORS is disabled");
             return;
         }
         
-        log.info("[WebMvcAutoConfiguration] 配置 CORS - 允许的源: {}", 
+        log.info("[WebMvcAutoConfiguration] Configuring CORS - allowed origins: {}", 
             corsProperties.getAllowedOrigins());
         
         registry.addMapping("/**")
@@ -177,16 +192,16 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     }
     
     /**
-     * 配置 Web MVC 拦截
+     * Configure Web MVC interceptors
      * 
-     * <p>注意：这里配置的MVC 层面的拦截器，用Controller 处理流程</p>
+     * <p>Note: These are MVC-level interceptors for Controller processing flow</p>
      * 
-     * @param registry 拦截器注册表
+     * @param registry Interceptor registry
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 如果需要在 MVC 层面添加拦截器，可在此配
-        // 目前主要通过 Filter ClientHttpRequestInterceptor 处理
-        log.debug("[WebMvcAutoConfiguration] 配置 MVC 拦截");
+        // Add MVC-level interceptors here if needed
+        // Currently handled mainly through Filter and ClientHttpRequestInterceptor
+        log.debug("[WebMvcAutoConfiguration] Configuring MVC interceptors");
     }
 }

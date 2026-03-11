@@ -1,10 +1,26 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.common.exception;
 
 import java.io.Serial;
 
 /**
- * <p>自定义业务异常，强制绑定 {@link PlatformErrorCode}，确保所有异常都能映射到统一响应码。</p>
- * <p>推荐在领域/应用服务层抛出，不要在基础设施层吞掉异常。</p>
+ * <p>Custom business exception, mandatorily bound to {@link PlatformErrorCode},
+ * ensuring all exceptions can be mapped to unified response codes.</p>
+ * <p>Recommended to throw in domain/application service layer, do not swallow exceptions in infrastructure layer.</p>
  */
 public class PlatformException extends RuntimeException {
     @Serial

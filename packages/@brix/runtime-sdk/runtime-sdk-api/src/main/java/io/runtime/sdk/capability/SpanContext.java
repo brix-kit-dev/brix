@@ -16,23 +16,23 @@
 package io.runtime.sdk.capability;
 
 /**
- * Span 上下文
+ * Span Context
  * 
- * <p>封装分布式追踪的 Span 信息，用于跨服务传递追踪上下文。
- * 基于 W3C Trace Context 标准设计。</p>
+ * <p>Encapsulates Span information for distributed tracing, used to propagate
+ * tracing context across services. Designed based on W3C Trace Context standard.</p>
  * 
- * <h3>核心字段</h3>
+ * <h3>Core Fields</h3>
  * <ul>
- *   <li><b>traceId</b>：追踪 ID，贯穿整个请求链路</li>
- *   <li><b>spanId</b>：当前 Span ID</li>
- *   <li><b>parentSpanId</b>：父 Span ID，用于构建调用树</li>
+ *   <li><b>traceId</b>: Trace ID, spans the entire request chain</li>
+ *   <li><b>spanId</b>: Current Span ID</li>
+ *   <li><b>parentSpanId</b>: Parent Span ID, used to build call tree</li>
  * </ul>
  * 
- * <h3>使用场景</h3>
+ * <h3>Use Cases</h3>
  * <ul>
- *   <li>跨服务调用时传递追踪上下文</li>
- *   <li>异步任务关联原始请求</li>
- *   <li>日志关联分析</li>
+ *   <li>Propagate tracing context in cross-service calls</li>
+ *   <li>Associate async tasks with original requests</li>
+ *   <li>Log correlation analysis</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -42,37 +42,37 @@ package io.runtime.sdk.capability;
 public final class SpanContext {
 
     /**
-     * 空上下文单例
+     * Empty context singleton
      */
     private static final SpanContext EMPTY = new SpanContext(null, null, null, false);
 
     /**
-     * 追踪 ID（32 位十六进制字符串）
+     * Trace ID (32-character hex string)
      */
     private final String traceId;
 
     /**
-     * 当前 Span ID（16 位十六进制字符串）
+     * Current Span ID (16-character hex string)
      */
     private final String spanId;
 
     /**
-     * 父 Span ID
+     * Parent Span ID
      */
     private final String parentSpanId;
 
     /**
-     * 是否采样
+     * Whether sampled
      */
     private final boolean sampled;
 
     /**
-     * 创建 Span 上下文
+     * Create Span context
      * 
-     * @param traceId      追踪 ID
-     * @param spanId       当前 Span ID
-     * @param parentSpanId 父 Span ID
-     * @param sampled      是否采样
+     * @param traceId      trace ID
+     * @param spanId       current Span ID
+     * @param parentSpanId parent Span ID
+     * @param sampled      whether sampled
      */
     public SpanContext(String traceId, String spanId, String parentSpanId, boolean sampled) {
         this.traceId = traceId;
@@ -82,29 +82,29 @@ public final class SpanContext {
     }
 
     /**
-     * 获取空上下文
+     * Get empty context
      * 
-     * @return 空的 SpanContext 实例
+     * @return empty SpanContext instance
      */
     public static SpanContext empty() {
         return EMPTY;
     }
 
     /**
-     * 创建新的 Span 上下文
+     * Create new Span context
      * 
-     * @param traceId 追踪 ID
+     * @param traceId trace ID
      * @param spanId  Span ID
-     * @return SpanContext 实例
+     * @return SpanContext instance
      */
     public static SpanContext create(String traceId, String spanId) {
         return new SpanContext(traceId, spanId, null, true);
     }
 
     /**
-     * 检查上下文是否有效
+     * Check if context is valid
      * 
-     * @return 如果 traceId 和 spanId 都不为空返回 true
+     * @return true if both traceId and spanId are non-empty
      */
     public boolean isValid() {
         return traceId != null && !traceId.isBlank() 
@@ -112,47 +112,47 @@ public final class SpanContext {
     }
 
     /**
-     * 获取追踪 ID
+     * Get trace ID
      * 
-     * @return 追踪 ID，可能为 null
+     * @return trace ID, may be null
      */
     public String getTraceId() {
         return traceId;
     }
 
     /**
-     * 获取当前 Span ID
+     * Get current Span ID
      * 
-     * @return Span ID，可能为 null
+     * @return Span ID, may be null
      */
     public String getSpanId() {
         return spanId;
     }
 
     /**
-     * 获取父 Span ID
+     * Get parent Span ID
      * 
-     * @return 父 Span ID，可能为 null
+     * @return parent Span ID, may be null
      */
     public String getParentSpanId() {
         return parentSpanId;
     }
 
     /**
-     * 是否被采样
+     * Whether sampled
      * 
-     * @return 如果被采样返回 true
+     * @return true if sampled
      */
     public boolean isSampled() {
         return sampled;
     }
 
     /**
-     * 转换为 W3C traceparent 格式
+     * Convert to W3C traceparent format
      * 
-     * <p>格式：{version}-{traceId}-{spanId}-{flags}</p>
+     * <p>Format: {version}-{traceId}-{spanId}-{flags}</p>
      * 
-     * @return traceparent 字符串，如果上下文无效返回 null
+     * @return traceparent string, null if context is invalid
      */
     public String toTraceParent() {
         if (!isValid()) {
@@ -163,10 +163,10 @@ public final class SpanContext {
     }
 
     /**
-     * 从 W3C traceparent 格式解析
+     * Parse from W3C traceparent format
      * 
-     * @param traceParent traceparent 字符串
-     * @return 解析后的 SpanContext，解析失败返回空上下文
+     * @param traceParent traceparent string
+     * @return parsed SpanContext, empty context on parse failure
      */
     public static SpanContext fromTraceParent(String traceParent) {
         if (traceParent == null || traceParent.isBlank()) {

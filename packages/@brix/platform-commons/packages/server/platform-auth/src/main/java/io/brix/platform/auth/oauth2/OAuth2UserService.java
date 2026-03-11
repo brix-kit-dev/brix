@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.oauth2;
 
 import java.net.URLEncoder;
@@ -28,14 +43,14 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /**
- * OAuth2 用户服务（响应式实现
+ * OAuth2 User Service (Reactive Implementation)
  * <p>
- * 处理 OAuth2 登录流程，包括：
+ * Handles OAuth2 login flow, including:
  * <ul>
- *   <li>生成授权 URL</li>
- *   <li>处理授权回调</li>
- *   <li>获取用户信息</li>
- *   <li>用户绑定与自动注</li>
+ *   <li>Generate authorization URL</li>
+ *   <li>Handle authorization callback</li>
+ *   <li>Get user info</li>
+ *   <li>User binding and auto-registration</li>
  * </ul>
  * </p>
  *
@@ -54,36 +69,36 @@ public class OAuth2UserService {
     private final ObjectMapper objectMapper;
 
     /**
-     * Redis Key 前缀：OAuth2 状态参
+     * Redis Key prefix: OAuth2 state parameter
      */
     private static final String STATE_PREFIX = "oauth2:state:";
 
     /**
-     * Redis Key 前缀：PKCE code verifier
+     * Redis Key prefix: PKCE code verifier
      */
     private static final String PKCE_PREFIX = "oauth2:pkce:";
 
     /**
-     * 生成授权 URL
+     * Generate authorization URL
      *
-     * @param providerId 提供商标识（google、wechat
-     * @return 鎺堟潈 URL
-     * @throws OAuth2Exception 如果提供商未配置或未启用
+     * @param providerId Provider identifier (google, wechat)
+     * @return Authorization URL
+     * @throws OAuth2Exception If provider is not configured or not enabled
      */
     public String generateAuthorizationUrl(String providerId) {
         OAuth2Properties.ProviderConfig config = getProviderConfig(providerId);
 
         String authorizationUri = Objects.requireNonNull(
             getAuthorizationUri(providerId, config),
-            "未配置授权端"
+            "Authorization endpoint not configured"
         );
-        String clientId = Objects.requireNonNull(config.getClientId(), "未配clientId");
-        String redirectUri = Objects.requireNonNull(config.getRedirectUri(), "未配redirectUri");
+        String clientId = Objects.requireNonNull(config.getClientId(), "clientId not configured");
+        String redirectUri = Objects.requireNonNull(config.getRedirectUri(), "redirectUri not configured");
 
-        // 生成状态参数（CSRF 攻击
+        // Generate state parameter (prevent CSRF attacks)
         String state = generateState(providerId);
 
-        // 鏋勫缓鎺堟潈 URL
+        // Build authorization URL
         UriComponentsBuilder builder = UriComponentsBuilder
             .fromUriString(authorizationUri)
             .queryParam("client_id", clientId)
@@ -91,18 +106,18 @@ public class OAuth2UserService {
             .queryParam("response_type", "code")
             .queryParam("state", state);
 
-        // 添加 scope（将逗号分隔转换为空格分隔，兼容 Google OAuth2 提供商）
+        // Add scope (convert comma-separated to space-separated, compatible with Google OAuth2 provider)
         if (StringUtils.hasText(config.getScope())) {
             String scope = config.getScope().replace(",", " ");
             builder.queryParam("scope", scope);
         }
 
-        // PKCE 支持
+        // PKCE support
         if (config.isUsePkce()) {
             String codeVerifier = generateCodeVerifier();
             String codeChallenge = generateCodeChallenge(codeVerifier);
             
-            // 存储 code_verifier，回调时使用
+            // Store code_verifier, will be used in callback
             reactiveRedisTemplate.opsForValue().set(
                 PKCE_PREFIX + state,
                 Objects.requireNonNull(codeVerifier),
@@ -113,66 +128,66 @@ public class OAuth2UserService {
             builder.queryParam("code_challenge_method", "S256");
         }
 
-        // 添加额外参数（如微信wechat_redirect
+        // Add extra parameters (e.g., WeChat wechat_redirect)
         if (config.getAdditionalParams() != null) {
             config.getAdditionalParams().forEach(builder::queryParam);
         }
 
-        // 使用 encode() 确保查询参数（如 scope 中的空格）被正确 URL 编码
+        // Use encode() to ensure query parameters (e.g., spaces in scope) are properly URL encoded
         String authUrl = builder.build().encode().toUriString();
-        log.info("[OAuth2] 生成授权 URL: provider={}, state={}", providerId, state);
+        log.info("[OAuth2] Generated authorization URL: provider={}, state={}", providerId, state);
         
         return authUrl;
     }
 
     /**
-     * 处理授权回调（响应式
+     * Handle authorization callback (reactive)
      *
-     * @param providerId 提供商标
-     * @param code       授权
-     * @param state      状态参
-     * @return OAuth2 用户信息
+     * @param providerId Provider identifier
+     * @param code       Authorization code
+     * @param state      State parameter
+     * @return OAuth2 user info
      */
     public Mono<OAuth2UserInfo> handleCallback(String providerId, String code, String state) {
-        log.info("[OAuth2] 处理回调: provider={}, state={}", providerId, state);
+        log.info("[OAuth2] Processing callback: provider={}, state={}", providerId, state);
 
         return validateState(state, providerId)
             .flatMap(valid -> {
                 if (!valid) {
-                    return Mono.error(new OAuth2Exception("无效state 参数，可能存CSRF 攻击"));
+                    return Mono.error(new OAuth2Exception("Invalid state parameter, possible CSRF attack"));
                 }
                 
                 OAuth2Properties.ProviderConfig config = getProviderConfig(providerId);
                 
-                // 获取 access_token
+                // Get access_token
                 return exchangeCodeForToken(providerId, config, code)
                     .flatMap(accessToken -> fetchUserInfo(providerId, config, accessToken));
             });
     }
 
     /**
-     * 获取提供商配置（需启用
+     * Get provider config (must be enabled)
      */
     private OAuth2Properties.ProviderConfig getProviderConfig(String providerId) {
         if (!oAuth2Properties.isEnabled()) {
-            throw new OAuth2Exception("OAuth2 登录未启用");
+            throw new OAuth2Exception("OAuth2 login is not enabled");
         }
 
         OAuth2Properties.ProviderConfig config = oAuth2Properties.getProviders().get(providerId);
         if (config == null || !config.isEnabled()) {
-            throw new OAuth2Exception("不支持的登录方式: " + providerId);
+            throw new OAuth2Exception("Unsupported login method: " + providerId);
         }
 
         return config;
     }
 
     /**
-     * 生成 state 参数
+     * Generate state parameter
      */
     private String generateState(String providerId) {
         String state = UUID.randomUUID().toString().replace("-", "");
         
-        // 存储 state -> providerId 映射，用于回调时验证
+        // Store state -> providerId mapping for callback validation
         reactiveRedisTemplate.opsForValue().set(
             STATE_PREFIX + state,
             Objects.requireNonNull(providerId),
@@ -183,7 +198,7 @@ public class OAuth2UserService {
     }
 
     /**
-     * 验证 state 参数（响应式
+     * Validate state parameter (reactive)
      */
     private Mono<Boolean> validateState(String state, String providerId) {
         if (!StringUtils.hasText(state)) {
@@ -195,7 +210,7 @@ public class OAuth2UserService {
                 if (!providerId.equals(storedProviderId)) {
                     return Mono.just(false);
                 }
-                // 验证通过后删state（一次性使用）
+                // Delete state after validation (one-time use)
                 return reactiveRedisTemplate.delete(STATE_PREFIX + state)
                     .thenReturn(true);
             })
@@ -203,7 +218,7 @@ public class OAuth2UserService {
     }
 
     /**
-     * 获取授权端点 URL
+     * Get authorization endpoint URL
      */
     private String getAuthorizationUri(String providerId, OAuth2Properties.ProviderConfig config) {
         if (StringUtils.hasText(config.getAuthorizationUri())) {
@@ -214,12 +229,12 @@ public class OAuth2UserService {
             case "google" -> "https://accounts.google.com/o/oauth2/v2/auth";
             case "wechat" -> "https://open.weixin.qq.com/connect/qrconnect";
             case "github" -> "https://github.com/login/oauth/authorize";
-            default -> throw new OAuth2Exception("未配置授权端 " + providerId);
+            default -> throw new OAuth2Exception("Authorization endpoint not configured: " + providerId);
         };
     }
 
     /**
-     * 获取 Token 端点 URL
+     * Get Token endpoint URL
      */
     private String getTokenUri(String providerId, OAuth2Properties.ProviderConfig config) {
         if (StringUtils.hasText(config.getTokenUri())) {
@@ -230,12 +245,12 @@ public class OAuth2UserService {
             case "google" -> "https://oauth2.googleapis.com/token";
             case "wechat" -> "https://api.weixin.qq.com/sns/oauth2/access_token";
             case "github" -> "https://github.com/login/oauth/access_token";
-            default -> throw new OAuth2Exception("未配Token 端点: " + providerId);
+            default -> throw new OAuth2Exception("Token endpoint not configured: " + providerId);
         };
     }
 
     /**
-     * 获取用户信息端点 URL
+     * Get user info endpoint URL
      */
     private String getUserInfoUri(String providerId, OAuth2Properties.ProviderConfig config) {
         if (StringUtils.hasText(config.getUserInfoUri())) {
@@ -246,12 +261,12 @@ public class OAuth2UserService {
             case "google" -> "https://www.googleapis.com/oauth2/v3/userinfo";
             case "wechat" -> "https://api.weixin.qq.com/sns/userinfo";
             case "github" -> "https://api.github.com/user";
-            default -> throw new OAuth2Exception("未配置用户信息端 " + providerId);
+            default -> throw new OAuth2Exception("User info endpoint not configured: " + providerId);
         };
     }
 
     /**
-     * 使用授权码交access_token（响应式
+     * Exchange authorization code for access_token (reactive)
      */
     private Mono<String> exchangeCodeForToken(
         String providerId,
@@ -261,16 +276,16 @@ public class OAuth2UserService {
         String tokenUri = getTokenUri(providerId, config);
         WebClient webClient = webClientBuilder.build();
 
-        String clientId = Objects.requireNonNull(config.getClientId(), "未配clientId");
-        String clientSecret = Objects.requireNonNull(config.getClientSecret(), "未配clientSecret");
-        String redirectUri = Objects.requireNonNull(config.getRedirectUri(), "未配redirectUri");
+        String clientId = Objects.requireNonNull(config.getClientId(), "clientId not configured");
+        String clientSecret = Objects.requireNonNull(config.getClientSecret(), "clientSecret not configured");
+        String redirectUri = Objects.requireNonNull(config.getRedirectUri(), "redirectUri not configured");
 
-        // 微信Token 请求使用 GET 方式
+        // WeChat Token request uses GET method
         if ("wechat".equalsIgnoreCase(providerId)) {
             return exchangeWechatToken(webClient, config, code);
         }
 
-        // 标准 OAuth2 Token 请求（POST form
+        // Standard OAuth2 Token request (POST form)
         return webClient.post()
             .uri(Objects.requireNonNull(tokenUri))
             .contentType(Objects.requireNonNull(MediaType.APPLICATION_FORM_URLENCODED))
@@ -288,18 +303,18 @@ public class OAuth2UserService {
                     String accessToken = json.path("access_token").asText();
                     if (!StringUtils.hasText(accessToken)) {
                         String error = json.path("error").asText("unknown");
-                        throw new OAuth2Exception("获取 access_token 失败: " + error);
+                        throw new OAuth2Exception("Failed to get access_token: " + error);
                     }
                     return accessToken;
                 } catch (JsonProcessingException e) {
-                    throw new OAuth2Exception("解析 Token 响应失败", e);
+                    throw new OAuth2Exception("Failed to parse Token response", e);
                 }
             })
-            .doOnError(e -> log.error("[OAuth2] Token 交换失败: provider={}", providerId, e));
+            .doOnError(e -> log.error("[OAuth2] Token exchange failed: provider={}", providerId, e));
     }
 
     /**
-     * 微信 Token 请求（GET 方式
+     * WeChat Token request (GET method)
      */
     private Mono<String> exchangeWechatToken(
         WebClient webClient,
@@ -321,17 +336,17 @@ public class OAuth2UserService {
                 try {
                     JsonNode json = objectMapper.readTree(body);
                     if (json.has("errcode") && json.get("errcode").asInt() != 0) {
-                        throw new OAuth2Exception("微信 Token 请求失败: " + json.path("errmsg").asText());
+                        throw new OAuth2Exception("WeChat Token request failed: " + json.path("errmsg").asText());
                     }
                     return json.path("access_token").asText();
                 } catch (JsonProcessingException e) {
-                    throw new OAuth2Exception("微信 Token 解析失败", e);
+                    throw new OAuth2Exception("WeChat Token parse failed", e);
                 }
             });
     }
 
     /**
-     * 获取用户信息（响应式
+     * Get user info (reactive)
      */
     @SuppressWarnings("null")
     private Mono<OAuth2UserInfo> fetchUserInfo(
@@ -343,15 +358,15 @@ public class OAuth2UserService {
         WebClient webClient = webClientBuilder.build();
         String safeAccessToken = accessToken != null ? accessToken : "";
 
-        // 构建请求
+        // Build request
         WebClient.RequestHeadersSpec<?> request;
         
         if ("wechat".equalsIgnoreCase(providerId)) {
-            // 微信需access_token 作为查询参数
+            // WeChat requires access_token as query parameter
             String url = userInfoUri + "?access_token=" + safeAccessToken + "&lang=zh_CN";
             request = webClient.get().uri(url);
         } else if ("github".equalsIgnoreCase(providerId)) {
-            // GitHub 需要特殊的 Accept 
+            // GitHub requires special Accept header
             request = webClient.get()
                 .uri(userInfoUri)
                 .header("Authorization", "Bearer " + safeAccessToken)
@@ -366,19 +381,19 @@ public class OAuth2UserService {
             .retrieve()
             .bodyToMono(String.class)
             .doOnNext(body -> {
-                // 记录 OAuth2 提供商返回的原始用户信息（调试用
-                log.debug("[OAuth2] 原始用户信息响应: provider={}, body={}", providerId, body);
-                // INFO 级别也输出关键信息便于排
+                // Log raw user info returned by OAuth2 provider (for debugging)
+                log.debug("[OAuth2] Raw user info response: provider={}, body={}", providerId, body);
+                // Also log key info at INFO level for troubleshooting
                 try {
                     JsonNode json = objectMapper.readTree(body);
-                    log.info("[OAuth2] 用户信息字段: provider={}, sub={}, email={}, name={}, picture={}", 
+                    log.info("[OAuth2] User info fields: provider={}, sub={}, email={}, name={}, picture={}", 
                         providerId,
                         json.path("sub").asText("N/A"),
                         json.path("email").asText("N/A"),
                         json.path("name").asText("N/A"),
                         json.path("picture").asText("N/A"));
                 } catch (JsonProcessingException | RuntimeException e) {
-                    log.warn("[OAuth2] 解析用户信息预览失败", e);
+                    log.warn("[OAuth2] Failed to parse user info preview", e);
                 }
             })
             .map(body -> {
@@ -386,18 +401,18 @@ public class OAuth2UserService {
                     JsonNode json = objectMapper.readTree(body);
                     return parseUserInfo(providerId, config, json);
                 } catch (JsonProcessingException e) {
-                    throw new OAuth2Exception("解析用户信息失败", e);
+                    throw new OAuth2Exception("Failed to parse user info", e);
                 }
             })
             .doOnSuccess(userInfo -> 
-                log.info("[OAuth2] 用户信息获取成功: provider={}, userId={}", 
+                log.info("[OAuth2] User info retrieved successfully: provider={}, userId={}", 
                     providerId, userInfo.getProviderId()))
             .doOnError(e -> 
-                log.error("[OAuth2] 获取用户信息失败: provider={}", providerId, e));
+                log.error("[OAuth2] Failed to get user info: provider={}", providerId, e));
     }
 
     /**
-     * 解析用户信息
+     * Parse user info
      */
     private OAuth2UserInfo parseUserInfo(
         String providerId,
@@ -407,7 +422,7 @@ public class OAuth2UserService {
         OAuth2UserInfo userInfo = new OAuth2UserInfo();
         String providerUserId = json.path(config.getUserIdAttribute()).asText(null);
         if (!StringUtils.hasText(providerUserId)) {
-            throw new OAuth2Exception("用户唯一标识为空");
+            throw new OAuth2Exception("User unique identifier is empty");
         }
 
         String userName = json.path(config.getUserNameAttribute()).asText(null);
@@ -422,7 +437,7 @@ public class OAuth2UserService {
         userInfo.setAvatar(json.path(config.getAvatarAttribute()).asText(null));
         userInfo.setRawAttributes(json.toString());
 
-        // 微信特殊处理
+        // WeChat special handling
         if ("wechat".equalsIgnoreCase(providerId)) {
             userInfo.setProviderId(json.path("openid").asText());
             userInfo.setName(json.path("nickname").asText());
@@ -433,7 +448,7 @@ public class OAuth2UserService {
     }
 
     /**
-     * 生成 PKCE code_verifier
+     * Generate PKCE code_verifier
      */
     private String generateCodeVerifier() {
         SecureRandom random = new SecureRandom();

@@ -1,4 +1,4 @@
-# =========================================================
+﻿# =========================================================
 # <%= displayName %> 服务配置
 # 生成时间: <%= date %>
 # =========================================================
@@ -31,7 +31,7 @@ shinwa:
     version: ""
     include-version-in-routes: false
   
-  # CORS 配置 - 禁用，由网关统一处理
+  # CORS 配置 - Disabled，由网关统一处理
   cors:
     enabled: false
 
@@ -40,7 +40,7 @@ spring:
   application:
     name: ${shinwa.service.name}
   
-  # 数据源配置（Docker 环境使用环境变量覆盖）
+  # Data source configuration（Docker 环境使用环境变量覆盖）
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shinwa_<%= name %>}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
@@ -54,8 +54,8 @@ spring:
   # JPA 配置
   jpa:
     hibernate:
-      # update: 自动更新表结构（开发环境推荐）
-      # validate: 仅验证（生产环境推荐，配合 Flyway）
+      # update: 自动更新表结构（Development推荐）
+      # validate: 仅验证（Production推荐，配合 Flyway）
       ddl-auto: ${JPA_DDL_AUTO:update}
     show-sql: false
     properties:
@@ -63,7 +63,7 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
   
-  # Flyway 配置（生产环境启用）
+  # Flyway 配置（ProductionEnabled）
   flyway:
     enabled: ${FLYWAY_ENABLED:false}
     baseline-on-migrate: true
@@ -96,7 +96,7 @@ management:
     health:
       show-details: when_authorized
 
-# ==================== 日志配置 ====================
+# ==================== Logging configuration ====================
 logging:
   level:
     shinwa: DEBUG

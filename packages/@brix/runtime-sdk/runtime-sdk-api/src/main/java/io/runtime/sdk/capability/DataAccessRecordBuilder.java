@@ -41,8 +41,8 @@ import java.util.Set;
  *     .build();
  * }</pre>
  *
- * <p>【数据访问记录构建器】</p>
- * <p>用于构建不可变的数据访问记录对象，支持链式调用。</p>
+ * <p>[Data Access Record Builder]</p>
+ * <p>Used to build immutable data access record objects with fluent API.</p>
  *
  * @author Runtime SDK Team
  * @since 3.1.0
@@ -150,8 +150,8 @@ public class DataAccessRecordBuilder implements DataAccessCapability.DataAccessR
     /**
      * Immutable implementation of DataAccessRecord
      *
-     * <p>【不可变数据访问记录实现】</p>
-     * <p>所有字段都是不可变的，保证线程安全。</p>
+     * <p>[Immutable Data Access Record Implementation]</p>
+     * <p>All fields are immutable, guaranteeing thread safety.</p>
      */
     private static final class ImmutableDataAccessRecord 
             implements DataAccessCapability.DataAccessRecord {

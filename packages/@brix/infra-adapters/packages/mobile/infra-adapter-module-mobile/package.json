@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-module-mobile",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix Mobile Module Loader Adapter - React Native dynamic module loading implementation",
   "type": "module",
   "main": "./dist/index.js",

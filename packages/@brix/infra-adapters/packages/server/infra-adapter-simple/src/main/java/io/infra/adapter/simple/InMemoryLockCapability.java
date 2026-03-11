@@ -31,24 +31,25 @@ import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 /**
- * 基于内存的分布式锁能力实现
+ * In-Memory Distributed Lock Capability Implementation
  * 
- * <p>本类是 {@link LockCapability} 的轻量级内存实现，基于 Java ReentrantLock。
- * 适用于本地开发和测试场景，无需依赖 Redis 等外部存储。</p>
+ * <p>This class is a lightweight in-memory implementation of {@link LockCapability},
+ * based on Java ReentrantLock. Suitable for local development and testing scenarios
+ * without requiring external storage like Redis.</p>
  * 
- * <h3>核心特性</h3>
+ * <h3>Key Features</h3>
  * <ul>
- *   <li><b>可重入</b>：同一线程可多次获取同一把锁</li>
- *   <li><b>公平锁</b>：可配置公平模式</li>
- *   <li><b>超时等待</b>：支持带超时的锁获取</li>
- *   <li><b>自动释放</b>：支持 try-with-resources 自动释放</li>
+ *   <li><b>Reentrant</b>: Same thread can acquire the same lock multiple times</li>
+ *   <li><b>Fair Lock</b>: Configurable fair mode</li>
+ *   <li><b>Timeout Wait</b>: Supports lock acquisition with timeout</li>
+ *   <li><b>Auto-Release</b>: Supports try-with-resources automatic release</li>
  * </ul>
  * 
- * <h3>限制说明</h3>
+ * <h3>Limitations</h3>
  * <ul>
- *   <li>锁仅在当前 JVM 内有效，不支持跨进程</li>
- *   <li>进程重启后锁自动释放</li>
- *   <li>不支持分布式环境下的互斥</li>
+ *   <li>Lock is only valid within the current JVM, cross-process is not supported</li>
+ *   <li>Lock is automatically released after process restart</li>
+ *   <li>Mutual exclusion in distributed environments is not supported</li>
  * </ul>
  * 
  * @author Brix Team
@@ -58,7 +59,7 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 @Capability(
     type = LockCapability.class,
     name = "in-memory-lock",
-    description = "基于 ReentrantLock 的内存分布式锁实现",
+    description = "In-memory distributed lock implementation based on ReentrantLock",
     level = CapabilityLevel.STANDARD,
     aliases = {"simpleLock", "inMemoryLock"}
 )
@@ -67,35 +68,35 @@ public class InMemoryLockCapability implements LockCapability {
     private static final Logger log = LoggerFactory.getLogger(InMemoryLockCapability.class);
 
     /**
-     * 锁映射（key -> ReentrantLock）
+     * Lock mapping (key -> ReentrantLock)
      */
     private final Map<String, ReentrantLock> locks = new ConcurrentHashMap<>();
 
     /**
-     * 锁持有者映射（key -> threadId）
+     * Lock owner mapping (key -> threadId)
      */
     private final Map<String, Long> lockOwners = new ConcurrentHashMap<>();
 
     /**
-     * 是否使用公平锁
+     * Whether to use fair lock
      */
     private final boolean fair;
 
     /**
-     * 创建内存锁能力（非公平锁）
+     * Creates in-memory lock capability (unfair lock)
      */
     public InMemoryLockCapability() {
         this(false);
     }
 
     /**
-     * 创建内存锁能力
+     * Creates in-memory lock capability
      * 
-     * @param fair 是否使用公平锁
+     * @param fair Whether to use fair lock
      */
     public InMemoryLockCapability(boolean fair) {
         this.fair = fair;
-        log.info("内存锁能力已创建: fair={}", fair);
+        log.info("In-memory lock capability created: fair={}", fair);
     }
 
     /**
@@ -103,8 +104,8 @@ public class InMemoryLockCapability implements LockCapability {
      */
     @Override
     public DistributedLock acquire(String key, Duration timeout) {
-        Objects.requireNonNull(key, "锁键不能为空");
-        Objects.requireNonNull(timeout, "超时时间不能为空");
+        Objects.requireNonNull(key, "Lock key cannot be null");
+        Objects.requireNonNull(timeout, "Timeout cannot be null");
 
         ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock(fair));
         
@@ -112,14 +113,14 @@ public class InMemoryLockCapability implements LockCapability {
             boolean acquired = lock.tryLock(timeout.toMillis(), TimeUnit.MILLISECONDS);
             if (acquired) {
                 lockOwners.put(key, Thread.currentThread().getId());
-                log.debug("获取锁成功: key={}, threadId={}", key, Thread.currentThread().getId());
+                log.debug("Lock acquired successfully: key={}, threadId={}", key, Thread.currentThread().getId());
             } else {
-                log.debug("获取锁超时: key={}, timeout={}", key, timeout);
+                log.debug("Lock acquisition timeout: key={}, timeout={}", key, timeout);
             }
             return new InMemoryDistributedLock(key, lock, acquired);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("获取锁被中断: key={}", key);
+            log.warn("Lock acquisition interrupted: key={}", key);
             return new InMemoryDistributedLock(key, lock, false);
         }
     }
@@ -129,16 +130,16 @@ public class InMemoryLockCapability implements LockCapability {
      */
     @Override
     public boolean tryLock(String key) {
-        Objects.requireNonNull(key, "锁键不能为空");
+        Objects.requireNonNull(key, "Lock key cannot be null");
 
         ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock(fair));
         boolean acquired = lock.tryLock();
         
         if (acquired) {
             lockOwners.put(key, Thread.currentThread().getId());
-            log.debug("尝试获取锁成功: key={}", key);
+            log.debug("Try lock succeeded: key={}", key);
         } else {
-            log.debug("尝试获取锁失败: key={}", key);
+            log.debug("Try lock failed: key={}", key);
         }
         
         return acquired;
@@ -149,8 +150,8 @@ public class InMemoryLockCapability implements LockCapability {
      */
     @Override
     public boolean tryLock(String key, long waitTime, TimeUnit unit) {
-        Objects.requireNonNull(key, "锁键不能为空");
-        Objects.requireNonNull(unit, "时间单位不能为空");
+        Objects.requireNonNull(key, "Lock key cannot be null");
+        Objects.requireNonNull(unit, "Time unit cannot be null");
 
         ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock(fair));
         
@@ -158,14 +159,14 @@ public class InMemoryLockCapability implements LockCapability {
             boolean acquired = lock.tryLock(waitTime, unit);
             if (acquired) {
                 lockOwners.put(key, Thread.currentThread().getId());
-                log.debug("获取锁成功: key={}, waitTime={} {}", key, waitTime, unit);
+                log.debug("Lock acquired successfully: key={}, waitTime={} {}", key, waitTime, unit);
             } else {
-                log.debug("获取锁超时: key={}, waitTime={} {}", key, waitTime, unit);
+                log.debug("Lock acquisition timeout: key={}, waitTime={} {}", key, waitTime, unit);
             }
             return acquired;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("获取锁被中断: key={}", key);
+            log.warn("Lock acquisition interrupted: key={}", key);
             return false;
         }
     }
@@ -175,11 +176,11 @@ public class InMemoryLockCapability implements LockCapability {
      */
     @Override
     public void unlock(String key) {
-        Objects.requireNonNull(key, "锁键不能为空");
+        Objects.requireNonNull(key, "Lock key cannot be null");
 
         ReentrantLock lock = locks.get(key);
         if (lock == null) {
-            log.warn("锁不存在: key={}", key);
+            log.warn("Lock does not exist: key={}", key);
             return;
         }
 
@@ -188,9 +189,9 @@ public class InMemoryLockCapability implements LockCapability {
             if (lock.getHoldCount() == 0) {
                 lockOwners.remove(key);
             }
-            log.debug("释放锁: key={}", key);
+            log.debug("Lock released: key={}", key);
         } else {
-            log.warn("当前线程未持有锁: key={}, currentThread={}", key, Thread.currentThread().getId());
+            log.warn("Current thread does not hold lock: key={}, currentThread={}", key, Thread.currentThread().getId());
         }
     }
 
@@ -213,9 +214,9 @@ public class InMemoryLockCapability implements LockCapability {
     }
 
     /**
-     * 获取当前锁数量
+     * Gets current lock count
      * 
-     * @return 锁数量
+     * @return Lock count
      */
     public int getLockCount() {
         return (int) locks.values().stream()
@@ -224,16 +225,16 @@ public class InMemoryLockCapability implements LockCapability {
     }
 
     /**
-     * 清理所有锁（仅用于测试）
+     * Clears all locks (for testing only)
      */
     public void clearAll() {
         locks.clear();
         lockOwners.clear();
-        log.info("清理所有锁");
+        log.info("All locks cleared");
     }
 
     /**
-     * 内存分布式锁实现
+     * In-memory distributed lock implementation
      */
     private class InMemoryDistributedLock implements DistributedLock {
         
@@ -266,7 +267,7 @@ public class InMemoryLockCapability implements LockCapability {
                 if (lock.getHoldCount() == 0) {
                     lockOwners.remove(key);
                 }
-                log.debug("释放锁: key={}", key);
+                log.debug("Lock released: key={}", key);
             }
         }
 

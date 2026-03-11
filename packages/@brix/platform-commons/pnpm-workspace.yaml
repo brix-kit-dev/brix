@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Platform Commons - pnpm Workspace 配置
 # ============================================================================
 #
@@ -48,9 +48,9 @@ packages:
   # - 'packages/client/platform-navigation-mobile'
   # - 'packages/client/platform-auth-mobile'
   # - 'packages/client/platform-theme-mobile'
-  # platform-shell-mobile 已移至 shinwa-platform/shinwa-platform-shell-mobile（私有模块）
+  # platform-shell-mobile 已移至 enterprise-shell/enterprise-shell-mobile（私有模块）
 
   # ═══════ 注意 ═══════
-  # - platform-theme-web 已合并至 shinwa-platform/shinwa-platform-shell-web
-  # - platform-shell-web 已移至 shinwa-platform/shinwa-platform-shell-web（私有模块）
-  # - platform-layout-web 已合并至 shinwa-platform/shinwa-platform-shell-web
+  # - platform-theme-web 已合并至 enterprise-shell/enterprise-shell-web
+  # - platform-shell-web 已移至 enterprise-shell/enterprise-shell-web（私有模块）
+  # - platform-layout-web 已合并至 enterprise-shell/enterprise-shell-web

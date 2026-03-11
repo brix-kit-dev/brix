@@ -27,29 +27,29 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 事件驱动路由刷新器
+ * Event-Driven Route Refresher
  * 
- * <p>v3.0 架构改造的核心组件，替代原有的 RedisRouteRefreshSubscriber。
- * 通过订阅 EventBus 事件实现动态路由刷新，不直接依赖 Redis。</p>
+ * <p>v3.0 architecturerefactoringofcorecomponent，replacegenerationoriginalhasof RedisRouteRefreshSubscriber。
+ * viasubscribe EventBus eventimplementationdynamicrouterefresh，notdirectlydepend on Redis。</p>
  * 
- * <h3>事件订阅</h3>
+ * <h3>eventsubscribe</h3>
  * <ul>
- *   <li>{@link ModuleStartedEvent} - 模块启动时注册路由</li>
- *   <li>{@link ModuleStoppedEvent} - 模块停止时移除路由</li>
- *   <li>{@link RouteRefreshRequestedEvent} - 强制刷新所有路由</li>
+ *   <li>{@link ModuleStartedEvent} - modulestartmovetimeregisterroute</li>
+ *   <li>{@link ModuleStoppedEvent} - modulestoptimeremoveroute</li>
+ *   <li>{@link RouteRefreshRequestedEvent} - forcerefreshallhasroute</li>
  * </ul>
  * 
- * <h3>与改造清单的对应</h3>
- * <p>对应《v3.0-代码改造清单.md》中 3.4 节"网关改造方案"的实现：</p>
+ * <h3>withrefactoringclearsingleofforshould</h3>
+ * <p>forshould《v3.0-generationcoderefactoringclearsingle.md》in 3.4 section"Gatewayrefactoringwayscheme"ofimplementation：</p>
  * <ul>
- *   <li>路由刷新从 Redis Pub/Sub 改为 EventBusCapability 订阅</li>
- *   <li>订阅关系在 module-manifest.yaml 中声明</li>
+ *   <li>routerefreshfrom Redis Pub/Sub changeis EventBusCapability subscribe</li>
+ *   <li>subscriberelationshipon module-manifest.yaml indeclare</li>
  * </ul>
  * 
- * <h3>使用说明</h3>
- * <p>本组件通过 Spring Event 机制接收事件。实际生产环境中，
- * EventBusCapability 的实现（如 KafkaEventBusCapability）会将
- * Kafka 消息转换为 Spring ApplicationEvent 发布。</p>
+ * <h3>usedescription</h3>
+ * <p>thiscomponentvia Spring Event mechanismreceiveevent。actualproductionenvironmentin，
+ * EventBusCapability ofimplementation（like KafkaEventBusCapability）willwill
+ * Kafka messageconvertis Spring ApplicationEvent publish。</p>
  * 
  * @author Brix Team
  * @since 3.0.0
@@ -61,104 +61,104 @@ public class EventDrivenRouteRefresher {
     private static final Logger log = LoggerFactory.getLogger(EventDrivenRouteRefresher.class);
 
     /**
-     * 动态路由服务
+     * Dynamic route service
      */
     private final DynamicRouteService routeService;
 
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param routeService 动态路由服务
+     * @param routeService dynamic route service
      */
     public EventDrivenRouteRefresher(DynamicRouteService routeService) {
         this.routeService = routeService;
-        log.info("EventDrivenRouteRefresher 初始化完成（v3.0 事件驱动模式）");
+        log.info("EventDrivenRouteRefresher initialization complete (v3.0 event-driven mode)");
     }
 
     /**
-     * 处理模块启动事件 —— 注册路由
+     * Handle module started event — register routes
      * 
-     * <p>当模块启动完成后，Runtime Orchestrator 会发布 ModuleStartedEvent。
-     * 网关监听此事件，解析模块定义的路由并注册。</p>
+     * <p>When a module finishes starting, Runtime Orchestrator publishes ModuleStartedEvent.
+     * Gateway listens to this event, parses module-defined routes and registers them.</p>
      * 
-     * <h4>事件处理流程</h4>
+     * <h4>Event Processing Flow</h4>
      * <ol>
-     *   <li>从事件中获取模块 ID 和路由定义</li>
-     *   <li>调用 DynamicRouteService 注册路由</li>
-     *   <li>触发 Spring Cloud Gateway 路由刷新</li>
+     *   <li>Get module ID and route definitions from event</li>
+     *   <li>Call DynamicRouteService to register routes</li>
+     *   <li>Trigger Spring Cloud Gateway route refresh</li>
      * </ol>
      * 
-     * @param event 模块启动事件
+     * @param event module started event
      */
     @EventListener
     public void onModuleStarted(ModuleStartedEvent event) {
         String moduleId = event.getModuleId();
         List<RouteDefinition> routes = event.getRoutes();
 
-        log.info("收到模块启动事件，准备注册路由: moduleId={}, routeCount={}", 
+        log.info("Received module started event, preparing to register routes: moduleId={}, routeCount={}", 
                 moduleId, routes != null ? routes.size() : 0);
 
         try {
-            // 注册路由
+            // Register routes
             routeService.registerRoutes(moduleId, routes);
             
-            log.info("模块 {} 路由注册成功", moduleId);
+            log.info("Module {} route registration successful", moduleId);
             
         } catch (Exception e) {
-            // 路由注册失败不应阻塞模块启动，记录错误继续
-            log.error("模块 {} 路由注册失败: {}", moduleId, e.getMessage(), e);
+            // Route registration failure should not block module startup, log error and continue
+            log.error("Module {} route registration failed: {}", moduleId, e.getMessage(), e);
         }
     }
 
     /**
-     * 处理模块停止事件 —— 移除路由
+     * Handle module stopped event — remove routes
      * 
-     * <p>当模块停止时，Runtime Orchestrator 会发布 ModuleStoppedEvent。
-     * 网关监听此事件，移除该模块注册的所有路由。</p>
+     * <p>When a module stops, Runtime Orchestrator publishes ModuleStoppedEvent.
+     * Gateway listens to this event and removes all routes registered by this module.</p>
      * 
-     * @param event 模块停止事件
+     * @param event module stopped event
      */
     @EventListener
     public void onModuleStopped(ModuleStoppedEvent event) {
         String moduleId = event.getModuleId();
 
-        log.info("收到模块停止事件，准备移除路由: moduleId={}", moduleId);
+        log.info("Received module stopped event, preparing to remove routes: moduleId={}", moduleId);
 
         try {
-            // 移除路由
+            // Remove routes
             routeService.removeRoutes(moduleId);
             
-            log.info("模块 {} 路由移除成功", moduleId);
+            log.info("Module {} route removal successful", moduleId);
             
         } catch (Exception e) {
-            log.error("模块 {} 路由移除失败: {}", moduleId, e.getMessage(), e);
+            log.error("Module {} route removal failed: {}", moduleId, e.getMessage(), e);
         }
     }
 
     /**
-     * 处理路由刷新请求事件 —— 强制刷新所有路由
+     * Handle route refresh request event — force refresh all routes
      * 
-     * <p>运维人员可以通过发布此事件强制刷新所有路由，用于：</p>
+     * <p>Operations personnel can publish this event to force refresh all routes, useful for:</p>
      * <ul>
-     *   <li>路由配置变更后手动刷新</li>
-     *   <li>排查路由问题时重新加载</li>
-     *   <li>灾难恢复场景</li>
+     *   <li>Manual refresh after route configuration changes</li>
+     *   <li>Reloading during route troubleshooting</li>
+     *   <li>Disaster recovery scenarios</li>
      * </ul>
      * 
-     * @param event 路由刷新请求事件
+     * @param event route refresh request event
      */
     @EventListener
     public void onRouteRefreshRequested(RouteRefreshRequestedEvent event) {
-        log.info("收到路由刷新请求: reason={}", event.getReason());
+        log.info("Received route refresh request: reason={}", event.getReason());
 
         try {
-            // 触发路由刷新
+            // Trigger route refresh
             routeService.refreshRoutes();
             
-            log.info("路由刷新完成");
+            log.info("Route refresh complete");
             
         } catch (Exception e) {
-            log.error("路由刷新失败: {}", e.getMessage(), e);
+            log.error("Route refresh failed: {}", e.getMessage(), e);
         }
     }
 }

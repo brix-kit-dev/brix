@@ -22,7 +22,6 @@ import java.util.List;
  * Route Configuration.
  *
  * <p>Configures route path, allowed HTTP methods, and security requirements.</p>
- * <p>【路由配置】配置路由路径、允许的HTTP方法和安全要求。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -35,25 +34,21 @@ public class RouteConfig {
 
     /**
      * Route path.
-     * 路由路径
      */
     private String path;
 
     /**
      * Allowed HTTP methods.
-     * 允许的 HTTP 方法
      */
     private List<String> methods = new ArrayList<>();
 
     /**
      * Whether authentication is required.
-     * 是否需要认证
      */
     private boolean authenticated = true;
 
     /**
      * Required permissions.
-     * 所需权限
      */
     private List<String> permissions = new ArrayList<>();
 

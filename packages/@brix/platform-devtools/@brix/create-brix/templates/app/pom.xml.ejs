@@ -1,12 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!--
-  v3.0 业务应用模块父 POM
+  v3.0 业务应用module父 POM
   
-  模块结构：
-  - <%= name %>-api:  API 模块（DTO、Event、Request）
-  - <%= name %>-core: 业务逻辑模块
-  - <%= name %>-ui:   前端界面模块（NPM 包）
-  - <%= name %>-app:  可独立运行的启动模块
+  module结构：
+  - <%= name %>-api:  API module（DTO、Event、Request）
+  - <%= name %>-core: 业务逻辑module
+  - <%= name %>-ui:   前端界面module（NPM 包）
+  - <%= name %>-app:  可独立运行的启动module
   
   遵循 v3.0 运行壳架构设计蓝图：
   - 仅依赖 io.runtime:runtime-sdk（能力契约）
@@ -20,15 +20,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- 父 POM：继承 shinwa-solutions 统一管理 -->
+    <!-- Parent POM: Inherits from enterprise-solutions for unified management -->
     <parent>
-        <groupId>com.shinwa.solutions</groupId>
-        <artifactId>shinwa-solutions</artifactId>
+        <groupId>io.brix.enterprise</groupId>
+        <artifactId>enterprise-solutions</artifactId>
         <version>3.0.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>com.shinwa.app</groupId>
+    <groupId>io.brix.enterprise.app</groupId>
     <artifactId><%= fullName %></artifactId>
     <version><%= version %></version>
     <packaging>pom</packaging>
@@ -36,7 +36,7 @@
     <name><%= displayName %></name>
     <description><%= description %></description>
 
-    <!-- 子模块 -->
+    <!-- 子module -->
     <modules>
 <% if (withApi) { -%>
         <<%= name %>-api></<%= name %>-api>
@@ -76,7 +76,7 @@
                 <version>${runtime-sdk.version}</version>
             </dependency>
             
-            <!-- 内部模块 -->
+            <!-- 内部module -->
 <% if (withApi) { -%>
             <dependency>
                 <groupId>com.shinwa.app</groupId>

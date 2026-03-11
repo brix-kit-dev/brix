@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import org.springframework.stereotype.Component;
@@ -7,10 +22,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 日志脱敏服务
+ * logsanitizeservice
  * <p>
- * 提供统一的日志脱敏能力，用于对敏感信息进行掩码处理
- * 支持请求头脱敏和文本内容脱敏两种模式
+ * provideunifiedoflogsanitizecanforce，used forforsensitiveinformationperformmaskprocess
+ * supportrequestheadersanitizeandtextinallowsanitizetwo typespattern
  * </p>
  *
  * @author Brix Platform Authors
@@ -26,11 +41,11 @@ public class LogSanitizer {
     }
 
     /**
-     * 对请求头值进行脱
+     * forrequestheadervalueperformde-
      *
-     * @param headerName  请求头名
-     * @param headerValue 请求头
-     * @return 脱敏后的
+     * @param headerName  requestheadername
+     * @param headerValue requestheader
+     * @return sanitizeafterof
      */
     public String sanitizeHeader(String headerName, String headerValue) {
         if (!properties.isEnabled() || headerValue == null) {
@@ -45,11 +60,11 @@ public class LogSanitizer {
     }
 
     /**
-     * 对文本内容进行脱
-     * 使用配置的正则表达式模式匹配并脱敏敏感内
+     * fortextinallowperformde-
+     * useconfigurationofregexexpressionpatternmatchandsanitizesensitivein
      *
-     * @param text 原始文本
-     * @return 脱敏后的文本
+     * @param text originaltext
+     * @return sanitizeafteroftext
      */
     public String sanitizeText(String text) {
         if (!properties.isEnabled() || text == null) {
@@ -67,7 +82,7 @@ public class LogSanitizer {
     }
 
     /**
-     * 使用正则表达式模式进行脱
+     * useregexexpressionpatternperformde-
      */
     private String sanitizeWithPattern(String text, Pattern pattern) {
         Matcher matcher = pattern.matcher(text);
@@ -75,24 +90,24 @@ public class LogSanitizer {
         int lastEnd = 0;
 
         while (matcher.find()) {
-            // 添加匹配前的文本
+            // addmatchbeforeoftext
             result.append(text, lastEnd, matcher.start());
-            // 对匹配的内容进行脱敏
+            // formatchofinallowperformsanitize
             String matched = matcher.group();
             result.append(maskValue(matched));
             lastEnd = matcher.end();
         }
 
-        // 添加剩余文本
+        // addremainingtext
         result.append(text.substring(lastEnd));
         return result.toString();
     }
 
     /**
-     * 对值进行掩码处
+     * forvalueperformmaskplace
      *
-     * @param value 原始
-     * @return 脱敏后的
+     * @param value original
+     * @return sanitizeafterof
      */
     public String maskValue(String value) {
         if (value == null) {
@@ -104,12 +119,12 @@ public class LogSanitizer {
         int visibleChars = properties.getVisibleChars();
         int fullMaskThreshold = properties.getFullMaskThreshold();
 
-        // 短值完全掩
+        // shortvaluecompleteallcover
         if (length <= fullMaskThreshold) {
             return maskChar.repeat(Math.min(8, length));
         }
 
-        // 保留首尾可见字符
+        // retainbeginning and endcanseecharacter
         int actualVisible = Math.min(visibleChars, length / 4);
         String prefix = value.substring(0, actualVisible);
         String suffix = value.substring(length - actualVisible);
@@ -119,11 +134,11 @@ public class LogSanitizer {
     }
 
     /**
-     * 创建用于日志输出的安全请求头摘要
+     * createused forlogoutputofsecurityrequestheaderextractmust
      *
-     * @param headerName  请求头名
-     * @param headerValue 请求头
-     * @return 格式化的头信息（已脱敏）
+     * @param headerName  requestheadername
+     * @param headerValue requestheader
+     * @return formatizationofheaderinformation（alreadysanitize）
      */
     public String formatHeader(String headerName, String headerValue) {
         String sanitizedValue = sanitizeHeader(headerName, headerValue);
@@ -131,36 +146,36 @@ public class LogSanitizer {
     }
 
     /**
-     * 检查是否启用了脱敏
+     * checkwhetherenablesanitize
      */
     public boolean isEnabled() {
         return properties.isEnabled();
     }
 
     /**
-     * Authorization 头进行特殊处
-     * 保留认证类型（Bearer/Basic），脱敏凭证部分
+     * Authorization headerperformspecialplace
+     * retainauthenticationtype（Bearer/Basic），sanitizecredentialpart
      *
-     * @param authValue Authorization 头的
-     * @return 脱敏后的
+     * @param authValue Authorization headerof
+     * @return sanitizeafterof
      */
     public String sanitizeAuthorizationHeader(String authValue) {
         if (authValue == null) {
             return null;
         }
 
-        // 处理 Bearer token
+        // process Bearer token
         if (authValue.toLowerCase().startsWith("bearer ")) {
             String token = authValue.substring(7);
             return "Bearer " + maskValue(token);
         }
 
-        // 处理 Basic auth
+        // process Basic auth
         if (authValue.toLowerCase().startsWith("basic ")) {
             return "Basic " + maskChar(8);
         }
 
-        // 其他类型直接脱敏
+        // othertypedirectlysanitize
         return maskValue(authValue);
     }
 

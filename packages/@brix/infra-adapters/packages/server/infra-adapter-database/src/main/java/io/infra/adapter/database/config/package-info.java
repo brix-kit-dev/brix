@@ -15,10 +15,10 @@
  */
 
 /**
- * 数据库能力适配器配置包
+ * Database capability adapter configuration package.
  * 
- * <p>包含 Spring Boot 自动配置类和配置属性，
- * 实现配置驱动的数据库厂商切换。</p>
+ * <p>Contains Spring Boot auto-configuration classes and configuration properties,
+ * enabling configuration-driven database vendor switching.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0

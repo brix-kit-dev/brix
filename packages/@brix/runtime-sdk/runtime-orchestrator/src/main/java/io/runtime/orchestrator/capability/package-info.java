@@ -15,22 +15,22 @@
  */
 
 /**
- * 能力注册表实现包
+ * Capability Registry Implementation Package.
  *
- * <p>本包提供 {@link io.runtime.sdk.capability.registry.CapabilityRegistry} 接口的默认实现，
- * 属于编排层（runtime-orchestrator），由各 Host 模式复用。</p>
+ * <p>This package provides default implementation of {@link io.runtime.sdk.capability.registry.CapabilityRegistry} interface,
+ * belonging to the orchestration layer (runtime-orchestrator), reused by various Host modes.</p>
  *
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
  *   <li>{@link io.runtime.orchestrator.capability.DefaultCapabilityRegistry}
- *       - 默认能力注册表实现，支持类型安全注册、别名、冻结机制</li>
+ *       - Default capability registry implementation, supporting type-safe registration, aliases, freeze mechanism</li>
  * </ul>
  *
- * <h2>架构定位</h2>
+ * <h2>Architecture Position</h2>
  * <p>
- * 契约接口（{@code CapabilityRegistry}、{@code @Capability}、{@code CapabilityDescriptor}）
- * 定义在 {@code runtime-sdk-api}（契约层），本包提供其通用默认实现。
- * Standalone 和 Embedded Host 均通过此实现管理能力注册。
+ * Contract interfaces ({@code CapabilityRegistry}, {@code @Capability}, {@code CapabilityDescriptor})
+ * are defined in {@code runtime-sdk-api} (contract layer), this package provides their common default implementation.
+ * Both Standalone and Embedded Hosts manage capability registration through this implementation.
  * </p>
  *
  * @since 3.0.0

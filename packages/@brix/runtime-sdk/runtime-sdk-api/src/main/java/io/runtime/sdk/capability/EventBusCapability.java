@@ -72,9 +72,6 @@ import io.runtime.sdk.event.IntegrationEvent;
  *   <li>Embedded Host: HTTP Webhook / In-Memory queue</li>
  * </ul>
  *
- * <p>【事件总线能力契约】</p>
- * <p>定义模块发布事件的标准接口，是运行壳核心能力之一。</p>
- *
  * @author Runtime SDK Team
  * @since 3.0.0
  * @see DomainEvent

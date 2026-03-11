@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/platform-navigation-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Web Navigation Capability Implementation - Implements NavigationCapability interface",
   "type": "module",
   "main": "dist/index.js",
@@ -26,10 +26,11 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web",
+    "@brix/runtime-sdk-api-web": "workspace:*",
     "@brix/platform-router-web": "^3.1.0"
   },
   "peerDependencies": {
+    "@brix/shared-runtime-web": "^1.0.0",
     "react": "^18.2.0"
   },
   "devDependencies": {

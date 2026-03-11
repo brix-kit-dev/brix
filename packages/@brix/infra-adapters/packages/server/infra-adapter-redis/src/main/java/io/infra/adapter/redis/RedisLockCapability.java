@@ -35,24 +35,24 @@ import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 /**
- * 基于 Redis 的分布式锁能力实现
+ * Redis-based distributed lock capability implementation.
  * 
- * <p>本类实现{@link LockCapability} Full Product Host 实现
- * 使用 Redis SET NX EX 命令实现分布式锁。</p>
+ * <p>This class implements {@link LockCapability} Full Product Host implementation,
+ * using Redis SET NX EX command to implement distributed locks.</p>
  * 
- * <h3>核心特性</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li><b>原子操作</b>：使Redis SET NX EX 保证原子。</li>
- *   <li><b>自动过期</b>：防止死。</li>
- *   <li><b>安全释放</b>：使Lua 脚本确保只释放自己的。</li>
- *   <li><b>可重入。</b>：同一线程可重复获取同一把锁</li>
+ *   <li><b>Atomic Operations</b>: Uses Redis SET NX EX to ensure atomicity.</li>
+ *   <li><b>Auto Expiration</b>: Prevents deadlocks.</li>
+ *   <li><b>Safe Release</b>: Uses Lua script to ensure only own lock is released.</li>
+ *   <li><b>Reentrant</b>: Same thread can repeatedly acquire the same lock</li>
  * </ul>
  * 
- * <h3>锁的键格。</h3>
- * <p>shinwa:lock:{key}</p>
+ * <h3>Lock Key Format</h3>
+ * <p>brix:lock:{key}</p>
  * 
- * <h3>线程安全</h3>
- * <p>本类是线程安全的，可以被多个线程并发使用。</p>
+ * <h3>Thread Safety</h3>
+ * <p>This class is thread-safe and can be used concurrently by multiple threads.</p>
  * 
  * @author Brix Platform Authors Platform Team
  * @since 3.0.0
@@ -61,7 +61,7 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 @Capability(
     type = LockCapability.class,
     name = "redis-distributed-lock",
-    description = "基于 Redis 的分布式锁能力实现",
+    description = "Redis-based distributed lock capability implementation",
     level = CapabilityLevel.CORE,
     aliases = {"lock", "redisLock"}
 )
@@ -70,34 +70,34 @@ public class RedisLockCapability implements LockCapability {
     private static final Logger log = LoggerFactory.getLogger(RedisLockCapability.class);
 
     /**
-     * 锁键前缀
+     * Lock key prefix.
      */
     private final String lockPrefix;
 
     /**
-     * 默认锁过期时间（秒）
+     * Default lock expiration time (seconds).
      */
     private final int defaultExpireSeconds;
 
     /**
-     * 自旋等待初始间隔（毫秒）
+     * Spin wait initial delay (milliseconds).
      */
     private static final long SPIN_INITIAL_DELAY_MS = 50;
 
     /**
-     * 自旋等待最大间隔（毫秒）
+     * Spin wait max delay (milliseconds).
      */
     private static final long SPIN_MAX_DELAY_MS = 500;
 
     /**
-     * 指数退避乘数
+     * Exponential backoff multiplier.
      */
     private static final double BACKOFF_MULTIPLIER = 1.5;
 
     /**
-     * 释放锁的 Lua 脚本
+     * Lua script for releasing lock.
      * 
-     * <p>只有当锁的值与期望值匹配时才删除，防止误删其他线程的锁</p>
+     * <p>Only deletes when the lock value matches expected value, preventing accidental deletion of other thread's lock</p>
      */
     private static final String UNLOCK_SCRIPT = 
             "if redis.call('get', KEYS[1]) == ARGV[1] then " +
@@ -109,38 +109,38 @@ public class RedisLockCapability implements LockCapability {
     private final StringRedisTemplate redisTemplate;
 
     /**
-     * 存储当前线程持有的锁（锁-> 锁值）
+     * Stores locks held by current thread (lock key -> lock value).
      * 
-     * <p>用于支持可重入和正确释放</p>
+     * <p>Used for supporting reentrant and correct release</p>
      */
     private final Map<String, ThreadLocal<String>> lockValues = new ConcurrentHashMap<>();
 
     /**
-     * 构造函数
+     * Constructor.
      * 
-     * @param redisTemplate Redis 模板
-     * @param lockPrefix 锁键前缀
-     * @param defaultExpireSeconds 默认锁过期时间（秒）
+     * @param redisTemplate Redis template
+     * @param lockPrefix lock key prefix
+     * @param defaultExpireSeconds default lock expiration time (seconds)
      */
     public RedisLockCapability(StringRedisTemplate redisTemplate, String lockPrefix, int defaultExpireSeconds) {
-        this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate 不能为空");
-        this.lockPrefix = Objects.requireNonNull(lockPrefix, "lockPrefix 不能为空");
+        this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate cannot be null");
+        this.lockPrefix = Objects.requireNonNull(lockPrefix, "lockPrefix cannot be null");
         this.defaultExpireSeconds = defaultExpireSeconds;
     }
 
     /**
-     * 获取分布式锁
+     * Acquires distributed lock.
      * 
-     * <p>阻塞等待直到获取锁或超时</p>
+     * <p>Blocks until lock is acquired or timeout</p>
      * 
-     * @param key     锁的唯一
-     * @param timeout 最大等待时间
-     * @return 锁对象，可用。try-with-resources
+     * @param key     unique lock identifier
+     * @param timeout maximum wait time
+     * @return lock object, can be used with try-with-resources
      */
     @Override
     public DistributedLock acquire(String key, Duration timeout) {
-        Objects.requireNonNull(key, "key 不能为空");
-        Objects.requireNonNull(timeout, "timeout 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(timeout, "timeout cannot be null");
 
         String fullKey = buildKey(key);
         String lockValue = generateLockValue();
@@ -148,17 +148,17 @@ public class RedisLockCapability implements LockCapability {
         long startTime = System.currentTimeMillis();
         long waitMillis = timeout.toMillis();
         
-        // 自旋等待获取锁（指数退避 + 随机抖动）
+        // Spin wait to acquire lock (exponential backoff + random jitter)
         long currentDelay = SPIN_INITIAL_DELAY_MS;
         while (System.currentTimeMillis() - startTime < waitMillis) {
             if (doTryLock(fullKey, lockValue, defaultExpireSeconds)) {
-                // 获取成功，记录锁值
+                // Acquisition successful, record lock value
                 storeLockValue(fullKey, lockValue);
-                log.debug("分布式锁获取成功: key={}", key);
+                log.debug("Distributed lock acquired: key={}", key);
                 return new RedisDistributedLock(this, key, true);
             }
             
-            // 指数退避 + 随机抖动，避免雷群效应
+            // Exponential backoff + random jitter to avoid thundering herd
             long jitter = ThreadLocalRandom.current().nextLong(0, currentDelay / 2 + 1);
             long sleepTime = Math.min(currentDelay + jitter, SPIN_MAX_DELAY_MS);
             try {
@@ -170,16 +170,16 @@ public class RedisLockCapability implements LockCapability {
             currentDelay = (long) Math.min(currentDelay * BACKOFF_MULTIPLIER, SPIN_MAX_DELAY_MS);
         }
         
-        // 获取失败
-        log.debug("分布式锁获取超时: key={}, timeout={}ms", key, waitMillis);
+        // Acquisition failed
+        log.debug("Distributed lock acquisition timeout: key={}, timeout={}ms", key, waitMillis);
         return new RedisDistributedLock(this, key, false);
     }
 
     /**
-     * 尝试获取锁（非阻塞）
+     * Tries to acquire lock (non-blocking).
      * 
-     * @param key 锁的唯一
-     * @return 如果获取成功返回 true
+     * @param key unique lock identifier
+     * @return true if acquisition successful
      */
     @Override
     public boolean tryLock(String key) {
@@ -187,32 +187,32 @@ public class RedisLockCapability implements LockCapability {
     }
 
     /**
-     * 尝试获取锁（带等待时间）
+     * Tries to acquire lock (with wait time).
      * 
-     * @param key      锁的唯一
-     * @param waitTime 等待时间
-     * @param unit     时间单位
-     * @return 如果获取成功返回 true
+     * @param key      unique lock identifier
+     * @param waitTime wait time
+     * @param unit     time unit
+     * @return true if acquisition successful
      */
     @Override
     public boolean tryLock(String key, long waitTime, TimeUnit unit) {
-        Objects.requireNonNull(key, "key 不能为空");
-        Objects.requireNonNull(unit, "unit 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(unit, "unit cannot be null");
 
         String fullKey = buildKey(key);
         String lockValue = generateLockValue();
         
         if (waitTime <= 0) {
-            // 非阻塞模
+            // Non-blocking mode
             boolean success = doTryLock(fullKey, lockValue, defaultExpireSeconds);
             if (success) {
                 storeLockValue(fullKey, lockValue);
-                log.debug("分布式锁获取成功: key={}", key);
+                log.debug("Distributed lock acquired: key={}", key);
             }
             return success;
         }
         
-        // 带等待时间（指数退避 + 随机抖动）
+        // With wait time (exponential backoff + random jitter)
         long startTime = System.currentTimeMillis();
         long waitMillis = unit.toMillis(waitTime);
         long currentDelay = SPIN_INITIAL_DELAY_MS;
@@ -220,7 +220,7 @@ public class RedisLockCapability implements LockCapability {
         while (System.currentTimeMillis() - startTime < waitMillis) {
             if (doTryLock(fullKey, lockValue, defaultExpireSeconds)) {
                 storeLockValue(fullKey, lockValue);
-                log.debug("分布式锁获取成功: key={}", key);
+                log.debug("Distributed lock acquired: key={}", key);
                 return true;
             }
             
@@ -239,57 +239,57 @@ public class RedisLockCapability implements LockCapability {
     }
 
     /**
-     * 释放
+     * Releases lock.
      * 
-     * @param key 锁的唯一
+     * @param key unique lock identifier
      */
     @Override
     public void unlock(String key) {
-        Objects.requireNonNull(key, "key 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
 
         String fullKey = buildKey(key);
         String lockValue = getLockValue(fullKey);
         
         if (lockValue == null) {
-            log.warn("尝试释放未持有的 key={}", key);
+            log.warn("Attempting to release unheld lock: key={}", key);
             return;
         }
         
-        // 使用 Lua 脚本安全释放
+        // Safely release using Lua script
         DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLOCK_SCRIPT, Long.class);
         Long result = redisTemplate.execute(script, Collections.singletonList(fullKey), lockValue);
         
-        // 清除本地记录
+        // Clear local record
         removeLockValue(fullKey);
         
         if (result != null && result > 0) {
-            log.debug("分布式锁释放成功: key={}", key);
+            log.debug("Distributed lock released: key={}", key);
         } else {
-            log.warn("分布式锁释放失败（可能已过期 key={}", key);
+            log.warn("Distributed lock release failed (may have expired): key={}", key);
         }
     }
 
     /**
-     * 检查是否持有锁
+     * Checks if lock is held.
      * 
-     * @param key 锁的唯一
-     * @return 如果当前线程持有锁返回 true
+     * @param key unique lock identifier
+     * @return true if current thread holds the lock
      */
     @Override
     public boolean isLocked(String key) {
-        Objects.requireNonNull(key, "key 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
         
         String fullKey = buildKey(key);
         return getLockValue(fullKey) != null;
     }
 
     /**
-     * 执行获取锁操
+     * Executes lock acquisition operation.
      * 
-     * @param fullKey     完整
-     * @param lockValue   锁
-     * @param expireSeconds 过期时间（秒
-     * @return 如果获取成功返回 true
+     * @param fullKey       full key
+     * @param lockValue     lock value
+     * @param expireSeconds expiration time (seconds)
+     * @return true if acquisition successful
      */
     private boolean doTryLock(String fullKey, String lockValue, int expireSeconds) {
         Boolean success = redisTemplate.opsForValue()
@@ -298,35 +298,35 @@ public class RedisLockCapability implements LockCapability {
     }
 
     /**
-     * 生成锁
+     * Generates lock value.
      * 
-     * <p>格式：{threadId}:{uuid}，确保全局唯一</p>
+     * <p>Format: {threadId}:{uuid}, ensures global uniqueness</p>
      * 
-     * @return 锁
+     * @return lock value
      */
     private String generateLockValue() {
         return Thread.currentThread().getId() + ":" + UUID.randomUUID().toString();
     }
 
     /**
-     * 构建完整
+     * Builds full key.
      * 
-     * @param key 用户
-     * @return 完整
+     * @param key user-provided key
+     * @return full key
      */
     private String buildKey(String key) {
         return lockPrefix + key;
     }
 
     /**
-     * 存储锁
+     * Stores lock value.
      */
     private void storeLockValue(String fullKey, String lockValue) {
         lockValues.computeIfAbsent(fullKey, k -> new ThreadLocal<>()).set(lockValue);
     }
 
     /**
-     * 获取锁
+     * Gets lock value.
      */
     private String getLockValue(String fullKey) {
         ThreadLocal<String> threadLocal = lockValues.get(fullKey);
@@ -334,36 +334,36 @@ public class RedisLockCapability implements LockCapability {
     }
 
     /**
-     * 移除锁值
+     * Removes lock value.
      *
-     * <p>释放锁时清理本地缓存。
+     * <p>Cleans up local cache when releasing lock.
      * 
-     * <p>内存泄漏修复（v3.2）：
-     * 除了清除 ThreadLocal 中的值，还需要从 lockValues Map 中移除 entry。
-     * 否则随着锁的获取和释放，Map 会无限增长导致内存泄漏。
+     * <p>Memory leak fix (v3.2):
+     * In addition to clearing the value in ThreadLocal, the entry must also be removed from the lockValues Map.
+     * Otherwise, as locks are acquired and released, the Map will grow indefinitely causing memory leaks.
      *
-     * @param fullKey 完整的锁键
+     * @param fullKey the full lock key
      */
     private void removeLockValue(String fullKey) {
         ThreadLocal<String> threadLocal = lockValues.get(fullKey);
         if (threadLocal != null) {
-            // 首先清除 ThreadLocal 中的值，防止线程复用时出现脏数据
+            // First clear the value in ThreadLocal to prevent dirty data when thread is reused
             threadLocal.remove();
-            // 从 Map 中移除 entry，防止内存泄漏
-            // 注意：这里使用 remove(key, value) 的语义，确保只移除当前线程的记录
+            // Remove entry from Map to prevent memory leak
+            // Note: Using remove(key, value) semantics to ensure only current thread's record is removed
             lockValues.remove(fullKey);
         }
     }
 
     /**
-     * 检查当前线程是否持有锁
+     * Checks if current thread holds the lock.
      * 
-     * @param key 锁的唯一
-     * @return 如果当前线程持有锁返回 true
+     * @param key unique lock identifier
+     * @return true if current thread holds the lock
      */
     @Override
     public boolean isHeldByCurrentThread(String key) {
-        Objects.requireNonNull(key, "锁键不能为空");
+        Objects.requireNonNull(key, "lock key cannot be null");
         
         String fullKey = buildKey(key);
         String lockValue = getLockValue(fullKey);
@@ -372,15 +372,15 @@ public class RedisLockCapability implements LockCapability {
             return false;
         }
         
-        // 验证 Redis 中存储的值是否与当前线程的值匹
+        // Verify if the value stored in Redis matches the current thread's value
         String storedValue = redisTemplate.opsForValue().get(fullKey);
         return lockValue.equals(storedValue);
     }
 
     /**
-     * Redis 分布式锁实现
+     * Redis distributed lock implementation.
      * 
-     * <p>实现 {@link DistributedLock} 接口，支try-with-resources</p>
+     * <p>Implements {@link DistributedLock} interface, supports try-with-resources</p>
      */
     private static class RedisDistributedLock implements DistributedLock {
 

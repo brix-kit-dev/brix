@@ -35,109 +35,109 @@ import java.time.Duration;
 import java.util.Objects;
 
 /**
- * OpenTelemetry SDK 构建器
+ * OpenTelemetry SDK builder.
  * 
- * <p>提供便捷的 OpenTelemetry SDK 构建方法，
- * 支持多种 Exporter 配置（OTLP、Jaeger、Prometheus、Logging）。</p>
+ * <p>Provides convenient OpenTelemetry SDK build methods with support for
+ * multiple exporter configurations (OTLP, Jaeger, Prometheus, Logging).</p>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Examples</h2>
  * <pre>{@code
- * // 开发环境：使用日志导出器
+ * // Development environment: use logging exporter
  * OpenTelemetry otel = OTelSdkBuilder.forService("my-service")
  *     .withLoggingExporter()
  *     .build();
  * 
- * // 生产环境：使用 OTLP 导出器
+ * // Production environment: use OTLP exporter
  * OpenTelemetry otel = OTelSdkBuilder.forService("my-service")
  *     .withOtlpExporter("http://otel-collector:4317")
- *     .withSampling(0.1) // 10% 采样
+ *     .withSampling(0.1) // 10% sampling
  *     .build();
  * }</pre>
  * 
- * <h2>默认配置</h2>
+ * <h2>Default Configuration</h2>
  * <ul>
- *   <li>Trace Propagation：W3C Trace Context</li>
- *   <li>Sampling：AlwaysOn（100% 采样）</li>
- *   <li>Batch Export Delay：5 秒</li>
- *   <li>Metric Export Interval：60 秒</li>
+ *   <li>Trace Propagation: W3C Trace Context</li>
+ *   <li>Sampling: AlwaysOn (100% sampling)</li>
+ *   <li>Batch Export Delay: 5 seconds</li>
+ *   <li>Metric Export Interval: 60 seconds</li>
  * </ul>
- * 
+ *
  * @author Brix Team
  * @since 3.0.0
  */
 public final class OTelSdkBuilder {
     
     /**
-     * 默认批处理导出延迟
+     * Default batch processing export delay.
      */
     private static final Duration DEFAULT_BATCH_DELAY = Duration.ofSeconds(5);
     
     /**
-     * 默认指标导出间隔
+     * Default metric export interval.
      */
     private static final Duration DEFAULT_METRIC_INTERVAL = Duration.ofSeconds(60);
     
     /**
-     * 服务名称
+     * Service name.
      */
     private final String serviceName;
     
     /**
-     * 服务版本
+     * Service version.
      */
     private String serviceVersion = "1.0.0";
     
     /**
-     * 部署环境
+     * Deployment environment.
      */
     private String environment = "development";
     
     /**
-     * Span 导出器
+     * Span exporter.
      */
     private SpanExporter spanExporter;
     
     /**
-     * 采样率（0.0 - 1.0）
+     * Sampling ratio (0.0 - 1.0).
      */
     private double samplingRatio = 1.0;
     
     /**
-     * 批处理延迟
+     * Batch processing delay.
      */
     private Duration batchDelay = DEFAULT_BATCH_DELAY;
     
     /**
-     * 指标导出间隔
+     * Metric export interval.
      */
     private Duration metricInterval = DEFAULT_METRIC_INTERVAL;
     
     /**
-     * 是否启用指标
+     * Whether metrics are enabled.
      */
     private boolean metricsEnabled = true;
     
     /**
-     * 私有构造函数
+     * Private constructor.
      */
     private OTelSdkBuilder(String serviceName) {
-        this.serviceName = Objects.requireNonNull(serviceName, "服务名称不能为空");
+        this.serviceName = Objects.requireNonNull(serviceName, "Service name cannot be null");
     }
     
     /**
-     * 创建构建器实例
+     * Creates builder instance.
      *
-     * @param serviceName 服务名称
-     * @return 构建器实例
+     * @param serviceName Service name
+     * @return Builder instance
      */
     public static OTelSdkBuilder forService(String serviceName) {
         return new OTelSdkBuilder(serviceName);
     }
     
     /**
-     * 设置服务版本
+     * Sets service version.
      *
-     * @param version 版本号
+     * @param version Version number
      * @return this
      */
     public OTelSdkBuilder withVersion(String version) {
@@ -146,9 +146,9 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 设置部署环境
+     * Sets deployment environment.
      *
-     * @param environment 环境名称（如 development、staging、production）
+     * @param environment Environment name (e.g., development, staging, production)
      * @return this
      */
     public OTelSdkBuilder withEnvironment(String environment) {
@@ -157,7 +157,7 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 使用日志导出器（开发调试用）
+     * Uses logging exporter (for development debugging).
      *
      * @return this
      */
@@ -167,9 +167,9 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 使用自定义 Span 导出器
+     * Uses custom Span exporter.
      *
-     * @param exporter Span 导出器
+     * @param exporter Span exporter
      * @return this
      */
     public OTelSdkBuilder withSpanExporter(SpanExporter exporter) {
@@ -178,23 +178,23 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 设置采样率
+     * Sets sampling ratio.
      *
-     * @param ratio 采样率（0.0 - 1.0）
+     * @param ratio Sampling ratio (0.0 - 1.0)
      * @return this
      */
     public OTelSdkBuilder withSampling(double ratio) {
         if (ratio < 0 || ratio > 1) {
-            throw new IllegalArgumentException("采样率必须在 0.0 到 1.0 之间");
+            throw new IllegalArgumentException("Sampling ratio must be between 0.0 and 1.0");
         }
         this.samplingRatio = ratio;
         return this;
     }
     
     /**
-     * 设置批处理延迟
+     * Sets batch processing delay.
      *
-     * @param delay 延迟时间
+     * @param delay Delay duration
      * @return this
      */
     public OTelSdkBuilder withBatchDelay(Duration delay) {
@@ -203,9 +203,9 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 设置指标导出间隔
+     * Sets metric export interval.
      *
-     * @param interval 间隔时间
+     * @param interval Interval duration
      * @return this
      */
     public OTelSdkBuilder withMetricInterval(Duration interval) {
@@ -214,7 +214,7 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 禁用指标收集
+     * Disables metric collection.
      *
      * @return this
      */
@@ -224,12 +224,12 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 构建 OpenTelemetry SDK 实例
+     * Builds OpenTelemetry SDK instance.
      *
-     * @return OpenTelemetry 实例
+     * @return OpenTelemetry instance
      */
     public OpenTelemetry build() {
-        // 构建 Resource
+        // Build Resource
         Resource resource = Resource.getDefault()
                 .merge(Resource.create(Attributes.builder()
                         .put(ResourceAttributes.SERVICE_NAME, serviceName)
@@ -237,12 +237,12 @@ public final class OTelSdkBuilder {
                         .put(ResourceAttributes.DEPLOYMENT_ENVIRONMENT, environment)
                         .build()));
         
-        // 构建 Tracer Provider
+        // Build Tracer Provider
         var tracerProviderBuilder = SdkTracerProvider.builder()
                 .setResource(resource)
                 .setSampler(createSampler());
         
-        // 添加 Span 处理器
+        // Add Span processor
         if (spanExporter != null) {
             tracerProviderBuilder.addSpanProcessor(
                     BatchSpanProcessor.builder(spanExporter)
@@ -253,7 +253,7 @@ public final class OTelSdkBuilder {
         
         SdkTracerProvider tracerProvider = tracerProviderBuilder.build();
         
-        // 构建 Meter Provider
+        // Build Meter Provider
         final SdkMeterProvider meterProvider;
         if (metricsEnabled) {
             meterProvider = SdkMeterProvider.builder()
@@ -268,7 +268,7 @@ public final class OTelSdkBuilder {
             meterProvider = null;
         }
         
-        // 构建 OpenTelemetry SDK
+        // Build OpenTelemetry SDK
         var sdkBuilder = OpenTelemetrySdk.builder()
                 .setTracerProvider(tracerProvider)
                 .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()));
@@ -279,7 +279,7 @@ public final class OTelSdkBuilder {
         
         OpenTelemetrySdk sdk = sdkBuilder.build();
         
-        // 注册关闭钩子
+        // Register shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             tracerProvider.close();
             if (meterProvider != null) {
@@ -291,7 +291,7 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 创建采样器
+     * Creates sampler.
      */
     private Sampler createSampler() {
         if (samplingRatio >= 1.0) {
@@ -304,10 +304,10 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 创建默认配置的 OpenTelemetry（开发环境）
+     * Creates default configuration OpenTelemetry (development environment).
      *
-     * @param serviceName 服务名称
-     * @return OpenTelemetry 实例
+     * @param serviceName Service name
+     * @return OpenTelemetry instance
      */
     public static OpenTelemetry createDefault(String serviceName) {
         return forService(serviceName)
@@ -317,9 +317,9 @@ public final class OTelSdkBuilder {
     }
     
     /**
-     * 创建 Noop OpenTelemetry（禁用遥测）
+     * Creates Noop OpenTelemetry (disables telemetry).
      *
-     * @return 空操作的 OpenTelemetry 实例
+     * @return No-op OpenTelemetry instance
      */
     public static OpenTelemetry createNoop() {
         return OpenTelemetry.noop();

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.tracing;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -7,18 +22,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 网关分布式链路追踪配置属性类
+ * GatewaydistributedDistributed Tracing Configuration Propertiesclass
  * 
- * <p>提供 Micrometer Tracing + OpenTelemetry + Jaeger 的配置参数，包括</p>
+ * <p>provide Micrometer Tracing + OpenTelemetry + Jaeger ofconfigurationparameter，packagebracket</p>
  * <ul>
- *   <li>是否启用链路追踪</li>
- *   <li>OTLP/Jaeger 服务端点</li>
- *   <li>采样率配</li>
- *   <li>服务名称</li>
- *   <li>日志 MDC 注入配置</li>
+ *   <li>Whether to enable distributed tracing</li>
+ *   <li>OTLP/Jaeger serviceendpoint</li>
+ *   <li>Sampling rateconfiguration</li>
+ *   <li>Service name</li>
+ *   <li>log MDC injectconfiguration</li>
  * </ul>
  * 
- * <p>P106 任务产出物（OpenTelemetry 升级版）</p>
+ * <p>P106 taskproduceoutobject（OpenTelemetry upgradelevelversion）</p>
  * 
  * @author Brix Platform Authors Platform
  * @version 2.0.0
@@ -29,42 +44,42 @@ import java.util.List;
 public class TracingProperties {
     
     /**
-     * 是否启用链路追踪
-     * <p>生产环境建议启用，开发环境可按需关闭</p>
+     * Whether to enable distributed tracing
+     * <p>productionenvironmentrecommendedenable，opensendenvironmentcanbyneedclosed</p>
      */
     private boolean enabled = true;
     
     /**
-     * 服务名称
-     * <p>用于在 Jaeger UI 中标识当前服</p>
+     * Service name
+     * <p>used foron Jaeger UI inidentifierwhenbeforeservice</p>
      */
     private String serviceName = "platform-gateway";
     
     /**
-     * 采样率（0.0 ~ 1.0
-     * <p>1.0 表示 100% 采样.1 表示 10% 采样</p>
-     * <p>生产环境高流量场景建议设0.1 以降低性能开销</p>
+     * Sampling rate（0.0 ~ 1.0
+     * <p>1.0 represents 100% sampling.1 represents 10% sampling</p>
+     * <p>productionenvironmenthighflowamountscenariorecommendedset0.1 toreduceitycanopendestroy</p>
      */
     private float samplingProbability = 1.0f;
     
     /**
-     * 是否traceId 注入日志 MDC
-     * <p>启用后可在日志中通过 %X{traceId} 输出追踪 ID</p>
+     * whethertraceId injectlog MDC
+     * <p>enableaftercanonloginvia %X{traceId} outputtrace ID</p>
      */
     private boolean logMdcEnabled = true;
     
     /**
-     * OTLP 配置（用Jaeger
+     * OTLP configuration（useJaeger
      */
     private OtlpConfig otlp = new OtlpConfig();
     
     /**
-     * 传播方式配置
+     * propagationwayconfiguration
      */
     private PropagationConfig propagation = new PropagationConfig();
     
     /**
-     * 不追踪的路径列表（用于排除健康检查等高频低价值请求）
+     * nottraceofpathlist（used forexcludehealthchecketchighlow frequencyvaluerequest）
      */
     private List<String> excludedPaths = new ArrayList<>();
     
@@ -127,26 +142,26 @@ public class TracingProperties {
     }
     
     /**
-     * OTLP 配置内部
+     * OTLP configurationinternal
      * 
-     * <p>OpenTelemetry Protocol (OTLP) OpenTelemetry 的标准数据导出协</p>
-     * <p>Jaeger 1.35 版本开始原生支OTLP gRPC 协议</p>
+     * <p>OpenTelemetry Protocol (OTLP) OpenTelemetry ofstandardcountdataguideoutcooperate</p>
+     * <p>Jaeger 1.35 versionstartnativesupportOTLP gRPC protocol</p>
      */
     public static class OtlpConfig {
         
         /**
-         * OTLP gRPC 绔偣鍦板潃
-         * <p>Jaeger Collector 默认 OTLP gRPC 端口4317</p>
+         * OTLP gRPC 
+         * <p>Jaeger Collector default OTLP gRPC endport4317</p>
          */
         private String endpoint = "http://localhost:4317";
         
         /**
-         * 导出超时时间（毫秒）
+         * guideouttimeouttime（ms）
          */
         private int timeout = 10000;
         
         /**
-         * 压缩方式（none, gzip
+         * compressway（none, gzip
          */
         private String compression = "none";
         
@@ -176,16 +191,16 @@ public class TracingProperties {
     }
     
     /**
-     * 传播方式配置内部
+     * propagationwayconfigurationinternal
      */
     public static class PropagationConfig {
         
         /**
-         * 传播类型
+         * propagationtype
          * <ul>
-         *   <li>W3C: W3C Trace Context 标准（推荐）</li>
-         *   <li>B3: Zipkin B3 格式（兼容旧系统</li>
-         *   <li>B3_MULTI: B3 多头格式</li>
+         *   <li>W3C: W3C Trace Context standard（recommended）</li>
+         *   <li>B3: Zipkin B3 format（compatibleallowoldsystem</li>
+         *   <li>B3_MULTI: B3 multipleheaderformat</li>
          * </ul>
          */
         private String type = "W3C";

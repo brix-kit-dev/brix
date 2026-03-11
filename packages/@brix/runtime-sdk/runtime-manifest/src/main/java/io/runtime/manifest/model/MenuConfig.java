@@ -19,7 +19,6 @@ package io.runtime.manifest.model;
  * Menu Configuration.
  *
  * <p>Configures menu items contributed by a module including id, title, icon, and hierarchy.</p>
- * <p>【菜单配置】配置模块贡献的菜单项，包括标识、标题、图标和层级关系。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -32,37 +31,31 @@ public class MenuConfig {
 
     /**
      * Menu ID.
-     * 菜单 ID
      */
     private String id;
 
     /**
      * Menu title.
-     * 菜单标题
      */
     private String title;
 
     /**
      * Icon.
-     * 图标
      */
     private String icon;
 
     /**
      * Parent menu ID.
-     * 父菜单 ID
      */
     private String parentId;
 
     /**
      * Sort order.
-     * 排序
      */
     private int order = 0;
 
     /**
      * Route path.
-     * 路由路径
      */
     private String route;
 

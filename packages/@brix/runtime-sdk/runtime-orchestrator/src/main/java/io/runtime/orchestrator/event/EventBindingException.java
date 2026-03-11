@@ -16,13 +16,13 @@
 package io.runtime.orchestrator.event;
 
 /**
- * 事件绑定异常
+ * Event Binding Exception.
  * 
- * <p>当事件处理器绑定失败时抛出，通常由于以下原因：</p>
+ * <p>Thrown when event handler binding fails, typically due to:</p>
  * <ul>
- *   <li>处理器类不存在</li>
- *   <li>处理器方法不存在或签名不匹配</li>
- *   <li>无法获取处理器实例</li>
+ *   <li>Handler class does not exist</li>
+ *   <li>Handler method does not exist or signature mismatch</li>
+ *   <li>Unable to obtain handler instance</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -33,19 +33,19 @@ public class EventBindingException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 创建事件绑定异常
+     * Creates event binding exception.
      * 
-     * @param message 错误消息
+     * @param message error message
      */
     public EventBindingException(String message) {
         super(message);
     }
 
     /**
-     * 创建事件绑定异常（带原因）
+     * Creates event binding exception (with cause).
      * 
-     * @param message 错误消息
-     * @param cause   原因异常
+     * @param message error message
+     * @param cause   cause exception
      */
     public EventBindingException(String message, Throwable cause) {
         super(message, cause);

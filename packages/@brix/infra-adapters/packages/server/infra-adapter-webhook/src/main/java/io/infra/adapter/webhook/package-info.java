@@ -15,35 +15,36 @@
  */
 
 /**
- * 基于 HTTP Webhook 的事件总线适配器（开源）
+ * HTTP Webhook-based Event Bus Adapter (Open Source)
  * 
- * <p>本包提供 EventBusCapability 的 HTTP Webhook 实现，适用于嵌入模式部署。
- * 通过 HTTP POST 请求将事件推送到配置的外部端点。</p>
+ * <p>This package provides an HTTP Webhook implementation of EventBusCapability,
+ * suitable for embedded deployment. Pushes events to configured external endpoints
+ * via HTTP POST requests.</p>
  * 
- * <h2>核心类</h2>
+ * <h2>Core Classes</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.webhook.HttpWebhookEventBus} - HTTP Webhook 事件总线</li>
- *   <li>{@link io.infra.adapter.webhook.WebhookSignatureVerifier} - Webhook 签名验证器</li>
- *   <li>{@link io.infra.adapter.webhook.WebhookRetryHandler} - 重试处理器</li>
+ *   <li>{@link io.infra.adapter.webhook.HttpWebhookEventBus} - HTTP Webhook event bus</li>
+ *   <li>{@link io.infra.adapter.webhook.WebhookSignatureVerifier} - Webhook signature verifier</li>
+ *   <li>{@link io.infra.adapter.webhook.WebhookRetryHandler} - Retry handler</li>
  * </ul>
  * 
- * <h2>适用场景</h2>
+ * <h2>Use Cases</h2>
  * <ul>
- *   <li>嵌入模式部署（无需 Kafka）</li>
- *   <li>与外部系统的 Webhook 集成</li>
- *   <li>轻量级事件通知</li>
- *   <li>单体应用部署</li>
+ *   <li>Embedded deployment (without Kafka)</li>
+ *   <li>Webhook integration with external systems</li>
+ *   <li>Lightweight event notifications</li>
+ *   <li>Monolithic application deployment</li>
  * </ul>
  * 
- * <h2>安全特性</h2>
+ * <h2>Security Features</h2>
  * <ul>
- *   <li>HMAC-SHA256 签名验证</li>
- *   <li>时间戳防重放攻击</li>
- *   <li>可配置的重试策略</li>
+ *   <li>HMAC-SHA256 signature verification</li>
+ *   <li>Timestamp-based replay attack prevention</li>
+ *   <li>Configurable retry policies</li>
  * </ul>
  * 
- * <h2>架构分层</h2>
- * <p>本包属于 Layer 2 - Adapter 层，实现 Layer 1 定义的能力接口。</p>
+ * <h2>Architecture Layer</h2>
+ * <p>This package belongs to Layer 2 - Adapter layer, implementing capability interfaces defined in Layer 1.</p>
  * 
  * @author Brix Team
  * @since 3.0.0

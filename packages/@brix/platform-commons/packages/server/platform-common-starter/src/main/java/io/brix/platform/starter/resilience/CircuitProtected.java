@@ -1,17 +1,32 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.resilience;
 
 import java.lang.annotation.*;
 
 /**
- * 熔断保护注解
+ * Circuit Breaker Protection Annotation
  * 
- * <p>v2.1 阶段4 熔断降级实现</p>
+ * <p>v2.1 Phase 4 circuit breaker and degradation implementation</p>
  * 
- * <p>功能说明</p>
- * <p>标记需要熔断保护的方法，当方法调用失败率超过阈值时
- * 触发熔断，直接返回降级结果</p>
+ * <p>Feature Description:</p>
+ * <p>Marks methods that need circuit breaker protection. When method call failure rate
+ * exceeds threshold, circuit breaker triggers and directly returns degraded result.</p>
  * 
- * <p>使用示例</p>
+ * <p>Usage Example:</p>
  * <pre>{@code
  * @CircuitProtected(
  *     name = "fileStorage",
@@ -22,26 +37,26 @@ import java.lang.annotation.*;
  * }
  * 
  * public InputStream downloadFallback(Long fileId, Throwable t) {
- *     log.warn("文件下载降级: fileId={}, error={}", fileId, t.getMessage());
- *     throw new ServiceUnavailableException("文件服务暂不可用，请稍后重试");
+ *     log.warn("File download degraded: fileId={}, error={}", fileId, t.getMessage());
+ *     throw new ServiceUnavailableException("File service temporarily unavailable, please retry later");
  * }
  * }</pre>
  * 
- * <p>熔断策略</p>
+ * <p>Circuit Breaker Strategy:</p>
  * <ul>
- *   <li><b>失败率阈</b>：连续请求中失败比例超过阈值触发熔</li>
- *   <li><b>慢调用阈</b>：响应时间超过阈值视为慢调用，慢调用比例过高触发熔断</li>
- *   <li><b>半开状</b>：熔断后等待一段时间进入半开状态，允许部分请求尝试</li>
- *   <li><b>恢复</b>：半开状态下请求成功率达标后恢复正常</li>
+ *   <li><b>Failure Rate Threshold</b>: Triggers circuit breaker when failure ratio in consecutive requests exceeds threshold</li>
+ *   <li><b>Slow Call Threshold</b>: Response time exceeding threshold counts as slow call, high slow call ratio triggers circuit breaker</li>
+ *   <li><b>Half-Open State</b>: After circuit breaker, waits for a period then enters half-open state, allowing partial request attempts</li>
+ *   <li><b>Recovery</b>: Recovers to normal when success rate in half-open state meets criteria</li>
  * </ul>
  * 
- * <p>⚠️ 注意事项</p>
+ * <p>⚠️ Important Notes:</p>
  * <ul>
- *   <li>fallbackMethod 必须与原方法在同一类中</li>
- *   <li>fallbackMethod 参数必须与原方法相同，最后可Throwable 参数</li>
- *   <li>不同业务建议使用不同name，以便独立熔</li>
+ *   <li>fallbackMethod must be in the same class as the original method</li>
+ *   <li>fallbackMethod parameters must match original method, optionally with Throwable as last parameter</li>
+ *   <li>Different businesses should use different names for independent circuit breaking</li>
  * </ul>
- * 
+ *
  * @author Brix Platform Authors Platform Team
  * @since v2.1
  */
@@ -51,40 +66,40 @@ import java.lang.annotation.*;
 public @interface CircuitProtected {
     
     /**
-     * 熔断器名
+     * Circuit breaker name
      * 
-     * <p>用于标识熔断器实例，同名的方法共享熔断状态</p>
-     * <p>建议按服功能命名，如：fileStorage、caseService、notification</p>
+     * <p>Used to identify circuit breaker instance, methods with same name share circuit state</p>
+     * <p>Recommend naming by service/function, e.g.: fileStorage, caseService, notification</p>
      * 
-     * @return 熔断器名
+     * @return Circuit breaker name
      */
     String name();
     
     /**
-     * 降级方法
+     * Fallback method name
      * 
-     * <p>熔断触发或异常时调用的降级方法</p>
-     * <p>方法签名要求：与原方法相同的参数，可选最后加 Throwable 参数</p>
+     * <p>Degradation method called when circuit breaker triggers or exception occurs</p>
+     * <p>Method signature requirement: same parameters as original method, optionally with Throwable as last parameter</p>
      * 
-     * @return 降级方法
+     * @return Fallback method name
      */
     String fallbackMethod() default "";
     
     /**
-     * 需要记录为失败的异常类
+     * Exception types to record as failure
      * 
-     * <p>默认所有异常都视为失败</p>
+     * <p>By default all exceptions are considered failures</p>
      * 
-     * @return 异常类型数组
+     * @return Array of exception types
      */
     Class<? extends Throwable>[] recordFailureFor() default {Exception.class};
     
     /**
-     * 不记录为失败的异常类
+     * Exception types not to record as failure
      * 
-     * <p>这些异常不计入失败率统计（如业务异常 IllegalArgumentException）</p>
+     * <p>These exceptions are not counted in failure rate statistics (e.g., business exceptions like IllegalArgumentException)</p>
      * 
-     * @return 异常类型数组
+     * @return Array of exception types
      */
     Class<? extends Throwable>[] ignoreExceptions() default {};
 }

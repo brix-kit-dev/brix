@@ -26,9 +26,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
- * 默认事件分发器实现
+ * Default Event Dispatcher Implementation.
  * 
- * <p>线程安全的事件分发器，支持同步和异步事件分发。</p>
+ * <p>Thread-safe event dispatcher supporting synchronous and asynchronous event dispatch.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -38,32 +38,32 @@ public class DefaultEventDispatcher implements EventDispatcher {
     private static final Logger logger = LoggerFactory.getLogger(DefaultEventDispatcher.class);
 
     /**
-     * 订阅 ID 生成器
+     * Subscription ID generator.
      */
     private final AtomicLong subscriptionIdGenerator = new AtomicLong(0);
 
     /**
-     * 领域事件订阅 - 事件类型 -> 订阅列表
+     * Domain event subscriptions - event type -> subscription list.
      */
     private final Map<Class<?>, List<SubscriptionHolder<?>>> domainSubscriptions = new ConcurrentHashMap<>();
 
     /**
-     * 集成事件订阅 - 事件类型 -> 订阅列表
+     * Integration event subscriptions - event type -> subscription list.
      */
     private final Map<Class<?>, List<SubscriptionHolder<?>>> integrationSubscriptions = new ConcurrentHashMap<>();
 
     /**
-     * 异步执行器
+     * Async executor.
      */
     private final ExecutorService asyncExecutor;
 
     /**
-     * 是否已关闭
+     * Whether shutdown.
      */
     private volatile boolean shutdown = false;
 
     /**
-     * 创建默认事件分发器
+     * Creates default event dispatcher.
      */
     public DefaultEventDispatcher() {
         this(Executors.newFixedThreadPool(
@@ -77,9 +77,9 @@ public class DefaultEventDispatcher implements EventDispatcher {
     }
 
     /**
-     * 创建默认事件分发器（指定执行器）
+     * Creates default event dispatcher (with specified executor).
      * 
-     * @param asyncExecutor 异步执行器
+     * @param asyncExecutor async executor
      */
     public DefaultEventDispatcher(ExecutorService asyncExecutor) {
         this.asyncExecutor = Objects.requireNonNull(asyncExecutor, "Executor cannot be null");
@@ -150,13 +150,13 @@ public class DefaultEventDispatcher implements EventDispatcher {
 
         Class<?> eventType = subscription.getEventType();
         
-        // 尝试从领域事件订阅移除
+        // Try to remove from domain event subscriptions
         List<SubscriptionHolder<?>> domainSubs = domainSubscriptions.get(eventType);
         if (domainSubs != null) {
             domainSubs.removeIf(s -> s.getId().equals(subscription.getId()));
         }
 
-        // 尝试从集成事件订阅移除
+        // Try to remove from integration event subscriptions
         List<SubscriptionHolder<?>> integrationSubs = integrationSubscriptions.get(eventType);
         if (integrationSubs != null) {
             integrationSubs.removeIf(s -> s.getId().equals(subscription.getId()));
@@ -277,7 +277,7 @@ public class DefaultEventDispatcher implements EventDispatcher {
         logger.debug("Dispatching integration event: {} to {} subscribers", 
             eventType.getSimpleName(), subscribers.size());
 
-        // 集成事件默认异步分发
+        // Integration events are dispatched asynchronously by default
         for (SubscriptionHolder<?> holder : subscribers) {
             if (holder.isActive()) {
                 asyncExecutor.submit(() -> {
@@ -350,14 +350,14 @@ public class DefaultEventDispatcher implements EventDispatcher {
     }
 
     /**
-     * 生成订阅 ID
+     * Generates subscription ID.
      */
     private String generateSubscriptionId() {
         return "sub-" + subscriptionIdGenerator.incrementAndGet();
     }
 
     /**
-     * 订阅持有者
+     * Subscription holder.
      */
     private static class SubscriptionHolder<T> implements Subscription {
         

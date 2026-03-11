@@ -16,11 +16,11 @@
 package io.runtime.sdk.support;
 
 /**
- * 模块状态枚举
+ * Module State Enumeration
  * 
- * <p>定义模块在生命周期中的各种状态。</p>
+ * <p>Defines various states of a module throughout its lifecycle.</p>
  * 
- * <h3>状态转换</h3>
+ * <h3>State Transitions</h3>
  * <pre>{@code
  * REGISTERED -> INITIALIZING -> INITIALIZED -> STARTING -> RUNNING -> STOPPING -> STOPPED -> DESTROYED
  *                    |                             |                       |
@@ -34,77 +34,77 @@ package io.runtime.sdk.support;
 public enum ModuleState {
 
     /**
-     * 已注册状态
+     * Registered state
      * 
-     * <p>模块类已被发现并注册，但尚未初始化</p>
+     * <p>Module class has been discovered and registered but not yet initialized</p>
      */
-    REGISTERED("已注册"),
+    REGISTERED("Registered"),
 
     /**
-     * 初始化中状态
+     * Initializing state
      * 
-     * <p>模块正在执行 onInit() 方法</p>
+     * <p>Module is executing onInit() method</p>
      */
-    INITIALIZING("初始化中"),
+    INITIALIZING("Initializing"),
 
     /**
-     * 已初始化状态
+     * Initialized state
      * 
-     * <p>模块 onInit() 执行完成，等待启动</p>
+     * <p>Module onInit() completed, waiting to start</p>
      */
-    INITIALIZED("已初始化"),
+    INITIALIZED("Initialized"),
 
     /**
-     * 启动中状态
+     * Starting state
      * 
-     * <p>模块正在执行 onStart() 方法</p>
+     * <p>Module is executing onStart() method</p>
      */
-    STARTING("启动中"),
+    STARTING("Starting"),
 
     /**
-     * 运行中状态
+     * Running state
      * 
-     * <p>模块正常运行，可以处理请求</p>
+     * <p>Module is running normally and can handle requests</p>
      */
-    RUNNING("运行中"),
+    RUNNING("Running"),
 
     /**
-     * 降级状态
+     * Degraded state
      * 
-     * <p>模块部分功能不可用，但核心功能正常</p>
+     * <p>Some module functionality is unavailable but core functions are normal</p>
      */
-    DEGRADED("降级运行"),
+    DEGRADED("Degraded"),
 
     /**
-     * 停止中状态
+     * Stopping state
      * 
-     * <p>模块正在执行 onStop() 方法</p>
+     * <p>Module is executing onStop() method</p>
      */
-    STOPPING("停止中"),
+    STOPPING("Stopping"),
 
     /**
-     * 已停止状态
+     * Stopped state
      * 
-     * <p>模块已停止，不再处理请求</p>
+     * <p>Module has stopped and no longer handles requests</p>
      */
-    STOPPED("已停止"),
+    STOPPED("Stopped"),
 
     /**
-     * 已销毁状态
+     * Destroyed state
      * 
-     * <p>模块已销毁，资源已释放</p>
+     * <p>Module has been destroyed and resources have been released</p>
      */
-    DESTROYED("已销毁"),
+    DESTROYED("Destroyed"),
 
     /**
-     * 失败状态
+     * Failed state
      * 
-     * <p>模块初始化或启动失败</p>
+     * <p>Module initialization or startup failed</p>
      */
-    FAILED("失败");
+    FAILED("Failed");
 
     /**
-     * 状态描述
+     * State description
      */
     private final String description;
 
@@ -113,27 +113,27 @@ public enum ModuleState {
     }
 
     /**
-     * 获取状态描述
+     * Get state description
      * 
-     * @return 状态描述
+     * @return state description
      */
     public String getDescription() {
         return description;
     }
 
     /**
-     * 判断模块是否可用（可以处理请求）
+     * Check if module is available (can handle requests)
      * 
-     * @return 如果模块可用返回 true
+     * @return true if module is available
      */
     public boolean isAvailable() {
         return this == RUNNING || this == DEGRADED;
     }
 
     /**
-     * 判断模块是否处于终止状态
+     * Check if module is in terminal state
      * 
-     * @return 如果模块已终止返回 true
+     * @return true if module has terminated
      */
     public boolean isTerminal() {
         return this == STOPPED || this == DESTROYED || this == FAILED;

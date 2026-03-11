@@ -128,7 +128,7 @@ public final class WhitelistDependencyRule {
         }
 
         private boolean isSamePlugin(String pkg1, String pkg2) {
-            // Extract plugin root (e.g., "com.shinwa.app.booking")
+            // Extract plugin root (e.g., "io.brix.app.booking")
             String root1 = extractPluginRoot(pkg1);
             String root2 = extractPluginRoot(pkg2);
             return root1 != null && root1.equals(root2);

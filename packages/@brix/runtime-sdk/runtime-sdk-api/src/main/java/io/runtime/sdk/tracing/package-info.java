@@ -15,18 +15,19 @@
  */
 
 /**
- * 能力调用追踪 API
+ * Capability Invocation Tracing API.
  * 
- * <p>本包提供能力调用追踪的 API 契约，供运行时核心和基础设施适配器使用。</p>
+ * <p>This package provides API contracts for capability invocation tracing,
+ * used by runtime core and infrastructure adapters.</p>
  * 
- * <h2>核心接口</h2>
+ * <h2>Core Interfaces</h2>
  * <ul>
- *   <li>{@link io.runtime.sdk.tracing.CapabilityInvocation} - 能力调用记录数据类</li>
- *   <li>{@link io.runtime.sdk.tracing.CapabilityMetricsExporter} - 指标导出器 SPI</li>
+ *   <li>{@link io.runtime.sdk.tracing.CapabilityInvocation} - Capability invocation record data class</li>
+ *   <li>{@link io.runtime.sdk.tracing.CapabilityMetricsExporter} - Metrics exporter SPI</li>
  * </ul>
  * 
- * <h2>架构说明</h2>
- * <p>实现 v3.0 架构蓝图 4.4 任务（运行时可观测性）的 API 层。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>Implements the Runtime Observability API layer for capability tracking.</p>
  * 
  * @since 3.0.0
  */

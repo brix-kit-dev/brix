@@ -19,49 +19,49 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 定时任务能力契约（可选能力）
+ * Scheduling Capability Contract (Optional Capability)
  * 
- * <p>提供定时任务调度的统一抽象，支持 Cron 表达式和固定频率调度。
- * 模块通过此接口注册定时任务，无需直接使用 Quartz 等框架。</p>
+ * <p>Provides a unified abstraction for scheduled task scheduling, supporting Cron expressions and fixed-rate scheduling.
+ * Modules register scheduled tasks through this interface without directly using frameworks like Quartz.</p>
  * 
- * <h3>核心功能</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li><b>Cron 调度</b>：基于 Cron 表达式的灵活调度</li>
- *   <li><b>固定频率</b>：按固定间隔执行</li>
- *   <li><b>固定延迟</b>：上次执行完成后延迟执行</li>
- *   <li><b>一次性任务</b>：延迟指定时间后执行一次</li>
+ *   <li><b>Cron Scheduling</b>: Flexible scheduling based on Cron expressions</li>
+ *   <li><b>Fixed Rate</b>: Execute at fixed intervals</li>
+ *   <li><b>Fixed Delay</b>: Execute after delay since last completion</li>
+ *   <li><b>One-time Task</b>: Execute once after specified delay</li>
  * </ul>
  * 
- * <h3>分布式调度</h3>
- * <p>在分布式环境中，定时任务默认只在一个节点执行。
- * 通过结合 {@link LockCapability} 实现分布式锁，确保任务不重复执行。</p>
+ * <h3>Distributed Scheduling</h3>
+ * <p>In distributed environments, scheduled tasks execute on only one node by default.
+ * By combining with {@link LockCapability} distributed locks, tasks won't execute repeatedly.</p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * @Inject
  * private SchedulingCapability scheduling;
  * 
  * public void setupScheduledTasks() {
- *     // Cron 调度：每天凌晨 2 点执行
+ *     // Cron schedule: execute daily at 2 AM
  *     scheduling.scheduleWithCron("daily-cleanup", "0 0 2 * * ?", 
  *         () -> cleanupExpiredData());
  *     
- *     // 固定频率：每 5 分钟执行一次
+ *     // Fixed rate: execute every 5 minutes
  *     scheduling.scheduleAtFixedRate("health-check", Duration.ofMinutes(5),
  *         () -> performHealthCheck());
  *     
- *     // 一次性任务：30 分钟后执行
+ *     // One-time task: execute after 30 minutes
  *     scheduling.scheduleOnce("delayed-task", Duration.ofMinutes(30),
  *         () -> sendReminder());
  * }
  * }</pre>
  * 
- * <h3>注意事项</h3>
+ * <h3>Notes</h3>
  * <ul>
- *   <li>任务应该是幂等的，以处理重复执行情况</li>
- *   <li>长时间运行的任务应考虑超时处理</li>
- *   <li>任务中的异常应被捕获，避免影响调度器</li>
- *   <li>此为可选能力，使用前应检查是否可用</li>
+ *   <li>Tasks should be idempotent to handle repeated execution</li>
+ *   <li>Long-running tasks should consider timeout handling</li>
+ *   <li>Exceptions in tasks should be caught to avoid affecting scheduler</li>
+ *   <li>This is an optional capability; check availability before use</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -70,83 +70,83 @@ import java.util.concurrent.TimeUnit;
 public interface SchedulingCapability {
 
     /**
-     * 使用 Cron 表达式调度任务
+     * Schedule task with Cron expression
      * 
-     * <p>Cron 表达式格式：秒 分 时 日 月 周</p>
+     * <p>Cron expression format: seconds minutes hours day month weekday</p>
      * 
-     * @param taskId         任务唯一标识
-     * @param cronExpression Cron 表达式
-     * @param task           要执行的任务
-     * @return 任务句柄，用于取消任务
+     * @param taskId         unique task identifier
+     * @param cronExpression Cron expression
+     * @param task           task to execute
+     * @return task handle for cancellation
      */
     ScheduledTaskHandle scheduleWithCron(String taskId, String cronExpression, Runnable task);
 
     /**
-     * 固定频率调度
+     * Fixed rate scheduling
      * 
-     * <p>无论上次执行是否完成，都按固定间隔触发下次执行</p>
+     * <p>Triggers next execution at fixed intervals regardless of previous completion</p>
      * 
-     * @param taskId       任务唯一标识
-     * @param period       执行间隔
-     * @param task         要执行的任务
-     * @return 任务句柄
+     * @param taskId       unique task identifier
+     * @param period       execution interval
+     * @param task         task to execute
+     * @return task handle
      */
     ScheduledTaskHandle scheduleAtFixedRate(String taskId, Duration period, Runnable task);
 
     /**
-     * 固定频率调度（带初始延迟）
+     * Fixed rate scheduling (with initial delay)
      * 
-     * @param taskId       任务唯一标识
-     * @param initialDelay 初始延迟
-     * @param period       执行间隔
-     * @param task         要执行的任务
-     * @return 任务句柄
+     * @param taskId       unique task identifier
+     * @param initialDelay initial delay
+     * @param period       execution interval
+     * @param task         task to execute
+     * @return task handle
      */
     ScheduledTaskHandle scheduleAtFixedRate(String taskId, Duration initialDelay, Duration period, Runnable task);
 
     /**
-     * 固定延迟调度
+     * Fixed delay scheduling
      * 
-     * <p>上次执行完成后，等待指定延迟再触发下次执行</p>
+     * <p>Triggers next execution after specified delay since previous completion</p>
      * 
-     * @param taskId 任务唯一标识
-     * @param delay  执行延迟
-     * @param task   要执行的任务
-     * @return 任务句柄
+     * @param taskId unique task identifier
+     * @param delay  execution delay
+     * @param task   task to execute
+     * @return task handle
      */
     ScheduledTaskHandle scheduleWithFixedDelay(String taskId, Duration delay, Runnable task);
 
     /**
-     * 一次性延迟任务
+     * One-time delayed task
      * 
-     * @param taskId 任务唯一标识
-     * @param delay  延迟时间
-     * @param task   要执行的任务
-     * @return 任务句柄
+     * @param taskId unique task identifier
+     * @param delay  delay time
+     * @param task   task to execute
+     * @return task handle
      */
     ScheduledTaskHandle scheduleOnce(String taskId, Duration delay, Runnable task);
 
     /**
-     * 取消任务
+     * Cancel task
      * 
-     * @param taskId 任务唯一标识
-     * @return 如果任务存在并被取消返回 true
+     * @param taskId unique task identifier
+     * @return true if task existed and was cancelled
      */
     boolean cancel(String taskId);
 
     /**
-     * 检查任务是否正在运行
+     * Check if task is running
      * 
-     * @param taskId 任务唯一标识
-     * @return 如果任务正在运行返回 true
+     * @param taskId unique task identifier
+     * @return true if task is currently running
      */
     boolean isRunning(String taskId);
 
     /**
-     * 检查任务是否已调度
+     * Check if task is scheduled
      * 
-     * @param taskId 任务唯一标识
-     * @return 如果任务已调度返回 true
+     * @param taskId unique task identifier
+     * @return true if task is scheduled
      */
     boolean isScheduled(String taskId);
 }

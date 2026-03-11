@@ -1,18 +1,18 @@
-package <%= packageName %>.core.config;
+﻿package <%= packageName %>.core.config;
 
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
- * <%= displayName %> 模块配置类
+ * <%= displayName %> moduleConfiguration class
  * 
- * <p>模块的 Spring 配置入口，负责组件扫描和 JPA 仓储配置。</p>
+ * <p>module的 Spring 配置入口，负责组件扫描和 JPA 仓储配置。</p>
  * 
- * <p>【v3.0 架构说明】</p>
+ * <p>[v3.0 Architecture]</p>
  * <ul>
- *   <li>作为 Spring 配置类，由 Host 自动扫描加载</li>
- *   <li>配置组件扫描范围为当前模块包</li>
+ *   <li>作为 Spring Configuration class，由 Host 自动扫描加载</li>
+ *   <li>配置组件扫描范围为当前module包</li>
  *   <li>配置 JPA 仓储扫描</li>
  * </ul>
  * 
@@ -26,13 +26,13 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 public class <%= classPrefix %>ModuleConfiguration {
 
     /**
-     * 模块 ID 常量
+     * module ID 常量
      * <p>与 module-manifest.yaml 中的 id 保持一致</p>
      */
     public static final String MODULE_ID = "<%= fullName %>";
 
     /**
-     * 模块版本常量
+     * module版本常量
      */
     public static final String MODULE_VERSION = "<%= version %>";
 }

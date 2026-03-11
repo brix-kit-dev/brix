@@ -1,10 +1,10 @@
 /**
- * <%= displayName %> Mobile - 列表组件
+ * <%= displayName %> Mobile - List Component
  * 
- * @module @shinwa/<%= name %>-mobile
+ * @module @brix/<%= name %>-mobile
  * @generated <%= date %>
  * 
- * React Native 列表组件
+ * React Native List Component
  */
 
 import React, { useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 
 /**
- * 列表项数据接口
+ * List item data interface
  */
 interface ListItem {
   id: number;
@@ -28,26 +28,26 @@ interface ListItem {
 }
 
 /**
- * 列表组件属性
+ * List component props
  */
 interface <%= classPrefix %>ListProps {
   /**
-   * 点击项回调
+   * Item press callback
    */
   onItemPress?: (item: ListItem) => void;
   
   /**
-   * 自定义样式
+   * Custom styles
    */
   style?: object;
 }
 
 /**
- * <%= displayName %>列表组件
+ * <%= displayName %> List Component
  * 
- * 使用示例：
+ * Usage:
  * ```tsx
- * import { <%= classPrefix %>List } from '@shinwa/<%= name %>-mobile';
+ * import { <%= classPrefix %>List } from '@brix/<%= name %>-mobile';
  * 
  * <{@classPrefix}List 
  *   onItemPress={(item) => navigation.navigate('Detail', { id: item.id })} 
@@ -63,19 +63,19 @@ export const <%= classPrefix %>List: React.FC<<%= classPrefix %>ListProps> = ({
   const [refreshing, setRefreshing] = useState(false);
 
   /**
-   * 加载数据
+   * Load data
    */
   const loadData = async () => {
     try {
-      // TODO: 替换为实际的 API 调用
+      // TODO: Replace with actual API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       setData([
-        { id: 1, title: '示例项目 1', description: '这是示例描述' },
-        { id: 2, title: '示例项目 2', description: '这是示例描述' },
-        { id: 3, title: '示例项目 3', description: '这是示例描述' },
+        { id: 1, title: 'Sample Item 1', description: 'This is a sample description' },
+        { id: 2, title: 'Sample Item 2', description: 'This is a sample description' },
+        { id: 3, title: 'Sample Item 3', description: 'This is a sample description' },
       ]);
     } catch (error) {
-      console.error('加载数据失败:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -87,7 +87,7 @@ export const <%= classPrefix %>List: React.FC<<%= classPrefix %>ListProps> = ({
   }, []);
 
   /**
-   * 下拉刷新
+   * Pull to refresh
    */
   const handleRefresh = () => {
     setRefreshing(true);
@@ -95,7 +95,7 @@ export const <%= classPrefix %>List: React.FC<<%= classPrefix %>ListProps> = ({
   };
 
   /**
-   * 渲染列表项
+   * Render list item
    */
   const renderItem = ({ item }: { item: ListItem }) => (
     <TouchableOpacity
@@ -114,7 +114,7 @@ export const <%= classPrefix %>List: React.FC<<%= classPrefix %>ListProps> = ({
     return (
       <View style={[styles.container, styles.center, style]}>
         <ActivityIndicator size="large" color="#1976d2" />
-        <Text style={styles.loadingText}>加载中...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -134,7 +134,7 @@ export const <%= classPrefix %>List: React.FC<<%= classPrefix %>ListProps> = ({
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>暂无数据</Text>
+            <Text style={styles.emptyText}>No data available</Text>
           </View>
         }
       />

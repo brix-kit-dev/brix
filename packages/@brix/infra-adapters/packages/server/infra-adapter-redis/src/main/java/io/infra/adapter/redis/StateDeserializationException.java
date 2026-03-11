@@ -16,10 +16,11 @@
 package io.infra.adapter.redis;
 
 /**
- * 状态存储反序列化异常
+ * State store deserialization exception.
  * 
- * <p>当从 Redis 读取的数据无法反序列化为目标类型时抛出此异常。
- * 调用方可据此区分"键不存在"（返回 Optional.empty()）与"值已损坏"（抛出此异常）。</p>
+ * <p>Thrown when data read from Redis cannot be deserialized to the target type.
+ * Callers can use this to distinguish between "key does not exist" (returns Optional.empty())
+ * and "value is corrupted" (throws this exception).</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -28,12 +29,12 @@ package io.infra.adapter.redis;
 public class StateDeserializationException extends StateStoreException {
 
     /**
-     * 导致反序列化失败的键
+     * The key that caused deserialization failure.
      */
     private final String key;
 
     /**
-     * 目标类型
+     * The target type.
      */
     private final String targetType;
 
@@ -44,18 +45,18 @@ public class StateDeserializationException extends StateStoreException {
     }
 
     /**
-     * 获取导致反序列化失败的键
+     * Gets the key that caused deserialization failure.
      * 
-     * @return 存储键
+     * @return the storage key
      */
     public String getKey() {
         return key;
     }
 
     /**
-     * 获取目标类型名称
+     * Gets the target type name.
      * 
-     * @return 目标类型
+     * @return the target type
      */
     public String getTargetType() {
         return targetType;

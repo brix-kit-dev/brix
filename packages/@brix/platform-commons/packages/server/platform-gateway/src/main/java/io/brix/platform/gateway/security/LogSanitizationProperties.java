@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import java.util.ArrayList;
@@ -13,12 +28,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import jakarta.annotation.PostConstruct;
 
 /**
- * 日志脱敏配置
+ * logsanitizeconfiguration
  * <p>
- * 用于配置网关日志中需要脱敏的敏感字段，防止敏感信息泄露到日志中
+ * used forconfigurationGatewayloginneedsanitizeofsensitivefield，preventsensitiveinformationexposetologin
  * </p>
  * <p>
- * 配置示例（application.yml）：
+ * configurationexample（application.yml）：
  * <pre>
  * gateway:
  *   security:
@@ -46,7 +61,7 @@ public class LogSanitizationProperties {
     private static final Logger logger = LoggerFactory.getLogger(LogSanitizationProperties.class);
 
     /**
-     * MVP 红线要求脱敏的默认头
+     * MVP Red Line Requirementssanitizeofdefaultheader
      */
     private static final List<String> DEFAULT_SENSITIVE_HEADERS = List.of(
             "authorization",
@@ -61,55 +76,55 @@ public class LogSanitizationProperties {
     );
 
     /**
-     * 是否启用日志脱敏
+     * Whether to enable log sanitization
      */
     private boolean enabled = true;
 
     /**
-     * 需要脱敏的请求头列表（不区分大小写
+     * needsanitizeofrequestheaderlist（notdistinguishsizewrite
      */
     private List<String> sensitiveHeaders = new ArrayList<>(DEFAULT_SENSITIVE_HEADERS);
 
     /**
-     * 需要脱敏的正则表达式模
+     * needsanitizeofregexexpressionmodel
      */
     private List<String> sensitivePatterns = new ArrayList<>();
 
     /**
-     * 脱敏使用的掩码字
+     * sanitizeuseofmaskcharacter
      */
     private String maskChar = "*";
 
     /**
-     * 保留可见的字符数（前后各保留
+     * retaincanseeofcharactercount（beforeaftereachretain
      */
     private int visibleChars = 4;
 
     /**
-     * 完全掩盖的最小长度（短于此长度则完全掩盖
+     * completeallmaskofminimumlength（shortforthislengthcompletely mask
      */
     private int fullMaskThreshold = 8;
 
     /**
-     * 编译后的正则表达式模
+     * compileafterofregexexpressionmodel
      */
     private List<Pattern> compiledPatterns;
 
     @PostConstruct
     public void init() {
         if (!enabled) {
-            logger.warn("[shinwa] 鈿狅笍 Log sanitization is DISABLED. " +
+            logger.warn("[brix]  Log sanitization is DISABLED. " +
                     "Sensitive data may be exposed in logs!");
             return;
         }
 
-        // 将所有头转换为小
+        // willallhasheaderconvertissmall
         sensitiveHeaders = sensitiveHeaders.stream()
                 .map(String::toLowerCase)
                 .distinct()
                 .collect(Collectors.toList());
 
-        // 添加默认的敏感模
+        // adddefaultofsensitivemodel
         if (sensitivePatterns.isEmpty()) {
             sensitivePatterns = new ArrayList<>(List.of(
                     // Bearer token
@@ -127,20 +142,20 @@ public class LogSanitizationProperties {
             ));
         }
 
-        // 编译正则表达
+        // compileregextablereach
         compiledPatterns = sensitivePatterns.stream()
                 .map(pattern -> Pattern.compile(pattern, Pattern.CASE_INSENSITIVE))
                 .collect(Collectors.toList());
 
-        logger.info("[shinwa] Log sanitization enabled for {} header(s) and {} pattern(s)",
+        logger.info("[brix] Log sanitization enabled for {} header(s) and {} pattern(s)",
                 sensitiveHeaders.size(), compiledPatterns.size());
     }
 
     /**
-     * 检查指定的头是否需要脱
+     * checkspecifyofheaderwhetherneedde-
      *
-     * @param headerName 请求头名
-     * @return true 如果需要脱
+     * @param headerName requestheadername
+     * @return true ifneedde-
      */
     public boolean isSensitiveHeader(String headerName) {
         if (!enabled || headerName == null) {
@@ -150,14 +165,14 @@ public class LogSanitizationProperties {
     }
 
     /**
-     * 获取所有敏感头名称集合（小写）
+     * obtainallhassensitiveheadernamecollection（lowercase）
      */
     public Set<String> getSensitiveHeadersAsSet() {
         return Set.copyOf(sensitiveHeaders);
     }
 
     /**
-     * 获取编译后的正则表达式模式列
+     * obtaincompileafterofregexexpressionpatterncolumn
      */
     public List<Pattern> getCompiledPatterns() {
         return compiledPatterns != null ? compiledPatterns : List.of();

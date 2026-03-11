@@ -10,9 +10,9 @@ import com.tngtech.archunit.junit.ArchTests;
 import io.brix.architecture.guard.BrixArchitectureRules;
 
 /**
- * 架构约束测试。
+ * Architecture Constraint Test.
  *
- * <p>使用 CommonsProfile 验证平台公共库层架构红线。</p>
+ * <p>Uses CommonsProfile to verify platform common library layer architectural constraints.</p>
  */
 @AnalyzeClasses(
     packages = "io.brix.platform.starter",

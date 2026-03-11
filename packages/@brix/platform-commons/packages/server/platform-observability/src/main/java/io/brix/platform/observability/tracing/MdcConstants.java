@@ -1,9 +1,24 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability.tracing;
 
 /**
- * MDC 键常
+ * MDC key constants.
  * <p>
- * 统一 MDC 键名，确保日志格式一致性
+ * Unified MDC key names to ensure log format consistency.
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -12,30 +27,30 @@ package io.brix.platform.observability.tracing;
 public final class MdcConstants {
 
     private MdcConstants() {
-        // 不允许实例化
+        // Instantiation not allowed
     }
 
-    /** 杩借釜ID */
+    /** Trace ID */
     public static final String TRACE_ID = "traceId";
 
-    /** 绉熸埛ID */
+    /** Tenant ID */
     public static final String TENANT_ID = "tenantId";
 
-    /** 用户ID */
+    /** User ID */
     public static final String USER_ID = "userId";
 
-    /** 关联ID（Saga 事务*/
+    /** Correlation ID (Saga transaction) */
     public static final String CORRELATION_ID = "correlationId";
 
-    /** 请求路径 */
+    /** Request path */
     public static final String REQUEST_PATH = "requestPath";
 
-    /** 请求方法 */
+    /** Request method */
     public static final String REQUEST_METHOD = "requestMethod";
 
-    /** 服务名称 */
+    /** Service name */
     public static final String SERVICE_NAME = "serviceName";
 
-    /** 插件名称 */
+    /** Plugin name */
     public static final String PLUGIN_NAME = "pluginName";
 }

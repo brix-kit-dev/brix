@@ -44,20 +44,20 @@ import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * 基于 HTTP Webhook 的事件总线实现
+ * HTTP Webhook-based Event Bus Implementation
  * 
- * <p>通过 HTTP POST 请求将事件推送到配置的 Webhook 端点，
- * 适用于嵌入模式部署场景，无需依赖 Kafka 等消息中间件。</p>
+ * <p>Pushes events to configured Webhook endpoints via HTTP POST requests.
+ * Suitable for embedded deployment scenarios without requiring message middleware like Kafka.</p>
  * 
- * <h2>核心特性</h2>
+ * <h2>Core Features</h2>
  * <ul>
- *   <li>HTTP POST 推送：将事件序列化为 JSON 发送到端点</li>
- *   <li>签名验证：使用 HMAC-SHA256 签名确保安全性</li>
- *   <li>重试机制：失败时自动重试，支持指数退避</li>
- *   <li>端点路由：支持按事件类型路由到不同端点</li>
+ *   <li>HTTP POST push: Serializes events to JSON and sends to endpoints</li>
+ *   <li>Signature verification: Uses HMAC-SHA256 signatures for security</li>
+ *   <li>Retry mechanism: Automatic retry on failure with exponential backoff</li>
+ *   <li>Endpoint routing: Supports routing to different endpoints by event type</li>
  * </ul>
  * 
- * <h2>请求格式</h2>
+ * <h2>Request Format</h2>
  * <pre>
  * POST /webhook HTTP/1.1
  * Content-Type: application/json
@@ -74,9 +74,9 @@ import io.runtime.sdk.event.IntegrationEvent;
  * }
  * </pre>
  * 
- * <h2>架构说明</h2>
- * <p>本类实现 Layer 1 定义的 EventBusCapability 接口，
- * 属于 Layer 2 Adapter 层，用于嵌入模式部署。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>This class implements the EventBusCapability interface defined in Layer 1,
+ * and belongs to Layer 2 Adapter layer for embedded deployment.</p>
  * 
  * @author Brix Team
  * @since 3.0.0
@@ -88,144 +88,144 @@ import io.runtime.sdk.event.IntegrationEvent;
 @Capability(
     type = EventBusCapability.class,
     name = "webhook-event-bus",
-    description = "基于 HTTP Webhook 的事件总线实现",
+    description = "HTTP Webhook-based event bus implementation",
     level = CapabilityLevel.STANDARD,
     aliases = {"webhookEventBus"}
 )
 public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
     
     /**
-     * HTTP 客户端
+     * HTTP client
      */
     private final HttpClient httpClient;
     
     /**
-     * JSON 序列化器
+     * JSON serializer
      */
     private final ObjectMapper objectMapper;
     
     /**
-     * Webhook 配置
+     * Webhook configuration
      */
     private final WebhookConfig config;
     
     /**
-     * 签名验证器
+     * Signature verifier
      */
     private final WebhookSignatureVerifier signatureVerifier;
     
     /**
-     * 重试处理器
+     * Retry handler
      */
     private final WebhookRetryHandler retryHandler;
     
     /**
-     * 异步执行器
+     * Async executor
      */
     private final ExecutorService executor;
     
     /**
-     * 是否为内部创建的执行器
+     * Whether the executor is internally created
      */
     private final boolean ownExecutor;
     
     /**
-     * 发送统计计数器
+     * Sent events counter
      */
     private final AtomicLong sentCount = new AtomicLong(0);
     
     /**
-     * 失败统计计数器
+     * Failed events counter
      */
     private final AtomicLong failedCount = new AtomicLong(0);
     
     /**
-     * 事件监听器（用于测试和调试）
+     * Event listeners (for testing and debugging)
      */
     private final Map<String, EventListener> eventListeners = new ConcurrentHashMap<>();
     
     /**
-     * 创建 HttpWebhookEventBus 实例
+     * Creates an HttpWebhookEventBus instance
      *
-     * @param config Webhook 配置
+     * @param config Webhook configuration
      */
     public HttpWebhookEventBus(WebhookConfig config) {
         this(config, null, null);
     }
     
     /**
-     * 创建 HttpWebhookEventBus 实例（完整参数）
+     * Creates an HttpWebhookEventBus instance (full parameters)
      *
-     * <p>线程池配置说明（v3.2 性能优化）：
+     * <p>Thread pool configuration notes (v3.2 performance optimization):
      * <ul>
-     *   <li>使用有界线程池替代 CachedThreadPool，防止线程数无限增长</li>
-     *   <li>核心线程数默认为 CPU 核心数，适合 I/O 密集型操作</li>
-     *   <li>最大线程数默认为核心线程数的 2 倍，为突发流量预留余量</li>
-     *   <li>任务队列容量默认为 1000，防止内存溢出</li>
-     *   <li>采用 CallerRunsPolicy 拒绝策略，当队列满时由调用线程执行，起到限流作用</li>
+     *   <li>Uses bounded thread pool instead of CachedThreadPool to prevent unlimited thread growth</li>
+     *   <li>Core pool size defaults to CPU core count, suitable for I/O intensive operations</li>
+     *   <li>Maximum pool size defaults to 2x core pool size, reserving capacity for traffic bursts</li>
+     *   <li>Task queue capacity defaults to 1000 to prevent memory overflow</li>
+     *   <li>Uses CallerRunsPolicy rejection policy - when queue is full, caller thread executes the task for throttling</li>
      * </ul>
      *
-     * @param config Webhook 配置
-     * @param objectMapper JSON 序列化器（可选，null 使用默认）
-     * @param executor 执行器（可选，null 使用内置有界线程池）
+     * @param config Webhook configuration
+     * @param objectMapper JSON serializer (optional, null uses default)
+     * @param executor Executor (optional, null uses built-in bounded thread pool)
      */
     public HttpWebhookEventBus(WebhookConfig config, ObjectMapper objectMapper, ExecutorService executor) {
-        this.config = Objects.requireNonNull(config, "WebhookConfig 不能为空");
+        this.config = Objects.requireNonNull(config, "WebhookConfig cannot be null");
         
-        // 初始化 ObjectMapper
+        // Initialize ObjectMapper
         this.objectMapper = objectMapper != null ? objectMapper : createDefaultObjectMapper();
         
         /*
-         * 创建 HTTP 客户端使用的有界线程池
+         * Create bounded thread pool for HTTP client
          * 
-         * 性能风险修复（v3.2）：
-         * - 原实现使用 Executors.newCachedThreadPool()，在高并发场景下会导致：
-         *   1. 线程数无限增长，耗尽系统资源
-         *   2. 每个任务都可能创建新线程，增加上下文切换开销
-         *   3. 线程创建和销毁频繁，影响性能
+         * Performance risk fix (v3.2):
+         * - Original implementation used Executors.newCachedThreadPool(), which under high concurrency:
+         *   1. Causes unlimited thread growth, exhausting system resources
+         *   2. May create new threads for each task, increasing context switching overhead
+         *   3. Frequent thread creation and destruction impacts performance
          * 
-         * - 新实现使用 ThreadPoolExecutor 有界线程池：
-         *   1. 核心线程数：保持常驻的线程数，减少线程创建开销
-         *   2. 最大线程数：限制线程上限，防止资源耗尽
-         *   3. 有界队列：缓冲等待执行的任务，队列满时触发拒绝策略
-         *   4. CallerRunsPolicy：调用者线程执行被拒绝的任务，起到反压限流作用
+         * - New implementation uses ThreadPoolExecutor with bounded thread pool:
+         *   1. Core pool size: Number of threads kept alive to reduce thread creation overhead
+         *   2. Maximum pool size: Limits thread count to prevent resource exhaustion
+         *   3. Bounded queue: Buffers waiting tasks, triggers rejection policy when full
+         *   4. CallerRunsPolicy: Rejected tasks run on caller thread for backpressure throttling
          */
         ExecutorService httpClientExecutor = new ThreadPoolExecutor(
-                config.getCorePoolSize(),       // 核心线程数
-                config.getMaxPoolSize(),        // 最大线程数
-                60L, TimeUnit.SECONDS,          // 空闲线程存活时间
-                new LinkedBlockingQueue<>(config.getQueueCapacity()),  // 有界任务队列
+                config.getCorePoolSize(),       // Core pool size
+                config.getMaxPoolSize(),        // Maximum pool size
+                60L, TimeUnit.SECONDS,          // Idle thread keep-alive time
+                new LinkedBlockingQueue<>(config.getQueueCapacity()),  // Bounded task queue
                 r -> {
                     Thread t = new Thread(r, "webhook-http-client");
-                    t.setDaemon(true);  // 守护线程，不阻止 JVM 退出
+                    t.setDaemon(true);  // Daemon thread, won't prevent JVM exit
                     return t;
                 },
-                new ThreadPoolExecutor.CallerRunsPolicy()  // 拒绝策略：调用者运行
+                new ThreadPoolExecutor.CallerRunsPolicy()  // Rejection policy: caller runs
         );
         
-        // 初始化 HTTP 客户端
+        // Initialize HTTP client
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(config.getConnectTimeout())
                 .executor(httpClientExecutor)
                 .build();
         
-        // 初始化签名验证器
+        // Initialize signature verifier
         this.signatureVerifier = config.getSecret()
                 .map(WebhookSignatureVerifier::new)
                 .orElse(null);
         
-        // 初始化重试处理器
+        // Initialize retry handler
         this.retryHandler = WebhookRetryHandler.builder()
                 .maxRetries(config.getMaxRetries())
                 .baseDelay(config.getRetryDelay())
                 .build();
         
-        // 初始化事件处理执行器
+        // Initialize event processing executor
         if (executor != null) {
             this.executor = executor;
             this.ownExecutor = false;
         } else {
-            // 使用有界线程池处理事件发布
+            // Use bounded thread pool for event publishing
             this.executor = new ThreadPoolExecutor(
                     config.getCorePoolSize(),
                     config.getMaxPoolSize(),
@@ -243,7 +243,7 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
     }
     
     /**
-     * 创建默认的 ObjectMapper
+     * Creates default ObjectMapper
      */
     private ObjectMapper createDefaultObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -256,16 +256,16 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
     /**
      * {@inheritDoc}
      * 
-     * <p>将领域事件通过 HTTP POST 发送到配置的 Webhook 端点。
-     * 发送是异步的，但方法会等待发送完成。</p>
+     * <p>Sends domain events to configured Webhook endpoints via HTTP POST.
+     * Sending is asynchronous, but the method waits for completion.</p>
      *
-     * @param event 要发布的领域事件
-     * @throws IllegalArgumentException 如果事件为 null
-     * @throws RuntimeException 如果发送失败且重试次数用尽
+     * @param event The domain event to publish
+     * @throws IllegalArgumentException If event is null
+     * @throws RuntimeException If sending fails after all retries
      */
     @Override
     public void publish(DomainEvent event) {
-        Objects.requireNonNull(event, "DomainEvent 不能为空");
+        Objects.requireNonNull(event, "DomainEvent cannot be null");
         
         String eventType = event.getClass().getSimpleName();
         String eventId = event.getEventId() != null ? event.getEventId() : UUID.randomUUID().toString();
@@ -282,28 +282,28 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
             sendWebhook(eventType, payload);
             sentCount.incrementAndGet();
             
-            // 通知监听器
+            // Notify listeners
             notifyListeners(eventType, event);
             
         } catch (Exception e) {
             failedCount.incrementAndGet();
-            throw new RuntimeException("发布领域事件失败: " + eventType, e);
+            throw new RuntimeException("Failed to publish domain event: " + eventType, e);
         }
     }
     
     /**
      * {@inheritDoc}
      * 
-     * <p>将集成事件通过 HTTP POST 发送到配置的 Webhook 端点。
-     * 发送是异步的，但方法会等待发送完成。</p>
+     * <p>Sends integration events to configured Webhook endpoints via HTTP POST.
+     * Sending is asynchronous, but the method waits for completion.</p>
      *
-     * @param event 要发布的集成事件
-     * @throws IllegalArgumentException 如果事件为 null
-     * @throws RuntimeException 如果发送失败且重试次数用尽
+     * @param event The integration event to publish
+     * @throws IllegalArgumentException If event is null
+     * @throws RuntimeException If sending fails after all retries
      */
     @Override
     public void publishIntegration(IntegrationEvent event) {
-        Objects.requireNonNull(event, "IntegrationEvent 不能为空");
+        Objects.requireNonNull(event, "IntegrationEvent cannot be null");
         
         String eventType = event.getEventType() != null ? event.getEventType() : event.getClass().getSimpleName();
         String eventId = event.getEventId() != null ? event.getEventId() : UUID.randomUUID().toString();
@@ -320,40 +320,40 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
             sendWebhook(eventType, payload);
             sentCount.incrementAndGet();
             
-            // 通知监听器
+            // Notify listeners
             notifyListeners(eventType, event);
             
         } catch (Exception e) {
             failedCount.incrementAndGet();
-            throw new RuntimeException("发布集成事件失败: " + eventType, e);
+            throw new RuntimeException("Failed to publish integration event: " + eventType, e);
         }
     }
     
     /**
-     * 异步发布领域事件
+     * Asynchronously publishes a domain event
      *
-     * @param event 要发布的领域事件
-     * @return 异步结果
+     * @param event The domain event to publish
+     * @return Async result
      */
     public CompletableFuture<Void> publishAsync(DomainEvent event) {
         return CompletableFuture.runAsync(() -> publish(event), executor);
     }
     
     /**
-     * 异步发布集成事件
+     * Asynchronously publishes an integration event
      *
-     * @param event 要发布的集成事件
-     * @return 异步结果
+     * @param event The integration event to publish
+     * @return Async result
      */
     public CompletableFuture<Void> publishIntegrationAsync(IntegrationEvent event) {
         return CompletableFuture.runAsync(() -> publishIntegration(event), executor);
     }
     
     /**
-     * 发送 Webhook 请求
+     * Sends Webhook request
      *
-     * @param eventType 事件类型
-     * @param payload Webhook 负载
+     * @param eventType Event type
+     * @param payload Webhook payload
      */
     private void sendWebhook(String eventType, WebhookPayload payload) {
         String endpoint = config.getEndpointForEventType(eventType);
@@ -362,7 +362,7 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
             String jsonBody = objectMapper.writeValueAsString(payload);
             long timestamp = Instant.now().getEpochSecond();
             
-            // 构建请求
+            // Build request
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint))
                     .timeout(config.getReadTimeout())
@@ -372,18 +372,18 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
                     .header(WebhookSignatureVerifier.TIMESTAMP_HEADER, String.valueOf(timestamp))
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody));
             
-            // 添加签名
+            // Add signature
             if (config.isSignatureEnabled() && signatureVerifier != null) {
                 String signature = signatureVerifier.sign(jsonBody, timestamp);
                 requestBuilder.header(WebhookSignatureVerifier.SIGNATURE_HEADER, signature);
             }
             
-            // 添加自定义请求头
+            // Add custom headers
             config.getCustomHeaders().forEach(requestBuilder::header);
             
             HttpRequest request = requestBuilder.build();
             
-            // 带重试执行
+            // Execute with retry
             retryHandler.executeWithRetry(() -> {
                 try {
                     HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -392,7 +392,7 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
                         return response;
                     } else {
                         throw new RuntimeException(String.format(
-                                "Webhook 请求失败: status=%d, body=%s",
+                                "Webhook request failed: status=%d, body=%s",
                                 response.statusCode(),
                                 response.body()
                         ));
@@ -401,36 +401,36 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
                     }
-                    throw new RuntimeException("Webhook 请求异常", e);
+                    throw new RuntimeException("Webhook request exception", e);
                 }
-            }).join(); // 等待完成
+            }).join(); // Wait for completion
             
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("序列化事件负载失败", e);
+            throw new RuntimeException("Failed to serialize event payload", e);
         }
     }
     
     /**
-     * 注册事件监听器（用于测试）
+     * Registers an event listener (for testing)
      *
-     * @param eventType 事件类型（支持 * 通配符）
-     * @param listener 监听器
+     * @param eventType Event type (supports * wildcard)
+     * @param listener The listener
      */
     public void addListener(String eventType, EventListener listener) {
         eventListeners.put(eventType, listener);
     }
     
     /**
-     * 移除事件监听器
+     * Removes an event listener
      *
-     * @param eventType 事件类型
+     * @param eventType Event type
      */
     public void removeListener(String eventType) {
         eventListeners.remove(eventType);
     }
     
     /**
-     * 通知监听器
+     * Notifies listeners
      */
     private void notifyListeners(String eventType, Object event) {
         for (Map.Entry<String, EventListener> entry : eventListeners.entrySet()) {
@@ -441,32 +441,32 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
                 try {
                     listener.onEvent(eventType, event);
                 } catch (Exception e) {
-                    // 忽略监听器异常
+                    // Ignore listener exceptions
                 }
             }
         }
     }
     
     /**
-     * 获取发送统计
+     * Gets sent events count
      *
-     * @return 已发送事件数
+     * @return Number of sent events
      */
     public long getSentCount() {
         return sentCount.get();
     }
     
     /**
-     * 获取失败统计
+     * Gets failed events count
      *
-     * @return 发送失败事件数
+     * @return Number of failed events
      */
     public long getFailedCount() {
         return failedCount.get();
     }
     
     /**
-     * 重置统计计数器
+     * Resets statistics counters
      */
     public void resetStats() {
         sentCount.set(0);
@@ -491,7 +491,7 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
     }
     
     /**
-     * Webhook 负载数据类
+     * Webhook payload data class
      */
     public static final class WebhookPayload {
         
@@ -512,15 +512,15 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
     }
     
     /**
-     * 事件监听器接口（用于测试）
+     * Event listener interface (for testing)
      */
     @FunctionalInterface
     public interface EventListener {
         /**
-         * 事件回调
+         * Event callback
          *
-         * @param eventType 事件类型
-         * @param event 事件对象
+         * @param eventType Event type
+         * @param event Event object
          */
         void onEvent(String eventType, Object event);
     }

@@ -17,7 +17,6 @@ package io.runtime.manifest.validation;
 
 /**
  * Validation Severity Level.
- * 验证严重级别
  *
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -26,19 +25,16 @@ public enum ValidationSeverity {
 
     /**
      * Error - validation failed.
-     * 错误 - 验证失败
      */
     ERROR("Error"),
 
     /**
      * Warning - does not affect validation pass, but recommended to fix.
-     * 警告 - 不影响验证通过，但建议修复
      */
     WARNING("Warning"),
 
     /**
      * Info - for reference only.
-     * 信息 - 仅供参考
      */
     INFO("Info");
 

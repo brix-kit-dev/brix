@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/platform-auth-ui-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Web Auth UI Components - Provides login forms, registration forms, permission guards and other UI components",
   "type": "module",
   "main": "dist/index.js",
@@ -41,7 +41,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web"
+    "@brix/runtime-sdk-api-web": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.2.0",
@@ -49,7 +49,7 @@
     "@brix/runtime-sdk-react": "^3.2.0"
   },
   "devDependencies": {
-    "@brix/runtime-sdk-react": "link:../../../../runtime-sdk/runtime-sdk-react",
+    "@brix/runtime-sdk-react": "workspace:*",
     "@types/react": "^18.2.43",
     "react": "^18.2.0",
     "react-router-dom": "^6.21.0",

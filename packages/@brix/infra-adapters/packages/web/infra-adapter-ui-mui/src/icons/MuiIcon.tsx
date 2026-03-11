@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file MUI Icon Component
  * @description Material UI implementation of IconProps from UIAdapter contract.
@@ -30,127 +45,149 @@ import type { SvgIconProps } from '@mui/material/SvgIcon';
 // ============================================================================
 
 // Import commonly used icons directly for instant rendering
+// Using Outlined variants for flat, modern commercial style
 // Less common icons will be dynamically loaded
 
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import SettingsIcon from '@mui/icons-material/Settings';
-import PersonIcon from '@mui/icons-material/Person';
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseIcon from '@mui/icons-material/Close';
-import SearchIcon from '@mui/icons-material/Search';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import SaveIcon from '@mui/icons-material/Save';
-import CancelIcon from '@mui/icons-material/Cancel';
-import CheckIcon from '@mui/icons-material/Check';
-import ErrorIcon from '@mui/icons-material/Error';
-import WarningIcon from '@mui/icons-material/Warning';
-import InfoIcon from '@mui/icons-material/Info';
-import HelpIcon from '@mui/icons-material/Help';
-import HomeIcon from '@mui/icons-material/Home';
-import LogoutIcon from '@mui/icons-material/Logout';
-import LoginIcon from '@mui/icons-material/Login';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import EmailIcon from '@mui/icons-material/Email';
-import PhoneIcon from '@mui/icons-material/Phone';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-import FolderIcon from '@mui/icons-material/Folder';
-import FileOpenIcon from '@mui/icons-material/FileOpen';
-import DescriptionIcon from '@mui/icons-material/Description';
-import ImageIcon from '@mui/icons-material/Image';
-import VideocamIcon from '@mui/icons-material/Videocam';
-import MicIcon from '@mui/icons-material/Mic';
-import PrintIcon from '@mui/icons-material/Print';
-import ShareIcon from '@mui/icons-material/Share';
-import LinkIcon from '@mui/icons-material/Link';
-import CopyAllIcon from '@mui/icons-material/CopyAll';
-import ContentCutIcon from '@mui/icons-material/ContentCut';
-import ContentPasteIcon from '@mui/icons-material/ContentPaste';
-import UndoIcon from '@mui/icons-material/Undo';
-import RedoIcon from '@mui/icons-material/Redo';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import SyncIcon from '@mui/icons-material/Sync';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import SortIcon from '@mui/icons-material/Sort';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import LockIcon from '@mui/icons-material/Lock';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
-import SecurityIcon from '@mui/icons-material/Security';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import GroupIcon from '@mui/icons-material/Group';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
-import BusinessIcon from '@mui/icons-material/Business';
-import WorkIcon from '@mui/icons-material/Work';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import PaymentIcon from '@mui/icons-material/Payment';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import ReceiptIcon from '@mui/icons-material/Receipt';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import PieChartIcon from '@mui/icons-material/PieChart';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
-import ThumbUpIcon from '@mui/icons-material/ThumbUp';
-import ThumbDownIcon from '@mui/icons-material/ThumbDown';
-import ChatIcon from '@mui/icons-material/Chat';
-import ForumIcon from '@mui/icons-material/Forum';
-import SupportAgentIcon from '@mui/icons-material/SupportAgent';
-import BuildIcon from '@mui/icons-material/Build';
-import CodeIcon from '@mui/icons-material/Code';
-import BugReportIcon from '@mui/icons-material/BugReport';
-import MemoryIcon from '@mui/icons-material/Memory';
-import StorageIcon from '@mui/icons-material/Storage';
-import CloudIcon from '@mui/icons-material/Cloud';
-import WifiIcon from '@mui/icons-material/Wifi';
-import BluetoothIcon from '@mui/icons-material/Bluetooth';
-import BatteryFullIcon from '@mui/icons-material/BatteryFull';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import AppsIcon from '@mui/icons-material/Apps';
-import ViewListIcon from '@mui/icons-material/ViewList';
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import GridOnIcon from '@mui/icons-material/GridOn';
-import TableChartIcon from '@mui/icons-material/TableChart';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import NewReleasesIcon from '@mui/icons-material/NewReleases';
-import AnnouncementIcon from '@mui/icons-material/Announcement';
-import CampaignIcon from '@mui/icons-material/Campaign';
-import EventIcon from '@mui/icons-material/Event';
-import TaskAltIcon from '@mui/icons-material/TaskAlt';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
-import CheckBoxIcon from '@mui/icons-material/CheckBox';
-import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
+// ============================================================================
+// Outlined Variants (Flat, Modern Style - Preferred)
+// ============================================================================
+import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
+import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
+import PersonOutlined from '@mui/icons-material/PersonOutlined';
+import MenuOutlined from '@mui/icons-material/MenuOutlined';
+import CloseOutlined from '@mui/icons-material/CloseOutlined';
+import SearchOutlined from '@mui/icons-material/SearchOutlined';
+import AddOutlined from '@mui/icons-material/AddOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
+import SaveOutlined from '@mui/icons-material/SaveOutlined';
+import CancelOutlined from '@mui/icons-material/CancelOutlined';
+import CheckOutlined from '@mui/icons-material/CheckOutlined';
+import ErrorOutlined from '@mui/icons-material/ErrorOutlined';
+import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
+import InfoOutlined from '@mui/icons-material/InfoOutlined';
+import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined';
+import HomeOutlined from '@mui/icons-material/HomeOutlined';
+import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
+import LoginOutlined from '@mui/icons-material/LoginOutlined';
+import NotificationsOutlined from '@mui/icons-material/NotificationsOutlined';
+import EmailOutlined from '@mui/icons-material/EmailOutlined';
+import PhoneOutlined from '@mui/icons-material/PhoneOutlined';
+import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
+import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined';
+import AccessTimeOutlined from '@mui/icons-material/AccessTimeOutlined';
+import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
+import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
+import CloudDownloadOutlined from '@mui/icons-material/CloudDownloadOutlined';
+import FolderOutlined from '@mui/icons-material/FolderOutlined';
+import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import ImageOutlined from '@mui/icons-material/ImageOutlined';
+import VideocamOutlined from '@mui/icons-material/VideocamOutlined';
+import MicOutlined from '@mui/icons-material/MicOutlined';
+import PrintOutlined from '@mui/icons-material/PrintOutlined';
+import ShareOutlined from '@mui/icons-material/ShareOutlined';
+import LinkOutlined from '@mui/icons-material/LinkOutlined';
+import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
+import ContentCutOutlined from '@mui/icons-material/ContentCutOutlined';
+import ContentPasteOutlined from '@mui/icons-material/ContentPasteOutlined';
+import UndoOutlined from '@mui/icons-material/UndoOutlined';
+import RedoOutlined from '@mui/icons-material/RedoOutlined';
+import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
+import SyncOutlined from '@mui/icons-material/SyncOutlined';
+import FilterListOutlined from '@mui/icons-material/FilterListOutlined';
+import SortOutlined from '@mui/icons-material/SortOutlined';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
+import VisibilityOffOutlined from '@mui/icons-material/VisibilityOffOutlined';
+import LockOutlined from '@mui/icons-material/LockOutlined';
+import LockOpenOutlined from '@mui/icons-material/LockOpenOutlined';
+import SecurityOutlined from '@mui/icons-material/SecurityOutlined';
+import VpnKeyOutlined from '@mui/icons-material/VpnKeyOutlined';
+import GroupOutlined from '@mui/icons-material/GroupOutlined';
+import PersonAddOutlined from '@mui/icons-material/PersonAddOutlined';
+import PersonRemoveOutlined from '@mui/icons-material/PersonRemoveOutlined';
+import BusinessOutlined from '@mui/icons-material/BusinessOutlined';
+import WorkOutlined from '@mui/icons-material/WorkOutlined';
+import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
+import PaymentOutlined from '@mui/icons-material/PaymentOutlined';
+import ShoppingCartOutlined from '@mui/icons-material/ShoppingCartOutlined';
+import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
+import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
+import ReceiptOutlined from '@mui/icons-material/ReceiptOutlined';
+import AssessmentOutlined from '@mui/icons-material/AssessmentOutlined';
+import BarChartOutlined from '@mui/icons-material/BarChartOutlined';
+import PieChartOutlined from '@mui/icons-material/PieChartOutlined';
+import TimelineOutlined from '@mui/icons-material/TimelineOutlined';
+import TrendingUpOutlined from '@mui/icons-material/TrendingUpOutlined';
+import TrendingDownOutlined from '@mui/icons-material/TrendingDownOutlined';
+import StarOutlined from '@mui/icons-material/StarOutlined';
+import StarBorderOutlined from '@mui/icons-material/StarBorderOutlined';
+import FavoriteBorderOutlined from '@mui/icons-material/FavoriteBorderOutlined';
+import ThumbUpOutlined from '@mui/icons-material/ThumbUpOutlined';
+import ThumbDownOutlined from '@mui/icons-material/ThumbDownOutlined';
+import ChatOutlined from '@mui/icons-material/ChatOutlined';
+import ForumOutlined from '@mui/icons-material/ForumOutlined';
+import SupportAgentOutlined from '@mui/icons-material/SupportAgentOutlined';
+import BuildOutlined from '@mui/icons-material/BuildOutlined';
+import CodeOutlined from '@mui/icons-material/CodeOutlined';
+import BugReportOutlined from '@mui/icons-material/BugReportOutlined';
+import MemoryOutlined from '@mui/icons-material/MemoryOutlined';
+import StorageOutlined from '@mui/icons-material/StorageOutlined';
+import CloudOutlined from '@mui/icons-material/CloudOutlined';
+import WifiOutlined from '@mui/icons-material/WifiOutlined';
+import BluetoothOutlined from '@mui/icons-material/BluetoothOutlined';
+import BatteryFullOutlined from '@mui/icons-material/BatteryFullOutlined';
+import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
+import PowerSettingsNewOutlined from '@mui/icons-material/PowerSettingsNewOutlined';
+import RestartAltOutlined from '@mui/icons-material/RestartAltOutlined';
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined';
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
+import ArrowUpwardOutlined from '@mui/icons-material/ArrowUpwardOutlined';
+import ArrowDownwardOutlined from '@mui/icons-material/ArrowDownwardOutlined';
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined';
+import ExpandLessOutlined from '@mui/icons-material/ExpandLessOutlined';
+import ChevronLeftOutlined from '@mui/icons-material/ChevronLeftOutlined';
+import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined';
+import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined';
+import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined';
+import AppsOutlined from '@mui/icons-material/AppsOutlined';
+import ViewListOutlined from '@mui/icons-material/ViewListOutlined';
+import ViewModuleOutlined from '@mui/icons-material/ViewModuleOutlined';
+import GridOnOutlined from '@mui/icons-material/GridOnOutlined';
+import TableChartOutlined from '@mui/icons-material/TableChartOutlined';
+import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
+import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined';
+import NewReleasesOutlined from '@mui/icons-material/NewReleasesOutlined';
+import AnnouncementOutlined from '@mui/icons-material/AnnouncementOutlined';
+import CampaignOutlined from '@mui/icons-material/CampaignOutlined';
+import EventOutlined from '@mui/icons-material/EventOutlined';
+import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined';
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
+import RadioButtonUncheckedOutlined from '@mui/icons-material/RadioButtonUncheckedOutlined';
+import RadioButtonCheckedOutlined from '@mui/icons-material/RadioButtonCheckedOutlined';
+import CheckBoxOutlined from '@mui/icons-material/CheckBoxOutlined';
+import CheckBoxOutlineBlankOutlined from '@mui/icons-material/CheckBoxOutlineBlankOutlined';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
+import QuestionMarkOutlined from '@mui/icons-material/QuestionMarkOutlined';
+
+// Additional Outlined icons for business menus
+import HandshakeOutlined from '@mui/icons-material/HandshakeOutlined';
+import CategoryOutlined from '@mui/icons-material/CategoryOutlined';
+import ViewCarouselOutlined from '@mui/icons-material/ViewCarouselOutlined';
+import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
+import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined';
+import AdminPanelSettingsOutlined from '@mui/icons-material/AdminPanelSettingsOutlined';
+import MailOutlined from '@mui/icons-material/MailOutlined';
+import InboxOutlined from '@mui/icons-material/InboxOutlined';
+import SendOutlined from '@mui/icons-material/SendOutlined';
+import ArticleOutlined from '@mui/icons-material/ArticleOutlined';
+import AssignmentOutlined from '@mui/icons-material/AssignmentOutlined';
+import ListAltOutlined from '@mui/icons-material/ListAltOutlined';
+import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
+import EventNoteOutlined from '@mui/icons-material/EventNoteOutlined';
+import AddCircleOutlineOutlined from '@mui/icons-material/AddCircleOutlineOutlined';
+import PeopleOutlined from '@mui/icons-material/PeopleOutlined';
+import StorefrontOutlined from '@mui/icons-material/StorefrontOutlined';
 
 // ============================================================================
 // Icon Type Definition
@@ -171,161 +208,180 @@ type MuiIconComponent = ComponentType<SvgIconProps>;
  * Static Icon Registry
  *
  * <p>Maps icon names to their MUI icon components.
+ * Uses Outlined variants for flat, modern commercial style.
  * Names use lowercase with underscores for consistent API.</p>
  */
 const ICON_REGISTRY: Record<string, MuiIconComponent> = {
   // Navigation & Menu
-  dashboard: DashboardIcon,
-  home: HomeIcon,
-  menu: MenuIcon,
-  apps: AppsIcon,
-  settings: SettingsIcon,
+  dashboard: DashboardOutlined,
+  home: HomeOutlined,
+  menu: MenuOutlined,
+  apps: AppsOutlined,
+  settings: SettingsOutlined,
   
   // User & Auth
-  person: PersonIcon,
-  account_circle: AccountCircleIcon,
-  group: GroupIcon,
-  person_add: PersonAddIcon,
-  person_remove: PersonRemoveIcon,
-  login: LoginIcon,
-  logout: LogoutIcon,
-  lock: LockIcon,
-  lock_open: LockOpenIcon,
-  security: SecurityIcon,
-  vpn_key: VpnKeyIcon,
-  verified: VerifiedIcon,
+  person: PersonOutlined,
+  account_circle: AccountCircleOutlined,
+  group: GroupOutlined,
+  people: PeopleOutlined,
+  person_add: PersonAddOutlined,
+  person_remove: PersonRemoveOutlined,
+  login: LoginOutlined,
+  logout: LogoutOutlined,
+  lock: LockOutlined,
+  lock_open: LockOpenOutlined,
+  security: SecurityOutlined,
+  vpn_key: VpnKeyOutlined,
+  verified: VerifiedOutlined,
+  badge: BadgeOutlined,
+  manage_accounts: ManageAccountsOutlined,
+  admin_panel_settings: AdminPanelSettingsOutlined,
   
   // Actions
-  add: AddIcon,
-  edit: EditIcon,
-  delete: DeleteIcon,
-  save: SaveIcon,
-  cancel: CancelIcon,
-  close: CloseIcon,
-  check: CheckIcon,
-  search: SearchIcon,
-  refresh: RefreshIcon,
-  sync: SyncIcon,
-  undo: UndoIcon,
-  redo: RedoIcon,
-  filter_list: FilterListIcon,
-  sort: SortIcon,
-  share: ShareIcon,
-  link: LinkIcon,
-  copy: CopyAllIcon,
-  cut: ContentCutIcon,
-  paste: ContentPasteIcon,
-  print: PrintIcon,
+  add: AddOutlined,
+  add_circle: AddCircleOutlineOutlined,
+  edit: EditOutlined,
+  delete: DeleteOutlined,
+  save: SaveOutlined,
+  cancel: CancelOutlined,
+  close: CloseOutlined,
+  check: CheckOutlined,
+  search: SearchOutlined,
+  refresh: RefreshOutlined,
+  sync: SyncOutlined,
+  undo: UndoOutlined,
+  redo: RedoOutlined,
+  filter_list: FilterListOutlined,
+  sort: SortOutlined,
+  share: ShareOutlined,
+  link: LinkOutlined,
+  copy: ContentCopyOutlined,
+  cut: ContentCutOutlined,
+  paste: ContentPasteOutlined,
+  print: PrintOutlined,
   
   // Status & Feedback
-  error: ErrorIcon,
-  warning: WarningIcon,
-  info: InfoIcon,
-  help: HelpIcon,
+  error: ErrorOutlined,
+  warning: WarningAmberOutlined,
+  info: InfoOutlined,
+  help: HelpOutlineOutlined,
   help_outline: HelpOutlineIcon,
-  question_mark: QuestionMarkIcon,
-  check_circle: CheckCircleIcon,
-  task_alt: TaskAltIcon,
-  new_releases: NewReleasesIcon,
-  announcement: AnnouncementIcon,
-  campaign: CampaignIcon,
+  question_mark: QuestionMarkOutlined,
+  check_circle: CheckCircleOutlined,
+  task_alt: TaskAltOutlined,
+  new_releases: NewReleasesOutlined,
+  announcement: AnnouncementOutlined,
+  campaign: CampaignOutlined,
   
   // Communication
-  notifications: NotificationsIcon,
-  email: EmailIcon,
-  phone: PhoneIcon,
-  chat: ChatIcon,
-  forum: ForumIcon,
-  support_agent: SupportAgentIcon,
+  notifications: NotificationsOutlined,
+  email: EmailOutlined,
+  mail: MailOutlined,
+  inbox: InboxOutlined,
+  send: SendOutlined,
+  phone: PhoneOutlined,
+  chat: ChatOutlined,
+  forum: ForumOutlined,
+  support_agent: SupportAgentOutlined,
   
   // Content & Files
-  folder: FolderIcon,
-  file_open: FileOpenIcon,
-  description: DescriptionIcon,
-  attach_file: AttachFileIcon,
-  image: ImageIcon,
-  videocam: VideocamIcon,
-  mic: MicIcon,
+  folder: FolderOutlined,
+  file: InsertDriveFileOutlined,
+  description: DescriptionOutlined,
+  article: ArticleOutlined,
+  assignment: AssignmentOutlined,
+  attach_file: AttachFileOutlined,
+  image: ImageOutlined,
+  videocam: VideocamOutlined,
+  mic: MicOutlined,
   
   // Cloud & Storage
-  cloud: CloudIcon,
-  cloud_upload: CloudUploadIcon,
-  cloud_download: CloudDownloadIcon,
-  storage: StorageIcon,
-  memory: MemoryIcon,
+  cloud: CloudOutlined,
+  cloud_upload: CloudUploadOutlined,
+  cloud_download: CloudDownloadOutlined,
+  storage: StorageOutlined,
+  memory: MemoryOutlined,
   
   // Location & Time
-  location_on: LocationOnIcon,
-  calendar_today: CalendarTodayIcon,
-  access_time: AccessTimeIcon,
-  event: EventIcon,
+  location_on: LocationOnOutlined,
+  calendar_today: CalendarTodayOutlined,
+  calendar_month: CalendarMonthOutlined,
+  access_time: AccessTimeOutlined,
+  event: EventOutlined,
+  event_note: EventNoteOutlined,
   
   // Business
-  business: BusinessIcon,
-  work: WorkIcon,
-  account_balance: AccountBalanceIcon,
-  payment: PaymentIcon,
-  shopping_cart: ShoppingCartIcon,
-  local_shipping: LocalShippingIcon,
-  inventory: InventoryIcon,
-  receipt: ReceiptIcon,
+  business: BusinessOutlined,
+  handshake: HandshakeOutlined,
+  storefront: StorefrontOutlined,
+  work: WorkOutlined,
+  account_balance: AccountBalanceOutlined,
+  payment: PaymentOutlined,
+  shopping_cart: ShoppingCartOutlined,
+  local_shipping: LocalShippingOutlined,
+  inventory: Inventory2Outlined,
+  category: CategoryOutlined,
+  receipt: ReceiptOutlined,
   
   // Charts & Data
-  assessment: AssessmentIcon,
-  bar_chart: BarChartIcon,
-  pie_chart: PieChartIcon,
-  timeline: TimelineIcon,
-  trending_up: TrendingUpIcon,
-  trending_down: TrendingDownIcon,
-  table_chart: TableChartIcon,
+  assessment: AssessmentOutlined,
+  bar_chart: BarChartOutlined,
+  pie_chart: PieChartOutlined,
+  timeline: TimelineOutlined,
+  trending_up: TrendingUpOutlined,
+  trending_down: TrendingDownOutlined,
+  table_chart: TableChartOutlined,
+  
+  // Lists & Views
+  list: ListAltOutlined,
+  view_list: ViewListOutlined,
+  view_carousel: ViewCarouselOutlined,
+  view_module: ViewModuleOutlined,
+  grid_on: GridOnOutlined,
   
   // Ratings & Social
-  star: StarIcon,
-  star_border: StarBorderIcon,
-  favorite: FavoriteIcon,
-  favorite_border: FavoriteBorderIcon,
-  thumb_up: ThumbUpIcon,
-  thumb_down: ThumbDownIcon,
+  star: StarOutlined,
+  star_border: StarBorderOutlined,
+  favorite: FavoriteBorderOutlined,
+  thumb_up: ThumbUpOutlined,
+  thumb_down: ThumbDownOutlined,
   
   // Development
-  build: BuildIcon,
-  code: CodeIcon,
-  bug_report: BugReportIcon,
+  build: BuildOutlined,
+  code: CodeOutlined,
+  bug_report: BugReportOutlined,
   
   // Hardware & System
-  wifi: WifiIcon,
-  bluetooth: BluetoothIcon,
-  battery_full: BatteryFullIcon,
-  flash_on: FlashOnIcon,
-  power_settings_new: PowerSettingsNewIcon,
-  restart_alt: RestartAltIcon,
+  wifi: WifiOutlined,
+  bluetooth: BluetoothOutlined,
+  battery_full: BatteryFullOutlined,
+  flash_on: FlashOnOutlined,
+  power_settings_new: PowerSettingsNewOutlined,
+  restart_alt: RestartAltOutlined,
   
   // Arrows & Navigation
-  arrow_back: ArrowBackIcon,
-  arrow_forward: ArrowForwardIcon,
-  arrow_upward: ArrowUpwardIcon,
-  arrow_downward: ArrowDownwardIcon,
-  expand_more: ExpandMoreIcon,
-  expand_less: ExpandLessIcon,
-  chevron_left: ChevronLeftIcon,
-  chevron_right: ChevronRightIcon,
+  arrow_back: ArrowBackOutlined,
+  arrow_forward: ArrowForwardOutlined,
+  arrow_upward: ArrowUpwardOutlined,
+  arrow_downward: ArrowDownwardOutlined,
+  expand_more: ExpandMoreOutlined,
+  expand_less: ExpandLessOutlined,
+  chevron_left: ChevronLeftOutlined,
+  chevron_right: ChevronRightOutlined,
   
   // Menus & Views
-  more_vert: MoreVertIcon,
-  more_horiz: MoreHorizIcon,
-  view_list: ViewListIcon,
-  view_module: ViewModuleIcon,
-  grid_on: GridOnIcon,
+  more_vert: MoreVertOutlined,
+  more_horiz: MoreHorizOutlined,
   
   // Visibility
-  visibility: VisibilityIcon,
-  visibility_off: VisibilityOffIcon,
+  visibility: VisibilityOutlined,
+  visibility_off: VisibilityOffOutlined,
   
   // Form Controls
-  checkbox: CheckBoxIcon,
-  checkbox_blank: CheckBoxOutlineBlankIcon,
-  radio_checked: RadioButtonCheckedIcon,
-  radio_unchecked: RadioButtonUncheckedIcon,
+  checkbox: CheckBoxOutlined,
+  checkbox_blank: CheckBoxOutlineBlankOutlined,
+  radio_checked: RadioButtonCheckedOutlined,
+  radio_unchecked: RadioButtonUncheckedOutlined,
 };
 
 // ============================================================================

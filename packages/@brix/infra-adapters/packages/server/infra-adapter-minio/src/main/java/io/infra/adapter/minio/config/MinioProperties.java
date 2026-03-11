@@ -18,12 +18,12 @@ package io.infra.adapter.minio.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * MinIO 文件存储适配器配置属性
+ * MinIO file storage adapter configuration properties.
  * 
- * <p>通过 Spring Boot 外部化配置管理 MinIO 连接信息。
- * 所有属性均通过 {@code brix.infra.minio.*} 前缀注入。</p>
+ * <p>Manages MinIO connection information through Spring Boot externalized configuration.
+ * All properties are injected via the {@code brix.infra.minio.*} prefix.</p>
  * 
- * <h3>配置示例</h3>
+ * <h3>Configuration Example</h3>
  * <pre>
  * brix:
  *   infra:
@@ -34,7 +34,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       secret-key: minioadmin
  *       bucket-name: default
  * </pre>
- * 
+ *
  * @author Brix Platform Authors
  * @since 3.0.0
  */
@@ -42,40 +42,40 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class MinioProperties {
 
     /**
-     * 是否启用 MinIO 适配器
+     * Whether MinIO adapter is enabled.
      * 
-     * <p>设置为 {@code false} 可禁用此适配器的自动配置。</p>
+     * <p>Set to {@code false} to disable auto-configuration of this adapter.</p>
      */
     private boolean enabled = true;
 
     /**
-     * MinIO 服务端点地址
+     * MinIO server endpoint address.
      * 
-     * <p>示例：{@code http://localhost:9000}</p>
+     * <p>Example: {@code http://localhost:9000}</p>
      */
     private String endpoint;
 
     /**
-     * MinIO 访问密钥（Access Key）
+     * MinIO access key.
      */
     private String accessKey;
 
     /**
-     * MinIO 秘密密钥（Secret Key）
+     * MinIO secret key.
      */
     private String secretKey;
 
     /**
-     * 默认存储桶名称
+     * Default bucket name.
      * 
-     * <p>如果 Bucket 不存在，适配器会在初始化时自动创建。</p>
+     * <p>If the bucket does not exist, the adapter will automatically create it during initialization.</p>
      */
     private String bucketName = "default";
 
     /**
-     * MinIO 地域（Region）
+     * MinIO region.
      * 
-     * <p>通常仅在使用 AWS S3 兼容模式时需要配置。</p>
+     * <p>Usually only needs to be configured when using AWS S3 compatible mode.</p>
      */
     private String region;
 

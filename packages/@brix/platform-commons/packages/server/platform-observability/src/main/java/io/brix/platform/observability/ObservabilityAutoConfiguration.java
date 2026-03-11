@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -11,18 +26,18 @@ import io.brix.platform.observability.metrics.MetricsAutoConfiguration;
 import io.brix.platform.observability.tracing.TracingAutoConfiguration;
 
 /**
- * 可观测性自动配- 标准v1.0
+ * Observability Auto Configuration - Standard v1.0
  * <p>
- * 统一入口，聚合以下可观测性能力：
+ * Unified entry point that aggregates the following observability capabilities:
  * <ul>
- *   <li>链路追踪 (Tracing) - TraceId 传播、上下文管理</li>
- *   <li>日志规范 (Logging) - 结构化日志、MDC 注入</li>
- *   <li>健康检(Health) - Redis/Kafka 健康指示</li>
- *   <li>指标采集 (Metrics) - 缓存命中率等业务指标</li>
+ *   <li>Tracing - TraceId propagation, context management</li>
+ *   <li>Logging - Structured logging, MDC injection</li>
+ *   <li>Health - Redis/Kafka health indicators</li>
+ *   <li>Metrics - Cache hit rate and other business metrics</li>
  * </ul>
  * </p>
  * 
- * <h3>配置示例</h3>
+ * <h3>Configuration Example</h3>
  * <pre>{@code
  * observability:
  *   tracing:

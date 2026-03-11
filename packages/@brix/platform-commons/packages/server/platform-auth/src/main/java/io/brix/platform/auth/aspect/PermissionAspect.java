@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.aspect;
 
 import java.lang.reflect.Method;
@@ -17,10 +32,10 @@ import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
 
 /**
- * 权限检查切
+ * Permission Check Aspect
  * <p>
- * 拦截带有 @RequirePermission @RequireRole 注解的方法，
- * 在执行前进行权限校验
+ * Intercepts methods annotated with @RequirePermission or @RequireRole,
+ * performs permission validation before execution
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -39,38 +54,38 @@ public class PermissionAspect {
     }
 
     /**
-     * 切入点：方法上标注了 @RequirePermission
+     * Pointcut: method annotated with @RequirePermission
      */
     @Pointcut("@annotation(io.brix.platform.auth.annotation.RequirePermission)")
     public void methodRequirePermission() {}
 
     /**
-     * 切入点：类上标注@RequirePermission
+     * Pointcut: class annotated with @RequirePermission
      */
     @Pointcut("@within(io.brix.platform.auth.annotation.RequirePermission)")
     public void classRequirePermission() {}
 
     /**
-     * 切入点：方法上标注了 @RequireRole
+     * Pointcut: method annotated with @RequireRole
      */
     @Pointcut("@annotation(io.brix.platform.auth.annotation.RequireRole)")
     public void methodRequireRole() {}
 
     /**
-     * 切入点：类上标注@RequireRole
+     * Pointcut: class annotated with @RequireRole
      */
     @Pointcut("@within(io.brix.platform.auth.annotation.RequireRole)")
     public void classRequireRole() {}
 
     /**
-     * 检查权- 方法级别或类级别
+     * Check permission - method level or class level
      */
     @Before("methodRequirePermission() || classRequirePermission()")
     public void checkPermission(JoinPoint joinPoint) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
         
-        // 优先取方法上的注解，其次取类上的注解
+        // Method-level annotation takes precedence, fallback to class-level annotation
         RequirePermission requirePermission = method.getAnnotation(RequirePermission.class);
         if (requirePermission == null) {
             requirePermission = method.getDeclaringClass().getAnnotation(RequirePermission.class);
@@ -83,7 +98,7 @@ public class PermissionAspect {
         AuthenticatedUser user = securityContextHolder.getCurrentUser()
                 .orElseThrow(() -> new PermissionDeniedException("User not authenticated"));
 
-        // 超级管理员跳过权限检
+        // Super admin bypasses permission check
         if (user.isSuperAdmin()) {
             logger.debug("Super admin bypassed permission check for {}", joinPoint.getSignature());
             return;
@@ -104,14 +119,14 @@ public class PermissionAspect {
     }
 
     /**
-     * 检查角- 方法级别或类级别
+     * Check role - method level or class level
      */
     @Before("methodRequireRole() || classRequireRole()")
     public void checkRole(JoinPoint joinPoint) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
         
-        // 优先取方法上的注解，其次取类上的注解
+        // Method-level annotation takes precedence, fallback to class-level annotation
         RequireRole requireRole = method.getAnnotation(RequireRole.class);
         if (requireRole == null) {
             requireRole = method.getDeclaringClass().getAnnotation(RequireRole.class);
@@ -124,7 +139,7 @@ public class PermissionAspect {
         AuthenticatedUser user = securityContextHolder.getCurrentUser()
                 .orElseThrow(() -> new PermissionDeniedException("User not authenticated"));
 
-        // 超级管理员跳过角色检
+        // Super admin bypasses role check
         if (user.isSuperAdmin()) {
             logger.debug("Super admin bypassed role check for {}", joinPoint.getSignature());
             return;
@@ -168,7 +183,7 @@ public class PermissionAspect {
     }
 
     /**
-     * 权限拒绝异常
+     * Permission Denied Exception
      */
     public static class PermissionDeniedException extends RuntimeException {
         

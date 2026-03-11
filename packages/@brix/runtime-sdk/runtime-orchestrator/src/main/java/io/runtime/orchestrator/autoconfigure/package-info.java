@@ -15,25 +15,26 @@
  */
 
 /**
- * 能力自动配置包
+ * Capability auto-configuration package.
  *
- * <h2>架构定位（v3.0.4 架构红线修复）</h2>
+ * <h2>Architecture Position</h2>
  * <p>
- * 本包提供 Spring Boot 自动配置支持，实现能力的自动扫描、注册和组装。
- * 从 Host 层提取的公共逻辑，遵循 <b>Host 极薄化</b> 原则。
+ * This package provides Spring Boot auto-configuration support for automatic
+ * capability scanning, registration, and assembly. Common logic extracted from
+ * Host layer, following the <b>Ultra-Thin Host</b> principle.
  * </p>
  *
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
  *   <li>{@link io.runtime.orchestrator.autoconfigure.CapabilityAutoConfiguration} —
- *       能力自动配置入口</li>
+ *       Capability auto-configuration entry point</li>
  *   <li>{@link io.runtime.orchestrator.autoconfigure.CapabilityProperties} —
- *       能力配置属性</li>
+ *       Capability configuration properties</li>
  * </ul>
  *
- * <h2>使用方式</h2>
+ * <h2>Usage</h2>
  * <p>
- * Host 层的 AutoConfiguration 只需 Import 本包的配置类：
+ * Host layer's AutoConfiguration only needs to Import configuration classes from this package:
  * </p>
  * <pre>{@code
  * @AutoConfiguration

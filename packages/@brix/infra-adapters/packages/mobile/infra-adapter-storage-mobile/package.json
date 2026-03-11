@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-storage-mobile",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix Mobile Storage Adapter - AsyncStorage persistence implementation",
   "type": "module",
   "main": "./dist/index.js",

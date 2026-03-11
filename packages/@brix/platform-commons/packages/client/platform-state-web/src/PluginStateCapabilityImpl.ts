@@ -1,36 +1,51 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Plugin State Capability Implementation
  * @description Implements PluginStateCapability interface
  * @module @brix/platform-state-web/PluginStateCapabilityImpl
  * @version 3.0.0
  * 
- * 【Architecture Notes】
+ * [Architecture Notes]
  * PluginStateCapabilityImpl is the implementation of PluginStateCapability interface.
  * It provides namespace-isolated state management capability for each plugin.
  * 
- * 【Core Responsibilities】
+ * [Core Responsibilities]
  * 1. Automatically add namespace prefix to state keys
  * 2. Restrict plugins to only access their own state
  * 3. Provide state change subscription capability
  * 4. Support state persistence (optional)
  * 
- * 【Architecture Relationship】
+ * [Architecture Relationship]
  * ```text
  * Plugin Code
- *   ↓ state.set('filters', { ... })
+ *   | state.set('filters', { ... })
  * PluginStateCapabilityImpl (this class)
- *   ↓ 1. Add namespace prefix → 'booking:filters'
- *   ↓ 2. Validate access permission
- *   ↓ 3. Call StateStore.set()
+ *   | 1. Add namespace prefix -> 'booking:filters'
+ *   | 2. Validate access permission
+ *   | 3. Call StateStore.set()
  * StateStore (zustand)
- *   ↓ Store to global state tree
+ *   | Store to global state tree
  * ```
  * 
- * 【Architectural Constraints】
- * ✖ Plugins are forbidden from creating their own zustand store
- * ✖ Plugins are forbidden from directly manipulating localStorage
- * ✖ Plugins are forbidden from accessing other plugins' state
- * ✖ Plugins can only operate state through PluginStateCapability
+ * [Architectural Constraints]
+ * - Plugins are forbidden from creating their own zustand store
+ * - Plugins are forbidden from directly manipulating localStorage
+ * - Plugins are forbidden from accessing other plugins' state
+ * - Plugins can only operate state through PluginStateCapability
  */
 
 import type { PluginStateCapability, StatePersistenceOptions, PluginStateChangeEvent, PluginStateSubscribeOptions, Unsubscribe } from '@brix/runtime-sdk-api-web';
@@ -62,7 +77,7 @@ export interface PluginStateCapabilityConfig {
  * 
  * Provides namespace-isolated state management capability for plugins.
  * 
- * 【Usage Example】
+ * [Usage Example]
  * ```typescript
  * // Created by Host during initialization
  * const stateCapability = new PluginStateCapabilityImpl({

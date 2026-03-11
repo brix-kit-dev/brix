@@ -22,11 +22,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Webhook 适配器配置属性
+ * Webhook Adapter Configuration Properties
  * 
- * <p>Spring Boot 配置属性类，用于绑定 application.yml 中的 Webhook 配置。</p>
+ * <p>Spring Boot configuration properties class for binding Webhook configuration from application.yml.</p>
  * 
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   infra:
@@ -53,255 +53,255 @@ import java.util.Map;
 public class WebhookAdapterProperties {
     
     /**
-     * 是否启用 Webhook 适配器
+     * Whether Webhook adapter is enabled
      */
     private boolean enabled = false;
     
     /**
-     * 默认 Webhook 端点 URL
+     * Default Webhook endpoint URL
      */
     private String defaultEndpoint;
     
     /**
-     * 签名密钥
+     * Signing secret
      */
     private String secret;
     
     /**
-     * 是否启用签名验证
+     * Whether signature verification is enabled
      */
     private boolean signatureEnabled = true;
     
     /**
-     * 连接超时时间
+     * Connection timeout
      */
     private Duration connectTimeout = Duration.ofSeconds(5);
     
     /**
-     * 读取超时时间
+     * Read timeout
      */
     private Duration readTimeout = Duration.ofSeconds(30);
     
     /**
-     * 最大重试次数
+     * Maximum retry count
      */
     private int maxRetries = 3;
     
     /**
-     * 重试基础延迟
+     * Base retry delay
      */
     private Duration retryDelay = Duration.ofSeconds(1);
     
     /**
-     * 事件类型到端点的映射
+     * Event type to endpoint mappings
      */
     private Map<String, String> endpointMappings = new HashMap<>();
     
     /**
-     * 自定义请求头
+     * Custom request headers
      */
     private Map<String, String> customHeaders = new HashMap<>();
     
     /**
-     * 时间戳容差（秒），用于签名验证
+     * Timestamp tolerance (seconds) for signature verification
      */
     private long timestampTolerance = 300;
     
     // ========== Getter / Setter ==========
     
     /**
-     * 是否启用 Webhook 适配器
+     * Whether Webhook adapter is enabled
      *
-     * @return 是否启用
+     * @return Whether enabled
      */
     public boolean isEnabled() {
         return enabled;
     }
     
     /**
-     * 设置是否启用 Webhook 适配器
+     * Sets whether Webhook adapter is enabled
      *
-     * @param enabled 是否启用
+     * @param enabled Whether enabled
      */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
     
     /**
-     * 获取默认端点 URL
+     * Gets default endpoint URL
      *
-     * @return 默认端点 URL
+     * @return Default endpoint URL
      */
     public String getDefaultEndpoint() {
         return defaultEndpoint;
     }
     
     /**
-     * 设置默认端点 URL
+     * Sets default endpoint URL
      *
-     * @param defaultEndpoint 默认端点 URL
+     * @param defaultEndpoint Default endpoint URL
      */
     public void setDefaultEndpoint(String defaultEndpoint) {
         this.defaultEndpoint = defaultEndpoint;
     }
     
     /**
-     * 获取签名密钥
+     * Gets signing secret
      *
-     * @return 签名密钥
+     * @return Signing secret
      */
     public String getSecret() {
         return secret;
     }
     
     /**
-     * 设置签名密钥
+     * Sets signing secret
      *
-     * @param secret 签名密钥
+     * @param secret Signing secret
      */
     public void setSecret(String secret) {
         this.secret = secret;
     }
     
     /**
-     * 是否启用签名验证
+     * Whether signature verification is enabled
      *
-     * @return 是否启用签名
+     * @return Whether signature is enabled
      */
     public boolean isSignatureEnabled() {
         return signatureEnabled;
     }
     
     /**
-     * 设置是否启用签名验证
+     * Sets whether signature verification is enabled
      *
-     * @param signatureEnabled 是否启用签名
+     * @param signatureEnabled Whether signature is enabled
      */
     public void setSignatureEnabled(boolean signatureEnabled) {
         this.signatureEnabled = signatureEnabled;
     }
     
     /**
-     * 获取连接超时时间
+     * Gets connection timeout
      *
-     * @return 连接超时时间
+     * @return Connection timeout
      */
     public Duration getConnectTimeout() {
         return connectTimeout;
     }
     
     /**
-     * 设置连接超时时间
+     * Sets connection timeout
      *
-     * @param connectTimeout 连接超时时间
+     * @param connectTimeout Connection timeout
      */
     public void setConnectTimeout(Duration connectTimeout) {
         this.connectTimeout = connectTimeout;
     }
     
     /**
-     * 获取读取超时时间
+     * Gets read timeout
      *
-     * @return 读取超时时间
+     * @return Read timeout
      */
     public Duration getReadTimeout() {
         return readTimeout;
     }
     
     /**
-     * 设置读取超时时间
+     * Sets read timeout
      *
-     * @param readTimeout 读取超时时间
+     * @param readTimeout Read timeout
      */
     public void setReadTimeout(Duration readTimeout) {
         this.readTimeout = readTimeout;
     }
     
     /**
-     * 获取最大重试次数
+     * Gets maximum retry count
      *
-     * @return 最大重试次数
+     * @return Maximum retry count
      */
     public int getMaxRetries() {
         return maxRetries;
     }
     
     /**
-     * 设置最大重试次数
+     * Sets maximum retry count
      *
-     * @param maxRetries 最大重试次数
+     * @param maxRetries Maximum retry count
      */
     public void setMaxRetries(int maxRetries) {
         this.maxRetries = maxRetries;
     }
     
     /**
-     * 获取重试延迟
+     * Gets retry delay
      *
-     * @return 重试延迟
+     * @return Retry delay
      */
     public Duration getRetryDelay() {
         return retryDelay;
     }
     
     /**
-     * 设置重试延迟
+     * Sets retry delay
      *
-     * @param retryDelay 重试延迟
+     * @param retryDelay Retry delay
      */
     public void setRetryDelay(Duration retryDelay) {
         this.retryDelay = retryDelay;
     }
     
     /**
-     * 获取端点映射
+     * Gets endpoint mappings
      *
-     * @return 端点映射
+     * @return Endpoint mappings
      */
     public Map<String, String> getEndpointMappings() {
         return endpointMappings;
     }
     
     /**
-     * 设置端点映射
+     * Sets endpoint mappings
      *
-     * @param endpointMappings 端点映射
+     * @param endpointMappings Endpoint mappings
      */
     public void setEndpointMappings(Map<String, String> endpointMappings) {
         this.endpointMappings = endpointMappings;
     }
     
     /**
-     * 获取自定义请求头
+     * Gets custom request headers
      *
-     * @return 自定义请求头
+     * @return Custom request headers
      */
     public Map<String, String> getCustomHeaders() {
         return customHeaders;
     }
     
     /**
-     * 设置自定义请求头
+     * Sets custom request headers
      *
-     * @param customHeaders 自定义请求头
+     * @param customHeaders Custom request headers
      */
     public void setCustomHeaders(Map<String, String> customHeaders) {
         this.customHeaders = customHeaders;
     }
     
     /**
-     * 获取时间戳容差
+     * Gets timestamp tolerance
      *
-     * @return 时间戳容差（秒）
+     * @return Timestamp tolerance (seconds)
      */
     public long getTimestampTolerance() {
         return timestampTolerance;
     }
     
     /**
-     * 设置时间戳容差
+     * Sets timestamp tolerance
      *
-     * @param timestampTolerance 时间戳容差（秒）
+     * @param timestampTolerance Timestamp tolerance (seconds)
      */
     public void setTimestampTolerance(long timestampTolerance) {
         this.timestampTolerance = timestampTolerance;

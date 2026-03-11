@@ -1,6 +1,23 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.audit;
 
-import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
+import java.util.UUID;
+
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -10,32 +27,29 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.lang.reflect.Method;
-import java.time.Instant;
-import java.util.UUID;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * v2.1 审计日志切面
+ * v2.1 Audit Logging Aspect
  * 
- * <p>记录所有 REST API 调用的审计日志，包括</p>
+ * <p>Records audit logs for all REST API calls, including:</p>
  * <ul>
- *   <li>请求信息（方法、路径、参数）</li>
- *   <li>用户信息（用户ID、IP 地址</li>
- *   <li>响应信息（耗时、状态）</li>
+ *   <li>Request information (method, path, parameters)</li>
+ *   <li>User information (user ID, IP address)</li>
+ *   <li>Response information (duration, status)</li>
  * </ul>
  * 
- * <p>启用条件</p>
+ * <p>Enable Condition:</p>
  * <pre>
- * shinwa:
+ * brix:
  *   audit:
- *     enabled: true  # 默认启用
+ *     enabled: true  # Enabled by default
  * </pre>
  * 
- * <p>日志格式</p>
+ * <p>Log Format:</p>
  * <pre>
  * [AUDIT] requestId=xxx, method=POST, path=/api/v1/users, 
  *         userId=xxx, ip=127.0.0.1, duration=123ms, status=SUCCESS
@@ -46,9 +60,9 @@ import java.util.UUID;
  */
 @Aspect
 @Component
-@Order(1)  // 优先级最高，确保首先执行
+@Order(1)  // Highest priority, ensure first execution
 @ConditionalOnProperty(
-    prefix = "shinwa.audit",
+    prefix = "brix.audit",
     name = "enabled",
     havingValue = "true",
     matchIfMissing = true
@@ -58,52 +72,52 @@ public class AuditAspect {
     private static final Logger auditLog = LoggerFactory.getLogger("AUDIT");
     private static final Logger log = LoggerFactory.getLogger(AuditAspect.class);
     
-    /** 请求 ID 头名*/
+    /** Request ID header name */
     private static final String REQUEST_ID_HEADER = "X-Request-ID";
     
-    /** 用户 ID 头名*/
+    /** User ID header name */
     private static final String USER_ID_HEADER = "X-User-ID";
     
     /**
-     * 拦截所@RestController 中的请求处理方法
-     * 
-     * @param joinPoint 鍒囩偣
-     * @return 方法返回
-     * @throws Throwable 方法执行异常
+     * Intercept request handling methods in all @RestController classes
+     *
+     * @param joinPoint the join point
+     * @return method return value
+     * @throws Throwable if method execution fails
      */
     @Around("@within(org.springframework.web.bind.annotation.RestController)")
     public Object auditRequest(ProceedingJoinPoint joinPoint) throws Throwable {
-        // 获取请求上下
-        ServletRequestAttributes attributes = 
+        // Get request context
+        ServletRequestAttributes attributes =
             (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        
+
         if (attributes == null) {
-            // Web 请求，直接执
+            // Not a web request, proceed directly
             return joinPoint.proceed();
         }
-        
+
         HttpServletRequest request = attributes.getRequest();
-        
-        // 获取或生成请ID
+
+        // Get or generate request ID
         String requestId = getOrGenerateRequestId(request);
-        
-        // 记录开始时
+
+        // Record start time
         long startTime = System.currentTimeMillis();
         Instant startInstant = Instant.now();
-        
-        // 提取请求信息
+
+        // Extract request information
         String httpMethod = request.getMethod();
         String path = request.getRequestURI();
         String userId = request.getHeader(USER_ID_HEADER);
         String clientIp = getClientIp(request);
         String methodName = getMethodName(joinPoint);
-        
-        // 执行状
+
+        // Execution status
         String status = "SUCCESS";
         String errorMessage = null;
-        
+
         try {
-            // 执行目标方法
+            // Execute target method
             Object result = joinPoint.proceed();
             return result;
         } catch (Exception e) {
@@ -111,20 +125,20 @@ public class AuditAspect {
             errorMessage = e.getClass().getSimpleName() + ": " + e.getMessage();
             throw e;
         } finally {
-            // 计算耗时
+            // Calculate duration
             long duration = System.currentTimeMillis() - startTime;
             
-            // 记录审计日志
+            // Record audit log
             logAudit(requestId, httpMethod, path, methodName, userId, clientIp, 
                     duration, status, errorMessage, startInstant);
         }
     }
     
     /**
-     * 获取或生成请ID
+     * Get or generate request ID
      * 
-     * @param request HTTP 请求
-     * @return 请求 ID
+     * @param request HTTP request
+     * @return Request ID
      */
     private String getOrGenerateRequestId(HttpServletRequest request) {
         String requestId = request.getHeader(REQUEST_ID_HEADER);
@@ -135,24 +149,24 @@ public class AuditAspect {
     }
     
     /**
-     * 获取客户IP 地址
+     * Get client IP address
      * 
-     * @param request HTTP 请求
-     * @return IP 鍦板潃
+     * @param request HTTP request
+     * @return IP address
      */
     private String getClientIp(HttpServletRequest request) {
-        // 按优先级检查各种代理头
+        // Check proxy headers in priority order
         String[] headers = {
             "X-Forwarded-For",
             "X-Real-IP",
             "Proxy-Client-IP",
             "WL-Proxy-Client-IP"
         };
-        
+
         for (String header : headers) {
             String ip = request.getHeader(header);
             if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                // X-Forwarded-For 可能包含多个 IP，取第一
+                // X-Forwarded-For may contain multiple IPs, take the first one
                 if (ip.contains(",")) {
                     ip = ip.split(",")[0].trim();
                 }
@@ -164,10 +178,10 @@ public class AuditAspect {
     }
     
     /**
-     * 获取方法
+     * Get method name
      * 
-     * @param joinPoint 鍒囩偣
-     * @return 类名.方法
+     * @param joinPoint Join point
+     * @return ClassName.methodName
      */
     private String getMethodName(ProceedingJoinPoint joinPoint) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -175,7 +189,7 @@ public class AuditAspect {
     }
     
     /**
-     * 记录审计日志
+     * Record audit log
      */
     private void logAudit(String requestId, String httpMethod, String path, 
                           String methodName, String userId, String clientIp,

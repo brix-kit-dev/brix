@@ -15,21 +15,21 @@
  */
 
 /**
- * 路由管理包
+ * Route Management Package
  * 
- * <p>本包提供 API 网关的动态路由管理功能，包括：</p>
+ * <p>This package provides API Gateway dynamic route management functionality, including:</p>
  * <ul>
- *   <li>{@link io.brix.platform.gateway.route.EventDrivenRouteRefresher} - 事件驱动路由刷新器</li>
- *   <li>{@link io.brix.platform.gateway.route.DynamicRouteService} - 动态路由服务</li>
- *   <li>{@link io.brix.platform.gateway.route.RouteDefinition} - 路由定义</li>
+ *   <li>{@link io.brix.platform.gateway.route.EventDrivenRouteRefresher} - Event-driven route refresher</li>
+ *   <li>{@link io.brix.platform.gateway.route.DynamicRouteService} - Dynamic route service</li>
+ *   <li>{@link io.brix.platform.gateway.route.RouteDefinition} - Route definition</li>
  * </ul>
  * 
- * <h3>v3.0 架构改造</h3>
- * <p>从 Redis Pub/Sub 迁移到 EventBus 事件订阅：</p>
+ * <h3>v3.0 Architecture Refactoring</h3>
+ * <p>Migration from Redis Pub/Sub to EventBus event subscription:</p>
  * <ul>
- *   <li>监听 ModuleStartedEvent 注册新路由</li>
- *   <li>监听 ModuleStoppedEvent 移除路由</li>
- *   <li>通过 EventBusCapability 实现，不直接依赖 Kafka/Redis</li>
+ *   <li>Listen to ModuleStartedEvent to register new routes</li>
+ *   <li>Listen to ModuleStoppedEvent to remove routes</li>
+ *   <li>Implemented via EventBusCapability, no direct dependency on Kafka/Redis</li>
  * </ul>
  * 
  * @author Brix Team

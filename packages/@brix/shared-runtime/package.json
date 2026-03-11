@@ -1,0 +1,41 @@
+{
+  "name": "@brix/shared-runtime-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Brix Shared Runtime - Single Source of Truth for Frontend Runtime Dependencies",
+  "keywords": [
+    "brix",
+    "runtime",
+    "react",
+    "module-federation",
+    "shared"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/brix"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm -r run dev",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "clean": "pnpm -r run clean",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.3.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

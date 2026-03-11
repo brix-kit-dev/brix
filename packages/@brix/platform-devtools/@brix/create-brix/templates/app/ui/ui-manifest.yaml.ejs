@@ -1,21 +1,21 @@
-# ================================================================
-# <%= displayName %> UI 模块声明
+﻿# ================================================================
+# <%= displayName %> UI module声明
 # 
-# 声明 UI 模块的路由、菜单、权限等配置
+# 声明 UI module的路由、菜单、权限等配置
 # 由宿主应用读取并动态注册
 # 
 # @author <%= author %>
 # @date <%= date %>
 # ================================================================
 
-# 模块基本信息
+# module基本信息
 module:
   id: "<%= name %>-ui"
   version: "<%= version %>"
   name: "<%= displayName %>"
-  description: "<%= description %> 前端模块"
+  description: "<%= description %> 前端module"
 
-# 远程模块配置（Module Federation）
+# 远程module配置（Module Federation）
 remote:
   name: "<%= name.replace(/-/g, '_') %>"
   entry: "http://localhost:<%= webPort %>/remoteEntry.js"
@@ -51,6 +51,6 @@ menus:
 # 权限配置（与后端 module-manifest.yaml 保持一致）
 permissions:
   - id: "<%= name %>:read"
-    name: "查看<%= displayName %>"
+    name: "View<%= displayName %>"
   - id: "<%= name %>:write"
-    name: "编辑<%= displayName %>"
+    name: "Edit<%= displayName %>"

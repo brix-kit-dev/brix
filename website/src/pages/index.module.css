@@ -1,0 +1,102 @@
+/**
+ * Homepage-specific styles
+ */
+
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroDescription {
+  font-size: 1.25rem;
+  max-width: 700px;
+  margin: 1.5rem auto;
+  opacity: 0.95;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.features {
+  padding: 4rem 0;
+  background-color: var(--ifm-background-surface-color);
+}
+
+.featureCard {
+  height: 100%;
+  margin-bottom: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.featureCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.layerBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: var(--ifm-color-primary-lightest);
+  color: var(--ifm-color-primary-darkest);
+  margin-left: 0.5rem;
+}
+
+.architectureSection {
+  padding: 4rem 0;
+  background: linear-gradient(180deg, var(--ifm-background-color) 0%, var(--ifm-background-surface-color) 100%);
+}
+
+.architectureDiagram {
+  background: var(--ifm-card-background-color);
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  overflow-x: auto;
+}
+
+.asciiDiagram {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0;
+  text-align: left;
+}
+
+.quickStartSection {
+  padding: 4rem 0;
+}
+
+.codeBlock {
+  background-color: var(--ifm-code-background);
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.875rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 2rem 1rem;
+  }
+
+  .heroDescription {
+    font-size: 1rem;
+  }
+
+  .buttons {
+    flex-direction: column;
+  }
+}

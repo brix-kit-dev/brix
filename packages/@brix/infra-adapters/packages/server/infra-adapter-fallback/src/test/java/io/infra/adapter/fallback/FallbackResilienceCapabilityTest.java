@@ -23,15 +23,15 @@ import org.junit.jupiter.api.Test;
 import io.runtime.sdk.capability.CircuitBreakerState;
 
 /**
- * {@link FallbackResilienceCapability} 单元测试
+ * Unit tests for {@link FallbackResilienceCapability}
  *
- * <p>验证透传式韧性能力实现的行为：
- * 熔断器始终关闭、限流器始终放行、降级时调用 fallback 函数。</p>
+ * <p>Validates the pass-through resilience capability implementation behavior:
+ * circuit breaker always closed, rate limiter always permits, fallback function called on degradation.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
-@DisplayName("FallbackResilienceCapability 测试")
+@DisplayName("FallbackResilienceCapability Tests")
 class FallbackResilienceCapabilityTest {
 
     private FallbackResilienceCapability resilience;
@@ -44,7 +44,7 @@ class FallbackResilienceCapabilityTest {
     // ==================== executeWithCircuitBreaker ====================
 
     @Test
-    @DisplayName("executeWithCircuitBreaker - 应直接执行操作并返回结果")
+    @DisplayName("executeWithCircuitBreaker - should execute operation directly and return result")
     void executeWithCircuitBreaker_shouldExecuteOperation() {
         String result = resilience.executeWithCircuitBreaker("test-breaker", () -> "hello");
 
@@ -52,7 +52,7 @@ class FallbackResilienceCapabilityTest {
     }
 
     @Test
-    @DisplayName("executeWithCircuitBreaker - 操作抛出异常时应向上传播")
+    @DisplayName("executeWithCircuitBreaker - should propagate exception when operation throws")
     void executeWithCircuitBreaker_shouldPropagateException() {
         org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () ->
             resilience.executeWithCircuitBreaker("test-breaker", () -> {
@@ -62,7 +62,7 @@ class FallbackResilienceCapabilityTest {
     }
 
     @Test
-    @DisplayName("executeWithCircuitBreaker - 应返回 null 操作的结果")
+    @DisplayName("executeWithCircuitBreaker - should return null when operation returns null")
     void executeWithCircuitBreaker_shouldReturnNull_whenOperationReturnsNull() {
         String result = resilience.executeWithCircuitBreaker("test-breaker", () -> null);
 
@@ -72,7 +72,7 @@ class FallbackResilienceCapabilityTest {
     // ==================== executeWithFallback ====================
 
     @Test
-    @DisplayName("executeWithFallback - 操作成功时应返回操作结果")
+    @DisplayName("executeWithFallback - should return operation result on success")
     void executeWithFallback_shouldReturnResult_onSuccess() {
         String result = resilience.executeWithFallback(
             "test-breaker",
@@ -84,7 +84,7 @@ class FallbackResilienceCapabilityTest {
     }
 
     @Test
-    @DisplayName("executeWithFallback - 操作失败时应返回降级结果")
+    @DisplayName("executeWithFallback - should return fallback result on operation failure")
     void executeWithFallback_shouldReturnFallback_onException() {
         String result = resilience.executeWithFallback(
             "test-breaker",
@@ -96,7 +96,7 @@ class FallbackResilienceCapabilityTest {
     }
 
     @Test
-    @DisplayName("executeWithFallback - 不同异常类型均应触发降级")
+    @DisplayName("executeWithFallback - should trigger fallback for various exception types")
     void executeWithFallback_shouldHandleVariousExceptions() {
         String result1 = resilience.executeWithFallback("b1",
             () -> { throw new IllegalStateException("state"); }, () -> "fb1");
@@ -110,7 +110,7 @@ class FallbackResilienceCapabilityTest {
     // ==================== getCircuitBreakerState ====================
 
     @Test
-    @DisplayName("getCircuitBreakerState - 应始终返回 CLOSED")
+    @DisplayName("getCircuitBreakerState - should always return CLOSED")
     void getCircuitBreakerState_shouldAlwaysReturnClosed() {
         assertThat(resilience.getCircuitBreakerState("any-breaker")).isEqualTo(CircuitBreakerState.CLOSED);
         assertThat(resilience.getCircuitBreakerState("another")).isEqualTo(CircuitBreakerState.CLOSED);
@@ -120,7 +120,7 @@ class FallbackResilienceCapabilityTest {
     // ==================== isRateLimited ====================
 
     @Test
-    @DisplayName("isRateLimited - 应始终返回 false")
+    @DisplayName("isRateLimited - should always return false")
     void isRateLimited_shouldAlwaysReturnFalse() {
         assertThat(resilience.isRateLimited("any-key")).isFalse();
         assertThat(resilience.isRateLimited("another-key")).isFalse();
@@ -130,7 +130,7 @@ class FallbackResilienceCapabilityTest {
     // ==================== tryAcquire ====================
 
     @Test
-    @DisplayName("tryAcquire - 应始终返回 true")
+    @DisplayName("tryAcquire - should always return true")
     void tryAcquire_shouldAlwaysReturnTrue() {
         assertThat(resilience.tryAcquire("any-key", 1)).isTrue();
         assertThat(resilience.tryAcquire("any-key", 100)).isTrue();

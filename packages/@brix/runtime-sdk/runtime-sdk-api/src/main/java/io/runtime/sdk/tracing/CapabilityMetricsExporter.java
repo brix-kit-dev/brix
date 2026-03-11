@@ -16,18 +16,19 @@
 package io.runtime.sdk.tracing;
 
 /**
- * 能力调用指标导出器接口
+ * Capability Invocation Metrics Exporter Interface.
  * 
- * <p>定义能力调用指标的导出契约，支持不同的后端实现（Prometheus、OTel 等）。</p>
+ * <p>Defines the export contract for capability invocation metrics,
+ * supporting different backend implementations (Prometheus, OTel, etc.).</p>
  * 
- * <h2>指标类型</h2>
+ * <h2>Metric Types</h2>
  * <ul>
- *   <li><b>Counter</b>：调用次数、成功/失败次数</li>
- *   <li><b>Histogram</b>：调用耗时分布</li>
- *   <li><b>Gauge</b>：当前活跃调用数</li>
+ *   <li><b>Counter</b>: Invocation count, success/failure count</li>
+ *   <li><b>Histogram</b>: Invocation latency distribution</li>
+ *   <li><b>Gauge</b>: Current active invocation count</li>
  * </ul>
  * 
- * <h2>标准指标名称</h2>
+ * <h2>Standard Metric Names</h2>
  * <pre>
  * brix_capability_call_total{plugin="booking", capability="HttpCapability", method="sendRequest", status="success"}
  * brix_capability_call_latency_seconds{plugin="booking", capability="HttpCapability", method="sendRequest"}
@@ -36,15 +37,15 @@ package io.runtime.sdk.tracing;
  * brix_architecture_violations_runtime{type="direct_capability_call"}
  * </pre>
  * 
- * <h2>实现要求</h2>
+ * <h2>Implementation Requirements</h2>
  * <ol>
- *   <li>导出器必须线程安全</li>
- *   <li>导出失败不应阻塞业务调用</li>
- *   <li>指标命名遵循 Prometheus 命名规范</li>
+ *   <li>Exporter must be thread-safe</li>
+ *   <li>Export failures should not block business invocations</li>
+ *   <li>Metric naming follows Prometheus naming conventions</li>
  * </ol>
  * 
- * <h2>架构说明</h2>
- * <p>本接口是 v3.0 架构蓝图 4.4 任务的 SPI 定义。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>This interface is the SPI definition for Runtime Observability.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -52,95 +53,95 @@ package io.runtime.sdk.tracing;
 public interface CapabilityMetricsExporter {
     
     /**
-     * 指标前缀
+     * Metric prefix.
      */
     String METRIC_PREFIX = "brix_";
     
     /**
-     * 能力调用总数指标名
+     * Capability invocation total count metric name.
      */
     String CAPABILITY_CALL_TOTAL = METRIC_PREFIX + "capability_call_total";
     
     /**
-     * 能力调用延迟指标名（Histogram）
+     * Capability invocation latency metric name (Histogram).
      */
     String CAPABILITY_CALL_LATENCY = METRIC_PREFIX + "capability_call_latency_seconds";
     
     /**
-     * 当前活跃调用数指标名
+     * Current active invocation count metric name.
      */
     String CAPABILITY_ACTIVE_CALLS = METRIC_PREFIX + "capability_active_calls";
     
     /**
-     * 事件总线绕过计数指标名
+     * Event bus bypass count metric name.
      */
     String EVENTBUS_BYPASS_TOTAL = METRIC_PREFIX + "eventbus_direct_bypass_total";
     
     /**
-     * 运行时架构违规指标名
+     * Runtime architecture violation metric name.
      */
     String ARCHITECTURE_VIOLATIONS = METRIC_PREFIX + "architecture_violations_runtime";
     
     /**
-     * 记录能力调用
+     * Record capability invocation
      * 
-     * <p>记录单次能力调用的指标数据，包括：</p>
+     * <p>Records metric data for a single capability invocation, including:</p>
      * <ul>
-     *   <li>调用计数（Counter）</li>
-     *   <li>调用耗时（Histogram）</li>
-     *   <li>成功/失败状态</li>
+     *   <li>Invocation count (Counter)</li>
+     *   <li>Invocation latency (Histogram)</li>
+     *   <li>Success/Failure status</li>
      * </ul>
      * 
-     * @param invocation 能力调用记录
+     * @param invocation capability invocation record
      */
     void recordInvocation(CapabilityInvocation invocation);
     
     /**
-     * 增加活跃调用计数
+     * Increment active call count
      * 
-     * <p>当能力调用开始时调用，用于追踪当前并发调用数。</p>
+     * <p>Called when capability invocation starts, used to track current concurrent calls.</p>
      * 
-     * @param pluginId 插件 ID
-     * @param capabilityName 能力名称
+     * @param pluginId plugin ID
+     * @param capabilityName capability name
      */
     void incrementActiveCall(String pluginId, String capabilityName);
     
     /**
-     * 减少活跃调用计数
+     * Decrement active call count
      * 
-     * <p>当能力调用结束时调用（无论成功或失败）。</p>
+     * <p>Called when capability invocation ends (regardless of success or failure).</p>
      * 
-     * @param pluginId 插件 ID
-     * @param capabilityName 能力名称
+     * @param pluginId plugin ID
+     * @param capabilityName capability name
      */
     void decrementActiveCall(String pluginId, String capabilityName);
     
     /**
-     * 记录事件总线绕过
+     * Record event bus bypass
      * 
-     * <p>当检测到直接绕过事件总线的调用时记录。</p>
+     * <p>Records when a call that bypasses the event bus directly is detected.</p>
      * 
-     * @param eventType 事件类型
-     * @param sourcePlugin 源插件 ID
+     * @param eventType event type
+     * @param sourcePlugin source plugin ID
      */
     void recordEventBusBypass(String eventType, String sourcePlugin);
     
     /**
-     * 记录架构违规
+     * Record architecture violation
      * 
-     * <p>记录运行时检测到的架构违规。</p>
+     * <p>Records architecture violations detected at runtime.</p>
      * 
-     * @param violationType 违规类型
-     * @param details 违规详情
+     * @param violationType violation type
+     * @param details violation details
      */
     void recordArchitectureViolation(String violationType, String details);
     
     /**
-     * 关闭导出器
+     * Close exporter
      * 
-     * <p>释放资源，刷新未发送的指标。</p>
+     * <p>Release resources, flush unsent metrics.</p>
      */
     default void close() {
-        // 默认空实现
+        // Default empty implementation
     }
 }

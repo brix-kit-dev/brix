@@ -16,30 +16,31 @@
 package io.runtime.sdk.capability;
 
 /**
- * 认证能力契约（标准名称）
+ * Authentication Capability Contract (Standard Name)
  * 
- * <p>这是 {@link AuthContextCapability} 的标准化别名，用于统一前后端能力命名。
- * 建议新代码使用此接口名称。</p>
+ * <p>This is a standardized alias for {@link AuthContextCapability}, used to unify
+ * frontend and backend capability naming. New code is recommended to use this interface name.</p>
  * 
- * <h3>命名统一说明</h3>
+ * <h3>Naming Convention</h3>
  * <ul>
- *   <li>前端 TypeScript 端使用 {@code AuthCapability}</li>
- *   <li>后端 Java 端原使用 {@code AuthContextCapability}，现提供此别名</li>
- *   <li>两者接口定义一致，仅名称不同</li>
+ *   <li>Frontend TypeScript uses {@code AuthCapability}</li>
+ *   <li>Backend Java originally used {@code AuthContextCapability}, now provides this alias</li>
+ *   <li>Both interfaces have identical definitions, only names differ</li>
  * </ul>
  * 
- * <h3>迁移建议</h3>
- * <p>新代码建议使用 {@code AuthCapability}，旧代码可继续使用 {@code AuthContextCapability}。
- * 两者在运行时完全等价，无需强制迁移。</p>
+ * <h3>Migration Recommendation</h3>
+ * <p>New code is recommended to use {@code AuthCapability}, existing code can continue
+ * using {@code AuthContextCapability}. Both are fully equivalent at runtime,
+ * no forced migration required.</p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * @Inject
  * private AuthCapability auth;
  * 
  * public void createReservation(ReservationCommand command) {
  *     if (!auth.hasPermission("booking:create")) {
- *         throw new AccessDeniedException("无预约创建权限");
+ *         throw new AccessDeniedException("No permission to create reservation");
  *     }
  *     // ...
  * }
@@ -50,6 +51,6 @@ package io.runtime.sdk.capability;
  * @see AuthContextCapability
  */
 public interface AuthCapability extends AuthContextCapability {
-    // 此接口继承 AuthContextCapability 的所有方法
-    // 作为标准化名称的别名，无需添加额外方法
+    // This interface inherits all methods from AuthContextCapability
+    // As a standardized name alias, no additional methods needed
 }

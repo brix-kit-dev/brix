@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!--
   =========================================================
-  <%= name %>-core 核心模块
+  <%= name %>-core 核心module
   生成时间: <%= date %>
   =========================================================
 -->
@@ -20,10 +20,10 @@
     <packaging>jar</packaging>
 
     <name><%= displayName %> Core</name>
-    <description><%= name %> 核心模块</description>
+    <description><%= name %> 核心module</description>
 
     <dependencies>
-        <!-- Platform Common（仅依赖公共类，不依赖 Starter） -->
+        <!-- Platform Common（仅依赖公Total类，不依赖 Starter） -->
         <dependency>
             <groupId>shinwa.platform</groupId>
             <artifactId>platform-common</artifactId>
@@ -31,7 +31,7 @@
         </dependency>
 
 <% if (withApi) { %>
-        <!-- API 模块 -->
+        <!-- API module -->
         <dependency>
             <groupId>shinwa.plugin</groupId>
             <artifactId><%= name %>-api</artifactId>
@@ -71,7 +71,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- 架构守护（ArchUnit 红线约束） -->
+        <!-- 架构守护（ArchUnit 红线Constraints） -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>

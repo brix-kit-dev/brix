@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Native Avatar Component
  * @description Pure CSS avatar component implementing AvatarProps from UIAdapter contract.
@@ -47,7 +62,7 @@ export const NativeAvatar: FC<AvatarProps> = ({
   shape = 'circle',
   fallback,
   icon,
-  bgColor = '#bdbdbd',
+  backgroundColor = '#bdbdbd',
   style,
   className,
   children,
@@ -66,7 +81,7 @@ export const NativeAvatar: FC<AvatarProps> = ({
     width: sizeValue,
     height: sizeValue,
     borderRadius,
-    backgroundColor: (src && !imgError) ? 'transparent' : bgColor,
+    backgroundColor: (src && !imgError) ? 'transparent' : backgroundColor,
     color: '#ffffff',
     fontSize: sizeValue * 0.4,
     fontWeight: 500,

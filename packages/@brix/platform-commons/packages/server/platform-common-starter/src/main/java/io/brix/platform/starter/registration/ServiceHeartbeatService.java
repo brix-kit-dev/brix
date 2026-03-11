@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.registration;
 
 import org.slf4j.Logger;
@@ -21,16 +36,16 @@ import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * v2.1 服务心跳服务
+ * v2.1 Service Heartbeat Service
  * 
- * <p>负责定时向基座 Plugin Engine 发送心跳，维持服务在线状</p>
+ * <p>Responsible for periodically sending heartbeats to the shell Plugin Engine to maintain service online status</p>
  * 
- * <p>心跳端点（与 Plugin Engine 兼容）：</p>
+ * <p>Heartbeat endpoint (compatible with Plugin Engine):</p>
  * <ul>
  *   <li>POST {baseUrl}/api/plugin-engine/cache/plugins/{name}/heartbeat</li>
  * </ul>
  * 
- * <p>参考：plugin-common-starter PluginRegistrationClient.heartbeat()</p>
+ * <p>Reference: plugin-common-starter PluginRegistrationClient.heartbeat()</p>
  * 
  * @author Brix Platform Authors Team
  * @since v2.1
@@ -41,40 +56,40 @@ public class ServiceHeartbeatService {
     
     private static final Logger log = LoggerFactory.getLogger(ServiceHeartbeatService.class);
     
-    /** 服务配置 */
+    /** Service configuration */
     private final ServiceProperties serviceProperties;
     
-    /** 服务注册服务（获取实ID*/
+    /** Service registration service (for getting instance ID) */
     private final ServiceRegistrationService registrationService;
     
-    /** HTTP 客户*/
+    /** HTTP client */
     private final WebClient webClient;
     
-    /** 健康端点（可选，用于获取健康状态） */
+    /** Health endpoint (optional, for getting health status) */
     private final HealthEndpoint healthEndpoint;
     
     /** 
-     * 心跳端点路径模板 - Plugin Engine 兼容 
-     * 格式: /api/plugin-engine/cache/plugins/{name}/heartbeat
+     * Heartbeat endpoint path template - Plugin Engine compatible 
+     * Format: /api/plugin-engine/cache/plugins/{name}/heartbeat
      */
     private static final String HEARTBEAT_PATH_TEMPLATE = "/api/plugin-engine/cache/plugins/%s/heartbeat";
     
-    /** 连续失败次数 */
+    /** Consecutive failure count */
     private final AtomicLong consecutiveFailures = new AtomicLong(0);
     
-    /** 最大连续失败次数，超过后尝试重新注*/
+    /** Max consecutive failures, re-register after exceeding */
     private static final int MAX_CONSECUTIVE_FAILURES = 3;
     
-    /** 请求计数器（用于计算 RPS*/
+    /** Request counter (for calculating RPS) */
     private final AtomicLong requestCount = new AtomicLong(0);
     private volatile long lastRequestCountSnapshot = 0;
     private volatile long lastSnapshotTime = System.currentTimeMillis();
     
-    /** 响应时间累计（用于计算平均响应时间） */
+    /** Accumulated response time (for calculating average response time) */
     private final AtomicLong totalResponseTimeMs = new AtomicLong(0);
     private volatile long lastTotalResponseTimeSnapshot = 0;
     
-    /** 错误计数*/
+    /** Error counter */
     private final AtomicLong errorCount = new AtomicLong(0);
     private volatile long lastErrorCountSnapshot = 0;
     
@@ -85,82 +100,82 @@ public class ServiceHeartbeatService {
         this.registrationService = registrationService;
         this.healthEndpoint = healthEndpoint;
         
-        // 鏋勫缓 WebClient
+        // Build WebClient
         this.webClient = WebClient.builder()
             .baseUrl(serviceProperties.getBaseUrl())
             .build();
         
-        log.info("[ServiceHeartbeat] 初始化完成，心跳间隔: {}ms", 
+        log.info("[ServiceHeartbeat] Initialization complete, heartbeat interval: {}ms", 
             serviceProperties.getHeartbeatInterval().toMillis());
     }
     
     /**
-     * 定时发送心
+     * Periodically send heartbeat
      * 
-     * <p>心跳间隔shinwa.service.heartbeat-interval 配置</p>
-     * <p>默认 30 </p>
+     * <p>Heartbeat interval is configured via brix.service.heartbeat-interval</p>
+     * <p>Default: 30 seconds</p>
      */
-    @Scheduled(fixedDelayString = "${shinwa.service.heartbeat-interval:30000}")
+    @Scheduled(fixedDelayString = "${brix.service.heartbeat-interval:30000}")
     public void sendHeartbeat() {
-        // 检查是否已注册
+        // Check if registered
         if (!registrationService.isRegistered()) {
-            log.debug("[ServiceHeartbeat] 服务未注册，跳过心跳");
+            log.debug("[ServiceHeartbeat] Service not registered, skipping heartbeat");
             return;
         }
         
-        // 检查是否启用注
+        // Check if registration is enabled
         if (!serviceProperties.isRegistrationEnabled()) {
             return;
         }
         
-        // 发送心跳（Plugin Engine 格式 - 只需要服务名称，无需请求体）
+        // Send heartbeat (Plugin Engine format - only needs service name, no request body)
         sendPluginEngineHeartbeat()
             .subscribe(
                 success -> {
                     if (success) {
                         consecutiveFailures.set(0);
-                        log.debug("[ServiceHeartbeat] 心跳发送成");
+                        log.debug("[ServiceHeartbeat] Heartbeat sent successfully");
                     } else {
                         handleHeartbeatFailure();
                     }
                 },
                 error -> {
-                    log.warn("[ServiceHeartbeat] 心跳发送异 {}", error.getMessage());
+                    log.warn("[ServiceHeartbeat] Heartbeat sending exception: {}", error.getMessage());
                     handleHeartbeatFailure();
                 }
             );
     }
     
     /**
-     * 处理心跳失败
+     * Handle heartbeat failure
      */
     private void handleHeartbeatFailure() {
         long failures = consecutiveFailures.incrementAndGet();
-        log.warn("[ServiceHeartbeat] 心跳失败，连续失败次 {}", failures);
+        log.warn("[ServiceHeartbeat] Heartbeat failed, consecutive failures: {}", failures);
         
-        // 连续失败超过阈值，尝试重新注册
+        // Consecutive failures exceed threshold, try to re-register
         if (failures >= MAX_CONSECUTIVE_FAILURES) {
-            log.info("[ServiceHeartbeat] 连续失败次数超过阈值，尝试重新注册");
+            log.info("[ServiceHeartbeat] Consecutive failures exceeded threshold, attempting re-registration");
             registrationService.register()
                 .subscribe(
                     success -> {
                         if (success) {
                             consecutiveFailures.set(0);
-                            log.info("[ServiceHeartbeat] 重新注册成功");
+                            log.info("[ServiceHeartbeat] Re-registration successful");
                         }
                     },
-                    error -> log.error("[ServiceHeartbeat] 重新注册失败: {}", error.getMessage())
+                    error -> log.error("[ServiceHeartbeat] Re-registration failed: {}", error.getMessage())
                 );
         }
     }
     
     /**
-     * 发Plugin Engine 格式的心跳请
+     * Send heartbeat request in Plugin Engine format
      * 
-     * <p>绔偣: POST /api/plugin-engine/cache/plugins/{name}/heartbeat</p>
-     * <p>参 plugin-common-starter PluginRegistrationClient.heartbeat()</p>
+     * <p>Endpoint: POST /api/plugin-engine/cache/plugins/{name}/heartbeat</p>
+     * <p>Reference: plugin-common-starter PluginRegistrationClient.heartbeat()</p>
      * 
-     * @return 发送结
+     * @return Send result
      */
     private Mono<Boolean> sendPluginEngineHeartbeat() {
         String heartbeatPath = String.format(HEARTBEAT_PATH_TEMPLATE, serviceProperties.getName());
@@ -168,9 +183,9 @@ public class ServiceHeartbeatService {
         WebClient.RequestBodySpec requestSpec = webClient.post()
             .uri(heartbeatPath)
             .contentType(MediaType.APPLICATION_JSON)
-            .header("X-Tenant-Id", "default");  // Plugin Engine 需要租户ID
+            .header("X-Tenant-Id", "default");  // Plugin Engine requires tenant ID
         
-        // 添加 API Key 认证头（如果配置了）
+        // Add API Key authentication header (if configured)
         if (StringUtils.hasText(serviceProperties.getApiKey()) 
             && StringUtils.hasText(serviceProperties.getApiSecret())) {
             requestSpec = (WebClient.RequestBodySpec) requestSpec
@@ -185,24 +200,24 @@ public class ServiceHeartbeatService {
                 if (response.getStatusCode().is2xxSuccessful()) {
                     return true;
                 } else if (response.getStatusCode().value() == 404) {
-                    // 插件不存在，需要重新注
-                    log.warn("[ServiceHeartbeat] 服务不存在于 Plugin Engine，需要重新注");
+                    // Plugin does not exist, need to re-register
+                    log.warn("[ServiceHeartbeat] Service does not exist in Plugin Engine, need to re-register");
                     return false;
                 }
                 return false;
             })
             .onErrorResume(error -> {
-                log.debug("[ServiceHeartbeat] 心跳请求失败: {}", error.getMessage());
+                log.debug("[ServiceHeartbeat] Heartbeat request failed: {}", error.getMessage());
                 return Mono.just(false);
             });
     }
     
     /**
-     * 发送心跳请求（保留用于兼容
+     * Send heartbeat request (kept for backward compatibility)
      * 
-     * @param request 心跳请求
-     * @return 发送结
-     * @deprecated 使用 {@link #sendPluginEngineHeartbeat()} 替代
+     * @param request Heartbeat request
+     * @return Send result
+     * @deprecated Use {@link #sendPluginEngineHeartbeat()} instead
      */
     @Deprecated
     private Mono<Boolean> sendHeartbeatRequest(HeartbeatRequest request) {
@@ -210,10 +225,10 @@ public class ServiceHeartbeatService {
     }
     
     /**
-     * 构建心跳请求（保留用于兼容）
+     * Build heartbeat request (kept for backward compatibility)
      * 
-     * @return 心跳请求
-     * @deprecated Plugin Engine 心跳不需要请求体
+     * @return Heartbeat request
+     * @deprecated Plugin Engine heartbeat does not require request body
      */
     @Deprecated
     private HeartbeatRequest buildHeartbeatRequest() {
@@ -227,9 +242,9 @@ public class ServiceHeartbeatService {
     }
     
     /**
-     * 判断服务状
+     * Determine service status
      * 
-     * @return 服务状
+     * @return Service status
      */
     private ServiceStatus determineServiceStatus() {
         if (healthEndpoint != null) {
@@ -241,7 +256,7 @@ public class ServiceHeartbeatService {
                     return ServiceStatus.DEGRADED;
                 }
             } catch (Exception e) {
-                log.debug("[ServiceHeartbeat] 获取健康状态失 {}", e.getMessage());
+                log.debug("[ServiceHeartbeat] Failed to get health status: {}", e.getMessage());
             }
         }
         
@@ -249,30 +264,30 @@ public class ServiceHeartbeatService {
     }
     
     /**
-     * 收集健康指标
+     * Collect health metrics
      * 
-     * @return 健康指标
+     * @return Health metrics
      */
     private HealthMetrics collectHealthMetrics() {
         OperatingSystemMXBean osMXBean = ManagementFactory.getOperatingSystemMXBean();
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
         ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
         
-        // CPU 使用
+        // CPU usage
         double cpuUsage = osMXBean.getSystemLoadAverage();
         if (cpuUsage < 0) {
-            cpuUsage = 0;  // 某些系统可能不支
+            cpuUsage = 0;  // Some systems may not support this
         }
         
-        // 内存使用
+        // Memory usage
         long usedMemory = memoryMXBean.getHeapMemoryUsage().getUsed();
         long maxMemory = memoryMXBean.getHeapMemoryUsage().getMax();
         double memoryUsage = maxMemory > 0 ? (double) usedMemory / maxMemory * 100 : 0;
         
-        // 活跃线程
+        // Active threads
         int activeThreads = threadMXBean.getThreadCount();
         
-        // 计算 RPS（每秒请求数
+        // Calculate RPS (Requests Per Second)
         long currentTime = System.currentTimeMillis();
         long elapsedMs = currentTime - lastSnapshotTime;
         long currentRequestCount = requestCount.get();
@@ -280,20 +295,20 @@ public class ServiceHeartbeatService {
             ? (currentRequestCount - lastRequestCountSnapshot) * 1000.0 / elapsedMs 
             : 0;
         
-        // 计算平均响应时间
+        // Calculate average response time
         long currentTotalResponseTime = totalResponseTimeMs.get();
         long requestsDelta = currentRequestCount - lastRequestCountSnapshot;
         double avgResponseTimeMs = requestsDelta > 0 
             ? (currentTotalResponseTime - lastTotalResponseTimeSnapshot) / (double) requestsDelta 
             : 0;
         
-        // 计算错误
+        // Calculate error rate
         long currentErrorCount = errorCount.get();
         double errorRate = requestsDelta > 0 
             ? (currentErrorCount - lastErrorCountSnapshot) * 100.0 / requestsDelta 
             : 0;
         
-        // 更新快照
+        // Update snapshots
         lastSnapshotTime = currentTime;
         lastRequestCountSnapshot = currentRequestCount;
         lastTotalResponseTimeSnapshot = currentTotalResponseTime;
@@ -310,10 +325,10 @@ public class ServiceHeartbeatService {
     }
     
     /**
-     * 记录请求（供外部调用
+     * Record request (for external invocation)
      * 
-     * @param responseTimeMs 响应时间（毫秒）
-     * @param isError 是否错误
+     * @param responseTimeMs Response time in milliseconds
+     * @param isError Whether it's an error
      */
     public void recordRequest(long responseTimeMs, boolean isError) {
         requestCount.incrementAndGet();
@@ -324,9 +339,9 @@ public class ServiceHeartbeatService {
     }
     
     /**
-     * 获取连续失败次数
+     * Get consecutive failure count
      * 
-     * @return 连续失败次数
+     * @return Consecutive failure count
      */
     public long getConsecutiveFailures() {
         return consecutiveFailures.get();

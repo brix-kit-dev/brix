@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.oauth2;
 
 import lombok.Data;
@@ -7,18 +22,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * OAuth2 身份提供商（IdP）配置属性类
+ * OAuth2 Identity Provider (IdP) Configuration Properties
  * <p>
- * 支持配置多个第三方身份提供商，包括：
+ * Supports configuring multiple third-party identity providers, including:
  * <ul>
  *   <li>Google OAuth2</li>
- *   <li>微信开放平</li>
- *   <li>GitHub（可选）</li>
+ *   <li>WeChat Open Platform</li>
+ *   <li>GitHub (optional)</li>
  * </ul>
  * </p>
  *
  * <p>
- * 配置示例（application.yml）：
+ * Configuration example (application.yml):
  * <pre>
  * platform:
  *   oauth2:
@@ -40,8 +55,8 @@ import java.util.Map;
  * </p>
  *
  * <p>
- * 注意：此类已通过 {@code @EnableConfigurationProperties} 
- * {@link OAuth2Config} 中启用，无需添加 {@code @Component} 注解
+ * Note: This class is enabled via {@code @EnableConfigurationProperties}
+ * in {@link OAuth2Config}, no need to add {@code @Component} annotation.
  * </p>
  *
  * @author Brix Platform Authors
@@ -53,134 +68,134 @@ import java.util.Map;
 public class OAuth2Properties {
 
     /**
-     * 是否启用 OAuth2 登录
+     * Whether to enable OAuth2 login
      */
     private boolean enabled = false;
 
     /**
-     * OAuth2 回调后的前端跳转地址
-     * 默认/login/callback
+     * Frontend redirect URL after OAuth2 callback
+     * Default: /login/callback
      */
     private String frontendCallbackUrl = "/login/callback";
 
     /**
-     * 登录成功后默认跳转地址
+     * Default redirect URL after successful login
      */
     private String defaultSuccessUrl = "/";
 
     /**
-     * 登录失败后跳转地址
+     * Redirect URL after login failure
      */
     private String failureUrl = "/login?error=oauth2";
 
     /**
-     * 自动注册新用
-     * OAuth2 用户首次登录且无绑定账号时，是否自动创建新用
+     * Auto-register new users
+     * Whether to automatically create new user when OAuth2 user first logs in without bound account
      */
     private boolean autoRegister = true;
 
     /**
-     * 状态参数有效期（秒
-     * 用于防止 CSRF 攻击
+     * State parameter validity period (seconds)
+     * Used to prevent CSRF attacks
      */
     private int stateExpireSeconds = 300;
 
     /**
-     * 身份提供商配置映
-     * Key 为提供商标识（如 google、wechat
+     * Identity provider configuration map
+     * Key is provider identifier (e.g., google, wechat)
      */
     private Map<String, ProviderConfig> providers = new HashMap<>();
 
     /**
-     * 单个身份提供商配
+     * Single Identity Provider Configuration
      */
     @Data
     public static class ProviderConfig {
         /**
-         * 是否启用该提供商
+         * Whether to enable this provider
          */
         private boolean enabled = false;
 
         /**
-         * 提供商显示名称（用于前端展示
+         * Provider display name (for frontend display)
          */
         private String displayName;
 
         /**
-         * 提供商图URL CSS 类名
+         * Provider icon URL or CSS class name
          */
         private String icon;
 
         /**
-         * 客户ID（App ID
+         * Client ID (App ID)
          */
         private String clientId;
 
         /**
-         * 客户端密钥（App Secret
+         * Client secret (App Secret)
          */
         private String clientSecret;
 
         /**
-         * 鎺堟潈绔偣 URL
+         * Authorization endpoint URL
          */
         private String authorizationUri;
 
         /**
-         * Token 绔偣 URL
+         * Token endpoint URL
          */
         private String tokenUri;
 
         /**
-         * 用户信息端点 URL
+         * User info endpoint URL
          */
         private String userInfoUri;
 
         /**
-         * 回调 URI（重定向 URI
+         * Callback URI (Redirect URI)
          */
         private String redirectUri;
 
         /**
-         * 请求的权限范围（逗号分隔
+         * Requested scope (comma-separated)
          */
         private String scope;
 
         /**
-         * 用户 ID 字段名（从用户信息响应中提取
+         * User ID field name (extracted from user info response)
          */
         private String userIdAttribute = "id";
 
         /**
-         * 用户名字段名
+         * Username field name
          */
         private String userNameAttribute = "name";
 
         /**
-         * 邮箱字段
+         * Email field name
          */
         private String emailAttribute = "email";
 
         /**
-         * 头像字段
+         * Avatar field name
          */
         private String avatarAttribute = "avatar";
 
         /**
-         * 是否需PKCE（Proof Key for Code Exchange
+         * Whether to use PKCE (Proof Key for Code Exchange)
          */
         private boolean usePkce = false;
 
         /**
-         * 额外请求参数
+         * Additional request parameters
          */
         private Map<String, String> additionalParams = new HashMap<>();
     }
 
     /**
-     * 获取启用的提供商配置
+     * Get enabled provider configurations
      *
-     * @return 启用的提供商映射
+     * @return Map of enabled providers
      */
     public Map<String, ProviderConfig> getEnabledProviders() {
         Map<String, ProviderConfig> enabledProviders = new HashMap<>();
@@ -193,10 +208,10 @@ public class OAuth2Properties {
     }
 
     /**
-     * 检查指定提供商是否启用
+     * Check if specified provider is enabled
      *
-     * @param providerId 提供商标
-     * @return 是否启用
+     * @param providerId Provider identifier
+     * @return Whether enabled
      */
     public boolean isProviderEnabled(String providerId) {
         ProviderConfig config = providers.get(providerId);

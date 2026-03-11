@@ -15,10 +15,9 @@
  */
 package io.runtime.orchestrator.endpoint;
 
-import io.runtime.orchestrator.manifest.UIManifestLoader;
-import io.runtime.orchestrator.registry.ModuleRegistry;
-import io.runtime.sdk.capability.LifecycleCapability;
-import io.runtime.sdk.capability.ModuleMetadata;
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,34 +25,36 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import io.runtime.orchestrator.manifest.UIManifestLoader;
+import io.runtime.orchestrator.registry.ModuleRegistry;
+import io.runtime.sdk.capability.LifecycleCapability;
+import io.runtime.sdk.capability.ModuleMetadata;
 
 /**
- * 插件注册表 REST 端点
+ * Plugin registry REST endpoint.
  *
- * <h2>架构定位（v3.0.5 Manifest-Driven 动态发现）</h2>
+ * <h2>Architecture Position (Manifest-Driven Dynamic Discovery)</h2>
  * <p>
- * 此端点提供 /api/plugins REST API，使前端 Host 能够动态获取已注册的插件列表。
- * 遵循 <b>Manifest-Driven</b> 原则：插件信息来自 {@link ModuleRegistry}，
- * 无需在 Host 层硬编码任何插件列表。
+ * This endpoint provides /api/plugins REST API, enabling front-end Host to dynamically
+ * retrieve the list of registered plugins. Follows <b>Manifest-Driven</b> principle:
+ * plugin information comes from {@link ModuleRegistry} - no hardcoded plugin list in Host layer.
  * </p>
  *
- * <h2>核心职责</h2>
+ * <h2>Core Responsibilities</h2>
  * <ul>
- *   <li>从 ModuleRegistry 读取已注册的模块</li>
- *   <li>转换为前端所需的 PluginInfo 格式</li>
- *   <li>支持根据 host.mode 过滤插件</li>
+ *   <li>Reads registered modules from ModuleRegistry</li>
+ *   <li>Converts to PluginInfo format required by front-end</li>
+ *   <li>Supports filtering plugins by host.mode</li>
  * </ul>
  *
- * <h2>API 契约</h2>
+ * <h2>API Contract</h2>
  * <pre>
  * GET /api/plugins
  * Response: {
  *   "plugins": [
  *     {
  *       "id": "booking",
- *       "name": "预约管理",
+ *       "name": "Booking Management",
  *       "remoteEntry": "/plugins/booking/remoteEntry.js",
  *       "manifestUrl": "/plugins/booking/ui-manifest.json",
  *       "enabled": true,
@@ -84,10 +85,10 @@ public class PluginRegistryEndpoint {
     private String pluginsBaseUrl;
 
     /**
-     * 构造插件注册表端点
+     * Constructs plugin registry endpoint.
      *
-     * @param moduleRegistry 模块注册表
-     * @param manifestLoader UI Manifest 加载器
+     * @param moduleRegistry module registry
+     * @param manifestLoader UI Manifest loader
      */
     public PluginRegistryEndpoint(ModuleRegistry moduleRegistry, UIManifestLoader manifestLoader) {
         this.moduleRegistry = moduleRegistry;
@@ -96,26 +97,83 @@ public class PluginRegistryEndpoint {
     }
 
     /**
-     * 获取已注册的插件列表
+     * Gets the list of registered plugins.
      *
-     * <p>从 ModuleRegistry 读取所有已注册模块，转换为前端所需格式。</p>
+     * <p>Merges two data sources: registered modules from ModuleRegistry + UI manifests configured in UIManifestLoader.</p>
+     * <p>This way even if not all backend modules are started, front-end can still get complete menu configuration for display.</p>
      *
-     * @return 插件列表响应
+     * @return plugins response
      */
     @GetMapping
     public PluginsResponse getPlugins() {
-        log.debug("Fetching plugins from ModuleRegistry, mode={}", hostMode);
+        log.debug("Fetching plugins from ModuleRegistry and UIManifestLoader, mode={}", hostMode);
 
-        List<PluginInfo> plugins = moduleRegistry.getByStartupOrder().stream()
-                .map(this::toPluginInfo)
-                .toList();
+        // 1. Get registered modules from ModuleRegistry (with complete runtime info)
+        java.util.Set<String> registeredModuleIds = new java.util.HashSet<>();
+        List<PluginInfo> plugins = new java.util.ArrayList<>();
+        
+        for (var module : moduleRegistry.getByStartupOrder()) {
+            String moduleId = module.getMetadata().getModuleId();
+            registeredModuleIds.add(moduleId);
+            plugins.add(toPluginInfo(module));
+        }
+        
+        // 2. Get all configured UI manifests from UIManifestLoader (supplement unregistered ones)
+        for (var entry : manifestLoader.getAllManifests().entrySet()) {
+            String moduleId = entry.getKey();
+            if (!registeredModuleIds.contains(moduleId)) {
+                // Unregistered module, build PluginInfo from manifest
+                plugins.add(toPluginInfoFromManifest(moduleId, entry.getValue()));
+            }
+        }
+        
+        // 3. Sort by priority
+        plugins.sort((a, b) -> Integer.compare(a.priority(), b.priority()));
 
-        log.info("Returning {} plugins for mode={}", plugins.size(), hostMode);
+        log.info("Returning {} plugins for mode={} (registered={}, manifest-only={})", 
+                plugins.size(), hostMode, registeredModuleIds.size(), 
+                plugins.size() - registeredModuleIds.size());
         return new PluginsResponse(plugins, hostMode);
+    }
+    
+    /**
+     * Builds PluginInfo from pure manifest configuration (for modules with UI config but not registered).
+     */
+    @SuppressWarnings("unchecked")
+    private PluginInfo toPluginInfoFromManifest(String moduleId, Map<String, Object> manifest) {
+        Map<String, Object> pluginInfo = (Map<String, Object>) manifest.get("plugin");
+        String name = pluginInfo != null ? (String) pluginInfo.getOrDefault("name", moduleId) : moduleId;
+        
+        String baseUrl = pluginsBaseUrl.endsWith("/") ? pluginsBaseUrl : pluginsBaseUrl + "/";
+        String remoteEntry = baseUrl + moduleId + "/remoteEntry.js";
+        String manifestUrl = baseUrl + moduleId + "/ui-manifest.json";
+        
+        // Get order from manifest's menus as priority
+        int priority = 100;
+        Object menusObj = manifest.get("menus");
+        if (menusObj instanceof List<?> menus && !menus.isEmpty()) {
+            Object firstMenu = menus.get(0);
+            if (firstMenu instanceof Map<?, ?> menuMap) {
+                Object order = menuMap.get("order");
+                if (order instanceof Number) {
+                    priority = ((Number) order).intValue();
+                }
+            }
+        }
+        
+        return new PluginInfo(
+                moduleId,
+                name,
+                remoteEntry,
+                manifestUrl,
+                false,  // Unregistered module marked as disabled (for UI display only)
+                priority,
+                manifest
+        );
     }
 
     /**
-     * 将 LifecycleCapability 转换为 PluginInfo
+     * Converts LifecycleCapability to PluginInfo.
      */
     @SuppressWarnings("unchecked")
     private PluginInfo toPluginInfo(LifecycleCapability module) {
@@ -124,16 +182,16 @@ public class PluginRegistryEndpoint {
         String name = metadata.getModuleName() != null ? metadata.getModuleName() : moduleId;
         int priority = metadata.getStartupOrder();
 
-        // 构建前端资源路径
-        // 约定：UI 资源路径为 /plugins/{id}/
+        // Build front-end resource paths
+        // Convention: UI resource path is /plugins/{id}/
         String baseUrl = pluginsBaseUrl.endsWith("/") ? pluginsBaseUrl : pluginsBaseUrl + "/";
         String remoteEntry = baseUrl + moduleId + "/remoteEntry.js";
         String manifestUrl = baseUrl + moduleId + "/ui-manifest.json";
 
-        // 1. 首先从 UIManifestLoader 获取 manifest（从配置文件加载）
+        // 1. First get manifest from UIManifestLoader (loaded from config file)
         Map<String, Object> manifest = manifestLoader.getManifest(moduleId);
         
-        // 2. 如果没有，尝试从 attributes 获取（插件启动时注入）
+        // 2. If not found, try to get from attributes (injected at plugin startup)
         if (manifest == null && metadata.getAttributes() != null) {
             Object uiManifest = metadata.getAttributes().get("uiManifest");
             if (uiManifest instanceof Map) {
@@ -146,14 +204,14 @@ public class PluginRegistryEndpoint {
                 name,
                 remoteEntry,
                 manifestUrl,
-                true,  // 已注册即启用
+                true,  // Registered means enabled
                 priority,
                 manifest
         );
     }
 
     /**
-     * 插件信息
+     * Plugin information.
      */
     public record PluginInfo(
             String id,
@@ -166,7 +224,7 @@ public class PluginRegistryEndpoint {
     ) {}
 
     /**
-     * 插件列表响应
+     * Plugins response.
      */
     public record PluginsResponse(
             List<PluginInfo> plugins,

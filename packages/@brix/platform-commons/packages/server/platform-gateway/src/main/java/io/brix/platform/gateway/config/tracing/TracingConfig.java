@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.tracing;
 
 import java.util.concurrent.TimeUnit;
@@ -24,18 +39,18 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 /**
- * 网关分布式链路追踪配置类
+ * GatewaydistributedDistributed Tracing Configurationclass
  * 
- * <p>基于 Micrometer Tracing + OpenTelemetry + Jaeger 实现分布式追踪：</p>
+ * <p>based on Micrometer Tracing + OpenTelemetry + Jaeger implementationdistributedtrace：</p>
  * <ul>
- *   <li>自动生成 traceId/spanId</li>
- *   <li>HTTP Header 透传（支持 W3C Trace Context 和 B3 格式）</li>
- *   <li>日志 MDC 注入 traceId</li>
- *   <li>OTLP 协议上报至 Jaeger Collector</li>
+ *   <li>automaticgenerate traceId/spanId</li>
+ *   <li>HTTP Header pass through（support W3C Trace Context and B3 format）</li>
+ *   <li>log MDC inject traceId</li>
+ *   <li>OTLP protocolupreportto Jaeger Collector</li>
  * </ul>
  * 
- * <h3>使用方式</h3>
- * <p>配置 application.yml:</p>
+ * <h3>useway</h3>
+ * <p>configuration application.yml:</p>
  * <pre>
  * gateway:
  *   tracing:
@@ -45,15 +60,15 @@ import jakarta.annotation.PreDestroy;
  *       endpoint: http://localhost:4317
  * </pre>
  * 
- * <h3>OpenTelemetry vs Zipkin 优势</h3>
+ * <h3>OpenTelemetry vs Zipkin advantage</h3>
  * <ul>
- *   <li>CNCF 标准协议，厂商中立</li>
- *   <li>支持 Traces、Metrics、Logs 统一采集</li>
- *   <li>更丰富的语义约定（Semantic Conventions）</li>
- *   <li>Jaeger 原生支持 OTLP，性能更优</li>
+ *   <li>CNCF standardprotocol，vendorinestablish</li>
+ *   <li>support Traces、Metrics、Logs unified collection</li>
+ *   <li>more richoflanguagemeaningconvention（Semantic Conventions）</li>
+ *   <li>Jaeger nativesupport OTLP，itycanbetter</li>
  * </ul>
  * 
- * <p>P106 任务产出物（OpenTelemetry 升级版）</p>
+ * <p>P106 taskproduceoutobject（OpenTelemetry upgradelevelversion）</p>
  * 
  * @author Brix Platform Authors
  * @version 2.0.0
@@ -66,17 +81,17 @@ public class TracingConfig {
     private static final Logger log = LoggerFactory.getLogger(TracingConfig.class);
     
     /**
-     * 服务名称属性 Key
+     * Service nameproperties Key
      */
     private static final String SERVICE_NAME_KEY = "service.name";
     
     /**
-     * 服务版本属性 Key
+     * serviceversionproperties Key
      */
     private static final String SERVICE_VERSION_KEY = "service.version";
     
     /**
-     * 部署环境属性 Key
+     * deployenvironmentproperties Key
      */
     private static final String DEPLOYMENT_ENVIRONMENT_KEY = "deployment.environment";
     
@@ -85,51 +100,51 @@ public class TracingConfig {
     private SdkTracerProvider sdkTracerProvider;
     
     /**
-     * 构造函数
+     * constructorcount
      * 
-     * @param tracingProperties 追踪配置属性
+     * @param tracingProperties traceconfigurationproperties
      */
     public TracingConfig(TracingProperties tracingProperties) {
         this.tracingProperties = tracingProperties;
     }
     
     /**
-     * 初始化日志
+     * initializationlog
      */
     @PostConstruct
     public void init() {
-        log.info("========== P106: 网关分布式链路追踪初始化（OpenTelemetry + Jaeger）=========");
-        log.info("服务名称: {}", tracingProperties.getServiceName());
-        log.info("采样率: {}%", tracingProperties.getSamplingProbability() * 100);
-        log.info("OTLP 端点: {}", tracingProperties.getOtlp().getEndpoint());
-        log.info("传播格式: {}", tracingProperties.getPropagation().getType());
-        log.info("MDC 日志注入: {}", tracingProperties.isLogMdcEnabled() ? "已启用" : "已禁用");
+        log.info("========== P106: Gatewaydistributeddistributed tracinginitialization（OpenTelemetry + Jaeger）=========");
+        log.info("Service name: {}", tracingProperties.getServiceName());
+        log.info("samplingrate: {}%", tracingProperties.getSamplingProbability() * 100);
+        log.info("OTLP endpoint: {}", tracingProperties.getOtlp().getEndpoint());
+        log.info("propagationformat: {}", tracingProperties.getPropagation().getType());
+        log.info("MDC loginject: {}", tracingProperties.isLogMdcEnabled() ? "alreadyenable" : "alreadydisable");
     }
     
     /**
-     * 优雅关闭
+     * gracefulclosed
      */
     @PreDestroy
     public void shutdown() {
         if (sdkTracerProvider != null) {
-            log.info("正在关闭 OpenTelemetry TracerProvider...");
+            log.info("correctonclosed OpenTelemetry TracerProvider...");
             sdkTracerProvider.close();
         }
     }
     
     /**
-     * 配置 OTLP gRPC Span 导出器
+     * configuration OTLP gRPC Span guideouter
      * 
-     * <p>使用 gRPC 协议将 Span 数据导出至 Jaeger Collector</p>
-     * <p>Jaeger 从 1.35 版本开始原生支持 OTLP 协议</p>
+     * <p>use gRPC protocolwill Span countdataguideoutto Jaeger Collector</p>
+     * <p>Jaeger from 1.35 versionstartnativesupport OTLP protocol</p>
      * 
-     * @return OtlpGrpcSpanExporter 实例
+     * @return OtlpGrpcSpanExporter instance
      */
     @Bean
     public OtlpGrpcSpanExporter otlpSpanExporter() {
         TracingProperties.OtlpConfig otlpConfig = tracingProperties.getOtlp();
         
-        log.info("配置 OTLP gRPC Span 导出器: endpoint={}, timeout={}ms", 
+        log.info("configuration OTLP gRPC Span guideouter: endpoint={}, timeout={}ms", 
                 otlpConfig.getEndpoint(), otlpConfig.getTimeout());
         
         return OtlpGrpcSpanExporter.builder()
@@ -139,11 +154,11 @@ public class TracingConfig {
     }
     
     /**
-     * 配置 OpenTelemetry Resource
+     * configuration OpenTelemetry Resource
      * 
-     * <p>定义服务的元数据信息，如服务名称、版本等</p>
+     * <p>definitionserviceofelementcountdatainformation，likeService name、versionetc</p>
      * 
-     * @return Resource 实例
+     * @return Resource instance
      */
     @Bean
     public Resource otelResource() {
@@ -157,37 +172,37 @@ public class TracingConfig {
     }
     
     /**
-     * 配置采样器
+     * configurationsamplinger
      * 
-     * <p>根据采样率决定是否采集当前请求的追踪数据</p>
+     * <p>according tosamplingratedeterminewhethercollectcollectionwhenbeforerequestoftracecountdata</p>
      * 
-     * @return Sampler 实例
+     * @return Sampler instance
      */
     @Bean
     public Sampler otelSampler() {
         double probability = tracingProperties.getSamplingProbability();
         
         if (probability >= 1.0) {
-            log.info("采样策略: 全量采样 (AlwaysOn)");
+            log.info("Sampling strategy: allamountsampling (AlwaysOn)");
             return Sampler.alwaysOn();
         } else if (probability <= 0.0) {
-            log.info("采样策略: 不采样 (AlwaysOff)");
+            log.info("Sampling strategy: notsampling (AlwaysOff)");
             return Sampler.alwaysOff();
         } else {
-            log.info("采样策略: 按概率采样 ({}%)", probability * 100);
+            log.info("Sampling strategy: byprobabilityratesampling ({}%)", probability * 100);
             return Sampler.traceIdRatioBased(probability);
         }
     }
     
     /**
-     * 配置 SdkTracerProvider
+     * configuration SdkTracerProvider
      * 
-     * <p>OpenTelemetry 追踪核心组件，负责创建和管理 Tracer</p>
+     * <p>OpenTelemetry tracecorecomponent，responsible forcreateandmanage Tracer</p>
      * 
-     * @param spanExporter OTLP Span 导出器
-     * @param resource 资源定义
-     * @param sampler 采样器
-     * @return SdkTracerProvider 实例
+     * @param spanExporter OTLP Span guideouter
+     * @param resource resourcedefinition
+     * @param sampler samplinger
+     * @return SdkTracerProvider instance
      */
     @Bean
     public SdkTracerProvider sdkTracerProvider(
@@ -209,11 +224,11 @@ public class TracingConfig {
     }
     
     /**
-     * 配置 Context Propagator
+     * configuration Context Propagator
      * 
-     * <p>根据配置选择传播格式（W3C Trace Context 或 B3）</p>
+     * <p>according toconfigurationselectpropagationformat（W3C Trace Context or B3）</p>
      * 
-     * @return ContextPropagators 实例
+     * @return ContextPropagators instance
      */
     @Bean
     public ContextPropagators contextPropagators() {
@@ -222,7 +237,7 @@ public class TracingConfig {
             case "B3" -> B3Propagator.injectingSingleHeader();
             case "B3_MULTI" -> B3Propagator.injectingMultiHeaders();
             default -> {
-                log.info("使用 W3C Trace Context 传播格式（推荐）");
+                log.info("use W3C Trace Context propagationformat（recommended）");
                 yield W3CTraceContextPropagator.getInstance();
             }
         };
@@ -231,13 +246,13 @@ public class TracingConfig {
     }
     
     /**
-     * 配置 OpenTelemetry SDK
+     * configuration OpenTelemetry SDK
      * 
-     * <p>OpenTelemetry 的核心入口点，整合所有组件</p>
+     * <p>OpenTelemetry ofcoreintoportpoint，integercombineallhascomponent</p>
      * 
-     * @param tracerProvider TracerProvider 实例
+     * @param tracerProvider TracerProvider instance
      * @param propagators Context Propagators
-     * @return OpenTelemetry 实例
+     * @return OpenTelemetry instance
      */
     @Bean
     public OpenTelemetry openTelemetry(

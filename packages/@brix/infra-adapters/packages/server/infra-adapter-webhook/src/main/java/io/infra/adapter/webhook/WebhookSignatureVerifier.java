@@ -26,35 +26,35 @@ import java.util.Base64;
 import java.util.Objects;
 
 /**
- * Webhook 签名验证器
+ * Webhook Signature Verifier
  * 
- * <p>提供 HMAC-SHA256 签名生成和验证功能，用于确保 Webhook 请求的安全性。</p>
+ * <p>Provides HMAC-SHA256 signature generation and verification for ensuring Webhook request security.</p>
  * 
- * <h2>签名算法</h2>
+ * <h2>Signature Algorithm</h2>
  * <pre>
  * signature = HMAC-SHA256(secret, timestamp + "." + payload)
  * </pre>
  * 
- * <h2>安全特性</h2>
+ * <h2>Security Features</h2>
  * <ul>
- *   <li>HMAC-SHA256 签名算法</li>
- *   <li>时间戳防重放攻击（默认 5 分钟有效期）</li>
- *   <li>常量时间比较防止时序攻击</li>
+ *   <li>HMAC-SHA256 signature algorithm</li>
+ *   <li>Timestamp-based replay attack prevention (default 5-minute validity)</li>
+ *   <li>Constant-time comparison to prevent timing attacks</li>
  * </ul>
  * 
- * <h2>请求头格式</h2>
+ * <h2>Request Header Format</h2>
  * <pre>
  * X-Webhook-Signature: t=1234567890,v1=abc123...
  * </pre>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
  * WebhookSignatureVerifier verifier = new WebhookSignatureVerifier("your-secret-key");
  * 
- * // 生成签名
+ * // Generate signature
  * String signature = verifier.sign(payload, timestamp);
  * 
- * // 验证签名
+ * // Verify signature
  * boolean valid = verifier.verify(payload, signature, timestamp);
  * }</pre>
  * 
@@ -64,70 +64,70 @@ import java.util.Objects;
 public final class WebhookSignatureVerifier {
     
     /**
-     * 签名算法名称
+     * Signature algorithm name
      */
     private static final String ALGORITHM = "HmacSHA256";
     
     /**
-     * 签名头名称
+     * Signature header name
      */
     public static final String SIGNATURE_HEADER = "X-Webhook-Signature";
     
     /**
-     * 时间戳头名称
+     * Timestamp header name
      */
     public static final String TIMESTAMP_HEADER = "X-Webhook-Timestamp";
     
     /**
-     * 签名版本前缀
+     * Signature version prefix
      */
     private static final String SIGNATURE_VERSION = "v1";
     
     /**
-     * 默认时间戳有效期（5 分钟）
+     * Default timestamp validity period (5 minutes)
      */
     private static final long DEFAULT_TOLERANCE_SECONDS = 300;
     
     /**
-     * 签名密钥
+     * Signing secret
      */
     private final String secret;
     
     /**
-     * 时间戳容差（秒）
+     * Timestamp tolerance (seconds)
      */
     private final long toleranceSeconds;
     
     /**
-     * 创建签名验证器
+     * Creates signature verifier
      *
-     * @param secret 签名密钥（不能为空）
-     * @throws NullPointerException 如果 secret 为空
+     * @param secret Signing secret (cannot be null)
+     * @throws NullPointerException If secret is null
      */
     public WebhookSignatureVerifier(String secret) {
         this(secret, DEFAULT_TOLERANCE_SECONDS);
     }
     
     /**
-     * 创建签名验证器
+     * Creates signature verifier
      *
-     * @param secret 签名密钥（不能为空）
-     * @param toleranceSeconds 时间戳容差（秒）
-     * @throws NullPointerException 如果 secret 为空
+     * @param secret Signing secret (cannot be null)
+     * @param toleranceSeconds Timestamp tolerance (seconds)
+     * @throws NullPointerException If secret is null
      */
     public WebhookSignatureVerifier(String secret, long toleranceSeconds) {
-        this.secret = Objects.requireNonNull(secret, "签名密钥不能为空");
+        this.secret = Objects.requireNonNull(secret, "Signing secret cannot be null");
         this.toleranceSeconds = toleranceSeconds > 0 ? toleranceSeconds : DEFAULT_TOLERANCE_SECONDS;
     }
     
     /**
-     * 生成 Webhook 签名
+     * Generates Webhook signature
      * 
-     * <p>签名格式：t={timestamp},v1={signature}</p>
+     * <p>Signature format: t={timestamp},v1={signature}</p>
      *
-     * @param payload 请求体内容
-     * @param timestamp Unix 时间戳（秒）
-     * @return 签名字符串
+     * @param payload Request body content
+     * @param timestamp Unix timestamp (seconds)
+     * @return Signature string
      */
     public String sign(String payload, long timestamp) {
         String signatureData = timestamp + "." + payload;
@@ -136,28 +136,28 @@ public final class WebhookSignatureVerifier {
     }
     
     /**
-     * 使用当前时间戳生成签名
+     * Generates signature with current timestamp
      *
-     * @param payload 请求体内容
-     * @return 签名字符串
+     * @param payload Request body content
+     * @return Signature string
      */
     public String sign(String payload) {
         return sign(payload, Instant.now().getEpochSecond());
     }
     
     /**
-     * 验证 Webhook 签名
+     * Verifies Webhook signature
      * 
-     * <p>验证步骤：</p>
+     * <p>Verification steps:</p>
      * <ol>
-     *   <li>解析签名头，提取时间戳和签名</li>
-     *   <li>验证时间戳是否在有效期内</li>
-     *   <li>重新计算签名并比较</li>
+     *   <li>Parse signature header, extract timestamp and signature</li>
+     *   <li>Verify timestamp is within validity period</li>
+     *   <li>Recompute signature and compare</li>
      * </ol>
      *
-     * @param payload 请求体内容
-     * @param signatureHeader 签名头内容
-     * @return 是否验证通过
+     * @param payload Request body content
+     * @param signatureHeader Signature header content
+     * @return Whether verification passed
      */
     public boolean verify(String payload, String signatureHeader) {
         if (payload == null || signatureHeader == null) {
@@ -165,23 +165,23 @@ public final class WebhookSignatureVerifier {
         }
         
         try {
-            // 解析签名头
+            // Parse signature header
             SignatureComponents components = parseSignatureHeader(signatureHeader);
             if (components == null) {
                 return false;
             }
             
-            // 验证时间戳
+            // Verify timestamp
             long currentTime = Instant.now().getEpochSecond();
             if (Math.abs(currentTime - components.timestamp) > toleranceSeconds) {
                 return false;
             }
             
-            // 计算预期签名
+            // Compute expected signature
             String signatureData = components.timestamp + "." + payload;
             String expectedSignature = computeHmacSha256(signatureData);
             
-            // 常量时间比较，防止时序攻击
+            // Constant-time comparison to prevent timing attacks
             return constantTimeEquals(expectedSignature, components.signature);
             
         } catch (Exception e) {
@@ -190,37 +190,37 @@ public final class WebhookSignatureVerifier {
     }
     
     /**
-     * 验证签名（带指定时间戳）
+     * Verifies signature (with specified timestamp)
      *
-     * @param payload 请求体内容
-     * @param signature 签名值
-     * @param timestamp Unix 时间戳（秒）
-     * @return 是否验证通过
+     * @param payload Request body content
+     * @param signature Signature value
+     * @param timestamp Unix timestamp (seconds)
+     * @return Whether verification passed
      */
     public boolean verify(String payload, String signature, long timestamp) {
         if (payload == null || signature == null) {
             return false;
         }
         
-        // 验证时间戳
+        // Verify timestamp
         long currentTime = Instant.now().getEpochSecond();
         if (Math.abs(currentTime - timestamp) > toleranceSeconds) {
             return false;
         }
         
-        // 计算预期签名
+        // Compute expected signature
         String signatureData = timestamp + "." + payload;
         String expectedSignature = computeHmacSha256(signatureData);
         
-        // 常量时间比较
+        // Constant-time comparison
         return constantTimeEquals(expectedSignature, signature);
     }
     
     /**
-     * 计算 HMAC-SHA256 签名
+     * Computes HMAC-SHA256 signature
      *
-     * @param data 待签名数据
-     * @return Base64 编码的签名
+     * @param data Data to sign
+     * @return Base64 encoded signature
      */
     private String computeHmacSha256(String data) {
         try {
@@ -233,17 +233,17 @@ public final class WebhookSignatureVerifier {
             byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException("计算 HMAC-SHA256 签名失败", e);
+            throw new RuntimeException("Failed to compute HMAC-SHA256 signature", e);
         }
     }
     
     /**
-     * 解析签名头
+     * Parses signature header
      * 
-     * <p>签名头格式：t={timestamp},v1={signature}</p>
+     * <p>Signature header format: t={timestamp},v1={signature}</p>
      *
-     * @param header 签名头内容
-     * @return 签名组件，解析失败返回 null
+     * @param header Signature header content
+     * @return Signature components, returns null if parsing fails
      */
     private SignatureComponents parseSignatureHeader(String header) {
         if (header == null || header.isEmpty()) {
@@ -282,13 +282,13 @@ public final class WebhookSignatureVerifier {
     }
     
     /**
-     * 常量时间字符串比较
+     * Constant-time string comparison
      * 
-     * <p>防止时序攻击，无论比较结果如何，执行时间都相同</p>
+     * <p>Prevents timing attacks - execution time is the same regardless of comparison result</p>
      *
-     * @param a 字符串 A
-     * @param b 字符串 B
-     * @return 是否相等
+     * @param a String A
+     * @param b String B
+     * @return Whether equal
      */
     private boolean constantTimeEquals(String a, String b) {
         if (a == null || b == null) {
@@ -302,7 +302,7 @@ public final class WebhookSignatureVerifier {
     }
     
     /**
-     * 签名组件内部类
+     * Signature components inner class
      */
     private static final class SignatureComponents {
         final long timestamp;
@@ -315,18 +315,18 @@ public final class WebhookSignatureVerifier {
     }
     
     /**
-     * 获取签名头名称
+     * Gets signature header name
      *
-     * @return 签名头名称
+     * @return Signature header name
      */
     public static String getSignatureHeaderName() {
         return SIGNATURE_HEADER;
     }
     
     /**
-     * 获取时间戳头名称
+     * Gets timestamp header name
      *
-     * @return 时间戳头名称
+     * @return Timestamp header name
      */
     public static String getTimestampHeaderName() {
         return TIMESTAMP_HEADER;

@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Configuration Capability Type Definitions
  * @description Defines core types for the configuration management system
@@ -10,10 +25,6 @@
  * [v3.1 Changes]
  * Added ConfigStoreCapability alias for Java/TS naming alignment.
  * ConfigCapability is now deprecated, use ConfigStoreCapability instead.
- *
- * 【v3.1 变更】
- * 添加 ConfigStoreCapability 别名以实现 Java/TS 命名对齐。
- * ConfigCapability 已弃用，请使用 ConfigStoreCapability。
  */
 
 // =========================================
@@ -81,8 +92,5 @@ export interface ConfigStoreCapability {
  *
  * @deprecated Use ConfigStoreCapability instead for Java/TS naming alignment.
  * Will be removed in v4.0.0.
- *
- * 【已弃用】请使用 ConfigStoreCapability 以实现 Java/TS 命名对齐。
- * 将在 v4.0.0 中移除。
  */
 export interface ConfigCapability extends ConfigStoreCapability {}

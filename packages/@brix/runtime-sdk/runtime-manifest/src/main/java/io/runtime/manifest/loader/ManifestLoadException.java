@@ -19,7 +19,6 @@ package io.runtime.manifest.loader;
  * Manifest Load Exception.
  *
  * <p>Thrown when manifest file loading fails.</p>
- * <p>当 Manifest 文件加载失败时抛出。</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.0

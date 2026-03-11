@@ -15,10 +15,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <h2>Architecture Principle</h2>
  * <blockquote>
- * 红线 8：数据隔离（Data Ownership）
- * ✗ 禁止：直接访问其他插件的数据库表
- * ✗ 禁止：跨插件使用外键约束
- * ✓ 允许：通过 Integration Event 获取数据副本
+ * Red Line 8: Data Isolation (Data Ownership)
+ * ✗ Prohibited: Direct access to other plugins' database tables
+ * ✗ Prohibited: Cross-plugin foreign key constraints
+ * ✓ Allowed: Obtain data copies through Integration Events
  * </blockquote>
  *
  * <h2>Source</h2>
@@ -37,15 +37,15 @@ public final class DataOwnershipRule {
 
     // Each plugin's entity package
     private static final String[] PLUGIN_ENTITY_PACKAGES = {
-        "com.shinwa.app.booking..entity..",
-        "com.shinwa.app.user..entity..",
-        "com.shinwa.app.contract..entity..",
-        "com.shinwa.app.case..entity..",
-        "com.shinwa.app.medical..entity..",
-        "com.shinwa.app.notification..entity..",
-        "com.shinwa.app.carousel..entity..",
-        "com.shinwa.app.compliance..entity..",
-        "com.shinwa.app.identity..entity.."
+        "io.brix.app.booking..entity..",
+        "io.brix.app.user..entity..",
+        "io.brix.app.contract..entity..",
+        "io.brix.app.case..entity..",
+        "io.brix.app.medical..entity..",
+        "io.brix.app.notification..entity..",
+        "io.brix.app.carousel..entity..",
+        "io.brix.app.compliance..entity..",
+        "io.brix.app.identity..entity.."
     };
 
     // ==================== Rules ====================
@@ -56,7 +56,7 @@ public final class DataOwnershipRule {
      * <p>Each plugin must own its data exclusively. Cross-plugin data access
      * must go through Integration Events or Capability interfaces.</p>
      *
-     * @param pluginPackage The package of the plugin being tested (e.g., "com.shinwa.app.booking..")
+     * @param pluginPackage The package of the plugin being tested (e.g., "io.brix.app.booking..")
      * @param forbiddenEntityPackages Other plugins' entity packages
      * @return ArchUnit rule instance
      */
@@ -106,8 +106,8 @@ public final class DataOwnershipRule {
      * @ArchTest
      * static final ArchRule bookingCannotAccessUserRepo = 
      *     DataOwnershipRule.noAccessToOtherPluginRepositories(
-     *         "com.shinwa.app.booking..", 
-     *         "com.shinwa.app.user..repository.."
+     *         "io.brix.app.booking..", 
+     *         "io.brix.app.user..repository.."
      *     );
      * }</pre>
      *

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.jwt;
 
 import java.io.IOException;
@@ -28,9 +43,9 @@ import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.exception.JwtConfigurationException;
 
 /**
- * JWT 验证
+ * JWT Validator
  * <p>
- * 使用 RS256 公钥验证 Token，不负责签发
+ * Validates Token using RS256 public key, does not issue tokens
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -49,18 +64,18 @@ public class JwtValidator {
     }
 
     /**
-     * 验证 Token 并解析用户信
+     * Validate Token and parse user information
      *
      * @param token JWT Token
-     * @return 认证用户信息
-     * @throws JwtValidationException 验证失败时抛
+     * @return Authenticated user information
+     * @throws JwtValidationException Thrown when validation fails
      */
     public AuthenticatedUser validate(String token) throws JwtValidationException {
         if (token == null || token.isBlank()) {
             throw new JwtValidationException("Token is empty", JwtValidationException.Reason.EMPTY);
         }
 
-        // 移除 Bearer 前缀
+        // Remove Bearer prefix
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
@@ -69,7 +84,7 @@ public class JwtValidator {
             Claims claims = Jwts.parser()
                     .verifyWith(publicKey)
                     .requireIssuer(properties.getIssuer())
-                    // P1 修复：添Audience 验证
+                    // P1 Fix: Add Audience validation
                     .requireAudience(properties.getAudience())
                     .clockSkewSeconds(properties.getClockSkewSeconds())
                     .build()
@@ -98,7 +113,7 @@ public class JwtValidator {
     }
 
     /**
-     * Claims 提取用户信息
+     * Extract user information from Claims
      */
     @SuppressWarnings("unchecked")
     private AuthenticatedUser extractUser(Claims claims) {
@@ -109,7 +124,7 @@ public class JwtValidator {
         user.setEmail(claims.get("email", String.class));
         user.setTokenVersion(claims.get("tv", Long.class));
         
-        // 提取角色和权
+        // Extract roles and permissions
         Object rolesObj = claims.get("roles");
         if (rolesObj instanceof List) {
             user.setRoles((List<String>) rolesObj);
@@ -124,7 +139,7 @@ public class JwtValidator {
     }
 
     /**
-     * 加载 RSA 公钥
+     * Load RSA public key
      */
     private PublicKey loadPublicKey(String path) {
         try {
@@ -134,7 +149,7 @@ public class JwtValidator {
             try (InputStream is = resource.getInputStream()) {
                 String keyContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                 
-                // 移除 PEM 头尾和换
+                // Remove PEM header/footer and newlines
                 keyContent = keyContent
                         .replace("-----BEGIN PUBLIC KEY-----", "")
                         .replace("-----END PUBLIC KEY-----", "")
@@ -158,7 +173,7 @@ public class JwtValidator {
     }
 
     /**
-     * JWT 验证异常
+     * JWT Validation Exception
      */
     public static class JwtValidationException extends Exception {
         

@@ -17,7 +17,6 @@ package io.runtime.manifest.validation;
 
 /**
  * Manifest Validation Package.
- * Manifest 验证包
  *
  * <p>This package provides manifest validation functionality:</p>
  * <ul>

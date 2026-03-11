@@ -19,39 +19,40 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * 能力注册表接口
+ * Capability Registry Interface
  * 
- * <p>提供运行时能力的动态注册与获取能力，是 Runtime Shell 的核心抽象。
- * 通过注册表模式，实现能力的声明式组装，避免硬编码依赖。</p>
+ * <p>Provides dynamic registration and retrieval of runtime capabilities,
+ * serving as the core abstraction of the Runtime Shell.
+ * Through the registry pattern, capabilities are declaratively assembled, avoiding hardcoded dependencies.</p>
  * 
- * <h3>设计原则</h3>
+ * <h3>Design Principles</h3>
  * <ul>
- *   <li><b>类型安全</b>：通过泛型确保类型安全的能力获取</li>
- *   <li><b>声明式</b>：能力通过配置声明，而非代码硬编码</li>
- *   <li><b>可扩展</b>：新能力无需修改核心代码，只需注册</li>
- *   <li><b>可观测</b>：提供能力元数据查询能力</li>
+ *   <li><b>Type Safety</b>: Type-safe capability retrieval through generics</li>
+ *   <li><b>Declarative</b>: Capabilities declared via configuration, not hardcoded</li>
+ *   <li><b>Extensible</b>: New capabilities require no core code changes, just registration</li>
+ *   <li><b>Observable</b>: Provides capability metadata query functionality</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
- * // 获取必需能力（不存在则抛异常）
+ * // Get required capability (throws exception if not found)
  * EventBusCapability eventBus = registry.getRequired(EventBusCapability.class);
  * 
- * // 获取可选能力
+ * // Get optional capability
  * registry.get(LockCapability.class).ifPresent(lock -> {
  *     lock.tryLock("resource-key", Duration.ofSeconds(10));
  * });
  * 
- * // 检查能力是否可用
+ * // Check if capability is available
  * if (registry.isAvailable(SchedulingCapability.class)) {
- *     // 使用调度能力
+ *     // Use scheduling capability
  * }
  * }</pre>
  * 
- * <h3>业界参考</h3>
+ * <h3>Industry Reference</h3>
  * <ul>
- *   <li>OSGi BundleContext - 服务注册与发现</li>
- *   <li>Kubernetes API Server - 资源注册</li>
+ *   <li>OSGi BundleContext - Service registration and discovery</li>
+ *   <li>Kubernetes API Server - Resource registration</li>
  *   <li>VS Code Extension API - Capability Provider</li>
  *   <li>Eclipse RCP - Service Registry</li>
  * </ul>
@@ -63,138 +64,138 @@ import java.util.Set;
  */
 public interface CapabilityRegistry {
 
-    // ==================== 能力获取 ====================
+    // ==================== Capability Retrieval ====================
 
     /**
-     * 获取指定类型的能力实例（可选）
+     * Get capability instance of specified type (optional)
      * 
-     * <p>推荐用于可选能力的获取，调用方需要处理能力不存在的情况。</p>
+     * <p>Recommended for retrieving optional capabilities where callers need to handle absence.</p>
      * 
-     * @param capabilityType 能力接口类型
-     * @param <T> 能力类型泛型
-     * @return 能力实例的 Optional 包装，如果未注册返回 empty
+     * @param capabilityType capability interface type
+     * @param <T> capability type parameter
+     * @return Optional wrapper of capability instance, returns empty if not registered
      */
     <T> Optional<T> get(Class<T> capabilityType);
 
     /**
-     * 获取指定类型的能力实例（必需）
+     * Get capability instance of specified type (required)
      * 
-     * <p>用于核心能力的获取，如果能力未注册则抛出异常。</p>
+     * <p>Used for retrieving core capabilities; throws exception if not registered.</p>
      * 
-     * @param capabilityType 能力接口类型
-     * @param <T> 能力类型泛型
-     * @return 能力实例，不会返回 null
-     * @throws CapabilityNotFoundException 如果能力未注册
+     * @param capabilityType capability interface type
+     * @param <T> capability type parameter
+     * @return capability instance, never returns null
+     * @throws CapabilityNotFoundException if capability is not registered
      */
     <T> T getRequired(Class<T> capabilityType);
 
     /**
-     * 获取指定类型的能力实例，如果不存在则返回默认值
+     * Get capability instance of specified type, returning default if not exists
      * 
-     * @param capabilityType 能力接口类型
-     * @param defaultValue 默认值
-     * @param <T> 能力类型泛型
-     * @return 能力实例或默认值
+     * @param capabilityType capability interface type
+     * @param defaultValue default value
+     * @param <T> capability type parameter
+     * @return capability instance or default value
      */
     default <T> T getOrDefault(Class<T> capabilityType, T defaultValue) {
         return get(capabilityType).orElse(defaultValue);
     }
 
-    // ==================== 能力检查 ====================
+    // ==================== Capability Check ====================
 
     /**
-     * 检查能力是否可用
+     * Check if capability is available
      * 
-     * @param capabilityType 能力接口类型
-     * @return 如果能力已注册且可用返回 true
+     * @param capabilityType capability interface type
+     * @return true if capability is registered and available
      */
     boolean isAvailable(Class<?> capabilityType);
 
     /**
-     * 获取所有已注册的能力类型
+     * Get all registered capability types
      * 
-     * @return 能力类型集合（不可修改）
+     * @return set of capability types (unmodifiable)
      */
     Set<Class<?>> getRegisteredTypes();
 
     /**
-     * 获取能力描述信息
+     * Get capability descriptor information
      * 
-     * @param capabilityType 能力接口类型
-     * @return 能力描述信息，如果未注册返回 empty
+     * @param capabilityType capability interface type
+     * @return capability descriptor, returns empty if not registered
      */
     Optional<CapabilityDescriptor> getDescriptor(Class<?> capabilityType);
 
     /**
-     * 获取所有能力描述信息
+     * Get all capability descriptors
      * 
-     * @return 所有能力描述信息集合
+     * @return set of all capability descriptors
      */
     Set<CapabilityDescriptor> getAllDescriptors();
 
-    // ==================== 能力注册 ====================
+    // ==================== Capability Registration ====================
 
     /**
-     * 注册能力实例
+     * Register capability instance
      * 
-     * @param capabilityType 能力接口类型
-     * @param instance 能力实例
-     * @param <T> 能力类型泛型
-     * @throws IllegalStateException 如果注册表已冻结
+     * @param capabilityType capability interface type
+     * @param instance capability instance
+     * @param <T> capability type parameter
+     * @throws IllegalStateException if registry is frozen
      */
     <T> void register(Class<T> capabilityType, T instance);
 
     /**
-     * 注册能力实例（带描述信息）
+     * Register capability instance (with descriptor)
      * 
-     * @param capabilityType 能力接口类型
-     * @param instance 能力实例
-     * @param descriptor 能力描述信息
-     * @param <T> 能力类型泛型
+     * @param capabilityType capability interface type
+     * @param instance capability instance
+     * @param descriptor capability descriptor
+     * @param <T> capability type parameter
      */
     <T> void register(Class<T> capabilityType, T instance, CapabilityDescriptor descriptor);
 
     /**
-     * 条件注册能力实例
+     * Conditionally register capability instance
      * 
-     * <p>只有当该类型未注册时才进行注册</p>
+     * <p>Only registers if the type is not already registered</p>
      * 
-     * @param capabilityType 能力接口类型
-     * @param instance 能力实例
-     * @param <T> 能力类型泛型
-     * @return 是否成功注册（false 表示已存在）
+     * @param capabilityType capability interface type
+     * @param instance capability instance
+     * @param <T> capability type parameter
+     * @return true if successfully registered (false means already exists)
      */
     <T> boolean registerIfAbsent(Class<T> capabilityType, T instance);
 
-    // ==================== 生命周期 ====================
+    // ==================== Lifecycle ====================
 
     /**
-     * 冻结注册表
+     * Freeze the registry
      * 
-     * <p>冻结后不允许再注册新能力，用于确保运行时稳定性。
-     * 通常在应用启动完成后调用。</p>
+     * <p>After freezing, no new capabilities can be registered, ensuring runtime stability.
+     * Typically called after application startup completes.</p>
      */
     void freeze();
 
     /**
-     * 检查注册表是否已冻结
+     * Check if registry is frozen
      * 
-     * @return 如果已冻结返回 true
+     * @return true if frozen
      */
     boolean isFrozen();
 
     /**
-     * 验证必需能力是否已注册
+     * Validate required capabilities are registered
      * 
-     * @param requiredTypes 必需的能力类型数组
-     * @throws CapabilityNotFoundException 如果有必需能力未注册
+     * @param requiredTypes array of required capability types
+     * @throws CapabilityNotFoundException if any required capability is not registered
      */
     void validateRequired(Class<?>... requiredTypes);
 
     /**
-     * 获取已注册能力数量
+     * Get number of registered capabilities
      * 
-     * @return 能力数量
+     * @return capability count
      */
     int size();
 }

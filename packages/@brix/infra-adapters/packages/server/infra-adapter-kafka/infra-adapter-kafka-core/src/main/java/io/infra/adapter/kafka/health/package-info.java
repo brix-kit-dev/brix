@@ -25,8 +25,6 @@
  *   <li>{@link io.infra.adapter.kafka.health.KafkaHealthIndicator} - Kafka broker connectivity health</li>
  * </ul>
  *
- * <p>此包提供用于监控 Kafka 连通性和集群状态的 Spring Boot Actuator 健康指示器。</p>
- *
  * @author Brix Platform Team
  * @since 3.0.0
  */

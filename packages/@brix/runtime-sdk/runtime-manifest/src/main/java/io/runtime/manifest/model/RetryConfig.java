@@ -19,7 +19,6 @@ package io.runtime.manifest.model;
  * Retry Configuration.
  *
  * <p>Configures retry behavior including attempts, backoff strategy, and delays.</p>
- * <p>【重试配置】配置重试行为，包括重试次数、退避策略和延迟时间。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -32,25 +31,21 @@ public class RetryConfig {
 
     /**
      * Maximum retry attempts.
-     * 最大重试次数
      */
     private int maxAttempts = 3;
 
     /**
      * Backoff strategy: fixed (fixed interval) or exponential (exponential backoff).
-     * 退避策略：fixed（固定间隔）或 exponential（指数退避）
      */
     private String backoff = "exponential";
 
     /**
      * Initial delay in milliseconds.
-     * 初始延迟（毫秒）
      */
     private long initialDelay = 1000;
 
     /**
      * Maximum delay in milliseconds.
-     * 最大延迟（毫秒）
      */
     private long maxDelay = 60000;
 

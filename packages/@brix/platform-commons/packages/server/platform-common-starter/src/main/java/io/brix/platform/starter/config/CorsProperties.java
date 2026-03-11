@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.config;
 
 import java.util.ArrayList;
@@ -6,13 +21,13 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * CORS 配置属
+ * CORS Configuration Properties
  * 
- * <p>跨域资源共享配置，用于配置允许的源、方法、头部等</p>
+ * <p>Cross-Origin Resource Sharing configuration for allowed origins, methods, headers etc.</p>
  * 
- * <p>配置示例</p>
+ * <p>Configuration Example:</p>
  * <pre>
- * shinwa:
+ * brix:
  *   cors:
  *     enabled: true
  *     allowed-origins:
@@ -32,80 +47,80 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author Brix Platform Authors Team
  * @since v2.1
  */
-@ConfigurationProperties(prefix = "shinwa.cors")
+@ConfigurationProperties(prefix = "brix.cors")
 public class CorsProperties {
     
     /**
-     * 是否启用 CORS
+     * Whether to enable CORS
      * 
-     * <p>默认值：true</p>
+     * <p>Default: true</p>
      */
     private boolean enabled = true;
     
     /**
-     * 允许的源
+     * Allowed origins
      * 
-     * <p>可以是具体的域名或 "*" 表示允许所</p>
-     * <p>注意：使credentials 时不能使"*"</p>
+     * <p>Can be specific domain names or "*" to allow all</p>
+     * <p>Note: Cannot use "*" when credentials are enabled</p>
      * 
-     * <p>默认值：["*"]</p>
+     * <p>Default: ["*"]</p>
      */
     private List<String> allowedOrigins = new ArrayList<>(List.of("*"));
     
     /**
-     * 允许的源模式
+     * Allowed origin patterns
      * 
-     * <p>支持通配符模式，"http://*.example.com"</p>
+     * <p>Supports wildcard patterns, e.g., "http://*.example.com"</p>
      */
     private List<String> allowedOriginPatterns = new ArrayList<>();
     
     /**
-     * 允许HTTP 方法
+     * Allowed HTTP methods
      * 
-     * <p>默认值：GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH</p>
+     * <p>Default: GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH</p>
      */
     private List<String> allowedMethods = new ArrayList<>(List.of(
         "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
     ));
     
     /**
-     * 允许的请求头
+     * Allowed request headers
      * 
-     * <p>"*" 表示允许所</p>
+     * <p>"*" means allow all</p>
      * 
-     * <p>默认值：["*"]</p>
+     * <p>Default: ["*"]</p>
      */
     private List<String> allowedHeaders = new ArrayList<>(List.of("*"));
     
     /**
-     * 暴露给客户端的响应头
+     * Response headers exposed to client
      * 
-     * <p>客户端可以访问这些响应头</p>
+     * <p>Client can access these response headers</p>
      */
     private List<String> exposedHeaders = new ArrayList<>();
     
     /**
-     * 是否允许携带凭证
+     * Whether to allow credentials
      * 
-     * <p>如果true，allowedOrigins 不能"*"</p>
+     * <p>If true, allowedOrigins cannot be "*"</p>
      * 
-     * <p>默认值：true</p>
+     * <p>Default: true</p>
      */
     private boolean allowCredentials = true;
     
     /**
-     * 预检请求缓存时间（秒
+     * Preflight request cache time (seconds)
      * 
-     * <p>浏览器缓存预检请求结果的时</p>
+     * <p>Browser caches preflight request results for this duration</p>
      * 
-     * <p>默认值：3600小时</p>
+     * <p>Default: 3600 (1 hour)</p>
      */
     private long maxAge = 3600;
     
     /**
-     * CORS 过滤器应用的路径模式
+     * Path pattern for CORS filter
      * 
-     * <p>默认值：/**</p>
+     * <p>Default: /**</p>
      */
     private String pathPattern = "/**";
     

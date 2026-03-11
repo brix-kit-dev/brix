@@ -16,13 +16,13 @@
 package io.runtime.orchestrator.event;
 
 /**
- * 事件分发异常
+ * Event Dispatch Exception.
  * 
- * <p>当事件分发过程中发生错误时抛出，通常由于以下原因：</p>
+ * <p>Thrown when an error occurs during event dispatch, typically due to:</p>
  * <ul>
- *   <li>处理器方法调用失败</li>
- *   <li>处理器抛出异常</li>
- *   <li>序列化/反序列化失败</li>
+ *   <li>Handler method invocation failed</li>
+ *   <li>Handler threw exception</li>
+ *   <li>Serialization/deserialization failed</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -33,19 +33,19 @@ public class EventDispatchException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 创建事件分发异常
+     * Creates event dispatch exception.
      * 
-     * @param message 错误消息
+     * @param message error message
      */
     public EventDispatchException(String message) {
         super(message);
     }
 
     /**
-     * 创建事件分发异常（带原因）
+     * Creates event dispatch exception (with cause).
      * 
-     * @param message 错误消息
-     * @param cause   原因异常
+     * @param message error message
+     * @param cause   cause exception
      */
     public EventDispatchException(String message, Throwable cause) {
         super(message, cause);

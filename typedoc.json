@@ -1,0 +1,52 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Brix Framework API Documentation",
+  "entryPointStrategy": "packages",
+  "entryPoints": [
+    "packages/@brix/runtime-sdk",
+    "packages/@brix/infra-adapters",
+    "packages/@brix/platform-commons"
+  ],
+  "out": "docs/api",
+  "readme": "README.md",
+  "navigationLinks": {
+    "GitHub": "https://github.com/brix-framework/brix",
+    "npm": "https://www.npmjs.com/org/brix"
+  },
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "excludeNotDocumented": false,
+  "categorizeByGroup": true,
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Capabilities",
+    "Events", 
+    "Types",
+    "Hooks",
+    "Adapters",
+    "Utils",
+    "Other"
+  ],
+  "sort": ["kind", "alphabetical"],
+  "visibilityFilters": {
+    "protected": false,
+    "@internal": false
+  },
+  "plugin": ["typedoc-plugin-markdown"],
+  "theme": "default",
+  "cleanOutputDir": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "requiredToBeDocumented": ["Class", "Interface", "Function", "TypeAlias", "Enum"],
+  "treatWarningsAsErrors": false,
+  "skipErrorChecking": true,
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "moduleResolution": "bundler"
+  }
+}

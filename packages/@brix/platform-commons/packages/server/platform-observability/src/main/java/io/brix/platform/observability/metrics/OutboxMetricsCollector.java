@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability.metrics;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -14,29 +29,29 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 /**
- * Outbox 指标收集
+ * Outbox metrics collector.
  * 
- * <p>v2.1 阶段4 可观测性增强</p>
+ * <p>v2.1 Phase 4 Observability Enhancement</p>
  * 
- * <p>功能说明</p>
- * <p>定期收集 Outbox 队列的状态指标，用于监控事件发送健康状况</p>
+ * <p>Features</p>
+ * <p>Periodically collects Outbox queue status metrics for monitoring event delivery health.</p>
  * 
- * <p>收集的指标：</p>
+ * <p>Collected metrics:</p>
  * <ul>
- *   <li><b>shinwa.outbox.pending.count</b>：待发送事件数</li>
- *   <li><b>shinwa.outbox.failed.count</b>：发送失败事件数</li>
- *   <li><b>shinwa.outbox.dead_letter.count</b>：死信事件数</li>
- *   <li><b>shinwa.outbox.oldest_pending.seconds</b>：最老待发送事件等待时</li>
+ *   <li><b>brix.outbox.pending.count</b>: Pending event count</li>
+ *   <li><b>brix.outbox.failed.count</b>: Failed event count</li>
+ *   <li><b>brix.outbox.dead_letter.count</b>: Dead letter event count</li>
+ *   <li><b>brix.outbox.oldest_pending.seconds</b>: Oldest pending event wait time</li>
  * </ul>
  * 
- * <p>告警建议</p>
+ * <p>Alert Recommendations</p>
  * <ul>
- *   <li>pending.count > 1000：事件堆积告</li>
- *   <li>dead_letter.count > 0：死信告警（需人工介入</li>
- *   <li>oldest_pending.seconds > 300：事件处理延迟告</li>
+ *   <li>pending.count > 1000: Event backlog alert</li>
+ *   <li>dead_letter.count > 0: Dead letter alert (requires manual intervention)</li>
+ *   <li>oldest_pending.seconds > 300: Event processing delay alert</li>
  * </ul>
  * 
- * <p>配置项：</p>
+ * <p>Configuration:</p>
  * <pre>
  * observability:
  *   metrics:
@@ -55,38 +70,38 @@ import java.sql.ResultSet;
     prefix = "observability.metrics.outbox",
     name = "enabled",
     havingValue = "true",
-    matchIfMissing = false  // 默认不启用，需要显式配
+    matchIfMissing = false  // Disabled by default, requires explicit configuration
 )
 public class OutboxMetricsCollector {
     
     private static final Logger log = LoggerFactory.getLogger(OutboxMetricsCollector.class);
     
-    private static final String METRIC_PREFIX = "shinwa.outbox.";
+    private static final String METRIC_PREFIX = "brix.outbox.";
     
     private final MeterRegistry meterRegistry;
     private final DataSource dataSource;
     
-    // 缓存的指标
+    // Cached metrics
     private volatile long pendingCount = 0;
     private volatile long failedCount = 0;
     private volatile long deadLetterCount = 0;
     private volatile long oldestPendingSeconds = 0;
     
     /**
-     * 构造函数
+     * Constructor.
      */
     public OutboxMetricsCollector(MeterRegistry meterRegistry, DataSource dataSource) {
         this.meterRegistry = meterRegistry;
         this.dataSource = dataSource;
         
-        // 注册 Gauge 指标
+        // Register Gauge metrics
         registerGauges();
         
-        log.info("[OutboxMetricsCollector] Outbox 指标收集器已初始");
+        log.info("[OutboxMetricsCollector] Outbox metrics collector initialized");
     }
     
     /**
-     * 注册 Gauge 指标
+     * Register Gauge metrics.
      */
     private void registerGauges() {
         meterRegistry.gauge(METRIC_PREFIX + "pending.count", this, 
@@ -103,7 +118,7 @@ public class OutboxMetricsCollector {
     }
     
     /**
-     * 定期收集指标
+     * Periodically collect metrics.
      */
     @Scheduled(fixedDelayString = "${observability.metrics.outbox.collect-interval-ms:30000}")
     public void collectMetrics() {
@@ -112,25 +127,25 @@ public class OutboxMetricsCollector {
             collectOldestPending();
             
             if (log.isDebugEnabled()) {
-                log.debug("[Outbox指标] pending={}, failed={}, deadLetter={}, oldestSeconds={}",
+                log.debug("[OutboxMetrics] pending={}, failed={}, deadLetter={}, oldestSeconds={}",
                     pendingCount, failedCount, deadLetterCount, oldestPendingSeconds);
             }
             
-            // 告警日志
+            // Alert logging
             if (deadLetterCount > 0) {
-                log.warn("[Outbox告警] 存在 {} 条死信事件，需要人工处", deadLetterCount);
+                log.warn("[OutboxAlert] {} dead letter events exist, manual intervention required", deadLetterCount);
             }
             if (pendingCount > 1000) {
-                log.warn("[Outbox告警] 待发送事件堆 {} ", pendingCount);
+                log.warn("[OutboxAlert] Pending event backlog: {} events", pendingCount);
             }
             
         } catch (Exception e) {
-            log.error("[OutboxMetricsCollector] 指标收集失败", e);
+            log.error("[OutboxMetricsCollector] Metrics collection failed", e);
         }
     }
     
     /**
-     * 收集各状态的事件数量
+     * Collect event counts by status.
      */
     private void collectOutboxCounts() {
         String sql = """
@@ -143,7 +158,7 @@ public class OutboxMetricsCollector {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             
-            // 重置计数
+            // Reset counts
             pendingCount = 0;
             failedCount = 0;
             deadLetterCount = 0;
@@ -160,12 +175,12 @@ public class OutboxMetricsCollector {
             }
             
         } catch (Exception e) {
-            log.debug("[OutboxMetricsCollector] 查询失败（表可能不存在）: {}", e.getMessage());
+            log.debug("[OutboxMetricsCollector] Query failed (table may not exist): {}", e.getMessage());
         }
     }
     
     /**
-     * 收集最老待发送事件的等待时间
+     * Collect oldest pending event wait time.
      */
     private void collectOldestPending() {
         String sql = """
@@ -186,12 +201,12 @@ public class OutboxMetricsCollector {
             }
             
         } catch (Exception e) {
-            log.debug("[OutboxMetricsCollector] 查询失败: {}", e.getMessage());
+            log.debug("[OutboxMetricsCollector] Query failed: {}", e.getMessage());
             oldestPendingSeconds = 0;
         }
     }
     
-    // ==================== Getters（用Gauge====================
+    // ==================== Getters (for Gauge) ====================
     
     public long getPendingCount() {
         return pendingCount;

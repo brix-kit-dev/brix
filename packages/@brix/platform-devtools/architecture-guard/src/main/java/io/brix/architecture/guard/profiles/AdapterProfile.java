@@ -28,8 +28,8 @@ import io.brix.architecture.guard.rules.AdapterIsolationRule;
  *
  * <h2>Defects Addressed</h2>
  * <ul>
- *   <li><b>D4</b>: adapter间交叉依赖 - Detected by isolation rules</li>
- *   <li><b>D5</b>: adapter泄露第三方类型 - Detected by type leakage rules</li>
+ *   <li><b>D4</b>: Cross-adapter dependencies - Detected by isolation rules</li>
+ *   <li><b>D5</b>: Adapter leaking third-party types - Detected by type leakage rules</li>
  * </ul>
  *
  * <h2>Usage</h2>
@@ -53,7 +53,10 @@ public class AdapterProfile {
     @ArchTest
     static final ArchRule kafkaAdapterIsolated = AdapterIsolationRule.kafkaAdapterIsolated();
 
-    /** Outbox adapter should not depend on messaging adapters */
+    /** 
+     * Outbox adapter isolation: allows kafka dependency (same aggregate), 
+     * prohibits unrelated adapters (rabbit, redis, http) 
+     */
     @ArchTest
     static final ArchRule outboxAdapterIsolated = AdapterIsolationRule.outboxAdapterIsolated();
 

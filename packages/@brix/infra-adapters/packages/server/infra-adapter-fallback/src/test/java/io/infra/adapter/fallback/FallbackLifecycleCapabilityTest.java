@@ -27,15 +27,15 @@ import io.runtime.sdk.capability.ModuleMetadata;
 import io.runtime.sdk.context.RuntimeContext;
 
 /**
- * {@link FallbackLifecycleCapability} 单元测试
+ * Unit tests for {@link FallbackLifecycleCapability}
  *
- * <p>验证空操作生命周期实现：所有回调不抛异常，
- * healthCheck 始终 UP，metadata 结构正确。</p>
+ * <p>Validates the no-op lifecycle implementation: all callbacks do not throw exceptions,
+ * healthCheck always returns UP, and metadata structure is correct.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
-@DisplayName("FallbackLifecycleCapability 测试")
+@DisplayName("FallbackLifecycleCapability Tests")
 class FallbackLifecycleCapabilityTest {
 
     private FallbackLifecycleCapability lifecycle;
@@ -45,10 +45,10 @@ class FallbackLifecycleCapabilityTest {
         lifecycle = new FallbackLifecycleCapability();
     }
 
-    // ==================== 生命周期回调 ====================
+    // ==================== Lifecycle Callbacks ====================
 
     @Test
-    @DisplayName("onInit - 应正常执行不抛异常")
+    @DisplayName("onInit - should execute without throwing exceptions")
     void onInit_shouldNotThrow() {
         RuntimeContext context = Mockito.mock(RuntimeContext.class);
 
@@ -56,19 +56,19 @@ class FallbackLifecycleCapabilityTest {
     }
 
     @Test
-    @DisplayName("onStart - 应正常执行不抛异常")
+    @DisplayName("onStart - should execute without throwing exceptions")
     void onStart_shouldNotThrow() {
         assertThatNoException().isThrownBy(() -> lifecycle.onStart());
     }
 
     @Test
-    @DisplayName("onStop - 应正常执行不抛异常")
+    @DisplayName("onStop - should execute without throwing exceptions")
     void onStop_shouldNotThrow() {
         assertThatNoException().isThrownBy(() -> lifecycle.onStop());
     }
 
     @Test
-    @DisplayName("onDestroy - 应正常执行不抛异常")
+    @DisplayName("onDestroy - should execute without throwing exceptions")
     void onDestroy_shouldNotThrow() {
         assertThatNoException().isThrownBy(() -> lifecycle.onDestroy());
     }
@@ -76,7 +76,7 @@ class FallbackLifecycleCapabilityTest {
     // ==================== healthCheck ====================
 
     @Test
-    @DisplayName("healthCheck - 应始终返回 UP")
+    @DisplayName("healthCheck - should always return UP")
     void healthCheck_shouldReturnUp() {
         HealthStatus status = lifecycle.healthCheck();
 
@@ -87,7 +87,7 @@ class FallbackLifecycleCapabilityTest {
     // ==================== getMetadata ====================
 
     @Test
-    @DisplayName("getMetadata - 应返回有效的模块元数据")
+    @DisplayName("getMetadata - should return valid module metadata")
     void getMetadata_shouldReturnValidMetadata() {
         ModuleMetadata metadata = lifecycle.getMetadata();
 

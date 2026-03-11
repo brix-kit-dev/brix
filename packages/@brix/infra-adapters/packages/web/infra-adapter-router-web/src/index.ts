@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file infra-adapter-router-web module entry
  * @description Brix UI Router Adapter - react-router based routing implementation
@@ -24,11 +39,6 @@
  * - Removed direct re-export of third-party types (Router, Location, RouterProvider)
  * - All react-router types are now encapsulated within adapter-owned abstractions
  * - Third-party library isolation principle: Public API contains zero third-party types
- * 
- * 【架构合规更新】
- * - 移除第三方类型的直接重新导出（Router, Location, RouterProvider）
- * - 所有 react-router 类型现在封装在 adapter 自有抽象中
- * - 第三方库隔离原则：公共 API 不包含任何第三方类型
  * 
  * [Usage] (Host layer only)
  * ```typescript
@@ -64,10 +74,6 @@ import React from 'react';
  * 
  * This is an opaque type that hides the react-router-dom internal types.
  * The actual router instance is created by ReactRouterAdapter.getRouter().
- * 
- * 【架构合规】
- * 此类型是适配器自有的不透明类型，隐藏了 react-router-dom 内部类型。
- * 实际 router 实例由 ReactRouterAdapter.getRouter() 创建。
  */
 export type BrixRouter = object;
 
@@ -75,9 +81,6 @@ export type BrixRouter = object;
  * Props for BrixRouterProvider component.
  * 
  * This type is adapter-owned and does not expose react-router-dom types.
- * 
- * 【架构合规】
- * 此类型为适配器自有，不暴露 react-router-dom 类型。
  */
 export interface BrixRouterProviderProps {
   /**
@@ -102,9 +105,6 @@ export interface BrixRouterProviderProps {
  * Route change listener callback type.
  * 
  * Uses adapter-owned NavigationLocation type instead of react-router's Location.
- * 
- * 【架构合规】
- * 使用适配器自有的 NavigationLocation 类型，而非 react-router 的 Location。
  */
 export type RouteChangeListener = (
   location: NavigationLocation, 
@@ -119,11 +119,6 @@ export type RouteChangeListener = (
  * 
  * This component provides type isolation by using adapter-owned types (BrixRouterProviderProps)
  * instead of exposing react-router-dom internal types.
- * 
- * 【架构说明】
- * 此组件封装了 react-router-dom 的 RouterProvider，确保架构合规性。
- * Host 层应使用此组件而不是直接从 react-router-dom 导入。
- * 通过使用适配器自有类型 (BrixRouterProviderProps) 而非暴露 react-router-dom 内部类型来实现类型隔离。
  * 
  * @example
  * ```typescript
@@ -158,10 +153,6 @@ export function BrixRouterProvider(props: BrixRouterProviderProps): React.JSX.El
  * 
  * Adapter-owned location type that encapsulates react-router's Location.
  * Provides a stable, framework-agnostic interface for the Host layer.
- * 
- * 【架构说明】
- * 适配器自有的 Location 类型，封装 react-router 的 Location。
- * 为 Host 层提供稳定的、框架无关的接口。
  */
 export interface NavigationLocation {
   /** Current pathname */

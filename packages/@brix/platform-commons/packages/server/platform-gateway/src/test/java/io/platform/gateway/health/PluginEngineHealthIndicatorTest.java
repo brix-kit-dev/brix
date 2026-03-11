@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.health;
 
 import java.util.Map;
@@ -18,13 +33,13 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 /**
- * PluginEngineHealthIndicator 单元测试
+ * PluginEngineHealthIndicator Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("PluginEngineHealthIndicator 测试")
+@DisplayName("PluginEngineHealthIndicator Test")
 @SuppressWarnings({"unused", "null", "rawtypes"}) // JUnit setUp; WebClient mock operations
 class PluginEngineHealthIndicatorTest {
 
@@ -61,35 +76,35 @@ class PluginEngineHealthIndicatorTest {
     }
 
     @Test
-    @DisplayName("Engine 健康时应返回 UP 状态")
+    @DisplayName("Should return UP status when Engine is healthy")
     @SuppressWarnings("unchecked")
     void shouldReturnUpWhenEngineHealthy() {
-        // Mock WebClient 调用
+        // Mock WebClient call
         when(webClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
         
-        // 使用 Map 模拟健康响应（避免私有 record 类型问题）
+        // Use Map to simulate health response (avoid private record type issue)
         Map<String, String> response = Map.of("status", "UP");
         when(responseSpec.bodyToMono(any(Class.class)))
                 .thenReturn(Mono.just(response));
 
-        // 由于内部使用 record，我们需要验证错误处理路径
-        // 实际场景下这会因类型不匹配而进入 onErrorResume
+        // Since internal uses record, we need to verify error handling path
+        // In actual scenario this will enter onErrorResume due to type mismatch
         StepVerifier.create(healthIndicator.health())
                 .expectNextMatches(health -> health.getStatus() != null)
                 .verifyComplete();
     }
 
     @Test
-    @DisplayName("连接 Engine 失败时应返回 DOWN 状态")
+    @DisplayName("Should return DOWN status when Engine connection fails")
     @SuppressWarnings("unchecked")
     void shouldReturnDownWhenConnectionFails() {
         when(webClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
         
-        // 模拟连接错误
+        // Simulate connection error
         when(responseSpec.bodyToMono(any(Class.class)))
                 .thenReturn(Mono.error(new RuntimeException("Connection refused")));
 
@@ -103,7 +118,7 @@ class PluginEngineHealthIndicatorTest {
     }
     
     @Test
-    @DisplayName("健康检查应包含 engineUrl 详情")
+    @DisplayName("Health check should include engineUrl in details")
     @SuppressWarnings("unchecked")
     void shouldIncludeEngineUrlInDetails() {
         when(webClient.get()).thenReturn(requestHeadersUriSpec);

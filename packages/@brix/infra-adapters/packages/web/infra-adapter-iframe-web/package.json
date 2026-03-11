@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-iframe-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix UI iframe adapter - Plugin isolation via iframe (fallback mode)",
   "type": "module",
   "main": "dist/index.js",

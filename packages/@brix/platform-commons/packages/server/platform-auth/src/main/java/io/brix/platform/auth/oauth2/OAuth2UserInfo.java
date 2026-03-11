@@ -1,12 +1,27 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.oauth2;
 
 import lombok.Data;
 
 /**
- * OAuth2 用户信息
+ * OAuth2 User Info
  * <p>
- * 从第三方身份提供商获取的标准化用户信息
- * 不同提供商的原始字段会被映射到统一的字段结构
+ * Standardized user info retrieved from third-party identity providers.
+ * Different providers' raw fields are mapped to a unified field structure.
  * </p>
  *
  * @author Brix Platform Authors
@@ -17,46 +32,46 @@ import lombok.Data;
 public class OAuth2UserInfo {
 
     /**
-     * 身份提供商标识（google、wechat、github
+     * Identity provider identifier (google, wechat, github)
      */
     private String provider;
 
     /**
-     * 用户在该提供商的唯一标识
+     * User's unique identifier at the provider
      * <ul>
      *   <li>Google: sub</li>
-     *   <li>寰俊: openid</li>
+     *   <li>WeChat: openid</li>
      *   <li>GitHub: id</li>
      * </ul>
      */
     private String providerId;
 
     /**
-     * 用户显示名称
+     * User display name
      */
     private String name;
 
     /**
-     * 用户邮箱（可能为空）
+     * User email (may be empty)
      */
     private String email;
 
     /**
-     * 用户头像 URL（可能为空）
+     * User avatar URL (may be empty)
      */
     private String avatar;
 
     /**
-     * 原始属JSON 字符
-     * 保留提供商返回的完整用户信息，便于扩
+     * Raw attributes JSON string
+     * Preserves complete user info returned by provider for extension
      */
     private String rawAttributes;
 
     /**
-     * 生成唯一OAuth2 绑定标识
-     * 格式: provider:providerId
+     * Generate unique OAuth2 binding identifier
+     * Format: provider:providerId
      *
-     * @return 绑定标识
+     * @return Binding identifier
      */
     public String getBindingKey() {
         return provider + ":" + providerId;

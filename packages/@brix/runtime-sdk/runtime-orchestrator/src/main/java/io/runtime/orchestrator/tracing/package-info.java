@@ -15,35 +15,35 @@
  */
 
 /**
- * 能力调用追踪包
+ * Capability Invocation Tracing Package.
  * 
- * <p>提供能力调用的追踪、计时和指标收集功能。</p>
+ * <p>Provides capability invocation tracing, timing, and metrics collection.</p>
  * 
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.runtime.orchestrator.tracing.CapabilityInvocationTracer} - 能力调用追踪器</li>
- *   <li>{@link io.runtime.orchestrator.tracing.CapabilityTracingConfig} - 追踪配置</li>
+ *   <li>{@link io.runtime.orchestrator.tracing.CapabilityInvocationTracer} - Capability invocation tracer</li>
+ *   <li>{@link io.runtime.orchestrator.tracing.CapabilityTracingConfig} - Tracing configuration</li>
  * </ul>
  * 
- * <h2>API 契约（来自 runtime-sdk-api）</h2>
+ * <h2>API Contracts (from runtime-sdk-api)</h2>
  * <ul>
- *   <li>{@link io.runtime.sdk.tracing.CapabilityInvocation} - 能力调用记录</li>
- *   <li>{@link io.runtime.sdk.tracing.CapabilityMetricsExporter} - 指标导出器接口</li>
+ *   <li>{@link io.runtime.sdk.tracing.CapabilityInvocation} - Capability invocation record</li>
+ *   <li>{@link io.runtime.sdk.tracing.CapabilityMetricsExporter} - Metrics exporter interface</li>
  * </ul>
  * 
- * <h2>架构说明</h2>
- * <p>本包实现 v3.0 架构蓝图中 4.4-1 任务：
- * 每次 {@code Capability.invoke()} 记录调用方插件、目标能力、耗时。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>This package implements Runtime Observability:
+ * each {@code Capability.invoke()} records caller plugin, target capability, and duration.</p>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
- * // 创建追踪器
+ * // Create tracer
  * CapabilityInvocationTracer tracer = new CapabilityInvocationTracer(config);
  * 
- * // 开始追踪
+ * // Start tracing
  * TraceToken token = tracer.startInvocation("booking", HttpCapability.class, "sendRequest");
  * try {
- *     // 执行能力调用
+ *     // Execute capability invocation
  *     capability.sendRequest(...);
  *     tracer.endSuccess(token);
  * } catch (Exception e) {

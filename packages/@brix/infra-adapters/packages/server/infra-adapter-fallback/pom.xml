@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Authors
   ~
@@ -43,7 +43,7 @@
         
         【架构说明】
         此模块属于 Layer 2.5 - 适配器层，遵循架构蓝图设计：
-        - Host 层（shinwa-host-assembly）只做组装，不含实现代码
+        - Host 层（brix-host-assembly）只做组装，不含实现代码
         - 默认能力实现必须在此模块，由 Host 层引用
         
         【使用方式】

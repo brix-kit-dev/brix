@@ -16,11 +16,11 @@
 package io.runtime.sdk.context;
 
 /**
- * 上下文包
+ * Context Package
  * 
- * <p>本包定义运行时上下文相关接口：</p>
+ * <p>This package defines runtime context related interfaces:</p>
  * <ul>
- *   <li>{@link RuntimeContext} - 运行时上下文，模块获取能力的唯一入口</li>
+ *   <li>{@link RuntimeContext} - Runtime context, the single entry point for modules to access capabilities</li>
  * </ul>
  * 
  * @since 3.0.0

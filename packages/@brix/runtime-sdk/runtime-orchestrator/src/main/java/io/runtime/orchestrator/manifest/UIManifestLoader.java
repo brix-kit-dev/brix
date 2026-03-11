@@ -15,31 +15,40 @@
  */
 package io.runtime.orchestrator.manifest;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Service;
-
-import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.annotation.PostConstruct;
+
 /**
- * UI Manifest 加载服务
+ * UI Manifest declarative scanning and loading service.
  *
- * <p>临时实现：从 classpath 的 ui-manifests.json 文件加载所有插件的 UI manifest。</p>
- * 
- * <p>未来改进方向：
+ * <p>Implements Dependency-Driven Discovery pattern:</p>
  * <ul>
- *   <li>从各插件 jar 包的 META-INF 目录扫描 ui-manifest.yaml/json</li>
- *   <li>支持 YAML 格式</li>
- *   <li>支持热加载</li>
+ *   <li>Scans classpath*:META-INF/plugin-manifest.json at runtime</li>
+ *   <li>Only plugins declared as dependencies in Host pom.xml are discovered</li>
+ *   <li>Zero configuration in Host layer - discovery driven purely by dependency declarations</li>
  * </ul>
- * </p>
+ * 
+ * <h3>Declarative Architecture</h3>
+ * <ul>
+ *   <li>Each plugin declares manifest at {name}-server/src/main/resources/META-INF/plugin-manifest.json</li>
+ *   <li>Runtime classpath scanning for automatic discovery</li>
+ *   <li>No build-time aggregation needed - true runtime dynamic discovery</li>
+ * </ul>
  *
  * @author Runtime SDK Team
  * @since 3.1.0
@@ -48,60 +57,133 @@ import java.util.Map;
 public class UIManifestLoader {
 
     private static final Logger log = LoggerFactory.getLogger(UIManifestLoader.class);
-    private static final String MANIFEST_FILE = "ui-manifests.json";
+    
+    /**
+     * Plugin manifest file path pattern for classpath scanning.
+     */
+    private static final String PLUGIN_MANIFEST_PATTERN = "classpath*:META-INF/plugin-manifest.json";
 
     private final ObjectMapper objectMapper;
+    private final ResourcePatternResolver resourceResolver;
     private Map<String, Map<String, Object>> manifests = Collections.emptyMap();
 
     public UIManifestLoader(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.resourceResolver = new PathMatchingResourcePatternResolver();
     }
 
     @PostConstruct
     public void loadManifests() {
+        loadManifestsFromClasspath();
+    }
+    
+    /**
+     * Scans manifest files from all jars on the classpath.
+     * 
+     * <p>Follows Dependency-Driven Discovery principle:</p>
+     * <ul>
+     *   <li>Only scans jars that are dependencies declared in Host pom.xml</li>
+     *   <li>No build-time aggregation needed - runtime dynamic discovery</li>
+     * </ul>
+     */
+    private void loadManifestsFromClasspath() {
+        Map<String, Map<String, Object>> discoveredManifests = new HashMap<>();
+        
         try {
-            ClassPathResource resource = new ClassPathResource(MANIFEST_FILE);
-            if (resource.exists()) {
-                try (InputStream is = resource.getInputStream()) {
-                    Map<String, Map<String, Map<String, Object>>> wrapper = objectMapper.readValue(
-                        is,
-                        new TypeReference<>() {}
-                    );
-                    this.manifests = wrapper.getOrDefault("manifests", Collections.emptyMap());
-                    log.info("Loaded {} UI manifests from {}", manifests.size(), MANIFEST_FILE);
+            Resource[] resources = resourceResolver.getResources(PLUGIN_MANIFEST_PATTERN);
+            log.info("[UIManifestLoader] Scanning for plugin manifests, found {} resources", resources.length);
+            
+            for (Resource resource : resources) {
+                if (resource.isReadable()) {
+                    loadSingleManifest(resource, discoveredManifests);
                 }
-            } else {
-                log.warn("UI manifest file not found: {}", MANIFEST_FILE);
             }
+            
+            this.manifests = discoveredManifests;
+            log.info("[UIManifestLoader] Discovered {} plugin manifests via classpath scanning", manifests.size());
+            
         } catch (IOException e) {
-            log.error("Failed to load UI manifests from {}: {}", MANIFEST_FILE, e.getMessage());
+            log.error("[UIManifestLoader] Failed to scan plugin manifests: {}", e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Loads a single plugin's manifest file.
+     */
+    private void loadSingleManifest(Resource resource, Map<String, Map<String, Object>> target) {
+        try (InputStream is = resource.getInputStream()) {
+            Map<String, Object> manifest = objectMapper.readValue(is, new TypeReference<>() {});
+            
+            // Extract pluginId from manifest
+            String pluginId = extractPluginId(manifest);
+            if (pluginId == null) {
+                log.warn("[UIManifestLoader] Skipping manifest without pluginId: {}", resource.getDescription());
+                return;
+            }
+            
+            // Check for duplicates
+            if (target.containsKey(pluginId)) {
+                log.warn("[UIManifestLoader] Duplicate pluginId '{}', overwriting from: {}", 
+                    pluginId, resource.getDescription());
+            }
+            
+            target.put(pluginId, manifest);
+            log.debug("[UIManifestLoader] Loaded manifest for plugin '{}' from {}", 
+                pluginId, resource.getDescription());
+                
+        } catch (IOException e) {
+            log.error("[UIManifestLoader] Failed to load manifest from {}: {}", 
+                resource.getDescription(), e.getMessage());
+        }
+    }
+    
+    /**
+     * Extracts pluginId from manifest.
+     * 
+     * Supports two formats:
+     * 1. Top-level pluginId field
+     * 2. Nested plugin.id field
+     */
+    @SuppressWarnings("unchecked")
+    private String extractPluginId(Map<String, Object> manifest) {
+        // Check top-level pluginId first
+        if (manifest.containsKey("pluginId")) {
+            return (String) manifest.get("pluginId");
+        }
+        // Check nested plugin.id structure
+        if (manifest.containsKey("plugin") && manifest.get("plugin") instanceof Map) {
+            Map<String, Object> plugin = (Map<String, Object>) manifest.get("plugin");
+            if (plugin.containsKey("id")) {
+                return (String) plugin.get("id");
+            }
+        }
+        return null;
     }
 
     /**
-     * 获取指定插件的 UI manifest
+     * Gets UI manifest for specified plugin.
      *
-     * @param moduleId 模块ID
-     * @return UI manifest 数据，如果不存在则返回 null
+     * @param moduleId module ID (e.g., "identity", "booking")
+     * @return UI manifest data, or null if not found
      */
     public Map<String, Object> getManifest(String moduleId) {
         return manifests.get(moduleId);
     }
 
     /**
-     * 获取所有 UI manifest
+     * Gets all UI manifests.
      *
-     * @return 所有 UI manifest（moduleId -> manifest）
+     * @return all UI manifests (moduleId -> manifest)
      */
     public Map<String, Map<String, Object>> getAllManifests() {
         return Collections.unmodifiableMap(manifests);
     }
 
     /**
-     * 检查指定模块是否有 UI manifest
+     * Checks if specified module has UI manifest.
      *
-     * @param moduleId 模块ID
-     * @return 是否存在
+     * @param moduleId module ID
+     * @return true if manifest exists
      */
     public boolean hasManifest(String moduleId) {
         return manifests.containsKey(moduleId);

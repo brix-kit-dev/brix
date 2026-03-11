@@ -15,19 +15,33 @@
  */
 package io.runtime.orchestrator.registry;
 
-import io.runtime.sdk.capability.LifecycleCapability;
-import io.runtime.sdk.capability.ModuleMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.runtime.sdk.capability.LifecycleCapability;
+import io.runtime.sdk.capability.ModuleMetadata;
+
 /**
- * 默认模块注册表实现
+ * Default Module Registry Implementation.
  * 
- * <p>线程安全的模块注册表实现，基于 ConcurrentHashMap 存储模块。</p>
+ * <p>Thread-safe module registry implementation based on ConcurrentHashMap storage.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -37,12 +51,12 @@ public class DefaultModuleRegistry implements ModuleRegistry {
     private static final Logger logger = LoggerFactory.getLogger(DefaultModuleRegistry.class);
 
     /**
-     * 模块存储 - 模块ID -> 模块实例
+     * Module storage - moduleId -> module instance.
      */
     private final Map<String, LifecycleCapability> modules = new ConcurrentHashMap<>();
 
     /**
-     * 元数据缓存 - 模块ID -> 元数据
+     * Metadata cache - moduleId -> metadata.
      */
     private final Map<String, ModuleMetadata> metadataCache = new ConcurrentHashMap<>();
 
@@ -190,7 +204,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
             String moduleId = entry.getKey();
             String[] dependsOn = entry.getValue().getDependsOn();
             
-            // 检查缺失依赖
+            // Check missing dependencies
             for (String dependency : dependsOn) {
                 if (!modules.containsKey(dependency)) {
                     missingDependencies.add(moduleId + " -> " + dependency);
@@ -198,7 +212,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
             }
         }
 
-        // 简单的循环依赖检测
+        // Simple circular dependency detection
         for (String moduleId : modules.keySet()) {
             Set<String> visited = new HashSet<>();
             if (hasCircularDependency(moduleId, visited, new HashSet<>())) {
@@ -218,7 +232,12 @@ public class DefaultModuleRegistry implements ModuleRegistry {
     }
 
     /**
-     * 检测循环依赖
+     * Detects circular dependencies using DFS traversal.
+     *
+     * @param moduleId the current module ID being checked
+     * @param visited set of already visited modules
+     * @param path current traversal path for cycle detection
+     * @return true if circular dependency is detected, false otherwise
      */
     private boolean hasCircularDependency(String moduleId, Set<String> visited, Set<String> path) {
         if (path.contains(moduleId)) {
@@ -245,52 +264,53 @@ public class DefaultModuleRegistry implements ModuleRegistry {
     /**
      * {@inheritDoc}
      * 
-     * <p>使用 Kahn 算法实现拓扑排序，按依赖关系和 startupOrder 确定启动顺序。</p>
+     * <p>Uses Kahn's algorithm for topological sorting, determining startup order
+     * based on dependency relationships and startupOrder configuration.</p>
      */
     @Override
     public List<LifecycleCapability> getByTopologicalOrder() {
-        // 如果没有模块，直接返回空列表
+        // Return empty list if no modules are registered
         if (modules.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 计算每个模块的入度（被依赖次数）
+        // Calculate in-degree for each module (number of dependencies)
         Map<String, Integer> inDegree = new HashMap<>();
-        Map<String, List<String>> graph = new HashMap<>();  // 依赖图：A -> [B, C] 表示 A 依赖 B 和 C
+        Map<String, List<String>> graph = new HashMap<>();  // Dependency graph: A -> [B, C] means B and C depend on A
 
-        // 初始化
+        // Initialize in-degree and graph structures
         for (String moduleId : modules.keySet()) {
             inDegree.put(moduleId, 0);
             graph.put(moduleId, new ArrayList<>());
         }
 
-        // 构建依赖图并计算入度
+        // Build dependency graph and calculate in-degrees
         for (String moduleId : modules.keySet()) {
             List<String> deps = getDependencies(moduleId);
             for (String dep : deps) {
                 if (modules.containsKey(dep)) {
-                    // dep -> moduleId：dep 被 moduleId 依赖，所以 moduleId 的入度增加
+                    // dep -> moduleId: moduleId depends on dep, so moduleId's in-degree increases
                     graph.get(dep).add(moduleId);
                     inDegree.put(moduleId, inDegree.get(moduleId) + 1);
                 }
             }
         }
 
-        // 使用优先队列，按 startupOrder 排序
+        // Use priority queue for ordering by startupOrder
         PriorityQueue<String> queue = new PriorityQueue<>((a, b) -> {
             int orderA = metadataCache.get(a) != null ? metadataCache.get(a).getStartupOrder() : 0;
             int orderB = metadataCache.get(b) != null ? metadataCache.get(b).getStartupOrder() : 0;
             return Integer.compare(orderA, orderB);
         });
 
-        // 将入度为 0 的模块加入队列（没有依赖的模块可以首先启动）
+        // Enqueue modules with zero in-degree (modules with no dependencies can start first)
         for (Map.Entry<String, Integer> entry : inDegree.entrySet()) {
             if (entry.getValue() == 0) {
                 queue.offer(entry.getKey());
             }
         }
 
-        // 拓扑排序
+        // Topological sort using Kahn's algorithm
         List<LifecycleCapability> result = new ArrayList<>();
         List<String> sortedIds = new ArrayList<>();
 
@@ -299,7 +319,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
             sortedIds.add(moduleId);
             result.add(modules.get(moduleId));
 
-            // 移除该模块的边，更新邻居的入度
+            // Remove edges and update neighbors' in-degrees
             for (String neighbor : graph.get(moduleId)) {
                 int newDegree = inDegree.get(neighbor) - 1;
                 inDegree.put(neighbor, newDegree);
@@ -309,9 +329,9 @@ public class DefaultModuleRegistry implements ModuleRegistry {
             }
         }
 
-        // 检查是否所有模块都已排序（如果不是，说明存在循环依赖）
+        // Verify all modules were sorted (if not, circular dependency exists)
         if (result.size() != modules.size()) {
-            // 找出循环依赖的模块
+            // Identify modules involved in circular dependencies
             List<String> cyclicModules = new ArrayList<>();
             for (String moduleId : modules.keySet()) {
                 if (!sortedIds.contains(moduleId)) {
@@ -319,25 +339,27 @@ public class DefaultModuleRegistry implements ModuleRegistry {
                 }
             }
             
-            // 尝试找出具体的循环路径
+            // Attempt to find the specific cycle path
             List<String> cyclePath = findCyclePath(cyclicModules.get(0), new LinkedHashSet<>());
             throw new CyclicDependencyException(cyclePath);
         }
 
-        logger.debug("拓扑排序完成，启动顺序: {}", sortedIds);
+        logger.debug("Topological sort completed, startup order: {}", sortedIds);
         return result;
     }
 
     /**
-     * 查找循环依赖路径
+     * Finds the path of circular dependency.
      * 
-     * @param startModuleId 起始模块 ID
-     * @param path          当前路径
-     * @return 循环路径
+     * <p>Uses DFS to trace the dependency chain and identify the exact cycle path.</p>
+     *
+     * @param startModuleId starting module ID for search
+     * @param path current traversal path (ordered set to preserve order)
+     * @return list representing the cycle path, empty if no cycle found
      */
     private List<String> findCyclePath(String startModuleId, LinkedHashSet<String> path) {
         if (path.contains(startModuleId)) {
-            // 找到循环，构建循环路径
+            // Cycle found, build cycle path
             List<String> cyclePath = new ArrayList<>();
             boolean foundStart = false;
             for (String id : path) {
@@ -348,7 +370,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
                     cyclePath.add(id);
                 }
             }
-            cyclePath.add(startModuleId);  // 闭合循环
+            cyclePath.add(startModuleId);  // Close the cycle
             return cyclePath;
         }
 

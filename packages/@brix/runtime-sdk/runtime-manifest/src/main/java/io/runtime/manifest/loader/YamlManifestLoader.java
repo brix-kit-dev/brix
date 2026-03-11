@@ -35,7 +35,6 @@ import io.runtime.manifest.model.ModuleManifest;
  * YAML Format Manifest Loader.
  *
  * <p>Supports loading YAML and JSON format manifest files.</p>
- * <p>支持 YAML 和 JSON 格式的 Manifest 文件加载。</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -69,7 +68,6 @@ public class YamlManifestLoader implements ManifestLoader {
 
     /**
      * Configures ObjectMapper.
-     * 配置 ObjectMapper
      */
     private void configureMapper(ObjectMapper mapper) {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -108,7 +106,6 @@ public class YamlManifestLoader implements ManifestLoader {
 
         try {
             // Default to YAML parser (also JSON compatible)
-            // 默认使用 YAML 解析器（也兼容 JSON）
             return yamlMapper.readValue(inputStream, ModuleManifest.class);
         } catch (IOException e) {
             throw new ManifestLoadException("Failed to load manifest from input stream", e);
@@ -124,7 +121,6 @@ public class YamlManifestLoader implements ManifestLoader {
 
         try {
             // Default to YAML parser
-            // 默认使用 YAML 解析器
             return yamlMapper.readValue(content, ModuleManifest.class);
         } catch (IOException e) {
             throw new ManifestLoadException("Failed to load manifest from string", e);
@@ -192,7 +188,6 @@ public class YamlManifestLoader implements ManifestLoader {
 
     /**
      * Gets corresponding ObjectMapper based on filename.
-     * 根据文件名获取对应的 ObjectMapper
      */
     private ObjectMapper getMapperForFile(String filename) {
         if (filename != null && filename.toLowerCase().endsWith(".json")) {

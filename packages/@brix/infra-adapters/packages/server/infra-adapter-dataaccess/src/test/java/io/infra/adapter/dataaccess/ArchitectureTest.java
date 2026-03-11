@@ -10,9 +10,9 @@ import com.tngtech.archunit.junit.ArchTests;
 import io.brix.architecture.guard.BrixArchitectureRules;
 
 /**
- * 适配器层架构约束测试。
+ * Architecture constraint tests for the adapter layer.
  *
- * <p>使用 AdapterProfile 验证基础设施适配器层架构红线。</p>
+ * <p>Uses AdapterProfile to validate infrastructure adapter layer architecture rules.</p>
  */
 @AnalyzeClasses(
     packages = "io.infra.adapter.dataaccess",

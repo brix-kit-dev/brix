@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience.circuitbreaker;
 
 import java.time.Duration;
@@ -10,35 +25,35 @@ import org.springframework.validation.annotation.Validated;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType;
 
 /**
- * 熔断器配置属性类
+ * Circuit Breaker Configuration Propertiesclass
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 配置前缀：{@code gateway.circuitbreaker}
+ * configurationbeforefix：{@code gateway.circuitbreaker}
  * </p>
  * 
- * <h3>熔断器三态说</h3>
+ * <h3>circuit breakererthree-statesay</h3>
  * <ul>
- *   <li><b>CLOSED（关闭）</b> - 正常状态，请求正常通过，持续统计失败率</li>
- *   <li><b>OPEN（打开</b> - 熔断状态，请求直接拒绝，返回降级响</li>
- *   <li><b>HALF_OPEN（半开</b> - 试探状态，允许部分请求通过，根据结果决定状态转</li>
+ *   <li><b>CLOSED（closed）</b> - normalstatus，requestnormalvia，durationstatisticsfailedrate</li>
+ *   <li><b>OPEN（open</b> - circuit breakerstatus，requestdirectlyrejected，returnfallbackresponse</li>
+ *   <li><b>HALF_OPEN（half-open</b> - probestatus，allowpartrequestvia，according toresultdeterminestatusconvert</li>
  * </ul>
  * 
- * <h3>配置示例</h3>
+ * <h3>configurationexample</h3>
  * <pre>{@code
  * gateway:
  *   circuitbreaker:
  *     enabled: true
  *     default-config:
- *       failure-rate-threshold: 50       # 失败率阈值（%
- *       slow-call-rate-threshold: 100    # 慢调用阈值（%
- *       slow-call-duration-threshold: PT5S  # 慢调用时间阈
- *       sliding-window-type: COUNT_BASED # 滑动窗口类型
- *       sliding-window-size: 10          # 滑动窗口大小
- *       minimum-number-of-calls: 5       # 最小调用次
- *       wait-duration-in-open-state: PT10S # 熔断等待时间
- *       permitted-calls-in-half-open-state: 3 # 半开状态允许的调用
+ *       failure-rate-threshold: 50       # Failure rate threshold（%
+ *       slow-call-rate-threshold: 100    # slowcallthreshold（%
+ *       slow-call-duration-threshold: PT5S  # slowcalltimethreshold
+ *       sliding-window-type: COUNT_BASED # Sliding window type
+ *       sliding-window-size: 10          # Sliding window size
+ *       minimum-number-of-calls: 5       # minimumcalltimes
+ *       wait-duration-in-open-state: PT10S # circuit breakerwaittime
+ *       permitted-calls-in-half-open-state: 3 # half-openstatusallowofcall
  * }</pre>
  *
  * @author Brix Platform Authors Platform Team
@@ -52,26 +67,26 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowT
 public class CircuitBreakerProperties {
 
     /**
-     * 是否启用熔断功能
+     * whetherenablecircuit breakerfunctionality
      * <p>
-     * 生产环境建议设置true，当下游服务故障时自动熔断保
+     * productionenvironmentrecommendedsettrue，whendownstreamservicefaulttimeautomaticcircuit breakerprotect
      * </p>
      */
     private boolean enabled = true;
 
     /**
-     * 默认熔断配置
+     * defaultcircuit breakerconfiguration
      * <p>
-     * 当路由没有单独配置时使用此默认配
+     * whenroutenohassinglealoneconfigurationtimeusethisdefaultconfiguration
      * </p>
      */
     private CircuitBreakerConfig defaultConfig = new CircuitBreakerConfig();
 
     /**
-     * 路由级别熔断配置
+     * routelevelcircuit breakerconfiguration
      * <p>
-     * Key: 路由ID（如 plugin-engine
-     * Value: 该路由的熔断配置
+     * Key: routeID（like plugin-engine
+     * Value: thisrouteofcircuit breakerconfiguration
      * </p>
      */
     private Map<String, CircuitBreakerConfig> routes = new HashMap<>();
@@ -103,103 +118,103 @@ public class CircuitBreakerProperties {
     }
 
     /**
-     * 获取指定路由的熔断配
+     * Get circuit breaker configuration for specified route
      * 
-     * @param routeId 路由ID
-     * @return 熔断配置
+     * @param routeId route ID
+     * @return circuit breaker configuration
      */
     public CircuitBreakerConfig getConfigForRoute(String routeId) {
         return routes.getOrDefault(routeId, defaultConfig);
     }
 
     /**
-     * 单个熔断器配
+     * Single circuit breaker configuration
      * <p>
-     * 基于滑动窗口统计失败率，达到阈值后触发熔断
+     * Uses sliding window to track failure rate, triggers circuit break when threshold is reached.
      * </p>
      */
     public static class CircuitBreakerConfig {
 
         /**
-         * 失败率阈值（百分比）
+         * Failure rate threshold（Percentage）
          * <p>
-         * 当滑动窗口内的失败率超过此阈值时，熔断器打开
-         * 默认值：50%，即一半请求失败就熔断
+         * whenslidingwindowinoffailedrateexceedthisthresholdtime，circuit breakereropen
+         * defaultvalue：50%，that ishalfrequestfailedthencircuit breaker
          * </p>
          */
         private float failureRateThreshold = 50f;
 
         /**
-         * 慢调用率阈值（百分比）
+         * Slow call rate threshold（Percentage）
          * <p>
-         * 当慢调用占比超过此阈值时，熔断器打开
-         * 默认值：100%，表示不基于慢调用熔
+         * whenslowcallproportionexceedthisthresholdtime，circuit breakereropen
+         * defaultvalue：100%，representsnotbased onslowcallcircuit
          * </p>
          */
         private float slowCallRateThreshold = 100f;
 
         /**
-         * 慢调用时间阈
+         * slowcalltimethreshold
          * <p>
-         * 超过此时间的调用被认为是慢调
-         * 默认值：5
+         * exceedthistimeofcallberecognizeisisslowadjust
+         * defaultvalue：5
          * </p>
          */
         private Duration slowCallDurationThreshold = Duration.ofSeconds(5);
 
         /**
-         * 滑动窗口类型
+         * Sliding window type
          * <p>
-         * COUNT_BASED - 基于调用次数的滑动窗
-         * TIME_BASED - 基于时间的滑动窗
-         * 默认值：COUNT_BASED
+         * COUNT_BASED - based oncallcountofslidingwindow
+         * TIME_BASED - Time-basedofslidingwindow
+         * defaultvalue：COUNT_BASED
          * </p>
          */
         private SlidingWindowType slidingWindowType = SlidingWindowType.COUNT_BASED;
 
         /**
-         * 滑动窗口大小
+         * Sliding window size
          * <p>
-         * COUNT_BASED 模式：表示统计的调用次数
-         * TIME_BASED 模式：表示统计的时间窗口（秒
-         * 默认值：10
+         * COUNT_BASED pattern：representsstatisticsofcallcount
+         * TIME_BASED pattern：representsstatisticsoftimewindow（seconds
+         * defaultvalue：10
          * </p>
          */
         private int slidingWindowSize = 10;
 
         /**
-         * 触发熔断计算的最小调用次
+         * Trigger circuit breakcalculateofminimumcalltimes
          * <p>
-         * 只有当调用次数达到此值后才开始计算失败率
-         * 默认值：5，避免少量请求就触发熔断
+         * onlyhaswhencallcountreachtothisvalueafterthenstartcalculatefailedrate
+         * defaultvalue：5，avoidfewamountrequestthenTrigger circuit break
          * </p>
          */
         private int minimumNumberOfCalls = 5;
 
         /**
-         * 熔断器打开后的等待时间
+         * circuit breakereropenafterofwaittime
          * <p>
-         * 熔断器打开后，等待此时间后进入半开状
-         * 默认值：10
+         * circuit breakereropenafter，waitthistimeafterenterhalf-openstatus
+         * defaultvalue：10
          * </p>
          */
         private Duration waitDurationInOpenState = Duration.ofSeconds(10);
 
         /**
-         * 半开状态允许通过的调用次
+         * half-openstatusallowviaofcalltimes
          * <p>
-         * 用于试探下游服务是否恢复
-         * 默认值：3
+         * used forprobedownstreamservicewhetherrecover
+         * defaultvalue：3
          * </p>
          */
         private int permittedNumberOfCallsInHalfOpenState = 3;
 
         /**
-         * 是否自动从半开状态转
+         * whetherautomaticfromhalf-openstatusconvert
          * <p>
-         * true - 等待足够调用后自动转换状
-         * false - 需要手动触发状态转
-         * 默认值：true
+         * true - waitenoughcallafterautomaticconvertstatus
+         * false - needhandmovetriggerstatusconvert
+         * defaultvalue：true
          * </p>
          */
         private boolean automaticTransitionFromOpenToHalfOpenEnabled = true;

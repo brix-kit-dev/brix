@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.registration;
 
 import java.time.Instant;
@@ -5,197 +20,197 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * v2.1 服务注册请求 DTO
+ * v2.1 Service Registration Request DTO
  * 
- * <p>服务启动时向基座发送的注册信息</p>
+ * <p>Registration information sent to the shell when service starts</p>
  * 
  * @author Brix Platform Authors Team
  * @since v2.1
  */
 record ServiceRegistrationRequest(
     /**
-     * 服务名称
+     * Service name
      * 
-     * <p>例如：shinwa-service-user</p>
+     * <p>Example: brix-service-user</p>
      */
     String serviceName,
     
     /**
-     * 服务实例 ID
+     * Service instance ID
      * 
-     * <p>唯一标识一个服务实例，用于区分同一服务的多个实</p>
+     * <p>Uniquely identifies a service instance, used to distinguish multiple instances of the same service</p>
      */
     String instanceId,
     
     /**
-     * 服务地址
+     * Service URL
      * 
-     * <p>服务对外暴露HTTP 地址，例如：http://localhost:9010</p>
+     * <p>HTTP address exposed by the service, e.g., http://localhost:9010</p>
      */
     String serviceUrl,
     
     /**
-     * 服务版本
+     * Service version
      * 
-     * <p>例如.1.0-SNAPSHOT</p>
+     * <p>Example: 1.0.0-SNAPSHOT</p>
      */
     String version,
     
     /**
-     * 服务描述
+     * Service description
      */
     String description,
     
     /**
-     * 路由清单
+     * Route list
      * 
-     * <p>服务暴露的所有 REST 端点</p>
+     * <p>All REST endpoints exposed by the service</p>
      */
     List<RouteInfo> routes,
     
     /**
-     * 组装的插件列
+     * Assembled plugin list
      * 
-     * <p>服务中组装了哪些插件 JAR</p>
+     * <p>Plugin JARs assembled in the service</p>
      */
     List<PluginInfo> plugins,
     
     /**
-     * 服务元数
+     * Service metadata
      * 
-     * <p>其他自定义信息，例如：环境、负责人</p>
+     * <p>Other custom information, e.g., environment, owner</p>
      */
     Map<String, Object> metadata,
     
     /**
-     * 注册时间
+     * Registration time
      */
     Instant registrationTime
 ) {}
 
 /**
- * v2.1 插件信息 DTO
+ * v2.1 Plugin Info DTO
  * 
- * <p>描述服务中组装的插件</p>
+ * <p>Describes plugins assembled in the service</p>
  */
 record PluginInfo(
     /**
-     * 插件 ID
+     * Plugin ID
      * 
-     * <p>Maven artifactId，例如：plugin-user-core</p>
+     * <p>Maven artifactId, e.g., plugin-user-core</p>
      */
     String pluginId,
     
     /**
-     * 插件名称
+     * Plugin name
      * 
-     * <p>人类可读名称，例如：用户管理插件</p>
+     * <p>Human-readable name, e.g., User Management Plugin</p>
      */
     String name,
     
     /**
-     * 插件版本
+     * Plugin version
      * 
-     * <p>例如.1.0-SNAPSHOT</p>
+     * <p>Example: 1.0.0-SNAPSHOT</p>
      */
     String version,
     
     /**
-     * 插件类型
+     * Plugin type
      * 
-     * <p>例如：CORE, API, EVENT</p>
+     * <p>Example: CORE, API, EVENT</p>
      */
     String type,
     
     /**
-     * 插件描述
+     * Plugin description
      */
     String description
 ) {}
 
 /**
- * v2.1 心跳请求 DTO
+ * v2.1 Heartbeat Request DTO
  * 
- * <p>服务定时向基座发送的心跳信息</p>
+ * <p>Heartbeat information sent periodically by the service to the shell</p>
  */
 record HeartbeatRequest(
     /**
-     * 服务名称
+     * Service name
      */
     String serviceName,
     
     /**
-     * 服务实例 ID
+     * Service instance ID
      */
     String instanceId,
     
     /**
-     * 服务状
+     * Service status
      */
     ServiceStatus status,
     
     /**
-     * 当前时间
+     * Current time
      */
     Instant timestamp,
     
     /**
-     * 健康指标
+     * Health metrics
      */
     HealthMetrics healthMetrics
 ) {}
 
 /**
- * v2.1 服务状态枚
+ * v2.1 Service Status Enum
  */
 enum ServiceStatus {
-    /** 启动*/
+    /** Starting */
     STARTING,
     
-    /** 运行*/
+    /** Running */
     RUNNING,
     
-    /** 降级运行 */
+    /** Running in degraded mode */
     DEGRADED,
     
-    /** 停止*/
+    /** Stopping */
     STOPPING,
     
-    /** 已停*/
+    /** Stopped */
     STOPPED
 }
 
 /**
- * v2.1 健康指标 DTO
+ * v2.1 Health Metrics DTO
  */
 record HealthMetrics(
     /**
-     * CPU 使用率（百分比）
+     * CPU usage (percentage)
      */
     double cpuUsage,
     
     /**
-     * 内存使用率（百分比）
+     * Memory usage (percentage)
      */
     double memoryUsage,
     
     /**
-     * 活跃线程
+     * Active threads
      */
     int activeThreads,
     
     /**
-     * 每秒请求
+     * Requests per second
      */
     double requestsPerSecond,
     
     /**
-     * 平均响应时间（毫秒）
+     * Average response time (milliseconds)
      */
     double avgResponseTimeMs,
     
     /**
-     * 错误率（百分比）
+     * Error rate (percentage)
      */
     double errorRate
 ) {}

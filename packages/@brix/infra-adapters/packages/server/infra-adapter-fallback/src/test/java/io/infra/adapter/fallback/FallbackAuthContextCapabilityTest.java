@@ -26,14 +26,14 @@ import org.junit.jupiter.api.Test;
 import io.runtime.sdk.capability.DataScope;
 
 /**
- * {@link FallbackAuthContextCapability} 单元测试
+ * Unit tests for {@link FallbackAuthContextCapability}
  *
- * <p>验证匿名访问模式的行为：匿名主体、所有权限放行。</p>
+ * <p>Validates anonymous access mode behavior: anonymous principal, all permissions granted.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
-@DisplayName("FallbackAuthContextCapability 测试")
+@DisplayName("FallbackAuthContextCapability Tests")
 class FallbackAuthContextCapabilityTest {
 
     private FallbackAuthContextCapability authContext;
@@ -44,7 +44,7 @@ class FallbackAuthContextCapabilityTest {
     }
 
     @Test
-    @DisplayName("getCurrentPrincipal - 应返回匿名主体")
+    @DisplayName("getCurrentPrincipal - should return anonymous principal")
     void getCurrentPrincipal_shouldReturnAnonymousPrincipal() {
         Principal principal = authContext.getCurrentPrincipal();
 
@@ -53,7 +53,7 @@ class FallbackAuthContextCapabilityTest {
     }
 
     @Test
-    @DisplayName("getCurrentPrincipal - 多次调用应返回同一实例")
+    @DisplayName("getCurrentPrincipal - multiple calls should return the same instance")
     void getCurrentPrincipal_shouldReturnSameInstance() {
         Principal p1 = authContext.getCurrentPrincipal();
         Principal p2 = authContext.getCurrentPrincipal();
@@ -62,7 +62,7 @@ class FallbackAuthContextCapabilityTest {
     }
 
     @Test
-    @DisplayName("hasPermission - 任何权限均应返回 true")
+    @DisplayName("hasPermission - should always return true for any permission")
     void hasPermission_shouldAlwaysReturnTrue() {
         assertThat(authContext.hasPermission("admin")).isTrue();
         assertThat(authContext.hasPermission("read")).isTrue();
@@ -71,7 +71,7 @@ class FallbackAuthContextCapabilityTest {
     }
 
     @Test
-    @DisplayName("hasRole - 任何角色均应返回 true")
+    @DisplayName("hasRole - should always return true for any role")
     void hasRole_shouldAlwaysReturnTrue() {
         assertThat(authContext.hasRole("ADMIN")).isTrue();
         assertThat(authContext.hasRole("USER")).isTrue();
@@ -79,7 +79,7 @@ class FallbackAuthContextCapabilityTest {
     }
 
     @Test
-    @DisplayName("getAuthorizedScopes - 应返回包含 all 范围的集合")
+    @DisplayName("getAuthorizedScopes - should return a set containing all scope")
     void getAuthorizedScopes_shouldReturnAllScope() {
         Set<DataScope> scopes = authContext.getAuthorizedScopes();
 

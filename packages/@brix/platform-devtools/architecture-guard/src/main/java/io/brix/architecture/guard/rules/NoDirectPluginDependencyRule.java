@@ -3,18 +3,17 @@
  */
 package io.brix.architecture.guard.rules;
 
-import com.tngtech.archunit.core.domain.JavaClass;
-import com.tngtech.archunit.lang.ArchCondition;
-import com.tngtech.archunit.lang.ArchRule;
-import com.tngtech.archunit.lang.ConditionEvents;
-import com.tngtech.archunit.lang.SimpleConditionEvent;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.lang.ArchCondition;
+import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -25,9 +24,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <h2>Example Violation</h2>
  * <pre>{@code
- * package com.shinwa.app.booking.service;
+ * package io.brix.app.booking.service;
  * 
- * import com.shinwa.app.identity.service.UserService; // VIOLATION!
+ * import io.brix.app.identity.service.UserService; // VIOLATION!
  * 
  * public class BookingService {
  *     @Autowired
@@ -37,7 +36,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <h2>Correct Approach</h2>
  * <pre>{@code
- * package com.shinwa.app.booking.service;
+ * package io.brix.app.booking.service;
  * 
  * import io.runtime.sdk.context.RuntimeContext;
  * import io.runtime.sdk.capability.AuthContextCapability;
@@ -53,11 +52,11 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * @AnalyzeClasses(packages = "com.shinwa.app.booking")
+ * @AnalyzeClasses(packages = "io.brix.app.booking")
  * class ArchitectureTest {
  *     @ArchTest
  *     static final ArchRule noDirectPluginDependency = 
- *         NoDirectPluginDependencyRule.forPlugin("com.shinwa.app.booking");
+ *         NoDirectPluginDependencyRule.forPlugin("io.brix.app.booking");
  * }
  * }</pre>
  *
@@ -72,27 +71,27 @@ public final class NoDirectPluginDependencyRule {
 
     /** All known plugin package prefixes */
     private static final Set<String> PLUGIN_PACKAGES = new HashSet<>(Arrays.asList(
-            "com.shinwa.app.booking",
-            "com.shinwa.app.identity",
-            "com.shinwa.app.products",
-            "com.shinwa.app.partners",
-            "com.shinwa.app.contracts",
-            "com.shinwa.app.carousel",
-            "com.shinwa.app.messenger",
-            "com.shinwa.app.storage",
-            "com.shinwa.app.intake",
-            "com.shinwa.app.compliance",
-            "com.shinwa.app.casemanagement"
+            "io.brix.app.booking",
+            "io.brix.app.identity",
+            "io.brix.app.products",
+            "io.brix.app.partners",
+            "io.brix.app.contracts",
+            "io.brix.app.carousel",
+            "io.brix.app.messenger",
+            "io.brix.app.storage",
+            "io.brix.app.intake",
+            "io.brix.app.compliance",
+            "io.brix.app.casemanagement"
     ));
 
     /** Pattern to extract plugin package from class name */
     private static final Pattern PLUGIN_PACKAGE_PATTERN = 
-            Pattern.compile("^(com\\.shinwa\\.app\\.[a-z]+)\\.");
+            Pattern.compile("^(io\\.brix\\.app\\.[a-z]+|io\\.brix\\.enterprise\\.app\\.[a-z]+)\\.");
 
     /**
      * Creates a rule that forbids the specified plugin from depending on other plugins.
      *
-     * @param currentPluginPackage the package of the current plugin (e.g., "com.shinwa.app.booking")
+     * @param currentPluginPackage the package of the current plugin (e.g., "io.brix.app.booking")
      * @return ArchUnit rule instance
      */
     public static ArchRule forPlugin(String currentPluginPackage) {
@@ -174,7 +173,7 @@ public final class NoDirectPluginDependencyRule {
          * Extracts the plugin package from a class package name.
          *
          * @param packageName the full package name
-         * @return the plugin package (e.g., "com.shinwa.app.booking") or null if not a plugin
+         * @return the plugin package (e.g., "io.brix.app.booking") or null if not a plugin
          */
         private String extractPluginPackage(String packageName) {
             Matcher matcher = PLUGIN_PACKAGE_PATTERN.matcher(packageName + ".");

@@ -1,0 +1,732 @@
+﻿[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for io.brix:infra-adapter-otel:jar:3.1.0-SNAPSHOT
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-surefire-plugin is missing. @ line 174, column 21
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-jar-plugin is missing. @ line 178, column 21
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] Brix Architecture Guard                                            [jar]
+[INFO] Brix Runtime SDK Parent                                            [pom]
+[INFO] Brix Runtime SDK API                                               [jar]
+[INFO] Brix Runtime Manifest                                              [jar]
+[INFO] Brix Runtime Orchestrator                                          [jar]
+[INFO] Brix Infrastructure Adapters                                       [pom]
+[INFO] Brix Infra Adapter - Kafka Core                                    [jar]
+[INFO] Brix Infra Adapter - Kafka Outbox                                  [jar]
+[INFO] Brix Infra Adapter - Kafka (Aggregator)                            [pom]
+[INFO] Brix Infra Adapter - Redis                                         [jar]
+[INFO] Brix Infra Adapter - Database                                      [jar]
+[INFO] Brix Infra Adapter - MinIO                                         [jar]
+[INFO] Brix Fallback Capability Adapter                                   [jar]
+[INFO] Brix Infra Adapter - Simple (In-Memory)                            [jar]
+[INFO] Brix Infra Adapter - Webhook                                       [jar]
+[INFO] Brix Infra Adapter - OpenTelemetry                                 [jar]
+[INFO] Brix ID Generator Capability Adapter                               [jar]
+[INFO] Brix Data Access Capability Adapter                                [jar]
+[INFO] Platform Commons                                                   [pom]
+[INFO] Platform Parent                                                    [pom]
+[INFO] platform-common                                                    [jar]
+[INFO] Platform Common Starter                                            [jar]
+[INFO] Platform Gateway                                                   [jar]
+[INFO] Platform Auth                                                      [jar]
+[INFO] Platform Observability                                             [jar]
+[INFO] Platform Config                                                    [jar]
+[INFO] Brix Platform DevTools                                             [pom]
+[INFO] Brix Framework                                                     [pom]
+[INFO] 
+[INFO] ---------------------< io.brix:architecture-guard >---------------------
+[INFO] Building Brix Architecture Guard 3.1.0-SNAPSHOT                   [1/28]
+[INFO]   from packages\@brix\platform-devtools\architecture-guard\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ architecture-guard ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\platform-devtools\architecture-guard\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ architecture-guard ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\platform-devtools\architecture-guard\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ architecture-guard ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 27 source files with javac [debug target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ architecture-guard ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\platform-devtools\architecture-guard\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ architecture-guard ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 9 source files with javac [debug target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ architecture-guard ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+mvn : SLF4J(W): No SLF4J providers were found.
+所在位置 行:1 字符: 35
++ Set-Location 'd:\1.Sources\brix'; mvn clean install 2>&1 | Out-File - ...
++                                   ~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (SLF4J(W): No SLF4J providers were 
+    found.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+[INFO] Running io.brix.architecture.guard.rules.ConfigViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.ConfigViaCapabilityRuleTest$CompliantCodeTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.963 s -- in io.brix.architecture.guard.rules.ConfigViaCapabilityRuleTest$CompliantCodeTests
+[INFO] Running io.brix.architecture.guard.rules.ConfigViaCapabilityRuleTest$RuleInstantiationTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in io.brix.architecture.guard.rules.ConfigViaCapabilityRuleTest$RuleInstantiationTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.030 s -- in io.brix.architecture.guard.rules.ConfigViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$BoundaryConditionTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.670 s -- in io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$BoundaryConditionTests
+[INFO] Running io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$RuleCombinationTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.089 s -- in io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$RuleCombinationTests
+[INFO] Running io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$RuleConfigurationTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.377 s -- in io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$RuleConfigurationTests
+[INFO] Running io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$DomainShouldNotDependOnServiceTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.763 s -- in io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest$DomainShouldNotDependOnServiceTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.909 s -- in io.brix.architecture.guard.rules.CrossModuleViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest$RuleCombinationTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.758 s -- in io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest$RuleCombinationTests
+[INFO] Running io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest$RuleConfigurationTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.412 s -- in io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest$RuleConfigurationTests
+[INFO] Running io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest$NoApplicationEventPublisherTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.748 s -- in io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest$NoApplicationEventPublisherTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.926 s -- in io.brix.architecture.guard.rules.EventsViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.HostUltraThinRuleTest
+[INFO] Running io.brix.architecture.guard.rules.HostUltraThinRuleTest$CompliantHostCodeTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.027 s -- in io.brix.architecture.guard.rules.HostUltraThinRuleTest$CompliantHostCodeTests
+[INFO] Running io.brix.architecture.guard.rules.HostUltraThinRuleTest$RuleInstantiationTests
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in io.brix.architecture.guard.rules.HostUltraThinRuleTest$RuleInstantiationTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.052 s -- in io.brix.architecture.guard.rules.HostUltraThinRuleTest
+[INFO] Running io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest$RuleCombinationTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.473 s -- in io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest$RuleCombinationTests
+[INFO] Running io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest$NoLoggerInDomainTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.616 s -- in io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest$NoLoggerInDomainTests
+[INFO] Running io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest$NoGenericExceptionTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.394 s -- in io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest$NoGenericExceptionTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.497 s -- in io.brix.architecture.guard.rules.LoggingViaCapabilityRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$OkHttpTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.316 s -- in io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$OkHttpTests
+[INFO] Running io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$OpenFeignTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.307 s -- in io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$OpenFeignTests
+[INFO] Running io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$WebClientTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.326 s -- in io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$WebClientTests
+[INFO] Running io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$RestTemplateTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.297 s -- in io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest$RestTemplateTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.255 s -- in io.brix.architecture.guard.rules.NoDirectHttpClientsRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoInfraAdapterRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoInfraAdapterRuleTest$ViolatingCodeTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in io.brix.architecture.guard.rules.NoInfraAdapterRuleTest$ViolatingCodeTests
+[INFO] Running io.brix.architecture.guard.rules.NoInfraAdapterRuleTest$CompliantCodeTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in io.brix.architecture.guard.rules.NoInfraAdapterRuleTest$CompliantCodeTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in io.brix.architecture.guard.rules.NoInfraAdapterRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest$AmqpRulesTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.331 s -- in io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest$AmqpRulesTests
+[INFO] Running io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest$RedisRulesTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.969 s -- in io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest$RedisRulesTests
+[INFO] Running io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest$KafkaRulesTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.650 s -- in io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest$KafkaRulesTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.954 s -- in io.brix.architecture.guard.rules.NoMiddlewareClientsRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest
+[INFO] Running io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$BoundaryConditionTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.427 s -- in io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$BoundaryConditionTests
+[INFO] Running io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$RuleCombinationTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.585 s -- in io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$RuleCombinationTests
+[INFO] Running io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$RuleConfigurationTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.282 s -- in io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$RuleConfigurationTests
+[INFO] Running io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$NoBeanFactoryTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.416 s -- in io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$NoBeanFactoryTests
+[INFO] Running io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$NoApplicationContextTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.491 s -- in io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest$NoApplicationContextTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.215 s -- in io.brix.architecture.guard.rules.NoSpringContainerApiRuleTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 60, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ architecture-guard ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\platform-devtools\architecture-guard\target\architecture-guard-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ architecture-guard ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\platform-devtools\architecture-guard\pom.xml to D:\DevCache\.m2\repository\io\brix\architecture-guard\3.1.0-SNAPSHOT\architecture-guard-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\platform-devtools\architecture-guard\target\architecture-guard-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\architecture-guard\3.1.0-SNAPSHOT\architecture-guard-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] ---------------------< io.brix:runtime-sdk-parent >---------------------
+[INFO] Building Brix Runtime SDK Parent 3.1.0-SNAPSHOT                   [2/28]
+[INFO]   from packages\@brix\runtime-sdk\pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ runtime-sdk-parent ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ runtime-sdk-parent ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\runtime-sdk\pom.xml to D:\DevCache\.m2\repository\io\brix\runtime-sdk-parent\3.1.0-SNAPSHOT\runtime-sdk-parent-3.1.0-SNAPSHOT.pom
+[INFO] 
+[INFO] ----------------------< io.brix:runtime-sdk-api >-----------------------
+[INFO] Building Brix Runtime SDK API 3.1.0-SNAPSHOT                      [3/28]
+[INFO]   from packages\@brix\runtime-sdk\runtime-sdk-api\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ runtime-sdk-api ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-sdk-api\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ runtime-sdk-api ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-sdk-api\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ runtime-sdk-api ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 58 source files with javac [debug parameters target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ runtime-sdk-api ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-sdk-api\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ runtime-sdk-api ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug parameters target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.3:test (default-test) @ runtime-sdk-api ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+[INFO] Running io.runtime.sdk.ArchitectureTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.479 s -- in io.runtime.sdk.ArchitectureTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ runtime-sdk-api ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-sdk-api\target\runtime-sdk-api-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ runtime-sdk-api ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-sdk-api\pom.xml to D:\DevCache\.m2\repository\io\brix\runtime-sdk-api\3.1.0-SNAPSHOT\runtime-sdk-api-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-sdk-api\target\runtime-sdk-api-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\runtime-sdk-api\3.1.0-SNAPSHOT\runtime-sdk-api-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] ----------------------< io.brix:runtime-manifest >----------------------
+[INFO] Building Brix Runtime Manifest 3.1.0-SNAPSHOT                     [4/28]
+[INFO]   from packages\@brix\runtime-sdk\runtime-manifest\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ runtime-manifest ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-manifest\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ runtime-manifest ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-manifest\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ runtime-manifest ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 25 source files with javac [debug parameters target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ runtime-manifest ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-manifest\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ runtime-manifest ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.2.3:test (default-test) @ runtime-manifest ---
+[INFO] No tests to run.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ runtime-manifest ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-manifest\target\runtime-manifest-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ runtime-manifest ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-manifest\pom.xml to D:\DevCache\.m2\repository\io\brix\runtime-manifest\3.1.0-SNAPSHOT\runtime-manifest-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-manifest\target\runtime-manifest-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\runtime-manifest\3.1.0-SNAPSHOT\runtime-manifest-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --------------------< io.brix:runtime-orchestrator >--------------------
+[INFO] Building Brix Runtime Orchestrator 3.1.0-SNAPSHOT                 [5/28]
+[INFO]   from packages\@brix\runtime-sdk\runtime-orchestrator\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ runtime-orchestrator ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-orchestrator\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ runtime-orchestrator ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ runtime-orchestrator ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 37 source files with javac [debug parameters target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ runtime-orchestrator ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-orchestrator\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ runtime-orchestrator ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.2.3:test (default-test) @ runtime-orchestrator ---
+[INFO] No tests to run.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ runtime-orchestrator ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-orchestrator\target\runtime-orchestrator-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ runtime-orchestrator ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-orchestrator\pom.xml to D:\DevCache\.m2\repository\io\brix\runtime-orchestrator\3.1.0-SNAPSHOT\runtime-orchestrator-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\runtime-sdk\runtime-orchestrator\target\runtime-orchestrator-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\runtime-orchestrator\3.1.0-SNAPSHOT\runtime-orchestrator-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] -----------------------< io.brix:infra-adapters >-----------------------
+[INFO] Building Brix Infrastructure Adapters 3.1.0-SNAPSHOT              [6/28]
+[INFO]   from packages\@brix\infra-adapters\pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapters ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ infra-adapters ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\pom.xml to D:\DevCache\.m2\repository\io\brix\infra-adapters\3.1.0-SNAPSHOT\infra-adapters-3.1.0-SNAPSHOT.pom
+[INFO] 
+[INFO] ------------------< io.brix:infra-adapter-kafka-core >------------------
+[INFO] Building Brix Infra Adapter - Kafka Core 3.1.0-SNAPSHOT           [7/28]
+[INFO]   from packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-core\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapter-kafka-core ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-core\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ infra-adapter-kafka-core ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ infra-adapter-kafka-core ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 9 source files with javac [debug target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ infra-adapter-kafka-core ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-core\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ infra-adapter-kafka-core ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 3 source files with javac [debug target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ infra-adapter-kafka-core ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.infra.adapter.kafka.EventTopicResolverTest
+[INFO] Running io.infra.adapter.kafka.EventTopicResolverTest$ConstructorEdgeCaseTests
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.776 s -- in io.infra.adapter.kafka.EventTopicResolverTest$ConstructorEdgeCaseTests
+[INFO] Running io.infra.adapter.kafka.EventTopicResolverTest$WithPrefixTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.149 s -- in io.infra.adapter.kafka.EventTopicResolverTest$WithPrefixTests
+[INFO] Running io.infra.adapter.kafka.EventTopicResolverTest$WithoutPrefixTests
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.049 s -- in io.infra.adapter.kafka.EventTopicResolverTest$WithoutPrefixTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.065 s -- in io.infra.adapter.kafka.EventTopicResolverTest
+[INFO] Running io.infra.adapter.kafka.KafkaEventBusCapabilityTest
+[INFO] Running io.infra.adapter.kafka.KafkaEventBusCapabilityTest$PublishIntegrationEventTests
+16:19:48.285 [main] INFO io.infra.adapter.kafka.KafkaEventBusCapability -- Integration event published successfully: eventId=20b1da39-1e66-47fe-a582-6c5cf3533b3e, type=io.infra.adapter.kafka.KafkaEventBusCapabilityTest$TestIntegrationEvent, topic=integration.kafka-event-bus-capability-test$-test-integration, partition=0, offset=0
+16:19:48.340 [main] INFO io.infra.adapter.kafka.KafkaEventBusCapability -- Integration event published successfully: eventId=cd36e9e8-c347-4117-a45b-7f21d486923e, type=io.infra.adapter.kafka.KafkaEventBusCapabilityTest$TestIntegrationEvent, topic=integration.kafka-event-bus-capability-test$-test-integration, partition=0, offset=0
+16:19:48.394 [main] INFO io.infra.adapter.kafka.KafkaEventBusCapability -- Integration event published successfully: eventId=16f61e42-f53d-4c96-a22f-b34ea0796b0b, type=io.infra.adapter.kafka.KafkaEventBusCapabilityTest$TestIntegrationEvent, topic=integration.kafka-event-bus-capability-test$-test-integration, partition=0, offset=0
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.175 s -- in io.infra.adapter.kafka.KafkaEventBusCapabilityTest$PublishIntegrationEventTests
+[INFO] Running io.infra.adapter.kafka.KafkaEventBusCapabilityTest$PublishDomainEventTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.046 s -- in io.infra.adapter.kafka.KafkaEventBusCapabilityTest$PublishDomainEventTests
+[INFO] Running io.infra.adapter.kafka.KafkaEventBusCapabilityTest$ConstructorTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.034 s -- in io.infra.adapter.kafka.KafkaEventBusCapabilityTest$ConstructorTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.271 s -- in io.infra.adapter.kafka.KafkaEventBusCapabilityTest
+[INFO] Running io.infra.adapter.kafka.ArchitectureTest
+16:19:48.524 [main] INFO com.tngtech.archunit.core.PluginLoader -- Detected Java version 17.0.16
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.179 s -- in io.infra.adapter.kafka.ArchitectureTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 29, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ infra-adapter-kafka-core ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-core\target\infra-adapter-kafka-core-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ infra-adapter-kafka-core ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-core\pom.xml to D:\DevCache\.m2\repository\io\brix\infra-adapter-kafka-core\3.1.0-SNAPSHOT\infra-adapter-kafka-core-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-core\target\infra-adapter-kafka-core-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\infra-adapter-kafka-core\3.1.0-SNAPSHOT\infra-adapter-kafka-core-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] -----------------< io.brix:infra-adapter-kafka-outbox >-----------------
+[INFO] Building Brix Infra Adapter - Kafka Outbox 3.1.0-SNAPSHOT         [8/28]
+[INFO]   from packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-outbox\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapter-kafka-outbox ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-outbox\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ infra-adapter-kafka-outbox ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ infra-adapter-kafka-outbox ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 5 source files with javac [debug target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ infra-adapter-kafka-outbox ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-outbox\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ infra-adapter-kafka-outbox ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ infra-adapter-kafka-outbox ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.infra.adapter.outbox.ArchitectureTest
+16:19:56.021 [main] INFO com.tngtech.archunit.core.PluginLoader -- Detected Java version 17.0.16
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.487 s -- in io.infra.adapter.outbox.ArchitectureTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ infra-adapter-kafka-outbox ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-outbox\target\infra-adapter-kafka-outbox-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ infra-adapter-kafka-outbox ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-outbox\pom.xml to D:\DevCache\.m2\repository\io\brix\infra-adapter-kafka-outbox\3.1.0-SNAPSHOT\infra-adapter-kafka-outbox-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\infra-adapter-kafka-outbox\target\infra-adapter-kafka-outbox-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\infra-adapter-kafka-outbox\3.1.0-SNAPSHOT\infra-adapter-kafka-outbox-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] -----------------< io.brix:infra-adapter-kafka-parent >-----------------
+[INFO] Building Brix Infra Adapter - Kafka (Aggregator) 3.1.0-SNAPSHOT   [9/28]
+[INFO]   from packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapter-kafka-parent ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ infra-adapter-kafka-parent ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-kafka\pom.xml to D:\DevCache\.m2\repository\io\brix\infra-adapter-kafka-parent\3.1.0-SNAPSHOT\infra-adapter-kafka-parent-3.1.0-SNAPSHOT.pom
+[INFO] 
+[INFO] --------------------< io.brix:infra-adapter-redis >---------------------
+[INFO] Building Brix Infra Adapter - Redis 3.1.0-SNAPSHOT               [10/28]
+[INFO]   from packages\@brix\infra-adapters\packages\server\infra-adapter-redis\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapter-redis ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-redis\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ infra-adapter-redis ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ infra-adapter-redis ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 10 source files with javac [debug target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ infra-adapter-redis ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-redis\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ infra-adapter-redis ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 3 source files with javac [debug target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ infra-adapter-redis ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.infra.adapter.redis.RedisLockCapabilityTest
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+[INFO] Running io.infra.adapter.redis.RedisLockCapabilityTest$UnlockTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.068 s -- in io.infra.adapter.redis.RedisLockCapabilityTest$UnlockTests
+[INFO] Running io.infra.adapter.redis.RedisLockCapabilityTest$AcquireTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.178 s -- in io.infra.adapter.redis.RedisLockCapabilityTest$AcquireTests
+[INFO] Running io.infra.adapter.redis.RedisLockCapabilityTest$TryLockWithWaitTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.201 s -- in io.infra.adapter.redis.RedisLockCapabilityTest$TryLockWithWaitTests
+[INFO] Running io.infra.adapter.redis.RedisLockCapabilityTest$TryLockNoWaitTests
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in io.infra.adapter.redis.RedisLockCapabilityTest$TryLockNoWaitTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.542 s -- in io.infra.adapter.redis.RedisLockCapabilityTest
+[INFO] Running io.infra.adapter.redis.RedisStateStoreCapabilityTest
+[INFO] Running io.infra.adapter.redis.RedisStateStoreCapabilityTest$PutTests
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.133 s -- in io.infra.adapter.redis.RedisStateStoreCapabilityTest$PutTests
+[INFO] Running io.infra.adapter.redis.RedisStateStoreCapabilityTest$GetTests
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.088 s -- in io.infra.adapter.redis.RedisStateStoreCapabilityTest$GetTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.698 s -- in io.infra.adapter.redis.RedisStateStoreCapabilityTest
+[INFO] Running io.infra.adapter.redis.ArchitectureTest
+16:20:05.089 [main] INFO com.tngtech.archunit.core.PluginLoader -- Detected Java version 17.0.16
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.273 s -- in io.infra.adapter.redis.ArchitectureTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 29, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ infra-adapter-redis ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-redis\target\infra-adapter-redis-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ infra-adapter-redis ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-redis\pom.xml to D:\DevCache\.m2\repository\io\brix\infra-adapter-redis\3.1.0-SNAPSHOT\infra-adapter-redis-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-redis\target\infra-adapter-redis-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\infra-adapter-redis\3.1.0-SNAPSHOT\infra-adapter-redis-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] -------------------< io.brix:infra-adapter-database >-------------------
+[INFO] Building Brix Infra Adapter - Database 3.1.0-SNAPSHOT            [11/28]
+[INFO]   from packages\@brix\infra-adapters\packages\server\infra-adapter-database\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapter-database ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-database\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ infra-adapter-database ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ infra-adapter-database ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 7 source files with javac [debug target 17] to target\classes
+[WARNING] 未知的枚举常量 com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY
+  原因: 找不到com.fasterxml.jackson.annotation.JsonInclude$Include的类文件
+[WARNING] 未知的枚举常量 com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY
+[WARNING] 未知的枚举常量 com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY
+  原因: 找不到com.fasterxml.jackson.annotation.JsonInclude$Include的类文件
+[WARNING] 未知的枚举常量 com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY
+[WARNING] 未知的枚举常量 com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY
+  原因: 找不到com.fasterxml.jackson.annotation.JsonInclude$Include的类文件
+[WARNING] 未知的枚举常量 com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ infra-adapter-database ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-database\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ infra-adapter-database ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ infra-adapter-database ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.infra.adapter.database.ArchitectureTest
+16:20:11.815 [main] INFO com.tngtech.archunit.core.PluginLoader -- Detected Java version 17.0.16
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.211 s -- in io.infra.adapter.database.ArchitectureTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ infra-adapter-database ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-database\target\infra-adapter-database-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ infra-adapter-database ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-database\pom.xml to D:\DevCache\.m2\repository\io\brix\infra-adapter-database\3.1.0-SNAPSHOT\infra-adapter-database-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-database\target\infra-adapter-database-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\infra-adapter-database\3.1.0-SNAPSHOT\infra-adapter-database-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --------------------< io.brix:infra-adapter-minio >---------------------
+[INFO] Building Brix Infra Adapter - MinIO 3.1.0-SNAPSHOT               [12/28]
+[INFO]   from packages\@brix\infra-adapters\packages\server\infra-adapter-minio\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapter-minio ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-minio\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ infra-adapter-minio ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ infra-adapter-minio ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 5 source files with javac [debug target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ infra-adapter-minio ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-minio\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ infra-adapter-minio ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ infra-adapter-minio ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.infra.adapter.minio.ArchitectureTest
+16:20:17.607 [main] INFO com.tngtech.archunit.core.PluginLoader -- Detected Java version 17.0.16
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.201 s -- in io.infra.adapter.minio.ArchitectureTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ infra-adapter-minio ---
+[INFO] Building jar: D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-minio\target\infra-adapter-minio-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ infra-adapter-minio ---
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-minio\pom.xml to D:\DevCache\.m2\repository\io\brix\infra-adapter-minio\3.1.0-SNAPSHOT\infra-adapter-minio-3.1.0-SNAPSHOT.pom
+[INFO] Installing D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-minio\target\infra-adapter-minio-3.1.0-SNAPSHOT.jar to D:\DevCache\.m2\repository\io\brix\infra-adapter-minio\3.1.0-SNAPSHOT\infra-adapter-minio-3.1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] -------------------< io.brix:infra-adapter-fallback >-------------------
+[INFO] Building Brix Fallback Capability Adapter 3.1.0-SNAPSHOT         [13/28]
+[INFO]   from packages\@brix\infra-adapters\packages\server\infra-adapter-fallback\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ infra-adapter-fallback ---
+[INFO] Deleting D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-fallback\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ infra-adapter-fallback ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ infra-adapter-fallback ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 8 source files with javac [debug target 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ infra-adapter-fallback ---
+[INFO] skip non existing resourceDirectory D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-fallback\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ infra-adapter-fallback ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 7 source files with javac [debug target 17] to target\test-classes
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ infra-adapter-fallback ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.infra.adapter.fallback.FallbackAuthContextCapabilityTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.123 s -- in io.infra.adapter.fallback.FallbackAuthContextCapabilityTest
+[INFO] Running io.infra.adapter.fallback.FallbackCapabilitiesAutoConfigurationTest
+16:20:22.869 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ObservabilityCapability (SLF4J-based)
+16:20:22.874 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ConfigStoreCapability (environment variables and system properties)
+16:20:22.874 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback LifecycleCapability (no-op)
+16:20:22.874 [main] WARN io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ResilienceCapability (pass-through, no real resilience protection) - Production should use Resilience4j adapter
+16:20:22.874 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback HttpCapability (JDK HttpClient-based)
+16:20:23.318 [main] INFO io.infra.adapter.fallback.FallbackHttpCapability -- [FallbackHttpCapability] Initialization complete: connectTimeout=10s, requestTimeout=30s
+16:20:23.403 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ObservabilityCapability (SLF4J-based)
+16:20:23.403 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ConfigStoreCapability (environment variables and system properties)
+16:20:23.403 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback LifecycleCapability (no-op)
+16:20:23.406 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback HttpCapability (JDK HttpClient-based)
+16:20:23.406 [main] INFO io.infra.adapter.fallback.FallbackHttpCapability -- [FallbackHttpCapability] Initialization complete: connectTimeout=10s, requestTimeout=30s
+16:20:23.422 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ObservabilityCapability (SLF4J-based)
+16:20:23.422 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ConfigStoreCapability (environment variables and system properties)
+16:20:23.422 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback LifecycleCapability (no-op)
+16:20:23.422 [main] WARN io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback ResilienceCapability (pass-through, no real resilience protection) - Production should use Resilience4j adapter
+16:20:23.422 [main] INFO io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration -- [Fallback] Creating Fallback HttpCapability (JDK HttpClient-based)
+16:20:23.422 [main] INFO io.infra.adapter.fallback.FallbackHttpCapability -- [FallbackHttpCapability] Initialization complete: connectTimeout=10s, requestTimeout=30s
+[ERROR] Tests run: 3, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.970 s <<< FAILURE! -- in io.infra.adapter.fallback.FallbackCapabilitiesAutoConfigurationTest
+[ERROR] io.infra.adapter.fallback.FallbackCapabilitiesAutoConfigurationTest.shouldRegisterAllFallbackBeans_whenNoneProvided -- Time elapsed: 0.784 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting:
+ <Started application [AnnotationConfigApplicationContext@1d131e1b id = 'org.springframework.context.annotation.AnnotationConfigApplicationContext@1d131e1b', applicationName = '', beanDefinitionCount = 11]>
+to have a single bean of type:
+ <io.runtime.sdk.capability.AuthContextCapability>
+but found no beans of that type
+	at io.infra.adapter.fallback.FallbackCapabilitiesAutoConfigurationTest.lambda$shouldRegisterAllFallbackBeans_whenNoneProvided$0(FallbackCapabilitiesAutoConfigurationTest.java:49)
+	at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.accept(AbstractApplicationContextRunner.java:434)
+	at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.consumeAssertableContext(AbstractApplicationContextRunner.java:363)
+	at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.lambda$run$0(AbstractApplicationContextRunner.java:341)
+	at org.springframework.boot.test.util.TestPropertyValues.lambda$applyToSystemProperties$1(TestPropertyValues.java:174)
+	at org.springframework.boot.test.util.TestPropertyValues.applyToSystemProperties(TestPropertyValues.java:188)
+	at org.springframework.boot.test.util.TestPropertyValues.applyToSystemProperties(TestPropertyValues.java:173)
+	at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.lambda$run$1(AbstractApplicationContextRunner.java:341)
+	at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.withContextClassLoader(AbstractApplicationContextRunner.java:369)
+	at org.springframework.boot.test.context.runner.AbstractApplicationContextRunner.run(AbstractApplicationContextRunner.java:340)
+	at io.infra.adapter.fallback.FallbackCapabilitiesAutoConfigurationTest.shouldRegisterAllFallbackBeans_whenNoneProvided(FallbackCapabilitiesAutoConfigurationTest.java:48)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+[INFO] Running io.infra.adapter.fallback.FallbackConfigStoreCapabilityTest
+[INFO] Running io.infra.adapter.fallback.FallbackConfigStoreCapabilityTest$TypeConversionTests
+16:20:23.450 [main] WARN io.infra.adapter.fallback.FallbackConfigStoreCapability -- [Fallback] Unable to convert config value 'not-a-number' to type Integer
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in io.infra.adapter.fallback.FallbackConfigStoreCapabilityTest$TypeConversionTests
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in io.infra.adapter.fallback.FallbackConfigStoreCapabilityTest
+[INFO] Running io.infra.adapter.fallback.FallbackLifecycleCapabilityTest
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.860 s -- in io.infra.adapter.fallback.FallbackLifecycleCapabilityTest
+[INFO] Running io.infra.adapter.fallback.FallbackObservabilityCapabilityTest
+16:20:25.350 [main] INFO io.brix.observability -- test {}
+16:20:25.376 [main] INFO io.brix.observability -- test message: arg1
+16:20:25.378 [main] WARN io.brix.observability -- test message: arg1
+16:20:25.378 [main] ERROR io.brix.observability -- test message: arg1
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in io.infra.adapter.fallback.FallbackObservabilityCapabilityTest
+[INFO] Running io.infra.adapter.fallback.FallbackResilienceCapabilityTest
+16:20:25.398 [main] WARN io.infra.adapter.fallback.FallbackResilienceCapability -- [Fallback Resilience] Operation 'b1' failed, triggering fallback: state
+16:20:25.398 [main] WARN io.infra.adapter.fallback.FallbackResilienceCapability -- [Fallback Resilience] Operation 'b2' failed, triggering fallback: np
+16:20:25.414 [main] WARN io.infra.adapter.fallback.FallbackResilienceCapability -- [Fallback Resilience] Operation 'test-breaker' failed, triggering fallback: fail
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.052 s -- in io.infra.adapter.fallback.FallbackResilienceCapabilityTest
+[INFO] Running io.infra.adapter.fallback.ArchitectureTest
+16:20:25.487 [main] INFO com.tngtech.archunit.core.PluginLoader -- Detected Java version 17.0.16
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.753 s -- in io.infra.adapter.fallback.ArchitectureTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   FallbackCapabilitiesAutoConfigurationTest.shouldRegisterAllFallbackBeans_whenNoneProvided:48->lambda$shouldRegisterAllFallbackBeans_whenNoneProvided$0:49 
+Expecting:
+ <Started application [AnnotationConfigApplicationContext@1d131e1b id = 'org.springframework.context.annotation.AnnotationConfigApplicationContext@1d131e1b', applicationName = '', beanDefinitionCount = 11]>
+to have a single bean of type:
+ <io.runtime.sdk.capability.AuthContextCapability>
+but found no beans of that type
+[INFO] 
+[ERROR] Tests run: 43, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for Brix Framework 3.1.0-SNAPSHOT:
+[INFO] 
+[INFO] Brix Architecture Guard ............................ SUCCESS [ 23.580 s]
+[INFO] Brix Runtime SDK Parent ............................ SUCCESS [  0.119 s]
+[INFO] Brix Runtime SDK API ............................... SUCCESS [  5.030 s]
+[INFO] Brix Runtime Manifest .............................. SUCCESS [  2.625 s]
+[INFO] Brix Runtime Orchestrator .......................... SUCCESS [  2.281 s]
+[INFO] Brix Infrastructure Adapters ....................... SUCCESS [  0.048 s]
+[INFO] Brix Infra Adapter - Kafka Core .................... SUCCESS [ 12.953 s]
+[INFO] Brix Infra Adapter - Kafka Outbox .................. SUCCESS [  5.066 s]
+[INFO] Brix Infra Adapter - Kafka (Aggregator) ............ SUCCESS [  0.133 s]
+[INFO] Brix Infra Adapter - Redis ......................... SUCCESS [ 11.104 s]
+[INFO] Brix Infra Adapter - Database ...................... SUCCESS [  4.632 s]
+[INFO] Brix Infra Adapter - MinIO ......................... SUCCESS [  5.611 s]
+[INFO] Brix Fallback Capability Adapter ................... FAILURE [  8.656 s]
+[INFO] Brix Infra Adapter - Simple (In-Memory) ............ SKIPPED
+[INFO] Brix Infra Adapter - Webhook ....................... SKIPPED
+[INFO] Brix Infra Adapter - OpenTelemetry ................. SKIPPED
+[INFO] Brix ID Generator Capability Adapter ............... SKIPPED
+[INFO] Brix Data Access Capability Adapter ................ SKIPPED
+[INFO] Platform Commons ................................... SKIPPED
+[INFO] Platform Parent .................................... SKIPPED
+[INFO] platform-common .................................... SKIPPED
+[INFO] Platform Common Starter ............................ SKIPPED
+[INFO] Platform Gateway ................................... SKIPPED
+[INFO] Platform Auth ...................................... SKIPPED
+[INFO] Platform Observability ............................. SKIPPED
+[INFO] Platform Config .................................... SKIPPED
+[INFO] Brix Platform DevTools ............................. SKIPPED
+[INFO] Brix Framework ..................................... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:22 min
+[INFO] Finished at: 2026-03-11T16:20:28+09:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.5:test (default-test) on project infra-adapter-fallback: There are test failures.
+[ERROR] 
+[ERROR] Please refer to D:\1.Sources\brix\packages\@brix\infra-adapters\packages\server\infra-adapter-fallback\target\surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :infra-adapter-fallback

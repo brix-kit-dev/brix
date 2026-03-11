@@ -23,7 +23,6 @@ import java.util.List;
  * Validation Result.
  *
  * <p>Contains detailed validation results including errors and warnings.</p>
- * <p>包含验证的详细结果，包括错误和警告信息。</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -32,13 +31,11 @@ public class ValidationResult {
 
     /**
      * Error list.
-     * 错误列表
      */
     private final List<ValidationError> errors;
 
     /**
      * Warning list.
-     * 警告列表
      */
     private final List<ValidationError> warnings;
 

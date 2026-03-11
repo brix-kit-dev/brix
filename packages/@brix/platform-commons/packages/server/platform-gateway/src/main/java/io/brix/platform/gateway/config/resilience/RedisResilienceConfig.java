@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience;
 
 import java.time.Duration;
@@ -17,17 +32,17 @@ import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.resource.DefaultClientResources;
 
 /**
- * Redis 弹性配
+ * Redis resilienceconfiguration
  * <p>
- * MVP 红线要求：Redis 显式超时配置
- * 配置 Lettuce Redis 客户端的超时与重试策略
+ * MVP Red Line Requirements：Redis explicittimeoutconfiguration
+ * configuration Lettuce Redis clientoftimeoutwithretrystrategy
  * </p>
  *
- * <h3>配置</h3>
+ * <h3>configuration</h3>
  * <ul>
- *   <li>命令超时：单Redis 命令的最大执行时</li>
- *   <li>连接超时：建立连接的最大等待时</li>
- *   <li>自动重连：连接丢失时自动重新建立连接</li>
+ *   <li>Command timeout：singleRedis commandofmaximumexecutetime</li>
+ *   <li>Connection timeout：establishconnectionofmaximumwaittime</li>
+ *   <li>automaticre-connect：connectionlosttimeautomaticre-newestablishconnection</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -46,9 +61,9 @@ public class RedisResilienceConfig {
     }
 
     /**
-     * 配置 Lettuce 客户端资
+     * Configure Lettuce clientresource
      * <p>
-     * 控制线程池和 I/O 资源的配置
+     * controlthreadpooland I/O resourceofconfiguration
      * </p>
      */
     @Bean(destroyMethod = "shutdown")
@@ -60,65 +75,65 @@ public class RedisResilienceConfig {
     }
 
     /**
-     * 自定Lettuce 客户端配
+     * customLettuce clientconfiguration
      * <p>
-     * 配置超时、重试、连接池等参数
+     * configurationtimeout、retry、connectionpooletcparameter
      * </p>
      */
     @Bean
     public LettuceClientConfigurationBuilderCustomizer lettuceClientCustomizer() {
         return builder -> {
-            // 命令超时
+            // Command timeout
             builder.commandTimeout(Objects.requireNonNull(Duration.ofMillis(properties.getCommandTimeoutMs())));
             
-            // 关闭超时
+            // closedtimeout
             builder.shutdownTimeout(Objects.requireNonNull(Duration.ofSeconds(5)));
             
-            // 瀹㈡埛绔€夐」
+            // ㈡€」
             builder.clientOptions(Objects.requireNonNull(clientOptions()));
             
-            // 客户端资
+            // clientresource
             builder.clientResources(Objects.requireNonNull(clientResources()));
             
-            logger.info("[shinwa] Configured Lettuce Redis client: commandTimeout={}ms, connectTimeout={}ms",
+            logger.info("[brix] Configured Lettuce Redis client: commandTimeout={}ms, connectTimeout={}ms",
                 properties.getCommandTimeoutMs(),
                 properties.getConnectTimeoutMs());
         };
     }
 
     /**
-     * Lettuce 瀹㈡埛绔€夐」
+     * Lettuce ㈡€」
      * <p>
-     * 配置 Socket 选项、超时选项、自动重连等
+     * configuration Socket option、timeoutoption、automaticre-connectetc
      * </p>
      */
     private ClientOptions clientOptions() {
-        // Socket 閫夐」
+        // Socket 」
         SocketOptions socketOptions = SocketOptions.builder()
             .connectTimeout(Duration.ofMillis(properties.getConnectTimeoutMs()))
             .keepAlive(true)
             .tcpNoDelay(true)
             .build();
 
-        // 超时选项
+        // timeoutoption
         TimeoutOptions timeoutOptions = TimeoutOptions.builder()
             .fixedTimeout(Duration.ofMillis(properties.getCommandTimeoutMs()))
             .build();
 
-        // 鏋勫缓瀹㈡埛绔€夐」
+        // ㈡€」
         ClientOptions.Builder builder = ClientOptions.builder()
             .socketOptions(socketOptions)
             .timeoutOptions(timeoutOptions)
             .publishOnScheduler(true);
         
-        // 自动重连配置
+        // automaticre-connectconfiguration
         if (properties.isAutoReconnect()) {
             builder.autoReconnect(true);
         } else {
             builder.autoReconnect(false);
         }
         
-        // 断开连接时的行为
+        // breakopenconnectiontimeoflineis
         builder.disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS);
         
         return builder.build();

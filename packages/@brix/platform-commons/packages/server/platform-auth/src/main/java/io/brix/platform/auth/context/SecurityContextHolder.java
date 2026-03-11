@@ -1,12 +1,27 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.context;
 
 import java.util.Optional;
 
 /**
- * 安全上下文持有
+ * Security Context Holder
  * <p>
- * 使用 ThreadLocal 存储当前线程的认证用户信息
- * 配合 SecurityContextFilter 在请求开始时设置，结束时清理
+ * Uses ThreadLocal to store the authenticated user information for the current thread.
+ * Works with SecurityContextFilter to set on request start and clear on request end.
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -17,28 +32,28 @@ public class SecurityContextHolder {
     private static final ThreadLocal<AuthenticatedUser> CONTEXT = new ThreadLocal<>();
 
     /**
-     * 设置当前用户
+     * Set current user
      *
-     * @param user 认证用户
+     * @param user Authenticated user
      */
     public void setCurrentUser(AuthenticatedUser user) {
         CONTEXT.set(user);
     }
 
     /**
-     * 获取当前用户
+     * Get current user
      *
-     * @return 认证用户，可能为
+     * @return Authenticated user, may be empty
      */
     public Optional<AuthenticatedUser> getCurrentUser() {
         return Optional.ofNullable(CONTEXT.get());
     }
 
     /**
-     * 获取当前用户，不存在则抛异常
+     * Get current user, throws exception if not exists
      *
-     * @return 认证用户
-     * @throws SecurityException 用户未认
+     * @return Authenticated user
+     * @throws SecurityException User not authenticated
      */
     public AuthenticatedUser requireCurrentUser() {
         return getCurrentUser()
@@ -46,37 +61,37 @@ public class SecurityContextHolder {
     }
 
     /**
-     * 获取当前用户 ID
+     * Get current user ID
      *
-     * @return 用户 ID，可能为
+     * @return User ID, may be empty
      */
     public Optional<String> getCurrentUserId() {
         return getCurrentUser().map(AuthenticatedUser::getUserId);
     }
 
     /**
-     * 获取当前租户 ID
+     * Get current tenant ID
      *
-     * @return 租户 ID，可能为
+     * @return Tenant ID, may be empty
      */
     public Optional<String> getCurrentTenantId() {
         return getCurrentUser().map(AuthenticatedUser::getTenantId);
     }
 
     /**
-     * 检查当前用户是否已认证
+     * Check if current user is authenticated
      *
-     * @return 是否已认
+     * @return Whether authenticated
      */
     public boolean isAuthenticated() {
         return CONTEXT.get() != null;
     }
 
     /**
-     * 检查当前用户是否拥有指定权
+     * Check if current user has specified permission
      *
-     * @param permission 权限标识
-     * @return 是否拥有权限
+     * @param permission Permission identifier
+     * @return Whether has permission
      */
     public boolean hasPermission(String permission) {
         AuthenticatedUser user = CONTEXT.get();
@@ -84,10 +99,10 @@ public class SecurityContextHolder {
     }
 
     /**
-     * 检查当前用户是否拥有指定角
+     * Check if current user has specified role
      *
-     * @param role 角色名称
-     * @return 是否拥有角色
+     * @param role Role name
+     * @return Whether has role
      */
     public boolean hasRole(String role) {
         AuthenticatedUser user = CONTEXT.get();
@@ -95,9 +110,9 @@ public class SecurityContextHolder {
     }
 
     /**
-     * 清除当前上下
+     * Clear current context
      * <p>
-     * 必须在请求结束时调用，防止内存泄漏
+     * Must be called when request ends to prevent memory leak
      * </p>
      */
     public void clear() {
@@ -105,25 +120,25 @@ public class SecurityContextHolder {
     }
 
     /**
-     * 静态方法：获取当前上下文（兼容旧用法）
+     * Static method: get current context (backwards compatible)
      *
-     * @return 认证用户，可能为 null
+     * @return Authenticated user, may be null
      */
     public static AuthenticatedUser getContext() {
         return CONTEXT.get();
     }
 
     /**
-     * 静态方法：设置当前上下文（兼容旧用法）
+     * Static method: set current context (backwards compatible)
      *
-     * @param user 认证用户
+     * @param user Authenticated user
      */
     public static void setContext(AuthenticatedUser user) {
         CONTEXT.set(user);
     }
 
     /**
-     * 静态方法：清除上下文（兼容旧用法）
+     * Static method: clear context (backwards compatible)
      */
     public static void clearContext() {
         CONTEXT.remove();

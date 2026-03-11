@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.common.tenant;
 
 import jakarta.servlet.FilterChain;
@@ -11,11 +26,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * 租户上下文过滤器
+ * Tenant Context Filter
  * 
- * <p>HTTP Header 中提取租户ID 并设置到 TenantContext 中
+ * <p>Extracts tenant ID from HTTP Header and sets it to TenantContext
  * 
- * <p>优先级为最高（-100），确保在业务逻辑之前执行
+ * <p>Highest priority (-100), ensures execution before business logic
  * 
  * @author Brix Platform Authors Platform Team
  * @since 1.0.0
@@ -24,12 +39,12 @@ import java.io.IOException;
 public class TenantFilter extends OncePerRequestFilter {
 
     /**
-     * 是否必须提供租户 ID
+     * Whether tenant ID is required
      */
     private final boolean required;
 
     /**
-     * 默认租户 ID（当未提供时使用
+     * Default tenant ID (used when not provided)
      */
     private final String defaultTenantId;
 
@@ -51,30 +66,30 @@ public class TenantFilter extends OncePerRequestFilter {
                                     HttpServletResponse response, 
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
-            // Header 中获取租户ID
+            // Get tenant ID from Header
             String tenantId = request.getHeader(TenantContext.TENANT_HEADER);
             String userId = request.getHeader(TenantContext.USER_HEADER);
 
-            // 设置租户上下
+            // Set tenant context
             if (tenantId != null && !tenantId.isBlank()) {
                 TenantContext.setTenantId(tenantId);
             } else if (required) {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"code\":\"TENANT_REQUIRED\",\"message\":\"租户 ID 是必需的\"}");;
+                response.getWriter().write("{\"code\":\"TENANT_REQUIRED\",\"message\":\"Tenant ID is required\"}");;
                 return;
             } else if (defaultTenantId != null) {
                 TenantContext.setTenantId(defaultTenantId);
             }
 
-            // 设置用户上下
+            // Set user context
             if (userId != null && !userId.isBlank()) {
                 TenantContext.setUserId(userId);
             }
 
             filterChain.doFilter(request, response);
         } finally {
-            // 请求结束后清理上下文
+            // Clean up context after request completes
             TenantContext.clear();
         }
     }
@@ -82,7 +97,7 @@ public class TenantFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // 健康检查和 Actuator 端点不需要租户上下文
+        // Health check and Actuator endpoints do not require tenant context
         return path.startsWith("/actuator/") 
             || path.equals("/health") 
             || path.equals("/ready")

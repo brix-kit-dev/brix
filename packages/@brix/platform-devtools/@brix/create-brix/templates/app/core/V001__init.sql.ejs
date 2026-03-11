@@ -1,30 +1,30 @@
--- ================================================================
+﻿-- ================================================================
 -- <%= displayName %> 数据库初始化脚本
 -- 
--- 模块: <%= fullName %>
+-- module: <%= fullName %>
 -- 版本: <%= version %>
 -- 日期: <%= date %>
 -- 作者: <%= author %>
 -- 
 -- 【v3.0 多租户说明】
--- - 所有业务表必须包含 tenant_id 字段
--- - 使用复合唯一约束保证租户内数据唯一性
+-- - 所有业务表必须包含 tenant_id Field
+-- - 使用复合UNIQUEConstraints保证租户内数据UNIQUE性
 -- ================================================================
 
 -- 创建 <%= displayName %> 主表
 CREATE TABLE IF NOT EXISTS <%= name.replace(/-/g, '_') %> (
-    -- 主键
+    -- Primary key
     id VARCHAR(36) PRIMARY KEY,
     
-    -- 业务字段
+    -- 业务Field
     name VARCHAR(100) NOT NULL,
     description VARCHAR(500),
     status VARCHAR(20) DEFAULT 'DRAFT',
     
-    -- 多租户字段（必需）
+    -- 多租户Field（必需）
     tenant_id VARCHAR(36) NOT NULL,
     
-    -- 审计字段
+    -- 审计Field
     created_by VARCHAR(36),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_by VARCHAR(36),
@@ -46,12 +46,12 @@ CREATE INDEX IF NOT EXISTS idx_<%= name.replace(/-/g, '_') %>_created_at
 
 -- 添加表注释
 COMMENT ON TABLE <%= name.replace(/-/g, '_') %> IS '<%= displayName %>主表';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.id IS '主键 ID';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.name IS '名称';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.description IS '描述';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.status IS '状态：DRAFT/ACTIVE/COMPLETED/CANCELLED';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.tenant_id IS '租户 ID';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.created_by IS '创建者 ID';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.created_at IS '创建时间';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.updated_by IS '更新者 ID';
-COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.updated_at IS '更新时间';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.id IS 'Primary key ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.name IS 'Name';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.description IS 'Description';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.status IS 'Status：DRAFT/ACTIVE/COMPLETED/CANCELLED';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.tenant_id IS 'Tenant ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.created_by IS 'Creator ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.created_at IS 'Created at';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.updated_by IS 'Updater ID';
+COMMENT ON COLUMN <%= name.replace(/-/g, '_') %>.updated_at IS 'Updated at';

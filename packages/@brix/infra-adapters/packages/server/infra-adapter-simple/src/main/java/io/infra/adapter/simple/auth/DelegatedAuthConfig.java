@@ -23,7 +23,7 @@ import java.time.Duration;
  * <p>Configuration class for {@link io.infra.adapter.simple.DelegatedAuthContextCapability}.
  * Contains OAuth 2.0 Token Introspection endpoint settings.</p>
  * 
- * <h3>Configuration Example (配置示例)</h3>
+ * <h3>Configuration Example</h3>
  * <pre>{@code
  * brix:
  *   capability:
@@ -43,25 +43,21 @@ public class DelegatedAuthConfig {
 
     /**
      * OAuth 2.0 Token Introspection endpoint URL.
-     * 【Token 验证端点】
      */
     private String tokenValidationUrl;
 
     /**
      * OAuth client ID.
-     * 【OAuth 客户端ID】
      */
     private String clientId;
 
     /**
      * OAuth client secret.
-     * 【OAuth 客户端密钥】
      */
     private String clientSecret;
 
     /**
      * Cache time-to-live duration. Default: 5 minutes.
-     * 【缓存有效期】
      */
     private Duration cacheTtl;
 

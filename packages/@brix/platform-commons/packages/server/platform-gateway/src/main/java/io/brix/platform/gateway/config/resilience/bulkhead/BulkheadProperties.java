@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience.bulkhead;
 
 import java.time.Duration;
@@ -8,30 +23,30 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * 并发隔离（Bulkhead）配置属性类
+ * concurrentisolation（Bulkhead）configurationpropertiesclass
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 配置前缀：{@code gateway.bulkhead}
- * </p>
- * 
- * <h3>Bulkhead 隔离舱模式说</h3>
- * <p>
- * 隔离舱模式借鉴自船舶设计，将船体分隔成多个独立舱室
- * 即使一个舱室进水也不会导致整艘船沉没
- * 在微服务中，Bulkhead 用于限制对下游服务的并发调用数量
- * 防止某个下游服务的慢响应耗尽所有线程资源
+ * configurationbeforefix：{@code gateway.bulkhead}
  * </p>
  * 
- * <h3>配置示例</h3>
+ * <h3>Bulkhead isolationcabinpatternsay</h3>
+ * <p>
+ * isolationcabinpatterninspired by shipsetcount，willshipbodysplit intomultiplealoneestablishcabinroom
+ * that isuseone cabinroomwateralsonotwillguidecauseintegership sinkingno
+ * onmicroservicein，Bulkhead used forlimitfordownstreamserviceofconcurrentcallcountamount
+ * preventcertain downstreamserviceofslowresponseconsumetryallhasthreadresource
+ * </p>
+ * 
+ * <h3>configurationexample</h3>
  * <pre>{@code
  * gateway:
  *   bulkhead:
  *     enabled: true
  *     default-config:
- *       max-concurrent-calls: 25       # 最大并发数
- *       max-wait-duration: PT0S        # 等待获取许可的最大时
+ *       max-concurrent-calls: 25       # maximumconcurrentcount
+ *       max-wait-duration: PT0S        # waitobtainpermitofmaximumtime
  *     routes:
  *       plugin-engine:
  *         max-concurrent-calls: 50
@@ -48,20 +63,20 @@ import org.springframework.validation.annotation.Validated;
 public class BulkheadProperties {
 
     /**
-     * 是否启用并发隔离
+     * Whether to enable concurrency isolation
      * <p>
-     * 生产环境建议设置true，保护系统不被慢响应拖垮
+     * Production environments should set to true to protect system from slow responses.
      * </p>
      */
     private boolean enabled = true;
 
     /**
-     * 默认隔离配置
+     * Default bulkhead configuration
      */
     private BulkheadConfig defaultConfig = new BulkheadConfig();
 
     /**
-     * 路由级别隔离配置
+     * Route-level bulkhead configuration
      */
     private Map<String, BulkheadConfig> routes = new HashMap<>();
 
@@ -92,34 +107,34 @@ public class BulkheadProperties {
     }
 
     /**
-     * 获取指定路由的隔离配
+     * obtainspecifyrouteofisolationconfiguration
      * 
-     * @param routeId 路由ID
-     * @return 隔离配置
+     * @param routeId routeID
+     * @return isolationconfiguration
      */
     public BulkheadConfig getConfigForRoute(String routeId) {
         return routes.getOrDefault(routeId, defaultConfig);
     }
 
     /**
-     * 单个隔离配置
+     * singleisolationconfiguration
      */
     public static class BulkheadConfig {
 
         /**
-         * 最大并发调用数
+         * maximumconcurrentcallcount
          * <p>
-         * 同时只允许指定数量的请求调用下游服务
-         * 默认值：25，根据下游服务能力调
+         * simultaneouslyonlyallowspecifycountamountofrequestcalldownstreamservice
+         * defaultvalue：25，according todownstreamservicecanforceadjust
          * </p>
          */
         private int maxConcurrentCalls = 25;
 
         /**
-         * 获取许可的最大等待时
+         * obtainpermitofmaximumwaittime
          * <p>
-         * 当并发数达到上限时，新请求等待的最大时
-         * 默认值：PT0S秒），表示立即拒
+         * whenconcurrentcountreachtouplimittime，newrequestwaitofmaximumtime
+         * defaultvalue：PT0Sseconds），representsestablishthat isreject
          * </p>
          */
         private Duration maxWaitDuration = Duration.ZERO;

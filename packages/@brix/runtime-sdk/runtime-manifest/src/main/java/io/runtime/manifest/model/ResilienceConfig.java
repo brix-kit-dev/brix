@@ -22,7 +22,6 @@ import java.util.List;
  * Resilience Configuration.
  *
  * <p>Configures fault tolerance mechanisms such as circuit breakers and rate limiters.</p>
- * <p>【韧性配置】配置熔断器、限流器等容错机制。</p>
  *
  * <h4>Example Configuration</h4>
  * <pre>{@code
@@ -48,13 +47,11 @@ public class ResilienceConfig {
 
     /**
      * Circuit breaker configuration list.
-     * 熔断器配置列表
      */
     private List<CircuitBreakerConfig> circuitBreaker = new ArrayList<>();
 
     /**
      * Rate limiter configuration list.
-     * 限流器配置列表
      */
     private List<RateLimiterConfig> rateLimiter = new ArrayList<>();
 

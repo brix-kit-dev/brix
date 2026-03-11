@@ -28,14 +28,15 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <h2>Architecture Principle</h2>
  * <blockquote>
- * runtime-sdk-api 是整个系统的稳定契约层，位于依赖链顶端。
- * 它不能依赖任何实现类（runtime-sdk 实现、Orchestrator、Adapter）。
+ * runtime-sdk-api is the stable contract layer of the entire system, positioned at the top
+ * of the dependency chain. It must not depend on any implementation classes (runtime-sdk
+ * implementations, Orchestrator, Adapter).
  * </blockquote>
  *
  * <h2>Covered Red Lines</h2>
  * <ul>
- *   <li><b>红线 11</b>: runtime-sdk-api 不依赖具体实现模块</li>
- *   <li><b>红线 2</b>: SDK API 只定义 Capability 契约</li>
+ *   <li><b>Red Line 11</b>: runtime-sdk-api must not depend on concrete implementation modules</li>
+ *   <li><b>Red Line 2</b>: SDK API only defines Capability contracts</li>
  * </ul>
  *
  * <h2>Usage</h2>
@@ -64,7 +65,7 @@ public class SdkProfile {
             .and().resideOutsideOfPackage("io.runtime.sdk.impl..")
             .should().dependOnClassesThat()
             .resideInAPackage("io.runtime.sdk.impl..")
-            .because("红线 11: runtime-sdk-api must not depend on implementation classes")
+            .because("Red Line 11: runtime-sdk-api must not depend on implementation classes")
             .allowEmptyShould(true);
 
     /**
@@ -75,7 +76,7 @@ public class SdkProfile {
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
             .resideInAPackage("io.runtime.orchestrator..")
-            .because("红线 11: runtime-sdk must not depend on orchestrator layer")
+            .because("Red Line 11: runtime-sdk must not depend on orchestrator layer")
             .allowEmptyShould(true);
 
     /**
@@ -86,7 +87,7 @@ public class SdkProfile {
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
             .resideInAPackage("io.brix.infra.adapter..")
-            .because("红线 11: runtime-sdk must not depend on infrastructure adapters")
+            .because("Red Line 11: runtime-sdk must not depend on infrastructure adapters")
             .allowEmptyShould(true);
 
     /**
@@ -96,8 +97,8 @@ public class SdkProfile {
     static final ArchRule sdkNotDependOnPlugins = noClasses()
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("com.shinwa.app..", "shinwa.plugin..")
-            .because("红线 11: runtime-sdk must not depend on plugin/business code")
+            .resideInAnyPackage("io.brix.app..", "brix.plugin..")
+            .because("Red Line 11: runtime-sdk must not depend on plugin/business code")
             .allowEmptyShould(true);
 
     /**
@@ -108,7 +109,7 @@ public class SdkProfile {
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
             .resideInAPackage("io.host.shell..")
-            .because("红线 11: runtime-sdk must not depend on host layer")
+            .because("Red Line 11: runtime-sdk must not depend on host layer")
             .allowEmptyShould(true);
 
     // ==================== Capability Contract Rules ====================
@@ -134,7 +135,7 @@ public class SdkProfile {
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
             .resideInAPackage("org.apache.kafka..")
-            .because("红线 1: runtime-sdk must not depend on Kafka directly")
+            .because("Red Line 1: runtime-sdk must not depend on Kafka directly")
             .allowEmptyShould(true);
 
     /**
@@ -145,6 +146,6 @@ public class SdkProfile {
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
             .resideInAnyPackage("redis.clients..", "org.springframework.data.redis..")
-            .because("红线 1: runtime-sdk must not depend on Redis directly")
+            .because("Red Line 1: runtime-sdk must not depend on Redis directly")
             .allowEmptyShould(true);
 }

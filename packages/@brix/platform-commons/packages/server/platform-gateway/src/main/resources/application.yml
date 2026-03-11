@@ -1,4 +1,4 @@
-# ==========================================================================
+﻿# ==========================================================================
 # Platform Gateway 主配置
 #
 # P-11: 按关注点拆分，将 611 行单体配置拆为 5 个子配置文件
@@ -17,7 +17,7 @@ server:
 
 spring:
   application:
-    name: shinwa-platform-gateway
+    name: enterprise-shell-gateway
   main:
     web-application-type: reactive
   config:

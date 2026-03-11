@@ -20,25 +20,25 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * HTTP 通信能力契约
+ * HTTP Communication Capability Contract
  * 
- * <p>提供跨服务 HTTP 调用的统一抽象，所有模块的 HTTP 通信必须通过此接口进行。
- * 这确保了统一的错误处理、分布式链路追踪、超时控制和可观测性。</p>
+ * <p>Provides unified abstraction for cross-service HTTP calls. All module HTTP communications must go through this interface.
+ * This ensures uniform error handling, distributed tracing, timeout control, and observability.</p>
  * 
- * <h3>核心职责</h3>
+ * <h3>Core Responsibilities</h3>
  * <ul>
- *   <li>HTTP GET/POST/PUT/DELETE 请求</li>
- *   <li>统一的请求头和响应处理</li>
- *   <li>连接超时和读取超时管理</li>
- *   <li>分布式追踪上下文传播（由适配器实现）</li>
+ *   <li>HTTP GET/POST/PUT/DELETE requests</li>
+ *   <li>Unified request header and response handling</li>
+ *   <li>Connection timeout and read timeout management</li>
+ *   <li>Distributed tracing context propagation (implemented by adapter)</li>
  * </ul>
  * 
- * <h3>架构约束（红线 R3）</h3>
- * <p>业务模块（Plugin Layer）禁止直接使用任何 HTTP 客户端库
- * （RestTemplate、WebClient、OpenFeign、OkHttp、java.net.http.HttpClient），
- * 必须通过此能力契约进行 HTTP 调用。</p>
+ * <h3>Architecture Constraint (Red Line R3)</h3>
+ * <p>Business modules (Plugin Layer) are prohibited from directly using any HTTP client library
+ * (RestTemplate, WebClient, OpenFeign, OkHttp, java.net.http.HttpClient).
+ * HTTP calls must be made through this capability contract.</p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * @Inject
  * private HttpCapability httpClient;
@@ -51,15 +51,15 @@ import java.util.Map;
  *     
  *     if (result.isSuccess()) {
  *         String data = result.body();
- *         // 处理响应...
+ *         // Process response...
  *     }
  * }
  * }</pre>
  * 
- * <h3>实现说明</h3>
+ * <h3>Implementation Notes</h3>
  * <ul>
- *   <li>Simple Adapter：使用 JDK HttpClient（开发/测试环境）</li>
- *   <li>Full Product Host：可集成 Spring WebClient + Resilience4j（生产环境）</li>
+ *   <li>Simple Adapter: Uses JDK HttpClient (dev/test environment)</li>
+ *   <li>Full Product Host: Can integrate Spring WebClient + Resilience4j (production environment)</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -69,69 +69,69 @@ import java.util.Map;
 public interface HttpCapability {
 
     /**
-     * 发送 HTTP GET 请求
+     * Sends an HTTP GET request
      * 
-     * @param url     请求 URL，不能为空
-     * @param headers 请求头，可以为空 Map
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 如果请求发送失败（网络错误、超时等）
+     * @param url     the request URL, cannot be empty
+     * @param headers the request headers, can be an empty Map
+     * @return the HTTP response result
+     * @throws HttpCapabilityException if the request fails to send (network error, timeout, etc.)
      */
     HttpResult get(String url, Map<String, String> headers);
 
     /**
-     * 发送 HTTP POST 请求
+     * Sends an HTTP POST request
      * 
-     * @param url     请求 URL，不能为空
-     * @param body    请求体，可以为 null
-     * @param headers 请求头，可以为空 Map
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 如果请求发送失败
+     * @param url     the request URL, cannot be empty
+     * @param body    the request body, can be null
+     * @param headers the request headers, can be an empty Map
+     * @return the HTTP response result
+     * @throws HttpCapabilityException if the request fails to send
      */
     HttpResult post(String url, String body, Map<String, String> headers);
 
     /**
-     * 发送 HTTP PUT 请求
+     * Sends an HTTP PUT request
      * 
-     * @param url     请求 URL，不能为空
-     * @param body    请求体，可以为 null
-     * @param headers 请求头，可以为空 Map
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 如果请求发送失败
+     * @param url     the request URL, cannot be empty
+     * @param body    the request body, can be null
+     * @param headers the request headers, can be an empty Map
+     * @return the HTTP response result
+     * @throws HttpCapabilityException if the request fails to send
      */
     HttpResult put(String url, String body, Map<String, String> headers);
 
     /**
-     * 发送 HTTP DELETE 请求
+     * Sends an HTTP DELETE request
      * 
-     * @param url     请求 URL，不能为空
-     * @param headers 请求头，可以为空 Map
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 如果请求发送失败
+     * @param url     the request URL, cannot be empty
+     * @param headers the request headers, can be an empty Map
+     * @return the HTTP response result
+     * @throws HttpCapabilityException if the request fails to send
      */
     HttpResult delete(String url, Map<String, String> headers);
 
     /**
-     * 发送无请求头的 GET 请求（便捷方法）
+     * Sends a GET request without headers (convenience method)
      */
     default HttpResult get(String url) {
         return get(url, Collections.emptyMap());
     }
 
     /**
-     * 发送无请求头的 POST 请求（便捷方法）
+     * Sends a POST request without headers (convenience method)
      */
     default HttpResult post(String url, String body) {
         return post(url, body, Collections.emptyMap());
     }
 
-    // ==================== 响应结果 ====================
+    // ==================== Response Result ====================
 
     /**
-     * HTTP 响应结果
+     * HTTP Response Result
      * 
-     * @param statusCode      HTTP 状态码
-     * @param body            响应体字符串
-     * @param responseHeaders 响应头
+     * @param statusCode      the HTTP status code
+     * @param body            the response body string
+     * @param responseHeaders the response headers
      */
     record HttpResult(
             int statusCode,
@@ -139,14 +139,14 @@ public interface HttpCapability {
             Map<String, List<String>> responseHeaders
     ) {
         /**
-         * 检查响应是否成功（2xx 状态码）
+         * Checks if the response was successful (2xx status code)
          */
         public boolean isSuccess() {
             return statusCode >= 200 && statusCode < 300;
         }
 
         /**
-         * 创建只包含状态码和响应体的结果
+         * Creates a result containing only status code and response body
          */
         public static HttpResult of(int statusCode, String body) {
             return new HttpResult(statusCode, body, Collections.emptyMap());

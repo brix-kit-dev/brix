@@ -16,16 +16,16 @@
 package io.runtime.sdk.capability.registry;
 
 /**
- * 能力级别枚举
+ * Capability Level Enumeration
  * 
- * <p>定义能力的分级，用于配置验证和能力组装。</p>
+ * <p>Defines capability levels for configuration validation and capability assembly.</p>
  * 
  * <table border="1">
- *   <tr><th>级别</th><th>说明</th><th>必要性</th></tr>
- *   <tr><td>CORE</td><td>核心能力</td><td>所有 Host 必须实现</td></tr>
- *   <tr><td>STANDARD</td><td>标准能力</td><td>推荐实现</td></tr>
- *   <tr><td>EXTENDED</td><td>扩展能力</td><td>按需实现</td></tr>
- *   <tr><td>EXPERIMENTAL</td><td>实验能力</td><td>不稳定，可能变更</td></tr>
+ *   <tr><th>Level</th><th>Description</th><th>Requirement</th></tr>
+ *   <tr><td>CORE</td><td>Core Capability</td><td>All Hosts must implement</td></tr>
+ *   <tr><td>STANDARD</td><td>Standard Capability</td><td>Recommended</td></tr>
+ *   <tr><td>EXTENDED</td><td>Extended Capability</td><td>On-demand</td></tr>
+ *   <tr><td>EXPERIMENTAL</td><td>Experimental Capability</td><td>Unstable, may change</td></tr>
  * </table>
  * 
  * @author Runtime SDK Team
@@ -34,59 +34,59 @@ package io.runtime.sdk.capability.registry;
 public enum CapabilityLevel {
 
     /**
-     * 核心能力
+     * Core Capability
      * 
-     * <p>所有 Host 必须实现的能力，如：</p>
+     * <p>Capabilities that all Hosts must implement:</p>
      * <ul>
-     *   <li>EventBusCapability - 事件总线</li>
-     *   <li>StateStoreCapability - 状态存储</li>
-     *   <li>AuthContextCapability - 认证上下文</li>
-     *   <li>ObservabilityCapability - 可观测性</li>
-     *   <li>ConfigStoreCapability - 配置存储</li>
-     *   <li>LifecycleCapability - 生命周期</li>
+     *   <li>EventBusCapability - Event Bus</li>
+     *   <li>StateStoreCapability - State Storage</li>
+     *   <li>AuthContextCapability - Authentication Context</li>
+     *   <li>ObservabilityCapability - Observability</li>
+     *   <li>ConfigStoreCapability - Configuration Store</li>
+     *   <li>LifecycleCapability - Lifecycle</li>
      * </ul>
      */
-    CORE(1, "核心能力", true),
+    CORE(1, "Core", true),
 
     /**
-     * 标准能力
+     * Standard Capability
      * 
-     * <p>推荐实现的能力，Full Product Host 应该提供：</p>
+     * <p>Recommended capabilities that Full Product Host should provide:</p>
      * <ul>
-     *   <li>SchedulingCapability - 定时任务</li>
-     *   <li>LockCapability - 分布式锁</li>
+     *   <li>SchedulingCapability - Scheduled Tasks</li>
+     *   <li>LockCapability - Distributed Lock</li>
      * </ul>
      */
-    STANDARD(2, "标准能力", false),
+    STANDARD(2, "Standard", false),
 
     /**
-     * 扩展能力
+     * Extended Capability
      * 
-     * <p>按需实现的能力，针对特定场景：</p>
+     * <p>On-demand capabilities for specific scenarios:</p>
      * <ul>
-     *   <li>ResilienceCapability - 韧性能力</li>
-     *   <li>IdGeneratorCapability - ID 生成</li>
-     *   <li>DataAccessCapability - 数据访问授权</li>
+     *   <li>ResilienceCapability - Resilience</li>
+     *   <li>IdGeneratorCapability - ID Generation</li>
+     *   <li>DataAccessCapability - Data Access Authorization</li>
      * </ul>
      */
-    EXTENDED(3, "扩展能力", false),
+    EXTENDED(3, "Extended", false),
 
     /**
-     * 实验能力
+     * Experimental Capability
      * 
-     * <p>处于实验阶段的能力，API 可能变更。</p>
+     * <p>Capabilities in experimental stage, API may change.</p>
      */
-    EXPERIMENTAL(4, "实验能力", false),
+    EXPERIMENTAL(4, "Experimental", false),
 
     /**
-     * 回退能力
+     * Fallback Capability
      * 
-     * <p>当没有更高优先级的实现可用时启用的后备实现。
-     * 通常是零依赖的简单实现，用于开发或测试场景。</p>
+     * <p>Fallback implementation enabled when no higher priority implementation is available.
+     * Usually a zero-dependency simple implementation for development or testing scenarios.</p>
      * 
      * @since 3.2.0
      */
-    FALLBACK(5, "回退能力", false);
+    FALLBACK(5, "Fallback", false);
 
     private final int order;
     private final String displayName;
@@ -99,27 +99,27 @@ public enum CapabilityLevel {
     }
 
     /**
-     * 获取排序顺序
+     * Get sort order
      * 
-     * @return 排序顺序
+     * @return sort order
      */
     public int getOrder() {
         return order;
     }
 
     /**
-     * 获取显示名称
+     * Get display name
      * 
-     * @return 显示名称
+     * @return display name
      */
     public String getDisplayName() {
         return displayName;
     }
 
     /**
-     * 是否为所有 Host 必需
+     * Whether required for all Hosts
      * 
-     * @return 是否必需
+     * @return whether required
      */
     public boolean isRequiredForAllHosts() {
         return requiredForAllHosts;

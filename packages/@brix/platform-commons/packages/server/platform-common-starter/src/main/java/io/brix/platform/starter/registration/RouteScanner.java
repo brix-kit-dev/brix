@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.registration;
 
 import org.slf4j.Logger;
@@ -19,20 +34,20 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * v2.1 路由扫描
+ * v2.1 Route Scanner
  * 
- * <p>负责扫描服务中所@RestController 暴露REST 端点</p>
+ * <p>Responsible for scanning REST endpoints exposed by all @RestController in the service</p>
  * 
- * <p>扫描逻辑</p>
+ * <p>Scanning logic</p>
  * <ol>
- *   <li>获取 Spring RequestMappingHandlerMapping</li>
- *   <li>遍历所有注册的 HandlerMethod</li>
- *   <li>根据配置basePackages 过滤</li>
- *   <li>根据 excludePatterns 排除</li>
- *   <li>提取路由元信息（路径、方法、参数等</li>
+ *   <li>Get Spring RequestMappingHandlerMapping</li>
+ *   <li>Iterate through all registered HandlerMethods</li>
+ *   <li>Filter by configured basePackages</li>
+ *   <li>Exclude by excludePatterns</li>
+ *   <li>Extract route metadata (path, method, parameters, etc.)</li>
  * </ol>
  * 
- * <p>使用示例</p>
+ * <p>Usage example</p>
  * <pre>
  * {@code
  * @Autowired
@@ -49,20 +64,20 @@ public class RouteScanner {
     
     private static final Logger log = LoggerFactory.getLogger(RouteScanner.class);
     
-    /** Spring 的请求映射处理器映射 */
+    /** Spring request mapping handler mapping */
     private final RequestMappingHandlerMapping handlerMapping;
     
-    /** 服务配置 */
+    /** Service configuration */
     private final ServiceProperties serviceProperties;
     
-    /** 路径匹配器，用于排除模式匹配 */
+    /** Path matcher for exclude pattern matching */
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     
-    /** 默认扫描的基础包（可通过 brix.route-scan.default-base-package 配置覆盖*/
+    /** Default base package for scanning (can be overridden via brix.route-scan.default-base-package) */
     @Value("${brix.route-scan.default-base-package:io.platform.plugin}")
     private String defaultBasePackage;
     
-    /** Actuator 路径前缀 */
+    /** Actuator path prefix */
     private static final String ACTUATOR_PREFIX = "/actuator";
     
     public RouteScanner(@Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping, 
@@ -72,22 +87,22 @@ public class RouteScanner {
     }
     
     /**
-     * 扫描所有路
+     * Scan all routes
      * 
-     * <p>根据配置basePackages excludePatterns 过滤路由</p>
+     * <p>Filter routes by configured basePackages and excludePatterns</p>
      * 
-     * @return 路由信息列表
+     * @return List of route information
      */
     public List<RouteInfo> scanRoutes() {
-        // 检查是否启用路由扫
+        // Check if route scanning is enabled
         if (!serviceProperties.getRouteScan().isEnabled()) {
-            log.info("[RouteScanner] 璺敱鎵弿宸茬");
+            log.info("[RouteScanner] Route scanning disabled");
             return Collections.emptyList();
         }
         
-        log.info("[RouteScanner] 开始扫描路..");
+        log.info("[RouteScanner] Starting route scanning...");
         
-        // 获取所Handler 映射
+        // Get all handler mappings
         Map<RequestMappingInfo, HandlerMethod> handlerMethods = handlerMapping.getHandlerMethods();
         
         List<RouteInfo> routes = new ArrayList<>();
@@ -96,45 +111,45 @@ public class RouteScanner {
             RequestMappingInfo mappingInfo = entry.getKey();
             HandlerMethod handlerMethod = entry.getValue();
             
-            // 过滤：检查是否在扫描范围
+            // Filter: check if within scan scope
             if (!shouldInclude(handlerMethod, mappingInfo)) {
                 continue;
             }
             
-            // 提取路由信息
+            // Extract route info
             List<RouteInfo> routeInfos = extractRouteInfo(mappingInfo, handlerMethod);
             routes.addAll(routeInfos);
         }
         
-        log.info("[RouteScanner] 扫描完成，共发现 {} 个路", routes.size());
+        log.info("[RouteScanner] Scanning complete, found {} routes", routes.size());
         
         return routes;
     }
     
     /**
-     * 判断是否应该包含Handler
+     * Determine if handler should be included
      * 
-     * @param handlerMethod Handler 方法
-     * @param mappingInfo 映射信息
-     * @return 是否包含
+     * @param handlerMethod Handler method
+     * @param mappingInfo Mapping info
+     * @return Whether to include
      */
     private boolean shouldInclude(HandlerMethod handlerMethod, RequestMappingInfo mappingInfo) {
-        // 获取 Controller 
+        // Get Controller class
         Class<?> beanType = handlerMethod.getBeanType();
         
-        // 如果CGLIB 代理，获取原始类
+        // If CGLIB proxy, get original class
         if (AopUtils.isCglibProxy(handlerMethod.getBean())) {
             beanType = AopUtils.getTargetClass(handlerMethod.getBean());
         }
         
         String className = beanType.getName();
         
-        // 1. 检查是否在 basePackages 
+        // 1. Check if in basePackages
         if (!isInBasePackages(className)) {
             return false;
         }
         
-        // 2. 检Actuator 端点
+        // 2. Check Actuator endpoints
         Set<String> patterns = getPatterns(mappingInfo);
         if (!serviceProperties.getRouteScan().isIncludeActuator()) {
             for (String pattern : patterns) {
@@ -144,7 +159,7 @@ public class RouteScanner {
             }
         }
         
-        // 3. 检查排除模
+        // 3. Check exclude patterns
         Set<String> excludePatterns = serviceProperties.getRouteScan().getExcludePatterns();
         if (!excludePatterns.isEmpty()) {
             for (String pattern : patterns) {
@@ -160,20 +175,20 @@ public class RouteScanner {
     }
     
     /**
-     * 检查类名是否在配置basePackages 
+     * Check if class name is in configured basePackages
      * 
-     * @param className 类名
-     * @return 是否basePackages 
+     * @param className Class name
+     * @return Whether in basePackages
      */
     private boolean isInBasePackages(String className) {
         Set<String> basePackages = serviceProperties.getRouteScan().getBasePackages();
         
-        // 如果没有配置 basePackages，使用默认
+        // If basePackages not configured, use default
         if (basePackages == null || basePackages.isEmpty()) {
             return className.startsWith(defaultBasePackage);
         }
         
-        // 检查是否匹配任意一basePackage
+        // Check if matches any basePackage
         for (String basePackage : basePackages) {
             if (className.startsWith(basePackage)) {
                 return true;
@@ -184,13 +199,13 @@ public class RouteScanner {
     }
     
     /**
-     * RequestMappingInfo 中提取路径模
+     * Extract path patterns from RequestMappingInfo
      * 
-     * @param mappingInfo 映射信息
-     * @return 路径模式集合
+     * @param mappingInfo Mapping info
+     * @return Set of path patterns
      */
     private Set<String> getPatterns(RequestMappingInfo mappingInfo) {
-        // Spring 6.x 使用 getPathPatternsCondition
+        // Spring 6.x uses getPathPatternsCondition
         if (mappingInfo.getPathPatternsCondition() != null) {
             return mappingInfo.getPathPatternsCondition().getPatterns()
                 .stream()
@@ -198,7 +213,7 @@ public class RouteScanner {
                 .collect(Collectors.toSet());
         }
         
-        // 兼容旧版
+        // Backward compatible with older versions
         if (mappingInfo.getPatternsCondition() != null) {
             return mappingInfo.getPatternsCondition().getPatterns();
         }
@@ -207,58 +222,58 @@ public class RouteScanner {
     }
     
     /**
-     * 提取路由信息
+     * Extract route info
      * 
-     * @param mappingInfo 映射信息
-     * @param handlerMethod Handler 方法
-     * @return 路由信息列表（一Handler 可能对应多个路径
+     * @param mappingInfo Mapping info
+     * @param handlerMethod Handler method
+     * @return List of route info (one handler may correspond to multiple paths)
      */
     private List<RouteInfo> extractRouteInfo(RequestMappingInfo mappingInfo, 
                                               HandlerMethod handlerMethod) {
         List<RouteInfo> routes = new ArrayList<>();
         
-        // 获取所有路径模
+        // Get all path patterns
         Set<String> patterns = getPatterns(mappingInfo);
         
-        // 获取 HTTP 方法
+        // Get HTTP methods
         Set<String> methods = mappingInfo.getMethodsCondition().getMethods()
             .stream()
             .map(Enum::name)
             .collect(Collectors.toSet());
         
-        // 如果没有指定方法，默认为所有方
+        // If no methods specified, default to all methods
         if (methods.isEmpty()) {
             methods = Set.of("GET", "POST", "PUT", "DELETE", "PATCH");
         }
         
-        // 获取 Controller 类信
+        // Get Controller class info
         Class<?> beanType = handlerMethod.getBeanType();
         if (AopUtils.isCglibProxy(handlerMethod.getBean())) {
             beanType = AopUtils.getTargetClass(handlerMethod.getBean());
         }
         String controllerClass = beanType.getName();
         
-        // 获取方法信息
+        // Get method info
         Method method = handlerMethod.getMethod();
         String methodName = method.getName();
         
-        // 提取参数信息
+        // Extract parameter info
         List<RouteInfo.ParameterInfo> parameters = extractParameters(handlerMethod);
         
-        // 获取返回类型
+        // Get return type
         String responseType = method.getGenericReturnType().getTypeName();
         
-        // 检查是否废
+        // Check if deprecated
         boolean deprecated = method.isAnnotationPresent(Deprecated.class) ||
                             beanType.isAnnotationPresent(Deprecated.class);
         
-        // 提取标签（从类名推断
+        // Extract tags (inferred from class name)
         Set<String> tags = extractTags(beanType);
         
-        // 提取描述
+        // Extract description
         String description = extractDescription(method);
         
-        // 为每个路径创RouteInfo
+        // Create RouteInfo for each path
         for (String pattern : patterns) {
             routes.add(new RouteInfo(
                 pattern,
@@ -277,10 +292,10 @@ public class RouteScanner {
     }
     
     /**
-     * 提取参数信息
+     * Extract parameter info
      * 
-     * @param handlerMethod Handler 方法
-     * @return 参数信息列表
+     * @param handlerMethod Handler method
+     * @return List of parameter info
      */
     private List<RouteInfo.ParameterInfo> extractParameters(HandlerMethod handlerMethod) {
         List<RouteInfo.ParameterInfo> parameters = new ArrayList<>();
@@ -292,21 +307,21 @@ public class RouteScanner {
             String paramName = parameter.getName();
             String paramType = parameter.getType().getSimpleName();
             
-            // 判断参数来源
+            // Determine parameter source
             RouteInfo.ParameterSource source = determineParameterSource(mp);
             
-            // 跳过非请求参数（HttpServletRequest, Model 等）
+            // Skip non-request parameters (HttpServletRequest, Model, etc.)
             if (source == null) {
                 continue;
             }
             
-            // 判断是否必需
+            // Determine if required
             boolean required = isParameterRequired(mp, source);
             
-            // 获取默认
+            // Get default value
             String defaultValue = getParameterDefaultValue(mp);
             
-            // 尝试从注解获取参数名
+            // Try to get parameter name from annotation
             paramName = getParameterName(mp, paramName);
             
             parameters.add(new RouteInfo.ParameterInfo(
@@ -322,10 +337,10 @@ public class RouteScanner {
     }
     
     /**
-     * 判断参数来源
+     * Determine parameter source
      * 
-     * @param mp 方法参数
-     * @return 参数来源，如果不是请求参数则返回 null
+     * @param mp Method parameter
+     * @return Parameter source, returns null if not a request parameter
      */
     private RouteInfo.ParameterSource determineParameterSource(MethodParameter mp) {
         if (mp.hasParameterAnnotation(PathVariable.class)) {
@@ -344,17 +359,17 @@ public class RouteScanner {
             return RouteInfo.ParameterSource.COOKIE;
         }
         
-        // 没有注解的参数，检查是否是简单类
+        // Parameter without annotation, check if simple type
         Class<?> type = mp.getParameterType();
         if (isSimpleType(type)) {
-            return RouteInfo.ParameterSource.QUERY;  // 简单类型默认为查询参数
+            return RouteInfo.ParameterSource.QUERY;  // Simple types default to query parameter
         }
         
-        return null;  // 复杂类型（如 HttpServletRequest）不是请求参
+        return null;  // Complex types (e.g., HttpServletRequest) are not request parameters
     }
     
     /**
-     * 判断是否是简单类
+     * Check if simple type
      */
     private boolean isSimpleType(Class<?> type) {
         return type.isPrimitive() ||
@@ -365,12 +380,12 @@ public class RouteScanner {
     }
     
     /**
-     * 判断参数是否必需
+     * Determine if parameter is required
      */
     private boolean isParameterRequired(MethodParameter mp, RouteInfo.ParameterSource source) {
         switch (source) {
             case PATH:
-                // PathVariable 默认必需
+                // PathVariable is required by default
                 PathVariable pv = mp.getParameterAnnotation(PathVariable.class);
                 return pv == null || pv.required();
                 
@@ -396,7 +411,7 @@ public class RouteScanner {
     }
     
     /**
-     * 获取参数默认
+     * Get parameter default value
      */
     private String getParameterDefaultValue(MethodParameter mp) {
         RequestParam rp = mp.getParameterAnnotation(RequestParam.class);
@@ -418,7 +433,7 @@ public class RouteScanner {
     }
     
     /**
-     * 获取参数
+     * Get parameter name
      */
     private String getParameterName(MethodParameter mp, String defaultName) {
         PathVariable pv = mp.getParameterAnnotation(PathVariable.class);
@@ -440,16 +455,16 @@ public class RouteScanner {
     }
     
     /**
-     * 从类名提取标
+     * Extract tags from class name
      * 
-     * <p>例如：UserController -> ["user"]</p>
+     * <p>Example: UserController -> ["user"]</p>
      */
     private Set<String> extractTags(Class<?> beanType) {
         Set<String> tags = new HashSet<>();
         
         String simpleName = beanType.getSimpleName();
         
-        // 移除 Controller 后缀
+        // Remove Controller suffix
         if (simpleName.endsWith("Controller")) {
             String tag = simpleName.substring(0, simpleName.length() - 10).toLowerCase();
             tags.add(tag);
@@ -459,13 +474,13 @@ public class RouteScanner {
     }
     
     /**
-     * 提取方法描述
+     * Extract method description
      * 
-     * <p>可以Swagger/OpenAPI 注解或其他文档注解中提取</p>
+     * <p>Can extract from Swagger/OpenAPI annotations or other documentation annotations</p>
      */
     @SuppressWarnings("unchecked")
     private String extractDescription(Method method) {
-        // 尝试@Operation 注解获取（Swagger 3.x
+        // Try to get from @Operation annotation (Swagger 3.x)
         try {
             Class<? extends java.lang.annotation.Annotation> operationClass = 
                 (Class<? extends java.lang.annotation.Annotation>) Class.forName("io.swagger.v3.oas.annotations.Operation");
@@ -475,10 +490,10 @@ public class RouteScanner {
                 return (String) summaryMethod.invoke(operation);
             }
         } catch (Exception ignored) {
-            // Swagger 注解不存在，忽略
+            // Swagger annotation doesn't exist, ignore
         }
         
-        // 返回空描
+        // Return empty description
         return "";
     }
 }

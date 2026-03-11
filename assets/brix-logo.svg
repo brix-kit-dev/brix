@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" fill="none">
+  <defs>
+    <!-- Gradient for the main brand color -->
+    <linearGradient id="brixGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
+    </linearGradient>
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#6366F1" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Logo Icon: Modular blocks representing plugin architecture -->
+  <g filter="url(#shadow)">
+    <!-- Main block - represents the Host/Runtime Shell -->
+    <rect x="20" y="25" width="70" height="70" rx="8" fill="url(#brixGradient)"/>
+    
+    <!-- Plugin blocks -->
+    <rect x="30" y="35" width="22" height="22" rx="4" fill="white" opacity="0.9"/>
+    <rect x="58" y="35" width="22" height="22" rx="4" fill="white" opacity="0.7"/>
+    <rect x="30" y="63" width="22" height="22" rx="4" fill="white" opacity="0.7"/>
+    <rect x="58" y="63" width="22" height="22" rx="4" fill="white" opacity="0.5"/>
+    
+    <!-- Connection lines representing capability contracts -->
+    <line x1="52" y1="46" x2="58" y2="46" stroke="url(#brixGradient)" stroke-width="2"/>
+    <line x1="41" y1="57" x2="41" y2="63" stroke="url(#brixGradient)" stroke-width="2"/>
+    <line x1="69" y1="57" x2="69" y2="63" stroke="url(#brixGradient)" stroke-width="2"/>
+  </g>
+  
+  <!-- Text: "Brix" -->
+  <text x="110" y="78" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="700" fill="#1F2937">
+    Brix
+  </text>
+  
+  <!-- Tagline -->
+  <text x="110" y="105" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="14" fill="#6B7280">
+    Runtime Shell Framework
+  </text>
+</svg>

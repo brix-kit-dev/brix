@@ -16,9 +16,9 @@
 package io.runtime.sdk.capability;
 
 /**
- * 事件发布异常
+ * Event Publish Exception
  * 
- * <p>当事件发布失败时抛出此异常，调用方可根据此异常进行重试或补偿处理。</p>
+ * <p>Thrown when event publishing fails. The caller can use this exception to perform retry or compensation handling.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -27,7 +27,7 @@ package io.runtime.sdk.capability;
 public class EventPublishException extends RuntimeException {
 
     /**
-     * 失败的事件 ID（如果可用）
+     * The ID of the failed event (if available)
      */
     private final String eventId;
 
@@ -47,9 +47,9 @@ public class EventPublishException extends RuntimeException {
     }
 
     /**
-     * 获取失败的事件 ID
+     * Gets the ID of the failed event
      * 
-     * @return 事件 ID，可能为 null
+     * @return the event ID, may be null
      */
     public String getEventId() {
         return eventId;

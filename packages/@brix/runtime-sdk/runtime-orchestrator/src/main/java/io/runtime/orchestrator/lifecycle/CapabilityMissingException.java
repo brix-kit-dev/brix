@@ -20,38 +20,39 @@ import java.util.Collections;
 import java.util.Set;
 
 /**
- * 能力缺失异常
+ * Capability Missing Exception.
  * 
- * <p>当模块所需的必需能力（required capability）在 Host 中不存在时抛出。
- * 此异常会导致模块启动失败，属于严重错误，需要检查 Host 配置或模块依赖声明。</p>
+ * <p>Thrown when a required capability declared by a module does not exist in the Host.
+ * This exception causes module startup failure, indicating a serious error that requires
+ * checking Host configuration or module dependency declarations.</p>
  * 
- * <h3>触发场景</h3>
+ * <h3>Triggering Scenarios</h3>
  * <ul>
- *   <li>模块声明需要 event-bus 能力，但 Host 未提供 EventBusCapability 实现</li>
- *   <li>模块声明需要 scheduling 能力（在 required 中），但 Host 未提供 SchedulingCapability 实现</li>
+ *   <li>Module declares need for event-bus capability, but Host doesn't provide EventBusCapability implementation</li>
+ *   <li>Module declares need for scheduling capability (in required), but Host doesn't provide SchedulingCapability implementation</li>
  * </ul>
  * 
- * <h3>处理建议</h3>
+ * <h3>Resolution Suggestions</h3>
  * <ul>
- *   <li>检查 Host 是否正确注册了所有必需能力的实现</li>
- *   <li>检查模块的 module-manifest.yaml 中的 capabilities.required 配置是否正确</li>
- *   <li>如果能力不是必需的，考虑将其移到 capabilities.optional 中</li>
+ *   <li>Check if Host correctly registered implementations for all required capabilities</li>
+ *   <li>Check if capabilities.required configuration in module's module-manifest.yaml is correct</li>
+ *   <li>If capability is not required, consider moving it to capabilities.optional</li>
  * </ul>
  * 
- * <h3>示例</h3>
+ * <h3>Example</h3>
  * <pre>{@code
- * // 模块 manifest 中声明需要 scheduling 能力
+ * // Module manifest declares need for scheduling capability
  * capabilities:
  *   required:
- *     - scheduling  # 如果 Host 未提供，将抛出此异常
+ *     - scheduling  # If Host doesn't provide, this exception will be thrown
  *     
- * // 捕获异常
+ * // Catch exception
  * try {
  *     lifecycleManager.initialize(moduleId);
  * } catch (CapabilityMissingException e) {
- *     logger.error("模块 {} 启动失败：缺少能力 {}", 
+ *     logger.error("Module {} startup failed: missing capability {}", 
  *         e.getModuleId(), e.getMissingCapabilities());
- *     // 记录审计日志...
+ *     // Log audit...
  * }
  * }</pre>
  * 
@@ -64,25 +65,25 @@ public class CapabilityMissingException extends ModuleLifecycleException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 缺失的能力集合
+     * Set of missing capabilities.
      */
     private final Set<String> missingCapabilities;
 
     /**
-     * 创建能力缺失异常（单个能力）
+     * Creates capability missing exception (single capability).
      * 
-     * @param moduleId   模块 ID
-     * @param capability 缺失的能力标识
+     * @param moduleId   module ID
+     * @param capability missing capability identifier
      */
     public CapabilityMissingException(String moduleId, String capability) {
         this(moduleId, Collections.singleton(capability));
     }
 
     /**
-     * 创建能力缺失异常（多个能力）
+     * Creates capability missing exception (multiple capabilities).
      * 
-     * @param moduleId     模块 ID
-     * @param capabilities 缺失的能力集合
+     * @param moduleId     module ID
+     * @param capabilities set of missing capabilities
      */
     public CapabilityMissingException(String moduleId, Collection<String> capabilities) {
         super(moduleId, LifecyclePhase.INIT, buildMessage(moduleId, capabilities));
@@ -90,11 +91,11 @@ public class CapabilityMissingException extends ModuleLifecycleException {
     }
 
     /**
-     * 创建能力缺失异常（带原因）
+     * Creates capability missing exception (with cause).
      * 
-     * @param moduleId     模块 ID
-     * @param capabilities 缺失的能力集合
-     * @param cause        原因异常
+     * @param moduleId     module ID
+     * @param capabilities set of missing capabilities
+     * @param cause        cause exception
      */
     public CapabilityMissingException(String moduleId, Collection<String> capabilities, Throwable cause) {
         super(moduleId, LifecyclePhase.INIT, cause);
@@ -102,31 +103,31 @@ public class CapabilityMissingException extends ModuleLifecycleException {
     }
 
     /**
-     * 获取缺失的能力集合
+     * Gets set of missing capabilities.
      * 
-     * @return 不可变的缺失能力集合
+     * @return immutable set of missing capabilities
      */
     public Set<String> getMissingCapabilities() {
         return missingCapabilities;
     }
 
     /**
-     * 检查是否缺少指定能力
+     * Checks if specified capability is missing.
      * 
-     * @param capability 能力标识
-     * @return 如果该能力缺失返回 true
+     * @param capability capability identifier
+     * @return true if that capability is missing
      */
     public boolean isMissing(String capability) {
         return missingCapabilities.contains(capability);
     }
 
     /**
-     * 构建错误消息
+     * Builds error message.
      */
     private static String buildMessage(String moduleId, Collection<String> capabilities) {
         return String.format(
-            "模块 [%s] 需要以下能力但 Host 未提供: %s。" +
-            "请检查 Host 配置或将这些能力移到 capabilities.optional 中。",
+            "Module [%s] requires the following capabilities but Host did not provide: %s. " +
+            "Please check Host configuration or move these capabilities to capabilities.optional.",
             moduleId, capabilities
         );
     }

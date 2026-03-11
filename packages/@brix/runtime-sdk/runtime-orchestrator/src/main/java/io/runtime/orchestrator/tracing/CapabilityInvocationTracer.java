@@ -15,11 +15,6 @@
  */
 package io.runtime.orchestrator.tracing;
 
-import io.runtime.sdk.tracing.CapabilityInvocation;
-import io.runtime.sdk.tracing.CapabilityMetricsExporter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -28,36 +23,43 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.runtime.sdk.tracing.CapabilityInvocation;
+import io.runtime.sdk.tracing.CapabilityMetricsExporter;
+
 /**
- * 能力调用追踪器
+ * Capability Invocation Tracer.
  * 
- * <p>核心追踪组件，记录每次能力调用的调用方插件、目标能力、耗时等信息。</p>
+ * <p>Core tracing component that records caller plugin, target capability, duration,
+ * and other information for each capability invocation.</p>
  * 
- * <h2>核心功能</h2>
+ * <h2>Core Features</h2>
  * <ul>
- *   <li><b>调用追踪</b>：记录每次能力调用的开始、结束、耗时</li>
- *   <li><b>调用者识别</b>：识别调用方插件 ID</li>
- *   <li><b>性能统计</b>：统计调用延迟分布</li>
- *   <li><b>错误追踪</b>：记录调用失败的错误信息</li>
- *   <li><b>指标导出</b>：通过 {@link CapabilityMetricsExporter} 导出指标</li>
+ *   <li><b>Invocation Tracing</b>: Records start, end, and duration of each capability invocation</li>
+ *   <li><b>Caller Identification</b>: Identifies the caller plugin ID</li>
+ *   <li><b>Performance Statistics</b>: Collects invocation latency distribution</li>
+ *   <li><b>Error Tracing</b>: Records error information for failed invocations</li>
+ *   <li><b>Metrics Export</b>: Exports metrics via {@link CapabilityMetricsExporter}</li>
  * </ul>
  * 
- * <h2>追踪流程</h2>
+ * <h2>Tracing Flow</h2>
  * <pre>
- * 1. 插件调用能力方法
- * 2. 追踪器拦截调用，创建 TraceToken
- * 3. 记录开始时间、调用方、目标能力
- * 4. 执行实际能力调用
- * 5. 记录结束时间、耗时、结果状态
- * 6. 导出指标
+ * 1. Plugin invokes capability method
+ * 2. Tracer intercepts invocation, creates TraceToken
+ * 3. Records start time, caller, target capability
+ * 4. Executes actual capability invocation
+ * 5. Records end time, duration, result status
+ * 6. Exports metrics
  * </pre>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
  * CapabilityInvocationTracer tracer = new CapabilityInvocationTracer();
  * tracer.setMetricsExporter(prometheusExporter);
  * 
- * // 追踪能力调用
+ * // Trace capability invocation
  * TraceToken token = tracer.startInvocation("booking", HttpCapability.class, "sendRequest");
  * try {
  *     Object result = httpCapability.sendRequest(request);
@@ -68,15 +70,15 @@ import java.util.function.Supplier;
  *     throw e;
  * }
  * 
- * // 或使用 Lambda 风格
+ * // Or use Lambda style
  * Object result = tracer.trace("booking", HttpCapability.class, "sendRequest", () -> {
  *     return httpCapability.sendRequest(request);
  * });
  * }</pre>
  * 
- * <h2>架构说明</h2>
- * <p>本类实现 v3.0 架构蓝图 4.4-1 任务：
- * 每次 Capability.invoke() 记录调用方插件、目标能力、耗时。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>This class implements Runtime Observability:
+ * each Capability.invoke() records caller plugin, target capability, and duration.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -86,108 +88,109 @@ public class CapabilityInvocationTracer {
     private static final Logger logger = LoggerFactory.getLogger(CapabilityInvocationTracer.class);
     
     /**
-     * 活跃调用缓存（根据 TraceToken 查找调用上下文）
+     * Active invocation cache (lookup invocation context by TraceToken).
      */
     private final Map<String, InvocationContext> activeInvocations = new ConcurrentHashMap<>();
     
     /**
-     * 指标导出器
+     * Metrics exporter.
      */
     private volatile CapabilityMetricsExporter metricsExporter;
     
     /**
-     * Trace ID 生成器
+     * Trace ID generator.
      */
     private volatile Supplier<String> traceIdGenerator = () -> UUID.randomUUID().toString();
     
     /**
-     * 是否启用追踪
+     * Whether tracing is enabled.
      */
     private volatile boolean enabled = true;
     
     /**
-     * 慢调用阈值（毫秒），超过此值记录警告日志
+     * Slow call threshold (milliseconds), logs warning when exceeded.
      */
     private volatile long slowCallThresholdMs = 1000;
     
     /**
-     * 创建追踪器实例
+     * Creates a tracer instance.
      */
     public CapabilityInvocationTracer() {
     }
     
     /**
-     * 创建追踪器实例
+     * Creates a tracer instance.
      * 
-     * @param metricsExporter 指标导出器
+     * @param metricsExporter metrics exporter
      */
     public CapabilityInvocationTracer(CapabilityMetricsExporter metricsExporter) {
         this.metricsExporter = metricsExporter;
     }
     
-    // ==================== 配置方法 ====================
+    // ==================== Configuration Methods ====================
     
     /**
-     * 设置指标导出器
+     * Sets metrics exporter.
      * 
-     * @param exporter 指标导出器
+     * @param exporter metrics exporter
      */
     public void setMetricsExporter(CapabilityMetricsExporter exporter) {
         this.metricsExporter = exporter;
     }
     
     /**
-     * 设置 Trace ID 生成器
+     * Sets Trace ID generator.
      * 
-     * @param generator 生成器函数
+     * @param generator generator function
      */
     public void setTraceIdGenerator(Supplier<String> generator) {
         this.traceIdGenerator = Objects.requireNonNull(generator, "generator cannot be null");
     }
     
     /**
-     * 启用或禁用追踪
+     * Enables or disables tracing.
      * 
-     * @param enabled 是否启用
+     * @param enabled whether to enable
      */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
     
     /**
-     * 设置慢调用阈值
+     * Sets slow call threshold.
      * 
-     * @param thresholdMs 阈值（毫秒）
+     * @param thresholdMs threshold (milliseconds)
      */
     public void setSlowCallThresholdMs(long thresholdMs) {
         this.slowCallThresholdMs = thresholdMs;
     }
     
-    // ==================== 追踪方法 ====================
+    // ==================== Tracing Methods ====================
     
     /**
-     * 开始追踪能力调用
+     * Starts tracing capability invocation.
      * 
-     * <p>创建追踪令牌，记录调用开始时间。调用方必须在调用结束后
-     * 调用 {@link #endSuccess(TraceToken)} 或 {@link #endFailure(TraceToken, Throwable)}。</p>
+     * <p>Creates trace token, records invocation start time. Caller must call
+     * {@link #endSuccess(TraceToken)} or {@link #endFailure(TraceToken, Throwable)}
+     * when invocation completes.</p>
      * 
-     * @param sourcePlugin 调用方插件 ID
-     * @param capabilityType 目标能力类型
-     * @param methodName 调用的方法名
-     * @return 追踪令牌，用于结束追踪
+     * @param sourcePlugin caller plugin ID
+     * @param capabilityType target capability type
+     * @param methodName method name being invoked
+     * @return trace token, used to end tracing
      */
     public TraceToken startInvocation(String sourcePlugin, Class<?> capabilityType, String methodName) {
         return startInvocation(sourcePlugin, capabilityType.getSimpleName(), methodName, null);
     }
     
     /**
-     * 开始追踪能力调用（带附加属性）
+     * Starts tracing capability invocation (with additional attributes).
      * 
-     * @param sourcePlugin 调用方插件 ID
-     * @param capabilityName 目标能力名称
-     * @param methodName 调用的方法名
-     * @param attributes 附加属性
-     * @return 追踪令牌
+     * @param sourcePlugin caller plugin ID
+     * @param capabilityName target capability name
+     * @param methodName method name being invoked
+     * @param attributes additional attributes
+     * @return trace token
      */
     public TraceToken startInvocation(String sourcePlugin, String capabilityName, 
                                       String methodName, Map<String, String> attributes) {
@@ -204,13 +207,13 @@ public class CapabilityInvocationTracer {
         
         activeInvocations.put(traceId, context);
         
-        // 增加活跃调用计数
+        // Increment active call count
         if (metricsExporter != null) {
             metricsExporter.incrementActiveCall(sourcePlugin, capabilityName);
         }
         
         if (logger.isTraceEnabled()) {
-            logger.trace("开始追踪能力调用: plugin={}, capability={}, method={}, traceId={}",
+            logger.trace("Started tracing capability invocation: plugin={}, capability={}, method={}, traceId={}",
                 sourcePlugin, capabilityName, methodName, traceId);
         }
         
@@ -218,19 +221,19 @@ public class CapabilityInvocationTracer {
     }
     
     /**
-     * 结束成功的能力调用
+     * Ends successful capability invocation.
      * 
-     * @param token 追踪令牌
+     * @param token trace token
      */
     public void endSuccess(TraceToken token) {
         end(token, true, null, null);
     }
     
     /**
-     * 结束失败的能力调用
+     * Ends failed capability invocation.
      * 
-     * @param token 追踪令牌
-     * @param error 错误
+     * @param token trace token
+     * @param error error
      */
     public void endFailure(TraceToken token, Throwable error) {
         end(token, false, 
@@ -239,12 +242,12 @@ public class CapabilityInvocationTracer {
     }
     
     /**
-     * 结束能力调用
+     * Ends capability invocation.
      * 
-     * @param token 追踪令牌
-     * @param success 是否成功
-     * @param errorType 错误类型
-     * @param errorMessage 错误消息
+     * @param token trace token
+     * @param success whether successful
+     * @param errorType error type
+     * @param errorMessage error message
      */
     private void end(TraceToken token, boolean success, String errorType, String errorMessage) {
         if (token == null || token == TraceToken.NOOP || !enabled) {
@@ -253,14 +256,14 @@ public class CapabilityInvocationTracer {
         
         InvocationContext context = activeInvocations.remove(token.getTraceId());
         if (context == null) {
-            logger.warn("未找到追踪上下文: traceId={}", token.getTraceId());
+            logger.warn("Trace context not found: traceId={}", token.getTraceId());
             return;
         }
         
         Instant endTime = Instant.now();
         long durationMs = Duration.between(context.getStartTime(), endTime).toMillis();
         
-        // 构建调用记录
+        // Build invocation record
         CapabilityInvocation invocation = CapabilityInvocation.builder()
             .traceId(context.getTraceId())
             .sourcePlugin(context.getSourcePlugin())
@@ -275,38 +278,38 @@ public class CapabilityInvocationTracer {
             .attributes(context.getAttributes())
             .build();
         
-        // 导出指标
+        // Export metrics
         if (metricsExporter != null) {
             metricsExporter.decrementActiveCall(context.getSourcePlugin(), context.getCapabilityName());
             metricsExporter.recordInvocation(invocation);
         }
         
-        // 记录日志
+        // Log
         if (success) {
             if (durationMs >= slowCallThresholdMs) {
-                logger.warn("慢能力调用: {}, 耗时 {}ms（阈值 {}ms）", 
+                logger.warn("Slow capability invocation: {}, took {}ms (threshold {}ms)", 
                     invocation, durationMs, slowCallThresholdMs);
             } else if (logger.isDebugEnabled()) {
-                logger.debug("能力调用完成: {}", invocation);
+                logger.debug("Capability invocation completed: {}", invocation);
             }
         } else {
-            logger.error("能力调用失败: {}, 错误: {} - {}", 
+            logger.error("Capability invocation failed: {}, error: {} - {}", 
                 invocation, errorType, errorMessage);
         }
     }
     
     /**
-     * 使用 Lambda 风格追踪能力调用
+     * Traces capability invocation using Lambda style.
      * 
-     * <p>自动处理开始和结束，捕获异常并记录。</p>
+     * <p>Automatically handles start and end, catches exceptions and records.</p>
      * 
-     * @param <T> 返回值类型
-     * @param sourcePlugin 调用方插件 ID
-     * @param capabilityType 目标能力类型
-     * @param methodName 方法名
-     * @param callable 实际调用
-     * @return 调用返回值
-     * @throws Exception 调用抛出的异常
+     * @param <T> return type
+     * @param sourcePlugin caller plugin ID
+     * @param capabilityType target capability type
+     * @param methodName method name
+     * @param callable actual invocation
+     * @return invocation return value
+     * @throws Exception exception thrown by invocation
      */
     public <T> T trace(String sourcePlugin, Class<?> capabilityType, 
                        String methodName, ThrowingSupplier<T> callable) throws Exception {
@@ -322,13 +325,13 @@ public class CapabilityInvocationTracer {
     }
     
     /**
-     * 使用 Lambda 风格追踪无返回值的能力调用
+     * Traces void capability invocation using Lambda style.
      * 
-     * @param sourcePlugin 调用方插件 ID
-     * @param capabilityType 目标能力类型
-     * @param methodName 方法名
-     * @param runnable 实际调用
-     * @throws Exception 调用抛出的异常
+     * @param sourcePlugin caller plugin ID
+     * @param capabilityType target capability type
+     * @param methodName method name
+     * @param runnable actual invocation
+     * @throws Exception exception thrown by invocation
      */
     public void traceVoid(String sourcePlugin, Class<?> capabilityType, 
                           String methodName, ThrowingRunnable runnable) throws Exception {
@@ -343,19 +346,19 @@ public class CapabilityInvocationTracer {
     }
     
     /**
-     * 获取当前活跃调用数
+     * Gets current active invocation count.
      * 
-     * @return 活跃调用数
+     * @return active invocation count
      */
     public int getActiveInvocationCount() {
         return activeInvocations.size();
     }
     
     /**
-     * 清理超时的追踪（用于防止内存泄漏）
+     * Cleans up timed out traces (for memory leak prevention).
      * 
-     * @param timeoutMs 超时时间（毫秒）
-     * @return 清理的追踪数量
+     * @param timeoutMs timeout (milliseconds)
+     * @return number of traces cleaned
      */
     public int cleanupStaleInvocations(long timeoutMs) {
         Instant threshold = Instant.now().minusMillis(timeoutMs);
@@ -367,7 +370,7 @@ public class CapabilityInvocationTracer {
             if (entry.getValue().getStartTime().isBefore(threshold)) {
                 iterator.remove();
                 cleaned++;
-                logger.warn("清理超时追踪: traceId={}, plugin={}, capability={}",
+                logger.warn("Cleaned up stale trace: traceId={}, plugin={}, capability={}",
                     entry.getKey(),
                     entry.getValue().getSourcePlugin(),
                     entry.getValue().getCapabilityName());
@@ -377,17 +380,17 @@ public class CapabilityInvocationTracer {
         return cleaned;
     }
     
-    // ==================== 内部类 ====================
+    // ==================== Internal Classes ====================
     
     /**
-     * 追踪令牌
+     * Trace Token.
      * 
-     * <p>用于关联开始和结束调用。</p>
+     * <p>Used to correlate start and end calls.</p>
      */
     public static final class TraceToken {
         
         /**
-         * 空操作令牌（追踪禁用时使用）
+         * No-op token (used when tracing is disabled).
          */
         public static final TraceToken NOOP = new TraceToken(null);
         
@@ -398,18 +401,18 @@ public class CapabilityInvocationTracer {
         }
         
         /**
-         * 获取追踪 ID
+         * Gets trace ID.
          * 
-         * @return 追踪 ID
+         * @return trace ID
          */
         public String getTraceId() {
             return traceId;
         }
         
         /**
-         * 检查是否为空操作令牌
+         * Checks if this is a no-op token.
          * 
-         * @return 是空操作返回 true
+         * @return true if no-op
          */
         public boolean isNoop() {
             return traceId == null;
@@ -417,7 +420,7 @@ public class CapabilityInvocationTracer {
     }
     
     /**
-     * 调用上下文（内部使用）
+     * Invocation context (internal use).
      */
     private static final class InvocationContext {
         
@@ -447,9 +450,9 @@ public class CapabilityInvocationTracer {
     }
     
     /**
-     * 可抛出异常的 Supplier
+     * Throwing Supplier.
      * 
-     * @param <T> 返回值类型
+     * @param <T> return type
      */
     @FunctionalInterface
     public interface ThrowingSupplier<T> {
@@ -457,7 +460,7 @@ public class CapabilityInvocationTracer {
     }
     
     /**
-     * 可抛出异常的 Runnable
+     * Throwing Runnable.
      */
     @FunctionalInterface
     public interface ThrowingRunnable {

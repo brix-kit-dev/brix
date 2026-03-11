@@ -1,10 +1,10 @@
-/**
- * <%= displayName %> Mobile - 列表页面
+﻿/**
+ * <%= displayName %> Mobile - List Page
  * 
- * @module @shinwa/<%= name %>-mobile
+ * @module @brix/<%= name %>-mobile
  * @generated <%= date %>
  * 
- * 列表页面实现（供 exposes 包装器调用）
+ * List page implementation (called by exposes wrapper)
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 
 /**
- * 列表项数据接口
+ * List item data interface
  */
 export interface ListItem {
   id: number;
@@ -30,22 +30,22 @@ export interface ListItem {
 }
 
 /**
- * 列表页面属性
+ * List page props
  */
 export interface <%= classPrefix %>ListPageProps {
   /**
-   * 点击项回调
+   * Item press callback
    */
   onItemPress?: (item: ListItem) => void;
   
   /**
-   * API 基础路径
+   * API base path
    */
   apiBasePath?: string;
 }
 
 /**
- * <%= displayName %>列表页面组件
+ * <%= displayName %> List Page Component
  */
 const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
   onItemPress,
@@ -59,7 +59,7 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
   const [hasMore, setHasMore] = useState(true);
 
   /**
-   * 加载数据
+   * Load data
    */
   const loadData = useCallback(async (pageNum: number, isRefresh = false) => {
     try {
@@ -70,15 +70,15 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
         setLoading(true);
       }
 
-      // TODO: 替换为实际的 API 调用
+      // TODO: Replace with actual API call
       // const response = await fetch(`${apiBasePath}?page=${pageNum}&size=20`);
       // const result = await response.json();
       
       await new Promise(resolve => setTimeout(resolve, 800));
       const mockData: ListItem[] = Array.from({ length: 10 }, (_, i) => ({
         id: (pageNum - 1) * 10 + i + 1,
-        title: `项目 ${(pageNum - 1) * 10 + i + 1}`,
-        description: '这是一段描述文字',
+        title: `Item ${(pageNum - 1) * 10 + i + 1}`,
+        description: 'This is a description text',
         createdAt: new Date().toISOString(),
         status: i % 2 === 0 ? 'active' : 'pending',
       }));
@@ -89,11 +89,11 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
         setData(prev => [...prev, ...mockData]);
       }
       
-      setHasMore(pageNum < 3); // 模拟最多3页
+      setHasMore(pageNum < 3); // Mock max 3 pages
       setPage(pageNum);
     } catch (err) {
-      setError('加载失败，请重试');
-      console.error('加载数据失败:', err);
+      setError('Failed to load, please retry');
+      console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -105,14 +105,14 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
   }, [loadData]);
 
   /**
-   * 下拉刷新
+   * Pull to refresh
    */
   const handleRefresh = useCallback(() => {
     loadData(1, true);
   }, [loadData]);
 
   /**
-   * 加载更多
+   * Load more
    */
   const handleLoadMore = useCallback(() => {
     if (!loading && hasMore) {
@@ -121,7 +121,7 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
   }, [loading, hasMore, page, loadData]);
 
   /**
-   * 渲染列表项
+   * Render list item
    */
   const renderItem = useCallback(({ item }: { item: ListItem }) => (
     <TouchableOpacity
@@ -137,7 +137,7 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
             item.status === 'active' ? styles.statusActive : styles.statusPending
           ]}>
             <Text style={styles.statusText}>
-              {item.status === 'active' ? '启用' : '待处理'}
+              {item.status === 'active' ? 'Active' : 'Pending'}
             </Text>
           </View>
         )}
@@ -149,20 +149,20 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
       )}
       {item.createdAt && (
         <Text style={styles.date}>
-          {new Date(item.createdAt).toLocaleDateString('zh-CN')}
+          {new Date(item.createdAt).toLocaleDateString('en-US')}
         </Text>
       )}
     </TouchableOpacity>
   ), [onItemPress]);
 
   /**
-   * 渲染列表底部
+   * Render list footer
    */
   const renderFooter = () => {
     if (!hasMore) {
       return (
         <View style={styles.footer}>
-          <Text style={styles.footerText}>没有更多数据了</Text>
+          <Text style={styles.footerText}>No more data</Text>
         </View>
       );
     }
@@ -180,7 +180,7 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#1976d2" />
-        <Text style={styles.loadingText}>加载中...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -215,7 +215,7 @@ const <%= classPrefix %>ListPage: React.FC<<%= classPrefix %>ListPageProps> = ({
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>暂无数据</Text>
+            <Text style={styles.emptyText}>No data</Text>
           </View>
         }
         contentContainerStyle={data.length === 0 ? styles.emptyContainer : undefined}

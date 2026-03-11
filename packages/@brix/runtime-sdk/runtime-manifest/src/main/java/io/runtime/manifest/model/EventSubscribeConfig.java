@@ -19,7 +19,6 @@ package io.runtime.manifest.model;
  * Event Subscribe Configuration.
  *
  * <p>Declares events subscribed by the module and their handlers for declarative event binding.</p>
- * <p>【事件订阅配置】声明模块订阅的事件及其处理器，实现声明式事件绑定。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -32,31 +31,26 @@ public class EventSubscribeConfig {
 
     /**
      * Event type (fully qualified class name).
-     * 事件类型（完整类名）
      */
     private String type;
 
     /**
      * Handler method (fully qualified class name.method name).
-     * 处理器方法（完整类名.方法名）
      */
     private String handler;
 
     /**
      * Retry configuration.
-     * 重试配置
      */
     private RetryConfig retry;
 
     /**
      * Whether idempotent handling is required.
-     * 是否要求幂等处理
      */
     private boolean idempotent = true;
 
     /**
      * Whether subscription is optional (no error if event doesn't exist).
-     * 是否可选订阅（事件不存在也不报错）
      */
     private boolean optional = false;
 

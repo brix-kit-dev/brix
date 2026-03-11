@@ -16,9 +16,9 @@
 package io.runtime.sdk.capability;
 
 /**
- * 限流超出异常
+ * Rate Limit Exceeded Exception
  * 
- * <p>当请求被限流器拒绝时抛出此异常。</p>
+ * <p>Thrown when a request is rejected by the rate limiter.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -29,14 +29,14 @@ public class RateLimitExceededException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 限流器键
+     * Rate limiter key
      */
     private final String rateLimiterKey;
 
     /**
-     * 创建限流超出异常
+     * Creates a rate limit exceeded exception
      * 
-     * @param message 异常消息
+     * @param message the exception message
      */
     public RateLimitExceededException(String message) {
         super(message);
@@ -44,10 +44,10 @@ public class RateLimitExceededException extends RuntimeException {
     }
 
     /**
-     * 创建限流超出异常
+     * Creates a rate limit exceeded exception
      * 
-     * @param rateLimiterKey 限流器键
-     * @param message        异常消息
+     * @param rateLimiterKey the rate limiter key
+     * @param message        the exception message
      */
     public RateLimitExceededException(String rateLimiterKey, String message) {
         super(message);
@@ -55,16 +55,16 @@ public class RateLimitExceededException extends RuntimeException {
     }
 
     /**
-     * 获取限流器键
+     * Gets the rate limiter key
      * 
-     * @return 限流器键
+     * @return the rate limiter key
      */
     public String getRateLimiterKey() {
         return rateLimiterKey;
     }
 
     /**
-     * 从消息中提取限流器键
+     * Extracts the rate limiter key from the message
      */
     private static String extractKeyFromMessage(String message) {
         if (message != null && message.contains(":")) {

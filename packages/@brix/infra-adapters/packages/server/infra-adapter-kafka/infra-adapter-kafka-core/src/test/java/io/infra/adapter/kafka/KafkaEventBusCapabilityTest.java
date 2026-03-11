@@ -46,16 +46,16 @@ import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * {@link KafkaEventBusCapability} 单元测试
+ * Unit tests for {@link KafkaEventBusCapability}
  *
- * <p>使用 Mockito 模拟 KafkaTemplate，验证事件发布的
- * Topic 路由、Headers 构建、序列化和异常处理。</p>
+ * <p>Uses Mockito to mock KafkaTemplate, validating event publishing
+ * topic routing, headers construction, serialization, and exception handling.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("KafkaEventBusCapability 测试")
+@DisplayName("KafkaEventBusCapability Tests")
 class KafkaEventBusCapabilityTest {
 
     @Mock
@@ -80,14 +80,14 @@ class KafkaEventBusCapabilityTest {
         eventBus = new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, MODULE_ID);
     }
 
-    // ==================== 构造函数校验 ====================
+    // ==================== Constructor Validation ====================
 
     @Nested
-    @DisplayName("构造函数校验")
+    @DisplayName("Constructor Validation")
     class ConstructorTests {
 
         @Test
-        @DisplayName("kafkaTemplate 为 null 应抛出 NPE")
+        @DisplayName("kafkaTemplate null should throw NPE")
         void shouldThrow_whenKafkaTemplateNull() {
             assertThatThrownBy(() ->
                 new KafkaEventBusCapability(null, topicResolver, objectMapper, MODULE_ID))
@@ -95,7 +95,7 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("topicResolver 为 null 应抛出 NPE")
+        @DisplayName("topicResolver null should throw NPE")
         void shouldThrow_whenTopicResolverNull() {
             assertThatThrownBy(() ->
                 new KafkaEventBusCapability(kafkaTemplate, null, objectMapper, MODULE_ID))
@@ -103,7 +103,7 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("objectMapper 为 null 应抛出 NPE")
+        @DisplayName("objectMapper null should throw NPE")
         void shouldThrow_whenObjectMapperNull() {
             assertThatThrownBy(() ->
                 new KafkaEventBusCapability(kafkaTemplate, topicResolver, null, MODULE_ID))
@@ -111,7 +111,7 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("currentModuleId 为 null 应抛出 NPE")
+        @DisplayName("currentModuleId null should throw NPE")
         void shouldThrow_whenModuleIdNull() {
             assertThatThrownBy(() ->
                 new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, null))
@@ -126,7 +126,7 @@ class KafkaEventBusCapabilityTest {
     class PublishDomainEventTests {
 
         @Test
-        @DisplayName("应将领域事件发送到正确的 Topic 并包含正确的 Key")
+        @DisplayName("Should send domain event to correct topic with correct key")
         @SuppressWarnings("unchecked")
         void shouldSendToCorrectTopic() {
             TestDomainEvent event = new TestDomainEvent("order-123", "Order");
@@ -143,7 +143,7 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("应包含标准的 Kafka Headers")
+        @DisplayName("Should include standard Kafka headers")
         @SuppressWarnings("unchecked")
         void shouldIncludeStandardHeaders() {
             TestDomainEvent event = new TestDomainEvent("agg-1", "Reservation");
@@ -163,14 +163,14 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("null 事件应抛出 NPE")
+        @DisplayName("Null event should throw NPE")
         void shouldThrow_whenEventNull() {
             assertThatThrownBy(() -> eventBus.publish((DomainEvent) null))
                 .isInstanceOf(NullPointerException.class);
         }
 
         @Test
-        @DisplayName("发送失败应抛出 EventPublishException")
+        @DisplayName("Send failure should throw EventPublishException")
         @SuppressWarnings("unchecked")
         void shouldThrowEventPublishException_whenSendFails() {
             TestDomainEvent event = new TestDomainEvent("fail-1", "Order");
@@ -180,7 +180,7 @@ class KafkaEventBusCapabilityTest {
 
             assertThatThrownBy(() -> eventBus.publish(event))
                 .isInstanceOf(EventPublishException.class)
-                .hasMessageContaining("领域事件发布失败");
+                .hasMessageContaining("Domain event publishing failed");
         }
     }
 
@@ -191,7 +191,7 @@ class KafkaEventBusCapabilityTest {
     class PublishIntegrationEventTests {
 
         @Test
-        @DisplayName("应将集成事件发送到正确的 integration Topic")
+        @DisplayName("Should send integration event to correct integration topic")
         @SuppressWarnings("unchecked")
         void shouldSendToIntegrationTopic() {
             TestIntegrationEvent event = new TestIntegrationEvent("routing-key-1");
@@ -210,7 +210,7 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("routingKey 为 null 时应使用 eventId 作为 Key")
+        @DisplayName("Should use eventId as key when routingKey is null")
         @SuppressWarnings("unchecked")
         void shouldUseEventIdAsKey_whenRoutingKeyNull() {
             TestIntegrationEvent event = new TestIntegrationEvent(null);
@@ -225,7 +225,7 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("应包含集成事件标准 Headers（含 sourceModule）")
+        @DisplayName("Should include standard integration event headers (including sourceModule)")
         @SuppressWarnings("unchecked")
         void shouldIncludeIntegrationHeaders() {
             TestIntegrationEvent event = new TestIntegrationEvent("key-1");
@@ -243,14 +243,14 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("null 事件应抛出 NPE")
+        @DisplayName("Null event should throw NPE")
         void shouldThrow_whenEventNull() {
             assertThatThrownBy(() -> eventBus.publishIntegration(null))
                 .isInstanceOf(NullPointerException.class);
         }
 
         @Test
-        @DisplayName("发送失败应抛出 EventPublishException")
+        @DisplayName("Send failure should throw EventPublishException")
         @SuppressWarnings("unchecked")
         void shouldThrowEventPublishException_whenSendFails() {
             TestIntegrationEvent event = new TestIntegrationEvent("key-2");
@@ -260,11 +260,11 @@ class KafkaEventBusCapabilityTest {
 
             assertThatThrownBy(() -> eventBus.publishIntegration(event))
                 .isInstanceOf(EventPublishException.class)
-                .hasMessageContaining("集成事件发布失败");
+                .hasMessageContaining("Integration event publishing failed");
         }
     }
 
-    // ==================== 辅助方法与测试子类 ====================
+    // ==================== Helper Methods and Test Subclasses ====================
 
     @SuppressWarnings("unchecked")
     private void mockSendSuccess(String topic) {
@@ -276,7 +276,7 @@ class KafkaEventBusCapabilityTest {
     }
 
     /**
-     * 测试用领域事件
+     * Test domain event
      */
     static class TestDomainEvent extends DomainEvent {
 
@@ -296,7 +296,7 @@ class KafkaEventBusCapabilityTest {
     }
 
     /**
-     * 测试用集成事件
+     * Test integration event
      */
     static class TestIntegrationEvent extends IntegrationEvent {
 

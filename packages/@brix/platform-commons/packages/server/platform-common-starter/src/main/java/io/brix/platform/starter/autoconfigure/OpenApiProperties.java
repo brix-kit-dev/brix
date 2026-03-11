@@ -18,40 +18,40 @@ package io.brix.platform.starter.autoconfigure;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * OpenAPI 配置属性类
+ * OpenAPI Configuration Properties Class
  * 
- * <h3>Phase 5：OpenAPI 驱动的前后端契约自动化</h3>
- * <p>本属性类定义 OpenAPI 文档生成的所有可配置项，支持通过
- * application.yml 或环境变量进行自定义。</p>
+ * <h3>Phase 5: OpenAPI-Driven Frontend-Backend Contract Automation</h3>
+ * <p>This properties class defines all configurable options for OpenAPI documentation generation,
+ * supporting customization via application.yml or environment variables.</p>
  * 
- * <h3>配置前缀</h3>
+ * <h3>Configuration Prefix</h3>
  * <pre>brix.openapi.*</pre>
  * 
- * <h3>配置示例</h3>
+ * <h3>Configuration Example</h3>
  * <pre>
  * brix:
  *   openapi:
  *     enabled: true
- *     title: 预约管理系统 API
+ *     title: Appointment Management System API
  *     version: 3.0.0
- *     description: 提供预约管理的完整 RESTful API
- *     contact-name: Shinwa Team
- *     contact-email: dev@shinwa.com
- *     contact-url: https://shinwa.com
+ *     description: Complete RESTful API for appointment management
+ *     contact-name: Brix Platform Team
+ *     contact-email: dev@brix.io
+ *     contact-url: https://brix.io
  *     license-name: Commercial License
- *     license-url: https://shinwa.com/license
- *     terms-of-service: https://shinwa.com/terms
- *     external-docs-url: https://docs.shinwa.com
- *     external-docs-description: 完整开发者文档
- *     production-server-url: https://api.shinwa.com
+ *     license-url: https://brix.io/license
+ *     terms-of-service: https://brix.io/terms
+ *     external-docs-url: https://docs.brix.io
+ *     external-docs-description: Complete developer documentation
+ *     production-server-url: https://api.brix.io
  * </pre>
  * 
- * <h3>默认值说明</h3>
+ * <h3>Default Values</h3>
  * <table border="1">
- *   <tr><th>属性</th><th>默认值</th><th>说明</th></tr>
- *   <tr><td>enabled</td><td>true</td><td>是否启用 OpenAPI 文档</td></tr>
- *   <tr><td>version</td><td>3.0.0</td><td>API 版本号</td></tr>
- *   <tr><td>licenseName</td><td>Apache-2.0</td><td>许可证名称</td></tr>
+ *   <tr><th>Property</th><th>Default</th><th>Description</th></tr>
+ *   <tr><td>enabled</td><td>true</td><td>Whether to enable OpenAPI documentation</td></tr>
+ *   <tr><td>version</td><td>3.0.0</td><td>API version number</td></tr>
+ *   <tr><td>licenseName</td><td>Apache-2.0</td><td>License name</td></tr>
  * </table>
  * 
  * @author Brix Platform Team
@@ -61,74 +61,74 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class OpenApiProperties {
     
     /**
-     * 是否启用 OpenAPI 文档生成
-     * <p>设置为 false 可在生产环境禁用 Swagger UI</p>
+     * Whether to enable OpenAPI documentation generation
+     * <p>Set to false to disable Swagger UI in production environment</p>
      */
     private boolean enabled = true;
     
     /**
-     * API 标题
-     * <p>显示在 Swagger UI 顶部的标题，默认使用应用名称</p>
+     * API title
+     * <p>Title displayed at the top of Swagger UI, defaults to application name</p>
      */
     private String title;
     
     /**
-     * API 版本号
-     * <p>遵循语义化版本规范（SemVer）</p>
+     * API version number
+     * <p>Follows Semantic Versioning (SemVer)</p>
      */
     private String version = "3.0.0";
     
     /**
-     * API 描述
-     * <p>详细说明 API 的用途、功能和使用方式</p>
+     * API description
+     * <p>Detailed explanation of API purpose, functionality and usage</p>
      */
     private String description;
     
     /**
-     * 联系人名称
-     * <p>通常为团队名称或维护者名称</p>
+     * Contact name
+     * <p>Usually team name or maintainer name</p>
      */
     private String contactName = "Brix Platform Team";
     
     /**
-     * 联系人邮箱
+     * Contact email
      */
     private String contactEmail = "dev@brix.io";
     
     /**
-     * 联系人网址
+     * Contact URL
      */
     private String contactUrl = "https://brix.io";
     
     /**
-     * 许可证名称
+     * License name
      */
     private String licenseName = "Apache-2.0";
     
     /**
-     * 许可证 URL
+     * License URL
      */
     private String licenseUrl = "https://www.apache.org/licenses/LICENSE-2.0";
     
     /**
-     * 服务条款 URL
+     * Terms of service URL
      */
     private String termsOfService;
     
     /**
-     * 外部文档 URL
-     * <p>指向完整的开发者文档或 Wiki</p>
+     * External documentation URL
+     * <p>Points to complete developer documentation or Wiki</p>
      */
     private String externalDocsUrl = "https://docs.brix.io";
     
     /**
-     * 外部文档描述
+     * External documentation description
      */
-    private String externalDocsDescription = "Brix Platform 开发者文档";
+    private String externalDocsDescription = "Brix Platform Developer Documentation";
     
     /**
-     * 生产环境服务器 URL
-     * <p>可选。如果配置，会在 Swagger UI 中显示为可选服务器</p>
+     * Production server URL
+     * <p>Optional. If configured, will be displayed as an optional server in Swagger UI</p>
      */
     private String productionServerUrl;
     

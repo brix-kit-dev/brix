@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.oauth2;
 
 import java.time.Duration;
@@ -16,13 +31,13 @@ import io.netty.handler.timeout.WriteTimeoutHandler;
 import reactor.netty.http.client.HttpClient;
 
 /**
- * OAuth2 配置类（响应式）
+ * OAuth2 Configuration Class (Reactive)
  * <p>
- * 配置 OAuth2 登录所需Bean
+ * Configures required Beans for OAuth2 login:
  * <ul>
- *   <li>WebClient.Builder: 用于调用第三OAuth2 API（响应式</li>
- *   <li>ObjectMapper: 用于解析 JSON 响应</li>
- *   <li>启用 OAuth2Properties 配置</li>
+ *   <li>WebClient.Builder: For calling third-party OAuth2 APIs (reactive)</li>
+ *   <li>ObjectMapper: For parsing JSON responses</li>
+ *   <li>Enables OAuth2Properties configuration</li>
  * </ul>
  * </p>
  *
@@ -35,12 +50,12 @@ import reactor.netty.http.client.HttpClient;
 public class OAuth2Config {
 
     /**
-     * 创建 OAuth2 专用WebClient.Builder
+     * Create OAuth2 dedicated WebClient.Builder
      * <p>
-     * 配置较短的超时时间，避免第三方服务响应慢影响用户体验
+     * Configured with shorter timeout to avoid third-party service response delays affecting user experience
      * </p>
      *
-     * @return WebClient.Builder 实例
+     * @return WebClient.Builder instance
      */
     @Bean
     public WebClient.Builder webClientBuilder() {

@@ -1,12 +1,12 @@
-/**
+﻿/**
  * @file <%= displayName %> 常量定义
- * @description 业务常量定义（状态枚举、权限代码、API 路径等）
- * @module @shinwa/<%= name %>-shared
+ * @description 业务常量定义（Status枚举、权限代码、API 路径等）
+ * @module @brix/<%= name %>-shared
  * @version <%= version %>
  *
- * 【设计说明】
+ * [Design Notes]
  * 本文件定义 <%= displayName %> 的业务常量。
- * 常量在前后端共享，确保值的一致性。
+ * 常量在前后端Total享，确保值的一致性。
  */
 
 // ============================================================================
@@ -30,16 +30,16 @@ export const API_ENDPOINTS = {
   CREATE: API_BASE_PATH,
   /** 更新 */
   UPDATE: (id: number | string) => `${API_BASE_PATH}/${id}`,
-  /** 删除 */
+  /** Delete */
   DELETE: (id: number | string) => `${API_BASE_PATH}/${id}`,
 } as const;
 
 // ============================================================================
-// 状态枚举
+// Status枚举
 // ============================================================================
 
 /**
- * <%= displayName %> 状态枚举
+ * <%= displayName %> Status枚举
  */
 export const <%= classPrefix.toUpperCase() %>_STATUS = {
   /** 草稿 */
@@ -48,18 +48,18 @@ export const <%= classPrefix.toUpperCase() %>_STATUS = {
   ACTIVE: 'ACTIVE',
   /** 未激活 */
   INACTIVE: 'INACTIVE',
-  /** 已删除 */
+  /** 已Delete */
   DELETED: 'DELETED',
 } as const;
 
 /**
- * 状态显示名称映射
+ * Status显示Name映射
  */
 export const <%= classPrefix.toUpperCase() %>_STATUS_LABELS: Record<string, string> = {
   [<%= classPrefix.toUpperCase() %>_STATUS.DRAFT]: '草稿',
   [<%= classPrefix.toUpperCase() %>_STATUS.ACTIVE]: '激活',
   [<%= classPrefix.toUpperCase() %>_STATUS.INACTIVE]: '未激活',
-  [<%= classPrefix.toUpperCase() %>_STATUS.DELETED]: '已删除',
+  [<%= classPrefix.toUpperCase() %>_STATUS.DELETED]: '已Delete',
 };
 
 // ============================================================================
@@ -73,33 +73,33 @@ export const <%= classPrefix.toUpperCase() %>_STATUS_LABELS: Record<string, stri
  * 与 module-manifest.yaml 中的 permissions 保持一致
  */
 export const <%= classPrefix.toUpperCase() %>_PERMISSIONS = {
-  /** 查看列表 */
+  /** View列表 */
   VIEW: '<%= name %>:list:view',
-  /** 查看详情 */
+  /** View详情 */
   VIEW_DETAIL: '<%= name %>:detail:view',
   /** 创建 */
   CREATE: '<%= name %>:create',
   /** 更新 */
   UPDATE: '<%= name %>:update',
-  /** 删除 */
+  /** Delete */
   DELETE: '<%= name %>:delete',
   /** 管理员 */
   ADMIN: '<%= name %>:admin',
 } as const;
 
 // ============================================================================
-// 分页默认值
+// 分pagesDefault值
 // ============================================================================
 
 /**
- * 默认分页配置
+ * Default分pages配置
  */
 export const DEFAULT_PAGINATION = {
-  /** 默认页码 */
+  /** Defaultpages码 */
   PAGE: 0,
-  /** 默认每页大小 */
+  /** Default每pages大小 */
   SIZE: 20,
-  /** 最大每页大小 */
+  /** maximum每pages大小 */
   MAX_SIZE: 100,
 } as const;
 

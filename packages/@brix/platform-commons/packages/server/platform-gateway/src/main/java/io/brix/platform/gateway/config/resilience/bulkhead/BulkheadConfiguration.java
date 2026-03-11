@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience.bulkhead;
 
 import java.util.Map;
@@ -15,29 +30,29 @@ import io.github.resilience4j.bulkhead.event.BulkheadOnCallRejectedEvent;
 import jakarta.annotation.PostConstruct;
 
 /**
- * 并发隔离（Bulkhead）配置类
+ * concurrentisolation（Bulkhead）configurationclass
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 基于 Resilience4j Bulkhead 实现并发数限制
- * 防止下游服务慢响应时耗尽系统资源
+ * based on Resilience4j Bulkhead implementationconcurrentcountlimit
+ * preventdownstreamserviceslowresponsetimeconsumetrysystemresource
  * </p>
  * 
- * <h3>工作原理</h3>
+ * <h3>workworkoriginalmanage</h3>
  * <pre>
- * 请求到达 ──检查并发数 ──┬── 未达上限 ──获取许可 ──调用下游 ──释放许可
+ * requesttoreach ──checkconcurrentcount ──┬── not yetreachuplimit ──obtainpermit ──calldownstream ──releasepermit
  *                         
- *                         └── 已达上限 ──等待/拒绝（返503
+ *                         └── alreadyreachuplimit ──wait/rejected（return503
  * </pre>
  * 
- * <h3>与限流器的区</h3>
+ * <h3>withrate limiterofarea</h3>
  * <ul>
- *   <li>限流器（RateLimiter）：控制单位时间内的请求总量（QPS</li>
- *   <li>隔离舱（Bulkhead）：控制同时进行中的请求数量（并发数</li>
+ *   <li>rate limiter（RateLimiter）：controlsinglebittimeinofrequesttotalamount（QPS</li>
+ *   <li>isolationcabin（Bulkhead）：controlsimultaneouslyperforminofrequestcountamount（concurrentcount</li>
  * </ul>
  * <p>
- * 两者可以配合使用，限流器防止请求过快，隔离舱防止积压过多
+ * bothcantoconfigurationcombineuse，rate limiterpreventrequesttoo fast，isolationcabinpreventtoo much backlog
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -52,17 +67,17 @@ public class BulkheadConfiguration {
     private static final Logger logger = LoggerFactory.getLogger(BulkheadConfiguration.class);
 
     /**
-     * 隔离配置属
+     * Bulkhead configuration properties
      */
     private final BulkheadProperties properties;
 
     /**
-     * 隔离器实例缓
+     * Bulkhead instance cache
      */
     private final Map<String, Bulkhead> bulkheadCache = new ConcurrentHashMap<>();
 
     /**
-     * Resilience4j 隔离器注册表
+     * Resilience4j Bulkhead registry
      */
     private BulkheadRegistry bulkheadRegistry;
 
@@ -71,47 +86,47 @@ public class BulkheadConfiguration {
     }
 
     /**
-     * 初始化隔离器注册
+     * Initialize Bulkhead registry
      */
     @PostConstruct
     public void init() {
         if (!properties.isEnabled()) {
-            logger.info("[shinwa] Bulkhead disabled");
+            logger.info("[brix] Bulkhead disabled");
             return;
         }
 
-        // 创建默认隔离配置
+        // Create default bulkhead configuration
         BulkheadProperties.BulkheadConfig defaultCfg = properties.getDefaultConfig();
         BulkheadConfig defaultConfig = BulkheadConfig.custom()
                 .maxConcurrentCalls(defaultCfg.getMaxConcurrentCalls())
                 .maxWaitDuration(defaultCfg.getMaxWaitDuration())
                 .build();
 
-        // 创建隔离器注册表
+        // Create Bulkhead registry
         this.bulkheadRegistry = BulkheadRegistry.of(defaultConfig);
 
-        logger.info("[shinwa] Bulkhead Configuration:");
-        logger.info("[shinwa]   enabled={}", properties.isEnabled());
-        logger.info("[shinwa]   default: maxConcurrentCalls={}, maxWaitDuration={}",
+        logger.info("[brix] Bulkhead Configuration:");
+        logger.info("[brix]   enabled={}", properties.isEnabled());
+        logger.info("[brix]   default: maxConcurrentCalls={}, maxWaitDuration={}",
                 defaultCfg.getMaxConcurrentCalls(),
                 defaultCfg.getMaxWaitDuration());
 
-        // 预创建路由级别隔离器
+        // Pre-create route-level bulkheads
         properties.getRoutes().forEach((routeId, config) -> {
-            logger.info("[shinwa]   route[{}]: maxConcurrentCalls={}, maxWaitDuration={}",
+            logger.info("[brix]   route[{}]: maxConcurrentCalls={}, maxWaitDuration={}",
                     routeId, config.getMaxConcurrentCalls(), config.getMaxWaitDuration());
             getBulkheadForRoute(routeId);
         });
     }
 
     /**
-     * 获取指定路由的隔离器
+     * Get bulkhead for specified route
      * <p>
-     * 优先使用路由级别配置，如果没有则使用默认配置
+     * Prioritizes route-level configuration, falls back to default configuration if not found.
      * </p>
      * 
-     * @param routeId 路由ID
-     * @return 对应的隔离器实例
+     * @param routeId route ID
+     * @return corresponding bulkhead instance
      */
     public Bulkhead getBulkheadForRoute(String routeId) {
         if (!properties.isEnabled() || bulkheadRegistry == null) {
@@ -128,7 +143,7 @@ public class BulkheadConfiguration {
 
             Bulkhead bulkhead = bulkheadRegistry.bulkhead(id, bhConfig);
             
-            // 注册拒绝事件监听
+            // registerrejectedeventlisten
             bulkhead.getEventPublisher()
                     .onCallRejected(this::handleCallRejected);
             
@@ -137,37 +152,37 @@ public class BulkheadConfiguration {
     }
 
     /**
-     * 处理请求被隔离拒绝事
+     * processrequestbeisolationrejectedevent
      * 
-     * @param event 拒绝事件
+     * @param event rejectedevent
      */
     private void handleCallRejected(BulkheadOnCallRejectedEvent event) {
-        logger.warn("[shinwa] Bulkhead[{}] rejected call - concurrent limit reached",
+        logger.warn("[brix] Bulkhead[{}] rejected call - concurrent limit reached",
                 event.getBulkheadName());
     }
 
     /**
-     * 获取默认隔离
+     * obtaindefaultisolation
      * 
-     * @return 默认隔离
+     * @return defaultisolation
      */
     public Bulkhead getDefaultBulkhead() {
         return getBulkheadForRoute("default");
     }
 
     /**
-     * 检查隔离功能是否启
+     * checkisolationfunctionalitywhetherstart
      * 
-     * @return true 表示启用
+     * @return true representsenable
      */
     public boolean isEnabled() {
         return properties.isEnabled();
     }
 
     /**
-     * 获取配置属
+     * obtainconfigurationproperty
      * 
-     * @return 隔离配置属
+     * @return isolationconfigurationproperty
      */
     public BulkheadProperties getProperties() {
         return properties;

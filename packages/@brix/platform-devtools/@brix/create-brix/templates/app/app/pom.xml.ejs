@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!--
-  <%= displayName %> 聚合启动模块 POM
+  <%= displayName %> 聚合启动module POM
   
-  【v3.0 架构说明】
-  app 模块是服务的聚合启动器，它：
-  1. 依赖 api 模块和 core 模块
+  [v3.0 Architecture]
+  app module是服务的聚合启动器，它：
+  1. 依赖 api module和 core module
   2. 包含 Spring Boot 应用入口
   3. 包含服务配置和 Docker 部署文件
   
@@ -26,17 +26,17 @@
     <artifactId><%= artifactId %>-app</artifactId>
     <packaging>jar</packaging>
     <name><%= displayName %> :: App</name>
-    <description><%= displayName %> 聚合启动模块</description>
+    <description><%= displayName %> 聚合启动module</description>
 
     <dependencies>
-        <!-- 本模块 API -->
+        <!-- 本module API -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId><%= artifactId %>-api</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- 本模块 Core -->
+        <!-- 本module Core -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId><%= artifactId %>-core</artifactId>

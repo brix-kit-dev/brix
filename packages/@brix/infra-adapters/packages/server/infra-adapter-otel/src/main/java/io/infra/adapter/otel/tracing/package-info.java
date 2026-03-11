@@ -15,28 +15,28 @@
  */
 
 /**
- * OpenTelemetry 追踪与指标导出包
+ * OpenTelemetry tracing and metrics export package.
  * 
- * <p>提供基于 OpenTelemetry 的能力调用追踪和指标导出功能。</p>
+ * <p>Provides OpenTelemetry-based capability invocation tracing and metrics export functionality.</p>
  * 
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.otel.tracing.OTelCapabilityMetricsExporter} - 能力调用指标导出器</li>
+ *   <li>{@link io.infra.adapter.otel.tracing.OTelCapabilityMetricsExporter} - Capability invocation metrics exporter</li>
  * </ul>
  * 
- * <h2>架构说明</h2>
- * <p>本包实现 v3.0 架构蓝图 4.4-4 任务：
- * 在 infra-adapter-otel 中增加架构合规 Metrics 导出（Prometheus 格式）。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>This package implements v3.0 architecture blueprint task 4.4-4:
+ * Add architecture compliance metrics export in infra-adapter-otel (Prometheus format).</p>
  * 
- * <h2>导出的指标</h2>
+ * <h2>Exported Metrics</h2>
  * <pre>
- * brix_capability_call_total{plugin="booking", capability="HttpCapability"}  → 能力调用计数
- * brix_capability_call_latency_seconds{plugin="booking"}                     → 调用延迟分布
- * brix_capability_active_calls{plugin="booking"}                              → 活跃调用数
- * brix_eventbus_direct_bypass_total                                          → 事件总线绕过次数
- * brix_architecture_violations_runtime{type="..."}                           → 运行时架构违规
+ * brix_capability_call_total{plugin="booking", capability="HttpCapability"}  → Capability invocation count
+ * brix_capability_call_latency_seconds{plugin="booking"}                     → Invocation latency distribution
+ * brix_capability_active_calls{plugin="booking"}                              → Active invocations
+ * brix_eventbus_direct_bypass_total                                          → Event bus bypass count
+ * brix_architecture_violations_runtime{type="..."}                           → Runtime architecture violations
  * </pre>
- * 
+ *
  * @author Brix Team
  * @since 3.0.0
  */

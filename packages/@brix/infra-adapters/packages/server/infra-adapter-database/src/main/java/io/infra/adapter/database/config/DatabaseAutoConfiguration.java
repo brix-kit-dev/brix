@@ -34,18 +34,19 @@ import org.springframework.context.annotation.Bean;
 import java.util.Map;
 
 /**
- * 数据库能力自动配置
+ * Database capability auto-configuration.
  * 
- * <p>Spring Boot 自动配置类，负责初始化 HikariCP 数据源和 DatabaseCapability Bean。
- * 当 classpath 中存在 HikariCP 依赖且配置了数据库连接信息时自动生效。</p>
+ * <p>Spring Boot auto-configuration class responsible for initializing HikariCP data source and
+ * DatabaseCapability bean. Automatically activates when HikariCP dependency is present in the
+ * classpath and database connection information is configured.</p>
  * 
- * <h3>激活条件</h3>
+ * <h3>Activation Conditions</h3>
  * <ul>
- *   <li>classpath 中存在 {@link HikariDataSource} 类</li>
- *   <li>配置项 {@code brix.infra.database.enabled} 为 true（默认）</li>
+ *   <li>{@link HikariDataSource} class exists in classpath</li>
+ *   <li>Configuration property {@code brix.infra.database.enabled} is true (default)</li>
  * </ul>
  * 
- * <h3>配置示例</h3>
+ * <h3>Configuration Example</h3>
  * <pre>{@code
  * brix:
  *   infra:
@@ -56,10 +57,10 @@ import java.util.Map;
  *       password: secret
  * }</pre>
  * 
- * <h3>架构说明</h3>
- * <p>本配置类将数据库驱动封装在适配器层（Layer 2.5），
- * 插件通过 {@link DatabaseCapability} 契约访问数据库，
- * 不直接依赖 PostgreSQL / Kingbase 等驱动。</p>
+ * <h3>Architecture Notes</h3>
+ * <p>This configuration class encapsulates database drivers in the adapter layer (Layer 2.5).
+ * Plugins access the database through the {@link DatabaseCapability} contract
+ * without directly depending on PostgreSQL/Kingbase drivers.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -75,7 +76,7 @@ public class DatabaseAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(DatabaseAutoConfiguration.class);
 
     /**
-     * JDBC 驱动类名映射 — 基础设施细节由适配器层管理，不暴露到 SDK 契约层
+     * JDBC driver class name mapping - infrastructure details are managed by the adapter layer and not exposed to the SDK contract layer.
      */
     private static final Map<DatabaseDialect, String> DRIVER_CLASS_NAMES = Map.of(
             DatabaseDialect.POSTGRESQL, "org.postgresql.Driver",
@@ -85,22 +86,23 @@ public class DatabaseAutoConfiguration {
     );
 
     /**
-     * 创建 HikariCP 数据源
+     * Creates HikariCP data source.
      * 
-     * <p>根据配置属性构建 HikariCP 连接池，设置驱动类、连接 URL、凭证和连接池参数。
-     * 驱动类根据 {@link DatabaseDialect} 自动选择。</p>
+     * <p>Builds HikariCP connection pool based on configuration properties, setting driver class,
+     * connection URL, credentials, and pool parameters. Driver class is automatically selected
+     * based on {@link DatabaseDialect}.</p>
      * 
-     * @param properties 数据库配置属性
-     * @return HikariCP 数据源
+     * @param properties Database configuration properties
+     * @return HikariCP data source
      */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(HikariDataSource.class)
     @ConditionalOnProperty(name = "brix.infra.database.url")
     public HikariDataSource brixHikariDataSource(DatabaseProperties properties) {
-        // 解析数据库方言
+        // Parse database dialect
         DatabaseDialect dialect = DatabaseDialect.fromName(properties.getDialect());
 
-        // 构建 HikariCP 配置
+        // Build HikariCP configuration
         HikariConfig config = new HikariConfig();
         config.setPoolName("brix-database-pool");
         config.setJdbcUrl(properties.getUrl());
@@ -108,7 +110,7 @@ public class DatabaseAutoConfiguration {
         config.setPassword(properties.getPassword());
         config.setDriverClassName(DRIVER_CLASS_NAMES.getOrDefault(dialect, "org.postgresql.Driver"));
 
-        // 连接池参数
+        // Connection pool parameters
         DatabaseProperties.HikariProperties hikariProps = properties.getHikari();
         config.setMaximumPoolSize(hikariProps.getMaximumPoolSize());
         config.setMinimumIdle(hikariProps.getMinimumIdle());
@@ -117,12 +119,12 @@ public class DatabaseAutoConfiguration {
         config.setMaxLifetime(hikariProps.getMaxLifetime());
         config.setConnectionTestQuery(hikariProps.getConnectionTestQuery());
 
-        // Schema 设置
+        // Schema configuration
         if (properties.getSchemaName() != null && !"public".equals(properties.getSchemaName())) {
             config.setSchema(properties.getSchemaName());
         }
 
-        log.info("[Database] 创建 HikariCP 数据源: dialect={}, url={}, poolSize={}-{}", 
+        log.info("[Database] Creating HikariCP data source: dialect={}, url={}, poolSize={}-{}", 
                 dialect.getDisplayName(), properties.getUrl(),
                 hikariProps.getMinimumIdle(), hikariProps.getMaximumPoolSize());
 
@@ -130,14 +132,14 @@ public class DatabaseAutoConfiguration {
     }
 
     /**
-     * 创建 DatabaseCapability 实例
+     * Creates DatabaseCapability instance.
      * 
-     * <p>将 HikariCP 数据源封装为 {@link DatabaseCapability} 能力实例，
-     * 供插件通过 RuntimeContext 获取和使用。</p>
+     * <p>Wraps HikariCP data source as a {@link DatabaseCapability} capability instance
+     * for plugins to obtain and use via RuntimeContext.</p>
      * 
-     * @param dataSource  HikariCP 数据源
-     * @param properties  数据库配置属性
-     * @return DatabaseCapability 实例
+     * @param dataSource  HikariCP data source
+     * @param properties  Database configuration properties
+     * @return DatabaseCapability instance
      */
     @Bean
     @ConditionalOnMissingBean(DatabaseCapability.class)
@@ -158,9 +160,6 @@ public class DatabaseAutoConfiguration {
      *
      * <p>Reports database connectivity status at /actuator/health endpoint.
      * Includes HikariCP pool statistics for monitoring.</p>
-     *
-     * <p>配置数据库健康指示器，在 /actuator/health 端点报告连通性状态。
-     * 包含 HikariCP 连接池统计信息用于监控。</p>
      *
      * @param dataSource HikariCP data source for health checks
      * @return DatabaseHealthIndicator instance

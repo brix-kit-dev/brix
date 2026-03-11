@@ -26,22 +26,22 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Outbox 事件仓储接口
+ * Outbox Event Repository Interface.
  *
- * <p>Spring Data JPA 仓储，提供 Outbox 事件的 CRUD 和批量操作能力。</p>
+ * <p>Spring Data JPA repository, providing CRUD and batch operation capabilities for Outbox events.</p>
  *
- * <h3>架构定位</h3>
+ * <h3>Architecture Position</h3>
  * <p>
- * 本接口属于 {@code infra-adapter-outbox} 独立模块（Layer 2.5: Adapter 层）。
- * 通过 Spring Data JPA 自动代理实现，无需手动编写 SQL。
+ * This interface belongs to the {@code infra-adapter-outbox} standalone module (Layer 2.5: Adapter Layer).
+ * Implementation is auto-proxied by Spring Data JPA, no manual SQL writing required.
  * </p>
  *
- * <h3>核心查询</h3>
+ * <h3>Core Queries</h3>
  * <ul>
- *   <li>{@link #findPendingEvents(int)} - 查询待发送的事件（供定时任务使用）</li>
- *   <li>{@link #findRetryableEvents(int, int)} - 查询可重试的失败事件</li>
- *   <li>{@link #markAsProcessing(List)} - 批量标记为处理中（防止并发重复处理）</li>
- *   <li>{@link #deleteCompletedBefore(Instant)} - 清理已完成的历史事件</li>
+ *   <li>{@link #findPendingEvents(int)} - Query events pending to be sent (for scheduled task use)</li>
+ *   <li>{@link #findRetryableEvents(int, int)} - Query retryable failed events</li>
+ *   <li>{@link #markAsProcessing(List)} - Batch mark as processing (prevent concurrent duplicate processing)</li>
+ *   <li>{@link #deleteCompletedBefore(Instant)} - Clean up completed historical events</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -50,75 +50,75 @@ import java.util.UUID;
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> {
 
     /**
-     * 根据事件 ID 查找 Outbox 记录
+     * Find Outbox record by event ID.
      *
-     * @param eventId 事件唯一标识
-     * @return Outbox 事件的 Optional 包装
+     * @param eventId event unique identifier
+     * @return Optional wrapper of Outbox event
      */
     Optional<OutboxEvent> findByEventId(String eventId);
 
     /**
-     * 检查指定事件 ID 是否已存在（幂等性检查）
+     * Check if specified event ID already exists (idempotency check).
      *
-     * @param eventId 事件唯一标识
-     * @return 已存在返回 true
+     * @param eventId event unique identifier
+     * @return true if already exists
      */
     boolean existsByEventId(String eventId);
 
     /**
-     * 查询待处理的事件（PENDING 状态），按创建时间升序排列
+     * Query pending events (PENDING status), ordered by creation time ascending.
      *
-     * <p>供 {@link OutboxEventPublisher#processOutbox()} 定时任务使用。</p>
+     * <p>Used by {@link OutboxEventPublisher#processOutbox()} scheduled task.</p>
      *
-     * @param limit 最大查询数量（批次大小）
-     * @return 待处理事件列表
+     * @param limit maximum query count (batch size)
+     * @return list of pending events
      */
     @Query("SELECT e FROM OutboxEvent e WHERE e.status = 'PENDING' ORDER BY e.createdAt ASC LIMIT :limit")
     List<OutboxEvent> findPendingEvents(@Param("limit") int limit);
 
     /**
-     * 查询可重试的失败事件（FAILED 状态且未超过最大重试次数）
+     * Query retryable failed events (FAILED status and not exceeding maximum retry count).
      *
-     * <p>供 {@link OutboxEventPublisher#retryFailedEvents()} 定时任务使用。</p>
+     * <p>Used by {@link OutboxEventPublisher#retryFailedEvents()} scheduled task.</p>
      *
-     * @param maxRetryCount 最大重试次数上限
-     * @param limit         最大查询数量（批次大小）
-     * @return 可重试事件列表
+     * @param maxRetryCount maximum retry count limit
+     * @param limit         maximum query count (batch size)
+     * @return list of retryable events
      */
     @Query("SELECT e FROM OutboxEvent e WHERE e.status = 'FAILED' AND e.retryCount < :maxRetryCount ORDER BY e.createdAt ASC LIMIT :limit")
     List<OutboxEvent> findRetryableEvents(@Param("maxRetryCount") int maxRetryCount, @Param("limit") int limit);
 
     /**
-     * 批量标记事件为处理中
+     * Batch mark events as processing.
      *
-     * <p>使用乐观锁语义：仅更新当前状态为 PENDING 的记录，
-     * 防止多个定时任务实例并发处理同一批事件。</p>
+     * <p>Uses optimistic lock semantics: only updates records with current status PENDING,
+     * preventing multiple scheduled task instances from concurrently processing the same batch of events.</p>
      *
-     * @param ids 事件 ID 列表
-     * @return 实际更新的记录数
+     * @param ids list of event IDs
+     * @return actual number of records updated
      */
     @Modifying
     @Query("UPDATE OutboxEvent e SET e.status = 'PROCESSING' WHERE e.id IN :ids AND e.status = 'PENDING'")
     int markAsProcessing(@Param("ids") List<UUID> ids);
 
     /**
-     * 删除指定时间之前的已完成事件
+     * Delete completed events before specified time.
      *
-     * <p>供 {@link OutboxEventPublisher#cleanupOldEvents()} 定时任务使用，
-     * 防止 Outbox 表无限膨胀。</p>
+     * <p>Used by {@link OutboxEventPublisher#cleanupOldEvents()} scheduled task,
+     * prevents Outbox table from growing indefinitely.</p>
      *
-     * @param before 截止时间（删除此时间之前的已完成事件）
-     * @return 实际删除的记录数
+     * @param before cutoff time (delete completed events before this time)
+     * @return actual number of records deleted
      */
     @Modifying
     @Query("DELETE FROM OutboxEvent e WHERE e.status = 'COMPLETED' AND e.processedAt < :before")
     int deleteCompletedBefore(@Param("before") Instant before);
 
     /**
-     * 按状态统计事件数量（用于监控和告警）
+     * Count events by status (for monitoring and alerting).
      *
-     * @param status 事件状态
-     * @return 该状态的事件数量
+     * @param status event status
+     * @return count of events with that status
      */
     long countByStatus(OutboxEvent.Status status);
 }

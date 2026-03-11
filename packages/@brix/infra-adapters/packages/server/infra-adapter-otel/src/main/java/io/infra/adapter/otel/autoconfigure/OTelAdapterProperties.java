@@ -22,11 +22,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * OpenTelemetry 适配器配置属性
+ * OpenTelemetry adapter configuration properties.
  * 
- * <p>Spring Boot 配置属性类，用于绑定 application.yml 中的 OpenTelemetry 配置。</p>
+ * <p>Spring Boot configuration properties class for binding OpenTelemetry configuration in application.yml.</p>
  * 
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   infra:
@@ -47,7 +47,7 @@ import java.util.Map;
  *         host.name: ${HOSTNAME:localhost}
  *         k8s.namespace.name: ${K8S_NAMESPACE:default}
  * }</pre>
- * 
+ *
  * @author Brix Team
  * @since 3.0.0
  */
@@ -55,37 +55,37 @@ import java.util.Map;
 public class OTelAdapterProperties {
     
     /**
-     * 是否启用 OpenTelemetry 适配器
+     * Whether OpenTelemetry adapter is enabled.
      */
     private boolean enabled = false;
     
     /**
-     * 服务名称
+     * Service name.
      */
     private String serviceName;
     
     /**
-     * 服务版本
+     * Service version.
      */
     private String serviceVersion = "1.0.0";
     
     /**
-     * 部署环境
+     * Deployment environment.
      */
     private String environment = "development";
     
     /**
-     * 追踪配置
+     * Tracing configuration.
      */
     private Tracing tracing = new Tracing();
     
     /**
-     * 指标配置
+     * Metrics configuration.
      */
     private Metrics metrics = new Metrics();
     
     /**
-     * 额外的 Resource 属性
+     * Additional Resource attributes.
      */
     private Map<String, String> resourceAttributes = new HashMap<>();
     
@@ -148,32 +148,32 @@ public class OTelAdapterProperties {
     }
     
     /**
-     * 追踪配置
+     * Tracing configuration.
      */
     public static class Tracing {
         
         /**
-         * 是否启用追踪
+         * Whether tracing is enabled.
          */
         private boolean enabled = true;
         
         /**
-         * 采样率（0.0 - 1.0）
+         * Sampling ratio (0.0 - 1.0).
          */
         private double samplingRatio = 1.0;
         
         /**
-         * 导出器类型：otlp, jaeger, logging
+         * Exporter type: otlp, jaeger, logging.
          */
         private String exporter = "logging";
         
         /**
-         * 导出器端点
+         * Exporter endpoint.
          */
         private String endpoint;
         
         /**
-         * 批处理延迟
+         * Batch processing delay.
          */
         private Duration batchDelay = Duration.ofSeconds(5);
         
@@ -219,27 +219,27 @@ public class OTelAdapterProperties {
     }
     
     /**
-     * 指标配置
+     * Metrics configuration.
      */
     public static class Metrics {
         
         /**
-         * 是否启用指标
+         * Whether metrics are enabled.
          */
         private boolean enabled = true;
         
         /**
-         * 导出间隔
+         * Export interval.
          */
         private Duration exportInterval = Duration.ofSeconds(60);
         
         /**
-         * 导出器类型：otlp, prometheus, logging
+         * Exporter type: otlp, prometheus, logging.
          */
         private String exporter = "logging";
         
         /**
-         * Prometheus 端口（仅 prometheus 导出器使用）
+         * Prometheus port (only used by prometheus exporter).
          */
         private int prometheusPort = 9464;
         

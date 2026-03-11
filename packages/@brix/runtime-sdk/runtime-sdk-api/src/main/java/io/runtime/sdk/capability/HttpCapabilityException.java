@@ -16,13 +16,13 @@
 package io.runtime.sdk.capability;
 
 /**
- * HTTP 能力调用异常
+ * HTTP Capability Invocation Exception
  * 
- * <p>当 {@link HttpCapability} 的请求发送失败时抛出此异常。
- * 常见原因包括网络错误、连接超时、DNS 解析失败等。</p>
+ * <p>Thrown when a {@link HttpCapability} request fails to send.
+ * Common causes include network errors, connection timeouts, DNS resolution failures, etc.</p>
  * 
- * <p>注意：HTTP 4xx/5xx 响应不会抛出此异常，而是正常返回
- * {@link HttpCapability.HttpResult}，由调用方根据状态码处理。</p>
+ * <p>Note: HTTP 4xx/5xx responses do not throw this exception. Instead, they return
+ * a normal {@link HttpCapability.HttpResult} for the caller to handle based on status code.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.1.0

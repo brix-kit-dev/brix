@@ -1,15 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!--
-  <%= fullName %>-api 模块
+  <%= fullName %>-api module
   
-  API 模块包含：
-  - DTO（数据传输对象）
-  - Event（领域事件定义）
-  - Request（请求对象）
+  API module contains：
+  - DTO（Data Transfer Object）
+  - Event（Domain Event definitions）
+  - Request（Request Object）
   
-  【v3.0 架构约束】
-  - 此模块仅包含类型定义，不包含业务逻辑
-  - 供其他模块依赖，用于模块间通信
+  【v3.0 架构Constraints】
+  - 此module仅包含Type定义，不包含业务逻辑
+  - 供其他module依赖，用于module间通信
   
   @author <%= author %>
   @date <%= date %>
@@ -30,7 +30,7 @@
     <packaging>jar</packaging>
 
     <name><%= displayName %> - API</name>
-    <description><%= displayName %> API 模块（DTO、Event、Request）</description>
+    <description><%= displayName %> API module（DTO、Event、Request）</description>
 
     <dependencies>
         <!-- v3.0 运行时 SDK API（事件基类） -->
@@ -39,7 +39,7 @@
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
 
-        <!-- Lombok（可选，简化代码） -->
+        <!-- Lombok（Optional，简化代码） -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

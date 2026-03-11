@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.resilience;
 
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -20,33 +35,33 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 熔断保护切面
+ * Circuit Breaker Protection Aspect
  * 
- * <p>v2.1 阶段4 熔断降级实现</p>
+ * <p>v2.1 Phase 4 Circuit Breaker Implementation</p>
  * 
- * <p>功能说明</p>
- * <p>拦截标注@CircuitProtected 注解的方法，实现熔断保护</p>
+ * <p>Function Description</p>
+ * <p>Intercepts methods annotated with @CircuitProtected to implement circuit breaker protection</p>
  * 
- * <p>熔断状态机</p>
+ * <p>Circuit Breaker State Machine</p>
  * <pre>
  *     ┌─────────────────────────────────────────────────────────
  *                                                             
- *      CLOSED ──(失败率超阈──> OPEN ──(等待超时)──> HALF_OPEN 
+ *      CLOSED ──(failure rate exceeds threshold)──> OPEN ──(wait timeout)──> HALF_OPEN 
  *                                                         
  *                                                         
- *        └────────────────(成功率达──────────────────────   
+ *        └────────────────(success rate reaches threshold)──────────────────────   
  *                                                             
- *                        (失败率仍                          
+ *                        (failure rate still high)                          
  *                                                           
  *                                                           
  *                           OPEN ←────────────────────────────
  *     └─────────────────────────────────────────────────────────
  * </pre>
  * 
- * <p>⚠️ 注意事项</p>
+ * <p>⚠️ Notes</p>
  * <ul>
- *   <li>此实现是轻量级版本，生产环境建议使用 Resilience4j </li>
- *   <li>熔断状态存储在内存中，集群环境需要考虑分布式一致</li>
+ *   <li>This is a lightweight implementation, Resilience4j is recommended for production</li>
+ *   <li>Circuit breaker state is stored in memory, distributed consistency is needed for cluster environments</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team
@@ -57,7 +72,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Component
 @Order(3)
 @ConditionalOnProperty(
-    prefix = "shinwa.resilience",
+    prefix = "brix.resilience",
     name = "enabled",
     havingValue = "true",
     matchIfMissing = true
@@ -66,22 +81,22 @@ public class CircuitProtectedAspect {
     
     private static final Logger log = LoggerFactory.getLogger(CircuitProtectedAspect.class);
     
-    /** 熔断器状态存*/
+    /** Circuit breaker state storage */
     private final Map<String, CircuitBreakerState> circuitBreakers = new ConcurrentHashMap<>();
     
-    /** 配置属*/
+    /** Configuration properties */
     private final ResilienceProperties properties;
     
     /**
-     * 构造函数
+     * Constructor
      */
     public CircuitProtectedAspect(ResilienceProperties properties) {
         this.properties = properties;
-        log.info("[CircuitProtectedAspect] 熔断保护切面已启");
+        log.info("[CircuitProtectedAspect] Circuit breaker protection aspect enabled");
     }
     
     /**
-     * 拦截 @CircuitProtected 注解的方
+     * Intercept methods annotated with @CircuitProtected
      */
     @Around("@annotation(circuitProtected)")
     public Object protect(ProceedingJoinPoint joinPoint, CircuitProtected circuitProtected) throws Throwable {
@@ -89,46 +104,46 @@ public class CircuitProtectedAspect {
         CircuitBreakerState state = circuitBreakers.computeIfAbsent(name, 
             k -> new CircuitBreakerState(properties.getCircuitBreakerConfig(k)));
         
-        // 检查熔断状
+        // Check circuit breaker state
         if (state.isOpen()) {
-            // 检查是否可以进入半开状
+            // Check if can enter half-open state
             if (state.shouldAttemptReset()) {
-                log.debug("[熔断] {} 进入半开状", name);
+                log.debug("[CircuitBreaker] {} entering half-open state", name);
                 state.transitionToHalfOpen();
             } else {
-                log.debug("[鐔旀柇] {} 鐔旀柇涓紝鐩存帴闄嶇骇", name);
+                log.debug("[CircuitBreaker] {} is open, falling back directly", name);
                 return invokeFallback(joinPoint, circuitProtected, 
-                    new CircuitBreakerOpenException("熔断器 " + name + " 处于打开状态"));
+                    new CircuitBreakerOpenException("CircuitBreaker " + name + " is in open state"));
             }
         }
         
-        // 执行目标方法
+        // Execute target method
         long startTime = System.currentTimeMillis();
         try {
             Object result = joinPoint.proceed();
             long duration = System.currentTimeMillis() - startTime;
             
-            // 记录成功
+            // Record success
             state.recordSuccess(duration);
-            log.debug("[熔断] {} 调用成功, duration={}ms", name, duration);
+            log.debug("[CircuitBreaker] {} call succeeded, duration={}ms", name, duration);
             
             return result;
         } catch (Throwable t) {
             long duration = System.currentTimeMillis() - startTime;
             
-            // 检查是否需要记录为失败
+            // Check if should record as failure
             if (shouldRecordFailure(t, circuitProtected)) {
                 state.recordFailure();
-                log.debug("[熔断] {} 调用失败, 当前失败{}", name, state.getFailureRate());
+                log.debug("[CircuitBreaker] {} call failed, current failure rate: {}", name, state.getFailureRate());
                 
-                // 检查是否需要熔
+                // Check if should open circuit breaker
                 if (state.shouldOpen()) {
-                    log.warn("[鐔旀柇] {} 瑙﹀彂鐔旀柇, failureRate={}%", name, state.getFailureRate());
+                    log.warn("[CircuitBreaker] {} triggered circuit break, failureRate={}%", name, state.getFailureRate());
                     state.transitionToOpen();
                 }
             }
             
-            // 尝试调用降级方法
+            // Try to invoke fallback method
             if (!circuitProtected.fallbackMethod().isEmpty()) {
                 return invokeFallback(joinPoint, circuitProtected, t);
             }
@@ -138,17 +153,17 @@ public class CircuitProtectedAspect {
     }
     
     /**
-     * 判断是否应记录为失败
+     * Determine if should record as failure
      */
     private boolean shouldRecordFailure(Throwable t, CircuitProtected circuitProtected) {
-        // 检查忽略的异常
+        // Check ignored exceptions
         for (Class<? extends Throwable> ignored : circuitProtected.ignoreExceptions()) {
             if (ignored.isInstance(t)) {
                 return false;
             }
         }
         
-        // 检查需要记录的异常
+        // Check exceptions to record
         for (Class<? extends Throwable> recorded : circuitProtected.recordFailureFor()) {
             if (recorded.isInstance(t)) {
                 return true;
@@ -159,7 +174,7 @@ public class CircuitProtectedAspect {
     }
     
     /**
-     * 调用降级方法
+     * Invoke fallback method
      */
     private Object invokeFallback(ProceedingJoinPoint joinPoint, 
                                    CircuitProtected circuitProtected, 
@@ -173,26 +188,26 @@ public class CircuitProtectedAspect {
         Class<?> targetClass = joinPoint.getTarget().getClass();
         Object[] args = joinPoint.getArgs();
         
-        // 查找降级方法（尝试带 Throwable 参数的版本）
+        // Find fallback method (try version with Throwable parameter)
         Method fallbackMethod = findFallbackMethod(targetClass, fallbackMethodName, 
             signature.getParameterTypes(), true);
         
         if (fallbackMethod == null) {
-            // 尝试不带 Throwable 参数的版
+            // Try version without Throwable parameter
             fallbackMethod = findFallbackMethod(targetClass, fallbackMethodName, 
                 signature.getParameterTypes(), false);
         }
         
         if (fallbackMethod == null) {
-            log.error("[熔断] 降级方法未找 {}.{}", targetClass.getSimpleName(), fallbackMethodName);
+            log.error("[CircuitBreaker] Fallback method not found: {}.{}", targetClass.getSimpleName(), fallbackMethodName);
             throw cause;
         }
         
-        // 调用降级方法
+        // Invoke fallback method
         try {
             fallbackMethod.setAccessible(true);
             if (fallbackMethod.getParameterCount() == args.length + 1) {
-                // Throwable 参数
+                // With Throwable parameter
                 Object[] fallbackArgs = Arrays.copyOf(args, args.length + 1);
                 fallbackArgs[args.length] = cause;
                 return fallbackMethod.invoke(joinPoint.getTarget(), fallbackArgs);
@@ -200,13 +215,13 @@ public class CircuitProtectedAspect {
                 return fallbackMethod.invoke(joinPoint.getTarget(), args);
             }
         } catch (Exception e) {
-            log.error("[熔断] 降级方法执行失败", e);
+            log.error("[CircuitBreaker] Fallback method execution failed", e);
             throw cause;
         }
     }
     
     /**
-     * 查找降级方法
+     * Find fallback method
      */
     private Method findFallbackMethod(Class<?> targetClass, String methodName, 
                                        Class<?>[] paramTypes, boolean withThrowable) {
@@ -224,14 +239,14 @@ public class CircuitProtectedAspect {
     }
     
     /**
-     * 获取熔断器状态（用于监控
+     * Get circuit breaker states (for monitoring)
      */
     public Map<String, CircuitBreakerState> getCircuitBreakers() {
         return circuitBreakers;
     }
     
     /**
-     * 熔断器状
+     * Circuit breaker state
      */
     public static class CircuitBreakerState {
         
@@ -291,7 +306,7 @@ public class CircuitProtectedAspect {
                 }
             } else {
                 successCount.incrementAndGet();
-                // 滑动窗口：保持在窗口大小
+                // Sliding window: keep within window size
                 int total = successCount.get() + failureCount.get();
                 if (total > config.getSlidingWindowSize()) {
                     successCount.updateAndGet(v -> Math.max(0, v - 1));
@@ -301,11 +316,11 @@ public class CircuitProtectedAspect {
         
         public void recordFailure() {
             if (state.get() == State.HALF_OPEN) {
-                // 半开状态下失败，回到打开状
+                // Failure in half-open state, return to open state
                 transitionToOpen();
             } else {
                 failureCount.incrementAndGet();
-                // 滑动窗口
+                // Sliding window
                 int total = successCount.get() + failureCount.get();
                 if (total > config.getSlidingWindowSize()) {
                     failureCount.updateAndGet(v -> Math.max(0, v - 1));
@@ -317,14 +332,14 @@ public class CircuitProtectedAspect {
             state.set(State.OPEN);
             openedAt = Instant.now();
             lastStateChange = openedAt;
-            log.info("[熔断状态] -> OPEN");
+            log.info("[CircuitBreakerState] -> OPEN");
         }
         
         public void transitionToHalfOpen() {
             state.set(State.HALF_OPEN);
             halfOpenSuccessCount.set(0);
             lastStateChange = Instant.now();
-            log.info("[熔断状态] -> HALF_OPEN");
+            log.info("[CircuitBreakerState] -> HALF_OPEN");
         }
         
         public void transitionToClosed() {
@@ -334,7 +349,7 @@ public class CircuitProtectedAspect {
             halfOpenSuccessCount.set(0);
             openedAt = null;
             lastStateChange = Instant.now();
-            log.info("[熔断状态] -> CLOSED");
+            log.info("[CircuitBreakerState] -> CLOSED");
         }
         
         public State getState() {
@@ -347,7 +362,7 @@ public class CircuitProtectedAspect {
     }
     
     /**
-     * 熔断器打开异常
+     * Circuit breaker open exception
      */
     public static class CircuitBreakerOpenException extends RuntimeException {
         public CircuitBreakerOpenException(String message) {

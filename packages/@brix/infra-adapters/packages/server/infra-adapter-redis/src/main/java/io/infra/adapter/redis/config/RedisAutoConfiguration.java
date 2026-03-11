@@ -34,22 +34,22 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Redis 能力自动配置
+ * Redis capability auto-configuration.
  * 
- * <p>Spring Boot 自动配置类，负责初始化 Redis 相关Bean
- * classpath 中存Redis 依赖且配置了 Redis 连接信息时自动生效。</p>
+ * <p>Spring Boot auto-configuration class responsible for initializing Redis related Beans.
+ * Automatically takes effect when Redis dependencies exist in the classpath and Redis connection info is configured.</p>
  * 
- * <h3>配置。</h3>
+ * <h3>Configuration.</h3>
  * <table border="1">
- *   <tr><th>配置</th><th>说明</th><th>默认</th></tr>
- *   <tr><td>shinwa.runtime.redis.enabled</td><td>是否启用</td><td>true</td></tr>
- *   <tr><td>shinwa.runtime.redis.key-prefix</td><td>键前缀</td><td>shinwa:state:</td></tr>
+ *   <tr><th>Configuration</th><th>Description</th><th>Default</th></tr>
+ *   <tr><td>shinwa.runtime.redis.enabled</td><td>Whether to enable</td><td>true</td></tr>
+ *   <tr><td>shinwa.runtime.redis.key-prefix</td><td>Key prefix</td><td>brix:state:</td></tr>
  * </table>
  * 
- * <h3>提供的能力</h3>
+ * <h3>Provided Capabilities</h3>
  * <ul>
- *   <li>{@link StateStoreCapability} - 状态存储能力</li>
- *   <li>{@link LockCapability} - 分布式锁能力</li>
+ *   <li>{@link StateStoreCapability} - State store capability</li>
+ *   <li>{@link LockCapability} - Distributed lock capability</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team
@@ -62,10 +62,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 public class RedisAutoConfiguration {
 
     /**
-     * 配置 StringRedisTemplate
+     * Configures StringRedisTemplate.
      * 
-     * @param connectionFactory Redis 连接工厂
-     * @return StringRedisTemplate 实例
+     * @param connectionFactory Redis connection factory
+     * @return StringRedisTemplate instance
      */
     @Bean
     @ConditionalOnMissingBean
@@ -74,22 +74,22 @@ public class RedisAutoConfiguration {
     }
 
     /**
-     * 创建状态存储专用 ObjectMapper（内部使用，不注册为 Spring Bean）
+     * Creates ObjectMapper dedicated for state store (for internal use, not registered as Spring Bean).
      * 
-     * <p>避免与 Spring Boot 自动配置的全局 ObjectMapper 冲突。</p>
+     * <p>Avoids conflicts with the global ObjectMapper auto-configured by Spring Boot.</p>
      * 
-     * @return ObjectMapper 实例
+     * @return ObjectMapper instance
      */
     private static ObjectMapper createStateStoreObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         
-        // 注册 Java 8 时间模块
+        // Register Java 8 time module
         mapper.registerModule(new JavaTimeModule());
         
-        // 日期时间序列化为 ISO-8601 格式
+        // Serialize date/time in ISO-8601 format
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         
-        // 忽略未知属性（兼容性）
+        // Ignore unknown properties (for compatibility)
         mapper.configure(
                 com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, 
                 false);
@@ -98,12 +98,11 @@ public class RedisAutoConfiguration {
     }
 
     /**
-     * 配置 StateStoreCapability 实现
+     * Configures StateStoreCapability implementation.
      * 
-     * @param redisTemplate Redis 模板
-     * @param objectMapper  JSON 序列化器
-     * @param properties    配置属性
-     * @return StateStoreCapability 实例
+     * @param redisTemplate Redis template
+     * @param properties    configuration properties
+     * @return StateStoreCapability instance
      */
     @Bean
     @ConditionalOnMissingBean(StateStoreCapability.class)
@@ -114,11 +113,11 @@ public class RedisAutoConfiguration {
     }
 
     /**
-     * 配置 LockCapability 实现
+     * Configures LockCapability implementation.
      * 
-     * @param redisTemplate Redis 模板
-     * @param properties    配置属性
-     * @return LockCapability 实例
+     * @param redisTemplate Redis template
+     * @param properties    configuration properties
+     * @return LockCapability instance
      */
     @Bean
     @ConditionalOnMissingBean(LockCapability.class)
@@ -131,8 +130,6 @@ public class RedisAutoConfiguration {
      * Configures Redis health indicator for Actuator.
      *
      * <p>Reports Redis server connectivity status at /actuator/health endpoint.</p>
-     *
-     * <p>配置 Redis 健康指示器，在 /actuator/health 端点报告服务器连通性状态。</p>
      *
      * @param connectionFactory Redis connection factory for health checks
      * @return RedisHealthIndicator instance

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.net.URI;
@@ -23,16 +38,16 @@ import io.brix.platform.gateway.security.ApiKeyAuthFilter;
 import io.brix.platform.gateway.security.LogSanitizer;
 
 /**
- * 统一请求日志过滤
+ * Unified Request Logging Filter
  * <p>
- * 记录所有经过网关的请求与响应状态，日志前缀统一[shinwa]
- * 对敏感信息（Authorization、token等）自动脱敏处理
+ * Records all requests and response statuses passing through the gateway, with unified [brix] log prefix.
+ * Automatically sanitizes sensitive information (Authorization, token, etc.).
  * </p>
  * <p>
- * MVP 红线要求
+ * MVP Red Line Requirements:
  * <ul>
- *   <li>结构化日志，service/pluginName/traceId</li>
- *   <li>token/Authorization 字段脱敏</li>
+ *   <li>Structured logs with service/pluginName/traceId</li>
+ *   <li>token/Authorization field sanitization</li>
  * </ul>
  * </p>
  *
@@ -45,7 +60,7 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
     private static final Logger logger = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
     /**
-     * 需要在 DEBUG 日志中输出的请求头（不包含敏感头
+     * Request headers to output in DEBUG logs (excluding sensitive headers)
      */
     private static final List<String> LOGGED_HEADERS = List.of(
             "Content-Type",
@@ -73,15 +88,15 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         String clientIp = extractClientIp(request);
         long startTime = System.currentTimeMillis();
 
-        // 获取认证Key 名称（由 ApiKeyAuthFilter 注入
+        // Get auth key name (injected by ApiKeyAuthFilter)
         String authKeyName = exchange.getAttribute(ApiKeyAuthFilter.AUTH_KEY_NAME_ATTR);
         String authInfo = authKeyName != null ? "[" + authKeyName + "] " : "";
 
-        // 记录请求日志（INFO 级别
-        logger.info("[shinwa] {}{} {} from {} (ID: {})", 
+        // Log request (INFO level)
+        logger.info("[brix] {}{} {} from {} (ID: {})", 
                 authInfo, method, path, clientIp, requestId);
 
-        // DEBUG 级别记录更多请求详情（已脱敏
+        // DEBUG level logs more request details (sanitized)
         if (logger.isDebugEnabled()) {
             logRequestDetails(request, requestId);
         }
@@ -92,19 +107,19 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
                     .map(status -> status.value())
                     .orElse(500);
             
-            // 记录路由信息
+            // Log route information
             Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
             URI targetUri = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
             
             if (route != null && logger.isDebugEnabled()) {
-                logger.debug("[shinwa] Route: {} -> {} (Target: {}) (ID: {})", 
+                logger.debug("[brix] Route: {} -> {} (Target: {}) (ID: {})", 
                     Objects.requireNonNullElse(route.getId(), "unknown"), 
                     Objects.requireNonNullElse(route.getUri(), URI.create("unknown")), 
                     targetUri, requestId);
             }
             
-            // 根据状态码使用不同日志级别
-            String responseLog = String.format("[shinwa] %s%s %s -> %d (%dms) (ID: %s)",
+            // Use different log levels based on status code
+            String responseLog = String.format("[brix] %s%s %s -> %d (%dms) (ID: %s)",
                     authInfo, method, path, statusCode, duration, requestId);
             
             if (statusCode >= 500) {
@@ -118,12 +133,12 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 记录请求详情（DEBUG 级别），敏感信息会被脱敏
+     * Log request details (DEBUG level), sensitive info will be sanitized
      */
     private void logRequestDetails(ServerHttpRequest request, String requestId) {
         HttpHeaders headers = request.getHeaders();
         
-        // 收集非敏感请求头
+        // Collect non-sensitive request headers
         Map<String, String> safeHeaders = LOGGED_HEADERS.stream()
                 .filter(headers::containsKey)
                 .collect(Collectors.toMap(
@@ -134,49 +149,49 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
                         }
                 ));
 
-        // 对敏感头进行脱敏后记
+        // forsensitiveheaderperformsanitizeafterrecord
         if (headers.containsKey(HttpHeaders.AUTHORIZATION)) {
             String authValue = headers.getFirst(HttpHeaders.AUTHORIZATION);
             safeHeaders.put(HttpHeaders.AUTHORIZATION, 
                     logSanitizer.sanitizeAuthorizationHeader(authValue));
         }
 
-        // 记录 Cookie 时进行脱
+        // record Cookie timeperformde-
         if (headers.containsKey(HttpHeaders.COOKIE)) {
             safeHeaders.put(HttpHeaders.COOKIE, logSanitizer.maskValue("cookie-data"));
         }
 
-        logger.debug("[shinwa] Request Headers (ID: {}): {}", requestId, safeHeaders);
+        logger.debug("[brix] Request Headers (ID: {}): {}", requestId, safeHeaders);
 
-        // 记录查询参数（可能包含敏感信息需要脱敏）
+        // recordqueryparameter（cancancontainsensitiveinformationneedsanitize）
         String query = request.getURI().getQuery();
         if (query != null && !query.isEmpty()) {
             String sanitizedQuery = logSanitizer.sanitizeText(query);
-            logger.debug("[shinwa] Query Params (ID: {}): {}", requestId, sanitizedQuery);
+            logger.debug("[brix] Query Params (ID: {}): {}", requestId, sanitizedQuery);
         }
     }
 
     /**
-     * 提取客户端真IP
+     * extractclienttrueIP
      */
     private String extractClientIp(ServerHttpRequest request) {
         HttpHeaders headers = request.getHeaders();
         
-        // 优先X-Forwarded-For 获取
+        // priorityX-Forwarded-For obtain
         String xForwardedFor = headers.getFirst("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            // 取第一IP（最原始的客户端 IP
+            // take firstIP（mostoriginalofClient IP
             String[] ips = xForwardedFor.split(",");
             return ips[0].trim();
         }
         
-        // 其次X-Real-IP 获取
+        // itstimesX-Real-IP obtain
         String xRealIp = headers.getFirst("X-Real-IP");
         if (xRealIp != null && !xRealIp.isEmpty()) {
             return xRealIp;
         }
         
-        // 最后使用直IP
+        // mostafterusedirectIP
         var remoteAddress = request.getRemoteAddress();
         if (remoteAddress != null) {
             return remoteAddress.getAddress().getHostAddress();
@@ -187,7 +202,7 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // 在安全过滤器之后执行，以便能获取认证信息
+        // onsecurityfilterofafterexecute，toconveniencecanobtainauthenticationinformation
         return Ordered.HIGHEST_PRECEDENCE + 100;
     }
 }

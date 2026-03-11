@@ -83,12 +83,12 @@ import java.util.Set;
  *   <li>Embedded Host: Delegated to customer's authorization system</li>
  * </ul>
  *
- * <p>【数据访问能力契约】</p>
- * <p>提供数据访问授权和审计能力：</p>
+ * <p><b>Data Access Capability Contract</b></p>
+ * <p>Provides data access authorization and auditing capabilities:</p>
  * <ul>
- *   <li>isAuthorized(scope): 检查当前用户是否有权访问指定数据范围</li>
- *   <li>getAuthorizedScopes(): 获取当前用户所有授权的数据范围</li>
- *   <li>auditAccess(record): 记录数据访问日志，用于合规审计</li>
+ *   <li>isAuthorized(scope): Checks if the current user has permission to access the specified data scope</li>
+ *   <li>getAuthorizedScopes(): Gets all data scopes authorized for the current user</li>
+ *   <li>auditAccess(record): Records data access logs for compliance auditing</li>
  * </ul>
  *
  * @author Runtime SDK Team
@@ -235,8 +235,8 @@ public interface DataAccessCapability {
      *
      * <p>Immutable record capturing details of a data access event.</p>
      *
-     * <p>【数据访问记录】</p>
-     * <p>用于合规审计的数据访问记录，包含操作类型、资源信息、影响记录数等。</p>
+     * <p><b>Data Access Record</b></p>
+     * <p>Data access record for compliance auditing, containing operation type, resource info, affected record count, etc.</p>
      */
     interface DataAccessRecord {
 

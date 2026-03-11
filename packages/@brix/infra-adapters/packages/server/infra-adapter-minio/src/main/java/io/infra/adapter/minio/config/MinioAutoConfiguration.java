@@ -15,10 +15,6 @@
  */
 package io.infra.adapter.minio.config;
 
-import io.infra.adapter.minio.MinioFileStorageCapability;
-import io.minio.MinioClient;
-import io.runtime.sdk.capability.FileStorageCapability;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -28,22 +24,27 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
+import io.infra.adapter.minio.MinioFileStorageCapability;
+import io.minio.MinioClient;
+import io.runtime.sdk.capability.FileStorageCapability;
+
 /**
- * MinIO 文件存储适配器自动配置
+ * MinIO file storage adapter auto-configuration.
  * 
- * <p>当 classpath 中存在 {@link MinioClient} 类且配置了 {@code brix.infra.minio.enabled=true}
- * 时，自动创建 MinIO 客户端和文件存储能力实例。</p>
+ * <p>Automatically creates MinIO client and file storage capability instance when
+ * {@link MinioClient} class is present in classpath and {@code brix.infra.minio.enabled=true}
+ * is configured.</p>
  * 
- * <h3>激活条件</h3>
+ * <h3>Activation Conditions</h3>
  * <ol>
- *   <li>classpath 中存在 {@code io.minio.MinioClient} 类</li>
- *   <li>配置属性 {@code brix.infra.minio.enabled} 为 {@code true}（默认）</li>
- *   <li>容器中不存在其他 {@link FileStorageCapability} 实例</li>
+ *   <li>{@code io.minio.MinioClient} class exists in classpath</li>
+ *   <li>Configuration property {@code brix.infra.minio.enabled} is {@code true} (default)</li>
+ *   <li>No other {@link FileStorageCapability} instance exists in the container</li>
  * </ol>
  * 
- * <h3>蓝图对照</h3>
- * <p>对应蓝图 v3.0.2 Layer 2.5 适配器层，与 infra-adapter-kafka、infra-adapter-redis
- * 采用相同的自动配置模式。</p>
+ * <h3>Architecture Compliance</h3>
+ * <p>Auto-configuration for MinIO file storage adapter.
+ * Follows the same auto-configuration pattern as infra-adapter-kafka and infra-adapter-redis.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -59,18 +60,18 @@ public class MinioAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(MinioAutoConfiguration.class);
 
     /**
-     * 创建 MinIO 客户端
+     * Creates MinIO client.
      * 
-     * <p>根据外部化配置属性构建 MinioClient 实例。
-     * 如果配置了 region，则同时设置 region 参数。</p>
+     * <p>Builds MinioClient instance based on externalized configuration properties.
+     * If region is configured, it is also set.</p>
      * 
-     * @param properties MinIO 配置属性
-     * @return MinIO 客户端实例
+     * @param properties MinIO configuration properties
+     * @return MinIO client instance
      */
     @Bean
     @ConditionalOnMissingBean(MinioClient.class)
     public MinioClient minioClient(MinioProperties properties) {
-        log.info("[MinIO] 初始化 MinIO 客户端: endpoint={}", properties.getEndpoint());
+        log.info("[MinIO] Initializing MinIO client: endpoint={}", properties.getEndpoint());
 
         MinioClient.Builder builder = MinioClient.builder()
                 .endpoint(properties.getEndpoint())
@@ -84,19 +85,20 @@ public class MinioAutoConfiguration {
     }
 
     /**
-     * 创建文件存储能力实例
+     * Creates file storage capability instance.
      * 
-     * <p>基于 MinIO 客户端和默认 Bucket 名称创建 {@link FileStorageCapability} 实现。
-     * 仅当容器中不存在其他 {@link FileStorageCapability} 时才创建。</p>
+     * <p>Creates {@link FileStorageCapability} implementation based on MinIO client and
+     * default bucket name. Only created when no other {@link FileStorageCapability} exists
+     * in the container.</p>
      * 
-     * @param minioClient MinIO 客户端
-     * @param properties  MinIO 配置属性
-     * @return 文件存储能力实例
+     * @param minioClient MinIO client
+     * @param properties  MinIO configuration properties
+     * @return File storage capability instance
      */
     @Bean
     @ConditionalOnMissingBean(FileStorageCapability.class)
     public FileStorageCapability fileStorageCapability(MinioClient minioClient, MinioProperties properties) {
-        log.info("[MinIO] 注册文件存储能力: bucket={}", properties.getBucketName());
+        log.info("[MinIO] Registering file storage capability: bucket={}", properties.getBucketName());
         return new MinioFileStorageCapability(minioClient, properties.getBucketName());
     }
 }

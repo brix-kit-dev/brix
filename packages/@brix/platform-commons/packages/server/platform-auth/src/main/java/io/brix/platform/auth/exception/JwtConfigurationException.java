@@ -23,7 +23,7 @@ package io.brix.platform.auth.exception;
  * to provide clearer semantics and better error handling.</p>
  *
  * <h3>Design Rationale</h3>
- * <p>According to v3.0 Architecture Blueprint Red Line R10 (Fault Isolation),
+ * <p>Following the Fault Isolation architecture principle,
  * all exceptions must be domain-specific rather than generic RuntimeException.
  * This enables:
  * <ul>

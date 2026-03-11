@@ -19,9 +19,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 依赖验证结果
+ * Dependency Validation Result.
  * 
- * <p>包含模块依赖验证的详细结果信息。</p>
+ * <p>Contains detailed result information from module dependency validation.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -29,20 +29,20 @@ import java.util.List;
 public class DependencyValidationResult {
 
     /**
-     * 缺失的依赖列表
+     * List of missing dependencies.
      */
     private final List<String> missingDependencies;
 
     /**
-     * 循环依赖列表
+     * List of circular dependencies.
      */
     private final List<String> circularDependencies;
 
     /**
-     * 创建依赖验证结果
+     * Creates dependency validation result.
      * 
-     * @param missingDependencies 缺失依赖列表
-     * @param circularDependencies 循环依赖列表
+     * @param missingDependencies list of missing dependencies
+     * @param circularDependencies list of circular dependencies
      */
     public DependencyValidationResult(List<String> missingDependencies, 
                                        List<String> circularDependencies) {
@@ -51,36 +51,36 @@ public class DependencyValidationResult {
     }
 
     /**
-     * 判断验证是否通过
+     * Checks if validation passed.
      * 
-     * @return 如果没有依赖问题返回 true
+     * @return true if no dependency issues
      */
     public boolean isValid() {
         return missingDependencies.isEmpty() && circularDependencies.isEmpty();
     }
 
     /**
-     * 获取缺失依赖列表
+     * Gets list of missing dependencies.
      * 
-     * @return 缺失依赖列表
+     * @return list of missing dependencies
      */
     public List<String> getMissingDependencies() {
         return missingDependencies;
     }
 
     /**
-     * 获取循环依赖列表
+     * Gets list of circular dependencies.
      * 
-     * @return 循环依赖列表
+     * @return list of circular dependencies
      */
     public List<String> getCircularDependencies() {
         return circularDependencies;
     }
 
     /**
-     * 获取错误消息
+     * Gets error message.
      * 
-     * @return 描述所有依赖问题的消息
+     * @return message describing all dependency issues
      */
     public String getErrorMessage() {
         if (isValid()) {

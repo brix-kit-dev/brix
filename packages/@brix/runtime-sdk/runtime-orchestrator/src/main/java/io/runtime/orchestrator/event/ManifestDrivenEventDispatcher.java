@@ -47,8 +47,8 @@ import java.util.function.Function;
  * <pre>{@code
  * events:
  *   subscribes:
- *     - type: "com.shinwa.app.identity.event.UserCreatedEvent"
- *       handler: "com.shinwa.app.booking.handler.BookingEventHandler.onUserCreated"
+ *     - type: "io.brix.app.identity.event.UserCreatedEvent"
+ *       handler: "io.brix.app.booking.handler.BookingEventHandler.onUserCreated"
  *       retry:
  *         max-attempts: 3
  *         backoff: "exponential"

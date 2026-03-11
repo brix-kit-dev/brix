@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@docusaurus/tsconfig",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "src/**/*",
+    "docs/**/*",
+    "blog/**/*",
+    "docusaurus.config.ts",
+    "sidebars.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    ".docusaurus"
+  ]
+}

@@ -1,4 +1,4 @@
-package <%= packageName %>.core.controller;
+﻿package <%= packageName %>.core.controller;
 
 import <%= packageName %>.api.dto.<%= classPrefix %>DTO;
 import <%= packageName %>.api.request.Create<%= classPrefix %>Request;
@@ -12,14 +12,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * <%= displayName %> REST 控制器
+ * <%= displayName %> REST Controller
  * 
  * <p>提供<%= displayName %>的 RESTful API 接口。</p>
  * 
  * <p>【v3.0 API 规范】</p>
  * <ul>
  *   <li>统一使用 /api/v1/{module} 路径前缀</li>
- *   <li>返回标准 ApiResponse 格式</li>
+ *   <li>Back标准 ApiResponse 格式</li>
  *   <li>权限校验通过 AuthContextCapability 完成</li>
  *   <li>请求参数使用 Jakarta Validation 校验</li>
  * </ul>
@@ -61,10 +61,10 @@ public class <%= classPrefix %>Controller {
     }
 
     /**
-     * 分页查询
+     * 分pages查询
      * 
-     * @param pageable 分页参数（page, size, sort）
-     * @return 分页结果
+     * @param pageable 分pages参数（page, size, sort）
+     * @return 分pages结果
      */
     @GetMapping
     public ResponseEntity<Page<<%= classPrefix %>DTO>> findAll(Pageable pageable) {
@@ -73,11 +73,11 @@ public class <%= classPrefix %>Controller {
     }
 
     /**
-     * 搜索
+     * Search
      * 
-     * @param keyword 搜索关键词
-     * @param pageable 分页参数
-     * @return 分页结果
+     * @param keyword Search关键词
+     * @param pageable 分pages参数
+     * @return 分pages结果
      */
     @GetMapping("/search")
     public ResponseEntity<Page<<%= classPrefix %>DTO>> search(
@@ -89,7 +89,7 @@ public class <%= classPrefix %>Controller {
     }
 
     /**
-     * 删除
+     * Delete
      * 
      * @param id 记录 ID
      * @return 无内容

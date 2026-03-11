@@ -1,10 +1,26 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.common.util;
 
 import java.security.SecureRandom;
 import java.util.Locale;
 
 /**
- * 平台统一编号生成器，提供 9 位数字 ID 及带前缀的插件/用户标识，确保编码规则一致。
+ * Platform Unified ID Generator, provides 9-digit numeric IDs and prefixed plugin/user identifiers,
+ * ensuring consistent encoding rules.
  */
 public final class IdGenerator {
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -14,21 +30,21 @@ public final class IdGenerator {
     }
 
     /**
-     * 生成 9 位纯数字 ID，适用于用户、插件等主键。
+     * Generate a 9-digit numeric ID, suitable for user, plugin primary keys.
      */
     public static String numericId() {
         return numericId(DEFAULT_LENGTH);
     }
 
     /**
-     * 按指定长度生成纯数字 ID。
+     * Generate a numeric ID with specified length.
      *
-     * @param length 目标长度
-     * @return 指定长度的数字串
+     * @param length Target length
+     * @return Numeric string of specified length
      */
     public static String numericId(int length) {
         if (length <= 0) {
-            throw new IllegalArgumentException("ID 长度必须大于 0");
+            throw new IllegalArgumentException("ID length must be greater than 0");
         }
         StringBuilder builder = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
@@ -38,14 +54,14 @@ public final class IdGenerator {
     }
 
     /**
-     * 生成带 USR 前缀的用户 ID（示例：USR-123456789）。
+     * Generate a user ID with USR prefix (e.g., USR-123456789).
      */
     public static String userId() {
         return format("USR", numericId());
     }
 
     /**
-     * 生成带 PLG 前缀的插件 ID（示例：PLG-123456789）。
+     * Generate a plugin ID with PLG prefix (e.g., PLG-123456789).
      */
     public static String pluginId() {
         return format("PLG", numericId());

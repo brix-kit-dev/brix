@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-http-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Brix HTTP Infrastructure Adapter - Implements HttpCapability with retry and cache support",
   "main": "dist/index.js",

@@ -22,45 +22,46 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 内部 API 标记注解
+ * Internal API Marker Annotation
  * 
- * <p>标记为内部 API 的方法、类或接口仅供运行时框架内部使用，
- * <b>插件/模块不应直接调用</b>。内部 API 可能在小版本升级时发生
- * 不兼容变更，无需遵循语义化版本的兼容性约束。</p>
+ * <p>Methods, classes, or interfaces marked as Internal API are only for runtime
+ * framework internal use, <b>plugins/modules should not call directly</b>. Internal APIs
+ * may have incompatible changes in minor version upgrades without following semantic
+ * versioning compatibility constraints.</p>
  * 
- * <h3>使用场景</h3>
+ * <h3>Use Cases</h3>
  * <ul>
- *   <li><b>基础设施暴露</b>：如 {@code DataSource}、{@code Connection} 等底层对象</li>
- *   <li><b>框架扩展点</b>：供 Host 适配器实现，不面向业务插件</li>
- *   <li><b>性能热路径</b>：为高性能场景提供的底层 API</li>
+ *   <li><b>Infrastructure Exposure</b>: such as {@code DataSource}, {@code Connection} and other low-level objects</li>
+ *   <li><b>Framework Extension Points</b>: for Host adapter implementations, not for business plugins</li>
+ *   <li><b>Performance Hot Paths</b>: low-level APIs for high-performance scenarios</li>
  * </ul>
  * 
- * <h3>ArchUnit 规则</h3>
- * <p>通过 architecture-guard 模块的 ArchUnit 规则检测：</p>
+ * <h3>ArchUnit Rules</h3>
+ * <p>Detected via ArchUnit rules in architecture-guard module:</p>
  * <pre>{@code
- * // 禁止插件直接调用 @InternalApi 标记的方法
+ * // Prohibit plugins from directly calling @InternalApi marked methods
  * noClasses().that().resideInAPackage("..module..")
  *     .should().callMethodsAnnotatedWith(InternalApi.class)
- *     .because("内部 API 仅供框架使用，插件应使用公开 API");
+ *     .because("Internal APIs are for framework use only, plugins should use public APIs");
  * }</pre>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * public interface DatabaseCapability {
  *     
- *     // 推荐：插件使用此方法执行 SQL
+ *     // Recommended: plugins use this method to execute SQL
  *     <T> T executeNative(String sql, Class<T> resultType, Object... params);
  *     
- *     // 内部 API：仅供适配器层使用
- *     @InternalApi("暴露基础设施类型，插件应使用 executeNative()")
+ *     // Internal API: only for adapter layer use
+ *     @InternalApi("Exposes infrastructure type, plugins should use executeNative()")
  *     DataSource getDataSource();
  * }
  * }</pre>
  * 
- * <h3>与 @Deprecated 的区别</h3>
+ * <h3>Difference from @Deprecated</h3>
  * <ul>
- *   <li>{@code @Deprecated}：API 将被移除，请迁移到替代方案</li>
- *   <li>{@code @InternalApi}：API 持续存在，但不面向插件开发者</li>
+ *   <li>{@code @Deprecated}: API will be removed, please migrate to alternative</li>
+ *   <li>{@code @InternalApi}: API continues to exist, but not for plugin developers</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -73,18 +74,18 @@ import java.lang.annotation.Target;
 public @interface InternalApi {
     
     /**
-     * 说明此 API 为内部 API 的原因以及推荐的替代方案
+     * Explanation of why this API is internal and recommended alternatives
      * 
-     * @return 内部 API 说明
+     * @return internal API description
      */
     String value() default "";
     
     /**
-     * 推荐使用的公开 API 方法名
+     * Recommended public API method name
      * 
-     * <p>如果存在替代的公开 API，在此指定方法名以便 IDE 提示。</p>
+     * <p>If an alternative public API exists, specify the method name here for IDE hints.</p>
      * 
-     * @return 推荐的替代方法名，空字符串表示无替代
+     * @return recommended alternative method name, empty string means no alternative
      */
     String instead() default "";
 }

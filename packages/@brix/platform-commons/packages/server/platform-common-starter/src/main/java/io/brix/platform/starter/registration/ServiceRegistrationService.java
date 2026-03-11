@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.registration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,22 +40,22 @@ import java.time.Instant;
 import java.util.*;
 
 /**
- * v2.1 服务注册服务
+ * v2.1 Service Registration Service
  * 
- * <p>负责在服务启动时向基座 Plugin Engine 注册服务信息</p>
+ * <p>Responsible for registering service information with the host Plugin Engine at startup</p>
  * 
- * <p>注册流程</p>
+ * <p>Registration Flow:</p>
  * <ol>
- *   <li>应用启动完成后触发注</li>
- *   <li>调用 RouteScanner 扫描所有路</li>
- *   <li>构建符合 Plugin Engine 格式的注册请</li>
- *   <li>通过 HTTP 向基座发送注册请</li>
- *   <li>失败时按配置重试</li>
+ *   <li>Triggered after application startup completes</li>
+ *   <li>Calls RouteScanner to scan all routes</li>
+ *   <li>Builds registration request in Plugin Engine format</li>
+ *   <li>Sends registration request to host via HTTP</li>
+ *   <li>Retries on failure according to configuration</li>
  * </ol>
  * 
- * <p>注册端点（与 Plugin Engine 兼容）：</p>
+ * <p>Registration Endpoint (Plugin Engine compatible):</p>
  * <ul>
- *   <li>注册：POST {baseUrl}/api/plugin-engine/register</li>
+ *   <li>Register: POST {baseUrl}/api/plugin-engine/register</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -51,36 +66,36 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
     
     private static final Logger log = LoggerFactory.getLogger(ServiceRegistrationService.class);
     
-    /** 服务配置 */
+    /** Service configuration */
     private final ServiceProperties serviceProperties;
     
-    /** API 配置 */
+    /** API configuration */
     private final PlatformApiProperties apiProperties;
     
-    /** 路由扫描*/
+    /** Route scanner */
     private final RouteScanner routeScanner;
     
-    /** 插件 Manifest 扫描*/
+    /** Plugin manifest scanner */
     private final PluginManifestScanner manifestScanner;
     
-    /** HTTP 客户*/
+    /** HTTP client */
     private final WebClient webClient;
     
-    /** 环境配置 */
+    /** Environment configuration */
     private final Environment environment;
     
-    /** JSON 序列化器 */
+    /** JSON serializer */
     private final ObjectMapper objectMapper;
     
-    /** 服务实例 ID */
+    /** Service instance ID */
     private final String instanceId;
     
-    /** 注册状*/
+    /** Registration status */
     private volatile boolean registered = false;
     
     /** 
-     * 注册端点路径 - Plugin Engine 兼容 
-     * 参 PluginRegistrationController 使用 /api/plugin-engine/register
+     * Registration endpoint path - Plugin Engine compatible 
+     * See PluginRegistrationController using /api/plugin-engine/register
      */
     private static final String REGISTRY_PATH = "/api/plugin-engine/register";
     
@@ -97,51 +112,51 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
         this.environment = environment;
         this.objectMapper = objectMapper;
         
-        // 鏋勫缓 WebClient
+        // Build WebClient
         this.webClient = WebClient.builder()
             .baseUrl(serviceProperties.getBaseUrl())
             .build();
         
-        // 生成实例 ID
+        // Generate instance ID
         this.instanceId = generateInstanceId();
         
-        log.info("[ServiceRegistration] 初始化完成，实例ID: {}", instanceId);
+        log.info("[ServiceRegistration] Initialization complete, instance ID: {}", instanceId);
     }
     
     /**
-     * 应用启动完成后自动注
+     * Automatically register after application startup
      * 
-     * @param event 应用就绪事件
+     * @param event Application ready event
      */
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
-        // 检查是否启用注
+        // Check if registration is enabled
         if (!serviceProperties.isRegistrationEnabled()) {
-            log.info("[ServiceRegistration] 服务注册已禁");
+            log.info("[ServiceRegistration] Service registration is disabled");
             return;
         }
         
-        log.info("[ServiceRegistration] 应用启动完成，开始向基座注册...");
+        log.info("[ServiceRegistration] Application startup complete, starting registration with host...");
         
-        // 异步注册，不阻塞启动过程
+        // Async registration to avoid blocking startup
         register()
             .subscribe(
                 success -> {
                     if (success) {
                         registered = true;
-                        log.info("[ServiceRegistration] 服务注册成功");
+                        log.info("[ServiceRegistration] Service registration successful");
                     } else {
-                        log.warn("[ServiceRegistration] 服务注册失败，但应用将继续运");
+                        log.warn("[ServiceRegistration] Service registration failed, but application will continue running");
                     }
                 },
-                error -> log.error("[ServiceRegistration] 服务注册异常: {}", error.getMessage())
+                error -> log.error("[ServiceRegistration] Service registration exception: {}", error.getMessage())
             );
     }
     
     /**
-     * 应用关闭时注销
+     * Deregister on application shutdown
      * 
-     * @param event 上下文关闭事
+     * @param event Context closed event
      */
     @EventListener(ContextClosedEvent.class)
     public void onApplicationShutdown(ContextClosedEvent event) {
@@ -149,57 +164,57 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
             return;
         }
         
-        log.info("[ServiceRegistration] 应用关闭，开始注销服务...");
+        log.info("[ServiceRegistration] Application shutting down, starting service deregistration...");
         
-        // 同步注销，确保在应用关闭前完
+        // Synchronous deregistration to ensure completion before shutdown
         try {
             deregister().block(Duration.ofSeconds(5));
-            log.info("[ServiceRegistration] 服务注销成功");
+            log.info("[ServiceRegistration] Service deregistration successful");
         } catch (Exception e) {
-            log.warn("[ServiceRegistration] 服务注销失败: {}", e.getMessage());
+            log.warn("[ServiceRegistration] Service deregistration failed: {}", e.getMessage());
         }
     }
     
     /**
-     * 注册服务
+     * Register service
      * 
-     * <p>使用Plugin Engine 兼容API 格式</p>
-     * <p>使用 PlatformHeaders 常量统一 Header 定义（解决问</p>
+     * <p>Uses Plugin Engine compatible API format</p>
+     * <p>Uses PlatformHeaders constants for unified header definitions</p>
      * 
-     * @return 注册结果
+     * @return Registration result
      */
     public Mono<Boolean> register() {
-        // 1. 扫描路由
+        // 1. Scan routes
         List<RouteInfo> routes = routeScanner.scanRoutes();
-        log.info("[ServiceRegistration] 扫描{} 个路", routes.size());
+        log.info("[ServiceRegistration] Scanned {} routes", routes.size());
         
-        // 2. 构建 Plugin Engine 兼容的注册请
+        // 2. Build Plugin Engine compatible registration request
         Map<String, Object> request = buildPluginEngineRequest(routes);
         
-        // 3. 发送注册请求（使用 PlatformHeaders 常量
+        // 3. Send registration request (using PlatformHeaders constants)
         WebClient.RequestBodySpec requestSpec = webClient.post()
             .uri(REGISTRY_PATH)
             .contentType(MediaType.APPLICATION_JSON)
-            .header(PlatformHeaders.TENANT_ID, "default");  // Plugin Engine 需要租户ID
+            .header(PlatformHeaders.TENANT_ID, "default");  // Plugin Engine requires tenant ID
         
-        // 添加 API Key 认证头（如果配置了）- 使用 PlatformHeaders 常量
+        // Add API Key authentication headers (if configured) - using PlatformHeaders constants
         if (StringUtils.hasText(serviceProperties.getApiKey()) 
             && StringUtils.hasText(serviceProperties.getApiSecret())) {
             requestSpec = (WebClient.RequestBodySpec) requestSpec
                 .header(PlatformHeaders.API_KEY, serviceProperties.getApiKey())
                 .header(PlatformHeaders.API_SECRET, serviceProperties.getApiSecret());
-            log.debug("[ServiceRegistration] 添加 API Key 认证");
+            log.debug("[ServiceRegistration] Added API Key authentication");
         }
         
         return requestSpec
             .bodyValue(request)
             .exchangeToMono(response -> {
                 if (response.statusCode().is2xxSuccessful()) {
-                    log.info("[ServiceRegistration] 注册成功");
+                    log.info("[ServiceRegistration] Registration successful");
                     return Mono.just(true);
                 } else {
                     return response.bodyToMono(String.class)
-                        .doOnNext(body -> log.error("[ServiceRegistration] 注册失败 - 状态码: {}, 响应: {}", 
+                        .doOnNext(body -> log.error("[ServiceRegistration] Registration failed - status: {}, response: {}", 
                             response.statusCode().value(), body))
                         .thenReturn(false);
                 }
@@ -208,77 +223,77 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
                 serviceProperties.getRegistrationRetryCount(),
                 serviceProperties.getRegistrationRetryInterval()
             ).doBeforeRetry(signal -> 
-                log.warn("[ServiceRegistration] 注册失败，重试第 {} ", signal.totalRetries() + 1)
+                log.warn("[ServiceRegistration] Registration failed, retry attempt {}", signal.totalRetries() + 1)
             ))
             .onErrorResume(error -> {
-                log.error("[ServiceRegistration] 注册失败: {}", error.getMessage());
+                log.error("[ServiceRegistration] Registration failed: {}", error.getMessage());
                 return Mono.just(false);
             });
     }
     
     /**
-     * 注销服务
+     * Deregister service
      * 
-     * <p>Plugin Engine 不支持显式注销，依靠心跳超时自动清</p>
+     * <p>Plugin Engine does not support explicit deregistration, relies on heartbeat timeout for auto-cleanup</p>
      * 
-     * @return 注销结果（总是返回 true
+     * @return Deregistration result (always returns true)
      */
     public Mono<Boolean> deregister() {
-        log.info("[ServiceRegistration] 服务将通过心跳超时自动注销");
+        log.info("[ServiceRegistration] Service will be automatically deregistered on heartbeat timeout");
         return Mono.just(true);
     }
     
     /**
-     * 构建 Plugin Engine 兼容的注册请
+     * Build Plugin Engine compatible registration request
      * 
-     * <p>格式参考 Plugin Engine PluginRegistration 模型</p>
+     * <p>Format reference: Plugin Engine PluginRegistration model</p>
      * <pre>
      * {
-     *   "name": "服务名称",
-     *   "version": "版本,
-     *   "displayName": "展示名称",
-     *   "serviceUrl": "服务地址",
+     *   "name": "Service name",
+     *   "version": "Version",
+     *   "displayName": "Display name",
+     *   "serviceUrl": "Service URL",
      *   "apis": { "basePath": "/api/xxx", "endpoints": [...] },
      *   "events": null,
      *   "ui": null
      * }
      * </pre>
      * 
-     * @param routes 路由清单
-     * @return Plugin Engine 兼容的注册请
+     * @param routes Route list
+     * @return Plugin Engine compatible registration request
      */
     private Map<String, Object> buildPluginEngineRequest(List<RouteInfo> routes) {
         Map<String, Object> request = new HashMap<>();
         
-        // 基本信息
+        // Basic information
         request.put("name", serviceProperties.getName());
         request.put("version", getServiceVersion());
-        // v2.1.2 修复: 优先从插manifest 获取 displayName
+        // v2.1.2 fix: Prefer displayName from plugin manifest
         request.put("displayName", getPluginDisplayName());
         request.put("serviceUrl", getServiceUrl());
         
-        // API 契约 - 使用 Plugin Engine 期望的格
-        // basePath 是必填项，endpoints 是可选的
+        // API contract - using Plugin Engine expected format
+        // basePath is required, endpoints is optional
         String basePath = serviceProperties.getApiBasePath();
         if (!StringUtils.hasText(basePath)) {
-            // 如果没有配置 apiBasePath，使用服务名构建默认路径
-            // 例如: shinwa-service-case -> /api/case
+            // If apiBasePath is not configured, build default path from service name
+            // Example: brix-service-case -> /api/case
             String serviceName = serviceProperties.getName();
-            if (serviceName != null && serviceName.startsWith("shinwa-service-")) {
-                basePath = "/api/" + serviceName.substring("shinwa-service-".length());
+            if (serviceName != null && serviceName.startsWith("brix-service-")) {
+                basePath = "/api/" + serviceName.substring("brix-service-".length());
             } else {
                 basePath = "/api/" + (serviceName != null ? serviceName : "unknown");
             }
-            log.info("[ServiceRegistration] 使用默认 API basePath: {}", basePath);
+            log.info("[ServiceRegistration] Using default API basePath: {}", basePath);
         }
         
         Map<String, Object> apis = new HashMap<>();
         apis.put("basePath", basePath);
         
-        // 将路由转换为 endpoints 格式
+        // Convert routes to endpoints format
         List<Map<String, Object>> endpoints = new ArrayList<>();
         for (RouteInfo route : routes) {
-            // 每个 HTTP 方法生成一endpoint
+            // Generate one endpoint for each HTTP method
             for (String method : route.methods()) {
                 Map<String, Object> endpoint = new HashMap<>();
                 endpoint.put("path", route.path());
@@ -291,26 +306,26 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
         apis.put("endpoints", endpoints);
         request.put("apis", apis);
         
-        // 事件契约暂不使用
+        // Event contract not used yet
         request.put("events", null);
         
-        // UI 契约 - 从插manifest 聚合
+        // UI contract - aggregated from plugin manifests
         Map<String, Object> aggregatedUi = manifestScanner.aggregateUiContracts();
         request.put("ui", aggregatedUi);
         
         if (aggregatedUi != null) {
-            log.info("[ServiceRegistration] UI 契约已从插件 manifest 聚合");
+            log.info("[ServiceRegistration] UI contract aggregated from plugin manifests");
         }
         
         return request;
     }
     
     /**
-     * 构建注册请求（保留用于兼容）
+     * Build registration request (kept for compatibility)
      * 
-     * @param routes 路由清单
-     * @return 注册请求
-     * @deprecated 使用 {@link #buildPluginEngineRequest(List)} 替代
+     * @param routes Route list
+     * @return Registration request
+     * @deprecated Use {@link #buildPluginEngineRequest(List)} instead
      */
     @Deprecated
     private ServiceRegistrationRequest buildRegistrationRequest(List<RouteInfo> routes) {
@@ -328,9 +343,9 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
     }
     
     /**
-     * 生成服务实例 ID
+     * Generate service instance ID
      * 
-     * <p>格式：{serviceName}-{hostname}-{port}-{uuid}</p>
+     * <p>Format: {serviceName}-{hostname}-{port}-{uuid}</p>
      */
     private String generateInstanceId() {
         String hostname = getHostname();
@@ -342,7 +357,7 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
     }
     
     /**
-     * 获取主机
+     * Get hostname
      */
     private String getHostname() {
         try {
@@ -353,25 +368,25 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
     }
     
     /**
-     * 获取服务 URL
+     * Get service URL
      */
     private String getServiceUrl() {
         String port = environment.getProperty("server.port", "8080");
         String contextPath = environment.getProperty("server.servlet.context-path", "");
         
-        // 优先使用配置的地址
-        String configuredUrl = environment.getProperty("shinwa.service.url");
+        // Prefer configured URL
+        String configuredUrl = environment.getProperty("brix.service.url");
         if (configuredUrl != null && !configuredUrl.isEmpty()) {
             return configuredUrl;
         }
         
-        // 否则使用本机地址
+        // Otherwise use local address
         String host = getHostAddress();
         return String.format("http://%s:%s%s", host, port, contextPath);
     }
     
     /**
-     * 获取主机 IP 地址
+     * Get host IP address
      */
     private String getHostAddress() {
         try {
@@ -382,16 +397,16 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
     }
     
     /**
-     * 获取服务版本
+     * Get service version
      */
     private String getServiceVersion() {
-        // Maven 构建信息获取
+        // Get from Maven build info
         String version = environment.getProperty("info.app.version");
         if (version != null) {
             return version;
         }
         
-        // 从包信息获取
+        // Get from package info
         Package pkg = getClass().getPackage();
         if (pkg != null && pkg.getImplementationVersion() != null) {
             return pkg.getImplementationVersion();
@@ -401,123 +416,123 @@ public class ServiceRegistrationService implements ApplicationListener<Applicati
     }
     
     /**
-     * 获取服务描述
+     * Get service description
      */
     private String getServiceDescription() {
         return environment.getProperty("info.app.description", 
-            "Shinwa Service: " + serviceProperties.getName());
+            "Brix Service: " + serviceProperties.getName());
     }
     
     /**
-     * 获取插件显示名称
+     * Get plugin display name
      * 
-     * <p>v2.1.2 修复：优先从插件 manifest 获取 displayName
-     * 这样父菜单就会显示中文名称（用户管理"）而不Shinwa Service: xxx"</p>
+     * <p>v2.1.2 fix: Prefer displayName from plugin manifest
+     * This way parent menu will show Chinese name (like "User Management") instead of "Brix Service: xxx"</p>
      * 
-     * <p>获取优先级：</p>
+     * <p>Priority:</p>
      * <ol>
-     *   <li>插件 manifest 中的 displayName</li>
-     *   <li>环境配置 info.app.description</li>
-     *   <li>默认"Shinwa Service: {name}"</li>
+     *   <li>displayName from plugin manifest</li>
+     *   <li>Environment config info.app.description</li>
+     *   <li>Default "Brix Service: {name}"</li>
      * </ol>
      * 
-     * @return 插件显示名称
+     * @return Plugin display name
      */
     private String getPluginDisplayName() {
-        // 1. 优先从插manifest 获取 displayName
+        // 1. Prefer displayName from plugin manifest
         List<PluginManifest> manifests = manifestScanner.scanManifests();
         if (!manifests.isEmpty()) {
-            // 如果有多manifest，尝试找到与服务名匹配的
+            // If multiple manifests exist, try to find one matching the service name
             String serviceName = serviceProperties.getName();
             for (PluginManifest manifest : manifests) {
-                // 检manifest 名称是否与服务名相关
-                // 例如: service=shinwa-service-user, plugin=plugin-user
+                // Check if manifest name is related to service name
+                // Example: service=brix-service-user, plugin=plugin-user
                 String manifestName = manifest.getName();
                 if (manifestName != null && manifest.getDisplayName() != null) {
-                    // 服务名包含插件名的情 shinwa-service-user 包含 user
-                    // 或者插件名对应服务: plugin-user -> service-user
+                    // Case where service name contains plugin name: brix-service-user contains user
+                    // Or plugin name corresponds to service: plugin-user -> service-user
                     String pluginCore = manifestName.replace("plugin-", "");
                     if (serviceName != null && 
                         (serviceName.contains(pluginCore) || serviceName.endsWith("-" + pluginCore))) {
-                        log.debug("[ServiceRegistration] 使用匹配插件 {} displayName: {}", 
+                        log.debug("[ServiceRegistration] Using matching plugin {} displayName: {}", 
                             manifestName, manifest.getDisplayName());
                         return manifest.getDisplayName();
                     }
                 }
             }
             
-            // 如果没有精确匹配，使用第一个有 displayName manifest
+            // If no exact match, use the first manifest with displayName
             for (PluginManifest manifest : manifests) {
                 if (manifest.getDisplayName() != null && !manifest.getDisplayName().isEmpty()) {
-                    log.debug("[ServiceRegistration] 使用插件 {} displayName: {}", 
+                    log.debug("[ServiceRegistration] Using plugin {} displayName: {}", 
                         manifest.getName(), manifest.getDisplayName());
                     return manifest.getDisplayName();
                 }
             }
         }
         
-        // 2. 回退到配置文
+        // 2. Fallback to config file
         String configuredName = environment.getProperty("info.app.description");
         if (configuredName != null && !configuredName.isEmpty() 
-            && !configuredName.startsWith("Shinwa Service:")) {
+            && !configuredName.startsWith("Brix Service:")) {
             return configuredName;
         }
         
-        // 3. 最后回退到默认
-        return "Shinwa Service: " + serviceProperties.getName();
+        // 3. Final fallback to default
+        return "Brix Service: " + serviceProperties.getName();
     }
 
     /**
-     * 扫描组装的插
+     * Scan assembled plugins
      * 
-     * <p>通过扫描 classpath 中的 plugin-xxx-core.jar 来识别插</p>
+     * <p>Identify plugins by scanning plugin-xxx-core.jar in classpath</p>
      */
     private List<PluginInfo> scanPlugins() {
-        // TODO: 实现插件扫描逻辑
-        // 可以通过扫描 META-INF/plugin.properties 或特定的 marker 接口来识别插
+        // TODO: Implement plugin scanning logic
+        // Can scan META-INF/plugin.properties or specific marker interfaces to identify plugins
         return Collections.emptyList();
     }
     
     /**
-     * 构建服务元数
+     * Build service metadata
      */
     private Map<String, Object> buildMetadata() {
         Map<String, Object> metadata = new HashMap<>();
         
-        // 运行环境
+        // Runtime environment
         String[] profiles = environment.getActiveProfiles();
         if (profiles.length > 0) {
             metadata.put("profiles", Arrays.asList(profiles));
         }
         
-        // Java 版本
+        // Java version
         metadata.put("javaVersion", System.getProperty("java.version"));
         
-        // Spring Boot 版本
+        // Spring Boot version
         String bootVersion = environment.getProperty("spring.boot.version");
         if (bootVersion != null) {
             metadata.put("springBootVersion", bootVersion);
         }
         
-        // 启动时间
+        // Startup time
         metadata.put("startTime", Instant.now().toString());
         
         return metadata;
     }
     
     /**
-     * 获取实例 ID
+     * Get instance ID
      * 
-     * @return 实例 ID
+     * @return Instance ID
      */
     public String getInstanceId() {
         return instanceId;
     }
     
     /**
-     * 检查是否已注册
+     * Check if registered
      * 
-     * @return 是否已注
+     * @return Whether registered
      */
     public boolean isRegistered() {
         return registered;

@@ -1,62 +1,32 @@
-# Changelog
+﻿# Changelog
 
-本文件记录 Runtime SDK 的所有重要变更。
+All notable changes to Brix Runtime SDK are documented in this file.
 
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
-版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [3.2.0] - 2026-02-13
+## [1.0.0] - 2026-03-11
 
-### 新增
-- **架构守卫**: 新增 RuntimeManifest 验证能力
-- **能力接口**: 完善 HttpCapability、StateCapability 类型定义
-- **编排器**: RuntimeOrchestrator 支持动态模块加载
+### Added
+- Initial open-source release of Brix Runtime Shell Framework
+- **runtime-sdk-api**: Core capability contracts and lifecycle abstractions
+  - `HttpCapability`, `StateCapability`, `EventBusCapability`
+  - `RouterCapability`, `AuthContextCapability`, `ObservabilityCapability`
+  - Module lifecycle management interfaces
+- **runtime-manifest**: Manifest parsing and validation for declarative runtime configuration
+- **runtime-orchestrator**: Module registration, lifecycle management, and event routing
+- **runtime-sdk-api-web**: Web capability contracts and shared frontend types
+- **runtime-manifest-web**: Web manifest parsing and validation
+- **runtime-orchestrator-web**: Web runtime composition and plugin lifecycle
+- **runtime-sdk-react**: React integration helpers and providers
+- **runtime-sdk-api-mobile**: Mobile capability contracts
 
-### 变更
-- **依赖更新**: 升级 TypeScript 至 5.3
-- **构建优化**: 改进 pnpm workspace 配置
-
-### 修复
-- 修复 RuntimeManifest 类型推导问题
-- 修复模块热更新时状态丢失问题
-
----
-
-## [3.1.0] - 2026-01-15
-
-### 新增
-- **runtime-sdk-api**: 新增核心能力接口定义
-  - `HttpCapability` - HTTP 请求能力
-  - `StateCapability` - 状态管理能力
-  - `RouterCapability` - 路由能力
-  - `EventBusCapability` - 事件总线能力
-- **runtime-manifest**: Manifest 解析和验证
-- **runtime-orchestrator**: 运行时编排器
-
-### 变更
-- 重构项目结构，采用 monorepo 管理
+### Architecture
+- Implements Runtime Shell Architecture v3.0.7 blueprint
+- Three-layer capability model: Contracts (2A), Shared Runtime (2B), Implementations (2C)
+- Ultra-thin Host design principle
+- Plugin isolation through capability contracts
 
 ---
 
-## [3.0.0] - 2025-12-01
-
-### 新增
-- **极薄Host架构**: 完整实现运行壳架构
-- **架构红线**: 定义 R1-R7 架构约束规则
-- **能力模式**: 建立 Capability 模式规范
-
-### 重大变更
-- 从传统分层架构迁移到运行壳架构
-- 所有能力访问必须通过接口
-
----
-
-## [2.x] - 归档版本
-
-2.x 版本已归档，不再维护。请升级到 3.x。
-
----
-
-[3.2.0]: https://github.com/brix-platform/runtime-sdk/compare/v3.1.0...v3.2.0
-[3.1.0]: https://github.com/brix-platform/runtime-sdk/compare/v3.0.0...v3.1.0
-[3.0.0]: https://github.com/brix-platform/runtime-sdk/releases/tag/v3.0.0
+[1.0.0]: https://github.com/brix-framework/brix/releases/tag/v1.0.0

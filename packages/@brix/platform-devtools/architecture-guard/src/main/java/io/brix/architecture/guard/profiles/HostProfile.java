@@ -25,38 +25,39 @@ import io.brix.architecture.guard.rules.NoDirectHttpClientsRule;
 import io.brix.architecture.guard.rules.NoMiddlewareClientsRule;
 
 /**
- * Host 层架构约束规则集（增强版 — 覆盖更多红线）
- * 
- * <p>Host 层作为"超薄组装层"，拥有特殊的架构约束。根据 v3.0 运行壳架构设计蓝图，
- * Host 层允许直接使用基础设施适配器和 Spring 容器 API（红线1/5放宽），
- * 但必须遵守"超薄原则"和其他架构红线。</p>
- * 
- * <h2>放宽的规则</h2>
+ * Host Layer Architecture Constraint Rules (Enhanced Version - Covering More Red Lines)
+ *
+ * <p>Host layer serves as the "ultra-thin assembly layer" with special architectural constraints.
+ * According to the v3.0 Runtime Shell Architecture Design Blueprint, Host layer is allowed to
+ * directly use infrastructure adapters and Spring Container APIs (Red Lines 1/5 relaxed),
+ * but must follow the "ultra-thin principle" and other architecture red lines.</p>
+ *
+ * <h2>Relaxed Rules</h2>
  * <ul>
- *   <li>红线1（基础设施适配器依赖）— Host 层需要直接组装适配器，允许 import</li>
- *   <li>红线5（Spring 容器 API）— Host 层需要 ApplicationContext 进行 Bean 注册，允许使用</li>
+ *   <li>Red Line 1 (Infrastructure Adapter Dependency) - Host layer needs to directly assemble adapters, import allowed</li>
+ *   <li>Red Line 5 (Spring Container API) - Host layer needs ApplicationContext for Bean registration, usage allowed</li>
  * </ul>
- * 
- * <h2>严格执行的规则</h2>
+ *
+ * <h2>Strictly Enforced Rules</h2>
  * <ul>
- *   <li>红线2 — 禁止直接使用中间件客户端（Kafka/Redis/AMQP 等）</li>
- *   <li>红线3 — 禁止直接使用 HTTP 客户端（RestTemplate/WebClient/OkHttp）</li>
- *   <li>红线6 — 禁止直接访问系统环境变量和配置（部分放宽：允许通过 Properties 注入）</li>
- *   <li>红线8 — 事件必须通过 EventBusCapability 发布</li>
+ *   <li>Red Line 2 - Prohibit direct use of middleware clients (Kafka/Redis/AMQP, etc.)</li>
+ *   <li>Red Line 3 - Prohibit direct use of HTTP clients (RestTemplate/WebClient/OkHttp)</li>
+ *   <li>Red Line 6 - Prohibit direct access to system environment variables and config (partially relaxed: Properties injection allowed)</li>
+ *   <li>Red Line 8 - Events must be published through EventBusCapability</li>
  * </ul>
- * 
- * <h2>超薄原则（Ultra-Thin Host）</h2>
+ *
+ * <h2>Ultra-Thin Principle</h2>
  * <ul>
- *   <li>AutoConfiguration 类禁止定义 @Bean 方法</li>
- *   <li>禁止复杂控制流（if/else/for/while/try-catch）</li>
- *   <li>禁止私有辅助方法</li>
- *   <li>禁止使用 @Service/@Repository/@Controller 等业务注解</li>
- *   <li>禁止实现 Capability 接口（应在 infra-adapter 中实现）</li>
+ *   <li>AutoConfiguration classes are prohibited from defining @Bean methods</li>
+ *   <li>Complex control flow prohibited (if/else/for/while/try-catch)</li>
+ *   <li>Private helper methods prohibited</li>
+ *   <li>Business annotations prohibited (@Service/@Repository/@Controller, etc.)</li>
+ *   <li>Implementing Capability interfaces prohibited (should be in infra-adapter)</li>
  * </ul>
- * 
- * <h2>架构蓝图参考</h2>
- * <p>参见 v3.0 运行壳架构设计蓝图 第 9.1 节"Host 层职责边界"</p>
- * 
+ *
+ * <h2>Architecture Blueprint Reference</h2>
+ * <p>See v3.0 Runtime Shell Architecture Design Blueprint Section 9.1 "Host Layer Responsibility Boundaries"</p>
+ *
  * @author Brix Architecture Team
  * @since 3.1.0
  */

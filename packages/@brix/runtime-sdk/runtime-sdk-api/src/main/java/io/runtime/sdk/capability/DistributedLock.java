@@ -16,17 +16,17 @@
 package io.runtime.sdk.capability;
 
 /**
- * 分布式锁接口
+ * Distributed Lock Interface
  * 
- * <p>表示一个已获取或尝试获取的分布式锁，支持 try-with-resources 自动释放。</p>
+ * <p>Represents an acquired or attempted distributed lock, supports try-with-resources auto-release.</p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * try (DistributedLock lock = lockCapability.acquire("my-lock", Duration.ofSeconds(10))) {
  *     if (lock.isLocked()) {
- *         // 执行需要锁保护的操作
+ *         // Execute operations requiring lock protection
  *     }
- * } // 自动释放锁
+ * } // Lock automatically released
  * }</pre>
  * 
  * @author Runtime SDK Team
@@ -36,28 +36,28 @@ package io.runtime.sdk.capability;
 public interface DistributedLock extends AutoCloseable {
 
     /**
-     * 获取锁的键
+     * Get lock key
      * 
-     * @return 锁的唯一键
+     * @return unique lock key
      */
     String getKey();
 
     /**
-     * 检查是否成功获取了锁
+     * Check if lock was successfully acquired
      * 
-     * @return 如果持有锁返回 true
+     * @return true if holding lock
      */
     boolean isLocked();
 
     /**
-     * 手动释放锁
+     * Manually release lock
      * 
-     * <p>如果使用 try-with-resources，无需手动调用此方法</p>
+     * <p>If using try-with-resources, no need to call this method manually</p>
      */
     void release();
 
     /**
-     * 实现 AutoCloseable，自动释放锁
+     * Implements AutoCloseable, auto-releases lock
      */
     @Override
     default void close() {

@@ -77,8 +77,8 @@ shinwa:
     route-scan:
       enabled: true
       base-packages:
-        - com.shinwa.plugin.user
-        - com.shinwa.plugin.auth
+        - io.brix.enterprise.app.plugin.user
+        - io.brix.enterprise.app.plugin.auth
       exclude-patterns:
         - /internal/**
       include-actuator: false
@@ -110,7 +110,7 @@ shinwa:
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `enabled` | boolean | true | 是否启用路由扫描 |
-| `base-packages` | Set<String> | com.shinwa.plugin | 扫描的基础包 |
+| `base-packages` | Set<String> | io.brix.enterprise.app.plugin | 扫描的基础包 |
 | `exclude-patterns` | Set<String> | - | 排除的路径模式 |
 | `include-actuator` | boolean | false | 是否包含 actuator 端点 |
 
@@ -132,7 +132,7 @@ Content-Type: application/json
     {
       "path": "/api/v1/users",
       "methods": ["GET", "POST"],
-      "controllerClass": "com.shinwa.plugin.user.controller.UserController",
+      "controllerClass": "io.brix.enterprise.app.plugin.user.controller.UserController",
       "methodName": "listUsers",
       "parameters": [...],
       "responseType": "ApiResponse<List<User>>",
@@ -202,12 +202,12 @@ shinwa-service-{domain}
 ### 2. 插件包命名规范
 
 ```
-com.shinwa.plugin.{domain}
+io.brix.enterprise.app.plugin.{domain}
 ```
 
 示例：
-- `com.shinwa.plugin.user` - 用户插件
-- `com.shinwa.plugin.contract` - 合同插件
+- `io.brix.enterprise.app.plugin.user` - 用户插件
+- `io.brix.enterprise.app.plugin.contract` - 合同插件
 
 ### 3. 配置路由扫描
 
@@ -218,8 +218,8 @@ shinwa:
   service:
     route-scan:
       base-packages:
-        - com.shinwa.plugin.user
-        - com.shinwa.plugin.auth
+        - io.brix.enterprise.app.plugin.user
+        - io.brix.enterprise.app.plugin.auth
 ```
 
 ## 依赖关系

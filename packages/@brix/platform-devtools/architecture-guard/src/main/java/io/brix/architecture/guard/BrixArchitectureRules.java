@@ -50,19 +50,19 @@ import io.brix.architecture.guard.profiles.SdkProfile;
  *
  * <h2>Architecture Red Lines (13)</h2>
  * <ol>
- *   <li>插件不得直接依赖基础设施</li>
- *   <li>插件不得绕过 Runtime Shell</li>
- *   <li>前端 View 层不得直接调用 Repository</li>
- *   <li>Host 层必须超薄</li>
- *   <li>插件必须支持独立启停</li>
- *   <li>前端与后端物理分离</li>
- *   <li>配置必须通过 ConfigStore</li>
- *   <li>数据隔离（Data Ownership）</li>
- *   <li>API 版本兼容</li>
- *   <li>故障隔离（Fault Isolation）</li>
- *   <li>无循环依赖</li>
- *   <li>安全边界不可绕过</li>
- *   <li>跨服务事件一致性（Transactional Outbox）</li>
+ *   <li>Plugins must not directly depend on infrastructure</li>
+ *   <li>Plugins must not bypass Runtime Shell</li>
+ *   <li>Frontend View layer must not directly call Repository</li>
+ *   <li>Host layer must be ultra-thin</li>
+ *   <li>Plugins must support independent start/stop</li>
+ *   <li>Frontend and backend physical separation</li>
+ *   <li>Configuration must go through ConfigStore</li>
+ *   <li>Data isolation (Data Ownership)</li>
+ *   <li>API version compatibility</li>
+ *   <li>Fault Isolation</li>
+ *   <li>No circular dependencies</li>
+ *   <li>Security boundary cannot be bypassed</li>
+ *   <li>Cross-service event consistency (Transactional Outbox)</li>
  * </ol>
  *
  * @author Brix Architecture Team

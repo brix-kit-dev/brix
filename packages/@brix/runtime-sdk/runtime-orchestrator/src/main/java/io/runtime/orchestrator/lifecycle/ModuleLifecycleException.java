@@ -16,9 +16,9 @@
 package io.runtime.orchestrator.lifecycle;
 
 /**
- * 模块生命周期异常
+ * Module Lifecycle Exception.
  * 
- * <p>当模块在生命周期操作中发生错误时抛出。</p>
+ * <p>Thrown when a module encounters an error during lifecycle operations.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -28,21 +28,21 @@ public class ModuleLifecycleException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 模块 ID
+     * Module ID.
      */
     private final String moduleId;
 
     /**
-     * 生命周期阶段
+     * Lifecycle phase.
      */
     private final LifecyclePhase phase;
 
     /**
-     * 创建模块生命周期异常
+     * Creates module lifecycle exception.
      * 
-     * @param moduleId 模块 ID
-     * @param phase 生命周期阶段
-     * @param cause 原因异常
+     * @param moduleId module ID
+     * @param phase lifecycle phase
+     * @param cause cause exception
      */
     public ModuleLifecycleException(String moduleId, LifecyclePhase phase, Throwable cause) {
         super("Module lifecycle error [" + moduleId + "] at phase [" + phase + "]", cause);
@@ -51,11 +51,11 @@ public class ModuleLifecycleException extends RuntimeException {
     }
 
     /**
-     * 创建模块生命周期异常
+     * Creates module lifecycle exception.
      * 
-     * @param moduleId 模块 ID
-     * @param phase 生命周期阶段
-     * @param message 错误消息
+     * @param moduleId module ID
+     * @param phase lifecycle phase
+     * @param message error message
      */
     public ModuleLifecycleException(String moduleId, LifecyclePhase phase, String message) {
         super("Module lifecycle error [" + moduleId + "] at phase [" + phase + "]: " + message);
@@ -64,18 +64,18 @@ public class ModuleLifecycleException extends RuntimeException {
     }
 
     /**
-     * 获取模块 ID
+     * Gets module ID.
      * 
-     * @return 模块 ID
+     * @return module ID
      */
     public String getModuleId() {
         return moduleId;
     }
 
     /**
-     * 获取生命周期阶段
+     * Gets lifecycle phase.
      * 
-     * @return 生命周期阶段
+     * @return lifecycle phase
      */
     public LifecyclePhase getPhase() {
         return phase;

@@ -1,4 +1,4 @@
-package <%= packageName %>;
+﻿package <%= packageName %>;
 
 import com.shinwa.runtime.RuntimeContext;
 import org.slf4j.Logger;
@@ -8,14 +8,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 
 /**
- * <%= displayName %> 应用启动类
+ * <%= displayName %> Application Entry Point
  * 
- * <p>【v3.0 架构说明】</p>
- * <p>作为 v3.0 App 模块的启动入口，本类负责：</p>
+ * <p>[v3.0 Architecture]</p>
+ * <p>作为 v3.0 App module的启动入口，本类负责：</p>
  * <ul>
  *   <li>初始化 Spring Boot 应用上下文</li>
  *   <li>从 RuntimeContext 获取运行时能力</li>
- *   <li>注册模块元数据到运行时</li>
+ *   <li>注册module元数据到运行时</li>
  * </ul>
  * 
  * <p>【能力契约】</p>
@@ -42,7 +42,7 @@ public class <%= classPrefix %>Application {
     private static final Logger log = LoggerFactory.getLogger(<%= classPrefix %>Application.class);
 
     /**
-     * 应用程序入口点
+     * 应用程序Entry point
      * 
      * @param args 命令行参数
      */
@@ -59,7 +59,7 @@ public class <%= classPrefix %>Application {
 
         log.info("========================================");
         log.info("<%= displayName %> 启动完成");
-        log.info("模块名称: <%= name %>");
+        log.info("moduleName: <%= name %>");
         log.info("版本: <%= version %>");
         log.info("========================================");
     }

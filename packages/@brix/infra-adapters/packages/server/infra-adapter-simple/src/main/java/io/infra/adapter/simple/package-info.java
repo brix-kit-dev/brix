@@ -15,37 +15,38 @@
  */
 
 /**
- * 基于内存的基础设施适配器实现（开源）
+ * In-Memory Infrastructure Adapter Implementation (Open Source)
  * 
- * <p>本包提供 runtime-sdk-api 能力接口的内存实现，用于本地开发和测试场景。
- * 这是一个轻量级的实现，无需依赖 Kafka、Redis 等外部基础设施。</p>
+ * <p>This package provides in-memory implementations of runtime-sdk-api capability interfaces,
+ * designed for local development and testing scenarios. This is a lightweight implementation
+ * that does not require external infrastructure like Kafka or Redis.</p>
  * 
- * <h2>核心类</h2>
+ * <h2>Core Classes</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.simple.InMemoryEventBusCapability} - 内存事件总线</li>
- *   <li>{@link io.infra.adapter.simple.InMemoryStateStoreCapability} - 内存状态存储（基于 Caffeine）</li>
- *   <li>{@link io.infra.adapter.simple.InMemoryLockCapability} - 内存分布式锁</li>
- *   <li>{@link io.infra.adapter.simple.InMemorySchedulingCapability} - 内存定时任务</li>
+ *   <li>{@link io.infra.adapter.simple.InMemoryEventBusCapability} - In-memory event bus</li>
+ *   <li>{@link io.infra.adapter.simple.InMemoryStateStoreCapability} - In-memory state store (based on Caffeine)</li>
+ *   <li>{@link io.infra.adapter.simple.InMemoryLockCapability} - In-memory distributed lock</li>
+ *   <li>{@link io.infra.adapter.simple.InMemorySchedulingCapability} - In-memory scheduled tasks</li>
  * </ul>
  * 
- * <h2>适用场景</h2>
+ * <h2>Use Cases</h2>
  * <ul>
- *   <li>本地开发环境（无需 Kafka/Redis）</li>
- *   <li>单元测试和集成测试</li>
- *   <li>快速原型验证</li>
- *   <li>演示环境</li>
+ *   <li>Local development environment (no Kafka/Redis required)</li>
+ *   <li>Unit testing and integration testing</li>
+ *   <li>Rapid prototyping</li>
+ *   <li>Demo environments</li>
  * </ul>
  * 
- * <h2>限制说明</h2>
+ * <h2>Limitations</h2>
  * <ul>
- *   <li>数据仅存储在内存中，进程重启后丢失</li>
- *   <li>不支持跨进程通信</li>
- *   <li>不支持集群部署</li>
- *   <li>不保证高可用性</li>
+ *   <li>Data is stored only in memory, lost after process restart</li>
+ *   <li>Cross-process communication is not supported</li>
+ *   <li>Cluster deployment is not supported</li>
+ *   <li>High availability is not guaranteed</li>
  * </ul>
  * 
- * <h2>架构分层</h2>
- * <p>本包属于 Layer 2 - Adapter 层，实现 Layer 1 定义的能力接口。</p>
+ * <h2>Architecture Layer</h2>
+ * <p>This package belongs to Layer 2 - Adapter Layer, implementing capability interfaces defined in Layer 1.</p>
  * 
  * @author Brix Team
  * @since 3.0.0

@@ -16,12 +16,12 @@
 package io.runtime.orchestrator.registry;
 
 /**
- * 模块注册表包
+ * Module Registry Package.
  * 
- * <p>本包提供模块注册和发现功能：</p>
+ * <p>This package provides module registration and discovery functionality:</p>
  * <ul>
- *   <li>{@link ModuleRegistry} - 模块注册表接口</li>
- *   <li>{@link DefaultModuleRegistry} - 默认实现</li>
+ *   <li>{@link ModuleRegistry} - Module registry interface</li>
+ *   <li>{@link DefaultModuleRegistry} - Default implementation</li>
  * </ul>
  * 
  * @since 3.0.0

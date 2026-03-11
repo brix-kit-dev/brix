@@ -16,9 +16,9 @@
 package io.runtime.sdk.capability;
 
 /**
- * 熔断器打开异常
+ * Circuit Breaker Open Exception
  * 
- * <p>当熔断器处于打开状态时抛出此异常，表示请求被拒绝。</p>
+ * <p>Thrown when the circuit breaker is in an open state, indicating the request was rejected.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -29,14 +29,14 @@ public class CircuitBreakerOpenException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 熔断器名称
+     * Circuit breaker name
      */
     private final String circuitBreakerName;
 
     /**
-     * 创建熔断器打开异常
+     * Creates a circuit breaker open exception
      * 
-     * @param circuitBreakerName 熔断器名称
+     * @param circuitBreakerName the circuit breaker name
      */
     public CircuitBreakerOpenException(String circuitBreakerName) {
         super("Circuit breaker '" + circuitBreakerName + "' is open");
@@ -44,10 +44,10 @@ public class CircuitBreakerOpenException extends RuntimeException {
     }
 
     /**
-     * 创建熔断器打开异常
+     * Creates a circuit breaker open exception
      * 
-     * @param circuitBreakerName 熔断器名称
-     * @param message            异常消息
+     * @param circuitBreakerName the circuit breaker name
+     * @param message            the exception message
      */
     public CircuitBreakerOpenException(String circuitBreakerName, String message) {
         super(message);
@@ -55,9 +55,9 @@ public class CircuitBreakerOpenException extends RuntimeException {
     }
 
     /**
-     * 获取熔断器名称
+     * Gets the circuit breaker name
      * 
-     * @return 熔断器名称
+     * @return the circuit breaker name
      */
     public String getCircuitBreakerName() {
         return circuitBreakerName;

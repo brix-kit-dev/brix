@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.net.InetAddress;
@@ -29,24 +44,24 @@ import reactor.core.publisher.Mono;
 import io.brix.platform.gateway.config.security.IpWhitelistProperties;
 
 /**
- * IP 白名单过滤器
+ * IP Whitelist Filter
  * 
- * <p>P105 任务：请求签+ IP 白名
+ * <p>P105 task：requestsign+ IP whitename
  * 
- * <p>校验请求来源 IP 是否在白名单内，防止未授权访问
+ * <p>verifyrequestorigin IP whetheronwhitelistin，preventnot yetauthorizationaccess
  * 
- * <p>支持IP 格式
+ * <p>supportIP format
  * <ul>
- *   <li>单个 IP92.168.1.100</li>
- *   <li>CIDR 格式92.168.1.0/24</li>
- *   <li>IPv6 地址:1</li>
+ *   <li>single IP92.168.1.100</li>
+ *   <li>CIDR format92.168.1.0/24</li>
+ *   <li>IPv6 address:1</li>
  * </ul>
  * 
- * <p>IP 获取优先级：
+ * <p>IP obtainpriority：
  * <ol>
- *   <li>X-Forwarded-For 请求头（第一IP</li>
- *   <li>X-Real-IP 请求</li>
- *   <li>远程地址</li>
+ *   <li>X-Forwarded-For requestheader（firstIP</li>
+ *   <li>X-Real-IP request</li>
+ *   <li>remoteaddress</li>
  * </ol>
  *
  * @author Brix Platform Authors Platform
@@ -59,7 +74,7 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
     private static final Logger log = LoggerFactory.getLogger(IpWhitelistFilter.class);
 
     /**
-     * 过滤器顺序：在签名校验之前执
+     * filterorder：onsignatureverifybeforeexecute
      */
     private static final int FILTER_ORDER = -196;
 
@@ -67,7 +82,7 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
     private final AntPathMatcher pathMatcher;
     
     /**
-     * 解析后的 IP 规则列表
+     * parseafterof IP rulelist
      */
     private List<IpRule> ipRules;
 
@@ -79,11 +94,11 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
     @PostConstruct
     public void init() {
         refreshIpRules();
-        log.info("[IpWhitelistFilter] 初始化完成，白名单规则数：{}", ipRules.size());
+        log.info("[IpWhitelistFilter] initializationcomplete，whitelistrulecount：{}", ipRules.size());
     }
 
     /**
-     * 刷新 IP 规则
+     * refresh IP rule
      */
     public void refreshIpRules() {
         this.ipRules = new ArrayList<>();
@@ -91,7 +106,7 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
             try {
                 ipRules.add(parseIpRule(ip));
             } catch (UnknownHostException | NumberFormatException e) {
-                log.warn("[IpWhitelistFilter] 鏃犳硶瑙ｆ瀽 IP 瑙勫垯: {}", ip, e);
+                log.warn("[IpWhitelistFilter] ｆ IP : {}", ip, e);
             }
         }
     }
@@ -103,7 +118,7 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 检查是否启
+        // checkwhetherstart
         if (!properties.isEnabled()) {
             return chain.filter(exchange);
         }
@@ -111,30 +126,30 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        // 检查路径是否需IP 白名单校
+        // checkpathwhetherneedIP whitelistverify
         if (!isProtectedPath(path)) {
             return chain.filter(exchange);
         }
 
-        // 获取客户IP
+        // obtaincustomerIP
         String clientIp = getClientIp(request);
-        log.debug("[IpWhitelistFilter] 鏍￠獙 IP: {} -> {}", clientIp, path);
+        log.debug("[IpWhitelistFilter] ￠ IP: {} -> {}", clientIp, path);
 
-        // 校验 IP 是否在白名单
+        // verify IP whetheronwhitelist
         if (!isIpAllowed(clientIp)) {
-            log.warn("[IpWhitelistFilter] IP 不在白名单内: {} -> {}", clientIp, path);
+            log.warn("[IpWhitelistFilter] IP notonwhitelistin: {} -> {}", clientIp, path);
             return rejectRequest(exchange, clientIp);
         }
 
-        log.debug("[IpWhitelistFilter] IP 鏍￠獙閫氳繃: {}", clientIp);
+        log.debug("[IpWhitelistFilter] IP ￠: {}", clientIp);
         return chain.filter(exchange);
     }
 
     /**
-     * 检查路径是否需IP 白名单校
+     * checkpathwhetherneedIP whitelistverify
      *
-     * @param path 请求路径
-     * @return 如果需要校验返回 true
+     * @param path requestpath
+     * @return ifneedverifyreturn true
      */
     private boolean isProtectedPath(String path) {
         for (String pattern : properties.getProtectedPaths()) {
@@ -146,31 +161,31 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 获取客户端真IP
+     * obtainclienttrueIP
      *
-     * @param request HTTP 请求
-     * @return 客户IP
+     * @param request HTTP request
+     * @return customerIP
      */
     private String getClientIp(ServerHttpRequest request) {
-        // X-Forwarded-For 获取
+        // X-Forwarded-For obtain
         if (properties.isTrustXForwardedFor()) {
             String xForwardedFor = request.getHeaders().getFirst("X-Forwarded-For");
             if (StringUtils.hasText(xForwardedFor)) {
-                // 取第一IP（最原始的客户端 IP
+                // take firstIP（mostoriginalofclient IP
                 String[] ips = Objects.requireNonNull(xForwardedFor).split(",");
                 if (ips.length > 0 && ips[0] != null) {
                     return ips[0].trim();
                 }
             }
 
-            // X-Real-IP 获取
+            // X-Real-IP obtain
             String xRealIp = request.getHeaders().getFirst("X-Real-IP");
             if (StringUtils.hasText(xRealIp)) {
                 return Objects.requireNonNull(xRealIp).trim();
             }
         }
 
-        // 从远程地址获取
+        // fromremoteaddressobtain
         InetSocketAddress remoteAddress = request.getRemoteAddress();
         if (remoteAddress != null && remoteAddress.getAddress() != null) {
             return remoteAddress.getAddress().getHostAddress();
@@ -180,10 +195,10 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 检IP 是否在白名单
+     * checkIP whetheronwhitelist
      *
-     * @param clientIp 客户IP
-     * @return 如果在白名单内返回 true
+     * @param clientIp customerIP
+     * @return ifonwhitelistinreturn true
      */
     private boolean isIpAllowed(String clientIp) {
         if ("unknown".equals(clientIp)) {
@@ -199,37 +214,37 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
                 }
             }
         } catch (UnknownHostException e) {
-            log.warn("[IpWhitelistFilter] 无法解析客户IP: {}", clientIp);
+            log.warn("[IpWhitelistFilter] nomethodparsecustomerIP: {}", clientIp);
         }
 
         return false;
     }
 
     /**
-     * 瑙ｆ瀽 IP 瑙勫垯
+     * ｆ IP 
      *
-     * @param ip IP 字符
-     * @return IP 瑙勫垯
+     * @param ip IP character
+     * @return IP 
      */
     private IpRule parseIpRule(String ip) throws UnknownHostException {
         if (ip.contains("/")) {
-            // CIDR 格式
+            // CIDR format
             String[] parts = ip.split("/");
             InetAddress address = InetAddress.getByName(parts[0]);
             int prefixLength = Integer.parseInt(parts[1]);
             return new CidrIpRule(address, prefixLength);
         } else {
-            // 单个 IP
+            // single IP
             InetAddress address = InetAddress.getByName(ip);
             return new SingleIpRule(address);
         }
     }
 
     /**
-     * 拒绝请求，返403 错误
+     * rejectedrequest，return403 error
      *
      * @param exchange ServerWebExchange
-     * @param clientIp 客户IP
+     * @param clientIp customerIP
      * @return Mono<Void>
      */
     private Mono<Void> rejectRequest(ServerWebExchange exchange, String clientIp) {
@@ -238,7 +253,7 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
         String body = String.format(
-                "{\"code\":403,\"errorCode\":\"IP_NOT_ALLOWED\",\"message\":\"IP 地址不在白名单内\",\"clientIp\":\"%s\",\"timestamp\":\"%s\"}",
+                "{\"code\":403,\"errorCode\":\"IP_NOT_ALLOWED\",\"message\":\"IP addressnotonwhitelistin\",\"clientIp\":\"%s\",\"timestamp\":\"%s\"}",
                 clientIp, Instant.now().toString()
         );
 
@@ -247,17 +262,17 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
         return response.writeWith(Objects.requireNonNull(payload));
     }
 
-    // ==================== IP 规则内部====================
+    // ==================== IP ruleinternal====================
 
     /**
-     * IP 规则接口
+     * IP ruleinterface
      */
     private interface IpRule {
         boolean matches(InetAddress address);
     }
 
     /**
-     * 单个 IP 规则
+     * single IP rule
      */
     private static class SingleIpRule implements IpRule {
         private final InetAddress address;
@@ -273,7 +288,7 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * CIDR 格式 IP 规则
+     * CIDR format IP rule
      */
     private static class CidrIpRule implements IpRule {
         private final byte[] networkAddress;
@@ -288,7 +303,7 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
         public boolean matches(InetAddress target) {
             byte[] targetAddress = target.getAddress();
             
-            // 地址长度不同（IPv4 vs IPv6
+            // addresslengthnotsame（IPv4 vs IPv6
             if (networkAddress.length != targetAddress.length) {
                 return false;
             }
@@ -296,14 +311,14 @@ public class IpWhitelistFilter implements GlobalFilter, Ordered {
             int fullBytes = prefixLength / 8;
             int remainingBits = prefixLength % 8;
 
-            // 比较完整字节
+            // comparecompleteintegercharactersection
             for (int i = 0; i < fullBytes; i++) {
                 if (networkAddress[i] != targetAddress[i]) {
                     return false;
                 }
             }
 
-            // 比较剩余
+            // compareremaining
             if (remainingBits > 0 && fullBytes < networkAddress.length) {
                 int mask = 0xFF << (8 - remainingBits);
                 if ((networkAddress[fullBytes] & mask) != (targetAddress[fullBytes] & mask)) {

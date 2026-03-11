@@ -18,22 +18,22 @@ package io.infra.adapter.database.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 数据库能力配置属性
+ * Database capability configuration properties.
  * 
- * <p>定义数据库能力的配置项，对应 application.yml 中的配置。
- * 支持配置驱动的多数据库厂商切换。</p>
+ * <p>Defines database capability configuration items corresponding to application.yml settings.
+ * Supports configuration-driven multi-database vendor switching.</p>
  * 
- * <h3>配置示例</h3>
+ * <h3>Configuration Example</h3>
  * <pre>{@code
  * brix:
  *   infra:
  *     database:
  *       enabled: true
  *       dialect: postgresql          # postgresql / kingbase / mysql / oracle
- *       url: jdbc:postgresql://localhost:5432/shinwa
+ *       url: jdbc:postgresql://localhost:5432/brix
  *       username: postgres
  *       password: secret
- *       database-name: shinwa
+ *       database-name: brix
  *       schema-name: public
  *       hikari:
  *         maximum-pool-size: 20
@@ -43,8 +43,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *         max-lifetime: 1800000
  * }</pre>
  * 
- * <h3>蓝图对照</h3>
- * <p>对应蓝图 v3.0.2 第 3.3.1 节中的 YAML 配置方案。</p>
+ * <h3>Architecture Compliance</h3>
+ * <p>Configuration properties for database capability.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -53,44 +53,44 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class DatabaseProperties {
 
     /**
-     * 是否启用数据库能力
+     * Whether database capability is enabled.
      */
     private boolean enabled = true;
 
     /**
-     * 数据库方言名称
+     * Database dialect name.
      * 
-     * <p>支持：postgresql、kingbase、mysql、oracle</p>
+     * <p>Supported: postgresql, kingbase, mysql, oracle</p>
      */
     private String dialect = "postgresql";
 
     /**
-     * JDBC 连接 URL
+     * JDBC connection URL.
      */
     private String url;
 
     /**
-     * 数据库用户名
+     * Database username.
      */
     private String username;
 
     /**
-     * 数据库密码
+     * Database password.
      */
     private String password;
 
     /**
-     * 数据库名称
+     * Database name.
      */
-    private String databaseName = "shinwa";
+    private String databaseName = "brix";
 
     /**
-     * Schema 名称（用于多租户隔离）
+     * Schema name (for multi-tenancy isolation).
      */
     private String schemaName = "public";
 
     /**
-     * HikariCP 连接池配置
+     * HikariCP connection pool configuration.
      */
     private HikariProperties hikari = new HikariProperties();
 
@@ -160,42 +160,42 @@ public class DatabaseProperties {
         this.hikari = hikari;
     }
 
-    // ==================== 嵌套配置类 ====================
+    // ==================== Nested Configuration Classes ====================
 
     /**
-     * HikariCP 连接池配置
+     * HikariCP connection pool configuration.
      * 
-     * <p>控制连接池的核心参数，影响数据库连接的性能和资源使用。</p>
+     * <p>Controls core connection pool parameters that affect database connection performance and resource usage.</p>
      */
     public static class HikariProperties {
 
         /**
-         * 最大连接池大小
+         * Maximum connection pool size.
          */
         private int maximumPoolSize = 20;
 
         /**
-         * 最小空闲连接数
+         * Minimum idle connections.
          */
         private int minimumIdle = 5;
 
         /**
-         * 连接超时时间（毫秒）
+         * Connection timeout in milliseconds.
          */
         private long connectionTimeout = 30000;
 
         /**
-         * 空闲连接超时时间（毫秒）
+         * Idle connection timeout in milliseconds.
          */
         private long idleTimeout = 600000;
 
         /**
-         * 连接最大生命周期（毫秒）
+         * Maximum connection lifetime in milliseconds.
          */
         private long maxLifetime = 1800000;
 
         /**
-         * 连接验证 SQL
+         * Connection validation SQL.
          */
         private String connectionTestQuery = "SELECT 1";
 

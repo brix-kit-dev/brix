@@ -41,13 +41,13 @@ public final class ArchitectureGuardConfig {
     /**
      * Pattern to identify plugin packages.
      *
-     * <p>Default: {@code com.shinwa.app.<plugin-name>} or {@code io.brix.app.<plugin-name>}</p>
+     * <p>Default: {@code io.brix.app.<plugin-name>} or {@code io.brix.app.<plugin-name>}</p>
      *
      * <p>Can be overridden via system property: {@code brix.architecture.plugin-pattern}</p>
      */
     public static final Pattern PLUGIN_PACKAGE_PATTERN = Pattern.compile(
             System.getProperty("brix.architecture.plugin-pattern",
-                    "^(com\\.shinwa\\.app\\.[a-z]+|io\\.brix\\.app\\.[a-z]+)"));
+                    "^(io\\.brix\\.app\\.[a-z]+|io\\.brix\\.enterprise\\.app\\.[a-z]+)"));
 
     // ==================== Allowed Dependencies (Whitelist) ====================
 

@@ -26,21 +26,21 @@ import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * {@link EventTopicResolver} 单元测试
+ * Unit tests for {@link EventTopicResolver}
  *
- * <p>验证事件 Topic 解析逻辑：命名规范、前缀处理、
- * CamelCase 到 kebab-case 转换、Event 后缀移除。</p>
+ * <p>Validates event topic resolution logic: naming conventions, prefix handling,
+ * CamelCase to kebab-case conversion, and Event suffix removal.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
-@DisplayName("EventTopicResolver 测试")
+@DisplayName("EventTopicResolver Tests")
 class EventTopicResolverTest {
 
-    // ==================== 无前缀场景 ====================
+    // ==================== Without Prefix Scenarios ====================
 
     @Nested
-    @DisplayName("无环境前缀")
+    @DisplayName("Without Environment Prefix")
     class WithoutPrefixTests {
 
         private EventTopicResolver resolver;
@@ -51,7 +51,7 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveDomainTopic - 应生成正确的领域事件 Topic")
+        @DisplayName("resolveDomainTopic - should build correct domain event topic")
         void resolveDomainTopic_shouldBuildCorrectTopic() {
             DomainEvent event = createDomainEvent("Reservation");
 
@@ -61,7 +61,7 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveDomainTopic - 驼峰聚合类型应转为 kebab-case")
+        @DisplayName("resolveDomainTopic - camelCase aggregate type should convert to kebab-case")
         void resolveDomainTopic_shouldConvertCamelCaseToKebab() {
             DomainEvent event = createDomainEvent("FlightBooking");
 
@@ -71,10 +71,10 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveIntegrationTopic - 应生成正确的集成事件 Topic")
+        @DisplayName("resolveIntegrationTopic - should build correct integration event topic")
         void resolveIntegrationTopic_shouldBuildCorrectTopic() {
             IntegrationEvent event = createIntegrationEvent(
-                "com.shinwa.app.booking.event.ReservationCreatedEvent"
+                "io.brix.app.booking.event.ReservationCreatedEvent"
             );
 
             String topic = resolver.resolveIntegrationTopic(event);
@@ -83,7 +83,7 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveIntegrationTopic - 无包名时应直接使用简单类名")
+        @DisplayName("resolveIntegrationTopic - should use simple class name when no package name")
         void resolveIntegrationTopic_shouldHandleSimpleClassName() {
             IntegrationEvent event = createIntegrationEvent("OrderPlacedEvent");
 
@@ -93,7 +93,7 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveIntegrationTopic - 非 Event 后缀不应被移除")
+        @DisplayName("resolveIntegrationTopic - non-Event suffix should not be removed")
         void resolveIntegrationTopic_shouldNotRemoveNonEventSuffix() {
             IntegrationEvent event = createIntegrationEvent("UserNotification");
 
@@ -103,20 +103,20 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveTopicByEventType - 应从完整类名解析 Topic")
+        @DisplayName("resolveTopicByEventType - should extract topic from FQCN")
         void resolveTopicByEventType_shouldExtractFromFqcn() {
             String topic = resolver.resolveTopicByEventType(
-                "com.shinwa.app.messenger.event.MessageSentEvent"
+                "io.brix.app.messenger.event.MessageSentEvent"
             );
 
             assertThat(topic).isEqualTo("integration.message-sent");
         }
     }
 
-    // ==================== 有前缀场景 ====================
+    // ==================== With Prefix Scenarios ====================
 
     @Nested
-    @DisplayName("有环境前缀")
+    @DisplayName("With Environment Prefix")
     class WithPrefixTests {
 
         private EventTopicResolver resolver;
@@ -127,7 +127,7 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveDomainTopic - 应包含环境前缀")
+        @DisplayName("resolveDomainTopic - should include environment prefix")
         void resolveDomainTopic_shouldPrependPrefix() {
             DomainEvent event = createDomainEvent("Reservation");
 
@@ -137,7 +137,7 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("resolveIntegrationTopic - 应包含环境前缀")
+        @DisplayName("resolveIntegrationTopic - should include environment prefix")
         void resolveIntegrationTopic_shouldPrependPrefix() {
             IntegrationEvent event = createIntegrationEvent("OrderCreatedEvent");
 
@@ -147,14 +147,14 @@ class EventTopicResolverTest {
         }
     }
 
-    // ==================== 构造函数边界场景 ====================
+    // ==================== Constructor Edge Cases ====================
 
     @Nested
-    @DisplayName("构造函数边界场景")
+    @DisplayName("Constructor Edge Cases")
     class ConstructorEdgeCaseTests {
 
         @Test
-        @DisplayName("空字符串前缀应等同于无前缀")
+        @DisplayName("Empty string prefix should be equivalent to no prefix")
         void emptyPrefix_shouldBeEquivalentToNoPrefix() {
             EventTopicResolver resolver = new EventTopicResolver("");
             DomainEvent event = createDomainEvent("Order");
@@ -165,7 +165,7 @@ class EventTopicResolverTest {
         }
 
         @Test
-        @DisplayName("null 前缀应安全处理为空字符串")
+        @DisplayName("Null prefix should be safely treated as empty string")
         void nullPrefix_shouldBeTreatedAsEmpty() {
             EventTopicResolver resolver = new EventTopicResolver(null);
             DomainEvent event = createDomainEvent("Payment");
@@ -176,10 +176,10 @@ class EventTopicResolverTest {
         }
     }
 
-    // ==================== 辅助方法 ====================
+    // ==================== Helper Methods ====================
 
     /**
-     * 创建模拟的领域事件
+     * Creates a mock domain event
      */
     private DomainEvent createDomainEvent(String aggregateType) {
         DomainEvent event = Mockito.mock(DomainEvent.class);
@@ -189,7 +189,7 @@ class EventTopicResolverTest {
     }
 
     /**
-     * 创建模拟的集成事件
+     * Creates a mock integration event
      */
     private IntegrationEvent createIntegrationEvent(String eventType) {
         IntegrationEvent event = Mockito.mock(IntegrationEvent.class);

@@ -22,12 +22,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 能力标注注解
+ * Capability Annotation
  * 
- * <p>用于标记一个 Bean 是某种 Capability 的实现，支持自动发现和注册。
- * 配合 Spring Boot AutoConfiguration 实现声明式能力组装。</p>
+ * <p>Used to mark a Bean as an implementation of a Capability, supporting auto-discovery and registration.
+ * Works with Spring Boot AutoConfiguration for declarative capability assembly.</p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * @Capability(
  *     type = EventBusCapability.class,
@@ -38,13 +38,13 @@ import java.lang.annotation.Target;
  * )
  * @Component
  * public class KafkaEventBus implements EventBusCapability {
- *     // 实现...
+ *     // Implementation...
  * }
  * }</pre>
  * 
- * <h3>自动发现机制</h3>
- * <p>Host 启动时会扫描所有带有 @Capability 注解的 Bean，
- * 自动注册到 CapabilityRegistry 中。</p>
+ * <h3>Auto-Discovery Mechanism</h3>
+ * <p>During Host startup, all Beans annotated with @Capability are scanned
+ * and automatically registered to CapabilityRegistry.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -57,64 +57,64 @@ import java.lang.annotation.Target;
 public @interface Capability {
 
     /**
-     * 能力接口类型
+     * Capability interface type
      * 
-     * <p>指定此实现对应的能力接口。如果不指定，
-     * 将自动推断（取第一个实现的 *Capability 接口）。</p>
+     * <p>Specifies the capability interface this implementation corresponds to.
+     * If not specified, will be auto-inferred (first implemented *Capability interface).</p>
      * 
-     * @return 能力接口类型
+     * @return capability interface type
      */
     Class<?> type() default Void.class;
 
     /**
-     * 能力名称
+     * Capability name
      * 
-     * <p>用于日志、监控和配置引用的友好名称。</p>
+     * <p>Friendly name used for logging, monitoring, and configuration reference.</p>
      * 
-     * @return 能力名称
+     * @return capability name
      */
     String name() default "";
 
     /**
-     * 能力描述
+     * Capability description
      * 
-     * @return 能力描述信息
+     * @return capability description
      */
     String description() default "";
 
     /**
-     * 能力级别
+     * Capability level
      * 
-     * @return 能力级别
+     * @return capability level
      * @see CapabilityLevel
      */
     CapabilityLevel level() default CapabilityLevel.STANDARD;
 
     /**
-     * 能力优先级
+     * Capability priority
      * 
-     * <p>当同一类型有多个实现时，优先级高的会被选中。
-     * 数值越大优先级越高。</p>
+     * <p>When multiple implementations exist for the same type, higher priority wins.
+     * Higher numbers mean higher priority.</p>
      * 
-     * @return 优先级，默认 0
+     * @return priority, default 0
      */
     int priority() default 0;
 
     /**
-     * 是否为必需能力
+     * Whether capability is required
      * 
-     * <p>如果为 true，Host 启动时会验证此能力必须存在。</p>
+     * <p>If true, Host startup will verify this capability must exist.</p>
      * 
-     * @return 是否必需
+     * @return whether required
      */
     boolean required() default false;
 
     /**
-     * 能力别名
+     * Capability aliases
      * 
-     * <p>可通过别名获取能力实例。</p>
+     * <p>Capability instance can be retrieved via aliases.</p>
      * 
-     * @return 别名数组
+     * @return alias array
      */
     String[] aliases() default {};
 }

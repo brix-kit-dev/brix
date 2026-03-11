@@ -15,36 +15,36 @@
  */
 
 /**
- * 基于 OpenTelemetry 的可观测性适配器（开源）
+ * OpenTelemetry-based observability adapter (open source).
  * 
- * <p>本包提供 ObservabilityCapability 的 OpenTelemetry 实现，
- * 支持分布式追踪、指标收集和日志关联功能。</p>
+ * <p>This package provides OpenTelemetry implementation of ObservabilityCapability,
+ * supporting distributed tracing, metrics collection, and log correlation features.</p>
  * 
- * <h2>核心类</h2>
+ * <h2>Core Classes</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.otel.OTelObservabilityCapability} - OpenTelemetry 可观测性实现</li>
- *   <li>{@link io.infra.adapter.otel.OTelTracingCapability} - 分布式追踪实现</li>
- *   <li>{@link io.infra.adapter.otel.OTelMetricsCapability} - 指标收集实现</li>
+ *   <li>{@link io.infra.adapter.otel.OTelObservabilityCapability} - OpenTelemetry observability implementation</li>
+ *   <li>{@link io.infra.adapter.otel.OTelTracingCapability} - Distributed tracing implementation</li>
+ *   <li>{@link io.infra.adapter.otel.OTelMetricsCapability} - Metrics collection implementation</li>
  * </ul>
  * 
- * <h2>支持的导出器</h2>
+ * <h2>Supported Exporters</h2>
  * <ul>
- *   <li>OTLP Exporter（推荐，支持 gRPC 和 HTTP）</li>
- *   <li>Jaeger Exporter（追踪）</li>
- *   <li>Prometheus Exporter（指标）</li>
- *   <li>Logging Exporter（开发调试）</li>
+ *   <li>OTLP Exporter (recommended, supports gRPC and HTTP)</li>
+ *   <li>Jaeger Exporter (tracing)</li>
+ *   <li>Prometheus Exporter (metrics)</li>
+ *   <li>Logging Exporter (development debugging)</li>
  * </ul>
  * 
- * <h2>可观测性三支柱</h2>
+ * <h2>Three Pillars of Observability</h2>
  * <ul>
- *   <li><b>Tracing</b>：分布式请求追踪，跨服务调用链</li>
- *   <li><b>Metrics</b>：指标收集，Counter/Gauge/Histogram</li>
- *   <li><b>Logging</b>：结构化日志，与追踪关联</li>
+ *   <li><b>Tracing</b>: Distributed request tracing, cross-service call chains</li>
+ *   <li><b>Metrics</b>: Metric collection, Counter/Gauge/Histogram</li>
+ *   <li><b>Logging</b>: Structured logging, correlated with traces</li>
  * </ul>
  * 
- * <h2>架构分层</h2>
- * <p>本包属于 Layer 2 - Adapter 层，实现 Layer 1 定义的能力接口。</p>
- * 
+ * <h2>Architecture Layer</h2>
+ * <p>This package belongs to Layer 2 - Adapter layer, implementing capability interfaces defined in Layer 1.</p>
+ *
  * @author Brix Team
  * @since 3.0.0
  */

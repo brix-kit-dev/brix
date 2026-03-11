@@ -1,4 +1,4 @@
-package <%= packageName %>.core.service;
+﻿package <%= packageName %>.core.service;
 
 import <%= packageName %>.api.dto.<%= classPrefix %>DTO;
 import <%= packageName %>.api.event.<%= classPrefix %>CreatedEvent;
@@ -18,22 +18,22 @@ import java.util.Optional;
 /**
  * <%= displayName %> 业务服务
  * 
- * <p>提供<%= displayName %>的核心业务逻辑实现。</p>
+ * <p>提供<%= displayName %>的核心Business logic implementation。</p>
  * 
- * <p>【v3.0 核心架构约束】</p>
+ * <p>【v3.0 核心架构Constraints】</p>
  * <ul>
  *   <li>★ 通过 {@link RuntimeContext} 访问所有能力，而非直接依赖基础设施</li>
- *   <li>★ 事件发布通过 EventBusCapability，不直接使用 KafkaTemplate</li>
+ *   <li>★ 事件publish通过 EventBusCapability，不直接使用 KafkaTemplate</li>
  *   <li>★ 认证信息通过 AuthContextCapability 获取</li>
  *   <li>★ 日志/指标通过 ObservabilityCapability 记录</li>
  * </ul>
  * 
- * <p>【使用示例】</p>
+ * <p>[Usage Example]</p>
  * <pre>{@code
  * // 获取当前用户
  * String userId = context.getAuthContext().getCurrentUserId();
  * 
- * // 发布事件
+ * // publish事件
  * context.getEventBus().publish(event);
  * 
  * // 记录日志
@@ -63,21 +63,21 @@ public class <%= classPrefix %>Service {
     /**
      * 创建<%= displayName %>
      * 
-     * <p>创建新记录并发布领域事件通知其他模块。</p>
+     * <p>创建新记录并publish领域事件通知其他module。</p>
      * 
      * @param request 创建请求
      * @return 创建的 DTO
-     * @throws IllegalArgumentException 如果名称已存在
+     * @throws IllegalArgumentException 如果Name已存在
      */
     @Transactional
     public <%= classPrefix %>DTO create(Create<%= classPrefix %>Request request) {
-        // 【v3.0】通过 RuntimeContext 获取租户 ID 和用户 ID
+        // 【v3.0】通过 RuntimeContext 获取Tenant ID 和用户 ID
         String tenantId = runtimeContext.getTenantId();
         String userId = runtimeContext.getAuthContext().getCurrentUserId();
 
-        // 检查名称是否重复
+        // 检查Name是否重复
         if (repository.existsByTenantIdAndName(tenantId, request.getName())) {
-            throw new IllegalArgumentException("名称已存在: " + request.getName());
+            throw new IllegalArgumentException("Name已存在: " + request.getName());
         }
 
         // 创建实体
@@ -92,7 +92,7 @@ public class <%= classPrefix %>Service {
         // 保存实体
         entity = repository.save(entity);
 
-        // 【v3.0 核心】发布领域事件（通过 EventBusCapability，而非 KafkaTemplate）
+        // 【v3.0 核心】publish领域事件（通过 EventBusCapability，而非 KafkaTemplate）
         <%= classPrefix %>CreatedEvent event = <%= classPrefix %>CreatedEvent.builder()
             .<%= name.replace(/-/g, '') %>Id(entity.getId())
             .<%= name.replace(/-/g, '') %>Name(entity.getName())
@@ -114,7 +114,7 @@ public class <%= classPrefix %>Service {
      * 根据 ID 查询
      * 
      * @param id 记录 ID
-     * @return DTO（可选）
+     * @return DTO（Optional）
      */
     @Transactional(readOnly = true)
     public Optional<<%= classPrefix %>DTO> findById(String id) {
@@ -122,10 +122,10 @@ public class <%= classPrefix %>Service {
     }
 
     /**
-     * 分页查询
+     * 分pages查询
      * 
-     * @param pageable 分页参数
-     * @return 分页结果
+     * @param pageable 分pages参数
+     * @return 分pages结果
      */
     @Transactional(readOnly = true)
     public Page<<%= classPrefix %>DTO> findAll(Pageable pageable) {
@@ -134,11 +134,11 @@ public class <%= classPrefix %>Service {
     }
 
     /**
-     * 搜索
+     * Search
      * 
-     * @param keyword 搜索关键词
-     * @param pageable 分页参数
-     * @return 分页结果
+     * @param keyword Search关键词
+     * @param pageable 分pages参数
+     * @return 分pages结果
      */
     @Transactional(readOnly = true)
     public Page<<%= classPrefix %>DTO> search(String keyword, Pageable pageable) {
@@ -147,7 +147,7 @@ public class <%= classPrefix %>Service {
     }
 
     /**
-     * 删除
+     * Delete
      * 
      * @param id 记录 ID
      */
@@ -157,7 +157,7 @@ public class <%= classPrefix %>Service {
         
         runtimeContext.getObservability().log(
             io.runtime.sdk.capability.ObservabilityCapability.LogLevel.INFO,
-            "<%= displayName %>删除成功: id={}", id
+            "<%= displayName %>Delete成功: id={}", id
         );
     }
 

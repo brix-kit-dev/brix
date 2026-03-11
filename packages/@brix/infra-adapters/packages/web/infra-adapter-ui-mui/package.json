@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-ui-mui",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Brix MUI UI Adapter - Material UI atomic components implementing UIAdapter contract for production-grade enterprise applications",
   "main": "dist/index.cjs",
@@ -26,16 +26,17 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web",
-    "@mui/material": "^5.15.0",
-    "@mui/icons-material": "^5.15.0",
-    "@emotion/react": "^11.11.0",
-    "@emotion/styled": "^11.11.0"
+    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web"
   },
   "peerDependencies": {
     "@brix/runtime-sdk-api-web": "^3.1.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "@brix/shared-runtime-web": "^1.0.0",
+    "@mui/material": "^7.0.0",
+    "@mui/icons-material": "^7.0.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "keywords": [
     "brix",

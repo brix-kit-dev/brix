@@ -16,9 +16,9 @@
 package io.runtime.orchestrator.lifecycle;
 
 /**
- * 生命周期事件监听器
+ * Lifecycle Event Listener.
  * 
- * <p>监听模块生命周期变化事件。</p>
+ * <p>Listens to module lifecycle change events.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -26,69 +26,69 @@ package io.runtime.orchestrator.lifecycle;
 public interface LifecycleListener {
 
     /**
-     * 模块初始化前调用
+     * Called before module initialization.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     default void beforeInit(String moduleId) {}
 
     /**
-     * 模块初始化后调用
+     * Called after module initialization.
      * 
-     * @param moduleId 模块 ID
-     * @param success 是否成功
+     * @param moduleId module ID
+     * @param success whether successful
      */
     default void afterInit(String moduleId, boolean success) {}
 
     /**
-     * 模块启动前调用
+     * Called before module start.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     default void beforeStart(String moduleId) {}
 
     /**
-     * 模块启动后调用
+     * Called after module start.
      * 
-     * @param moduleId 模块 ID
-     * @param success 是否成功
+     * @param moduleId module ID
+     * @param success whether successful
      */
     default void afterStart(String moduleId, boolean success) {}
 
     /**
-     * 模块停止前调用
+     * Called before module stop.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     default void beforeStop(String moduleId) {}
 
     /**
-     * 模块停止后调用
+     * Called after module stop.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     default void afterStop(String moduleId) {}
 
     /**
-     * 模块销毁前调用
+     * Called before module destroy.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     default void beforeDestroy(String moduleId) {}
 
     /**
-     * 模块销毁后调用
+     * Called after module destroy.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     default void afterDestroy(String moduleId) {}
 
     /**
-     * 模块发生错误时调用
+     * Called when module error occurs.
      * 
-     * @param moduleId 模块 ID
-     * @param phase 生命周期阶段
-     * @param error 错误信息
+     * @param moduleId module ID
+     * @param phase lifecycle phase
+     * @param error error information
      */
     default void onError(String moduleId, LifecyclePhase phase, Throwable error) {}
 }

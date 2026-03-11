@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "@brix/monorepo",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Brix Runtime Shell Framework - Open Source Monorepo",
   "keywords": [
@@ -14,11 +14,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brix-framework/brix"
+    "url": "https://github.com/brix-kit-dev/brix"
   },
-  "homepage": "https://brix.dev",
+  "homepage": "https://github.com/brix-kit-dev/brix",
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "pnpm --filter \"@brix/runtime-sdk-*\" run build && pnpm -r run build",
+    "build:all": "pnpm -r run build",
     "dev": "pnpm -r run dev",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
@@ -29,6 +30,9 @@
     "changeset:publish": "changeset publish",
     "release": "pnpm build && pnpm changeset:publish",
     "docs": "typedoc",
+    "docs:typedoc": "typedoc --options typedoc.json",
+    "docs:javadoc": "mvn javadoc:aggregate -DskipTests",
+    "docs:all": "pnpm docs:typedoc && pnpm docs:javadoc",
     "prepare": "echo 'Brix workspace ready'"
   },
   "devDependencies": {

@@ -1,0 +1,100 @@
+{
+  "name": "@brix/shared-runtime-web",
+  "version": "1.0.0",
+  "description": "Brix Platform Web Runtime Dependencies - Single Source of Truth for Module Federation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/types/react.d.ts",
+      "import": "./dist/react.js",
+      "default": "./dist/react.js"
+    },
+    "./router": {
+      "types": "./dist/types/router.d.ts",
+      "import": "./dist/router.js",
+      "default": "./dist/router.js"
+    },
+    "./state": {
+      "types": "./dist/types/state.d.ts",
+      "import": "./dist/state.js",
+      "default": "./dist/state.js"
+    },
+    "./ui": {
+      "types": "./dist/types/ui.d.ts",
+      "import": "./dist/ui.js",
+      "default": "./dist/ui.js"
+    },
+    "./mf-config": {
+      "types": "./dist/types/mf-shared-config.d.ts",
+      "import": "./dist/mf-shared-config.js",
+      "default": "./dist/mf-shared-config.js"
+    },
+    "./versions": {
+      "types": "./dist/types/versions.d.ts",
+      "import": "./dist/versions.js",
+      "default": "./dist/versions.js"
+    },
+    "./globals": {
+      "types": "./dist/types/globals.d.ts",
+      "import": "./dist/globals.js",
+      "default": "./dist/globals.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup && tsc --declaration --emitDeclarationOnly",
+    "dev": "tsup --watch",
+    "clean": "rimraf dist",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^7.0.0",
+    "@mui/material": "^7.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "jsdom": "^28.1.0",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "brix",
+    "runtime",
+    "react",
+    "module-federation",
+    "shared",
+    "singleton"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/brix"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

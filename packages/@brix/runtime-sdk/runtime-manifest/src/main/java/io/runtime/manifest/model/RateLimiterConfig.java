@@ -19,7 +19,6 @@ package io.runtime.manifest.model;
  * Rate Limiter Configuration.
  *
  * <p>Configures rate limiting behavior for traffic control.</p>
- * <p>【限流器配置】配置限流器的行为。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -32,25 +31,21 @@ public class RateLimiterConfig {
 
     /**
      * Rate limiter name.
-     * 限流器名称
      */
     private String name;
 
     /**
      * Requests allowed per period.
-     * 每个周期允许的请求数
      */
     private int limitForPeriod = 100;
 
     /**
      * Limit refresh period.
-     * 限流刷新周期
      */
     private String limitRefreshPeriod = "1s";
 
     /**
      * Wait timeout duration.
-     * 等待超时时间
      */
     private String timeoutDuration = "5s";
 

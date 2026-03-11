@@ -25,14 +25,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link FallbackConfigStoreCapability} 单元测试
+ * Unit tests for {@link FallbackConfigStoreCapability}
  *
- * <p>验证基于系统属性和环境变量的配置读取及类型转换逻辑。</p>
+ * <p>Validates configuration reading from system properties and environment variables, and type conversion logic.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
-@DisplayName("FallbackConfigStoreCapability 测试")
+@DisplayName("FallbackConfigStoreCapability Tests")
 class FallbackConfigStoreCapabilityTest {
 
     private FallbackConfigStoreCapability configStore;
@@ -49,10 +49,10 @@ class FallbackConfigStoreCapabilityTest {
         System.clearProperty(TEST_KEY);
     }
 
-    // ==================== 系统属性查找 ====================
+    // ==================== System Property Lookup ====================
 
     @Test
-    @DisplayName("get - 系统属性存在时应返回其值")
+    @DisplayName("get - should return system property value when it exists")
     void get_shouldReturnSystemProperty_whenExists() {
         System.setProperty(TEST_KEY, "hello");
 
@@ -62,7 +62,7 @@ class FallbackConfigStoreCapabilityTest {
     }
 
     @Test
-    @DisplayName("get - 系统属性和环境变量均不存在时应返回 empty")
+    @DisplayName("get - should return empty when neither system property nor environment variable exists")
     void get_shouldReturnEmpty_whenNeitherExists() {
         String nonExistentKey = "brix.test.nonexistent." + System.nanoTime();
 
@@ -71,14 +71,14 @@ class FallbackConfigStoreCapabilityTest {
         assertThat(result).isEmpty();
     }
 
-    // ==================== 类型转换 ====================
+    // ==================== Type Conversion ====================
 
     @Nested
-    @DisplayName("类型转换测试")
+    @DisplayName("Type Conversion Tests")
     class TypeConversionTests {
 
         @Test
-        @DisplayName("get - 应正确转换为 Integer")
+        @DisplayName("get - should correctly convert to Integer")
         void get_shouldConvertToInteger() {
             System.setProperty(TEST_KEY, "42");
 
@@ -88,7 +88,7 @@ class FallbackConfigStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("get - 应正确转换为 Long")
+        @DisplayName("get - should correctly convert to Long")
         void get_shouldConvertToLong() {
             System.setProperty(TEST_KEY, "9876543210");
 
@@ -98,7 +98,7 @@ class FallbackConfigStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("get - 应正确转换为 Boolean")
+        @DisplayName("get - should correctly convert to Boolean")
         void get_shouldConvertToBoolean() {
             System.setProperty(TEST_KEY, "true");
 
@@ -108,7 +108,7 @@ class FallbackConfigStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("get - 应正确转换为 Double")
+        @DisplayName("get - should correctly convert to Double")
         void get_shouldConvertToDouble() {
             System.setProperty(TEST_KEY, "3.14");
 
@@ -118,7 +118,7 @@ class FallbackConfigStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("get - 数值格式错误时应返回 empty")
+        @DisplayName("get - should return empty on number format error")
         void get_shouldReturnEmpty_onNumberFormatException() {
             System.setProperty(TEST_KEY, "not-a-number");
 
@@ -128,7 +128,7 @@ class FallbackConfigStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("get - int.class 和 Integer.class 应等效")
+        @DisplayName("get - int.class and Integer.class should be equivalent")
         void get_shouldHandlePrimitiveTypes() {
             System.setProperty(TEST_KEY, "100");
 

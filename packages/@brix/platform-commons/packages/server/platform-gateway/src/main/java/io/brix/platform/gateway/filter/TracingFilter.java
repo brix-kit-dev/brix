@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.util.List;
@@ -26,18 +41,18 @@ import reactor.core.publisher.Mono;
 import io.brix.platform.gateway.config.tracing.TracingProperties;
 
 /**
- * 分布式链路追踪过滤器（OpenTelemetry 版本
+ * Distributed Tracing Filter (OpenTelemetry Version)
  * 
- * <p>在网关入口创建根 Span，记录请求的追踪信息</p>
+ * <p>Creates root Span at gateway entry, records request tracing information</p>
  * <ul>
- *   <li>自动生成 traceId spanId</li>
- *   <li>traceId 注入日志 MDC</li>
- *   <li>记录请求方法、路径、状态码等属</li>
- *   <li>计算请求耗时</li>
- *   <li>透传追踪 Header 到下游服</li>
+ *   <li>Auto-generates traceId and spanId</li>
+ *   <li>Injects traceId into log MDC</li>
+ *   <li>Records request method, path, status code and other attributes</li>
+ *   <li>Calculates request duration</li>
+ *   <li>Propagates tracing Headers to downstream services</li>
  * </ul>
  * 
- * <p>P106 任务产出物（OpenTelemetry 升级版）</p>
+ * <p>P106 Task Deliverable (OpenTelemetry Upgraded Version)</p>
  * 
  * @author Brix Platform Authors Platform
  * @version 2.0.0
@@ -60,12 +75,12 @@ public class TracingFilter implements GlobalFilter, Ordered {
     private static final String MDC_SPAN_ID = "spanId";
     
     /**
-     * 响应头中返回 traceId（便于前端关联日志）
+     * Response header to return traceId (for frontend log correlation)
      */
     private static final String RESPONSE_HEADER_TRACE_ID = "X-Trace-Id";
     
     /**
-     * Tracer 名称
+     * Tracer name
      */
     private static final String TRACER_NAME = "platform-gateway";
     
@@ -74,23 +89,23 @@ public class TracingFilter implements GlobalFilter, Ordered {
     private final AntPathMatcher pathMatcher;
     
     /**
-     * 构造函数
+     * constructorcount
      * 
-     * @param openTelemetry OpenTelemetry 实例
-     * @param tracingProperties 追踪配置属
+     * @param openTelemetry OpenTelemetry instance
+     * @param tracingProperties traceconfigurationproperty
      */
     public TracingFilter(OpenTelemetry openTelemetry, TracingProperties tracingProperties) {
         this.tracer = openTelemetry.getTracer(TRACER_NAME);
         this.tracingProperties = tracingProperties;
         this.pathMatcher = new AntPathMatcher();
-        log.info("TracingFilter 已启用（OpenTelemetry），排除路径: {}", tracingProperties.getExcludedPaths());
+        log.info("TracingFilter alreadyenable（OpenTelemetry），excludepath: {}", tracingProperties.getExcludedPaths());
     }
     
     /**
-     * 过滤器排
-     * <p>设置较高优先级（-500），确保在其他过滤器之前执行</p>
+     * filterarrange
+     * <p>setcomparehighpriority（-500），ensureonotherfilterbeforeexecute</p>
      * 
-     * @return 过滤器优先级
+     * @return filterpriority
      */
     @Override
     public int getOrder() {
@@ -98,11 +113,11 @@ public class TracingFilter implements GlobalFilter, Ordered {
     }
     
     /**
-     * 执行过滤逻辑
+     * executefilterlogic
      * 
-     * @param exchange 服务器交换对
-     * @param chain 过滤器链
-     * @return 过滤结果
+     * @param exchange serviceerexchangefor
+     * @param chain filterchain
+     * @return filterresult
      */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -110,12 +125,12 @@ public class TracingFilter implements GlobalFilter, Ordered {
         String path = request.getPath().value();
         String method = request.getMethod().name();
         
-        // 检查是否排除此路径
+        // Check if this path is excluded
         if (isExcludedPath(path)) {
             return chain.filter(exchange);
         }
         
-        // 创建 Span（SERVER 类型表示接收请求
+        // Create Span（SERVER typerepresentsreceiverequest
         Span span = tracer.spanBuilder(method + " " + path)
                 .setSpanKind(SpanKind.SERVER)
                 .setAttribute("http.method", method)
@@ -124,22 +139,22 @@ public class TracingFilter implements GlobalFilter, Ordered {
                 .setAttribute("component", "gateway")
                 .startSpan();
         
-        // 获取 traceId spanId
+        // obtain traceId spanId
         String traceId = span.getSpanContext().getTraceId();
         String spanId = span.getSpanContext().getSpanId();
         
-        // 注入 MDC
+        // inject MDC
         if (tracingProperties.isLogMdcEnabled()) {
             MDC.put(MDC_TRACE_ID, traceId);
             MDC.put(MDC_SPAN_ID, spanId);
         }
         
-        // 记录请求开始时
+        // recordrequeststarttime
         long startTime = System.currentTimeMillis();
         
-        log.debug("追踪开- traceId: {}, spanId: {}, {} {}", traceId, spanId, method, path);
+        log.debug("traceopen- traceId: {}, spanId: {}, {} {}", traceId, spanId, method, path);
         
-        // 添加请求头（用于下游服务继续追踪
+        // addrequestheader（used fordownstreamservicecontinuetrace
         ServerHttpRequest mutatedRequest = request.mutate()
                 .header("X-Trace-Id", traceId)
                 .header("X-Span-Id", spanId)
@@ -149,7 +164,7 @@ public class TracingFilter implements GlobalFilter, Ordered {
                 .request(mutatedRequest)
                 .build();
         
-        // 使用 Scope 管理 Span 上下文（scope 用于 RAII 资源管理，无需显式读取
+        // use Scope manage Span context（scope used for RAII resourcemanage，noneedexplicitread
         @SuppressWarnings("unused")
         Scope scope = span.makeCurrent();
         try (scope) {
@@ -160,28 +175,28 @@ public class TracingFilter implements GlobalFilter, Ordered {
                         int statusCode = httpStatus != null ? httpStatus.value() : 200;
                         long duration = System.currentTimeMillis() - startTime;
                         
-                        // 安全地添加响应头（避免在响应已提交后修改只读 headers
+                        // securitylyaddresponseheader（avoidonresponsealreadysubmitaftermodifyread-only headers
                         try {
                             if (!response.isCommitted()) {
                                 response.getHeaders().add(RESPONSE_HEADER_TRACE_ID, traceId);
                             }
                         } catch (UnsupportedOperationException e) {
-                            // 响应头已只读，跳过添
-                            log.trace("响应头已只读，跳过添traceId  {}", traceId);
+                            // responseheaderalreadyread-only，skipadd
+                            log.trace("responseheaderalreadyread-only，skipaddtraceId  {}", traceId);
                         }
                         
-                        // 记录属
+                        // recordproperty
                         span.setAttribute("http.status_code", statusCode);
                         span.setAttribute("duration_ms", duration);
                         
-                        // 判断是否错误
+                        // determinewhethererror
                         if (statusCode >= 400) {
                             span.setStatus(StatusCode.ERROR, "HTTP " + statusCode);
                         } else {
                             span.setStatus(StatusCode.OK);
                         }
                         
-                        log.debug("追踪结束 - traceId: {}, 状态码: {}, 耗时: {}ms", traceId, statusCode, duration);
+                        log.debug("traceend - traceId: {}, statuscode: {}, consumetime: {}ms", traceId, statusCode, duration);
                         span.end();
                     })
                     .doOnError(throwable -> {
@@ -193,11 +208,11 @@ public class TracingFilter implements GlobalFilter, Ordered {
                         span.setAttribute("duration_ms", duration);
                         span.recordException(throwable);
                         
-                        log.error("追踪异常 - traceId: {}, 错误: {}", traceId, throwable.getMessage());
+                        log.error("traceexception - traceId: {}, error: {}", traceId, throwable.getMessage());
                         span.end();
                     })
                     .doFinally(signalType -> {
-                        // 清理 MDC
+                        // Clean up MDC
                         if (tracingProperties.isLogMdcEnabled()) {
                             MDC.remove(MDC_TRACE_ID);
                             MDC.remove(MDC_SPAN_ID);
@@ -207,10 +222,10 @@ public class TracingFilter implements GlobalFilter, Ordered {
     }
     
     /**
-     * 检查路径是否在排除列表
+     * checkpathwhetheronexcludelist
      * 
-     * @param path 请求路径
-     * @return 是否排除
+     * @param path requestpath
+     * @return whetherexclude
      */
     private boolean isExcludedPath(String path) {
         List<String> excludedPaths = tracingProperties.getExcludedPaths();

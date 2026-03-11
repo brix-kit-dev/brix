@@ -19,48 +19,48 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 分布式锁能力契约（可选能力）
+ * Distributed Lock Capability Contract (Optional Capability)
  * 
- * <p>提供分布式锁的统一抽象，用于跨进程的并发控制。
- * 模块通过此接口获取和释放锁，无需感知底层实现（Redis/ZooKeeper/数据库）。</p>
+ * <p>Provides a unified abstraction for distributed locks, used for cross-process concurrency control.
+ * Modules acquire and release locks through this interface without knowing the underlying implementation (Redis/ZooKeeper/Database).</p>
  * 
- * <h3>核心功能</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li><b>排他锁</b>：同一时间只有一个持有者</li>
- *   <li><b>超时机制</b>：防止死锁</li>
- *   <li><b>可重入性</b>：同一线程可重复获取</li>
+ *   <li><b>Exclusive Lock</b>: Only one holder at a time</li>
+ *   <li><b>Timeout Mechanism</b>: Prevents deadlocks</li>
+ *   <li><b>Reentrancy</b>: Same thread can acquire repeatedly</li>
  * </ul>
  * 
- * <h3>使用场景</h3>
+ * <h3>Use Cases</h3>
  * <ul>
- *   <li>分布式定时任务（确保只有一个节点执行）</li>
- *   <li>库存扣减（防止超卖）</li>
- *   <li>订单处理（防止重复处理）</li>
+ *   <li>Distributed scheduled tasks (ensure only one node executes)</li>
+ *   <li>Inventory deduction (prevent overselling)</li>
+ *   <li>Order processing (prevent duplicate processing)</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * @Inject
  * private LockCapability lockCapability;
  * 
- * // 方式一：try-with-resources（推荐）
+ * // Method 1: try-with-resources (recommended)
  * public void processOrder(String orderId) {
  *     String lockKey = "order:process:" + orderId;
  *     try (DistributedLock lock = lockCapability.acquire(lockKey, Duration.ofSeconds(30))) {
  *         if (lock.isLocked()) {
- *             // 执行订单处理逻辑...
+ *             // Execute order processing logic...
  *         } else {
  *             throw new ConcurrentModificationException("Order is being processed");
  *         }
  *     }
  * }
  * 
- * // 方式二：手动获取和释放
+ * // Method 2: Manual acquire and release
  * public void processOrderManual(String orderId) {
  *     String lockKey = "order:process:" + orderId;
  *     if (lockCapability.tryLock(lockKey, 5, TimeUnit.SECONDS)) {
  *         try {
- *             // 执行订单处理逻辑...
+ *             // Execute order processing logic...
  *         } finally {
  *             lockCapability.unlock(lockKey);
  *         }
@@ -68,12 +68,12 @@ import java.util.concurrent.TimeUnit;
  * }
  * }</pre>
  * 
- * <h3>注意事项</h3>
+ * <h3>Notes</h3>
  * <ul>
- *   <li>锁的 key 应有业务含义，避免过于宽泛</li>
- *   <li>设置合理的超时时间，防止死锁</li>
- *   <li>确保在 finally 中释放锁</li>
- *   <li>此为可选能力，使用前应检查是否可用</li>
+ *   <li>Lock keys should have business meaning, avoid being too broad</li>
+ *   <li>Set reasonable timeout to prevent deadlocks</li>
+ *   <li>Ensure locks are released in finally blocks</li>
+ *   <li>This is an optional capability; check availability before use</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -82,56 +82,56 @@ import java.util.concurrent.TimeUnit;
 public interface LockCapability {
 
     /**
-     * 获取分布式锁
+     * Acquire distributed lock
      * 
-     * <p>阻塞等待直到获取锁或超时</p>
+     * <p>Blocks until lock is acquired or timeout</p>
      * 
-     * @param key     锁的唯一键
-     * @param timeout 最大等待时间
-     * @return 锁对象，可用于 try-with-resources
+     * @param key     unique lock key
+     * @param timeout maximum wait time
+     * @return lock object, usable with try-with-resources
      */
     DistributedLock acquire(String key, Duration timeout);
 
     /**
-     * 尝试获取锁（非阻塞）
+     * Try to acquire lock (non-blocking)
      * 
-     * <p>立即返回，不等待</p>
+     * <p>Returns immediately without waiting</p>
      * 
-     * @param key 锁的唯一键
-     * @return 如果获取成功返回 true
+     * @param key unique lock key
+     * @return true if successfully acquired
      */
     boolean tryLock(String key);
 
     /**
-     * 尝试获取锁（带等待时间）
+     * Try to acquire lock (with wait time)
      * 
-     * @param key      锁的唯一键
-     * @param waitTime 等待时间
-     * @param unit     时间单位
-     * @return 如果获取成功返回 true
+     * @param key      unique lock key
+     * @param waitTime wait time
+     * @param unit     time unit
+     * @return true if successfully acquired
      */
     boolean tryLock(String key, long waitTime, TimeUnit unit);
 
     /**
-     * 释放锁
+     * Release lock
      * 
-     * @param key 锁的唯一键
+     * @param key unique lock key
      */
     void unlock(String key);
 
     /**
-     * 检查锁是否被持有
+     * Check if lock is held
      * 
-     * @param key 锁的唯一键
-     * @return 如果锁被持有返回 true
+     * @param key unique lock key
+     * @return true if lock is held
      */
     boolean isLocked(String key);
 
     /**
-     * 检查当前线程是否持有锁
+     * Check if current thread holds the lock
      * 
-     * @param key 锁的唯一键
-     * @return 如果当前线程持有锁返回 true
+     * @param key unique lock key
+     * @return true if current thread holds the lock
      */
     boolean isHeldByCurrentThread(String key);
 }

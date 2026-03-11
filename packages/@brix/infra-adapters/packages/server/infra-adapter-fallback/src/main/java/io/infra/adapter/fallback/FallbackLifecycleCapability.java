@@ -26,9 +26,9 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 import io.runtime.sdk.context.RuntimeContext;
 
 /**
- * Fallback 生命周期能力实现
+ * Fallback Lifecycle Capability Implementation.
  * 
- * <p>空操作实现，仅记录日志。</p>
+ * <p>No-op implementation that only logs lifecycle events.</p>
  * 
  * @author Brix Team
  * @version 3.0.0
@@ -36,7 +36,7 @@ import io.runtime.sdk.context.RuntimeContext;
 @Capability(
     type = LifecycleCapability.class,
     name = "fallback-lifecycle",
-    description = "空操作 Fallback 生命周期实现",
+    description = "No-op fallback lifecycle implementation",
     level = CapabilityLevel.EXPERIMENTAL,
     aliases = {"fallbackLifecycle"}
 )

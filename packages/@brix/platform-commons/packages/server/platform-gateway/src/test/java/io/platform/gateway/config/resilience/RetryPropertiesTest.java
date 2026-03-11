@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -8,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 
 /**
- * 重试配置属性测
+ * Retry Configuration Properties Test
  *
  * @author Brix Platform Authors
  */
@@ -19,7 +34,7 @@ class RetryPropertiesTest {
         RetryProperties properties = new RetryProperties();
         
         assertTrue(properties.isEnabled());
-        assertEquals(3, properties.getMaxAttempts()); // MVP 红线要求
+        assertEquals(3, properties.getMaxAttempts()); // MVP Guideline requirement
         assertEquals(500, properties.getInitialBackoffMs());
         assertEquals(5000, properties.getMaxBackoffMs());
         assertEquals(2.0, properties.getMultiplier());
@@ -37,8 +52,8 @@ class RetryPropertiesTest {
         assertTrue(codes.contains(502)); // Bad Gateway
         assertTrue(codes.contains(503)); // Service Unavailable
         assertTrue(codes.contains(504)); // Gateway Timeout
-        assertFalse(codes.contains(500)); // Internal Server Error - 不重
-        assertFalse(codes.contains(400)); // Bad Request - 不重
+        assertFalse(codes.contains(500)); // Internal Server Error - not retryable
+        assertFalse(codes.contains(400)); // Bad Request - not retryable
     }
 
     @Test
@@ -46,14 +61,14 @@ class RetryPropertiesTest {
         RetryProperties properties = new RetryProperties();
         Set<HttpMethod> methods = properties.getRetryableMethods();
         
-        // 幂等方法应该重试
+        // Idempotent methods should be retryable
         assertTrue(methods.contains(HttpMethod.GET));
         assertTrue(methods.contains(HttpMethod.HEAD));
         assertTrue(methods.contains(HttpMethod.OPTIONS));
         assertTrue(methods.contains(HttpMethod.PUT));
         assertTrue(methods.contains(HttpMethod.DELETE));
         
-        // POST 不是幂等的，默认不重
+        // POST is not idempotent, not retryable by default
         assertFalse(methods.contains(HttpMethod.POST));
     }
 
@@ -61,14 +76,14 @@ class RetryPropertiesTest {
     void shouldRespectMvpMaxRetries() {
         RetryProperties properties = new RetryProperties();
         
-        // MVP 红线要求：最3 次重
+// MVP Guideline requirement: max 3 retries
         assertEquals(3, properties.getMaxAttempts());
         
-        // 可以设置更少
+        // Can set fewer
         properties.setMaxAttempts(2);
         assertEquals(2, properties.getMaxAttempts());
         
-        // 最大不超过 5
+        // Maximum should not exceed 5
         properties.setMaxAttempts(5);
         assertEquals(5, properties.getMaxAttempts());
     }

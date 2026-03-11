@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import java.util.ArrayList;
@@ -12,13 +27,13 @@ import org.springframework.util.StringUtils;
 import jakarta.annotation.PostConstruct;
 
 /**
- * API Key 认证配置属
+ * API Key authenticationconfigurationproperty
  * <p>
- * 用于配置网关API Key/Secret 认证机制
- * 支持多组 API Key，便于插件、前端、移动端分别使用不同密钥
+ * used forconfigurationGatewayAPI Key/Secret authenticationmechanism
+ * supportmultiple groups API Key，convenienceforplugin、beforeend、movemoveendrespectivelyusenotsamesecret key
  * </p>
  * <p>
- * 配置示例（application.yml）：
+ * configurationexample（application.yml）：
  * <pre>
  * gateway:
  *   security:
@@ -47,57 +62,57 @@ public class ApiKeyAuthProperties {
     private static final Logger logger = LoggerFactory.getLogger(ApiKeyAuthProperties.class);
 
     /**
-     * 是否启用 API Key 认证
+     * Whether to enable API Key authentication
      */
     private boolean enabled = true;
 
     /**
-     * API Key 请求头名
+     * API Key requestheadername
      */
     private String headerName = "X-API-Key";
 
     /**
-     * API Secret 请求头名
+     * API Secret requestheadername
      */
     private String secretHeaderName = "X-API-Secret";
 
     /**
-     * 配置API Key 列表
+     * configurationAPI Key list
      */
     private List<ApiKeyEntry> keys = new ArrayList<>();
 
     /**
-     * 排除认证的路径（支持 Ant 风格通配符）
+     * excludeauthenticationofpath（support Ant stylepassconfigurationsymbol）
      */
     private List<String> excludePaths = new ArrayList<>();
 
     /**
-     * 是否在生产环境强制启用认
+     * whetheronproductionenvironmentforceenablerecognize
      */
     private boolean enforceInProduction = true;
 
     /**
-     * 认证失败时是否记录详细日志（生产环境建议 false
+     * authenticationfailedtimewhetherrecorddetaillog（productionenvironmentrecommended false
      */
     private boolean logAuthFailureDetails = false;
 
     @PostConstruct
     public void validate() {
         if (!enabled) {
-            logger.warn("[shinwa] 鈿狅笍 API Key authentication is DISABLED. " +
+            logger.warn("[brix]  API Key authentication is DISABLED. " +
                     "This is NOT recommended for production environments!");
             return;
         }
 
         if (keys.isEmpty()) {
-            logger.error("[shinwa] API Key authentication is enabled but no keys configured! " +
+            logger.error("[brix] API Key authentication is enabled but no keys configured! " +
                     "Please configure at least one API key via environment variables.");
             throw new IllegalStateException(
                     "API Key authentication enabled but no keys configured. " +
                     "Set gateway.security.api-key.keys or disable authentication.");
         }
 
-        // 验证每个 Key 配置
+        // validateeach  Key configuration
         Set<String> keySet = new java.util.HashSet<>();
         for (ApiKeyEntry entry : keys) {
             if (!StringUtils.hasText(entry.getKey())) {
@@ -110,23 +125,23 @@ public class ApiKeyAuthProperties {
                         "API Key entry '" + entry.getName() + "' has empty secret value. " +
                         "Ensure environment variable is set.");
             }
-            // 检Key 唯一
+            // checkKey unique
             if (!keySet.add(entry.getKey())) {
                 throw new IllegalStateException(
                         "Duplicate API Key detected for entry: " + entry.getName());
             }
-            // 检Key 长度（最小安全长度）
+            // checkKey length（minimumsecuritylength）
             if (entry.getKey().length() < 16) {
-                logger.warn("[shinwa] 鈿狅笍 API Key for '{}' is shorter than recommended 16 characters", 
+                logger.warn("[brix]  API Key for '{}' is shorter than recommended 16 characters", 
                         entry.getName());
             }
             if (entry.getSecret().length() < 32) {
-                logger.warn("[shinwa] 鈿狅笍 API Secret for '{}' is shorter than recommended 32 characters", 
+                logger.warn("[brix]  API Secret for '{}' is shorter than recommended 32 characters", 
                         entry.getName());
             }
         }
 
-        logger.info("[shinwa] API Key authentication configured with {} key(s), {} excluded path(s)",
+        logger.info("[brix] API Key authentication configured with {} key(s), {} excluded path(s)",
                 keys.size(), excludePaths.size());
     }
 
@@ -188,11 +203,11 @@ public class ApiKeyAuthProperties {
     }
 
     /**
-     * API Key 配置条目
+     * API Key configurationentry
      */
     public static class ApiKeyEntry {
         /**
-         * Key 名称标识（用于日志审计）
+         * Key nameidentifier（used forlogaudit）
          */
         private String name;
 
@@ -207,7 +222,7 @@ public class ApiKeyAuthProperties {
         private String secret;
 
         /**
-         * 允许访问的路径模式（为空则允许所有）
+         * allowaccessofpathpattern（isemptyruleallowallhas）
          */
         private List<String> allowedPaths = new ArrayList<>();
 

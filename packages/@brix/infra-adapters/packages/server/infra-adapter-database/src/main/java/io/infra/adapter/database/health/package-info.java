@@ -25,8 +25,6 @@
  *   <li>{@link io.infra.adapter.database.health.DatabaseHealthIndicator} - Database connectivity health</li>
  * </ul>
  *
- * <p>此包提供用于监控数据库连通性和 HikariCP 连接池状态的 Spring Boot Actuator 健康指示器。</p>
- *
  * @author Brix Platform Team
  * @since 3.0.0
  */

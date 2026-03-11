@@ -18,29 +18,29 @@ package io.runtime.sdk.capability;
 import io.runtime.sdk.context.RuntimeContext;
 
 /**
- * 生命周期能力契约
+ * Lifecycle Capability Contract
  * 
- * <p>定义模块的完整生命周期回调接口，由 Runtime Shell 在适当时机调用。
- * 模块实现此接口以响应生命周期事件，执行初始化、启动、停止、销毁等操作。</p>
+ * <p>Defines the complete lifecycle callback interface for modules, called by Runtime Shell at appropriate times.
+ * Modules implement this interface to respond to lifecycle events and perform initialization, startup, stop, and destroy operations.</p>
  * 
- * <h3>生命周期状态机</h3>
+ * <h3>Lifecycle State Machine</h3>
  * <pre>{@code
  * REGISTERED -> INITIALIZING -> STARTING -> RUNNING -> STOPPING -> DESTROYED
  *                   |                          |
  *                   v                          v
- *               (失败)                     DEGRADED (降级运行)
+ *               (Failure)                   DEGRADED
  * }</pre>
  * 
- * <h3>回调顺序</h3>
+ * <h3>Callback Order</h3>
  * <ol>
- *   <li>{@link #onInit(RuntimeContext)} - 依赖注入完成后调用</li>
- *   <li>{@link #onStart()} - 所有依赖模块启动后调用</li>
- *   <li>{@link #healthCheck()} - 运行期间定期调用</li>
- *   <li>{@link #onStop()} - 收到停止信号时调用</li>
- *   <li>{@link #onDestroy()} - 从运行时移除时调用</li>
+ *   <li>{@link #onInit(RuntimeContext)} - Called after dependency injection completes</li>
+ *   <li>{@link #onStart()} - Called after all dependent modules have started</li>
+ *   <li>{@link #healthCheck()} - Called periodically during runtime</li>
+ *   <li>{@link #onStop()} - Called when stop signal is received</li>
+ *   <li>{@link #onDestroy()} - Called when removed from runtime</li>
  * </ol>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * public class BookingModule implements LifecycleCapability {
  *     private RuntimeContext context;
@@ -49,35 +49,35 @@ import io.runtime.sdk.context.RuntimeContext;
  *     @Override
  *     public void onInit(RuntimeContext context) {
  *         this.context = context;
- *         // 加载配置
+ *         // Load configuration
  *         int poolSize = context.getConfigStore().getInt("booking.thread-pool-size", 10);
  *         this.scheduler = Executors.newScheduledThreadPool(poolSize);
  *     }
  *     
  *     @Override
  *     public void onStart() {
- *         // 启动后台任务
+ *         // Start background tasks
  *         scheduler.scheduleAtFixedRate(this::cleanExpiredBookings, 0, 1, TimeUnit.HOURS);
  *         
- *         // 发布模块就绪事件
+ *         // Publish module ready event
  *         context.getEventBus().publishIntegration(new ModuleReadyEvent("booking"));
  *     }
  *     
  *     @Override
  *     public HealthStatus healthCheck() {
- *         // 检查数据库连接等
+ *         // Check database connections, etc.
  *         return HealthStatus.UP;
  *     }
  *     
  *     @Override
  *     public void onStop() {
- *         // 优雅关闭
+ *         // Graceful shutdown
  *         scheduler.shutdown();
  *     }
  *     
  *     @Override
  *     public void onDestroy() {
- *         // 清理资源
+ *         // Clean up resources
  *         scheduler.shutdownNow();
  *     }
  * }
@@ -92,91 +92,91 @@ import io.runtime.sdk.context.RuntimeContext;
 public interface LifecycleCapability {
 
     /**
-     * 模块初始化回调
+     * Module initialization callback
      * 
-     * <p>在依赖注入完成后、模块启动前调用。用于：</p>
+     * <p>Called after dependency injection completes, before module startup. Used for:</p>
      * <ul>
-     *   <li>加载配置</li>
-     *   <li>初始化资源池（线程池、连接池）</li>
-     *   <li>建立外部连接</li>
-     *   <li>注册内部组件</li>
+     *   <li>Loading configuration</li>
+     *   <li>Initializing resource pools (thread pools, connection pools)</li>
+     *   <li>Establishing external connections</li>
+     *   <li>Registering internal components</li>
      * </ul>
      * 
-     * <p><b>注意</b>：此时其他模块可能尚未初始化完成，不要调用其他模块的服务</p>
+     * <p><b>Note</b>: Other modules may not have completed initialization at this point. Do not call services from other modules.</p>
      * 
-     * @param context 运行时上下文，提供所有能力的访问入口
-     * @throws ModuleInitializationException 如果初始化失败
+     * @param context the runtime context providing access to all capabilities
+     * @throws ModuleInitializationException if initialization fails
      */
     void onInit(RuntimeContext context);
 
     /**
-     * 模块启动回调
+     * Module startup callback
      * 
-     * <p>在所有依赖模块启动完成后调用。用于：</p>
+     * <p>Called after all dependent modules have started. Used for:</p>
      * <ul>
-     *   <li>注册 API 路由</li>
-     *   <li>启动后台任务</li>
-     *   <li>订阅事件</li>
-     *   <li>发布"模块已就绪"事件</li>
+     *   <li>Registering API routes</li>
+     *   <li>Starting background tasks</li>
+     *   <li>Subscribing to events</li>
+     *   <li>Publishing "module ready" events</li>
      * </ul>
      * 
-     * <p>此时可以安全地与其他模块交互</p>
+     * <p>At this point, it is safe to interact with other modules.</p>
      * 
-     * @throws ModuleStartupException 如果启动失败
+     * @throws ModuleStartupException if startup fails
      */
     void onStart();
 
     /**
-     * 模块停止回调
+     * Module stop callback
      * 
-     * <p>收到停止信号时调用，用于优雅关闭。应该：</p>
+     * <p>Called when stop signal is received for graceful shutdown. Should:</p>
      * <ul>
-     *   <li>停止接收新请求</li>
-     *   <li>等待进行中的请求完成</li>
-     *   <li>保存必要的状态</li>
-     *   <li>释放资源</li>
+     *   <li>Stop accepting new requests</li>
+     *   <li>Wait for in-progress requests to complete</li>
+     *   <li>Save necessary state</li>
+     *   <li>Release resources</li>
      * </ul>
      * 
-     * <p><b>超时处理</b>：应在 manifest 配置的 graceful-shutdown.timeout 内完成</p>
+     * <p><b>Timeout handling</b>: Should complete within graceful-shutdown.timeout configured in manifest</p>
      */
     void onStop();
 
     /**
-     * 模块销毁回调
+     * Module destroy callback
      * 
-     * <p>模块从运行时完全移除时调用。用于：</p>
+     * <p>Called when module is completely removed from runtime. Used for:</p>
      * <ul>
-     *   <li>清理临时文件</li>
-     *   <li>注销外部注册（服务发现等）</li>
-     *   <li>关闭所有连接</li>
+     *   <li>Cleaning up temporary files</li>
+     *   <li>Unregistering external registrations (service discovery, etc.)</li>
+     *   <li>Closing all connections</li>
      * </ul>
      * 
-     * <p>此方法调用后，模块实例将被垃圾回收</p>
+     * <p>After this method is called, the module instance will be garbage collected.</p>
      */
     void onDestroy();
 
     /**
-     * 健康检查
+     * Health check
      * 
-     * <p>Runtime Shell 定期调用此方法检查模块健康状态。
-     * 检查项建议包括：</p>
+     * <p>Runtime Shell periodically calls this method to check module health.
+     * Recommended checks include:</p>
      * <ul>
-     *   <li>数据库连接是否正常</li>
-     *   <li>外部服务是否可达</li>
-     *   <li>关键资源是否可用</li>
+     *   <li>Database connection status</li>
+     *   <li>External service reachability</li>
+     *   <li>Critical resource availability</li>
      * </ul>
      * 
-     * @return 健康状态
+     * @return the health status
      * @see HealthStatus
      */
     HealthStatus healthCheck();
 
     /**
-     * 获取模块元数据
+     * Gets module metadata
      * 
-     * <p>返回模块的基本信息，用于注册和监控</p>
+     * <p>Returns basic information about the module for registration and monitoring.</p>
      * 
-     * @return 模块元数据
+     * @return the module metadata
      * @see ModuleMetadata
      */
     ModuleMetadata getMetadata();

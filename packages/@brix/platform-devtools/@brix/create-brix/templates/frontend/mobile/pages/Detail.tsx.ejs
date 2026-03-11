@@ -1,10 +1,10 @@
-/**
- * <%= displayName %> Mobile - 详情页面
+﻿/**
+ * <%= displayName %> Mobile - Detail Page
  * 
- * @module @shinwa/<%= name %>-mobile
+ * @module @brix/<%= name %>-mobile
  * @generated <%= date %>
  * 
- * 详情页面实现（供 exposes 包装器调用）
+ * Detail page implementation (called by exposes wrapper)
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 
 /**
- * 详情数据接口
+ * Detail data interface
  */
 export interface DetailData {
   id: number;
@@ -32,32 +32,32 @@ export interface DetailData {
 }
 
 /**
- * 详情页面属性
+ * Detail page props
  */
 export interface <%= classPrefix %>DetailPageProps {
   /**
-   * 数据 ID
+   * Data ID
    */
   id: number;
   
   /**
-   * 返回回调
+   * Back callback
    */
   onBack?: () => void;
   
   /**
-   * 编辑回调
+   * Edit callback
    */
   onEdit?: (data: DetailData) => void;
   
   /**
-   * API 基础路径
+   * API base path
    */
   apiBasePath?: string;
 }
 
 /**
- * <%= displayName %>详情页面组件
+ * <%= displayName %> Detail Page Component
  */
 const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> = ({
   id,
@@ -70,29 +70,29 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * 加载详情数据
+   * Load detail data
    */
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // TODO: 替换为实际的 API 调用
+      // TODO: Replace with actual API call
       // const response = await fetch(`${apiBasePath}/${id}`);
       // const result = await response.json();
       
       await new Promise(resolve => setTimeout(resolve, 800));
       setData({
         id,
-        title: `项目 ${id}`,
-        description: '这是一段详细的描述文字，用于展示详情页面的内容布局。可以包含多行文字，支持换行显示。',
+        title: `Item ${id}`,
+        description: 'This is a detailed description text for demonstrating the detail page layout. It can contain multiple lines of text.',
         createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
         updatedAt: new Date().toISOString(),
         status: 'active',
       });
     } catch (err) {
-      setError('加载详情失败，请重试');
-      console.error('加载详情失败:', err);
+      setError('Failed to load details, please retry');
+      console.error('Failed to load details:', err);
     } finally {
       setLoading(false);
     }
@@ -103,25 +103,25 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
   }, [loadData]);
 
   /**
-   * 处理删除
+   * Handle delete
    */
   const handleDelete = useCallback(() => {
     Alert.alert(
-      '确认删除',
-      '确定要删除此项目吗？此操作不可恢复。',
+      'Confirm Delete',
+      'Are you sure you want to delete this item? This action cannot be undone.',
       [
-        { text: '取消', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: '删除',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
-              // TODO: 调用删除 API
+              // TODO: Call delete API
               // await fetch(`${apiBasePath}/${id}`, { method: 'DELETE' });
-              Alert.alert('提示', '删除成功');
+              Alert.alert('Notice', 'Deleted successfully');
               onBack?.();
             } catch (err) {
-              Alert.alert('错误', '删除失败，请重试');
+              Alert.alert('Error', 'Failed to delete, please retry');
             }
           },
         },
@@ -130,13 +130,13 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
   }, [id, apiBasePath, onBack]);
 
   /**
-   * 渲染状态标签
+   * Render status badge
    */
   const renderStatus = (status: string) => {
     const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-      active: { label: '启用', color: '#2e7d32', bgColor: '#e8f5e9' },
-      inactive: { label: '禁用', color: '#c62828', bgColor: '#ffebee' },
-      pending: { label: '待处理', color: '#ef6c00', bgColor: '#fff3e0' },
+      active: { label: 'Active', color: '#2e7d32', bgColor: '#e8f5e9' },
+      inactive: { label: 'Inactive', color: '#c62828', bgColor: '#ffebee' },
+      pending: { label: 'Pending', color: '#ef6c00', bgColor: '#fff3e0' },
     };
     
     const config = statusConfig[status] || statusConfig.pending;
@@ -152,7 +152,7 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#1976d2" />
-        <Text style={styles.loadingText}>加载中...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -162,7 +162,7 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
       <View style={[styles.container, styles.center]}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadData}>
-          <Text style={styles.retryText}>重试</Text>
+          <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -171,10 +171,10 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
   if (!data) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.emptyText}>数据不存在</Text>
+        <Text style={styles.emptyText}>Data not found</Text>
         {onBack && (
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>返回</Text>
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -194,7 +194,7 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
         <View style={styles.content}>
           {data.description && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>描述</Text>
+              <Text style={styles.sectionTitle}>Description</Text>
               <Text style={styles.sectionContent}>{data.description}</Text>
             </View>
           )}
@@ -204,7 +204,7 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
           <View style={styles.infoGrid}>
             {data.createdAt && (
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>创建时间</Text>
+                <Text style={styles.infoLabel}>Created at</Text>
                 <Text style={styles.infoValue}>
                   {new Date(data.createdAt).toLocaleString('zh-CN')}
                 </Text>
@@ -212,7 +212,7 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
             )}
             {data.updatedAt && (
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>更新时间</Text>
+                <Text style={styles.infoLabel}>Updated at</Text>
                 <Text style={styles.infoValue}>
                   {new Date(data.updatedAt).toLocaleString('zh-CN')}
                 </Text>
@@ -226,7 +226,7 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
       <View style={styles.bottomBar}>
         {onBack && (
           <TouchableOpacity style={styles.secondaryButton} onPress={onBack}>
-            <Text style={styles.secondaryButtonText}>返回</Text>
+            <Text style={styles.secondaryButtonText}>Back</Text>
           </TouchableOpacity>
         )}
         {onEdit && (
@@ -234,11 +234,11 @@ const <%= classPrefix %>DetailPage: React.FC<<%= classPrefix %>DetailPageProps> 
             style={styles.primaryButton} 
             onPress={() => onEdit(data)}
           >
-            <Text style={styles.primaryButtonText}>编辑</Text>
+            <Text style={styles.primaryButtonText}>Edit</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.dangerButton} onPress={handleDelete}>
-          <Text style={styles.dangerButtonText}>删除</Text>
+          <Text style={styles.dangerButtonText}>Delete</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -26,29 +26,29 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * NoSpringContainerApiRule 正反测试用例
+ * NoSpringContainerApiRule Positive and Negative Test Cases
  *
- * <p>验证红线5规则的正确性：禁止依赖 Spring 容器特定 API。</p>
+ * <p>Validates the correctness of Red Line 5 rule: Dependency on Spring Container specific APIs prohibited.</p>
  *
- * <h2>覆盖的约束</h2>
+ * <h2>Covered Constraints</h2>
  * <ul>
- *   <li>禁止直接使用 ApplicationContext</li>
- *   <li>禁止直接使用 BeanFactory</li>
- *   <li>所有依赖注入应通过构造函数完成</li>
- *   <li>运行时能力应通过 RuntimeContext 获取</li>
+ *   <li>Direct use of ApplicationContext prohibited</li>
+ *   <li>Direct use of BeanFactory prohibited</li>
+ *   <li>All dependency injection should be done through constructor</li>
+ *   <li>Runtime capabilities should be obtained through RuntimeContext</li>
  * </ul>
  *
- * <h2>设计原则</h2>
- * <p>业务代码不应直接使用 Spring 容器 API，因为：</p>
+ * <h2>Design Principle</h2>
+ * <p>Business code should not use Spring Container APIs directly because:</p>
  * <ul>
- *   <li>降低与 Spring 框架的耦合度</li>
- *   <li>便于单元测试和模块独立部署</li>
- *   <li>符合依赖倒置原则（DIP）</li>
+ *   <li>Reduces coupling with Spring framework</li>
+ *   <li>Facilitates unit testing and independent module deployment</li>
+ *   <li>Follows Dependency Inversion Principle (DIP)</li>
  * </ul>
  *
- * <h2>合规模式</h2>
+ * <h2>Compliant Pattern</h2>
  * <pre>{@code
- * // 正确做法：构造函数注入
+ * // Correct approach: Constructor injection
  * public class BookingService {
  *     private final BookingRepository repository;
  *     public BookingService(BookingRepository repository) {
@@ -56,27 +56,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *     }
  * }
  * 
- * // 错误做法：直接使用容器 API
- * @Autowired ApplicationContext context; // 违规！
+ * // Wrong approach: Direct container API usage
+ * @Autowired ApplicationContext context; // Violation!
  * context.getBean(BookingRepository.class);
  * }</pre>
  *
  * @author Brix Architecture Team
  * @since 3.2.0
  */
-@DisplayName("红线5：禁止依赖 Spring 容器特定 API")
+@DisplayName("Red Line 5: Dependency on Spring Container specific APIs prohibited")
 class NoSpringContainerApiRuleTest {
 
     // ============================================================================
-    // ApplicationContext 检查测试
+    // ApplicationContext check tests
     // ============================================================================
 
     @Nested
-    @DisplayName("禁止直接使用 ApplicationContext")
+    @DisplayName("Direct use of ApplicationContext prohibited")
     class NoApplicationContextTests {
 
         @Test
-        @DisplayName("架构守护库自身应通过 ApplicationContext 检查")
+        @DisplayName("Architecture guard library itself should pass ApplicationContext check")
         void guardLibraryShouldPass() {
             ArchRule rule = NoSpringContainerApiRule.rule();
 
@@ -84,11 +84,11 @@ class NoSpringContainerApiRuleTest {
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard");
                 rule.check(classes);
-            }, "架构守护规则库自身不应使用 ApplicationContext");
+            }, "Architecture guard library itself should not use ApplicationContext");
         }
 
         @Test
-        @DisplayName("规则子包应通过检查")
+        @DisplayName("Rules sub-package should pass check")
         void rulesPackageShouldPass() {
             ArchRule rule = NoSpringContainerApiRule.rule();
 
@@ -96,33 +96,33 @@ class NoSpringContainerApiRuleTest {
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard.rules");
                 rule.check(classes);
-            }, "规则子包不应使用 ApplicationContext");
+            }, "Rules sub-package should not use ApplicationContext");
         }
     }
 
     // ============================================================================
-    // BeanFactory 检查测试
+    // BeanFactory check tests
     // ============================================================================
 
     @Nested
-    @DisplayName("禁止直接使用 BeanFactory")
+    @DisplayName("Direct use of BeanFactory prohibited")
     class NoBeanFactoryTests {
 
         @Test
-        @DisplayName("架构守护库自身应通过 BeanFactory 检查")
+        @DisplayName("Architecture guard library itself should pass BeanFactory check")
         void guardLibraryShouldPass() {
             ArchRule rule = NoSpringContainerApiRule.rule();
 
-            // 规则同时检查 ApplicationContext 和 BeanFactory
+            // Rule also checks ApplicationContext and BeanFactory
             assertDoesNotThrow(() -> {
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard");
                 rule.check(classes);
-            }, "架构守护规则库自身不应使用 BeanFactory");
+            }, "Architecture guard library itself should not use BeanFactory");
         }
 
         @Test
-        @DisplayName("profiles 子包应通过检查")
+        @DisplayName("Profiles sub-package should pass check")
         void profilesPackageShouldPass() {
             ArchRule rule = NoSpringContainerApiRule.rule();
 
@@ -130,42 +130,42 @@ class NoSpringContainerApiRuleTest {
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard.profiles");
                 rule.check(classes);
-            }, "profiles 子包不应使用 BeanFactory");
+            }, "Profiles sub-package should not use BeanFactory");
         }
     }
 
     // ============================================================================
-    // 规则配置测试
+    // Rule configuration tests
     // ============================================================================
 
     @Nested
-    @DisplayName("规则配置验证")
+    @DisplayName("Rule configuration validation")
     class RuleConfigurationTests {
 
         @Test
-        @DisplayName("规则实例不应为 null")
+        @DisplayName("Rule instance should not be null")
         void ruleShouldNotBeNull() {
             ArchRule rule = NoSpringContainerApiRule.rule();
-            assertTrue(rule != null, "NoSpringContainerApiRule.rule() 返回值不应为 null");
+            assertTrue(rule != null, "NoSpringContainerApiRule.rule() return value should not be null");
         }
 
         @Test
-        @DisplayName("规则应包含正确的描述信息")
+        @DisplayName("Rule should have correct description")
         void ruleShouldHaveDescription() {
             ArchRule rule = NoSpringContainerApiRule.rule();
             String description = rule.getDescription();
 
             assertDoesNotThrow(() -> {
                 if (description == null || description.isEmpty()) {
-                    throw new AssertionError("规则描述不应为空");
+                    throw new AssertionError("Rule description should not be empty");
                 }
-            }, "规则应包含描述信息");
+            }, "Rule should contain description information");
         }
 
         @Test
-        @DisplayName("规则应能多次创建且结果一致")
+        @DisplayName("Rule should be idempotent when created multiple times")
         void ruleCreationShouldBeIdempotent() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule rule1 = NoSpringContainerApiRule.rule().allowEmptyShould(true);
             ArchRule rule2 = NoSpringContainerApiRule.rule().allowEmptyShould(true);
 
@@ -174,22 +174,22 @@ class NoSpringContainerApiRuleTest {
                         .importPackages("io.brix.architecture.guard");
                 rule1.check(classes);
                 rule2.check(classes);
-            }, "规则应能多次创建并正常工作");
+            }, "Rules should work correctly when created multiple times");
         }
     }
 
     // ============================================================================
-    // 与其他规则的组合测试
+    // Combination tests with other rules
     // ============================================================================
 
     @Nested
-    @DisplayName("规则组合兼容性")
+    @DisplayName("Rule combination compatibility")
     class RuleCombinationTests {
 
         @Test
-        @DisplayName("应与所有 Capability 相关规则兼容")
+        @DisplayName("Should be compatible with all Capability-related rules")
         void shouldBeCompatibleWithCapabilityRules() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule containerRule = NoSpringContainerApiRule.rule().allowEmptyShould(true);
             ArchRule eventsRule = EventsViaCapabilityRule.rule().allowEmptyShould(true);
             ArchRule crossModuleRule = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
@@ -202,13 +202,13 @@ class NoSpringContainerApiRuleTest {
                 eventsRule.check(classes);
                 crossModuleRule.check(classes);
                 loggingRule.check(classes);
-            }, "所有 Capability 相关规则应能同时应用而不冲突");
+            }, "All Capability-related rules should be applicable simultaneously without conflicts");
         }
 
         @Test
-        @DisplayName("应与基础设施适配器规则兼容")
+        @DisplayName("Should be compatible with infrastructure adapter rules")
         void shouldBeCompatibleWithInfraAdapterRules() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule containerRule = NoSpringContainerApiRule.rule().allowEmptyShould(true);
             ArchRule infraAdapterRule = NoInfraAdapterRule.rule().allowEmptyShould(true);
             ArchRule middlewareRule = NoMiddlewareClientsRule.noSpringKafka().allowEmptyShould(true);
@@ -219,33 +219,33 @@ class NoSpringContainerApiRuleTest {
                 containerRule.check(classes);
                 infraAdapterRule.check(classes);
                 middlewareRule.check(classes);
-            }, "红线5与基础设施相关规则应能同时应用而不冲突");
+            }, "Red Line 5 and infrastructure-related rules should be applicable simultaneously without conflicts");
         }
     }
 
     // ============================================================================
-    // 边界条件测试
+    // Boundary condition tests
     // ============================================================================
 
     @Nested
-    @DisplayName("边界条件验证")
+    @DisplayName("Boundary condition validation")
     class BoundaryConditionTests {
 
         @Test
-        @DisplayName("不含 Spring 依赖的代码应通过检查")
+        @DisplayName("Code without Spring dependency should pass check")
         void codeWithoutSpringDependencyShouldPass() {
             ArchRule rule = NoSpringContainerApiRule.rule();
 
-            // 规则库自身不依赖 Spring
+            // Rule library itself does not depend on Spring
             assertDoesNotThrow(() -> {
                 JavaClasses classes = new ClassFileImporter()
                         .importClasses(NoSpringContainerApiRule.class);
                 rule.check(classes);
-            }, "不含 Spring 依赖的代码应自动通过规则检查");
+            }, "Code without Spring dependency should automatically pass rule check");
         }
 
         @Test
-        @DisplayName("ArchUnit 相关类应通过检查")
+        @DisplayName("ArchUnit-related classes should pass check")
         void archUnitClassesShouldPass() {
             ArchRule rule = NoSpringContainerApiRule.rule();
 
@@ -253,7 +253,7 @@ class NoSpringContainerApiRuleTest {
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard");
                 rule.check(classes);
-            }, "ArchUnit 规则定义类应通过自身的检查");
+            }, "ArchUnit rule definition classes should pass their own check");
         }
     }
 }

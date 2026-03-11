@@ -16,9 +16,9 @@
 package io.runtime.orchestrator.registry;
 
 /**
- * 模块已注册异常
+ * Module Already Registered Exception.
  * 
- * <p>当尝试注册一个已存在的模块 ID 时抛出。</p>
+ * <p>Thrown when attempting to register a module with an ID that already exists.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -28,14 +28,14 @@ public class ModuleAlreadyRegisteredException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 模块 ID
+     * Module ID.
      */
     private final String moduleId;
 
     /**
-     * 创建模块已注册异常
+     * Creates module already registered exception.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     public ModuleAlreadyRegisteredException(String moduleId) {
         super("Module already registered: " + moduleId);
@@ -43,9 +43,9 @@ public class ModuleAlreadyRegisteredException extends RuntimeException {
     }
 
     /**
-     * 获取模块 ID
+     * Gets module ID.
      * 
-     * @return 模块 ID
+     * @return module ID
      */
     public String getModuleId() {
         return moduleId;

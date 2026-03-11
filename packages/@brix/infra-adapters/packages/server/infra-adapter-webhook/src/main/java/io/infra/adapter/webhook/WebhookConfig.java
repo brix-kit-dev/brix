@@ -23,12 +23,12 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Webhook 端点配置
+ * Webhook Endpoint Configuration
  * 
- * <p>封装 Webhook 发送的目标端点、认证信息和重试策略配置。
- * 支持按事件类型配置不同的目标端点。</p>
+ * <p>Encapsulates Webhook target endpoints, authentication information, and retry policy configuration.
+ * Supports configuring different target endpoints by event type.</p>
  * 
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * WebhookConfig config = WebhookConfig.builder()
  *     .defaultEndpoint("https://api.example.com/webhook")
@@ -42,12 +42,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *     .build();
  * }</pre>
  * 
- * <h2>端点路由</h2>
- * <p>支持基于事件类型的端点路由：</p>
+ * <h2>Endpoint Routing</h2>
+ * <p>Supports endpoint routing based on event type:</p>
  * <ul>
- *   <li>精确匹配：事件类型完全匹配</li>
- *   <li>通配符匹配：使用 * 匹配任意字符</li>
- *   <li>默认端点：无匹配时使用默认端点</li>
+ *   <li>Exact match: Event type matches exactly</li>
+ *   <li>Wildcard match: Use * to match any characters</li>
+ *   <li>Default endpoint: Uses default endpoint when no match found</li>
  * </ul>
  * 
  * @author Brix Team
@@ -56,114 +56,114 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class WebhookConfig {
     
     /**
-     * 默认连接超时时间
+     * Default connection timeout
      */
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(5);
     
     /**
-     * 默认读取超时时间
+     * Default read timeout
      */
     private static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
     
     /**
-     * 默认最大重试次数
+     * Default maximum retry count
      */
     private static final int DEFAULT_MAX_RETRIES = 3;
     
     /**
-     * 默认重试延迟
+     * Default retry delay
      */
     private static final Duration DEFAULT_RETRY_DELAY = Duration.ofSeconds(1);
 
     /**
-     * 默认核心线程数
-     * <p>基于 CPU 核心数，适合 I/O 密集型操作</p>
+     * Default core pool size
+     * <p>Based on CPU core count, suitable for I/O intensive operations</p>
      */
     private static final int DEFAULT_CORE_POOL_SIZE = Runtime.getRuntime().availableProcessors();
 
     /**
-     * 默认最大线程数
-     * <p>核心线程数的 2 倍，为突发流量预留余量</p>
+     * Default maximum pool size
+     * <p>2x core pool size, reserving capacity for traffic bursts</p>
      */
     private static final int DEFAULT_MAX_POOL_SIZE = Runtime.getRuntime().availableProcessors() * 2;
 
     /**
-     * 默认任务队列容量
-     * <p>防止无限队列导致内存溢出</p>
+     * Default task queue capacity
+     * <p>Prevents unbounded queue from causing memory overflow</p>
      */
     private static final int DEFAULT_QUEUE_CAPACITY = 1000;
     
     /**
-     * 默认目标端点 URL
+     * Default target endpoint URL
      */
     private final String defaultEndpoint;
     
     /**
-     * 签名密钥（用于 HMAC-SHA256 签名）
+     * Signing secret (for HMAC-SHA256 signatures)
      */
     private final String secret;
     
     /**
-     * 连接超时时间
+     * Connection timeout
      */
     private final Duration connectTimeout;
     
     /**
-     * 读取超时时间
+     * Read timeout
      */
     private final Duration readTimeout;
     
     /**
-     * 最大重试次数
+     * Maximum retry count
      */
     private final int maxRetries;
     
     /**
-     * 重试基础延迟（指数退避的基数）
+     * Base retry delay (base for exponential backoff)
      */
     private final Duration retryDelay;
     
     /**
-     * 事件类型到端点的映射
-     * <p>Key 为事件类型模式（支持通配符），Value 为目标端点 URL</p>
+     * Event type to endpoint mappings
+     * <p>Key is event type pattern (supports wildcards), Value is target endpoint URL</p>
      */
     private final Map<String, String> endpointMappings;
     
     /**
-     * 是否启用签名验证
+     * Whether signature verification is enabled
      */
     private final boolean signatureEnabled;
     
     /**
-     * 自定义请求头
+     * Custom request headers
      */
     private final Map<String, String> customHeaders;
 
     /**
-     * HTTP 客户端线程池核心线程数
-     * <p>线程池会保持这个数量的线程常驻</p>
+     * HTTP client thread pool core size
+     * <p>Thread pool maintains this number of threads</p>
      */
     private final int corePoolSize;
 
     /**
-     * HTTP 客户端线程池最大线程数
-     * <p>流量高峰时允许扩展到的最大线程数</p>
+     * HTTP client thread pool maximum size
+     * <p>Maximum threads allowed during peak traffic</p>
      */
     private final int maxPoolSize;
 
     /**
-     * HTTP 客户端线程池任务队列容量
-     * <p>超过核心线程数时，任务先进入队列等待</p>
+     * HTTP client thread pool task queue capacity
+     * <p>When exceeding core pool size, tasks enter queue first</p>
      */
     private final int queueCapacity;
     
     /**
-     * 私有构造函数，通过 Builder 创建实例
+     * Private constructor, instances created via Builder
      *
-     * @param builder 构建器实例
+     * @param builder Builder instance
      */
     private WebhookConfig(Builder builder) {
-        this.defaultEndpoint = Objects.requireNonNull(builder.defaultEndpoint, "defaultEndpoint 不能为空");
+        this.defaultEndpoint = Objects.requireNonNull(builder.defaultEndpoint, "defaultEndpoint cannot be null");
         this.secret = builder.secret;
         this.connectTimeout = builder.connectTimeout != null ? builder.connectTimeout : DEFAULT_CONNECT_TIMEOUT;
         this.readTimeout = builder.readTimeout != null ? builder.readTimeout : DEFAULT_READ_TIMEOUT;
@@ -178,39 +178,39 @@ public final class WebhookConfig {
     }
     
     /**
-     * 创建新的构建器实例
+     * Creates a new Builder instance
      *
-     * @return Builder 实例
+     * @return Builder instance
      */
     public static Builder builder() {
         return new Builder();
     }
     
     /**
-     * 根据事件类型获取目标端点 URL
+     * Gets target endpoint URL by event type
      * 
-     * <p>匹配顺序：</p>
+     * <p>Matching order:</p>
      * <ol>
-     *   <li>精确匹配事件类型</li>
-     *   <li>通配符模式匹配</li>
-     *   <li>返回默认端点</li>
+     *   <li>Exact match on event type</li>
+     *   <li>Wildcard pattern match</li>
+     *   <li>Return default endpoint</li>
      * </ol>
      *
-     * @param eventType 事件类型
-     * @return 目标端点 URL
+     * @param eventType Event type
+     * @return Target endpoint URL
      */
     public String getEndpointForEventType(String eventType) {
         if (eventType == null || eventType.isEmpty()) {
             return defaultEndpoint;
         }
         
-        // 1. 精确匹配
+        // 1. Exact match
         String endpoint = endpointMappings.get(eventType);
         if (endpoint != null) {
             return endpoint;
         }
         
-        // 2. 通配符匹配
+        // 2. Wildcard match
         for (Map.Entry<String, String> entry : endpointMappings.entrySet()) {
             String pattern = entry.getKey();
             if (matchesPattern(eventType, pattern)) {
@@ -218,23 +218,23 @@ public final class WebhookConfig {
             }
         }
         
-        // 3. 默认端点
+        // 3. Default endpoint
         return defaultEndpoint;
     }
     
     /**
-     * 检查事件类型是否匹配通配符模式
+     * Checks if event type matches wildcard pattern
      *
-     * @param eventType 事件类型
-     * @param pattern 通配符模式（* 匹配任意字符）
-     * @return 是否匹配
+     * @param eventType Event type
+     * @param pattern Wildcard pattern (* matches any characters)
+     * @return Whether it matches
      */
     private boolean matchesPattern(String eventType, String pattern) {
         if (!pattern.contains("*")) {
             return false;
         }
         
-        // 将通配符模式转换为正则表达式
+        // Convert wildcard pattern to regex
         String regex = pattern
                 .replace(".", "\\.")
                 .replace("*", ".*");
@@ -242,120 +242,122 @@ public final class WebhookConfig {
         return eventType.matches(regex);
     }
     
-    // ========== Getter 方法 ==========
+    // ========== Getter methods ==========
     
     /**
-     * 获取默认端点 URL
+     * Gets default endpoint URL
      *
-     * @return 默认端点 URL
+     * @return Default endpoint URL
      */
     public String getDefaultEndpoint() {
         return defaultEndpoint;
     }
     
     /**
-     * 获取签名密钥
+     * Gets signing secret
      *
-     * @return 签名密钥的 Optional 包装
+     * @return Optional wrapper of signing secret
      */
     public Optional<String> getSecret() {
         return Optional.ofNullable(secret);
     }
     
     /**
-     * 获取连接超时时间
+     * Gets connection timeout
      *
-     * @return 连接超时时间
+     * @return Connection timeout
      */
     public Duration getConnectTimeout() {
         return connectTimeout;
     }
     
     /**
-     * 获取读取超时时间
+     * Gets read timeout
      *
-     * @return 读取超时时间
+     * @return Read timeout
      */
     public Duration getReadTimeout() {
         return readTimeout;
     }
     
     /**
-     * 获取最大重试次数
+     * Gets maximum retry count
      *
-     * @return 最大重试次数
+     * @return Maximum retry count
      */
     public int getMaxRetries() {
         return maxRetries;
     }
     
     /**
-     * 获取重试基础延迟
+     * Gets base retry delay
      *
-     * @return 重试延迟
+     * @return Retry delay
      */
     public Duration getRetryDelay() {
         return retryDelay;
     }
     
     /**
-     * 获取所有端点映射（只读）
+     * Gets all endpoint mappings (read-only)
      *
-     * @return 端点映射的不可变视图
+     * @return Immutable view of endpoint mappings
      */
     public Map<String, String> getEndpointMappings() {
         return endpointMappings;
     }
     
     /**
-     * 是否启用签名验证
+     * Whether signature verification is enabled
      *
-     * @return 是否启用签名
+     * @return Whether signature is enabled
      */
     public boolean isSignatureEnabled() {
         return signatureEnabled;
     }
     
     /**
-     * 获取自定义请求头
+     * Gets custom request headers
      *
-     * @return 自定义请求头的不可变视图
+     * @return Immutable view of custom headers
      */
     public Map<String, String> getCustomHeaders() {
         return customHeaders;
     }
 
     /**
-     * 获取 HTTP 客户端线程池核心线程数
+     * Gets HTTP client thread pool core size
      *
-     * <p>该参数用于创建固定线程池，避免无限制线程增长导致的资源耗尽。
-     * 默认值基于 CPU 核心数计算，适合 I/O 密集型的 HTTP 调用场景。</p>
+     * <p>This parameter is used to create a fixed thread pool to avoid
+     * unlimited thread growth causing resource exhaustion.
+     * Default value is calculated based on CPU core count, suitable for I/O intensive HTTP calls.</p>
      *
-     * @return 核心线程数
+     * @return Core pool size
      */
     public int getCorePoolSize() {
         return corePoolSize;
     }
 
     /**
-     * 获取 HTTP 客户端线程池最大线程数
+     * Gets HTTP client thread pool maximum size
      *
-     * <p>当核心线程都在忙碌且队列已满时，线程池可以扩展到此数量。
-     * 默认值是核心线程数的 2 倍。</p>
+     * <p>When all core threads are busy and queue is full,
+     * thread pool can expand to this size.
+     * Default is 2x core pool size.</p>
      *
-     * @return 最大线程数
+     * @return Maximum pool size
      */
     public int getMaxPoolSize() {
         return maxPoolSize;
     }
 
     /**
-     * 获取 HTTP 客户端线程池任务队列容量
+     * Gets HTTP client thread pool task queue capacity
      *
-     * <p>任务队列用于缓冲等待执行的任务。当队列满时，
-     * 会触发线程池扩展（直到达到 maxPoolSize）或拒绝策略。</p>
+     * <p>Task queue buffers waiting tasks. When queue is full,
+     * triggers thread pool expansion (up to maxPoolSize) or rejection policy.</p>
      *
-     * @return 队列容量
+     * @return Queue capacity
      */
     public int getQueueCapacity() {
         return queueCapacity;
@@ -375,10 +377,10 @@ public final class WebhookConfig {
     }
     
     /**
-     * WebhookConfig 构建器
+     * WebhookConfig Builder
      * 
-     * <p>使用 Builder 模式创建 WebhookConfig 实例，
-     * 确保必要参数被正确设置。</p>
+     * <p>Uses Builder pattern to create WebhookConfig instances,
+     * ensuring required parameters are properly set.</p>
      */
     public static final class Builder {
         
@@ -399,10 +401,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 设置默认端点 URL
+         * Sets default endpoint URL
          *
-         * @param defaultEndpoint 默认端点 URL（必填）
-         * @return Builder 实例
+         * @param defaultEndpoint Default endpoint URL (required)
+         * @return Builder instance
          */
         public Builder defaultEndpoint(String defaultEndpoint) {
             this.defaultEndpoint = defaultEndpoint;
@@ -410,10 +412,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 设置签名密钥
+         * Sets signing secret
          *
-         * @param secret 签名密钥
-         * @return Builder 实例
+         * @param secret Signing secret
+         * @return Builder instance
          */
         public Builder secret(String secret) {
             this.secret = secret;
@@ -421,10 +423,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 设置连接超时时间
+         * Sets connection timeout
          *
-         * @param connectTimeout 连接超时时间
-         * @return Builder 实例
+         * @param connectTimeout Connection timeout
+         * @return Builder instance
          */
         public Builder connectTimeout(Duration connectTimeout) {
             this.connectTimeout = connectTimeout;
@@ -432,10 +434,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 设置读取超时时间
+         * Sets read timeout
          *
-         * @param readTimeout 读取超时时间
-         * @return Builder 实例
+         * @param readTimeout Read timeout
+         * @return Builder instance
          */
         public Builder readTimeout(Duration readTimeout) {
             this.readTimeout = readTimeout;
@@ -443,10 +445,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 设置最大重试次数
+         * Sets maximum retry count
          *
-         * @param maxRetries 最大重试次数
-         * @return Builder 实例
+         * @param maxRetries Maximum retry count
+         * @return Builder instance
          */
         public Builder maxRetries(int maxRetries) {
             this.maxRetries = maxRetries;
@@ -454,10 +456,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 设置重试基础延迟
+         * Sets base retry delay
          *
-         * @param retryDelay 重试延迟
-         * @return Builder 实例
+         * @param retryDelay Retry delay
+         * @return Builder instance
          */
         public Builder retryDelay(Duration retryDelay) {
             this.retryDelay = retryDelay;
@@ -465,11 +467,11 @@ public final class WebhookConfig {
         }
         
         /**
-         * 添加端点映射
+         * Adds endpoint mapping
          *
-         * @param eventTypePattern 事件类型模式（支持 * 通配符）
-         * @param endpoint 目标端点 URL
-         * @return Builder 实例
+         * @param eventTypePattern Event type pattern (supports * wildcard)
+         * @param endpoint Target endpoint URL
+         * @return Builder instance
          */
         public Builder addEndpointMapping(String eventTypePattern, String endpoint) {
             this.endpointMappings.put(eventTypePattern, endpoint);
@@ -477,10 +479,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 批量设置端点映射
+         * Sets endpoint mappings in batch
          *
-         * @param mappings 端点映射
-         * @return Builder 实例
+         * @param mappings Endpoint mappings
+         * @return Builder instance
          */
         public Builder endpointMappings(Map<String, String> mappings) {
             if (mappings != null) {
@@ -490,10 +492,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 设置是否启用签名验证
+         * Sets whether signature verification is enabled
          *
-         * @param signatureEnabled 是否启用签名
-         * @return Builder 实例
+         * @param signatureEnabled Whether to enable signature
+         * @return Builder instance
          */
         public Builder signatureEnabled(boolean signatureEnabled) {
             this.signatureEnabled = signatureEnabled;
@@ -501,11 +503,11 @@ public final class WebhookConfig {
         }
         
         /**
-         * 添加自定义请求头
+         * Adds custom request header
          *
-         * @param name 请求头名称
-         * @param value 请求头值
-         * @return Builder 实例
+         * @param name Header name
+         * @param value Header value
+         * @return Builder instance
          */
         public Builder addCustomHeader(String name, String value) {
             this.customHeaders.put(name, value);
@@ -513,10 +515,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 批量设置自定义请求头
+         * Sets custom headers in batch
          *
-         * @param headers 自定义请求头
-         * @return Builder 实例
+         * @param headers Custom headers
+         * @return Builder instance
          */
         public Builder customHeaders(Map<String, String> headers) {
             if (headers != null) {
@@ -526,13 +528,13 @@ public final class WebhookConfig {
         }
 
         /**
-         * 设置线程池核心线程数
+         * Sets thread pool core size
          *
-         * <p>核心线程会一直保持活跃，即使没有任务执行。
-         * 推荐根据系统 CPU 核心数和 I/O 密集程度设置。</p>
+         * <p>Core threads remain active even when idle.
+         * Recommended to set based on CPU core count and I/O intensity.</p>
          *
-         * @param corePoolSize 核心线程数，必须大于 0
-         * @return Builder 实例
+         * @param corePoolSize Core pool size, must be greater than 0
+         * @return Builder instance
          */
         public Builder corePoolSize(int corePoolSize) {
             this.corePoolSize = corePoolSize;
@@ -540,13 +542,13 @@ public final class WebhookConfig {
         }
 
         /**
-         * 设置线程池最大线程数
+         * Sets thread pool maximum size
          *
-         * <p>当队列满时，线程池会扩展线程数直到达到此上限。
-         * 超过此限制的任务会触发拒绝策略。</p>
+         * <p>When queue is full, thread pool expands up to this limit.
+         * Tasks exceeding this limit trigger rejection policy.</p>
          *
-         * @param maxPoolSize 最大线程数，必须大于等于核心线程数
-         * @return Builder 实例
+         * @param maxPoolSize Maximum pool size, must be >= core pool size
+         * @return Builder instance
          */
         public Builder maxPoolSize(int maxPoolSize) {
             this.maxPoolSize = maxPoolSize;
@@ -554,13 +556,13 @@ public final class WebhookConfig {
         }
 
         /**
-         * 设置线程池任务队列容量
+         * Sets thread pool task queue capacity
          *
-         * <p>队列用于缓冲等待执行的任务。
-         * 设置合理的队列容量可以防止内存溢出。</p>
+         * <p>Queue buffers waiting tasks.
+         * Setting reasonable capacity prevents memory overflow.</p>
          *
-         * @param queueCapacity 队列容量，必须大于 0
-         * @return Builder 实例
+         * @param queueCapacity Queue capacity, must be greater than 0
+         * @return Builder instance
          */
         public Builder queueCapacity(int queueCapacity) {
             this.queueCapacity = queueCapacity;
@@ -568,10 +570,10 @@ public final class WebhookConfig {
         }
         
         /**
-         * 构建 WebhookConfig 实例
+         * Builds WebhookConfig instance
          *
-         * @return WebhookConfig 实例
-         * @throws NullPointerException 如果 defaultEndpoint 为空
+         * @return WebhookConfig instance
+         * @throws NullPointerException If defaultEndpoint is null
          */
         public WebhookConfig build() {
             return new WebhookConfig(this);

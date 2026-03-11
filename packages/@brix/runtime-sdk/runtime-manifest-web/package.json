@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/runtime-manifest-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "UI 运行时清单解析和验证模块",
   "type": "module",
   "main": "./dist/index.cjs",

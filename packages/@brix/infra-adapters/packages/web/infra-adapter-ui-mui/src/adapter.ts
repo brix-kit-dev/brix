@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file MUI UI Adapter
  * @description Complete UIAdapter implementation using Material UI v5.
@@ -29,7 +44,7 @@
  * They are assembled at Shell layer using these atomic components.
  */
 
-import type { UIAdapter, UIAdapterConfig, ThemeTokens } from '@brix/runtime-sdk-api-web';
+import type { UIAdapter, ThemeTokens } from '@brix/runtime-sdk-api-web';
 import { MUI_THEME_TOKENS } from '@brix/runtime-sdk-api-web';
 
 // Component imports
@@ -46,6 +61,24 @@ import { MuiModal } from './components/MuiModal';
 import { muiMessageAPI } from './components/MuiMessage';
 import { MuiThemeProvider, getMuiThemeTokens } from './theme/MuiThemeProvider';
 import { MuiIcon } from './icons/MuiIcon';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * UI Adapter Configuration Options
+ *
+ * Configuration for customizing the MUI adapter appearance.
+ */
+export interface UIAdapterConfig {
+  /** Primary brand color */
+  primaryColor?: string;
+  /** Border radius in pixels */
+  borderRadius?: number;
+  /** Default theme mode */
+  defaultTheme?: 'light' | 'dark';
+}
 
 // ============================================================================
 // UIAdapter Implementation

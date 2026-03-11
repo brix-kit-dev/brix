@@ -22,7 +22,7 @@ package io.brix.platform.auth.exception;
  * including code verifier generation and code challenge computation.</p>
  *
  * <h3>Design Rationale</h3>
- * <p>According to v3.0 Architecture Blueprint Red Line R10 (Fault Isolation),
+ * <p>Following the Fault Isolation architecture principle,
  * cryptographic operation failures must be wrapped in domain-specific exceptions
  * rather than generic RuntimeException. This enables:
  * <ul>

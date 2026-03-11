@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
@@ -24,25 +39,25 @@ import reactor.core.publisher.Mono;
 import io.brix.platform.gateway.config.resilience.ratelimit.RateLimitConfig;
 
 /**
- * 限流过滤
+ * rate limitfilter
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 基于 Resilience4j RateLimiter 实现 QPS 限流
- * 当请求超过限流阈值时，返HTTP 429 Too Many Requests
+ * based on Resilience4j RateLimiter implementation QPS rate limit
+ * whenrequestexceedrate limitthresholdtime，returnHTTP 429 Too Many Requests
  * </p>
  * 
- * <h3>过滤器执行顺</h3>
+ * <h3>filterexecutesequence</h3>
  * <pre>
- * 执行顺序（order 越小越先执行）：
- * 1. RateLimitFilter (order = -200)     首先限流
- * 2. BulkheadFilter (order = -199)      然后隔离
- * 3. CircuitBreakerFilter (order = -198) 最后熔
- * 4. 其他业务过滤..
+ * executeorder（order exceedsmallexceedfirstexecute）：
+ * 1. RateLimitFilter (order = -200)     headfirstrate limit
+ * 2. BulkheadFilter (order = -199)      thenafterisolation
+ * 3. CircuitBreakerFilter (order = -198) mostaftercircuit
+ * 4. otherbusinessfilter..
  * </pre>
  * 
- * <h3>响应格式</h3>
+ * <h3>responseformat</h3>
  * <pre>{@code
  * HTTP/1.1 429 Too Many Requests
  * Content-Type: application/json
@@ -67,15 +82,15 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
     private static final Logger logger = LoggerFactory.getLogger(RateLimitFilter.class);
 
     /**
-     * 过滤器优先级
+     * Filter priority
      * <p>
-     * 限流过滤器应该在最前面执行，尽早拒绝超限请
+     * Rate limit filter should execute first, rejecting excess requests early.
      * </p>
      */
     private static final int ORDER = -200;
 
     /**
-     * 限流配置
+     * Rate limit configuration
      */
     private final RateLimitConfig rateLimitConfig;
 
@@ -86,71 +101,71 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
     @Override
     @SuppressWarnings("null")
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 检查限流是否启
+        // Check if rate limiting is enabled
         if (!rateLimitConfig.isEnabled()) {
             return chain.filter(exchange);
         }
 
-        // 获取路由信息
+        // Get route information
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
         String routeId = (route != null && route.getId() != null) ? route.getId() : "default";
 
-        // 获取对应的限流器
+        // Get corresponding rate limiter
         RateLimiter rateLimiter = rateLimitConfig.getRateLimiterForRoute(routeId);
         if (rateLimiter == null) {
             return chain.filter(exchange);
         }
 
-        // 尝试获取限流许可
-        // 技术点：acquirePermission() 是阻塞方法，但在 WebFlux 中配timeoutDuration=0 可以立即返回
+        // Try to acquire rate limit permit
+        // Technical note: acquirePermission() is blocking, but with timeoutDuration=0 in WebFlux it returns immediately
         boolean permitted;
         try {
             permitted = rateLimiter.acquirePermission();
         } catch (RequestNotPermitted e) {
-            // 显式抛出异常的情
+            // explicitthrowoutexceptionofsituation
             permitted = false;
         }
 
         if (permitted) {
-            // 许可获取成功，继续执行过滤器
+            // permitobtainsuccessful，continueexecutefilter
             if (logger.isDebugEnabled()) {
-                logger.debug("[shinwa] RateLimit[{}] permitted, available={}", 
+                logger.debug("[brix] RateLimit[{}] permitted, available={}", 
                         routeId, rateLimiter.getMetrics().getAvailablePermissions());
             }
             return chain.filter(exchange);
         } else {
-            // 许可获取失败，返429 响应
-            logger.warn("[shinwa] RateLimit[{}] rejected - rate limit exceeded, path={}", 
+            // permitobtainfailed，return429 response
+            logger.warn("[brix] RateLimit[{}] rejected - rate limit exceeded, path={}", 
                     routeId, exchange.getRequest().getPath());
             return rejectRequest(exchange, routeId);
         }
     }
 
     /**
-     * 拒绝请求并返429 响应
+     * rejectedrequestandreturn429 response
      * <p>
-     * 技术点
-     * 1. 设置 Retry-After 头，告知客户端何时可以重
-     * 2. 返回 JSON 格式错误响应，包含路由信息便于排
+     * technical point
+     * 1. set Retry-After header，informclientanytimecantore-
+     * 2. return JSON formaterrorresponse，containrouteinformationconvenienceforarrange
      * </p>
      * 
-     * @param exchange 请求上下
-     * @param routeId  路由ID
+     * @param exchange requestup and down
+     * @param routeId  routeID
      * @return Mono<Void>
      */
     @SuppressWarnings("null")
     private Mono<Void> rejectRequest(ServerWebExchange exchange, String routeId) {
         ServerHttpResponse response = exchange.getResponse();
         
-        // 设置响应状态码
+        // Set response status code
         response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
         
-        // 设置响应
+        // Set response headers
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        // Retry-After 头告知客户端等待时间（秒
+        // Retry-After header tells client wait time (seconds)
         response.getHeaders().set("Retry-After", "1");
         
-        // 构建响应
+        // Build response body
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         String responseBody = String.format(
                 "{\"code\":429,\"message\":\"Too Many Requests - Rate limit exceeded\"," +

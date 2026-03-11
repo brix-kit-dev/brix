@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.health;
 
 import java.time.Duration;
@@ -17,18 +32,18 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 /**
- * 插件引擎健康指示
+ * pluginenginehealthindicate
  * <p>
- * 检Plugin Engine 服务的健康状态
- * MVP 红线要求：Gateway 就绪探针需依赖 Engine 健康状态
+ * checkPlugin Engine serviceofhealthstatus
+ * MVP Red Line Requirement: Gateway readiness probe must depend on Engine health status
  * </p>
  * 
- * <h3>实现特性：</h3>
+ * <h3>Implementation Features:</h3>
  * <ul>
- *   <li>响应式实现，支持 WebFlux 环境</li>
- *   <li>超时保护，避免阻塞探针响</li>
- *   <li>结果缓存，避免频繁调</li>
- *   <li>优雅降级，超时或错误时返DOWN</li>
+ *   <li>Reactive implementation supporting WebFlux environment</li>
+ *   <li>timeoutprotect，avoidblockproberesponse</li>
+ *   <li>resultcache，avoidfrequentadjust</li>
+ *   <li>gracefulfallback，timeoutorerrortimereturnDOWN</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -46,8 +61,8 @@ public class PluginEngineHealthIndicator implements ReactiveHealthIndicator {
     private final WebClient webClient;
 
     /**
-     * 健康状态缓
-     * 用于避免频繁调用 Engine 健康端点
+     * healthstatusslow
+     * Used to avoid frequent calls to Engine health endpoint
      */
     private final Map<String, CachedHealth> healthCache = new ConcurrentHashMap<>();
 
@@ -56,13 +71,13 @@ public class PluginEngineHealthIndicator implements ReactiveHealthIndicator {
         this.webClient = webClientBuilder
                 .baseUrl(Objects.requireNonNull(healthProperties.getEngineUrl()))
                 .build();
-        logger.info("[shinwa] PluginEngineHealthIndicator initialized - engineUrl: {}, timeout: {}ms",
+        logger.info("[brix] PluginEngineHealthIndicator initialized - engineUrl: {}, timeout: {}ms",
                 healthProperties.getEngineUrl(), healthProperties.getEngineTimeoutMs());
     }
 
     @Override
     public Mono<Health> health() {
-        // 检查缓存是否有
+        // checkcachewhetherhas
         CachedHealth cached = healthCache.get(INDICATOR_NAME);
         if (cached != null && !cached.isExpired(healthProperties.getCacheTtlSeconds())) {
             return Mono.just(cached.getHealth());
@@ -70,19 +85,19 @@ public class PluginEngineHealthIndicator implements ReactiveHealthIndicator {
 
         return checkEngineHealth()
                 .doOnNext(health -> {
-                    // 更新缓存
+                    // Update cache
                     healthCache.put(INDICATOR_NAME, new CachedHealth(health, Instant.now()));
                     if (health.getStatus().equals(org.springframework.boot.actuate.health.Status.DOWN)) {
-                        logger.warn("[shinwa] Plugin Engine health check failed: {}", health.getDetails());
+                        logger.warn("[brix] Plugin Engine health check failed: {}", health.getDetails());
                     }
                 })
                 .doOnError(error -> {
-                    logger.error("[shinwa] Plugin Engine health check error: {}", error.getMessage());
+                    logger.error("[brix] Plugin Engine health check error: {}", error.getMessage());
                 });
     }
 
     /**
-     * 执行 Engine 健康检
+     * execute Engine healthcheck
      */
     private Mono<Health> checkEngineHealth() {
         String healthUrl = healthProperties.getEngineHealthPath();
@@ -109,7 +124,7 @@ public class PluginEngineHealthIndicator implements ReactiveHealthIndicator {
                     }
                 })
                 .onErrorResume(ex -> {
-                    logger.warn("[shinwa] Engine health check failed: {}", ex.getMessage());
+                    logger.warn("[brix] Engine health check failed: {}", ex.getMessage());
                     return Mono.just(Health.down()
                             .withDetail("engineUrl", healthProperties.getEngineUrl())
                             .withDetail("error", ex.getClass().getSimpleName())
@@ -119,12 +134,12 @@ public class PluginEngineHealthIndicator implements ReactiveHealthIndicator {
     }
 
     /**
-     * Engine 健康响应
+     * Engine health response
      */
     private record EngineHealthResponse(String status) {}
 
     /**
-     * 缓存的健康状
+     * cacheofhealthstatus
      */
     private static class CachedHealth {
         private final Health health;

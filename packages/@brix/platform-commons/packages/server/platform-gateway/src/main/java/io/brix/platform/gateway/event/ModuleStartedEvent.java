@@ -25,26 +25,26 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 模块启动事件
+ * Module Started Event
  * 
- * <p>当模块启动完成后，Runtime Orchestrator 发布此事件。
- * 网关监听此事件以注册模块定义的路由。</p>
+ * <p>Published by Runtime Orchestrator when a module finishes starting.
+ * Gateway listens to this event to register routes defined by the module.</p>
  * 
- * <h3>事件来源</h3>
- * <p>由 Runtime Orchestrator 在模块 STARTED 状态时发布，
- * 通过 EventBusCapability 传递到网关。</p>
+ * <h3>Event Source</h3>
+ * <p>Published by Runtime Orchestrator when module enters STARTED state,
+ * transmitted to gateway via EventBusCapability.</p>
  * 
- * <h3>事件数据</h3>
+ * <h3>Event Data</h3>
  * <ul>
- *   <li>moduleId - 模块唯一标识</li>
- *   <li>moduleName - 模块名称（人类可读）</li>
- *   <li>routes - 模块声明的路由列表</li>
- *   <li>metadata - 模块元数据</li>
- *   <li>timestamp - 事件发生时间</li>
+ *   <li>moduleId - Module unique identifier</li>
+ *   <li>moduleName - Module name (human-readable)</li>
+ *   <li>routes - List of routes declared by the module</li>
+ *   <li>metadata - Module metadata</li>
+ *   <li>timestamp - Event occurrence time</li>
  * </ul>
  * 
- * <h3>与 Manifest 的关系</h3>
- * <p>对应 module-manifest.yaml 中 events.subscriptions 配置：</p>
+ * <h3>Relationship with Manifest</h3>
+ * <p>Corresponds to events.subscriptions configuration in module-manifest.yaml:</p>
  * <pre>{@code
  * events:
  *   subscriptions:
@@ -60,44 +60,44 @@ public class ModuleStartedEvent extends ApplicationEvent {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 模块唯一标识
+     * Module unique identifier
      */
     private final String moduleId;
 
     /**
-     * 模块名称
+     * Module name
      */
     private final String moduleName;
 
     /**
-     * 模块版本
+     * Module version
      */
     private final String moduleVersion;
 
     /**
-     * 模块定义的路由列表
+     * List of routes defined by the module
      */
     private final List<RouteDefinition> routes;
 
     /**
-     * 模块元数据
+     * Module metadata
      */
     private final Map<String, Object> metadata;
 
     /**
-     * 事件发生时间
+     * Event occurrence time
      */
     private final Instant timestamp;
 
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param source        事件源
-     * @param moduleId      模块唯一标识
-     * @param moduleName    模块名称
-     * @param moduleVersion 模块版本
-     * @param routes        模块定义的路由列表
-     * @param metadata      模块元数据
+     * @param source        event source
+     * @param moduleId      module unique identifier
+     * @param moduleName    module name
+     * @param moduleVersion module version
+     * @param routes        list of routes defined by the module
+     * @param metadata      module metadata
      */
     public ModuleStartedEvent(Object source, 
                               String moduleId,
@@ -115,65 +115,65 @@ public class ModuleStartedEvent extends ApplicationEvent {
     }
 
     /**
-     * 简化构造函数
+     * Simplified constructor
      * 
-     * @param source   事件源
-     * @param moduleId 模块唯一标识
-     * @param routes   模块定义的路由列表
+     * @param source   event source
+     * @param moduleId module unique identifier
+     * @param routes   list of routes defined by the module
      */
     public ModuleStartedEvent(Object source, String moduleId, List<RouteDefinition> routes) {
         this(source, moduleId, null, null, routes, null);
     }
 
     /**
-     * 获取模块唯一标识
+     * Get module unique identifier
      * 
-     * @return 模块 ID
+     * @return module ID
      */
     public String getModuleId() {
         return moduleId;
     }
 
     /**
-     * 获取模块名称
+     * Get module name
      * 
-     * @return 模块名称
+     * @return module name
      */
     public String getModuleName() {
         return moduleName;
     }
 
     /**
-     * 获取模块版本
+     * Get module version
      * 
-     * @return 模块版本
+     * @return module version
      */
     public String getModuleVersion() {
         return moduleVersion;
     }
 
     /**
-     * 获取模块定义的路由列表
+     * Get list of routes defined by the module
      * 
-     * @return 路由列表（不可变）
+     * @return route list (immutable)
      */
     public List<RouteDefinition> getRoutes() {
         return routes;
     }
 
     /**
-     * 获取模块元数据
+     * Get module metadata
      * 
-     * @return 元数据（不可变）
+     * @return metadata (immutable)
      */
     public Map<String, Object> getMetadata() {
         return metadata;
     }
 
     /**
-     * 获取事件发生时间
+     * Get event occurrence time
      * 
-     * @return 时间戳
+     * @return timestamp
      */
     public Instant getEventTimestamp() {
         return timestamp;

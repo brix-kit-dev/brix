@@ -25,8 +25,6 @@
  *   <li>{@link io.infra.adapter.redis.health.RedisHealthIndicator} - Redis server connectivity health</li>
  * </ul>
  *
- * <p>此包提供用于监控 Redis 服务器连通性和状态的 Spring Boot Actuator 健康指示器。</p>
- *
  * @author Brix Platform Team
  * @since 3.0.0
  */

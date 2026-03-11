@@ -1,0 +1,152 @@
+/**
+ * Brix Documentation Custom CSS
+ * 
+ * Brand colors aligned with the Brix visual identity.
+ * Primary: Indigo/Violet gradient (#6366F1 - #8B5CF6)
+ */
+
+/* Custom properties for light mode */
+:root {
+  --ifm-color-primary: #6366f1;
+  --ifm-color-primary-dark: #4f46e5;
+  --ifm-color-primary-darker: #4338ca;
+  --ifm-color-primary-darkest: #3730a3;
+  --ifm-color-primary-light: #818cf8;
+  --ifm-color-primary-lighter: #a5b4fc;
+  --ifm-color-primary-lightest: #c7d2fe;
+  
+  --ifm-code-font-size: 95%;
+  --ifm-font-family-base: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+  
+  --docusaurus-highlighted-code-line-bg: rgba(99, 102, 241, 0.1);
+}
+
+/* Custom properties for dark mode */
+[data-theme='dark'] {
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6366f1;
+  --ifm-color-primary-darker: #4f46e5;
+  --ifm-color-primary-darkest: #4338ca;
+  --ifm-color-primary-light: #a5b4fc;
+  --ifm-color-primary-lighter: #c7d2fe;
+  --ifm-color-primary-lightest: #e0e7ff;
+  
+  --docusaurus-highlighted-code-line-bg: rgba(99, 102, 241, 0.2);
+}
+
+/* Hero section styling */
+.hero {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.hero__title {
+  font-size: 3.5rem;
+  font-weight: 800;
+}
+
+.hero__subtitle {
+  font-size: 1.5rem;
+  opacity: 0.9;
+}
+
+/* Feature cards */
+.feature-card {
+  border-radius: 12px;
+  padding: 2rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Architecture diagram styling */
+.architecture-diagram {
+  background: var(--ifm-card-background-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+/* Code block enhancements */
+.prism-code {
+  border-radius: 8px;
+}
+
+/* Layer badges */
+.layer-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.layer-badge--host {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.layer-badge--capability {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.layer-badge--plugin {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.layer-badge--infra {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+/* Admonition customization */
+.admonition-constraint {
+  border-left-color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.1);
+}
+
+.admonition-architecture {
+  border-left-color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+/* Table improvements */
+table {
+  display: table;
+  width: 100%;
+}
+
+th {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+/* Search customization */
+.DocSearch-Button {
+  border-radius: 8px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 996px) {
+  .hero__title {
+    font-size: 2.5rem;
+  }
+  
+  .hero__subtitle {
+    font-size: 1.25rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .navbar, .footer, .pagination-nav, .theme-doc-toc-desktop {
+    display: none;
+  }
+}

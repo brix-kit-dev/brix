@@ -17,7 +17,6 @@ package io.runtime.manifest.model;
 
 /**
  * Module Manifest Model Package.
- * 模块清单模型包
  *
  * <p>This package defines data models for module manifests:</p>
  * <ul>

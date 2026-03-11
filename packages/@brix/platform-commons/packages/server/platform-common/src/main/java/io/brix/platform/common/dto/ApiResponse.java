@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -11,24 +26,24 @@ import java.util.Objects;
 import io.brix.platform.common.exception.PlatformErrorCode;
 
 /**
- * 标准 REST 返回- 标准v1.0
+ * Standard REST API Response - Standardization v1.0
  * <p>
- * 统一响应格式，保证前后端交互口径一致
+ * Unified response format ensuring consistent frontend-backend communication
  * </p>
  * 
- * <h3>成功响应格式</h3>
+ * <h3>Success Response Format</h3>
  * <pre>{@code
  * {
  *   "success": true,
  *   "code": "OK",
- *   "message": "操作成功",
+ *   "message": "Operation successful",
  *   "data": { ... },
  *   "timestamp": "2026-01-04T10:00:00Z",
  *   "traceId": "abc123"
  * }
  * }</pre>
  * 
- * <h3>错误响应格式</h3>
+ * <h3>Error Response Format</h3>
  * <pre>{@code
  * {
  *   "success": false,
@@ -40,7 +55,7 @@ import io.brix.platform.common.exception.PlatformErrorCode;
  * }
  * }</pre>
  *
- * @param <T> 真实业务数据类型
+ * @param <T> Actual business data type
  * @author Brix Platform Authors Platform Team
  * @version 2.0.0 (Standardization v1.0)
  */
@@ -50,25 +65,25 @@ public final class ApiResponse<T> implements Serializable {
     @Serial
     private static final long serialVersionUID = -4896843920452187231L;
 
-    /** 是否成功 */
+    /** Whether the operation was successful */
     private final boolean success;
     
-    /** 错误*/
+    /** Error code */
     private final String code;
     
-    /** 消息描述 */
+    /** Message description */
     private final String message;
     
-    /** 业务数据 */
+    /** Business data payload */
     private final T data;
     
-    /** 错误详情（可选，用于调试*/
+    /** Error details (optional, for debugging) */
     private final Map<String, Object> details;
     
-    /** 响应时间*/
+    /** Response timestamp */
     private final Instant timestamp;
     
-    /** 杩借釜ID */
+    /** Trace ID for distributed tracing */
     private final String traceId;
 
     private ApiResponse(boolean success, String code, String message, T data, 
@@ -82,13 +97,13 @@ public final class ApiResponse<T> implements Serializable {
         this.traceId = traceId;
     }
 
-    // ========== 成功响应构建方法 ==========
+    // ========== Success Response Builder Methods ==========
 
     /**
-     * 构建成功响应（带数据
+     * Build a success response with data
      *
-     * @param data 业务数据载荷
-     * @return 成功响应
+     * @param data Business data payload
+     * @return Success response
      */
     public static <T> ApiResponse<T> success(T data) {
         return new ApiResponse<>(true, PlatformErrorCode.SUCCESS.getCode(), 
@@ -96,11 +111,11 @@ public final class ApiResponse<T> implements Serializable {
     }
 
     /**
-     * 构建成功响应（带数据和追踪ID
+     * Build a success response with data and trace ID
      *
-     * @param data    业务数据载荷
-     * @param traceId 杩借釜ID
-     * @return 成功响应
+     * @param data    Business data payload
+     * @param traceId Trace ID for distributed tracing
+     * @return Success response
      */
     public static <T> ApiResponse<T> success(T data, String traceId) {
         return new ApiResponse<>(true, PlatformErrorCode.SUCCESS.getCode(),
@@ -108,21 +123,21 @@ public final class ApiResponse<T> implements Serializable {
     }
 
     /**
-     * 构建无数据的成功响应
+     * Build a success response without data
      *
-     * @return 成功响应
+     * @return Success response
      */
     public static ApiResponse<Void> success() {
         return success(null);
     }
 
-    // ========== 失败响应构建方法 ==========
+    // ========== Failure Response Builder Methods ==========
 
     /**
-     * 根据指定错误码构建失败响
+     * Build a failure response with the specified error code
      *
-     * @param errorCode 平台错误
-     * @return 失败响应
+     * @param errorCode Platform error code
+     * @return Failure response
      */
     public static ApiResponse<Void> failure(PlatformErrorCode errorCode) {
         return new ApiResponse<>(false, errorCode.getCode(), errorCode.getMessage(), 
@@ -130,35 +145,35 @@ public final class ApiResponse<T> implements Serializable {
     }
 
     /**
-     * 根据自定义消息构建失败响
+     * Build a failure response with custom message
      *
-     * @param errorCode 平台错误
-     * @param message   自定义错误描
-     * @return 失败响应
+     * @param errorCode Platform error code
+     * @param message   Custom error description
+     * @return Failure response
      */
     public static ApiResponse<Void> failure(PlatformErrorCode errorCode, String message) {
         return new ApiResponse<>(false, errorCode.getCode(), message, null, null, null);
     }
 
     /**
-     * 根据错误码和追踪ID构建失败响应
+     * Build a failure response with error code and trace ID
      *
-     * @param errorCode 平台错误
-     * @param traceId   杩借釜ID
-     * @return 失败响应
+     * @param errorCode Platform error code
+     * @param traceId   Trace ID for distributed tracing
+     * @return Failure response
      */
     public static ApiResponse<Void> failure(PlatformErrorCode errorCode, String message, String traceId) {
         return new ApiResponse<>(false, errorCode.getCode(), message, null, null, traceId);
     }
 
     /**
-     * 构建带详情的失败响应
+     * Build a failure response with details
      *
-     * @param errorCode 平台错误
-     * @param message   自定义错误描
-     * @param details   閿欒璇︽儏
-     * @param traceId   杩借釜ID
-     * @return 失败响应
+     * @param errorCode Platform error code
+     * @param message   Custom error description
+     * @param details   Error details
+     * @param traceId   Trace ID for distributed tracing
+     * @return Failure response
      */
     public static ApiResponse<Void> failure(PlatformErrorCode errorCode, String message, 
                                            Map<String, Object> details, String traceId) {
@@ -166,11 +181,11 @@ public final class ApiResponse<T> implements Serializable {
     }
 
     /**
-     * 使用自定义错误码构建失败响应（用于插件扩展错误码
+     * Build a failure response with custom error code (for plugin extension error codes)
      *
-     * @param code    自定义错误码
-     * @param message 閿欒鎻忚堪
-     * @return 失败响应
+     * @param code    Custom error code
+     * @param message Error description
+     * @return Failure response
      */
     public static ApiResponse<Void> failure(String code, String message) {
         return new ApiResponse<>(false, code, message, null, null, null);

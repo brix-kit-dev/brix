@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.annotation;
 
 import java.lang.annotation.Documented;
@@ -7,9 +22,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 权限检查注
+ * Permission Check Annotation
  * <p>
- * 标注在方法或类上，表示需要指定权限才能访问
+ * When annotated on a method or class, indicates specified permissions are required for access
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -21,28 +36,28 @@ import java.lang.annotation.Target;
 public @interface RequirePermission {
 
     /**
-     * 需要的权限列表
+     * Required permission list
      * <p>
-     * 使用 Immutable Permission ID 格式，如 "user:read", "order:create"
+     * Uses Immutable Permission ID format, e.g., "user:read", "order:create"
      * </p>
      *
-     * @return 权限标识数组
+     * @return Array of permission identifiers
      */
     String[] value();
 
     /**
-     * 逻辑模式
+     * Logical mode
      * <ul>
-     *   <li>AND - 需要拥有所有权</li>
-     *   <li>OR - 只需拥有任一权限</li>
+     *   <li>AND - All permissions required</li>
+     *   <li>OR - Any one permission sufficient</li>
      * </ul>
      *
-     * @return 逻辑模式，默OR
+     * @return Logical mode, default is OR
      */
     Logical logical() default Logical.OR;
 
     /**
-     * 逻辑模式枚举
+     * Logical mode enum
      */
     enum Logical {
         AND, OR

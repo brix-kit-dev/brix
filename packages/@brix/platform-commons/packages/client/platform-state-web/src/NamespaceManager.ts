@@ -1,18 +1,33 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Namespace Manager
  * @description Manages plugin state namespaces
  * @module @brix/platform-state-web/NamespaceManager
  * @version 3.0.0
  * 
- * 【Architecture Notes】
+ * [Architecture Notes]
  * NamespaceManager is responsible for managing plugin state namespaces.
  * Ensures each plugin can only access its own state space, achieving state isolation.
  * 
- * 【Naming Rules】
+ * [Naming Rules]
  * - State key format: {pluginId}:{localKey}
  * - Example: booking:filters, identity:currentUser
  * 
- * 【Security】
+ * [Security]
  * - Plugins cannot access other plugins' state
  * - Namespace is specified by Host when creating capability instance
  * - Keys in plugin code automatically get namespace prefix added
@@ -43,7 +58,7 @@ export interface NamespaceInfo {
  * 
  * Manages plugin state namespaces, achieving state isolation.
  * 
- * 【Usage Example】
+ * [Usage Example]
  * ```typescript
  * const manager = new NamespaceManager();
  * 

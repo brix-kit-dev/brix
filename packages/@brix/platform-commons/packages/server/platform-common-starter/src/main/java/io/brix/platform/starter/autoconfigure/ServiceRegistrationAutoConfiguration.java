@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.autoconfigure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,22 +36,22 @@ import io.brix.platform.starter.registration.ServiceHeartbeatService;
 import io.brix.platform.starter.registration.ServiceRegistrationService;
 
 /**
- * v2.1 服务注册自动配置
+ * v2.1 Service Registration Auto-Configuration
  * 
- * <p>自动配置服务注册、心跳和路由扫描功能</p>
+ * <p>Auto-configures service registration, heartbeat and route scanning functionality.</p>
  * 
- * <p>启用条件</p>
+ * <p>Enable Conditions:</p>
  * <ul>
- *   <li>Web 应用环境</li>
- *   <li>shinwa.service.registration-enabled=true（默认）</li>
- *   <li>配置shinwa.service.name shinwa.service.base-url</li>
+ *   <li>Web application environment</li>
+ *   <li>brix.service.registration-enabled=true (default)</li>
+ *   <li>Configured brix.service.name and brix.service.base-url</li>
  * </ul>
  * 
- * <p>提供Bean</p>
+ * <p>Provided Beans:</p>
  * <ul>
- *   <li>RouteScanner - 路由扫描</li>
- *   <li>ServiceRegistrationService - 服务注册服务</li>
- *   <li>ServiceHeartbeatService - 服务心跳服务</li>
+ *   <li>RouteScanner - Route scanner</li>
+ *   <li>ServiceRegistrationService - Service registration</li>
+ *   <li>ServiceHeartbeatService - Service heartbeat</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -46,7 +61,7 @@ import io.brix.platform.starter.registration.ServiceRegistrationService;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass({RequestMappingHandlerMapping.class})
 @ConditionalOnProperty(
-    prefix = "shinwa.service",
+    prefix = "brix.service",
     name = "registration-enabled",
     havingValue = "true",
     matchIfMissing = true
@@ -56,13 +71,13 @@ import io.brix.platform.starter.registration.ServiceRegistrationService;
 public class ServiceRegistrationAutoConfiguration {
     
     /**
-     * 路由扫描
+     * Route Scanner
      * 
-     * <p>扫描服务中所@RestController 暴露REST 端点</p>
+     * <p>Scans all REST endpoints exposed by @RestController in the service.</p>
      * 
-     * @param handlerMapping Spring 的请求映射处理器映射
-     * @param serviceProperties 服务配置
-     * @return 路由扫描
+     * @param handlerMapping Spring's request mapping handler mapping
+     * @param serviceProperties Service configuration
+     * @return Route scanner
      */
     @Bean
     @ConditionalOnMissingBean
@@ -73,12 +88,12 @@ public class ServiceRegistrationAutoConfiguration {
     }
     
     /**
-     * 插件清单扫描
+     * Plugin Manifest Scanner
      * 
-     * <p>扫描 classpath 中所有插件的 META-INF/plugin-manifest.json</p>
+     * <p>Scans all plugin META-INF/plugin-manifest.json files in classpath.</p>
      * 
-     * @param objectMapper JSON 序列化器
-     * @return 插件清单扫描
+     * @param objectMapper JSON serializer
+     * @return Plugin manifest scanner
      */
     @Bean
     @ConditionalOnMissingBean
@@ -87,22 +102,22 @@ public class ServiceRegistrationAutoConfiguration {
     }
     
     /**
-     * 服务注册服务
+     * Service Registration Service
      * 
-     * <p>负责向基座注册服务信息，包括路由清单和聚合的 UI 契约</p>
+     * <p>Responsible for registering service information to base including route manifest and aggregated UI contracts.</p>
      * 
-     * @param serviceProperties 服务配置
-     * @param platformApiProperties 平台 API 配置
-     * @param routeScanner 路由扫描
-     * @param pluginManifestScanner 插件清单扫描
-     * @param environment 环境配置
-     * @param objectMapper JSON 序列化器
-     * @return 服务注册服务
+     * @param serviceProperties Service configuration
+     * @param platformApiProperties Platform API configuration
+     * @param routeScanner Route scanner
+     * @param pluginManifestScanner Plugin manifest scanner
+     * @param environment Environment configuration
+     * @param objectMapper JSON serializer
+     * @return Service registration service
      */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
-        prefix = "shinwa.service",
+        prefix = "brix.service",
         name = {"name", "base-url"}
     )
     public ServiceRegistrationService serviceRegistrationService(
@@ -117,19 +132,19 @@ public class ServiceRegistrationAutoConfiguration {
     }
     
     /**
-     * 服务心跳服务
+     * Service Heartbeat Service
      * 
-     * <p>负责定时向基座发送心</p>
+     * <p>Responsible for periodically sending heartbeats to base.</p>
      * 
-     * @param serviceProperties 服务配置
-     * @param registrationService 服务注册服务
-     * @param healthEndpoint 鍋ュ悍绔偣
-     * @return 服务心跳服务
+     * @param serviceProperties Service configuration
+     * @param registrationService Service registration service
+     * @param healthEndpoint Health endpoint
+     * @return Service heartbeat service
      */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
-        prefix = "shinwa.service",
+        prefix = "brix.service",
         name = {"name", "base-url"}
     )
     public ServiceHeartbeatService serviceHeartbeatService(

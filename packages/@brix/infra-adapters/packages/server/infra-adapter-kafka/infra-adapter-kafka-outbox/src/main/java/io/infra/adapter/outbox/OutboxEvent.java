@@ -30,27 +30,27 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 /**
- * Outbox 事件实体
+ * Outbox Event Entity.
  *
- * <p>用于实现 Outbox 模式，保证事件发布的事务一致性。
- * 事件先写入 Outbox 表，再由异步任务发送到 Kafka。</p>
+ * <p>Used to implement the Outbox pattern, ensuring transactional consistency of event publishing.
+ * Events are first written to the Outbox table, then sent to Kafka by an asynchronous task.</p>
  *
- * <h3>架构定位</h3>
+ * <h3>Architecture Position</h3>
  * <p>
- * 本类属于 {@code infra-adapter-outbox} 独立模块（Layer 2.5: Adapter 层）。
- * Outbox 是跨基础设施的模式（需要 DB + MQ 协同），因此从 {@code infra-adapter-kafka}
- * 中独立出来，避免 Kafka 适配器引入 JPA 依赖。
+ * This class belongs to the {@code infra-adapter-outbox} standalone module (Layer 2.5: Adapter Layer).
+ * Outbox is a cross-infrastructure pattern (requires DB + MQ coordination), so it was separated from
+ * {@code infra-adapter-kafka} to avoid introducing JPA dependencies into the Kafka adapter.
  * </p>
  *
- * <h3>Outbox 模式说明</h3>
- * <p>Outbox 模式解决分布式事务问题：</p>
+ * <h3>Outbox Pattern Description</h3>
+ * <p>The Outbox pattern solves distributed transaction problems:</p>
  * <ol>
- *   <li>业务操作和事件写入 Outbox 在同一个数据库事务中完成</li>
- *   <li>后台定时任务读取 Outbox 中未发送的事件</li>
- *   <li>发送到 Kafka 成功后标记事件为已处理</li>
+ *   <li>Business operation and event writing to Outbox are completed in the same database transaction</li>
+ *   <li>Background scheduled task reads unsent events from Outbox</li>
+ *   <li>After successful send to Kafka, mark event as processed</li>
  * </ol>
  *
- * <h3>表结构</h3>
+ * <h3>Table Structure</h3>
  * <pre>{@code
  * CREATE TABLE event_outbox (
  *     id UUID PRIMARY KEY,
@@ -80,104 +80,104 @@ import jakarta.persistence.Table;
 public class OutboxEvent {
 
     /**
-     * 事件状态枚举
+     * Event Status Enumeration.
      *
-     * <p>描述 Outbox 事件在整个生命周期中的状态流转：
-     * {@code PENDING → PROCESSING → COMPLETED} 或
-     * {@code PENDING → PROCESSING → (重试) PENDING → ... → FAILED}</p>
+     * <p>Describes the status transition of Outbox events throughout their lifecycle:
+     * {@code PENDING → PROCESSING → COMPLETED} or
+     * {@code PENDING → PROCESSING → (retry) PENDING → ... → FAILED}</p>
      */
     public enum Status {
-        /** 待处理 - 等待发送到 Kafka */
+        /** Pending - waiting to be sent to Kafka */
         PENDING,
 
-        /** 处理中 - 正在发送到 Kafka */
+        /** Processing - currently being sent to Kafka */
         PROCESSING,
 
-        /** 已完成 - 发送到 Kafka 成功 */
+        /** Completed - successfully sent to Kafka */
         COMPLETED,
 
-        /** 失败 - 发送失败且超过最大重试次数 */
+        /** Failed - send failed and exceeded maximum retry count */
         FAILED
     }
 
-    /** 主键 ID（数据库自动生成的 UUID） */
+    /** Primary key ID (database auto-generated UUID) */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     /**
-     * 事件唯一标识
+     * Event unique identifier.
      *
-     * <p>对应 {@link IntegrationEvent#getEventId()}，用于幂等性检查。</p>
+     * <p>Corresponds to {@link IntegrationEvent#getEventId()}, used for idempotency checking.</p>
      */
     @Column(name = "event_id", nullable = false, length = 64)
     private String eventId;
 
     /**
-     * 事件类型
+     * Event type.
      *
-     * <p>对应 {@link IntegrationEvent#getEventType()}（通常为完整类名）</p>
+     * <p>Corresponds to {@link IntegrationEvent#getEventType()} (usually fully qualified class name)</p>
      */
     @Column(name = "event_type", nullable = false, length = 255)
     private String eventType;
 
-    /** 事件载荷（JSON 格式的序列化数据） */
+    /** Event payload (serialized data in JSON format) */
     @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     private String payload;
 
-    /** 目标 Kafka Topic */
+    /** Target Kafka Topic */
     @Column(name = "topic", nullable = false, length = 255)
     private String topic;
 
-    /** 路由键（用于 Kafka Partition Key，保证同一路由键的事件有序） */
+    /** Routing key (used for Kafka Partition Key, ensures events with same routing key are ordered) */
     @Column(name = "routing_key", length = 255)
     private String routingKey;
 
-    /** 事件当前状态 */
+    /** Current event status */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
     private Status status = Status.PENDING;
 
-    /** 创建时间（事件写入 Outbox 的时间） */
+    /** Creation time (time when event was written to Outbox) */
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    /** 处理完成时间（发送成功或最终失败的时间） */
+    /** Processing completion time (time of successful send or final failure) */
     @Column(name = "processed_at")
     private Instant processedAt;
 
-    /** 重试次数（累计发送失败的次数） */
+    /** Retry count (cumulative count of send failures) */
     @Column(name = "retry_count")
     private int retryCount = 0;
 
-    /** 错误消息（最后一次发送失败的异常信息） */
+    /** Error message (exception info from last send failure) */
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
-    /** 来源模块 ID（标识哪个业务模块产生的事件） */
+    /** Source module ID (identifies which business module produced the event) */
     @Column(name = "source_module", length = 128)
     private String sourceModule;
 
-    // ==================== 构造函数 ====================
+    // ==================== Constructors ====================
 
     /**
-     * JPA 默认构造函数
+     * JPA default constructor.
      *
-     * <p>仅供 JPA 框架反射调用，业务代码请使用 {@link #from(IntegrationEvent, String, String)} 工厂方法。</p>
+     * <p>Only for JPA framework reflection calls, business code should use {@link #from(IntegrationEvent, String, String)} factory method.</p>
      */
     protected OutboxEvent() {
     }
 
     /**
-     * 从集成事件创建 Outbox 记录
+     * Create Outbox record from integration event.
      *
-     * <p>工厂方法，提取 IntegrationEvent 的关键信息创建 Outbox 实体。
-     * 创建后状态为 {@link Status#PENDING}，等待定时任务处理。</p>
+     * <p>Factory method that extracts key information from IntegrationEvent to create Outbox entity.
+     * Created with {@link Status#PENDING} status, waiting for scheduled task processing.</p>
      *
-     * @param event   集成事件（提供 eventId、eventType、routingKey、sourceModule）
-     * @param payload 序列化后的 JSON 载荷
-     * @param topic   目标 Kafka Topic（由 EventTopicResolver 解析）
-     * @return Outbox 事件实体（PENDING 状态）
+     * @param event   integration event (provides eventId, eventType, routingKey, sourceModule)
+     * @param payload serialized JSON payload
+     * @param topic   target Kafka Topic (resolved by EventTopicResolver)
+     * @return Outbox event entity (PENDING status)
      */
     public static OutboxEvent from(IntegrationEvent event, String payload, String topic) {
         OutboxEvent outbox = new OutboxEvent();
@@ -192,21 +192,21 @@ public class OutboxEvent {
         return outbox;
     }
 
-    // ==================== 业务方法（状态流转） ====================
+    // ==================== Business Methods (State Transitions) ====================
 
     /**
-     * 标记为处理中
+     * Mark as processing.
      *
-     * <p>在定时任务从数据库取出事件准备发送时调用。</p>
+     * <p>Called when scheduled task retrieves event from database and prepares to send.</p>
      */
     public void markProcessing() {
         this.status = Status.PROCESSING;
     }
 
     /**
-     * 标记为已完成
+     * Mark as completed.
      *
-     * <p>在事件成功发送到 Kafka 后调用，同时记录处理完成时间。</p>
+     * <p>Called after event is successfully sent to Kafka, also records processing completion time.</p>
      */
     public void markCompleted() {
         this.status = Status.COMPLETED;
@@ -214,11 +214,11 @@ public class OutboxEvent {
     }
 
     /**
-     * 标记为失败
+     * Mark as failed.
      *
-     * <p>在事件超过最大重试次数仍无法发送时调用，需人工介入处理。</p>
+     * <p>Called when event exceeds maximum retry count and still cannot be sent, requires manual intervention.</p>
      *
-     * @param errorMessage 失败原因描述
+     * @param errorMessage failure reason description
      */
     public void markFailed(String errorMessage) {
         this.status = Status.FAILED;
@@ -227,18 +227,18 @@ public class OutboxEvent {
     }
 
     /**
-     * 增加重试次数
+     * Increment retry count.
      *
-     * <p>每次发送失败时调用，用于判断是否达到最大重试上限。</p>
+     * <p>Called on each send failure, used to determine if maximum retry limit is reached.</p>
      */
     public void incrementRetryCount() {
         this.retryCount++;
     }
 
     /**
-     * 重置为待处理状态（用于重试）
+     * Reset to pending status (for retry).
      *
-     * <p>发送失败但未超过最大重试次数时，重置状态等待下次定时任务处理。</p>
+     * <p>When send fails but maximum retry count is not exceeded, reset status to wait for next scheduled task processing.</p>
      */
     public void resetToPending() {
         this.status = Status.PENDING;

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.config;
 
 import org.slf4j.Logger;
@@ -6,9 +21,9 @@ import org.springframework.cloud.context.scope.refresh.RefreshScopeRefreshedEven
 import org.springframework.context.event.EventListener;
 
 /**
- * 配置刷新监听器
+ * Configuration refresh listener.
  *
- * <p>监听 Spring Cloud 的配置刷新事件，触发本地配置刷新。
+ * <p>Listens to Spring Cloud configuration refresh events and triggers local configuration refresh.
  *
  * @since 3.0.0
  */
@@ -23,13 +38,13 @@ public class ConfigRefreshListener {
     }
 
     /**
-     * 监听配置刷新事件
+     * Listen for configuration refresh events.
      *
-     * @param event 刷新事件
+     * @param event refresh event
      */
     @EventListener(RefreshScopeRefreshedEvent.class)
     public void onRefresh(RefreshScopeRefreshedEvent event) {
-        log.info("收到配置刷新事件: {}", event.getName());
+        log.info("Received configuration refresh event: {}", event.getName());
         configManager.refresh();
     }
 }

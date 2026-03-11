@@ -35,24 +35,25 @@ import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 /**
- * 基于内存的定时任务能力实现
+ * In-Memory Scheduling Capability Implementation
  * 
- * <p>本类是 {@link SchedulingCapability} 的轻量级内存实现，基于 ScheduledExecutorService。
- * 适用于本地开发和测试场景，无需依赖 Quartz 等外部调度框架。</p>
+ * <p>This class is a lightweight in-memory implementation of {@link SchedulingCapability},
+ * based on ScheduledExecutorService. Suitable for local development and testing scenarios
+ * without requiring external scheduling frameworks like Quartz.</p>
  * 
- * <h3>核心特性</h3>
+ * <h3>Key Features</h3>
  * <ul>
- *   <li><b>Cron 调度</b>：基于简易 Cron 解析（仅支持基本表达式）</li>
- *   <li><b>固定频率</b>：按固定间隔执行</li>
- *   <li><b>固定延迟</b>：上次执行完成后延迟执行</li>
- *   <li><b>一次性任务</b>：延迟指定时间后执行一次</li>
+ *   <li><b>Cron Scheduling</b>: Based on simplified Cron parsing (supports basic expressions only)</li>
+ *   <li><b>Fixed Rate</b>: Executes at fixed intervals</li>
+ *   <li><b>Fixed Delay</b>: Executes after delay from previous completion</li>
+ *   <li><b>One-time Tasks</b>: Executes once after specified delay</li>
  * </ul>
  * 
- * <h3>限制说明</h3>
+ * <h3>Limitations</h3>
  * <ul>
- *   <li>任务仅在当前 JVM 内调度，不支持分布式调度</li>
- *   <li>进程重启后所有任务丢失</li>
- *   <li>Cron 表达式支持有限（建议生产环境使用 Quartz 适配器）</li>
+ *   <li>Tasks are scheduled only within the current JVM, distributed scheduling is not supported</li>
+ *   <li>All tasks are lost after process restart</li>
+ *   <li>Limited Cron expression support (use Quartz adapter for production)</li>
  * </ul>
  * 
  * @author Brix Team
@@ -62,7 +63,7 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 @Capability(
     type = SchedulingCapability.class,
     name = "in-memory-scheduling",
-    description = "基于 ScheduledExecutorService 的内存定时任务实现",
+    description = "In-memory scheduling implementation based on ScheduledExecutorService",
     level = CapabilityLevel.STANDARD,
     aliases = {"simpleScheduling", "inMemoryScheduling"}
 )
@@ -71,31 +72,31 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
     private static final Logger log = LoggerFactory.getLogger(InMemorySchedulingCapability.class);
 
     /**
-     * 默认线程池大小
+     * Default thread pool size
      */
     private static final int DEFAULT_POOL_SIZE = 4;
 
     /**
-     * 调度执行器
+     * Scheduled executor
      */
     private final ScheduledExecutorService scheduler;
 
     /**
-     * 任务映射（taskId -> TaskHolder）
+     * Task mapping (taskId -> TaskHolder)
      */
     private final Map<String, TaskHolder> tasks = new ConcurrentHashMap<>();
 
     /**
-     * 创建内存调度能力（默认配置）
+     * Creates in-memory scheduling capability (default configuration)
      */
     public InMemorySchedulingCapability() {
         this(DEFAULT_POOL_SIZE);
     }
 
     /**
-     * 创建内存调度能力
+     * Creates in-memory scheduling capability
      * 
-     * @param poolSize 线程池大小
+     * @param poolSize Thread pool size
      */
     public InMemorySchedulingCapability(int poolSize) {
         this.scheduler = Executors.newScheduledThreadPool(poolSize, r -> {
@@ -103,23 +104,23 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
             t.setDaemon(true);
             return t;
         });
-        log.info("内存调度能力已创建: poolSize={}", poolSize);
+        log.info("In-memory scheduling capability created: poolSize={}", poolSize);
     }
 
     /**
      * {@inheritDoc}
      * 
-     * <p>注意：内存实现的 Cron 支持有限，仅模拟基本周期调度。
-     * 生产环境建议使用 Quartz 适配器。</p>
+     * <p>Note: In-memory implementation has limited Cron support, only simulates basic periodic scheduling.
+     * Use Quartz adapter for production environments.</p>
      */
     @Override
     public ScheduledTaskHandle scheduleWithCron(String taskId, String cronExpression, Runnable task) {
-        Objects.requireNonNull(taskId, "任务 ID 不能为空");
-        Objects.requireNonNull(cronExpression, "Cron 表达式不能为空");
-        Objects.requireNonNull(task, "任务不能为空");
+        Objects.requireNonNull(taskId, "Task ID cannot be null");
+        Objects.requireNonNull(cronExpression, "Cron expression cannot be null");
+        Objects.requireNonNull(task, "Task cannot be null");
 
-        // 简易 Cron 解析：仅支持固定间隔模拟
-        // 真实 Cron 解析需要专门的库（如 cron-utils）
+        // Simplified Cron parsing: only supports fixed interval simulation
+        // Real Cron parsing requires dedicated libraries (e.g., cron-utils)
         Duration interval = parseCronToInterval(cronExpression);
         
         TaskHolder holder = new TaskHolder(taskId, "cron");
@@ -133,7 +134,7 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
         holder.setFuture(future);
         tasks.put(taskId, holder);
         
-        log.debug("调度 Cron 任务: taskId={}, cron={}, interval={}", taskId, cronExpression, interval);
+        log.debug("Scheduled cron task: taskId={}, cron={}, interval={}", taskId, cronExpression, interval);
         return new InMemoryTaskHandle(holder);
     }
 
@@ -150,10 +151,10 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
      */
     @Override
     public ScheduledTaskHandle scheduleAtFixedRate(String taskId, Duration initialDelay, Duration period, Runnable task) {
-        Objects.requireNonNull(taskId, "任务 ID 不能为空");
-        Objects.requireNonNull(initialDelay, "初始延迟不能为空");
-        Objects.requireNonNull(period, "执行间隔不能为空");
-        Objects.requireNonNull(task, "任务不能为空");
+        Objects.requireNonNull(taskId, "Task ID cannot be null");
+        Objects.requireNonNull(initialDelay, "Initial delay cannot be null");
+        Objects.requireNonNull(period, "Period cannot be null");
+        Objects.requireNonNull(task, "Task cannot be null");
 
         TaskHolder holder = new TaskHolder(taskId, "fixed-rate");
         holder.setNextExecutionTime(Instant.now().plus(initialDelay));
@@ -169,7 +170,7 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
         holder.setFuture(future);
         tasks.put(taskId, holder);
         
-        log.debug("调度固定频率任务: taskId={}, initialDelay={}, period={}", taskId, initialDelay, period);
+        log.debug("Scheduled fixed rate task: taskId={}, initialDelay={}, period={}", taskId, initialDelay, period);
         return new InMemoryTaskHandle(holder);
     }
 
@@ -178,9 +179,9 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
      */
     @Override
     public ScheduledTaskHandle scheduleWithFixedDelay(String taskId, Duration delay, Runnable task) {
-        Objects.requireNonNull(taskId, "任务 ID 不能为空");
-        Objects.requireNonNull(delay, "执行间隔不能为空");
-        Objects.requireNonNull(task, "任务不能为空");
+        Objects.requireNonNull(taskId, "Task ID cannot be null");
+        Objects.requireNonNull(delay, "Delay cannot be null");
+        Objects.requireNonNull(task, "Task cannot be null");
 
         TaskHolder holder = new TaskHolder(taskId, "fixed-delay");
         holder.setNextExecutionTime(Instant.now().plus(delay));
@@ -196,7 +197,7 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
         holder.setFuture(future);
         tasks.put(taskId, holder);
         
-        log.debug("调度固定延迟任务: taskId={}, delay={}", taskId, delay);
+        log.debug("Scheduled fixed delay task: taskId={}, delay={}", taskId, delay);
         return new InMemoryTaskHandle(holder);
     }
 
@@ -205,9 +206,9 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
      */
     @Override
     public ScheduledTaskHandle scheduleOnce(String taskId, Duration delay, Runnable task) {
-        Objects.requireNonNull(taskId, "任务 ID 不能为空");
-        Objects.requireNonNull(delay, "延迟时间不能为空");
-        Objects.requireNonNull(task, "任务不能为空");
+        Objects.requireNonNull(taskId, "Task ID cannot be null");
+        Objects.requireNonNull(delay, "Delay cannot be null");
+        Objects.requireNonNull(task, "Task cannot be null");
 
         TaskHolder holder = new TaskHolder(taskId, "once");
         holder.setNextExecutionTime(Instant.now().plus(delay));
@@ -224,7 +225,7 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
         holder.setFuture(future);
         tasks.put(taskId, holder);
         
-        log.debug("调度一次性任务: taskId={}, delay={}", taskId, delay);
+        log.debug("Scheduled one-time task: taskId={}, delay={}", taskId, delay);
         return new InMemoryTaskHandle(holder);
     }
 
@@ -233,16 +234,16 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
      */
     @Override
     public boolean cancel(String taskId) {
-        Objects.requireNonNull(taskId, "任务 ID 不能为空");
+        Objects.requireNonNull(taskId, "Task ID cannot be null");
 
         TaskHolder holder = tasks.remove(taskId);
         if (holder == null) {
-            log.debug("任务不存在: taskId={}", taskId);
+            log.debug("Task does not exist: taskId={}", taskId);
             return false;
         }
 
         boolean cancelled = holder.cancel(false);
-        log.debug("取消任务: taskId={}, result={}", taskId, cancelled);
+        log.debug("Cancelled task: taskId={}, result={}", taskId, cancelled);
         return cancelled;
     }
 
@@ -265,9 +266,9 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
     }
 
     /**
-     * 获取活跃任务数量
+     * Gets active task count
      * 
-     * @return 任务数量
+     * @return Task count
      */
     public int getActiveTaskCount() {
         return (int) tasks.values().stream()
@@ -276,13 +277,13 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
     }
 
     /**
-     * 简易 Cron 解析（仅用于演示）
+     * Simplified Cron parsing (for demonstration only)
      * 
-     * <p>仅支持简单的间隔模式，真实场景应使用专业的 Cron 库</p>
+     * <p>Only supports simple interval patterns, real scenarios should use professional Cron libraries</p>
      */
     private Duration parseCronToInterval(String cronExpression) {
-        // 简化实现：默认 1 分钟间隔
-        // 真实实现应解析 Cron 表达式
+        // Simplified implementation: default 1 minute interval
+        // Real implementation should parse Cron expression
         if (cronExpression.contains("* * * * *")) {
             return Duration.ofMinutes(1);
         } else if (cronExpression.contains("0 * * * *")) {
@@ -290,12 +291,12 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
         } else if (cronExpression.contains("0 0 * * *")) {
             return Duration.ofDays(1);
         }
-        // 默认 1 分钟
+        // Default 1 minute
         return Duration.ofMinutes(1);
     }
 
     /**
-     * 执行任务
+     * Executes task
      */
     private void executeTask(TaskHolder holder, Runnable task) {
         holder.markRunning();
@@ -303,12 +304,12 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
         try {
             task.run();
             holder.incrementExecutionCount();
-            log.trace("任务执行完成: taskId={}", holder.getTaskId());
+            log.trace("Task execution completed: taskId={}", holder.getTaskId());
         } catch (Exception e) {
-            log.error("任务执行异常: taskId={}", holder.getTaskId(), e);
+            log.error("Task execution exception: taskId={}", holder.getTaskId(), e);
         } finally {
             holder.markNotRunning();
-            // 更新下次执行时间
+            // Update next execution time
             if (holder.getPeriod() != null) {
                 holder.setNextExecutionTime(Instant.now().plus(holder.getPeriod()));
             } else {
@@ -319,7 +320,7 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
 
     @Override
     public void close() {
-        log.info("关闭内存调度能力...");
+        log.info("Closing in-memory scheduling capability...");
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -333,7 +334,7 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
     }
 
     /**
-     * 任务持有者（内部类）
+     * Task holder (inner class)
      */
     private static class TaskHolder {
         private final String taskId;
@@ -416,7 +417,7 @@ public class InMemorySchedulingCapability implements SchedulingCapability, AutoC
     }
 
     /**
-     * 内存任务句柄实现
+     * In-memory task handle implementation
      */
     private static class InMemoryTaskHandle implements ScheduledTaskHandle {
         

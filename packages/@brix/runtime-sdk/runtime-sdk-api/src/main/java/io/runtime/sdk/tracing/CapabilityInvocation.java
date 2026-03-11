@@ -22,27 +22,28 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 能力调用记录
+ * Capability Invocation Record.
  * 
- * <p>不可变数据类，记录单次能力调用的完整信息，用于指标导出和追踪。</p>
+ * <p>Immutable data class recording complete information about a single capability
+ * invocation, used for metrics export and tracing.</p>
  * 
- * <h2>数据字段</h2>
+ * <h2>Data Fields</h2>
  * <ul>
- *   <li>{@code traceId} - 追踪 ID（用于关联分布式追踪）</li>
- *   <li>{@code sourcePlugin} - 调用方插件 ID</li>
- *   <li>{@code targetCapability} - 目标能力类名</li>
- *   <li>{@code methodName} - 调用的方法名</li>
- *   <li>{@code startTime} - 调用开始时间</li>
- *   <li>{@code endTime} - 调用结束时间</li>
- *   <li>{@code durationMs} - 调用耗时（毫秒）</li>
- *   <li>{@code success} - 是否成功</li>
- *   <li>{@code errorType} - 错误类型（失败时）</li>
- *   <li>{@code errorMessage} - 错误消息（失败时）</li>
- *   <li>{@code attributes} - 附加属性</li>
+ *   <li>{@code traceId} - Trace ID (for correlating distributed traces)</li>
+ *   <li>{@code sourcePlugin} - Caller plugin ID</li>
+ *   <li>{@code targetCapability} - Target capability class name</li>
+ *   <li>{@code methodName} - Invoked method name</li>
+ *   <li>{@code startTime} - Invocation start time</li>
+ *   <li>{@code endTime} - Invocation end time</li>
+ *   <li>{@code durationMs} - Invocation duration (milliseconds)</li>
+ *   <li>{@code success} - Whether successful</li>
+ *   <li>{@code errorType} - Error type (on failure)</li>
+ *   <li>{@code errorMessage} - Error message (on failure)</li>
+ *   <li>{@code attributes} - Additional attributes</li>
  * </ul>
  * 
- * <h2>架构说明</h2>
- * <p>本类是 v3.0 架构蓝图 4.4-1 任务数据模型的公共 API 定义。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>This class is the public API definition for capability invocation data model.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -62,7 +63,7 @@ public final class CapabilityInvocation {
     private final Map<String, String> attributes;
     
     /**
-     * 私有构造函数，使用 Builder 创建实例
+     * Private constructor, use Builder to create instances.
      */
     private CapabilityInvocation(Builder builder) {
         this.traceId = Objects.requireNonNull(builder.traceId, "traceId");
@@ -81,108 +82,108 @@ public final class CapabilityInvocation {
     }
     
     /**
-     * 创建 Builder 实例
+     * Create Builder instance
      * 
-     * @return 新的 Builder 实例
+     * @return new Builder instance
      */
     public static Builder builder() {
         return new Builder();
     }
     
     /**
-     * 获取追踪 ID
+     * Get trace ID
      * 
-     * @return 追踪 ID
+     * @return trace ID
      */
     public String getTraceId() {
         return traceId;
     }
     
     /**
-     * 获取调用方插件 ID
+     * Get caller plugin ID
      * 
-     * @return 插件 ID
+     * @return plugin ID
      */
     public String getSourcePlugin() {
         return sourcePlugin;
     }
     
     /**
-     * 获取目标能力类名
+     * Get target capability class name
      * 
-     * @return 能力类名
+     * @return capability class name
      */
     public String getTargetCapability() {
         return targetCapability;
     }
     
     /**
-     * 获取调用的方法名
+     * Get invoked method name
      * 
-     * @return 方法名
+     * @return method name
      */
     public String getMethodName() {
         return methodName;
     }
     
     /**
-     * 获取调用开始时间
+     * Get invocation start time
      * 
-     * @return 开始时间
+     * @return start time
      */
     public Instant getStartTime() {
         return startTime;
     }
     
     /**
-     * 获取调用结束时间
+     * Get invocation end time
      * 
-     * @return 结束时间
+     * @return end time
      */
     public Instant getEndTime() {
         return endTime;
     }
     
     /**
-     * 获取调用耗时（毫秒）
+     * Get invocation duration (milliseconds)
      * 
-     * @return 耗时毫秒数
+     * @return duration in milliseconds
      */
     public long getDurationMs() {
         return durationMs;
     }
     
     /**
-     * 是否调用成功
+     * Whether invocation succeeded
      * 
-     * @return 成功返回 true
+     * @return true if successful
      */
     public boolean isSuccess() {
         return success;
     }
     
     /**
-     * 获取错误类型
+     * Get error type
      * 
-     * @return 错误类型，成功时为 null
+     * @return error type, null on success
      */
     public String getErrorType() {
         return errorType;
     }
     
     /**
-     * 获取错误消息
+     * Get error message
      * 
-     * @return 错误消息，成功时为 null
+     * @return error message, null on success
      */
     public String getErrorMessage() {
         return errorMessage;
     }
     
     /**
-     * 获取附加属性
+     * Get additional attributes
      * 
-     * @return 不可变的属性 Map
+     * @return immutable attribute Map
      */
     public Map<String, String> getAttributes() {
         return attributes;
@@ -197,9 +198,9 @@ public final class CapabilityInvocation {
     }
     
     /**
-     * CapabilityInvocation 构建器
+     * CapabilityInvocation Builder
      * 
-     * <h2>使用示例</h2>
+     * <h2>Usage Example</h2>
      * <pre>{@code
      * CapabilityInvocation invocation = CapabilityInvocation.builder()
      *     .traceId("trace-123")
@@ -230,7 +231,7 @@ public final class CapabilityInvocation {
         private Builder() {}
         
         /**
-         * 设置追踪 ID
+         * Set trace ID
          */
         public Builder traceId(String traceId) {
             this.traceId = traceId;
@@ -238,7 +239,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置调用方插件 ID
+         * Set caller plugin ID
          */
         public Builder sourcePlugin(String sourcePlugin) {
             this.sourcePlugin = sourcePlugin;
@@ -246,7 +247,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置目标能力类名
+         * Set target capability class name
          */
         public Builder targetCapability(String targetCapability) {
             this.targetCapability = targetCapability;
@@ -254,7 +255,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置调用的方法名
+         * Set invoked method name
          */
         public Builder methodName(String methodName) {
             this.methodName = methodName;
@@ -262,7 +263,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置调用开始时间
+         * Set invocation start time
          */
         public Builder startTime(Instant startTime) {
             this.startTime = startTime;
@@ -270,7 +271,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置调用结束时间
+         * Set invocation end time
          */
         public Builder endTime(Instant endTime) {
             this.endTime = endTime;
@@ -278,7 +279,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置调用耗时（毫秒）
+         * Set invocation duration (milliseconds)
          */
         public Builder durationMs(long durationMs) {
             this.durationMs = durationMs;
@@ -286,7 +287,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置是否成功
+         * Set success status
          */
         public Builder success(boolean success) {
             this.success = success;
@@ -294,7 +295,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置错误类型
+         * Set error type
          */
         public Builder errorType(String errorType) {
             this.errorType = errorType;
@@ -302,7 +303,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 设置错误消息
+         * Set error message
          */
         public Builder errorMessage(String errorMessage) {
             this.errorMessage = errorMessage;
@@ -310,7 +311,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 添加属性
+         * Add attribute
          */
         public Builder attribute(String key, String value) {
             this.attributes.put(key, value);
@@ -318,7 +319,7 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 添加多个属性
+         * Add multiple attributes
          */
         public Builder attributes(Map<String, String> attributes) {
             this.attributes.putAll(attributes);
@@ -326,10 +327,10 @@ public final class CapabilityInvocation {
         }
         
         /**
-         * 构建 CapabilityInvocation 实例
+         * Build CapabilityInvocation instance
          * 
-         * @return 不可变的 CapabilityInvocation 实例
-         * @throws NullPointerException 如果必填字段为空
+         * @return immutable CapabilityInvocation instance
+         * @throws NullPointerException if required fields are null
          */
         public CapabilityInvocation build() {
             return new CapabilityInvocation(this);

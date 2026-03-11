@@ -1,33 +1,48 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Flyway 扩展配置属
+ * Flyway Extension Configuration Properties
  * 
- * <p>解决多插件 Flyway 版本冲突问题
- * 通过插件前缀区分不同插件的迁移脚本</p>
+ * <p>Resolves multi-plugin Flyway version conflicts by using
+ * plugin prefixes to distinguish migration scripts from different plugins.</p>
  * 
- * <p>设计目的</p>
+ * <p>Design Purpose:</p>
  * <ul>
- *   <li>解决问题7：Flyway 脚本版本冲突（V1__init_schema.sql</li>
- *   <li>制定 Flyway 版本命名规范</li>
- *   <li>自动添加插件前缀到迁移脚</li>
+ *   <li>Resolve Issue #7: Flyway script version conflicts (V1__init_schema.sql)</li>
+ *   <li>Establish Flyway version naming conventions</li>
+ *   <li>Automatically add plugin prefix to migration scripts</li>
  * </ul>
  * 
- * <p>命名规范</p>
+ * <p>Naming Convention:</p>
  * <pre>
- * V{插件前缀}_{版本号}__{描述}.sql
+ * V{plugin_prefix}_{version_number}__{description}.sql
  * 
- * 示例
+ * Examples:
  * - V001_001__user_init_schema.sql          # plugin-user V1
  * - V001_002__user_add_avatar_column.sql    # plugin-user V2
  * - V002_001__contract_init_schema.sql      # plugin-contract V1
  * </pre>
  * 
- * <p>插件前缀分配表：</p>
+ * <p>Plugin Prefix Assignment Table:</p>
  * <table>
- *   <tr><th>插件</th><th>前缀</th></tr>
+ *   <tr><th>Plugin</th><th>Prefix</th></tr>
  *   <tr><td>plugin-user</td><td>001</td></tr>
  *   <tr><td>plugin-contract</td><td>002</td></tr>
  *   <tr><td>plugin-file-center</td><td>003</td></tr>
@@ -38,11 +53,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *   <tr><td>plugin-medical-*</td><td>020-029</td></tr>
  * </table>
  * 
- * <p>配置示例</p>
+ * <p>Configuration Example:</p>
  * <pre>
- * shinwa:
+ * brix:
  *   flyway:
- *     plugin-prefix: "001"           # plugin-user 使用 001 前缀
+ *     plugin-prefix: "001"           # plugin-user uses prefix 001
  *     locations: classpath:db/migration
  *     conflict-check-enabled: true
  * </pre>
@@ -50,92 +65,92 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author Brix Platform Authors Team
  * @since v2.1
  */
-@ConfigurationProperties(prefix = "shinwa.flyway")
+@ConfigurationProperties(prefix = "brix.flyway")
 public class FlywayExtProperties {
     
     /**
-     * 插件前缀
+     * Plugin prefix
      * 
-     * <p>用于区分不同插件Flyway 迁移脚本</p>
-     * <p>格式位数字，001, 002, 010</p>
-     * <p>每个插件分配唯一的前缀范围</p>
+     * <p>Used to distinguish Flyway migration scripts from different plugins.</p>
+     * <p>Format: 3-digit number, e.g., 001, 002, 010</p>
+     * <p>Each plugin is assigned a unique prefix range.</p>
      */
     private String pluginPrefix;
     
     /**
-     * 迁移脚本位置
+     * Migration script locations
      * 
-     * <p>Flyway 扫描迁移脚本的路</p>
-     * <p>支持 classpath: filesystem: 前缀</p>
+     * <p>Path where Flyway scans for migration scripts.</p>
+     * <p>Supports classpath: and filesystem: prefixes.</p>
      * 
-     * <p>默认值：classpath:db/migration</p>
+     * <p>Default: classpath:db/migration</p>
      */
     private String locations = "classpath:db/migration";
     
     /**
-     * 是否启用版本冲突检
+     * Whether to enable version conflict detection
      * 
-     * <p>启用时，启动时会检查是否存在版本号冲突</p>
-     * <p>发现冲突时会记录警告日志</p>
+     * <p>When enabled, checks for version conflicts at startup.</p>
+     * <p>Logs warnings when conflicts are detected.</p>
      * 
-     * <p>默认值：true</p>
+     * <p>Default: true</p>
      */
     private boolean conflictCheckEnabled = true;
     
     /**
-     * 是否使用服务名作schema
+     * Whether to use service name as schema
      * 
-     * <p>启用时，每个服务使用独立的数据库 schema</p>
-     * <p>用于更严格的数据隔离</p>
+     * <p>When enabled, each service uses a separate database schema.</p>
+     * <p>Used for stricter data isolation.</p>
      * 
-     * <p>默认值：false</p>
+     * <p>Default: false</p>
      */
     private boolean useServiceSchema = false;
     
     /**
-     * 自定schema 名称
+     * Custom schema name
      * 
-     * <p>useServiceSchema true 时使</p>
-     * <p>如果未设置，则使用服务名作为 schema</p>
+     * <p>Used when useServiceSchema is true.</p>
+     * <p>If not set, service name is used as schema.</p>
      */
     private String schemaName;
     
     /**
-     * 是否启用基线版本
+     * Whether to enable baseline version
      * 
-     * <p>对于已有数据库，启用基线可以跳过历史迁移</p>
+     * <p>For existing databases, enabling baseline skips historical migrations.</p>
      * 
-     * <p>默认值：false</p>
+     * <p>Default: false</p>
      */
     private boolean baselineOnMigrate = false;
     
     /**
-     * 基线版本
+     * Baseline version
      * 
-     * <p>baselineOnMigrate true 时使</p>
+     * <p>Used when baselineOnMigrate is true.</p>
      * 
-     * <p>默认值：1</p>
+     * <p>Default: 1</p>
      */
     private String baselineVersion = "1";
     
     /**
-     * 是否在验证失败时清理
+     * Whether to clean on validation error
      * 
-     * <p>仅用于开发环境！生产环境必须禁用</p>
+     * <p>For development environment only! Must be disabled in production.</p>
      * 
-     * <p>默认值：false</p>
+     * <p>Default: false</p>
      */
     private boolean cleanOnValidationError = false;
     
-    // ===== 工具方法 =====
+    // ===== Utility Methods =====
     
     /**
-     * 生成带插件前缀的版本号
+     * Generate version number with plugin prefix
      * 
-     * <p>将简单版本号转换为带插件前缀的完整版本号</p>
+     * <p>Converts simple version number to full version number with plugin prefix.</p>
      * 
-     * @param simpleVersion 简单版本号，如 "001", "002"
-     * @return 完整版本号，"001_001", "001_002"
+     * @param simpleVersion Simple version number, e.g., "001", "002"
+     * @return Full version number, e.g., "001_001", "001_002"
      */
     public String buildVersionPrefix(String simpleVersion) {
         if (pluginPrefix == null || pluginPrefix.isEmpty()) {
@@ -145,11 +160,11 @@ public class FlywayExtProperties {
     }
     
     /**
-     * 验证插件前缀格式
+     * Validate plugin prefix format
      * 
-     * <p>前缀必须为数字</p>
+     * <p>Prefix must be a 3-digit number.</p>
      * 
-     * @return 如果格式正确返回 true
+     * @return true if format is correct
      */
     public boolean isValidPluginPrefix() {
         if (pluginPrefix == null || pluginPrefix.isEmpty()) {

@@ -16,66 +16,66 @@
 package io.brix.platform.starter.shell;
 
 /**
- * 运行壳配置属性基类
+ * Runtime Shell Configuration Properties Base Class
  * 
- * <p>抽取 Standalone 和 Embedded 两种模式的公共配置字段，
- * 消除约 60% 的重复配置代码。子类只需声明模式特有的字段。</p>
+ * <p>Extracts common configuration fields for Standalone and Embedded modes,
+ * eliminating approximately 60% of duplicate configuration code. Subclasses only need to declare mode-specific fields.</p>
  * 
- * <h2>公共字段</h2>
+ * <h2>Common Fields</h2>
  * <ul>
- *   <li><b>moduleId</b> — 模块标识，用于能力注册和日志标识</li>
- *   <li><b>tenantId</b> — 默认租户ID，多租户场景下使用</li>
- *   <li><b>scheduling</b> — 定时任务配置（两种模式均支持）</li>
- *   <li><b>lock</b> — 分布式锁基础配置（两种模式均支持）</li>
+ *   <li><b>moduleId</b> — Module identifier, used for capability registration and log identification</li>
+ *   <li><b>tenantId</b> — Default tenant ID, used in multi-tenant scenarios</li>
+ *   <li><b>scheduling</b> — Scheduled task configuration (supported in both modes)</li>
+ *   <li><b>lock</b> — Distributed lock base configuration (supported in both modes)</li>
  * </ul>
  * 
- * <h2>继承关系</h2>
+ * <h2>Inheritance Hierarchy</h2>
  * <pre>
  * AbstractShellProperties
- *     ├── StandaloneShellProperties  — 产品模式（Kafka/Redis/能力声明式配置）
- *     └── EmbeddedShellProperties    — 嵌入模式（Webhook/内存存储/轻量配置）
+ *     ├── StandaloneShellProperties  — Product mode (Kafka/Redis/Declarative capability configuration)
+ *     └── EmbeddedShellProperties    — Embedded mode (Webhook/In-memory storage/Lightweight configuration)
  * </pre>
  * 
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   shell:
- *     standalone:         # 或 embedded
+ *     standalone:         # or embedded
  *       module-id: my-module
  *       tenant-id: default
  *       scheduling:
  *         enabled: true
  *         pool-size: 5
  * }</pre>
- * 
+ *
  * @author Platform Team
  * @since 3.1.0
  */
 public abstract class AbstractShellProperties {
 
     /**
-     * 模块 ID，用于标识当前运行的模块
+     * Module ID, used to identify the currently running module
      * 
-     * <p>该字段在能力注册、日志输出、监控指标中作为模块标识。
-     * 建议与 Maven artifactId 保持一致。</p>
+     * <p>This field serves as module identifier in capability registration, log output, and monitoring metrics.
+     * Recommend keeping consistent with Maven artifactId.</p>
      */
     private String moduleId;
 
     /**
-     * 租户 ID，多租户场景下使用
+     * Tenant ID, used in multi-tenant scenarios
      * 
-     * <p>默认值 "default" 表示单租户模式。
-     * 运行时可通过 TenantContext 动态切换。</p>
+     * <p>Default value "default" indicates single-tenant mode.
+     * Can be dynamically switched at runtime via TenantContext.</p>
      */
     private String tenantId = "default";
 
     /**
-     * 定时任务配置
+     * Scheduled task configuration
      */
     private SchedulingConfig scheduling = new SchedulingConfig();
 
     /**
-     * 锁配置（基础部分）
+     * Lock configuration (base part)
      */
     private LockConfig lock = new LockConfig();
 
@@ -113,13 +113,13 @@ public abstract class AbstractShellProperties {
         this.lock = lock;
     }
 
-    // ==================== 公共嵌套配置类 ====================
+    // ==================== Common Nested Configuration Classes ====================
 
     /**
-     * 定时任务配置
+     * Scheduled Task Configuration
      * 
-     * <p>Standalone 和 Embedded 模式均支持定时任务，
-     * 区别在于默认线程池大小（Standalone=5, Embedded=2）。</p>
+     * <p>Both Standalone and Embedded modes support scheduled tasks,
+     * difference is default thread pool size (Standalone=5, Embedded=2).</p>
      */
     public static class SchedulingConfig {
         private boolean enabled = true;
@@ -143,10 +143,10 @@ public abstract class AbstractShellProperties {
     }
 
     /**
-     * 锁配置（基础部分）
+     * Lock Configuration (Base Part)
      * 
-     * <p>子类可扩展额外的锁配置字段
-     * （如 Standalone 的 type，Embedded 的 fair）。</p>
+     * <p>Subclasses can extend with additional lock configuration fields
+     * (e.g., Standalone's type, Embedded's fair).</p>
      */
     public static class LockConfig {
         private boolean enabled = true;

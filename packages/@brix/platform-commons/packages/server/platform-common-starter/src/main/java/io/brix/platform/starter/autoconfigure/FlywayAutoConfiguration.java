@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.autoconfigure;
 
 import org.flywaydb.core.Flyway;
@@ -15,27 +30,27 @@ import io.brix.platform.starter.flyway.FlywayConflictChecker;
 import io.brix.platform.starter.flyway.PluginFlywayConfigurer;
 
 /**
- * Flyway 自动配置
+ * Flyway Auto-Configuration
  * 
- * <p>自动配置 Flyway 相关 Bean，解决多插件版本冲突问题</p>
+ * <p>Auto-configures Flyway-related beans to resolve multi-plugin version conflicts.</p>
  * 
- * <p>配置条件</p>
+ * <p>Configuration Conditions:</p>
  * <ul>
- *   <li>classpath 中存在 Flyway </li>
- *   <li>spring.flyway.enabled=true（默认）</li>
+ *   <li>Flyway class exists in classpath</li>
+ *   <li>spring.flyway.enabled=true (default)</li>
  * </ul>
  * 
- * <p>提供Bean</p>
+ * <p>Provided Beans:</p>
  * <ul>
- *   <li>PluginFlywayConfigurer：插件 Flyway 配置</li>
- *   <li>FlywayConflictChecker：版本冲突检测器</li>
+ *   <li>PluginFlywayConfigurer: Plugin Flyway configuration</li>
+ *   <li>FlywayConflictChecker: Version conflict detector</li>
  * </ul>
  * 
- * <p>解决的问题：</p>
+ * <p>Resolved Issues:</p>
  * <ul>
- *   <li>多插件 Flyway 版本冲突</li>
- *   <li>版本命名规范</li>
- *   <li>自动冲突检</li>
+ *   <li>Multi-plugin Flyway version conflicts</li>
+ *   <li>Version naming conventions</li>
+ *   <li>Automatic conflict detection</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -52,13 +67,13 @@ public class FlywayAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(FlywayAutoConfiguration.class);
     
     /**
-     * 插件 Flyway 配置
+     * Plugin Flyway Configurer
      * 
-     * <p>自定义 Flyway 配置，添加插件前缀支持</p>
+     * <p>Customizes Flyway configuration with plugin prefix support.</p>
      * 
-     * @param flywayProperties  Flyway 扩展配置
-     * @param serviceProperties 服务配置
-     * @return Flyway 配置
+     * @param flywayProperties  Flyway extension properties
+     * @param serviceProperties Service properties
+     * @return Flyway configurer
      */
     @Bean
     @ConditionalOnMissingBean
@@ -66,23 +81,23 @@ public class FlywayAutoConfiguration {
             FlywayExtProperties flywayProperties,
             ServiceProperties serviceProperties) {
         
-        log.info("[FlywayAutoConfiguration] 创建插件 Flyway 配置- 前缀: {}",
+        log.info("[FlywayAutoConfiguration] Creating Plugin Flyway Configurer - prefix: {}",
             flywayProperties.getPluginPrefix());
         
         return new PluginFlywayConfigurer(flywayProperties, serviceProperties);
     }
     
     /**
-     * Flyway 版本冲突检测器
+     * Flyway Version Conflict Checker
      * 
-     * @param flywayProperties Flyway 扩展配置
-     * @return 冲突检测器
+     * @param flywayProperties Flyway extension properties
+     * @return Conflict checker
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "shinwa.flyway", name = "conflict-check-enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "brix.flyway", name = "conflict-check-enabled", havingValue = "true", matchIfMissing = true)
     public FlywayConflictChecker flywayConflictChecker(FlywayExtProperties flywayProperties) {
-        log.info("[FlywayAutoConfiguration] 创建 Flyway 版本冲突检测器");
+        log.info("[FlywayAutoConfiguration] Creating Flyway Version Conflict Checker");
         return new FlywayConflictChecker(flywayProperties);
     }
 }

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.oauth2;
 
 import java.net.URI;
@@ -24,25 +39,25 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /**
- * OAuth2 登录控制器（响应式实现）
+ * OAuth2 Login Controller (Reactive Implementation)
  * <p>
- * 提供 OAuth2 第三方登录相关的 REST API
+ * Provides OAuth2 third-party login related REST APIs:
  * <ul>
- *   <li>获取启用IdP 列表（前端渲染登录按钮）</li>
- *   <li>发起 OAuth2 授权请求（重定向IdP</li>
- *   <li>处理 OAuth2 回调（授权码换取 Token + 用户信息</li>
+ *   <li>Get enabled IdP list (for frontend to render login buttons)</li>
+ *   <li>Initiate OAuth2 authorization request (redirect to IdP)</li>
+ *   <li>Handle OAuth2 callback (exchange auth code for Token + user info)</li>
  * </ul>
  * </p>
  *
  * <p>
- * 登录流程
+ * Login Flow:
  * <ol>
- *   <li>前端调用 GET /api/v1/oauth2/providers 获取可用IdP 列表</li>
- *   <li>用户点击某个 IdP 按钮，前端重定向GET /api/v1/oauth2/authorize/{providerId}</li>
- *   <li>网关生成授权 URL，重定向IdP 授权页面</li>
- *   <li>用户授权后，IdP 回调GET /api/v1/oauth2/callback/{providerId}</li>
- *   <li>网关验证并获取用户信息，颁发平台 JWT</li>
- *   <li>重定向到前端回调页面，携Token</li>
+ *   <li>Frontend calls GET /api/v1/oauth2/providers to get available IdP list</li>
+ *   <li>User clicks an IdP button, frontend redirects to GET /api/v1/oauth2/authorize/{providerId}</li>
+ *   <li>Gateway generates authorization URL and redirects to IdP authorization page</li>
+ *   <li>After user authorization, IdP calls back GET /api/v1/oauth2/callback/{providerId}</li>
+ *   <li>Gateway validates and gets user info, issues platform JWT</li>
+ *   <li>Redirects to frontend callback page with Token</li>
  * </ol>
  * </p>
  *
@@ -60,16 +75,16 @@ public class OAuth2LoginController {
     private final OAuth2UserService oAuth2UserService;
 
     /**
-     * 获取启用的身份提供商列表
+     * Get enabled identity provider list
      * <p>
-     * 前端使用此接口动态渲染第三方登录按钮
-     * 仅返回已启用的提供商信息，不包含敏感配置
+     * Frontend uses this API to dynamically render third-party login buttons.
+     * Only returns enabled provider information, excluding sensitive configurations.
      * </p>
      *
-     * @return 启用的提供商列表
+     * @return Enabled provider list
      *
      * @api GET /api/v1/oauth2/providers
-     * @response 200 成功返回提供商列
+     * @response 200 Successfully returns provider list
      * @response 200 { "enabled": true, "providers": [...] }
      */
     @GetMapping("/providers")
@@ -98,50 +113,50 @@ public class OAuth2LoginController {
             .collect(Collectors.toList());
 
         result.put("providers", providers);
-        log.debug("[OAuth2] 返回提供商列 count={}", providers.size());
+        log.debug("[OAuth2] Returning provider list, count={}", providers.size());
 
         return Mono.just(ResponseEntity.ok(result));
     }
 
     /**
-     * 发起 OAuth2 授权请求
+     * Initiate OAuth2 authorization request
      * <p>
-     * 生成授权 URL 并重定向用户到第三方 IdP 登录页
-     * URL 包含：client_id, redirect_uri, scope, state, PKCE 参数等
+     * Generate authorization URL and redirect user to third-party IdP login page.
+     * URL includes: client_id, redirect_uri, scope, state, PKCE parameters, etc.
      * </p>
      *
-     * @param providerId 提供商标识（google、wechat、github
+     * @param providerId Provider identifier (google, wechat, github)
      * @param response   Server HTTP Response
-     * @return 重定向响
+     * @return Redirect response
      *
      * @api GET /api/v1/oauth2/authorize/{providerId}
-     * @response 302 重定向到 IdP 授权页面
+     * @response 302 Redirect to IdP authorization page
      */
     @GetMapping("/authorize/{providerId}")
     public Mono<Void> authorize(
         @PathVariable("providerId") String providerId,
         ServerHttpResponse response
     ) {
-        log.info("[OAuth2] 发起授权请求: provider={}", providerId);
+        log.info("[OAuth2] Initiating authorization request: provider={}", providerId);
 
         try {
             String authorizationUrl = oAuth2UserService.generateAuthorizationUrl(providerId);
-            log.debug("[OAuth2] 生成授权 URL: {}", authorizationUrl);
+            log.debug("[OAuth2] Generated authorization URL: {}", authorizationUrl);
             
             response.setStatusCode(HttpStatus.FOUND);
             response.getHeaders().setLocation(URI.create(authorizationUrl));
             return response.setComplete();
         } catch (OAuth2Exception e) {
-            log.error("[OAuth2] 授权失败: provider={}, error={}", providerId, e.getMessage());
+            log.error("[OAuth2] Authorization failed: provider={}, error={}", providerId, e.getMessage());
             
             String errorUrl = buildErrorRedirectUrl("authorize_failed", e.getMessage());
             response.setStatusCode(HttpStatus.FOUND);
             response.getHeaders().setLocation(URI.create(errorUrl));
             return response.setComplete();
         } catch (Exception e) {
-            log.error("[OAuth2] 授权异常: provider={}", providerId, e);
+            log.error("[OAuth2] Authorization exception: provider={}", providerId, e);
             
-            String errorUrl = buildErrorRedirectUrl("server_error", "授权服务异常");
+            String errorUrl = buildErrorRedirectUrl("server_error", "Authorization service error");
             response.setStatusCode(HttpStatus.FOUND);
             response.getHeaders().setLocation(URI.create(errorUrl));
             return response.setComplete();
@@ -149,28 +164,28 @@ public class OAuth2LoginController {
     }
 
     /**
-     * 处理 OAuth2 回调
+     * Handle OAuth2 callback
      * <p>
-     * 接收 IdP 的授权回调，流程包括
+     * Receive authorization callback from IdP, flow includes:
      * <ol>
-     *   <li>验证 state 参数（防 CSRF</li>
-     *   <li>使用授权码交access_token</li>
-     *   <li>使用 token 获取用户信息</li>
-     *   <li>根据配置执行自动注册或绑定现有账</li>
-     *   <li>颁发平台 JWT，重定向到前</li>
+     *   <li>Validate state parameter (prevent CSRF)</li>
+     *   <li>Exchange authorization code for access_token</li>
+     *   <li>Use token to get user info</li>
+     *   <li>Execute auto-registration or bind to existing account based on config</li>
+     *   <li>Issue platform JWT, redirect to frontend</li>
      * </ol>
      * </p>
      *
-     * @param providerId       提供商标
-     * @param code             授权
-     * @param state            状态参
-     * @param error            IdP 返回的错误码
-     * @param errorDescription IdP 返回的错误描
+     * @param providerId       Provider identifier
+     * @param code             Authorization code
+     * @param state            State parameter
+     * @param error            Error code returned by IdP
+     * @param errorDescription Error description returned by IdP
      * @param response         Server HTTP Response
-     * @return 重定向响
+     * @return Redirect response
      *
      * @api GET /api/v1/oauth2/callback/{providerId}
-     * @response 302 重定向到前端回调页面
+     * @response 302 Redirect to frontend callback page
      */
     @GetMapping("/callback/{providerId}")
     public Mono<Void> callback(
@@ -181,49 +196,49 @@ public class OAuth2LoginController {
         @RequestParam(name = "error_description", required = false) String errorDescription,
         ServerHttpResponse response
     ) {
-        log.info("[OAuth2] 收到回调: provider={}, hasCode={}, hasError={}", 
+        log.info("[OAuth2] Received callback: provider={}, hasCode={}, hasError={}", 
             providerId, code != null, error != null);
 
-        // 处理 IdP 返回的错
+        // Handle error returned by IdP
         if (error != null) {
             String message = errorDescription != null ? errorDescription : error;
-            log.warn("[OAuth2] IdP 返回错误: provider={}, error={}", providerId, error);
+            log.warn("[OAuth2] IdP returned error: provider={}, error={}", providerId, error);
             return redirectToFrontend(response, null, "idp_error", message);
         }
 
-        // 参数校验
+        // Parameter validation
         if (code == null || state == null) {
-            log.warn("[OAuth2] 回调参数不完 provider={}", providerId);
-            return redirectToFrontend(response, null, "invalid_request", "缺少必要参数");
+            log.warn("[OAuth2] Incomplete callback parameters: provider={}", providerId);
+            return redirectToFrontend(response, null, "invalid_request", "Missing required parameters");
         }
 
-        // 处理回调
+        // Handle callback
         return oAuth2UserService.handleCallback(providerId, code, state)
             .flatMap(userInfo -> {
-                log.info("[OAuth2] 用户信息获取成功: provider={}, bindingKey={}, email={}", 
+                log.info("[OAuth2] User info retrieved successfully: provider={}, bindingKey={}, email={}", 
                     providerId, userInfo.getBindingKey(), userInfo.getEmail());
                 
-                // P102/P112: 传递完整用户信息到前端
+                // P102/P112: Pass complete user info to frontend
                 return redirectToFrontendWithUserInfo(response, userInfo);
             })
             .onErrorResume(OAuth2Exception.class, e -> {
-                log.error("[OAuth2] 回调处理失败: provider={}, error={}", 
+                log.error("[OAuth2] Callback processing failed: provider={}, error={}", 
                     providerId, e.getMessage());
                 return redirectToFrontend(response, null, e.getErrorCode(), e.getMessage());
             })
             .onErrorResume(e -> {
-                log.error("[OAuth2] 回调处理异常: provider={}", providerId, e);
-                return redirectToFrontend(response, null, "server_error", "服务器内部错误");
+                log.error("[OAuth2] Callback processing exception: provider={}", providerId, e);
+                return redirectToFrontend(response, null, "server_error", "Internal server error");
             });
     }
 
     /**
-     * OAuth2 登录状态检
+     * OAuth2 login status check
      * <p>
-     * 检OAuth2 是否启用，以及各提供商的配置状
+     * Check if OAuth2 is enabled and the configuration status of each provider.
      * </p>
      *
-     * @return 状态信
+     * @return Status info
      */
     @GetMapping("/status")
     public Mono<ResponseEntity<Map<String, Object>>> status() {
@@ -242,17 +257,17 @@ public class OAuth2LoginController {
         return Mono.just(ResponseEntity.ok(status));
     }
 
-    // ==================== 私有方法 ====================
+    // ==================== Private Methods ====================
 
     /**
-     * 重定向到前端回调页面（携带完整用户信息）
+     * Redirect to frontend callback page (with complete user info)
      * <p>
-     * P102/P112: 传递完整的 OAuth 用户信息到前端，
-     * 前端再调Plugin-Engine 完成登录流程
+     * P102/P112: Pass complete OAuth user info to frontend,
+     * frontend then calls Plugin-Engine to complete login flow.
      * </p>
      *
-     * @param response HTTP 响应
-     * @param userInfo OAuth 用户信息
+     * @param response HTTP response
+     * @param userInfo OAuth user info
      * @return Mono<Void>
      */
     private Mono<Void> redirectToFrontendWithUserInfo(
@@ -261,10 +276,10 @@ public class OAuth2LoginController {
     ) {
         StringBuilder url = new StringBuilder(oAuth2Properties.getFrontendCallbackUrl());
         
-        // 必需参数
+        // Required parameters
         url.append("?user_key=").append(URLEncoder.encode(userInfo.getBindingKey(), StandardCharsets.UTF_8));
         
-        // 可选参数（URL 编码处理 null 值）
+        // Optional parameters (URL encode handles null values)
         if (userInfo.getEmail() != null) {
             url.append("&email=").append(URLEncoder.encode(userInfo.getEmail(), StandardCharsets.UTF_8));
         }
@@ -275,7 +290,7 @@ public class OAuth2LoginController {
             url.append("&avatar=").append(URLEncoder.encode(userInfo.getAvatar(), StandardCharsets.UTF_8));
         }
         
-        log.debug("[OAuth2] 重定向到前端（携带用户信息）: url={}", url);
+        log.debug("[OAuth2] Redirect to frontend (with user info): url={}", url);
         
         response.setStatusCode(HttpStatus.FOUND);
         response.getHeaders().setLocation(URI.create(url.toString()));
@@ -283,12 +298,12 @@ public class OAuth2LoginController {
     }
 
     /**
-     * 重定向到前端回调页面
+     * Redirect to frontend callback page
      *
-     * @param response         HTTP 响应
-     * @param userKey          用户标识（成功时
-     * @param error            错误码（失败时）
-     * @param errorDescription 閿欒鎻忚堪
+     * @param response         HTTP response
+     * @param userKey          User identifier (on success)
+     * @param error            Error code (on failure)
+     * @param errorDescription Error description
      * @return Mono<Void>
      */
     private Mono<Void> redirectToFrontend(
@@ -314,7 +329,7 @@ public class OAuth2LoginController {
             }
         }
 
-        log.debug("[OAuth2] 重定向到前端: {}", url);
+        log.debug("[OAuth2] Redirect to frontend: {}", url);
         
         response.setStatusCode(HttpStatus.FOUND);
         response.getHeaders().setLocation(URI.create(url.toString()));
@@ -322,11 +337,11 @@ public class OAuth2LoginController {
     }
 
     /**
-     * 构建错误重定URL
+     * Build error redirect URL
      *
-     * @param error       错误
-     * @param description 閿欒鎻忚堪
-     * @return 完整的错误重定向 URL
+     * @param error       Error code
+     * @param description Error description
+     * @return Complete error redirect URL
      */
     private String buildErrorRedirectUrl(String error, String description) {
         return oAuth2Properties.getFrontendCallbackUrl() +
@@ -338,23 +353,23 @@ public class OAuth2LoginController {
     }
 
     /**
-     * 格式化提供商名称
+     * Format provider name
      * <p>
-     * providerId 转换为用户友好的显示名称
+     * Convert providerId to user-friendly display name.
      * </p>
      *
-     * @param providerId 提供商标
-     * @return 格式化后的名
+     * @param providerId Provider identifier
+     * @return Formatted name
      */
     private String formatProviderName(String providerId) {
         return switch (providerId.toLowerCase()) {
             case "google" -> "Google";
             case "github" -> "GitHub";
-            case "wechat" -> "寰俊";
-            case "weibo" -> "寰崥";
+            case "wechat" -> "WeChat";
+            case "weibo" -> "Weibo";
             case "qq" -> "QQ";
-            case "dingtalk" -> "閽夐拤";
-            case "feishu" -> "椋炰功";
+            case "dingtalk" -> "DingTalk";
+            case "feishu" -> "Feishu";
             case "microsoft" -> "Microsoft";
             case "apple" -> "Apple";
             default -> providerId.substring(0, 1).toUpperCase() + providerId.substring(1);
@@ -362,14 +377,14 @@ public class OAuth2LoginController {
     }
 
     /**
-     * 全局异常处理：OAuth2 异常
+     * Global exception handler: OAuth2 exception
      *
-     * @param e OAuth2 异常
-     * @return 错误响应
+     * @param e OAuth2 exception
+     * @return Error response
      */
     @ExceptionHandler(OAuth2Exception.class)
     public Mono<ResponseEntity<Map<String, Object>>> handleOAuth2Exception(OAuth2Exception e) {
-        log.error("[OAuth2] 处理异常: code={}, message={}", e.getErrorCode(), e.getMessage());
+        log.error("[OAuth2] Handling exception: code={}, message={}", e.getErrorCode(), e.getMessage());
         
         Map<String, Object> error = new LinkedHashMap<>();
         error.put("code", e.getErrorCode());

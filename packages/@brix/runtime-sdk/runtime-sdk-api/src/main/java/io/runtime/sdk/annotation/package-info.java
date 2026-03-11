@@ -15,12 +15,12 @@
  */
 
 /**
- * 注解包
+ * Annotation Package
  * 
- * <p>本包定义模块开发使用的注解：</p>
+ * <p>This package defines annotations used in module development:</p>
  * <ul>
- *   <li>{@link io.runtime.sdk.annotation.Module} - 模块标识注解</li>
- *   <li>{@link io.runtime.sdk.annotation.EventHandler} - 事件处理器注解</li>
+ *   <li>{@link io.runtime.sdk.annotation.Module} - Module identifier annotation</li>
+ *   <li>{@link io.runtime.sdk.annotation.EventHandler} - Event handler annotation</li>
  * </ul>
  * 
  * @since 3.0.0

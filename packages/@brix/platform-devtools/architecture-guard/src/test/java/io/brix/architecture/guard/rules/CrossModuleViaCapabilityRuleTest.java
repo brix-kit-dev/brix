@@ -26,111 +26,111 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 
 /**
- * CrossModuleViaCapabilityRule 正反测试用例
+ * CrossModuleViaCapabilityRule Positive and Negative Test Cases
  *
- * <p>验证红线4规则的正确性：跨模块通信必须通过 Capability 接口。</p>
+ * <p>Validates the correctness of Red Line 4 rule: Cross-module communication must go through Capability interfaces.</p>
  *
- * <h2>覆盖的约束</h2>
+ * <h2>Covered Constraints</h2>
  * <ul>
- *   <li>Domain 层禁止直接依赖 Service 层</li>
- *   <li>跨模块依赖应通过 RuntimeContext.getCapability() 获取</li>
- *   <li>禁止 @Autowired 其他模块的 Service</li>
+ *   <li>Domain layer prohibited from directly depending on Service layer</li>
+ *   <li>Cross-module dependencies should be obtained via RuntimeContext.getCapability()</li>
+ *   <li>Prohibited from @Autowired other modules' Services</li>
  * </ul>
  *
- * <h2>层次关系</h2>
+ * <h2>Layer Relationships</h2>
  * <pre>
  * ┌─────────────────────────────┐
- * │   Service 层（应用服务）     │ ← 可以调用 Domain 层
+ * │   Service Layer (App Svc)   │ ← Can call Domain layer
  * ├─────────────────────────────┤
- * │   Domain 层（领域模型）      │ ← 禁止直接调用 Service 层
+ * │   Domain Layer (Domain Model)│ ← Prohibited from directly calling Service layer
  * └─────────────────────────────┘
  * </pre>
  *
- * <h2>合规模式</h2>
- * <p>Domain 层如需调用其他模块能力，应通过 Capability 接口：</p>
+ * <h2>Compliant Pattern</h2>
+ * <p>If Domain layer needs to call other module capabilities, should use Capability interface:</p>
  * <pre>{@code
- * // 正确做法：通过 Capability
+ * // Correct approach: via Capability
  * AuthCapability auth = runtimeContext.getCapability(AuthCapability.class);
  * auth.getCurrentUser();
  * 
- * // 错误做法：直接注入 Service
- * @Autowired UserService userService; // 违规！
+ * // Wrong approach: direct Service injection
+ * @Autowired UserService userService; // Violation!
  * }</pre>
  *
  * @author Brix Architecture Team
  * @since 3.2.0
  */
-@DisplayName("红线4：跨模块通信必须通过 Capability 接口")
+@DisplayName("Red Line 4: Cross-module communication must go through Capability interfaces")
 class CrossModuleViaCapabilityRuleTest {
 
     // ============================================================================
-    // Domain 层依赖检查测试
+    // Domain Layer Dependency Check Tests
     // ============================================================================
 
     @Nested
-    @DisplayName("Domain 层禁止直接依赖 Service 层")
+    @DisplayName("Domain layer prohibited from directly depending on Service layer")
     class DomainShouldNotDependOnServiceTests {
 
         @Test
-        @DisplayName("架构守护库自身应通过 Domain-Service 依赖检查")
+        @DisplayName("Architecture guard library itself should pass Domain-Service dependency check")
         void guardLibraryShouldPass() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule rule = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
 
             assertDoesNotThrow(() -> {
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard");
                 rule.check(classes);
-            }, "架构守护规则库自身不含 domain 包，应通过检查");
+            }, "Architecture guard library itself has no domain package, should pass check");
         }
 
         @Test
-        @DisplayName("不含 domain 包的代码应通过检查")
+        @DisplayName("Code without domain package should pass check")
         void codeWithoutDomainPackageShouldPass() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule rule = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
 
             assertDoesNotThrow(() -> {
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard.rules");
                 rule.check(classes);
-            }, "不含 domain 子包的代码应自动通过规则检查");
+            }, "Code without domain sub-package should automatically pass rule check");
         }
 
         @Test
-        @DisplayName("规则应能正确创建")
+        @DisplayName("Rule should be created correctly")
         void ruleShouldBeCreatedCorrectly() {
             ArchRule rule = CrossModuleViaCapabilityRule.rule();
-            assertTrue(rule != null, "CrossModuleViaCapabilityRule.rule() 返回值不应为 null");
+            assertTrue(rule != null, "CrossModuleViaCapabilityRule.rule() return value should not be null");
         }
     }
 
     // ============================================================================
-    // 规则描述与配置测试
+    // Rule Description and Configuration Tests
     // ============================================================================
 
     @Nested
-    @DisplayName("规则配置验证")
+    @DisplayName("Rule configuration validation")
     class RuleConfigurationTests {
 
         @Test
-        @DisplayName("规则应包含 domain 和 service 包模式")
+        @DisplayName("Rule should contain domain and service package patterns")
         void ruleShouldTargetCorrectPackages() {
             ArchRule rule = CrossModuleViaCapabilityRule.rule();
             String description = rule.getDescription();
 
-            // 验证规则描述存在
+            // Verify rule description exists
             assertDoesNotThrow(() -> {
                 if (description == null || description.isEmpty()) {
-                    throw new AssertionError("规则描述不应为空");
+                    throw new AssertionError("Rule description should not be empty");
                 }
-            }, "规则应包含描述信息");
+            }, "Rule should contain description information");
         }
 
         @Test
-        @DisplayName("规则应能多次创建且结果一致")
+        @DisplayName("Rule should be idempotent when created multiple times")
         void ruleCreationShouldBeIdempotent() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule rule1 = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
             ArchRule rule2 = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
 
@@ -139,22 +139,22 @@ class CrossModuleViaCapabilityRuleTest {
                         .importPackages("io.brix.architecture.guard");
                 rule1.check(classes);
                 rule2.check(classes);
-            }, "规则应能多次创建并正常工作");
+            }, "Rules should work correctly when created multiple times");
         }
     }
 
     // ============================================================================
-    // 与其他规则的组合测试
+    // Combination Tests with Other Rules
     // ============================================================================
 
     @Nested
-    @DisplayName("规则组合兼容性")
+    @DisplayName("Rule combination compatibility")
     class RuleCombinationTests {
 
         @Test
-        @DisplayName("应与所有红线规则兼容")
+        @DisplayName("Should be compatible with all red line rules")
         void shouldBeCompatibleWithAllRules() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule crossModuleRule = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
             ArchRule eventsRule = EventsViaCapabilityRule.rule();
             ArchRule containerRule = NoSpringContainerApiRule.rule();
@@ -167,13 +167,13 @@ class CrossModuleViaCapabilityRuleTest {
                 eventsRule.check(classes);
                 containerRule.check(classes);
                 loggingRule.check(classes);
-            }, "所有红线规则应能同时应用而不冲突");
+            }, "All red line rules should be applicable simultaneously without conflicts");
         }
 
         @Test
-        @DisplayName("规则应与 HTTP 客户端规则兼容")
+        @DisplayName("Rule should be compatible with HTTP client rules")
         void shouldBeCompatibleWithHttpClientRules() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule crossModuleRule = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
             ArchRule httpRule = NoDirectHttpClientsRule.noRestTemplate();
 
@@ -182,43 +182,43 @@ class CrossModuleViaCapabilityRuleTest {
                         .importPackages("io.brix.architecture.guard");
                 crossModuleRule.check(classes);
                 httpRule.check(classes);
-            }, "红线4与红线3规则应能同时应用而不冲突");
+            }, "Red Line 4 and Red Line 3 rules should be applicable simultaneously without conflicts");
         }
     }
 
     // ============================================================================
-    // 边界条件测试
+    // Boundary condition tests
     // ============================================================================
 
     @Nested
-    @DisplayName("边界条件验证")
+    @DisplayName("Boundary condition validation")
     class BoundaryConditionTests {
 
         @Test
-        @DisplayName("空包场景应通过检查")
+        @DisplayName("Empty package scenario should pass check")
         void emptyPackageShouldPass() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule rule = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
 
             assertDoesNotThrow(() -> {
-                // 尝试导入一个可能为空的包（profiles 子目录）
+                // Try to import a potentially empty package (profiles subdirectory)
                 JavaClasses classes = new ClassFileImporter()
                         .importPackages("io.brix.architecture.guard.profiles");
                 rule.check(classes);
-            }, "空包或无 domain 依赖的包应通过检查");
+            }, "Empty package or package without domain dependencies should pass check");
         }
 
         @Test
-        @DisplayName("单个规则类检查应通过")
+        @DisplayName("Single rule class check should pass")
         void singleClassShouldPass() {
-            // 使用 allowEmptyShould(true) 允许在没有匹配类时通过检查
+            // Use allowEmptyShould(true) to allow passing when no matching classes
             ArchRule rule = CrossModuleViaCapabilityRule.rule().allowEmptyShould(true);
 
             assertDoesNotThrow(() -> {
                 JavaClasses classes = new ClassFileImporter()
                         .importClasses(CrossModuleViaCapabilityRule.class);
                 rule.check(classes);
-            }, "单个规则类应通过自身的检查");
+            }, "Single rule class should pass its own check");
         }
     }
 }

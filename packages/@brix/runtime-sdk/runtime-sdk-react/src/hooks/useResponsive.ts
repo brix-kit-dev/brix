@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Responsive Hook
  * @description Provides responsive breakpoint detection for Runtime SDK
@@ -12,12 +27,6 @@
  * - Reactive breakpoint updates
  * - Device-type detection (mobile/tablet/desktop)
  * - Minimal re-renders via selective subscription
- *
- * 【响应式Hook】
- * 提供响应式断点检测的React Hook，包括：
- * - 当前断点（xs/sm/md/lg/xl/xxl）
- * - 设备类型检测（移动端/平板/桌面）
- * - 视口尺寸
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -36,13 +45,11 @@ export interface UseResponsiveResult {
   
   /**
    * Content area width in pixels (optional)
-   * 内容区域宽度（可选）
    */
   contentWidth?: number;
   
   /**
    * Content area height in pixels (optional)
-   * 内容区域高度（可选）
    */
   contentHeight?: number;
   
@@ -130,8 +137,7 @@ export function useResponsive(layout: LayoutCapability): UseResponsiveResult {
     };
   });
   
-  // Subscribe to layout state changes
-  // 订阅布局状态变化，在断点变化时更新（如果能力支持）
+  // Subscribe to layout state changes and update on breakpoint changes (if capability supports it)
   useEffect(() => {
     // onLayoutChange is optional, check if available
     if (!layout.onLayoutChange) {
@@ -140,7 +146,6 @@ export function useResponsive(layout: LayoutCapability): UseResponsiveResult {
     
     const unsubscribe = layout.onLayoutChange((event) => {
       // Update on breakpoint changes (most relevant for responsive)
-      // 断点变化时更新（对响应式最相关）
       if (event.type === 'breakpoint') {
         setState({
           breakpoint: event.state.breakpoint,
@@ -154,7 +159,6 @@ export function useResponsive(layout: LayoutCapability): UseResponsiveResult {
   }, [layout]);
   
   // Compute breakpoint flags
-  // 计算断点标志位
   const breakpointFlags = useMemo(() => ({
     isXs: state.breakpoint === 'xs',
     isSm: state.breakpoint === 'sm',
@@ -165,7 +169,6 @@ export function useResponsive(layout: LayoutCapability): UseResponsiveResult {
   }), [state.breakpoint]);
   
   // Compute device type flags
-  // 计算设备类型标志位
   const deviceFlags = useMemo(() => ({
     isMobile: state.breakpoint === 'xs' || state.breakpoint === 'sm',
     isTablet: state.breakpoint === 'md' || state.breakpoint === 'lg',

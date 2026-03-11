@@ -18,16 +18,16 @@ package io.infra.adapter.redis.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Redis 能力配置属性
+ * Redis capability configuration properties.
  * 
- * <p>定义 Redis 能力的配置项，对application.yml 中的配置。</p>
+ * <p>Defines configuration items for Redis capability, mapped to application.yml configuration.</p>
  * 
  * <pre>{@code
  * shinwa:
  *   runtime:
  *     redis:
  *       enabled: true
- *       key-prefix: shinwa:state:
+ *       key-prefix: brix:state:
  * }</pre>
  * 
  * @author Brix Platform Authors Platform Team
@@ -37,19 +37,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class RedisCapabilityProperties {
 
     /**
-     * 是否启用 Redis 能力
+     * Whether to enable Redis capability.
      */
     private boolean enabled = true;
 
     /**
-     * 键前缀
+     * Key prefix.
      * 
-     * <p>用于命名空间隔离</p>
+     * <p>Used for namespace isolation.</p>
      */
     private String keyPrefix = "brix:state:";
 
     /**
-     * 锁配置
+     * Lock configuration.
      */
     private LockProperties lock = new LockProperties();
 
@@ -79,20 +79,20 @@ public class RedisCapabilityProperties {
         this.lock = lock;
     }
 
-    // ==================== 嵌套配置====================
+    // ==================== Nested Configuration ====================
 
     /**
-     * 分布式锁配置
+     * Distributed lock configuration.
      */
     public static class LockProperties {
 
         /**
-         * 默认锁过期时间（秒）
+         * Default lock expiration time (seconds).
          */
         private int defaultExpireSeconds = 30;
 
         /**
-         * 锁键前缀
+         * Lock key prefix.
          */
         private String keyPrefix = "brix:lock:";
 

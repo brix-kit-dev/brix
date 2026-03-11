@@ -21,7 +21,6 @@ import io.runtime.manifest.model.ModuleManifest;
  * Manifest Validator.
  *
  * <p>Responsible for validating manifest completeness and correctness.</p>
- * <p>负责验证 Manifest 的完整性和正确性。</p>
  *
  * <h3>Validation Contents</h3>
  * <ul>
@@ -48,7 +47,6 @@ public interface ManifestValidator {
      * Validates a manifest in strict mode.
      *
      * <p>Strict mode checks more optional fields and best practices.</p>
-     * <p>严格模式会检查更多可选字段和最佳实践</p>
      *
      * @param manifest Module manifest
      * @return Validation result

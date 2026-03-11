@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "@brix/eslint-config-architecture",
-  "version": "3.2.0",
-  "description": "Brix 架构守护 ESLint 共享规则 �?对应 v3.0 运行壳架构蓝图中�?8 条红线（TypeScript 侧）",
+  "version": "1.0.0",
+  "description": "Brix 架构守护 ESLint 共享规则 �?对应 v3.0 运行壳架构蓝图中�?8 条红线（TypeScript 侧）",
   "main": "index.js",
   "license": "Apache-2.0",
   "author": "Brix Platform Authors",

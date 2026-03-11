@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import java.util.ArrayList;
@@ -18,21 +33,21 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 /**
- * 敏感请求头剥离过滤器
+ * Sensitive Header Strip Filter
  * <p>
- * 在请求转发到下游服务之前，剥离可能被客户端伪造的敏感头，
- * 防止身份伪造攻击。这些头将由后续的认授权服务重新注入
+ * onrequestconvertsendtodownstreamservicebefore，stripcancanbeclientforgeofsensitiveheader，
+ * preventidentityforgeattack。theseheaderwillbyaftercontinueofrecognizeauthorizationservicere-newinject
  * </p>
  * <p>
- * MVP 红线要求剥离的头
+ * MVP Red Line Requirementsstripofheader
  * <ul>
- *   <li>x-user-id - 用户ID</li>
- *   <li>x-tenant-id - 绉熸埛ID</li>
- *   <li>x-role / x-roles - 角色信息</li>
+ *   <li>x-user-id - useuserID</li>
+ *   <li>x-tenant-id - ID</li>
+ *   <li>x-role / x-roles - roleinformation</li>
  * </ul>
  * </p>
  * <p>
- * 执行优先级：在认证过滤器之后，业务过滤器之前
+ * executepriority：onauthenticationfilterofafter，businessfilterbefore
  * </p>
  *
  * @author Brix Platform Authors
@@ -60,9 +75,9 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
         String requestId = request.getId();
 
-        // 检查是否为排除路径
+        // checkwhetherisexcludepath
         if (isExcludedPath(path)) {
-            logger.debug("[shinwa] Header strip bypassed for excluded path: {} (ID: {})", 
+            logger.debug("[brix] Header strip bypassed for excluded path: {} (ID: {})", 
                     path, requestId);
             return chain.filter(exchange);
         }
@@ -71,25 +86,25 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
         Set<String> sensitiveHeaders = properties.getHeadersAsSet();
         List<String> strippedHeaders = new ArrayList<>();
 
-        // 检查并记录哪些敏感头存在于请求
+        // checkandrecordwhichsensitiveheaderstoreonforrequest
         for (String headerName : headers.keySet()) {
             if (sensitiveHeaders.contains(headerName.toLowerCase())) {
                 strippedHeaders.add(headerName);
             }
         }
 
-        // 如果没有需要剥离的头，直接放行
+        // ifnohasneedstripofheader，directlyreleaseline
         if (strippedHeaders.isEmpty()) {
             return chain.filter(exchange);
         }
 
-        // 构建新的请求，剥离敏感头
+        // buildnewofrequest，stripsensitiveheader
         ServerHttpRequest.Builder requestBuilder = request.mutate();
         for (String header : strippedHeaders) {
             requestBuilder.headers(httpHeaders -> httpHeaders.remove(header));
         }
 
-        // 记录剥离日志
+        // recordstriplog
         if (properties.isLogStripped()) {
             logStrippedHeaders(request, strippedHeaders, requestId);
         }
@@ -99,11 +114,11 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 记录被剥离的头信
+     * recordbestripofheadermessage
      */
     private void logStrippedHeaders(ServerHttpRequest request, List<String> strippedHeaders, String requestId) {
         StringBuilder logMessage = new StringBuilder();
-        logMessage.append("[shinwa] 馃敀 Stripped ")
+        logMessage.append("[brix]  Stripped ")
                   .append(strippedHeaders.size())
                   .append(" sensitive header(s) from request: ");
 
@@ -112,10 +127,10 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
             logMessage.append(header);
 
             if (properties.isLogStrippedValue()) {
-                // 仅在开发环境记录原始值（生产环境不应该启用）
+                // onlyonopensendenvironmentrecordoriginalvalue（productionenvironmentnotshouldthisenable）
                 List<String> values = request.getHeaders().get(header);
                 if (values != null && !values.isEmpty()) {
-                    // 对值进行脱敏处
+                    // forvalueperformsanitizeplace
                     String maskedValue = maskValue(values.get(0));
                     logMessage.append("=").append(maskedValue);
                 }
@@ -128,12 +143,12 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
 
         logMessage.append(" (ID: ").append(requestId).append(")");
         
-        // 使用 WARN 级别，因为这可能是恶意请求的迹象
+        // use WARN level，causeisthiscancanismaliciousrequestofsign
         logger.warn(logMessage.toString());
     }
 
     /**
-     * 对值进行脱敏处
+     * forvalueperformsanitizeplace
      */
     private String maskValue(String value) {
         if (value == null || value.length() <= 4) {
@@ -145,7 +160,7 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 检查路径是否在排除列表
+     * checkpathwhetheronexcludelist
      */
     private boolean isExcludedPath(String path) {
         for (String pattern : properties.getExcludePaths()) {
@@ -158,7 +173,7 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // 在认证过滤器之后执行
+        // onauthenticationfilterofafterexecute
         return Ordered.HIGHEST_PRECEDENCE + 20;
     }
 }

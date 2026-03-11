@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.security;
 
 import java.util.ArrayList;
@@ -7,13 +22,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * 请求签名配置属
+ * requestsignatureconfigurationproperty
  * 
- * <p>P105 任务：请求签+ IP 白名
+ * <p>P105 task：requestsign+ IP whitename
  * 
- * <p>配置 HMAC-SHA256 请求签名校验的相关参
+ * <p>configuration HMAC-SHA256 requestsignatureverifyofrelatedparameter
  * 
- * <p>配置示例
+ * <p>configurationexample
  * <pre>
  * gateway:
  *   signature:
@@ -33,44 +48,44 @@ import org.springframework.stereotype.Component;
 public class SignatureProperties {
 
     /**
-     * 是否启用签名校验
+     * whetherenablesignatureverify
      */
     private boolean enabled = true;
 
     /**
-     * 签名密钥（HMAC-SHA256
-     * 生产环境必须通过环境变量配置
+     * signaturesecret key（HMAC-SHA256
+     * productionenvironmentmustviaenvironmentvariableconfiguration
      */
-    private String secretKey = "shinwa-default-signature-key-change-in-production";
+    private String secretKey = "brix-default-signature-key-change-in-production";
 
     /**
-     * 时间戳容忍时间（秒）
-     * 超过此时间的请求视为重放攻击
+     * timestampallowenduretime（seconds）
+     * exceedthistimeofrequestviewisre-release attack
      */
     private int timestampToleranceSeconds = 300;
 
     /**
-     * 需要签名校验的路径
+     * needsignatureverifyofpath
      */
     private List<String> protectedPaths = new ArrayList<>(List.of("/open-api/**"));
 
     /**
-     * 签名请求头名
+     * signaturerequestheadername
      */
     private String signatureHeader = "X-Signature";
 
     /**
-     * 时间戳请求头名称
+     * Timestamp header name
      */
     private String timestampHeader = "X-Timestamp";
 
     /**
-     * Nonce 请求头名
+     * Nonce requestheadername
      */
     private String nonceHeader = "X-Nonce";
 
     /**
-     * 签名算法
+     * Signature algorithm
      */
     private String algorithm = "HmacSHA256";
 

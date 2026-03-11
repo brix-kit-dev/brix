@@ -20,7 +20,7 @@
 # 【Adapter Architecture Rules】
 # - Adapters must implement corresponding Capability interfaces
 # - Adapters use @ConditionalOnMissingBean for default implementations
-# - Adapters must not depend on business modules (shinwa-app-*)
+# - Adapters must not depend on business modules (brix-app-*)
 # ============================================================================
 
 name: Architecture Guard
@@ -163,7 +163,7 @@ jobs:
           
           # 检查 pom.xml 中是否有业务模块依赖
           forbidden_deps=(
-            "shinwa-app-"
+            "brix-app-"
             "identity-"
             "booking-"
             "messenger-"

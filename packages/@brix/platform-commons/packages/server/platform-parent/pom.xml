@@ -34,7 +34,7 @@
     <artifactId>platform-parent</artifactId>
     <packaging>pom</packaging>
     <name>Platform Parent</name>
-    <description>Shinwa 平台统一依赖治理 BOM — 所有版本属性和依赖管理继承自根 platform-commons POM</description>
+    <description>Brix 平台统一依赖治理 BOM — 所有版本属性和依赖管理继承自根 platform-commons POM</description>
 
     <!--
     注意：本 POM 不再定义 <properties>、<dependencyManagement> 和 <modules>，

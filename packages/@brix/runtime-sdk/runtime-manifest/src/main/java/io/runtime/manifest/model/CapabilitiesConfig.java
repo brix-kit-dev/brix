@@ -22,7 +22,6 @@ import java.util.List;
  * Capabilities Configuration.
  *
  * <p>Declares runtime capabilities required by the module, divided into required and optional.</p>
- * <p>【能力配置】声明模块运行所需的能力依赖，分为必需能力和可选能力。</p>
  *
  * <h4>Example Configuration</h4>
  * <pre>{@code
@@ -48,13 +47,11 @@ public class CapabilitiesConfig {
 
     /**
      * Required capabilities list (startup fails if missing).
-     * 必需能力列表（缺失则启动失败）
      */
     private List<String> required = new ArrayList<>();
 
     /**
      * Optional capabilities list (features degrade if missing).
-     * 可选能力列表（缺失则功能降级）
      */
     private List<String> optional = new ArrayList<>();
 

@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file mf-loader - Module Federation Component Loader
  * @description Encapsulates Module Federation dynamic remote component loading with a simplified API
@@ -146,6 +161,13 @@ function extractScopeName(remoteEntry: string, manifest?: ManifestConfig): strin
   // [Fallback] Parse from URL
   try {
     const url = new URL(remoteEntry, window.location.origin);
+
+    // Scheme 0: Query parameter (e.g. /plugins/x/remoteEntry.js?scope=products)
+    const scopeFromQuery = url.searchParams.get('scope') || url.searchParams.get('federationName');
+    if (scopeFromQuery) {
+      return scopeFromQuery;
+    }
+
     const pathParts = url.pathname.split('/').filter(Boolean);
 
     // Scheme 1: Standard path format /remotes/{scope}/remoteEntry.js
@@ -215,6 +237,9 @@ async function loadContainer(
   // Create loading Promise
   const loadPromise = (async () => {
     try {
+      // 0. Ensure shared scope is initialized (critical for MF)
+      await ensureSharedScopeInitialized();
+
       // 1. Dynamically load remoteEntry.js script
       await loadScript(remoteEntry);
 
@@ -270,6 +295,64 @@ async function loadScript(src: string): Promise<void> {
 
     document.head.appendChild(script);
   });
+}
+
+/**
+ * Ensure webpack shared scope is initialized
+ */
+async function ensureSharedScopeInitialized(): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const win = window as any;
+  
+  // If __webpack_init_sharing__ exists and scope not initialized, initialize it
+  if (typeof win.__webpack_init_sharing__ === 'function') {
+    if (!win.__webpack_share_scopes__?.default) {
+      await win.__webpack_init_sharing__('default');
+      console.log('[mfLoader] Initialized shared scope via webpack');
+    }
+  } else {
+    // Fallback: Create manual shared scope with React from global
+    // This handles the case where Host doesn't emit MF runtime
+    if (!win.__webpack_share_scopes__) {
+      win.__webpack_share_scopes__ = {};
+    }
+    if (!win.__webpack_share_scopes__.default) {
+      win.__webpack_share_scopes__.default = createManualSharedScope();
+      console.log('[mfLoader] Created manual shared scope');
+    }
+  }
+}
+
+/**
+ * Create manual shared scope with React and common dependencies
+ * Used when webpack MF runtime is not available
+ */
+function createManualSharedScope(): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const win = window as any;
+  
+  const createSharedModule = (name: string, moduleGetter: () => unknown, version = '0.0.0') => ({
+    [version]: {
+      get: async () => moduleGetter,
+      loaded: true,
+      from: 'host',
+      eager: true,
+    },
+  });
+  
+  const scope: Record<string, unknown> = {};
+  
+  // Add React if available globally
+  if (win.React) {
+    scope.react = createSharedModule('react', () => win.React, '18.2.0');
+  }
+  
+  // Add ReactDOM if available globally  
+  if (win.ReactDOM) {
+    scope['react-dom'] = createSharedModule('react-dom', () => win.ReactDOM, '18.2.0');
+  }
+  
+  return scope;
 }
 
 /**

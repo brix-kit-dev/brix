@@ -19,7 +19,6 @@ package io.runtime.manifest.model;
  * Circuit Breaker Configuration.
  *
  * <p>Configures circuit breaker behavior for fault tolerance.</p>
- * <p>【熔断器配置】配置容错熔断器的行为。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -32,31 +31,26 @@ public class CircuitBreakerConfig {
 
     /**
      * Circuit breaker name.
-     * 熔断器名称
      */
     private String name;
 
     /**
      * Failure rate threshold (percentage).
-     * 失败率阈值（百分比）
      */
     private int failureRateThreshold = 50;
 
     /**
      * Wait duration in open state.
-     * 熔断后等待时间
      */
     private String waitDurationInOpen = "5s";
 
     /**
      * Permitted calls in half-open state.
-     * 半开状态允许的调用数
      */
     private int permittedCallsInHalfOpen = 3;
 
     /**
      * Sliding window size.
-     * 滑动窗口大小
      */
     private int slidingWindowSize = 100;
 

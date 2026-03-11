@@ -45,14 +45,15 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
  *   <li><b>Context Propagation</b>: ThreadLocal-based token storage</li>
  * </ul>
  * 
- * <h3>Architecture Note (架构说明)</h3>
+ * <h3>Architecture Note</h3>
  * <p>Token validation logic extracted to {@link TokenIntrospectionService}
  * following Single Responsibility Principle. This class focuses solely on
  * implementing the AuthContextCapability interface.</p>
  * 
- * <p>【中文技术要点】
- * 委托认证能力实现，将 Token 验证逻辑提取到 TokenIntrospectionService，
- * 本类仅负责实现 AuthContextCapability 接口和管理请求上下文。</p>
+ * <p><b>Technical Notes:</b>
+ * Delegated authentication capability implementation. Token validation logic
+ * is extracted to TokenIntrospectionService. This class is only responsible
+ * for implementing the AuthContextCapability interface and managing request context.</p>
  *
  * @author Brix Platform Authors
  * @since 3.0.0

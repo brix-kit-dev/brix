@@ -28,18 +28,19 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 
 /**
- * OpenTelemetry 适配器自动配置
+ * OpenTelemetry adapter auto-configuration.
  * 
- * <p>Spring Boot 自动配置类，根据配置属性自动装配 OpenTelemetry 可观测性组件。</p>
+ * <p>Spring Boot auto-configuration class that automatically assembles OpenTelemetry
+ * observability components based on configuration properties.</p>
  * 
- * <h2>激活条件</h2>
+ * <h2>Activation Conditions</h2>
  * <ul>
- *   <li>配置 brix.infra.otel.enabled=true</li>
- *   <li>classpath 中存在 OpenTelemetry API</li>
- *   <li>没有其他 ObservabilityCapability Bean</li>
+ *   <li>Configure brix.infra.otel.enabled=true</li>
+ *   <li>OpenTelemetry API exists in classpath</li>
+ *   <li>No other ObservabilityCapability Bean exists</li>
  * </ul>
  * 
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   infra:
@@ -60,11 +61,11 @@ import org.springframework.context.annotation.Bean;
 public class OTelAdapterAutoConfiguration {
     
     /**
-     * 创建 OpenTelemetry SDK Bean
+     * Creates OpenTelemetry SDK Bean.
      *
-     * @param properties 配置属性
-     * @param applicationName Spring 应用名称（作为默认服务名）
-     * @return OpenTelemetry 实例
+     * @param properties Configuration properties
+     * @param applicationName Spring application name (as default service name)
+     * @return OpenTelemetry instance
      */
     @Bean
     @ConditionalOnMissingBean
@@ -80,22 +81,22 @@ public class OTelAdapterAutoConfiguration {
                 .withVersion(properties.getServiceVersion())
                 .withEnvironment(properties.getEnvironment());
         
-        // 配置追踪
+        // Configure tracing
         if (properties.getTracing().isEnabled()) {
             builder.withSampling(properties.getTracing().getSamplingRatio());
             builder.withBatchDelay(properties.getTracing().getBatchDelay());
             
-            // 默认使用 Logging Exporter
+            // Default to Logging Exporter
             String exporter = properties.getTracing().getExporter();
             if ("logging".equalsIgnoreCase(exporter) || exporter == null) {
                 builder.withLoggingExporter();
             }
-            // OTLP 和 Jaeger 需要额外的依赖，这里只配置 Logging
+            // OTLP and Jaeger require additional dependencies, only Logging is configured here
         } else {
-            builder.withSampling(0); // 禁用采样
+            builder.withSampling(0); // Disable sampling
         }
         
-        // 配置指标
+        // Configure metrics
         if (!properties.getMetrics().isEnabled()) {
             builder.disableMetrics();
         } else {
@@ -106,12 +107,12 @@ public class OTelAdapterAutoConfiguration {
     }
     
     /**
-     * 创建 OTelObservabilityCapability Bean
+     * Creates OTelObservabilityCapability Bean.
      *
-     * @param openTelemetry OpenTelemetry 实例
-     * @param properties 配置属性
-     * @param applicationName Spring 应用名称
-     * @return ObservabilityCapability 实例
+     * @param openTelemetry OpenTelemetry instance
+     * @param properties Configuration properties
+     * @param applicationName Spring application name
+     * @return ObservabilityCapability instance
      */
     @Bean
     @ConditionalOnMissingBean(ObservabilityCapability.class)

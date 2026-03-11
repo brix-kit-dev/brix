@@ -1,9 +1,9 @@
-{
+﻿{
   "name": "@brix/platform-commons",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "Brix Platform Commons - 平台通用能力层（前后端共用仓库）",
+  "description": "Brix Platform Commons - Platform-level shared capabilities (unified frontend/backend repository)",
   "repository": {
     "type": "git",
     "url": "https://github.com/brix-platform/platform-commons.git"

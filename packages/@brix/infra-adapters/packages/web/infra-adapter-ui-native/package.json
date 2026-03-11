@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-ui-native",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Brix Native UI Adapter - Pure CSS atomic components implementing UIAdapter contract without third-party UI library dependencies",
   "main": "dist/index.cjs",

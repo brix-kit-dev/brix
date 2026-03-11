@@ -43,12 +43,12 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
  *   <li>{@code @ConditionalOnProperty} - Requires explicit opt-in via configuration</li>
  * </ul>
  *
- * <p><b>Technical Notes (Chinese):</b></p>
+ * <p><b>Technical Notes:</b></p>
  * <pre>
- * [生产环境保护机制说明]
- * 此类通过双重保护确保不会在生产环境中启用:
- * 1. @Profile("!production") - 当 spring.profiles.active 包含 production 时，此 Bean 不会注册
- * 2. @ConditionalOnProperty - 需要显式设置 brix.fallback.auth.enabled=true 才会启用
+ * [Production Environment Protection Mechanism]
+ * This class ensures it will not be enabled in production through dual protection:
+ * 1. @Profile("!production") - Bean will not be registered when spring.profiles.active contains production
+ * 2. @ConditionalOnProperty - Must explicitly set brix.fallback.auth.enabled=true to enable
  * </pre>
  *
  * @author Brix Team

@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Theme Hook
  * @description Provides theme-related React Hooks for Runtime SDK
@@ -12,12 +27,6 @@
  * - Pure React Hook, no direct DOM manipulation
  * - Reactive updates via event subscription
  * - Computed values for common use cases
- * 
- * 【主题Hook】
- * 提供主题状态和控制方法的React Hook，包括：
- * - 当前主题模式（light/dark/system）
- * - 主题切换方法
- * - 颜色获取方法
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -106,7 +115,6 @@ export interface UseThemeResult {
  */
 export function useTheme(theme: ThemeCapability): UseThemeResult {
   // Helper to get current theme state from capability
-  // 辅助函数：从能力接口获取当前主题状态
   const getStateFromCapability = (): ThemeState => {
     // Use getState if available, otherwise construct from individual methods
     if (theme.getState) {
@@ -121,8 +129,7 @@ export function useTheme(theme: ThemeCapability): UseThemeResult {
 
   const [state, setState] = useState<ThemeState>(getStateFromCapability);
   
-  // Subscribe to theme state changes
-  // 订阅主题状态变化事件（如果能力支持）
+  // Subscribe to theme state changes (if capability supports it)
   useEffect(() => {
     // onThemeChange is optional, check if available
     if (!theme.onThemeChange) {
@@ -159,8 +166,7 @@ export function useTheme(theme: ThemeCapability): UseThemeResult {
     [theme]
   );
   
-  // Compute derived values
-  // 计算派生值，避免重复渲染
+  // Compute derived values to avoid unnecessary re-renders
   const isDark = useMemo(() => state.resolvedMode === 'dark', [state.resolvedMode]);
   const primaryColor = useMemo(() => state.config.colors.primary, [state.config.colors.primary]);
   

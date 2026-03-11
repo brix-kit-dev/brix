@@ -19,7 +19,6 @@ package io.runtime.manifest.model;
  * Event Publish Configuration.
  *
  * <p>Declares event types that the module can publish along with their metadata.</p>
- * <p>【事件发布配置】声明模块可以发布的事件类型及其元数据。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -32,31 +31,26 @@ public class EventPublishConfig {
 
     /**
      * Event type (fully qualified class name).
-     * 事件类型（完整类名）
      */
     private String type;
 
     /**
      * JSON Schema path.
-     * JSON Schema 路径
      */
     private String schema;
 
     /**
      * Event description.
-     * 事件描述
      */
     private String description;
 
     /**
      * Maximum payload size.
-     * 最大消息体大小
      */
     private String maxPayloadSize = "1MB";
 
     /**
      * Serialization format.
-     * 序列化格式
      */
     private String serialization = "JSON";
 

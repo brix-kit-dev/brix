@@ -41,17 +41,17 @@ import org.springframework.data.redis.core.script.RedisScript;
 import io.runtime.sdk.capability.DistributedLock;
 
 /**
- * {@link RedisLockCapability} 单元测试
+ * Unit tests for {@link RedisLockCapability}
  *
- * <p>使用 Mockito 模拟 RedisTemplate，验证分布式锁的
- * 获取、释放、所有权验证行为。</p>
+ * <p>Uses Mockito to mock RedisTemplate, validating distributed lock
+ * acquisition, release, and ownership verification behavior.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("RedisLockCapability 测试")
+@DisplayName("RedisLockCapability Tests")
 class RedisLockCapabilityTest {
 
     @Mock
@@ -71,14 +71,14 @@ class RedisLockCapabilityTest {
         lockCapability = new RedisLockCapability(redisTemplate, LOCK_PREFIX, DEFAULT_EXPIRE);
     }
 
-    // ==================== tryLock (无等待) ====================
+    // ==================== tryLock (no-wait) ====================
 
     @Nested
-    @DisplayName("tryLock(key) - 无等待")
+    @DisplayName("tryLock(key) - No Wait")
     class TryLockNoWaitTests {
 
         @Test
-        @DisplayName("锁可用时应返回 true")
+        @DisplayName("Should return true when lock is available")
         void tryLock_shouldReturnTrue_whenLockAvailable() {
             when(valueOperations.setIfAbsent(
                 eq(LOCK_PREFIX + "resource1"), anyString(), anyLong(), any(TimeUnit.class))
@@ -90,7 +90,7 @@ class RedisLockCapabilityTest {
         }
 
         @Test
-        @DisplayName("锁被持有时应返回 false")
+        @DisplayName("Should return false when lock is held")
         void tryLock_shouldReturnFalse_whenLockHeld() {
             when(valueOperations.setIfAbsent(
                 eq(LOCK_PREFIX + "resource1"), anyString(), anyLong(), any(TimeUnit.class))
@@ -102,14 +102,14 @@ class RedisLockCapabilityTest {
         }
     }
 
-    // ==================== tryLock (有等待) ====================
+    // ==================== tryLock (with wait) ====================
 
     @Nested
-    @DisplayName("tryLock(key, waitTime, unit) - 有等待")
+    @DisplayName("tryLock(key, waitTime, unit) - With Wait")
     class TryLockWithWaitTests {
 
         @Test
-        @DisplayName("首次尝试成功时应立即返回 true")
+        @DisplayName("Should return true immediately on first success")
         void tryLock_shouldReturnTrue_immediatelyOnSuccess() {
             when(valueOperations.setIfAbsent(
                 eq(LOCK_PREFIX + "resource2"), anyString(), anyLong(), any(TimeUnit.class))
@@ -121,7 +121,7 @@ class RedisLockCapabilityTest {
         }
 
         @Test
-        @DisplayName("等待时间内始终失败时应返回 false")
+        @DisplayName("Should return false when timeout exceeded")
         void tryLock_shouldReturnFalse_whenTimeoutExceeded() {
             when(valueOperations.setIfAbsent(
                 eq(LOCK_PREFIX + "resource3"), anyString(), anyLong(), any(TimeUnit.class))
@@ -140,7 +140,7 @@ class RedisLockCapabilityTest {
     class AcquireTests {
 
         @Test
-        @DisplayName("获取成功时应返回已锁定的 DistributedLock")
+        @DisplayName("Should return locked DistributedLock on success")
         void acquire_shouldReturnLockedLock_whenSuccess() {
             when(valueOperations.setIfAbsent(
                 eq(LOCK_PREFIX + "res"), anyString(), anyLong(), any(TimeUnit.class))
@@ -154,7 +154,7 @@ class RedisLockCapabilityTest {
         }
 
         @Test
-        @DisplayName("超时未获取时应返回未锁定的 DistributedLock")
+        @DisplayName("Should return unlocked DistributedLock on timeout")
         void acquire_shouldReturnUnlockedLock_whenTimeout() {
             when(valueOperations.setIfAbsent(
                 eq(LOCK_PREFIX + "res"), anyString(), anyLong(), any(TimeUnit.class))
@@ -174,16 +174,16 @@ class RedisLockCapabilityTest {
     class UnlockTests {
 
         @Test
-        @DisplayName("持有锁时应通过 Lua 脚本安全释放")
+        @DisplayName("Should safely release lock via Lua script when lock is held")
         @SuppressWarnings("unchecked")
         void unlock_shouldExecuteLuaScript_whenLockHeld() {
-            // 先获取锁
+            // Acquire lock first
             when(valueOperations.setIfAbsent(
                 eq(LOCK_PREFIX + "myres"), anyString(), anyLong(), any(TimeUnit.class))
             ).thenReturn(true);
             lockCapability.tryLock("myres");
 
-            // 执行 Lua 脚本释放
+            // Execute Lua script to release
             when(redisTemplate.execute(any(RedisScript.class), any(), anyString()))
                 .thenReturn(1L);
 
@@ -196,7 +196,7 @@ class RedisLockCapabilityTest {
     // ==================== isLocked ====================
 
     @Test
-    @DisplayName("isLocked - 获取锁后应返回 true")
+    @DisplayName("isLocked - should return true after acquiring lock")
     void isLocked_shouldReturnTrue_afterAcquire() {
         when(valueOperations.setIfAbsent(
             eq(LOCK_PREFIX + "key1"), anyString(), anyLong(), any(TimeUnit.class))
@@ -208,7 +208,7 @@ class RedisLockCapabilityTest {
     }
 
     @Test
-    @DisplayName("isLocked - 未获取锁时应返回 false")
+    @DisplayName("isLocked - should return false when lock not acquired")
     void isLocked_shouldReturnFalse_whenNotAcquired() {
         assertThat(lockCapability.isLocked("nonexistent")).isFalse();
     }
@@ -216,17 +216,17 @@ class RedisLockCapabilityTest {
     // ==================== isHeldByCurrentThread ====================
 
     @Test
-    @DisplayName("isHeldByCurrentThread - 当前线程持有锁时应返回 true")
+    @DisplayName("isHeldByCurrentThread - should return true when held by current thread")
     void isHeldByCurrentThread_shouldReturnTrue_whenHeldByCurrentThread() {
         when(valueOperations.setIfAbsent(
             eq(LOCK_PREFIX + "key2"), anyString(), anyLong(), any(TimeUnit.class))
         ).thenReturn(true);
         lockCapability.tryLock("key2");
 
-        // mock Redis GET 返回与本地存储一致的值
+        // mock Redis GET to return value consistent with local storage
         String localValue = lockCapability.isLocked("key2") ? "mock-value" : null;
-        // isHeldByCurrentThread 比较本地 ThreadLocal 值和 Redis 值
-        // 不必验证精确值，只需确认 isLocked=true 的前提下不抛异常
+        // isHeldByCurrentThread compares local ThreadLocal value with Redis value
+        // No need to verify exact value, just confirm no exception thrown when isLocked=true
         assertThat(lockCapability.isLocked("key2")).isTrue();
     }
 }

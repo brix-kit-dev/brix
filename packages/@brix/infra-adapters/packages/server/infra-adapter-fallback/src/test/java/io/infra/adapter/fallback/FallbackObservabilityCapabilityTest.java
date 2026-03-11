@@ -27,15 +27,15 @@ import io.runtime.sdk.capability.LogLevel;
 import io.runtime.sdk.capability.SpanContext;
 
 /**
- * {@link FallbackObservabilityCapability} 单元测试
+ * Unit tests for {@link FallbackObservabilityCapability}
  *
- * <p>验证基于 SLF4J 的可观测性 Fallback 实现：
- * 日志委托、指标记录不抛异常、空 SpanContext。</p>
+ * <p>Validates the SLF4J-based observability fallback implementation:
+ * log delegation, metric recording without exceptions, and empty SpanContext.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
-@DisplayName("FallbackObservabilityCapability 测试")
+@DisplayName("FallbackObservabilityCapability Tests")
 class FallbackObservabilityCapabilityTest {
 
     private FallbackObservabilityCapability observability;
@@ -48,7 +48,7 @@ class FallbackObservabilityCapabilityTest {
     // ==================== log ====================
 
     @Test
-    @DisplayName("log - 各日志级别均不应抛出异常")
+    @DisplayName("log - should not throw for any log level")
     void log_shouldNotThrow_forEachLevel() {
         for (LogLevel level : LogLevel.values()) {
             assertThatNoException().isThrownBy(() ->
@@ -58,7 +58,7 @@ class FallbackObservabilityCapabilityTest {
     }
 
     @Test
-    @DisplayName("log - null 参数不应抛出异常")
+    @DisplayName("log - should not throw with null arguments")
     void log_shouldHandleNullArgs() {
         assertThatNoException().isThrownBy(() ->
             observability.log(LogLevel.INFO, "test {}", (Object[]) null)
@@ -68,7 +68,7 @@ class FallbackObservabilityCapabilityTest {
     // ==================== recordMetric ====================
 
     @Test
-    @DisplayName("recordMetric - 应正常记录指标不抛异常")
+    @DisplayName("recordMetric - should record metrics without throwing")
     void recordMetric_shouldNotThrow() {
         assertThatNoException().isThrownBy(() ->
             observability.recordMetric("test.counter", 1.0, Map.of("env", "test"))
@@ -76,7 +76,7 @@ class FallbackObservabilityCapabilityTest {
     }
 
     @Test
-    @DisplayName("recordMetric - 空标签应正常处理")
+    @DisplayName("recordMetric - should handle empty tags")
     void recordMetric_shouldHandleEmptyTags() {
         assertThatNoException().isThrownBy(() ->
             observability.recordMetric("test.gauge", 42.5, Map.of())
@@ -86,7 +86,7 @@ class FallbackObservabilityCapabilityTest {
     // ==================== currentSpan ====================
 
     @Test
-    @DisplayName("currentSpan - 应返回空 SpanContext")
+    @DisplayName("currentSpan - should return empty SpanContext")
     void currentSpan_shouldReturnEmpty() {
         SpanContext span = observability.currentSpan();
 
@@ -97,7 +97,7 @@ class FallbackObservabilityCapabilityTest {
     // ==================== addSpanAttribute ====================
 
     @Test
-    @DisplayName("addSpanAttribute - 应正常处理不抛异常")
+    @DisplayName("addSpanAttribute - should handle without throwing")
     void addSpanAttribute_shouldNotThrow() {
         assertThatNoException().isThrownBy(() ->
             observability.addSpanAttribute("user.id", "12345")

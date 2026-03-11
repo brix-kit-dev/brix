@@ -26,19 +26,21 @@ import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 /**
- * Fallback 韧性能力实现
+ * Fallback Resilience Capability Implementation.
  * 
- * <p>P-13: 提供透传式的默认韧性能力实现，当没有 Resilience4j 等具体适配器时作为 fallback。</p>
+ * <p>P-13: Provides a pass-through default resilience capability implementation,
+ * serving as fallback when no Resilience4j or other specific adapters are available.</p>
  * 
- * <h3>行为说明</h3>
+ * <h3>Behavior Description</h3>
  * <ul>
- *   <li><b>熔断器</b>：始终处于 {@link CircuitBreakerState#CLOSED} 状态，直接执行操作</li>
- *   <li><b>限流器</b>：始终返回未限流，允许所有请求通过</li>
- *   <li><b>降级</b>：仅在操作抛出异常时调用 fallback 函数</li>
+ *   <li><b>Circuit Breaker</b>: Always in {@link CircuitBreakerState#CLOSED} state, directly executes operations</li>
+ *   <li><b>Rate Limiter</b>: Always returns not rate-limited, allows all requests through</li>
+ *   <li><b>Fallback</b>: Only invokes fallback function when operation throws an exception</li>
  * </ul>
  * 
- * <p>⚠️ 警告：此实现不提供真实的弹性保护，仅保证 API 契约可用。
- * 生产环境应使用基于 Resilience4j 的正式适配器。</p>
+ * <p>WARNING: This implementation does not provide real resilience protection,
+ * only ensures API contract availability.
+ * Production environments should use the Resilience4j-based adapter.</p>
  * 
  * @author Brix Team
  * @version 3.0.0
@@ -48,7 +50,7 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 @Capability(
     type = ResilienceCapability.class,
     name = "fallback-resilience",
-    description = "透传式 Fallback 韧性实现 - 不提供真实弹性保护",
+    description = "Pass-through fallback resilience implementation - no real resilience protection",
     level = CapabilityLevel.EXPERIMENTAL,
     aliases = {"fallbackResilience"}
 )
@@ -57,45 +59,45 @@ public class FallbackResilienceCapability implements ResilienceCapability {
     private static final Logger log = LoggerFactory.getLogger(FallbackResilienceCapability.class);
 
     /**
-     * 直接执行操作，不进行熔断保护
+     * Directly executes operation without circuit breaker protection.
      * 
-     * @param name      熔断器名称（日志用途）
-     * @param operation 要执行的操作
-     * @param <T>       返回类型
-     * @return 操作结果
+     * @param name      Circuit breaker name (for logging purposes)
+     * @param operation Operation to execute
+     * @param <T>       Return type
+     * @return Operation result
      */
     @Override
     public <T> T executeWithCircuitBreaker(String name, Supplier<T> operation) {
-        log.debug("[Fallback Resilience] 执行操作（无熔断保护）: {}", name);
+        log.debug("[Fallback Resilience] Executing operation (no circuit breaker protection): {}", name);
         return operation.get();
     }
 
     /**
-     * 执行操作，失败时调用降级函数
+     * Executes operation, invokes fallback function on failure.
      * 
-     * <p>不使用熔断器状态判断，仅在操作抛出异常时触发降级</p>
+     * <p>Does not use circuit breaker state, only triggers fallback when operation throws exception</p>
      * 
-     * @param name      熔断器名称（日志用途）
-     * @param operation 要执行的操作
-     * @param fallback  降级函数
-     * @param <T>       返回类型
-     * @return 操作结果或降级结果
+     * @param name      Circuit breaker name (for logging purposes)
+     * @param operation Operation to execute
+     * @param fallback  Fallback function
+     * @param <T>       Return type
+     * @return Operation result or fallback result
      */
     @Override
     public <T> T executeWithFallback(String name, Supplier<T> operation, Supplier<T> fallback) {
         try {
             return operation.get();
         } catch (Exception e) {
-            log.warn("[Fallback Resilience] 操作 '{}' 执行失败，触发降级: {}", name, e.getMessage());
+            log.warn("[Fallback Resilience] Operation '{}' failed, triggering fallback: {}", name, e.getMessage());
             return fallback.get();
         }
     }
 
     /**
-     * 始终返回 {@link CircuitBreakerState#CLOSED}
+     * Always returns {@link CircuitBreakerState#CLOSED}.
      * 
-     * @param name 熔断器名称
-     * @return 始终为 CLOSED
+     * @param name Circuit breaker name
+     * @return Always CLOSED
      */
     @Override
     public CircuitBreakerState getCircuitBreakerState(String name) {
@@ -103,10 +105,10 @@ public class FallbackResilienceCapability implements ResilienceCapability {
     }
 
     /**
-     * 始终返回 false（未限流）
+     * Always returns false (not rate-limited).
      * 
-     * @param key 限流器键
-     * @return 始终为 false
+     * @param key Rate limiter key
+     * @return Always false
      */
     @Override
     public boolean isRateLimited(String key) {
@@ -114,11 +116,11 @@ public class FallbackResilienceCapability implements ResilienceCapability {
     }
 
     /**
-     * 始终返回 true（令牌获取成功）
+     * Always returns true (token acquisition successful).
      * 
-     * @param key     限流器键
-     * @param permits 请求的令牌数（忽略）
-     * @return 始终为 true
+     * @param key     Rate limiter key
+     * @param permits Number of permits requested (ignored)
+     * @return Always true
      */
     @Override
     public boolean tryAcquire(String key, int permits) {

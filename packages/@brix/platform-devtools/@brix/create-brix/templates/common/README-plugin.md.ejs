@@ -1,4 +1,4 @@
-# <%= name %>
+﻿# <%= name %>
 
 > 生成时间: <%= date %>
 
@@ -6,27 +6,27 @@
 
 <%= description %>
 
-## 模块结构
+## module结构
 
 ```text
 <%= name %>/
 ├── pom.xml                     # 父 POM
 ├── README.md
 <% if (withApi) { %>
-├── <%= name %>-api/            # API 模块（供其他插件依赖）
+├── <%= name %>-api/            # API module（供其他插件依赖）
 │   ├── pom.xml
 │   └── src/
 <% } %>
-├── <%= name %>-core/           # Core 模块
+├── <%= name %>-core/           # Core module
 │   ├── pom.xml
 │   └── src/
 <% if (withWeb) { %>
-├── <%= name %>-web/            # Web 前端模块
+├── <%= name %>-web/            # Web 前端module
 │   ├── package.json
 │   └── src/
 <% } %>
 <% if (withMobile) { %>
-└── <%= name %>-mobile/         # Mobile 前端模块
+└── <%= name %>-mobile/         # Mobile 前端module
     ├── package.json
     └── src/
 <% } %>
@@ -65,7 +65,7 @@ cd <%= name %>-mobile && pnpm install && pnpm build
 
 迁移脚本位于：`<%= name %>-core/src/main/resources/db/migration/<%= name %>/`
 
-命名规范：`V<%= flywayPrefix %>_{版本号}__{描述}.sql`
+命名规范：`V<%= flywayPrefix %>_{版本号}__{Description}.sql`
 
 示例：
 - `V<%= flywayPrefix %>_001__<%= name.replace('plugin-', '') %>_init.sql`
@@ -73,9 +73,9 @@ cd <%= name %>-mobile && pnpm install && pnpm build
 
 ## 配置项
 
-| 配置项 | 说明 | 默认值 |
+| 配置项 | 说明 | Default值 |
 |---|---|---|
-| `shinwa.plugin.<%= name.replace('plugin-', '').replace(/-/g, '.') %>.enabled` | 是否启用插件 | `true` |
+| `shinwa.plugin.<%= name.replace('plugin-', '').replace(/-/g, '.') %>.enabled` | 是否Enabled插件 | `true` |
 
 ## License
 

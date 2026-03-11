@@ -22,17 +22,17 @@ import com.tngtech.archunit.junit.ArchTests;
 import io.brix.architecture.guard.BrixArchitectureRules;
 
 /**
- * Kafka适配器架构守护测试。
+ * Architecture guard tests for the Kafka adapter.
  *
- * <p>本测试类验证 infra-adapter-kafka 模块遵守以下架构红线：
+ * <p>This test class validates that the infra-adapter-kafka module adheres to the following architecture rules:
  * <ul>
- *   <li>R6/D4: 适配器隔离，不暴露第三方类型给上层</li>
- *   <li>R4: 依赖 runtime-sdk-api 能力接口</li>
- *   <li>R9: 禁止适配器之间相互依赖</li>
+ *   <li>R6/D4: Adapter isolation, third-party types must not be exposed to upper layers</li>
+ *   <li>R4: Depends on runtime-sdk-api capability interfaces</li>
+ *   <li>R9: Inter-adapter dependencies are prohibited</li>
  * </ul>
  *
- * <p>infra-adapter-kafka 是基础设施适配器层，封装 Kafka 实现细节，
- * 对外仅暴露 EventBusCapability 接口。
+ * <p>infra-adapter-kafka is an infrastructure adapter layer that encapsulates Kafka implementation details
+ * and only exposes the EventBusCapability interface externally.
  *
  * @see BrixArchitectureRules#adapterProfile()
  */
@@ -43,17 +43,17 @@ import io.brix.architecture.guard.BrixArchitectureRules;
 public class ArchitectureTest {
 
     /**
-     * 应用适配器层架构规则集。
+     * Applies the adapter layer architecture rule set.
      *
-     * <p>包含以下规则：
+     * <p>Contains the following rules:
      * <ul>
-     *   <li>adaptersMustImplementCapability - 适配器必须实现能力接口</li>
-     *   <li>noPluginDependency - 适配器不依赖插件</li>
-     *   <li>noHostDependency - 适配器不依赖主机壳</li>
-     *   <li>noAdapterCircularDependency - 适配器间无循环依赖</li>
-     *   <li>publicApiMustNotLeakThirdParty - 公共API不泄露第三方类型</li>
-     *   <li>configClassesMustBeInternal - 配置类必须为内部类</li>
-     *   <li>noCyclicPackageDependencies - 包级无循环依赖</li>
+     *   <li>adaptersMustImplementCapability - Adapters must implement capability interfaces</li>
+     *   <li>noPluginDependency - Adapters must not depend on plugins</li>
+     *   <li>noHostDependency - Adapters must not depend on the host shell</li>
+     *   <li>noAdapterCircularDependency - No circular dependencies between adapters</li>
+     *   <li>publicApiMustNotLeakThirdParty - Public APIs must not leak third-party types</li>
+     *   <li>configClassesMustBeInternal - Configuration classes must be internal</li>
+     *   <li>noCyclicPackageDependencies - No cyclic dependencies at package level</li>
      * </ul>
      */
     @ArchTest

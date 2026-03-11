@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability.metrics;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -5,32 +20,32 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.ComponentScan;
 
 /**
- * 指标自动配置
+ * Metrics auto-configuration.
  * 
- * <p>v2.1 阶段4 可观测性增强</p>
+ * <p>v2.1 Phase 4 Observability Enhancement</p>
  * 
- * <p>自动装配的组件：</p>
+ * <p>Auto-assembled components:</p>
  * <ul>
- *   <li>{@link BusinessMetrics} - 业务指标收集</li>
- *   <li>{@link JvmMetricsCollector} - JVM 指标收集</li>
- *   <li>{@link OutboxMetricsCollector} - Outbox 指标收集</li>
- *   <li>{@link CircuitBreakerMetricsCollector} - 熔断器指标收集器</li>
+ *   <li>{@link BusinessMetrics} - Business metrics collector</li>
+ *   <li>{@link JvmMetricsCollector} - JVM metrics collector</li>
+ *   <li>{@link OutboxMetricsCollector} - Outbox metrics collector</li>
+ *   <li>{@link CircuitBreakerMetricsCollector} - Circuit breaker metrics collector</li>
  * </ul>
  * 
- * <p>配置项：</p>
+ * <p>Configuration:</p>
  * <pre>
  * observability:
  *   metrics:
- *     enabled: true          # 总开
+ *     enabled: true          # Master switch
  *     jvm:
- *       enabled: true        # JVM 指标
+ *       enabled: true        # JVM metrics
  *     outbox:
- *       enabled: true        # Outbox 指标
+ *       enabled: true        # Outbox metrics
  *     circuit-breaker:
- *       enabled: true        # 熔断器指
+ *       enabled: true        # Circuit breaker metrics
  * </pre>
  * 
- * <p>Prometheus 端点</p>
+ * <p>Prometheus Endpoint</p>
  * <pre>
  * GET /actuator/prometheus
  * </pre>
@@ -43,6 +58,6 @@ import org.springframework.context.annotation.ComponentScan;
 @ComponentScan(basePackageClasses = MetricsAutoConfiguration.class)
 public class MetricsAutoConfiguration {
 
-    // 通过 @ComponentScan 自动扫描本包下的组件
+    // Components in this package are auto-scanned via @ComponentScan
 }
 

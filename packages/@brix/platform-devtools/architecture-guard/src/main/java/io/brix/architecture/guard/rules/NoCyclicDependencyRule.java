@@ -15,10 +15,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <h2>Architecture Principle</h2>
  * <blockquote>
- * 红线 11：无循环依赖（No Circular Dependency）
- * ✗ 禁止：插件 A 依赖插件 B，同时插件 B 依赖插件 A
- * ✗ 禁止：Core 层依赖 Server/Adapter 层
- * ✗ 禁止：runtime-sdk-api 依赖任何具体实现模块
+ * Red Line 11: No Circular Dependency
+ * ✗ Prohibited: Plugin A depends on Plugin B while Plugin B depends on Plugin A
+ * ✗ Prohibited: Core layer depends on Server/Adapter layer
+ * ✗ Prohibited: runtime-sdk-api depends on any specific implementation modules
  * </blockquote>
  *
  * <h2>Source</h2>
@@ -44,7 +44,7 @@ public final class NoCyclicDependencyRule {
      */
     public static ArchRule noCyclesBetweenPlugins() {
         return SlicesRuleDefinition.slices()
-                .matching("com.shinwa.app.(*)..")
+                .matching("io.brix.app.(*)..")
                 .should().beFreeOfCycles()
                 .because("Red Line 11: Plugins must not have circular dependencies. " +
                         "Use Integration Events for bi-directional communication.");
@@ -67,7 +67,7 @@ public final class NoCyclicDependencyRule {
     /**
      * Core layer must not depend on Server layer.
      *
-     * <p>Dependencies should only flow downward: Server → Core → Domain.</p>
+     * <p>Dependencies should only flow downward: Server -&gt; Core -&gt; Domain.</p>
      *
      * @return ArchUnit rule instance
      */

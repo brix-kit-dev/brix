@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file usePluginSystem Hook
  * @description Plugin system React Hook - Dynamic discovery, loading and management of plugins (with lifecycle)
@@ -55,6 +70,8 @@ import {
   type LoadedPluginConfig,
   type UIPluginManifest,
 } from '../services';
+
+const REMOTE_ENTRY_CACHE_BUST = Date.now().toString();
 
 // ============================================================================
 // Type Definitions
@@ -316,6 +333,35 @@ function convertPluginPages(
   plugin: DiscoveredPlugin,
   federationName: string
 ): AggregatedRoute[] {
+  const appendFederationScope = (remoteEntry: string): string => {
+    if (!federationName) {
+      return remoteEntry;
+    }
+
+    try {
+      const url = new URL(remoteEntry, window.location.origin);
+      if (!url.searchParams.has('scope') && !url.searchParams.has('federationName')) {
+        url.searchParams.set('scope', federationName);
+      }
+      if (!url.searchParams.has('mfv')) {
+        url.searchParams.set('mfv', REMOTE_ENTRY_CACHE_BUST);
+      }
+
+      if (/^https?:\/\//i.test(remoteEntry)) {
+        return url.toString();
+      }
+
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return remoteEntry;
+    }
+  };
+
+  const pluginForRoutes: DiscoveredPlugin = {
+    ...plugin,
+    remoteEntry: appendFederationScope(plugin.remoteEntry),
+  };
+
   // Page type
   type ManifestPage = {
     pageId: string;
@@ -330,15 +376,16 @@ function convertPluginPages(
   return manifestPages.map((page: ManifestPage) => {
     // Get route path from platforms.web.suggestedPath, otherwise use default path
     const path = page.platforms?.web?.suggestedPath || `/${plugin.id}/${page.pageId}`;
+    const normalizedComponent = page.component.replace(/^(\.\/)+/, '');
 
     return {
       path,
       pageId: page.pageId,
       title: page.title,
       // Component reference format: federationName/componentPath
-      component: `${federationName}/${page.component}`,
+      component: `${federationName}/${normalizedComponent}`,
       permission: page.permission,
-      plugin,
+      plugin: pluginForRoutes,
     };
   });
 }

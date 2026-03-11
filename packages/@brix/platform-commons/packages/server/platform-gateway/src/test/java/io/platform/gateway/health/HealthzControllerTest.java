@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.health;
 
 import java.util.Map;
@@ -18,13 +33,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * HealthzController 单元测试
+ * HealthzController Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("HealthzController 测试")
+@DisplayName("HealthzController Test")
 @SuppressWarnings("unused") // setUp is used by JUnit
 class HealthzControllerTest {
 
@@ -39,7 +54,7 @@ class HealthzControllerTest {
     }
 
     @Test
-    @DisplayName("健康时 /healthz 应返回 200 UP 状态")
+    @DisplayName("/healthz should return 200 UP status when healthy")
     void healthzShouldReturnOkWhenHealthy() {
         Health health = Health.up().build();
         when(healthEndpoint.health()).thenReturn(health);
@@ -50,7 +65,7 @@ class HealthzControllerTest {
                     Map<String, Object> body = response.getBody();
                     assertNotNull(body);
                     assertEquals("UP", body.get("status"));
-                    assertEquals("shinwa-platform-gateway", body.get("service"));
+                    assertEquals("brix-platform-gateway", body.get("service"));
                     assertNotNull(body.get("timestamp"));
                     return true;
                 })
@@ -58,7 +73,7 @@ class HealthzControllerTest {
     }
 
     @Test
-    @DisplayName("不健康时 /healthz 应返回 503 DOWN 状态")
+    @DisplayName("/healthz should return 503 DOWN status when unhealthy")
     void healthzShouldReturn503WhenUnhealthy() {
         Health health = Health.down().withDetail("error", "test").build();
         when(healthEndpoint.health()).thenReturn(health);
@@ -75,7 +90,7 @@ class HealthzControllerTest {
     }
 
     @Test
-    @DisplayName("/health/ping 应始终返200")
+    @DisplayName("/health/ping should always return 200")
     void pingShouldAlwaysReturn200() {
         StepVerifier.create(controller.ping())
                 .expectNextMatches(response -> {

@@ -42,47 +42,48 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
- * 基于 OpenTelemetry 的可观测性能力实现
+ * OpenTelemetry-based observability capability implementation.
  * 
- * <p>提供完整的 OpenTelemetry 集成，支持分布式追踪、指标收集和结构化日志。</p>
+ * <p>Provides complete OpenTelemetry integration with support for distributed tracing,
+ * metrics collection, and structured logging.</p>
  * 
- * <h2>核心功能</h2>
+ * <h2>Core Features</h2>
  * <ul>
- *   <li><b>追踪（Tracing）</b>：基于 OpenTelemetry Tracer，支持 Span 创建和上下文传播</li>
- *   <li><b>指标（Metrics）</b>：基于 OpenTelemetry Meter，支持 Counter、Gauge、Histogram</li>
- *   <li><b>日志（Logging）</b>：集成 SLF4J，自动关联 Trace ID</li>
+ *   <li><b>Tracing</b>: Based on OpenTelemetry Tracer, supports Span creation and context propagation</li>
+ *   <li><b>Metrics</b>: Based on OpenTelemetry Meter, supports Counter, Gauge, Histogram</li>
+ *   <li><b>Logging</b>: Integrated with SLF4J, automatically correlates Trace ID</li>
  * </ul>
  * 
- * <h2>指标类型</h2>
+ * <h2>Metric Types</h2>
  * <table border="1">
- *   <tr><th>类型</th><th>说明</th><th>示例</th></tr>
- *   <tr><td>Counter</td><td>累加计数器</td><td>请求总数、错误数</td></tr>
- *   <tr><td>Histogram</td><td>分布统计</td><td>响应时间、请求大小</td></tr>
+ *   <tr><th>Type</th><th>Description</th><th>Example</th></tr>
+ *   <tr><td>Counter</td><td>Cumulative counter</td><td>Total requests, error count</td></tr>
+ *   <tr><td>Histogram</td><td>Distribution statistics</td><td>Response time, request size</td></tr>
  * </table>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
  * OTelObservabilityCapability observability = new OTelObservabilityCapability(
  *     openTelemetry, "my-service"
  * );
  * 
- * // 记录日志
+ * // Log a message
  * observability.info("Processing request: {}", requestId);
  * 
- * // 记录指标
+ * // Record metrics
  * observability.recordMetric("api.requests", 1, Map.of("endpoint", "/users"));
  * 
- * // 追踪操作
+ * // Trace an operation
  * try (var span = observability.startSpan("process-order")) {
- *     // 业务逻辑
+ *     // Business logic
  *     observability.addSpanAttribute("order.id", orderId);
  * }
  * }</pre>
  * 
- * <h2>架构说明</h2>
- * <p>本类实现 Layer 1 定义的 ObservabilityCapability 接口，
- * 属于 Layer 2 Adapter 层。</p>
- * 
+ * <h2>Architecture Notes</h2>
+ * <p>This class implements the ObservabilityCapability interface defined in Layer 1,
+ * belonging to Layer 2 Adapter layer.</p>
+ *
  * @author Brix Team
  * @since 3.0.0
  * @see ObservabilityCapability
@@ -90,65 +91,65 @@ import java.util.function.Supplier;
 @Capability(
     type = ObservabilityCapability.class,
     name = "otel-observability",
-    description = "基于 OpenTelemetry 的可观测性能力实现",
+    description = "OpenTelemetry-based observability capability implementation",
     level = CapabilityLevel.CORE,
     aliases = {"observability", "otelObservability"}
 )
 public class OTelObservabilityCapability implements ObservabilityCapability, AutoCloseable {
     
     /**
-     * 默认服务名称
+     * Default service name.
      */
     private static final String DEFAULT_SERVICE_NAME = "brix-service";
     
     /**
-     * 指标命名空间前缀
+     * Metrics namespace prefix.
      */
     private static final String METRICS_PREFIX = "brix.";
     
     /**
-     * SLF4J Logger
+     * SLF4J Logger.
      */
     private final Logger logger;
     
     /**
-     * OpenTelemetry 实例
+     * OpenTelemetry instance.
      */
     private final OpenTelemetry openTelemetry;
     
     /**
-     * OpenTelemetry Tracer
+     * OpenTelemetry Tracer.
      */
     private final Tracer tracer;
     
     /**
-     * OpenTelemetry Meter
+     * OpenTelemetry Meter.
      */
     private final Meter meter;
     
     /**
-     * 服务名称
+     * Service name.
      */
     private final String serviceName;
     
     /**
-     * Counter 缓存
+     * Counter cache.
      */
     private final Map<String, LongCounter> counterCache = new ConcurrentHashMap<>();
     
     /**
-     * Histogram 缓存
+     * Histogram cache.
      */
     private final Map<String, DoubleHistogram> histogramCache = new ConcurrentHashMap<>();
     
     /**
-     * 创建 OTelObservabilityCapability 实例
+     * Creates OTelObservabilityCapability instance.
      *
-     * @param openTelemetry OpenTelemetry 实例
-     * @param serviceName 服务名称
+     * @param openTelemetry OpenTelemetry instance
+     * @param serviceName Service name
      */
     public OTelObservabilityCapability(OpenTelemetry openTelemetry, String serviceName) {
-        this.openTelemetry = Objects.requireNonNull(openTelemetry, "OpenTelemetry 不能为空");
+        this.openTelemetry = Objects.requireNonNull(openTelemetry, "OpenTelemetry cannot be null");
         this.serviceName = serviceName != null ? serviceName : DEFAULT_SERVICE_NAME;
         this.logger = LoggerFactory.getLogger(this.serviceName);
         this.tracer = openTelemetry.getTracer(this.serviceName);
@@ -156,9 +157,9 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 创建 OTelObservabilityCapability 实例（使用默认服务名）
+     * Creates OTelObservabilityCapability instance (using default service name).
      *
-     * @param openTelemetry OpenTelemetry 实例
+     * @param openTelemetry OpenTelemetry instance
      */
     public OTelObservabilityCapability(OpenTelemetry openTelemetry) {
         this(openTelemetry, DEFAULT_SERVICE_NAME);
@@ -167,15 +168,15 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     /**
      * {@inheritDoc}
      * 
-     * <p>使用 SLF4J 记录日志，自动在 MDC 中关联 Trace ID。</p>
+     * <p>Records logs using SLF4J, automatically correlating Trace ID in MDC.</p>
      */
     @Override
     public void log(LogLevel level, String message, Object... args) {
-        // 获取当前 Span 的 Trace ID 用于日志关联
+        // Get current Span's Trace ID for log correlation
         Span currentSpan = Span.current();
         String traceId = currentSpan.getSpanContext().getTraceId();
         
-        // 添加 Trace ID 到 MDC
+        // Add Trace ID to MDC
         org.slf4j.MDC.put("traceId", traceId);
         
         try {
@@ -204,10 +205,10 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     /**
      * {@inheritDoc}
      * 
-     * <p>根据指标值的特点自动选择 Counter 或 Histogram：</p>
+     * <p>Automatically selects Counter or Histogram based on metric value characteristics:</p>
      * <ul>
-     *   <li>整数且为 1：使用 Counter 累加</li>
-     *   <li>其他情况：使用 Histogram 记录分布</li>
+     *   <li>Integer value of 1: use Counter for accumulation</li>
+     *   <li>Other cases: use Histogram for distribution recording</li>
      * </ul>
      */
     @Override
@@ -215,7 +216,7 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
         String fullName = name.startsWith(METRICS_PREFIX) ? name : METRICS_PREFIX + name;
         Attributes attributes = buildAttributes(tags);
         
-        // 如果值是整数 1，使用 Counter；否则使用 Histogram
+        // If value is 1, use Counter; otherwise use Histogram
         if (value == 1.0) {
             LongCounter counter = counterCache.computeIfAbsent(fullName, n -> 
                     meter.counterBuilder(n)
@@ -248,7 +249,7 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
         return new SpanContext(
                 otelContext.getTraceId(),
                 otelContext.getSpanId(),
-                null, // OpenTelemetry 的 SpanContext 不直接提供 parent span id
+                null, // OpenTelemetry SpanContext does not directly provide parent span id
                 otelContext.isSampled()
         );
     }
@@ -265,21 +266,21 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 开始一个新的 Span
+     * Starts a new Span.
      *
-     * @param operationName 操作名称
-     * @return AutoCloseable Span 包装器
+     * @param operationName Operation name
+     * @return AutoCloseable Span wrapper
      */
     public SpanScope startSpan(String operationName) {
         return startSpan(operationName, SpanKind.INTERNAL);
     }
     
     /**
-     * 开始一个新的 Span（指定类型）
+     * Starts a new Span with specified type.
      *
-     * @param operationName 操作名称
-     * @param kind Span 类型
-     * @return AutoCloseable Span 包装器
+     * @param operationName Operation name
+     * @param kind Span type
+     * @return AutoCloseable Span wrapper
      */
     public SpanScope startSpan(String operationName, SpanKind kind) {
         Span span = tracer.spanBuilder(operationName)
@@ -290,12 +291,12 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 在 Span 上下文中执行操作
+     * Executes operation within Span context.
      *
-     * @param <T> 返回值类型
-     * @param operationName 操作名称
-     * @param operation 要执行的操作
-     * @return 操作结果
+     * @param <T> Return type
+     * @param operationName Operation name
+     * @param operation Operation to execute
+     * @return Operation result
      */
     public <T> T executeInSpan(String operationName, Supplier<T> operation) {
         try (SpanScope spanScope = startSpan(operationName)) {
@@ -309,10 +310,10 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 在 Span 上下文中执行操作（无返回值）
+     * Executes operation within Span context (no return value).
      *
-     * @param operationName 操作名称
-     * @param operation 要执行的操作
+     * @param operationName Operation name
+     * @param operation Operation to execute
      */
     public void executeInSpan(String operationName, Runnable operation) {
         executeInSpan(operationName, () -> {
@@ -322,11 +323,11 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 记录 Counter 指标
+     * Records Counter metric.
      *
-     * @param name 指标名称
-     * @param delta 增量
-     * @param tags 标签
+     * @param name Metric name
+     * @param delta Increment value
+     * @param tags Tags
      */
     public void incrementCounter(String name, long delta, Map<String, String> tags) {
         String fullName = name.startsWith(METRICS_PREFIX) ? name : METRICS_PREFIX + name;
@@ -341,11 +342,11 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 记录 Histogram 指标
+     * Records Histogram metric.
      *
-     * @param name 指标名称
-     * @param value 值
-     * @param tags 标签
+     * @param name Metric name
+     * @param value Value
+     * @param tags Tags
      */
     public void recordHistogram(String name, double value, Map<String, String> tags) {
         String fullName = name.startsWith(METRICS_PREFIX) ? name : METRICS_PREFIX + name;
@@ -360,7 +361,7 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 构建 OpenTelemetry Attributes
+     * Builds OpenTelemetry Attributes.
      */
     private Attributes buildAttributes(Map<String, String> tags) {
         if (tags == null || tags.isEmpty()) {
@@ -373,36 +374,36 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     }
     
     /**
-     * 获取 OpenTelemetry 实例
+     * Gets OpenTelemetry instance.
      *
-     * @return OpenTelemetry 实例
+     * @return OpenTelemetry instance
      */
     public OpenTelemetry getOpenTelemetry() {
         return openTelemetry;
     }
     
     /**
-     * 获取 Tracer
+     * Gets Tracer.
      *
-     * @return Tracer 实例
+     * @return Tracer instance
      */
     public Tracer getTracer() {
         return tracer;
     }
     
     /**
-     * 获取 Meter
+     * Gets Meter.
      *
-     * @return Meter 实例
+     * @return Meter instance
      */
     public Meter getMeter() {
         return meter;
     }
     
     /**
-     * 获取服务名称
+     * Gets service name.
      *
-     * @return 服务名称
+     * @return Service name
      */
     public String getServiceName() {
         return serviceName;
@@ -410,15 +411,15 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
     
     @Override
     public void close() {
-        // OpenTelemetry SDK 关闭由外部管理
+        // OpenTelemetry SDK shutdown is managed externally
         counterCache.clear();
         histogramCache.clear();
     }
     
     /**
-     * Span 作用域包装器
+     * Span scope wrapper.
      * 
-     * <p>实现 AutoCloseable，支持 try-with-resources 语法</p>
+     * <p>Implements AutoCloseable for try-with-resources syntax support.</p>
      */
     public static final class SpanScope implements AutoCloseable {
         
@@ -431,10 +432,10 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
         }
         
         /**
-         * 添加 Span 属性
+         * Adds Span attribute.
          *
-         * @param key 属性键
-         * @param value 属性值
+         * @param key Attribute key
+         * @param value Attribute value
          * @return this
          */
         public SpanScope setAttribute(String key, String value) {
@@ -443,10 +444,10 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
         }
         
         /**
-         * 添加 Span 属性（数值）
+         * Adds Span attribute (numeric value).
          *
-         * @param key 属性键
-         * @param value 属性值
+         * @param key Attribute key
+         * @param value Attribute value
          * @return this
          */
         public SpanScope setAttribute(String key, long value) {
@@ -455,9 +456,9 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
         }
         
         /**
-         * 记录异常
+         * Records exception.
          *
-         * @param exception 异常
+         * @param exception Exception
          */
         public void recordException(Throwable exception) {
             span.recordException(exception);
@@ -465,19 +466,19 @@ public class OTelObservabilityCapability implements ObservabilityCapability, Aut
         }
         
         /**
-         * 设置状态
+         * Sets status.
          *
-         * @param status 状态码
-         * @param description 描述
+         * @param status Status code
+         * @param description Description
          */
         public void setStatus(StatusCode status, String description) {
             span.setStatus(status, description);
         }
         
         /**
-         * 获取底层 Span
+         * Gets underlying Span.
          *
-         * @return Span 实例
+         * @return Span instance
          */
         public Span getSpan() {
             return span;

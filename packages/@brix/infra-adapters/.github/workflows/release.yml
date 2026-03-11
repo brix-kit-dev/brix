@@ -1,5 +1,5 @@
 # ============================================================
-# Shinwa Platform - Release Workflow (TypeScript)
+# Brix Platform - Release Workflow (TypeScript)
 # ============================================================
 
 name: Release TypeScript Packages

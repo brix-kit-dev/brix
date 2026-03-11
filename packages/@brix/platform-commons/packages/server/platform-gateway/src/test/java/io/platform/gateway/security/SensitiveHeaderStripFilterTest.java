@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import java.util.List;
@@ -25,7 +40,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 /**
- * 敏感头剥离过滤器单元测试
+ * Sensitive Header Strip Filter Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
@@ -51,7 +66,7 @@ class SensitiveHeaderStripFilterTest {
     }
 
     @Test
-    @DisplayName("应该剥离 x-user-id 头")
+    @DisplayName("Should strip x-user-id header")
     void shouldStripXUserId() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -66,15 +81,15 @@ class SensitiveHeaderStripFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        // 验证转发的请求中不再包含 x-user-id
+        // Verify forwarded request no longer contains x-user-id
         ServerWebExchange capturedExchange = exchangeCaptor.getValue();
         assertNull(capturedExchange.getRequest().getHeaders().getFirst("x-user-id"));
-        // Content-Type 应该保留
+        // Content-Type should be retained
         assertEquals("application/json", capturedExchange.getRequest().getHeaders().getFirst("Content-Type"));
     }
 
     @Test
-    @DisplayName("应该剥离 x-tenant-id 头")
+    @DisplayName("Should strip x-tenant-id header")
     void shouldStripXTenantId() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -93,7 +108,7 @@ class SensitiveHeaderStripFilterTest {
     }
 
     @Test
-    @DisplayName("应该剥离 x-role 头")
+    @DisplayName("Should strip x-role header")
     void shouldStripXRole() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -112,7 +127,7 @@ class SensitiveHeaderStripFilterTest {
     }
 
     @Test
-    @DisplayName("应该同时剥离多个敏感头")
+    @DisplayName("Should strip multiple sensitive headers at once")
     void shouldStripMultipleSensitiveHeaders() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -139,7 +154,7 @@ class SensitiveHeaderStripFilterTest {
     }
 
     @Test
-    @DisplayName("没有敏感头时不应该修改请求")
+    @DisplayName("Should not modify request when no sensitive headers present")
     void shouldNotModifyRequestWithoutSensitiveHeaders() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -153,12 +168,12 @@ class SensitiveHeaderStripFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        // 验证 chain.filter 被调用时传入的是原始 exchange
+        // Verify chain.filter is called with original exchange
         verify(chain).filter(exchange);
     }
 
     @Test
-    @DisplayName("禁用时不应该剥离任何头")
+    @DisplayName("Should not strip any headers when disabled")
     void shouldNotStripWhenDisabled() {
         properties.setEnabled(false);
         properties.init();
@@ -175,12 +190,12 @@ class SensitiveHeaderStripFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        // 验证传入的是原始 exchange（未修改）
+        // Verify original exchange is passed (not modified)
         verify(chain).filter(exchange);
     }
 
     @Test
-    @DisplayName("排除路径应该跳过剥离")
+    @DisplayName("Should skip stripping for excluded paths")
     void shouldSkipStripForExcludedPaths() {
         properties.setExcludePaths(List.of("/internal/**"));
         properties.init();
@@ -197,12 +212,12 @@ class SensitiveHeaderStripFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        // 验证传入的是原始 exchange（未修改）
+        // Verify original exchange is passed (not modified)
         verify(chain).filter(exchange);
     }
 
     @Test
-    @DisplayName("过滤器顺序应该在认证过滤器之后")
+    @DisplayName("Filter order should be after authentication filter")
     void shouldExecuteAfterAuthFilter() {
         ApiKeyAuthFilter authFilter = new ApiKeyAuthFilter(new ApiKeyAuthProperties());
         

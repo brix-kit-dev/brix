@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-push-mobile",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix Mobile Push Adapter - FCM/APNs push notification capability wrapper",
   "type": "module",
   "main": "./dist/index.js",

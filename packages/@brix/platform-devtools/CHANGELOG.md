@@ -1,63 +1,60 @@
 # Changelog
 
-本文件记录 Platform DevTools 的所有重要变更。
+All notable changes to Platform DevTools are documented in this file.
 
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
-版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [3.2.0] - 2026-02-13
 
-### 新增
-- **architecture-guard**: 新增 R6、R7 红线规则实现
-- **eslint-config-architecture**: 新增前端跨层依赖检测
+### Added
+- `architecture-guard`: added implementations for architectural guardrails R6 and R7
+- `eslint-config-architecture`: added frontend cross-layer dependency checks
 
-### 变更
-- **ArchUnit**: 升级至 1.2.x，改进规则表达能力
-- **规则优化**: 改进错误提示信息，增加修复建议
+### Changed
+- upgraded ArchUnit to the 1.2.x line for clearer rule definitions
+- improved validation messages with more actionable remediation guidance
 
-### 修复
-- 修复 Manifest 声明规则误报问题
-- 修复 ESLint 规则与 TypeScript 5.3 兼容性问题
+### Fixed
+- fixed false positives in Manifest declaration checks
+- fixed compatibility issues between ESLint rules and TypeScript 5.3
 
 ---
 
 ## [3.1.0] - 2026-01-15
 
-### 新增
-- **架构守卫**
-  - `DependencyDirectionRule` - 依赖方向检查 (R2)
-  - `NoCircularDependencyRule` - 循环依赖检测 (R1)
-  - `CapabilityInterfaceRule` - 能力接口检查 (R3)
-  - `ManifestDeclarationRule` - Manifest 声明检查 (R4)
-  - `ContractLocationRule` - 契约位置检查 (R5)
+### Added
+- architecture guard rules:
+  - `DependencyDirectionRule` for dependency direction checks (R2)
+  - `NoCircularDependencyRule` for circular dependency detection (R1)
+  - `CapabilityInterfaceRule` for capability contract enforcement (R3)
+  - `ManifestDeclarationRule` for manifest declaration checks (R4)
+  - `ContractLocationRule` for contract placement checks (R5)
+- scaffolding and design tools:
+  - `create-brix`
+  - `design-tokens`
+- `eslint-config-architecture` for frontend architecture linting
 
-- **脚手架工具**
-  - `create-brix` - 插件模块生成器
-  - `design-tokens` - 设计令牌管理
-
-- **Lint 配置**
-  - `eslint-config-architecture` - 前端架构规则
-
-### 变更
-- 基于 ArchUnit 重构架构测试
+### Changed
+- rebuilt architecture validation around ArchUnit
 
 ---
 
 ## [3.0.0] - 2025-12-01
 
-### 新增
-- **DevTools 体系**: 建立开发时工具集
-- **架构红线**: 定义 R1-R7 规则和检测机制
+### Added
+- the initial Brix development tooling suite
+- architecture guardrail definitions and detection mechanisms for R1 through R7
 
-### 重大变更
-- 从运行时检查迁移到编译时检查
-- 引入 ArchUnit 作为架构测试框架
+### Changed
+- moved architectural validation from runtime checks to build-time checks
+- adopted ArchUnit as the Java architecture testing framework
 
 ---
 
-## [2.x] - 归档版本
+## [2.x] - Archived
 
-2.x 版本已归档，不再维护。请升级到 3.x。
+Version 2.x has been archived and is no longer maintained. Upgrade to 3.x.
 
 ---
 

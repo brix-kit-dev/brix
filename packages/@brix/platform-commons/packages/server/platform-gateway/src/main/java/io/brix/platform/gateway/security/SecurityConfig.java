@@ -1,12 +1,27 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 安全配置
+ * securityconfiguration
  * <p>
- * 启用所有安全相关的配置属性类
+ * enableallhassecurityrelatedofconfigurationpropertiesclass
  * </p>
  *
  * @author Brix Platform Authors
@@ -19,5 +34,5 @@ import org.springframework.context.annotation.Configuration;
         LogSanitizationProperties.class
 })
 public class SecurityConfig {
-    // 配置属性通过 @EnableConfigurationProperties 自动装配
+    // configurationpropertiesvia @EnableConfigurationProperties automaticloadconfiguration
 }

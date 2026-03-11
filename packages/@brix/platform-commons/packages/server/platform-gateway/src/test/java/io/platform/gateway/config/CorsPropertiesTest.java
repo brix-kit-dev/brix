@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config;
 
 import java.util.List;
@@ -12,22 +27,22 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * CORS 配置属性单元测试
+ * CORS Configuration Properties Unit Tests
  * <p>
- * MVP 红线 M014：核心路径单元测试覆盖
+ * MVP Guideline M014: Core path unit test coverage
  * </p>
  * <p>
- * MVP 红线要求：
+ * MVP Guideline Requirements:
  * <ul>
- *   <li>CORS 显式白名单配置</li>
- *   <li>生产环境禁止通配符</li>
+ *   <li>Explicit CORS whitelist configuration</li>
+ *   <li>Wildcard prohibition in production environment</li>
  * </ul>
  * </p>
  *
  * @author Brix Platform Authors
  * @version 1.0.0
  */
-@DisplayName("CorsProperties CORS 配置属性测试")
+@DisplayName("CorsProperties CORS Configuration Properties Test")
 @SuppressWarnings("unused") // JUnit nested classes, setUp used by JUnit
 class CorsPropertiesTest {
 
@@ -38,14 +53,14 @@ class CorsPropertiesTest {
         properties = new CorsProperties();
     }
 
-    // ========== 默认值测试 ==========
+    // ========== Default Value Tests ==========
 
     @Nested
-    @DisplayName("默认值验证")
+    @DisplayName("Default Value Verification")
     class DefaultValueTests {
 
         @Test
-        @DisplayName("默认应允许所有来源（开发模式）")
+        @DisplayName("Should have default allowed origins (development mode)")
         void shouldHaveDefaultAllowedOrigins() {
             List<String> patterns = properties.getAllowedOriginPatterns();
             
@@ -54,7 +69,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("默认应允许常用 HTTP 方法")
+        @DisplayName("Should have default allowed HTTP methods")
         void shouldHaveDefaultAllowedMethods() {
             List<String> methods = properties.getAllowedMethods();
             
@@ -67,7 +82,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("默认应允许所有请求头")
+        @DisplayName("Should have default allowed headers")
         void shouldHaveDefaultAllowedHeaders() {
             List<String> headers = properties.getAllowedHeaders();
             
@@ -76,38 +91,38 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("默认应允许凭证")
+        @DisplayName("Should allow credentials by default")
         void shouldAllowCredentialsByDefault() {
             assertTrue(properties.isAllowCredentials());
         }
 
         @Test
-        @DisplayName("默认缓存时间应为 3600 秒")
+        @DisplayName("Default cache max age should be 3600 seconds")
         void shouldHaveDefaultMaxAge() {
             assertEquals(3600L, properties.getMaxAge());
         }
 
         @Test
-        @DisplayName("默认应启用通配符警告")
+        @DisplayName("Should enable wildcard warning by default")
         void shouldWarnOnWildcardByDefault() {
             assertTrue(properties.isWarnOnWildcard());
         }
 
         @Test
-        @DisplayName("默认应不在生产环境阻止通配符")
+        @DisplayName("Should not block wildcard in production by default")
         void shouldBlockWildcardInProductionByDefault() {
             assertFalse(properties.isBlockWildcardInProduction());
         }
     }
 
-    // ========== 自定义配置测试 ==========
+    // ========== Custom Configuration Tests ==========
 
     @Nested
-    @DisplayName("自定义配置")
+    @DisplayName("Custom Configuration")
     class CustomConfigurationTests {
 
         @Test
-        @DisplayName("应支持自定义白名单域名")
+        @DisplayName("Should support custom whitelist domains")
         void shouldAllowCustomWhitelist() {
             properties.setAllowedOriginPatterns(List.of(
                 "https://www.example.com",
@@ -122,7 +137,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("应支持限制 HTTP 方法")
+        @DisplayName("Should support restricted HTTP methods")
         void shouldAllowRestrictedMethods() {
             properties.setAllowedMethods(List.of("GET", "POST"));
             
@@ -135,7 +150,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("应支持自定义请求头白名单")
+        @DisplayName("Should support custom header whitelist")
         void shouldAllowCustomHeaders() {
             properties.setAllowedHeaders(List.of(
                 "Content-Type",
@@ -149,7 +164,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("应支持禁用凭证")
+        @DisplayName("Should support disabling credentials")
         void shouldAllowDisablingCredentials() {
             properties.setAllowCredentials(false);
             
@@ -157,7 +172,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("应支持自定义缓存时间")
+        @DisplayName("Should support custom cache max age")
         void shouldAllowCustomMaxAge() {
             properties.setMaxAge(7200L);
             
@@ -165,14 +180,14 @@ class CorsPropertiesTest {
         }
     }
 
-    // ========== 通配符检测测试 ==========
+    // ========== Wildcard Detection Tests ==========
 
     @Nested
-    @DisplayName("通配符检测")
+    @DisplayName("Wildcard Detection")
     class WildcardDetectionTests {
 
         @Test
-        @DisplayName("应检测到通配符配置")
+        @DisplayName("Should detect wildcard configuration")
         void shouldDetectWildcard() {
             properties.setAllowedOriginPatterns(List.of("*"));
             
@@ -180,7 +195,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("应检测到无通配符配置")
+        @DisplayName("Should detect no wildcard configuration")
         void shouldDetectNoWildcard() {
             properties.setAllowedOriginPatterns(List.of(
                 "https://www.example.com"
@@ -190,7 +205,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("应检测到部分通配符配置")
+        @DisplayName("Should detect partial wildcard configuration")
         void shouldDetectPartialWildcard() {
             properties.setAllowedOriginPatterns(List.of(
                 "https://www.example.com",
@@ -201,14 +216,14 @@ class CorsPropertiesTest {
         }
     }
 
-    // ========== 暴露头配置测试 ==========
+    // ========== Exposed Headers Configuration Tests ==========
 
     @Nested
-    @DisplayName("暴露头配置")
+    @DisplayName("Exposed Headers Configuration")
     class ExposedHeadersTests {
 
         @Test
-        @DisplayName("默认不暴露额外头")
+        @DisplayName("Should not expose additional headers by default")
         void shouldNotExposeHeadersByDefault() {
             List<String> headers = properties.getExposedHeaders();
             
@@ -216,7 +231,7 @@ class CorsPropertiesTest {
         }
 
         @Test
-        @DisplayName("应支持配置暴露头")
+        @DisplayName("Should support configuring exposed headers")
         void shouldAllowConfiguringExposedHeaders() {
             properties.setExposedHeaders(List.of(
                 "X-Total-Count",

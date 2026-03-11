@@ -15,27 +15,28 @@
  */
 
 /**
- * 能力注册表模块
+ * Capability Registry Module
  * 
- * <p>提供声明式的能力注册与发现机制，是 Runtime Shell 架构的核心组件。</p>
+ * <p>Provides declarative capability registration and discovery mechanism,
+ * serving as the core component of Runtime Shell architecture.</p>
  * 
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.runtime.sdk.capability.registry.CapabilityRegistry} - 能力注册表接口</li>
- *   <li>{@link io.runtime.sdk.capability.registry.Capability} - 能力标注注解</li>
- *   <li>{@link io.runtime.sdk.capability.registry.CapabilityDescriptor} - 能力描述符</li>
- *   <li>{@link io.runtime.sdk.capability.registry.CapabilityLevel} - 能力级别枚举</li>
+ *   <li>{@link io.runtime.sdk.capability.registry.CapabilityRegistry} - Capability Registry Interface</li>
+ *   <li>{@link io.runtime.sdk.capability.registry.Capability} - Capability annotation</li>
+ *   <li>{@link io.runtime.sdk.capability.registry.CapabilityDescriptor} - Capability descriptor</li>
+ *   <li>{@link io.runtime.sdk.capability.registry.CapabilityLevel} - Capability level enumeration</li>
  * </ul>
  * 
- * <h2>设计原则</h2>
+ * <h2>Design Principles</h2>
  * <ul>
- *   <li><b>声明式组装</b> - 能力通过配置声明，而非代码硬编码</li>
- *   <li><b>类型安全</b> - 通过泛型确保类型安全的能力获取</li>
- *   <li><b>可扩展</b> - 新能力无需修改核心代码，只需注册</li>
- *   <li><b>可观测</b> - 提供能力元数据查询能力</li>
+ *   <li><b>Declarative Assembly</b> - Capabilities declared via configuration, not hardcoded</li>
+ *   <li><b>Type Safety</b> - Type-safe capability retrieval through generics</li>
+ *   <li><b>Extensible</b> - New capabilities require no core code changes, just registration</li>
+ *   <li><b>Observable</b> - Provides capability metadata query functionality</li>
  * </ul>
  * 
- * <h2>业界参考</h2>
+ * <h2>Industry Reference</h2>
  * <ul>
  *   <li>OSGi Service Registry</li>
  *   <li>Kubernetes API Extensions</li>

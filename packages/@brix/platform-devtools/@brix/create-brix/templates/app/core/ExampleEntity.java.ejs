@@ -1,4 +1,4 @@
-package <%= packageName %>.core.entity;
+﻿package <%= packageName %>.core.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -19,8 +19,8 @@ import java.time.LocalDateTime;
  * <p>【v3.0 多租户支持】</p>
  * <ul>
  *   <li>使用 Hibernate Filter 实现租户数据隔离</li>
- *   <li>tenant_id 字段由 TenantContext 自动填充</li>
- *   <li>查询时自动添加租户过滤条件</li>
+ *   <li>tenant_id Field由 TenantContext 自动填充</li>
+ *   <li>查询时自动添加租户过滤items件</li>
  * </ul>
  * 
  * @author <%= author %>
@@ -38,7 +38,7 @@ import java.time.LocalDateTime;
 public class <%= classPrefix %>Entity {
 
     /**
-     * 主键 ID
+     * Primary key ID
      * <p>使用 UUID 策略生成</p>
      */
     @Id
@@ -47,57 +47,57 @@ public class <%= classPrefix %>Entity {
     private String id;
 
     /**
-     * 名称
+     * Name
      */
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
     /**
-     * 描述
+     * Description
      */
     @Column(name = "description", length = 500)
     private String description;
 
     /**
-     * 状态
-     * <p>可选值：DRAFT, ACTIVE, COMPLETED, CANCELLED</p>
+     * Status
+     * <p>Possible values：DRAFT, ACTIVE, COMPLETED, CANCELLED</p>
      */
     @Column(name = "status", length = 20)
     private String status;
 
     /**
-     * 租户 ID
+     * Tenant ID
      * <p>【v3.0 多租户】不可为空，用于数据隔离</p>
      */
     @Column(name = "tenant_id", nullable = false, length = 36)
     private String tenantId;
 
     /**
-     * 创建者 ID
+     * Creator ID
      */
     @Column(name = "created_by", length = 36)
     private String createdBy;
 
     /**
-     * 创建时间
+     * Created at
      */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     /**
-     * 更新者 ID
+     * Updater ID
      */
     @Column(name = "updated_by", length = 36)
     private String updatedBy;
 
     /**
-     * 更新时间
+     * Updated at
      */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     /**
-     * 新增时自动设置创建时间
+     * 新增时自动设置Created at
      */
     @PrePersist
     protected void onCreate() {
@@ -106,7 +106,7 @@ public class <%= classPrefix %>Entity {
     }
 
     /**
-     * 更新时自动设置更新时间
+     * 更新时自动设置Updated at
      */
     @PreUpdate
     protected void onUpdate() {

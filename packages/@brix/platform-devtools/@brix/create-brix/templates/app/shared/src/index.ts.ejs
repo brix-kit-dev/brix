@@ -1,29 +1,29 @@
-/**
- * @file <%= displayName %> Shared 模块入口
- * @description 多端共享类型、事件、常量的统一导出
- * @module @shinwa/<%= name %>-shared
+﻿/**
+ * @file <%= displayName %> Shared module入口
+ * @description 多端Total享Type、事件、常量的统一Export
+ * @module @brix/<%= name %>-shared
  * @version <%= version %>
  *
  * 【使用方式】
  * ```typescript
- * // 导入所有
- * import { <%= classPrefix %>, <%= classPrefix.toUpperCase() %>_EVENTS, API_ENDPOINTS } from '@shinwa/<%= name %>-shared';
+ * // Import所有
+ * import { <%= classPrefix %>, <%= classPrefix.toUpperCase() %>_EVENTS, API_ENDPOINTS } from '@brix/<%= name %>-shared';
  * 
- * // 按需导入
- * import type { <%= classPrefix %> } from '@shinwa/<%= name %>-shared/types';
- * import { <%= classPrefix.toUpperCase() %>_EVENTS } from '@shinwa/<%= name %>-shared/events';
- * import { API_ENDPOINTS } from '@shinwa/<%= name %>-shared/constants';
+ * // 按需Import
+ * import type { <%= classPrefix %> } from '@brix/<%= name %>-shared/types';
+ * import { <%= classPrefix.toUpperCase() %>_EVENTS } from '@brix/<%= name %>-shared/events';
+ * import { API_ENDPOINTS } from '@brix/<%= name %>-shared/constants';
  * ```
  */
 
-// 类型导出
+// TypeExport
 export * from './types/index.js';
 
-// 事件导出
+// 事件Export
 export * from './events/index.js';
 
-// 常量导出
+// 常量Export
 export * from './constants/index.js';
 
-// 生成代码导出（如果存在）
+// 生成代码Export（如果存在）
 // export * from './generated/index.js';

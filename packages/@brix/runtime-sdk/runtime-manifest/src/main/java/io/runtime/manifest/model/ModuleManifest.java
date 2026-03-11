@@ -311,32 +311,31 @@ public class ModuleManifest {
 
     /**
      * Module Basic Information.
-     * 模块基本信息
      */
     public static class ModuleInfo {
 
-        /** Module unique identifier | 模块唯一标识 */
+        /** Module unique identifier */
         private String id;
 
-        /** Module display name | 模块显示名称 */
+        /** Module display name */
         private String name;
 
-        /** Module version | 模块版本 */
+        /** Module version */
         private String version;
 
-        /** Module description | 模块描述 */
+        /** Module description */
         private String description;
 
-        /** Author | 作者 */
+        /** Author */
         private String author;
 
-        /** Homepage URL | 主页 URL */
+        /** Homepage URL */
         private String homepage;
 
-        /** License | 许可证 */
+        /** License */
         private String license;
 
-        /** Tags | 标签 */
+        /** Tags */
         private List<String> tags = new ArrayList<>();
 
         // Getters and Setters
@@ -372,23 +371,22 @@ public class ModuleManifest {
 
     /**
      * Runtime Configuration.
-     * 运行时配置
      */
     public static class RuntimeConfig {
 
-        /** Minimum runtime version requirement | 最低运行时版本要求 */
+        /** Minimum runtime version requirement */
         private String minVersion;
 
-        /** Startup order | 启动顺序 */
+        /** Startup order */
         private int startupOrder = 0;
 
-        /** Whether to lazy load | 是否懒加载 */
+        /** Whether to lazy load */
         private boolean lazyLoad = false;
 
-        /** Whether singleton | 是否单例 */
+        /** Whether singleton */
         private boolean singleton = true;
 
-        /** Timeout in milliseconds | 超时时间（毫秒） */
+        /** Timeout in milliseconds */
         private long timeout = 30000;
 
         // Getters and Setters
@@ -415,17 +413,16 @@ public class ModuleManifest {
 
     /**
      * Module Dependency.
-     * 模块依赖
      */
     public static class ModuleDependency {
 
-        /** Dependent module ID | 依赖模块 ID */
+        /** Dependent module ID */
         private String moduleId;
 
-        /** Version requirement (supports semver expressions) | 版本要求（支持语义化版本表达式） */
+        /** Version requirement (supports semver expressions) */
         private String version;
 
-        /** Whether optional | 是否可选 */
+        /** Whether optional */
         private boolean optional = false;
 
         // Getters and Setters

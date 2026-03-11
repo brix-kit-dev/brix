@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/platform-auth-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Web Auth Capability Implementation - Implements AuthCapability interface and auth components",
   "type": "module",
   "main": "dist/index.js",
@@ -41,13 +41,14 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web",
+    "@brix/runtime-sdk-api-web": "workspace:*",
     "@brix/platform-auth-service-web": "^3.1.0",
     "@brix/platform-auth-ui-web": "^3.1.0"
   },
   "peerDependencies": {
+    "@brix/shared-runtime-web": "^1.0.0",
     "react": "^18.2.0",
-    "react-router-dom": "^6.0.0"
+    "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

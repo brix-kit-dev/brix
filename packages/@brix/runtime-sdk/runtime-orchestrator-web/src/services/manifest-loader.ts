@@ -1,3 +1,18 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Manifest Loader
  * @description Dynamically loads ui-manifest.json for each plugin
@@ -32,7 +47,12 @@ export interface UIPluginManifest {
     exposes: Record<string, string>;
   };
   pages: Array<{
+    /** Page ID (compatible with AppLayout.tsx) */
+    id: string;
+    /** Page ID (legacy, same as id) */
     pageId: string;
+    /** Route path (compatible with AppLayout.tsx) */
+    path: string;
     component: string;
     title: string;
     titleKey?: string;
@@ -66,6 +86,159 @@ export interface UIPluginManifest {
 }
 
 /**
+ * Backend plugin-manifest.json structure (from Java resources)
+ * Different from frontend UIPluginManifest format
+ */
+interface BackendPluginManifest {
+  name: string;
+  pluginId: string;
+  version: string;
+  displayName?: string;
+  description?: string;
+  ui?: {
+    web?: {
+      enabled?: boolean;
+      manifestUrl?: string;
+      scope?: string;
+      routes?: Array<{
+        path: string;
+        component: string;
+        exact?: boolean;
+        menu?: {
+          title: string;
+          icon?: string;
+          order?: number;
+          parentId?: string;
+          hidden?: boolean;
+        };
+      }>;
+      menus?: Array<{
+        id: string;
+        title: string;
+        icon?: string;
+        order?: number;
+      }>;
+    };
+  };
+}
+
+/**
+ * Convert backend manifest format to frontend UIPluginManifest format
+ */
+function convertBackendManifest(backend: BackendPluginManifest, pluginId: string): UIPluginManifest | null {
+  const webConfig = backend.ui?.web;
+  if (!webConfig?.routes && !webConfig?.menus) {
+    console.warn(`[ManifestLoader] Backend manifest for "${pluginId}" has no web UI config`);
+    return null;
+  }
+
+  const normalizeBackendComponent = (component: string): string => {
+    const match = component.match(/^(.*\/)([^/]+)$/);
+    if (!match) {
+      return component;
+    }
+
+    const prefix = match[1];
+    const rawName = match[2];
+
+    if (/Page(?:V\d+)?$/.test(rawName)) {
+      return component;
+    }
+
+    const versionMatch = rawName.match(/^(.*?)(V\d+)$/);
+    if (versionMatch) {
+      return `${prefix}${versionMatch[1]}Page${versionMatch[2]}`;
+    }
+
+    return `${prefix}${rawName}Page`;
+  };
+
+  // Build pages from routes
+  // Note: Both 'id' and 'pageId' are set for compatibility with different consumers
+  // - AppLayout.tsx expects 'id' and 'path'
+  // - Other consumers may expect 'pageId' and 'platforms.web.suggestedPath'
+  const pages: UIPluginManifest['pages'] = (webConfig.routes || [])
+    .filter(route => route.component)
+    .map((route, index) => {
+      const pageId = route.path.replace(/^\//, '').replace(/\//g, '-') || `page-${index}`;
+      return {
+        id: pageId,
+        pageId: pageId,
+        path: route.path,
+        component: normalizeBackendComponent(route.component),
+        title: route.menu?.title || backend.displayName || backend.name,
+        permission: undefined,
+        platforms: {
+          web: { suggestedPath: route.path }
+        }
+      };
+    });
+
+  // Build menus: combine top-level menus with route-based submenus
+  const menusMap = new Map<string, UIPluginManifest['menus'][0]>();
+  
+  // Add top-level menus from manifest
+  for (const menu of webConfig.menus || []) {
+    menusMap.set(menu.id, {
+      id: menu.id,
+      title: menu.title,
+      icon: menu.icon,
+      order: menu.order,
+      children: []
+    });
+  }
+
+  // Add route menus as children
+  for (const route of webConfig.routes || []) {
+    if (route.menu && !route.menu.hidden) {
+      const parentId = route.menu.parentId;
+      const menuItem = {
+        id: route.path.replace(/^\//, '').replace(/\//g, '-'),
+        title: route.menu.title,
+        pageId: route.path.replace(/^\//, '').replace(/\//g, '-'),
+        icon: route.menu.icon,
+        order: route.menu.order
+      };
+
+      if (parentId && menusMap.has(parentId)) {
+        menusMap.get(parentId)!.children = menusMap.get(parentId)!.children || [];
+        menusMap.get(parentId)!.children!.push(menuItem);
+      } else if (!parentId) {
+        // Top-level route menu
+        menusMap.set(menuItem.id, {
+          ...menuItem,
+          pageId: menuItem.pageId
+        });
+      }
+    }
+  }
+
+  const menus = Array.from(menusMap.values());
+
+  console.log(`[ManifestLoader] Converted manifest for "${pluginId}":`, {
+    pagesCount: pages.length,
+    menusCount: menus.length,
+    menus: menus.map(m => ({ id: m.id, title: m.title, childrenCount: m.children?.length || 0 }))
+  });
+
+  return {
+    plugin: {
+      id: backend.pluginId || pluginId,
+      name: backend.displayName || backend.name,
+      version: backend.version,
+      description: backend.description
+    },
+    federation: {
+      name: webConfig.scope || backend.name,
+      filename: 'remoteEntry.js',
+      exposes: {}
+    },
+    pages,
+    menus
+  };
+}
+
+/**
  * Loaded plugin configuration (merged plugin info + manifest)
  */
 export interface LoadedPluginConfig {
@@ -91,16 +264,32 @@ async function loadPluginManifest(
   // If backend already returned inline manifest, use it directly
   if (plugin.manifest) {
     console.log(`[ManifestLoader] Using inline manifest for plugin "${plugin.id}"`);
-    const manifest = plugin.manifest as unknown as UIPluginManifest;
+    const rawManifest = plugin.manifest as unknown;
     
-    // Validate basic structure
-    if (manifest.plugin?.id && manifest.pages && manifest.menus) {
+    // Try frontend format first (already converted or YAML-based)
+    const frontendManifest = rawManifest as UIPluginManifest;
+    if (frontendManifest.plugin?.id && frontendManifest.pages && frontendManifest.menus) {
       return {
         plugin,
-        manifest,
+        manifest: frontendManifest,
         status: 'loaded',
       };
     }
+    
+    // Try converting from backend format (plugin-manifest.json from Java resources)
+    const backendManifest = rawManifest as BackendPluginManifest;
+    if (backendManifest.pluginId && backendManifest.ui?.web) {
+      console.log(`[ManifestLoader] Converting backend manifest format for "${plugin.id}"`);
+      const converted = convertBackendManifest(backendManifest, plugin.id);
+      if (converted) {
+        return {
+          plugin,
+          manifest: converted,
+          status: 'loaded',
+        };
+      }
+    }
+    
     // Inline manifest structure incomplete, continue trying to request URL
     console.warn(`[ManifestLoader] Inline manifest for "${plugin.id}" has invalid structure, falling back to URL`);
   }

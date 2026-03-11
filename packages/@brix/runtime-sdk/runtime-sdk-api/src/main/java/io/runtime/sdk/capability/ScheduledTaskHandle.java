@@ -18,9 +18,9 @@ package io.runtime.sdk.capability;
 import java.time.Instant;
 
 /**
- * 定时任务句柄
+ * Scheduled Task Handle
  * 
- * <p>表示一个已调度的定时任务，可用于查询状态或取消任务。</p>
+ * <p>Represents a scheduled task, can be used to query status or cancel task.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -29,52 +29,52 @@ import java.time.Instant;
 public interface ScheduledTaskHandle {
 
     /**
-     * 获取任务 ID
+     * Get task ID
      * 
-     * @return 任务唯一标识
+     * @return unique task identifier
      */
     String getTaskId();
 
     /**
-     * 取消任务
+     * Cancel task
      * 
-     * @param mayInterruptIfRunning 如果任务正在运行，是否中断
-     * @return 如果任务被成功取消返回 true
+     * @param mayInterruptIfRunning whether to interrupt if task is running
+     * @return true if task was successfully cancelled
      */
     boolean cancel(boolean mayInterruptIfRunning);
 
     /**
-     * 检查任务是否已取消
+     * Check if task is cancelled
      * 
-     * @return 如果任务已取消返回 true
+     * @return true if task is cancelled
      */
     boolean isCancelled();
 
     /**
-     * 检查任务是否已完成（仅对一次性任务有意义）
+     * Check if task is done (only meaningful for one-time tasks)
      * 
-     * @return 如果任务已完成返回 true
+     * @return true if task is done
      */
     boolean isDone();
 
     /**
-     * 获取下次执行时间
+     * Get next execution time
      * 
-     * @return 下次执行时间，如果任务已取消或完成返回 null
+     * @return next execution time, null if task is cancelled or done
      */
     Instant getNextExecutionTime();
 
     /**
-     * 获取上次执行时间
+     * Get last execution time
      * 
-     * @return 上次执行时间，如果从未执行返回 null
+     * @return last execution time, null if never executed
      */
     Instant getLastExecutionTime();
 
     /**
-     * 获取执行次数
+     * Get execution count
      * 
-     * @return 已执行次数
+     * @return number of executions
      */
     long getExecutionCount();
 }

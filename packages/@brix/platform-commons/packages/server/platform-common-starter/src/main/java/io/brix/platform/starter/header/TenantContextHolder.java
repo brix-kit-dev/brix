@@ -1,42 +1,57 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.header;
 
 /**
- * 租户上下文持有
+ * Tenant Context Holder
  * 
- * <p>使用 ThreadLocal 在请求链路中传递租户ID
- * 确保在同一个请求线程中可以随时获取当前租户信息</p>
+ * <p>Uses ThreadLocal to propagate tenant ID along the request chain,
+ * ensuring the current tenant information is accessible at any time within the same request thread.</p>
  * 
- * <p>设计目的</p>
+ * <p>Design Purpose:</p>
  * <ul>
- *   <li>解决问题6：X-Tenant-Id 请求头经常遗</li>
- *   <li>通过拦截器自动提取请求头中的租户 ID 并存入上下文</li>
- *   <li>在服务间调用时自动传递租户ID</li>
+ *   <li>Resolve Issue 6: X-Tenant-Id request header is often missing</li>
+ *   <li>Automatically extract tenant ID from request headers via interceptor and store in context</li>
+ *   <li>Automatically propagate tenant ID during inter-service calls</li>
  * </ul>
  * 
- * <p>使用流程</p>
+ * <p>Usage Flow:</p>
  * <ol>
- *   <li>TenantHeaderFilter 在请求入站时提取 X-Tenant-Id 并调setTenantId()</li>
- *   <li>业务代码通过 getTenantId() 获取当前租户</li>
- *   <li>PlatformHeadersInterceptor 在出站请求时自动添加 X-Tenant-Id</li>
- *   <li>TenantHeaderFilter 在请求结束时调用 clear() 清理上下</li>
+ *   <li>TenantHeaderFilter extracts X-Tenant-Id on request inbound and calls setTenantId()</li>
+ *   <li>Business code retrieves current tenant via getTenantId()</li>
+ *   <li>PlatformHeadersInterceptor automatically adds X-Tenant-Id on outbound requests</li>
+ *   <li>TenantHeaderFilter calls clear() at request end to clean up context</li>
  * </ol>
  * 
- * <p>使用示例</p>
+ * <p>Usage Example:</p>
  * <pre>
- * // 获取当前租户 ID
+ * // Get current tenant ID
  * String tenantId = TenantContextHolder.getTenantId();
  * 
- * // 手动设置租户 ID（通常Filter 自动处理
+ * // Manually set tenant ID (usually handled automatically by Filter)
  * TenantContextHolder.setTenantId("tenant-123");
  * 
- * // 清理上下文（通常Filter 自动处理
+ * // Clear context (usually handled automatically by Filter)
  * TenantContextHolder.clear();
  * </pre>
  * 
- * <p>线程安全说明</p>
+ * <p>Thread Safety Notes:</p>
  * <ul>
- *   <li>每个线程有独立的租户上下</li>
- *   <li>异步场景需要手动传递上下文或使用上下文传播工具</li>
+ *   <li>Each thread has independent tenant context</li>
+ *   <li>For async scenarios, context must be manually propagated or use context propagation tools</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -47,52 +62,52 @@ package io.brix.platform.starter.header;
 public final class TenantContextHolder {
     
     /**
-     * 线程本地变量 - 存储当前线程的租户ID
+     * Thread-local variable - stores the tenant ID of the current thread
      * 
-     * <p>使用 ThreadLocal 保证线程隔离</p>
+     * <p>Uses ThreadLocal to ensure thread isolation</p>
      */
     private static final ThreadLocal<String> TENANT_ID_HOLDER = new ThreadLocal<>();
     
     /**
-     * 线程本地变量 - 存储当前线程的用户ID
+     * Thread-local variable - stores the user ID of the current thread
      */
     private static final ThreadLocal<String> USER_ID_HOLDER = new ThreadLocal<>();
     
     /**
-     * 线程本地变量 - 存储当前线程的追ID
+     * Thread-local variable - stores the trace ID of the current thread
      */
     private static final ThreadLocal<String> TRACE_ID_HOLDER = new ThreadLocal<>();
     
     /**
-     * 私有构造函数，防止实例
+     * Private constructor to prevent instantiation
      */
     private TenantContextHolder() {
-        throw new UnsupportedOperationException("工具类不允许实例");
+        throw new UnsupportedOperationException("Utility class cannot be instantiated");
     }
     
-    // ==================== 绉熸埛 ID ====================
+    // ==================== Tenant ID ====================
     
     /**
-     * 设置当前线程的租户ID
+     * Set the tenant ID of the current thread
      * 
-     * <p>通常TenantHeaderFilter 在请求入站时调用</p>
+     * <p>Usually called by TenantHeaderFilter on request inbound</p>
      * 
-     * @param tenantId 租户 ID，不能为 null
-     * @throws IllegalArgumentException 如果 tenantId null 或空字符
+     * @param tenantId Tenant ID, cannot be null
+     * @throws IllegalArgumentException if tenantId is null or empty string
      */
     public static void setTenantId(String tenantId) {
         if (tenantId == null || tenantId.trim().isEmpty()) {
-            throw new IllegalArgumentException("租户 ID 不能为空");
+            throw new IllegalArgumentException("Tenant ID cannot be empty");
         }
         TENANT_ID_HOLDER.set(tenantId.trim());
     }
     
     /**
-     * 获取当前线程的租户ID
+     * Get the tenant ID of the current thread
      * 
-     * <p>如果未设置，返回默认租户 ID</p>
+     * <p>If not set, returns default tenant ID</p>
      * 
-     * @return 当前租户 ID，永不返回 null
+     * @return Current tenant ID, never returns null
      */
     public static String getTenantId() {
         String tenantId = TENANT_ID_HOLDER.get();
@@ -100,31 +115,31 @@ public final class TenantContextHolder {
     }
     
     /**
-     * 获取当前线程的租户ID（可空）
+     * Get the tenant ID of the current thread (nullable)
      * 
-     * <p>不使用默认值，如果未设置则返回 null</p>
+     * <p>Does not use default value, returns null if not set</p>
      * 
-     * @return 当前租户 ID，可能为 null
+     * @return Current tenant ID, may be null
      */
     public static String getTenantIdNullable() {
         return TENANT_ID_HOLDER.get();
     }
     
     /**
-     * 判断当前线程是否设置了租户ID
+     * Check if tenant ID is set for the current thread
      * 
-     * @return 如果已设置租户ID 返回 true
+     * @return true if tenant ID is already set
      */
     public static boolean hasTenantId() {
         return TENANT_ID_HOLDER.get() != null;
     }
     
-    // ==================== 用户 ID ====================
+    // ==================== User ID ====================
     
     /**
-     * 设置当前线程的用户ID
+     * Set the user ID of the current thread
      * 
-     * @param userId 用户 ID
+     * @param userId User ID
      */
     public static void setUserId(String userId) {
         if (userId != null && !userId.trim().isEmpty()) {
@@ -133,29 +148,29 @@ public final class TenantContextHolder {
     }
     
     /**
-     * 获取当前线程的用户ID
+     * Get the user ID of the current thread
      * 
-     * @return 用户 ID，可能为 null
+     * @return User ID, may be null
      */
     public static String getUserId() {
         return USER_ID_HOLDER.get();
     }
     
     /**
-     * 判断当前线程是否设置了用户ID
+     * Check if user ID is set for the current thread
      * 
-     * @return 如果已设置用户ID 返回 true
+     * @return true if user ID is already set
      */
     public static boolean hasUserId() {
         return USER_ID_HOLDER.get() != null;
     }
     
-    // ==================== 杩借釜 ID ====================
+    // ==================== Trace ID ====================
     
     /**
-     * 设置当前线程的追ID
+     * Set the trace ID of the current thread
      * 
-     * @param traceId 杩借釜 ID
+     * @param traceId Trace ID
      */
     public static void setTraceId(String traceId) {
         if (traceId != null && !traceId.trim().isEmpty()) {
@@ -164,21 +179,21 @@ public final class TenantContextHolder {
     }
     
     /**
-     * 获取当前线程的追ID
+     * Get the trace ID of the current thread
      * 
-     * @return 追踪 ID，可能为 null
+     * @return Trace ID, may be null
      */
     public static String getTraceId() {
         return TRACE_ID_HOLDER.get();
     }
     
-    // ==================== 上下文管====================
+    // ==================== Context Management ====================
     
     /**
-     * 清理当前线程的所有上下文
+     * Clear all context of the current thread
      * 
-     * <p>必须在请求处理完成后调用，防止内存泄</p>
-     * <p>通常TenantHeaderFilter finally 块中调用</p>
+     * <p>Must be called after request processing completes to prevent memory leaks</p>
+     * <p>Usually called by TenantHeaderFilter in finally block</p>
      */
     public static void clear() {
         TENANT_ID_HOLDER.remove();
@@ -187,11 +202,11 @@ public final class TenantContextHolder {
     }
     
     /**
-     * 获取当前上下文的快照
+     * Get a snapshot of the current context
      * 
-     * <p>用于异步场景传递上下文</p>
+     * <p>Used for passing context in async scenarios</p>
      * 
-     * @return 上下文快
+     * @return Context snapshot
      */
     public static ContextSnapshot snapshot() {
         return new ContextSnapshot(
@@ -202,11 +217,11 @@ public final class TenantContextHolder {
     }
     
     /**
-     * 从快照恢复上下文
+     * Restore context from snapshot
      * 
-     * <p>用于异步场景恢复上下</p>
+     * <p>Used for restoring context in async scenarios</p>
      * 
-     * @param snapshot 上下文快
+     * @param snapshot Context snapshot
      */
     public static void restore(ContextSnapshot snapshot) {
         if (snapshot == null) {
@@ -224,13 +239,13 @@ public final class TenantContextHolder {
     }
     
     /**
-     * 上下文快
+     * Context Snapshot
      * 
-     * <p>用于在异步场景中传递租户上下文</p>
+     * <p>Used for passing tenant context in async scenarios</p>
      * 
-     * @param tenantId 绉熸埛 ID
-     * @param userId   用户 ID
-     * @param traceId  杩借釜 ID
+     * @param tenantId Tenant ID
+     * @param userId   User ID
+     * @param traceId  Trace ID
      */
     public record ContextSnapshot(
         String tenantId,

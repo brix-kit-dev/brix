@@ -44,24 +44,24 @@ import io.infra.adapter.kafka.health.KafkaHealthIndicator;
 import io.runtime.sdk.capability.EventBusCapability;
 
 /**
- * Kafka 事件总线自动配置
+ * Kafka Event Bus Auto-Configuration.
  * 
- * <p>Spring Boot 自动配置类，负责初始Kafka 相关Bean
- * classpath 中存Kafka 依赖且配置了 Kafka 连接信息时自动生效。</p>
+ * <p>Spring Boot auto-configuration class, responsible for initializing Kafka-related Beans.
+ * Takes effect automatically when Kafka dependencies exist in classpath and Kafka connection info is configured.</p>
  * 
- * <h3>配置。</h3>
+ * <h3>Configuration Items</h3>
  * <table border="1">
- *   <tr><th>配置</th><th>说明</th><th>默认</th></tr>
- *   <tr><td>shinwa.runtime.kafka.enabled</td><td>是否启用</td><td>true</td></tr>
- *   <tr><td>shinwa.runtime.kafka.bootstrap-servers</td><td>Kafka 地址</td><td>localhost:9092</td></tr>
- *   <tr><td>shinwa.runtime.kafka.topic-prefix</td><td>Topic 前缀</td><td></td></tr>
- *   <tr><td>shinwa.runtime.module-id</td><td>当前模块 ID</td><td>unknown</td></tr>
+ *   <tr><th>Configuration</th><th>Description</th><th>Default</th></tr>
+ *   <tr><td>shinwa.runtime.kafka.enabled</td><td>Whether to enable</td><td>true</td></tr>
+ *   <tr><td>shinwa.runtime.kafka.bootstrap-servers</td><td>Kafka address</td><td>localhost:9092</td></tr>
+ *   <tr><td>shinwa.runtime.kafka.topic-prefix</td><td>Topic prefix</td><td></td></tr>
+ *   <tr><td>shinwa.runtime.module-id</td><td>Current module ID</td><td>unknown</td></tr>
  * </table>
  * 
- * <h3>条件装配</h3>
+ * <h3>Conditional Assembly</h3>
  * <ul>
- *   <li>需KafkaTemplate 类存在（spring-kafka 依赖。</li>
- *   <li>配置 shinwa.runtime.kafka.enabled=true（默认）</li>
+ *   <li>Requires KafkaTemplate class to be present (spring-kafka dependency)</li>
+ *   <li>Configured shinwa.runtime.kafka.enabled=true (default)</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team
@@ -75,32 +75,32 @@ import io.runtime.sdk.capability.EventBusCapability;
 public class KafkaAutoConfiguration {
 
     /**
-     * 配置 Kafka Producer Factory
+     * Configure Kafka Producer Factory.
      * 
-     * <p>创建 Kafka 生产者工厂，配置序列化器和生产者参。</p>
+     * <p>Creates Kafka producer factory with serializer and producer parameter configuration.</p>
      * 
-     * @param properties Kafka 配置属性
-     * @return ProducerFactory 实例
+     * @param properties Kafka configuration properties
+     * @return ProducerFactory instance
      */
     @Bean
     @ConditionalOnMissingBean
     public ProducerFactory<String, String> kafkaProducerFactory(KafkaEventBusProperties properties) {
         Map<String, Object> configs = new HashMap<>();
         
-        // Kafka 连接配置
+        // Kafka connection configuration
         configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
         
-        // 序列化配置
+        // Serialization configuration
         configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configs.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         
-        // 可靠性配置（从配置属性读取）
+        // Reliability configuration (read from config properties)
         KafkaEventBusProperties.ProducerProperties producer = properties.getProducer();
         configs.put(ProducerConfig.ACKS_CONFIG, producer.getAcks());
         configs.put(ProducerConfig.RETRIES_CONFIG, producer.getRetries());
-        configs.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);  // 幂等性生产者
+        configs.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);  // Idempotent producer
         
-        // 性能配置（从配置属性读取）
+        // Performance configuration (read from config properties)
         configs.put(ProducerConfig.BATCH_SIZE_CONFIG, producer.getBatchSize());
         configs.put(ProducerConfig.LINGER_MS_CONFIG, producer.getLingerMs());
         configs.put(ProducerConfig.BUFFER_MEMORY_CONFIG, producer.getBufferMemory());
@@ -109,10 +109,10 @@ public class KafkaAutoConfiguration {
     }
 
     /**
-     * 配置 KafkaTemplate
+     * Configure KafkaTemplate.
      * 
-     * @param producerFactory Producer 工厂
-     * @return KafkaTemplate 实例
+     * @param producerFactory Producer factory
+     * @return KafkaTemplate instance
      */
     @Bean
     @ConditionalOnMissingBean
@@ -121,10 +121,10 @@ public class KafkaAutoConfiguration {
     }
 
     /**
-     * 配置 Kafka Admin（用。Topic 管理。
+     * Configure Kafka Admin (for Topic management).
      * 
-     * @param properties Kafka 配置属性
-     * @return KafkaAdmin 实例
+     * @param properties Kafka configuration properties
+     * @return KafkaAdmin instance
      */
     @Bean
     @ConditionalOnMissingBean
@@ -135,23 +135,23 @@ public class KafkaAutoConfiguration {
     }
 
     /**
-     * 创建事件序列化专用 ObjectMapper（内部使用，不注册为 Spring Bean）
+     * Create event serialization dedicated ObjectMapper (internal use, not registered as Spring Bean).
      * 
-     * <p>避免与 Spring Boot 自动配置的全局 ObjectMapper 冲突。
-     * 每个适配器模块使用独立的 ObjectMapper 实例。</p>
+     * <p>Avoids conflicts with Spring Boot auto-configured global ObjectMapper.
+     * Each adapter module uses an independent ObjectMapper instance.</p>
      * 
-     * @return ObjectMapper 实例
+     * @return ObjectMapper instance
      */
     private static ObjectMapper createEventObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         
-        // 注册 Java 8 时间模块
+        // Register Java 8 time module
         mapper.registerModule(new JavaTimeModule());
         
-        // 日期时间序列化为 ISO-8601 格式
+        // Serialize datetime in ISO-8601 format
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         
-        // 忽略未知属性（兼容性）
+        // Ignore unknown properties (compatibility)
         mapper.configure(
                 com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, 
                 false);
@@ -160,10 +160,10 @@ public class KafkaAutoConfiguration {
     }
 
     /**
-     * 配置 Topic 解析
+     * Configure Topic resolver.
      * 
-     * @param properties Kafka 配置属性
-     * @return EventTopicResolver 实例
+     * @param properties Kafka configuration properties
+     * @return EventTopicResolver instance
      */
     @Bean
     @ConditionalOnMissingBean
@@ -172,15 +172,15 @@ public class KafkaAutoConfiguration {
     }
 
     /**
-     * 配置 EventBusCapability 实现
+     * Configure EventBusCapability implementation.
      * 
-     * <p>这是核心的能力实现Bean，模块通过 RuntimeContext 获取此实现</p>
+     * <p>This is the core capability implementation Bean, modules obtain this implementation through RuntimeContext.</p>
      * 
-     * @param kafkaTemplate Kafka 模板
-     * @param topicResolver Topic 解析
-     * @param objectMapper  JSON 序列化器
-     * @param moduleId      当前模块 ID
-     * @return EventBusCapability 实例
+     * @param kafkaTemplate Kafka template
+     * @param topicResolver Topic resolver
+     * @param objectMapper  JSON serializer
+     * @param moduleId      Current module ID
+     * @return EventBusCapability instance
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)
@@ -195,8 +195,6 @@ public class KafkaAutoConfiguration {
      * Configures Kafka health indicator for Actuator.
      *
      * <p>Reports Kafka broker connectivity status at /actuator/health endpoint.</p>
-     *
-     * <p>配置 Kafka 健康指示器，在 /actuator/health 端点报告 Broker 连通性状态。</p>
      *
      * @param kafkaAdmin Kafka Admin client for cluster metadata
      * @param properties Kafka configuration properties

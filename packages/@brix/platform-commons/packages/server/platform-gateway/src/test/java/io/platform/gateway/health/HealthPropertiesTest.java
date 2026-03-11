@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.health;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -8,12 +23,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * HealthProperties 单元测试
+ * HealthProperties Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
  */
-@DisplayName("Gateway HealthProperties 测试")
+@DisplayName("Gateway HealthProperties Test")
 class HealthPropertiesTest {
 
     private HealthProperties properties;
@@ -24,7 +39,7 @@ class HealthPropertiesTest {
     }
 
     @Test
-    @DisplayName("默认值应正确设置")
+    @DisplayName("Default values should be correctly set")
     void defaultValuesShouldBeCorrect() {
         assertTrue(properties.isEnabled());
         assertTrue(properties.isEngineCheckEnabled());
@@ -37,7 +52,7 @@ class HealthPropertiesTest {
     }
 
     @Test
-    @DisplayName("设置自定义 Engine URL")
+    @DisplayName("Set custom Engine URL")
     void shouldSetCustomEngineUrl() {
         String customUrl = "http://plugin-engine:8085";
         properties.setEngineUrl(customUrl);
@@ -45,35 +60,35 @@ class HealthPropertiesTest {
     }
 
     @Test
-    @DisplayName("设置自定义超时时间")
+    @DisplayName("Set custom timeout")
     void shouldSetCustomTimeout() {
         properties.setEngineTimeoutMs(5000);
         assertEquals(5000, properties.getEngineTimeoutMs());
     }
 
     @Test
-    @DisplayName("禁用 Engine 健康检查")
+    @DisplayName("Disable Engine health check")
     void shouldDisableEngineCheck() {
         properties.setEngineCheckEnabled(false);
         assertFalse(properties.isEngineCheckEnabled());
     }
 
     @Test
-    @DisplayName("禁用 Redis 健康检查")
+    @DisplayName("Disable Redis health check")
     void shouldDisableRedisCheck() {
         properties.setRedisCheckEnabled(false);
         assertFalse(properties.isRedisCheckEnabled());
     }
 
     @Test
-    @DisplayName("设置缓存 TTL")
+    @DisplayName("Set cache TTL")
     void shouldSetCacheTtl() {
         properties.setCacheTtlSeconds(10);
         assertEquals(10, properties.getCacheTtlSeconds());
     }
 
     @Test
-    @DisplayName("设置自定义健康检查路径")
+    @DisplayName("Set custom health check path")
     void shouldSetCustomHealthPath() {
         String customPath = "/actuator/health";
         properties.setEngineHealthPath(customPath);
@@ -81,14 +96,14 @@ class HealthPropertiesTest {
     }
 
     @Test
-    @DisplayName("隐藏详细信息")
+    @DisplayName("Hide detailed information")
     void shouldHideDetails() {
         properties.setShowDetails(false);
         assertFalse(properties.isShowDetails());
     }
 
     @Test
-    @DisplayName("禁用健康检查增强功能")
+    @DisplayName("Disable health check enhancement")
     void shouldDisableHealthEnhancement() {
         properties.setEnabled(false);
         assertFalse(properties.isEnabled());

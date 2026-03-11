@@ -16,9 +16,9 @@
 package io.runtime.sdk.capability.registry;
 
 /**
- * 能力未找到异常
+ * Capability Not Found Exception
  * 
- * <p>当请求一个必需但未注册的能力时抛出此异常。</p>
+ * <p>Thrown when a required but unregistered capability is requested.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -28,9 +28,9 @@ public class CapabilityNotFoundException extends RuntimeException {
     private final Class<?> capabilityType;
 
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param capabilityType 能力类型
+     * @param capabilityType capability type
      */
     public CapabilityNotFoundException(Class<?> capabilityType) {
         super("Required capability not found: " + capabilityType.getName());
@@ -38,10 +38,10 @@ public class CapabilityNotFoundException extends RuntimeException {
     }
 
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param capabilityType 能力类型
-     * @param message 错误消息
+     * @param capabilityType capability type
+     * @param message error message
      */
     public CapabilityNotFoundException(Class<?> capabilityType, String message) {
         super(message);
@@ -49,9 +49,9 @@ public class CapabilityNotFoundException extends RuntimeException {
     }
 
     /**
-     * 获取能力类型
+     * Get capability type
      * 
-     * @return 能力类型
+     * @return capability type
      */
     public Class<?> getCapabilityType() {
         return capabilityType;

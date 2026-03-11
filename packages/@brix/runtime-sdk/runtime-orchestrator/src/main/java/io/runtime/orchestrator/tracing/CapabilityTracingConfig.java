@@ -18,26 +18,26 @@ package io.runtime.orchestrator.tracing;
 import java.util.Objects;
 
 /**
- * 能力调用追踪配置
+ * Capability Invocation Tracing Configuration.
  * 
- * <p>配置追踪器的行为参数。</p>
+ * <p>Configures tracer behavior parameters.</p>
  * 
- * <h2>配置项</h2>
+ * <h2>Configuration Options</h2>
  * <ul>
- *   <li>{@code enabled} - 是否启用追踪（默认 true）</li>
- *   <li>{@code slowCallThresholdMs} - 慢调用阈值（默认 1000ms）</li>
- *   <li>{@code staleCleanupIntervalMs} - 超时追踪清理间隔（默认 60000ms）</li>
- *   <li>{@code staleTimeoutMs} - 追踪超时时间（默认 300000ms，5分钟）</li>
- *   <li>{@code sampleRate} - 采样率（默认 1.0，即 100%）</li>
- *   <li>{@code exportMetrics} - 是否导出指标（默认 true）</li>
+ *   <li>{@code enabled} - Whether to enable tracing (default: true)</li>
+ *   <li>{@code slowCallThresholdMs} - Slow call threshold (default: 1000ms)</li>
+ *   <li>{@code staleCleanupIntervalMs} - Stale trace cleanup interval (default: 60000ms)</li>
+ *   <li>{@code staleTimeoutMs} - Trace timeout duration (default: 300000ms, 5 minutes)</li>
+ *   <li>{@code sampleRate} - Sampling rate (default: 1.0, i.e., 100%)</li>
+ *   <li>{@code exportMetrics} - Whether to export metrics (default: true)</li>
  * </ul>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
  * CapabilityTracingConfig config = CapabilityTracingConfig.builder()
  *     .enabled(true)
  *     .slowCallThresholdMs(500)
- *     .sampleRate(0.1)  // 10% 采样
+ *     .sampleRate(0.1)  // 10% sampling
  *     .build();
  * 
  * CapabilityInvocationTracer tracer = new CapabilityInvocationTracer();
@@ -50,54 +50,54 @@ import java.util.Objects;
 public final class CapabilityTracingConfig {
     
     /**
-     * 默认配置
+     * Default configuration.
      */
     public static final CapabilityTracingConfig DEFAULT = builder().build();
     
     /**
-     * 是否启用追踪
+     * Whether tracing is enabled.
      */
     private final boolean enabled;
     
     /**
-     * 慢调用阈值（毫秒）
+     * Slow call threshold (milliseconds).
      */
     private final long slowCallThresholdMs;
     
     /**
-     * 超时追踪清理间隔（毫秒）
+     * Stale trace cleanup interval (milliseconds).
      */
     private final long staleCleanupIntervalMs;
     
     /**
-     * 追踪超时时间（毫秒）
+     * Trace timeout duration (milliseconds).
      */
     private final long staleTimeoutMs;
     
     /**
-     * 采样率（0.0 - 1.0）
+     * Sampling rate (0.0 - 1.0).
      */
     private final double sampleRate;
     
     /**
-     * 是否导出指标
+     * Whether to export metrics.
      */
     private final boolean exportMetrics;
     
     /**
-     * 是否记录方法参数
+     * Whether to log method arguments.
      */
     private final boolean logMethodArguments;
     
     /**
-     * 是否记录返回值
+     * Whether to log return values.
      */
     private final boolean logReturnValue;
     
     /**
-     * 私有构造函数
+     * Private constructor.
      * 
-     * @param builder Builder 实例
+     * @param builder Builder instance
      */
     private CapabilityTracingConfig(Builder builder) {
         this.enabled = builder.enabled;
@@ -111,9 +111,9 @@ public final class CapabilityTracingConfig {
     }
     
     /**
-     * 创建 Builder
+     * Creates a Builder.
      * 
-     * @return 新的 Builder 实例
+     * @return new Builder instance
      */
     public static Builder builder() {
         return new Builder();
@@ -122,72 +122,72 @@ public final class CapabilityTracingConfig {
     // ==================== Getters ====================
     
     /**
-     * 检查是否启用追踪
+     * Checks if tracing is enabled.
      * 
-     * @return 启用返回 true
+     * @return true if enabled
      */
     public boolean isEnabled() {
         return enabled;
     }
     
     /**
-     * 获取慢调用阈值
+     * Gets slow call threshold.
      * 
-     * @return 阈值（毫秒）
+     * @return threshold (milliseconds)
      */
     public long getSlowCallThresholdMs() {
         return slowCallThresholdMs;
     }
     
     /**
-     * 获取超时追踪清理间隔
+     * Gets stale trace cleanup interval.
      * 
-     * @return 间隔（毫秒）
+     * @return interval (milliseconds)
      */
     public long getStaleCleanupIntervalMs() {
         return staleCleanupIntervalMs;
     }
     
     /**
-     * 获取追踪超时时间
+     * Gets trace timeout duration.
      * 
-     * @return 超时时间（毫秒）
+     * @return timeout duration (milliseconds)
      */
     public long getStaleTimeoutMs() {
         return staleTimeoutMs;
     }
     
     /**
-     * 获取采样率
+     * Gets sampling rate.
      * 
-     * @return 采样率（0.0 - 1.0）
+     * @return sampling rate (0.0 - 1.0)
      */
     public double getSampleRate() {
         return sampleRate;
     }
     
     /**
-     * 检查是否导出指标
+     * Checks if metrics export is enabled.
      * 
-     * @return 导出返回 true
+     * @return true if exporting
      */
     public boolean isExportMetrics() {
         return exportMetrics;
     }
     
     /**
-     * 检查是否记录方法参数
+     * Checks if method arguments logging is enabled.
      * 
-     * @return 记录返回 true
+     * @return true if logging
      */
     public boolean isLogMethodArguments() {
         return logMethodArguments;
     }
     
     /**
-     * 检查是否记录返回值
+     * Checks if return value logging is enabled.
      * 
-     * @return 记录返回 true
+     * @return true if logging
      */
     public boolean isLogReturnValue() {
         return logReturnValue;
@@ -204,7 +204,7 @@ public final class CapabilityTracingConfig {
     // ==================== Builder ====================
     
     /**
-     * 配置构建器
+     * Configuration Builder.
      */
     public static final class Builder {
         
@@ -221,9 +221,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置是否启用追踪
+         * Sets whether to enable tracing.
          * 
-         * @param enabled 是否启用
+         * @param enabled whether to enable
          * @return this
          */
         public Builder enabled(boolean enabled) {
@@ -232,9 +232,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置慢调用阈值
+         * Sets slow call threshold.
          * 
-         * @param thresholdMs 阈值（毫秒）
+         * @param thresholdMs threshold (milliseconds)
          * @return this
          */
         public Builder slowCallThresholdMs(long thresholdMs) {
@@ -246,9 +246,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置超时追踪清理间隔
+         * Sets stale trace cleanup interval.
          * 
-         * @param intervalMs 间隔（毫秒）
+         * @param intervalMs interval (milliseconds)
          * @return this
          */
         public Builder staleCleanupIntervalMs(long intervalMs) {
@@ -260,9 +260,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置追踪超时时间
+         * Sets trace timeout duration.
          * 
-         * @param timeoutMs 超时时间（毫秒）
+         * @param timeoutMs timeout duration (milliseconds)
          * @return this
          */
         public Builder staleTimeoutMs(long timeoutMs) {
@@ -274,9 +274,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置采样率
+         * Sets sampling rate.
          * 
-         * @param rate 采样率（0.0 - 1.0）
+         * @param rate sampling rate (0.0 - 1.0)
          * @return this
          */
         public Builder sampleRate(double rate) {
@@ -288,9 +288,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置是否导出指标
+         * Sets whether to export metrics.
          * 
-         * @param export 是否导出
+         * @param export whether to export
          * @return this
          */
         public Builder exportMetrics(boolean export) {
@@ -299,9 +299,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置是否记录方法参数
+         * Sets whether to log method arguments.
          * 
-         * @param log 是否记录
+         * @param log whether to log
          * @return this
          */
         public Builder logMethodArguments(boolean log) {
@@ -310,9 +310,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 设置是否记录返回值
+         * Sets whether to log return values.
          * 
-         * @param log 是否记录
+         * @param log whether to log
          * @return this
          */
         public Builder logReturnValue(boolean log) {
@@ -321,9 +321,9 @@ public final class CapabilityTracingConfig {
         }
         
         /**
-         * 构建配置实例
+         * Builds the configuration instance.
          * 
-         * @return 配置实例
+         * @return configuration instance
          */
         public CapabilityTracingConfig build() {
             return new CapabilityTracingConfig(this);

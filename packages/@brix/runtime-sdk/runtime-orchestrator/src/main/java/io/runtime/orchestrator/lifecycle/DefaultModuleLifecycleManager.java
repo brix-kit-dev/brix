@@ -27,17 +27,17 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /**
- * 默认模块生命周期管理器实现
+ * Default Module Lifecycle Manager Implementation.
  * 
- * <p>线程安全的生命周期管理器，支持并行和顺序模块启动。
- * 包含能力验证、依赖检查和生命周期事件管理。</p>
+ * <p>Thread-safe lifecycle manager supporting parallel and sequential module startup.
+ * Includes capability validation, dependency checking, and lifecycle event management.</p>
  * 
- * <h3>核心功能</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li>按拓扑排序启动模块（考虑依赖关系）</li>
- *   <li>能力验证（必需能力缺失时拒绝启动）</li>
- *   <li>生命周期事件通知</li>
- *   <li>健康检查</li>
+ *   <li>Start modules in topological order (considering dependencies)</li>
+ *   <li>Capability validation (reject startup if required capability is missing)</li>
+ *   <li>Lifecycle event notifications</li>
+ *   <li>Health check</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -48,54 +48,54 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
     private static final Logger logger = LoggerFactory.getLogger(DefaultModuleLifecycleManager.class);
 
     /**
-     * 模块注册表
+     * Module registry.
      */
     private final ModuleRegistry registry;
 
     /**
-     * 上下文工厂
+     * Context factory.
      */
     private volatile RuntimeContextFactory contextFactory;
 
     /**
-     * 能力提供者（用于验证模块所需能力）
+     * Capability provider (used to validate module required capabilities).
      */
     private volatile CapabilityProvider capabilityProvider;
 
     /**
-     * 生命周期监听器列表
+     * Lifecycle listener list.
      */
     private final List<LifecycleListener> listeners = new CopyOnWriteArrayList<>();
 
     /**
-     * 管理器状态
+     * Manager state.
      */
     private volatile LifecycleManagerState state = LifecycleManagerState.CREATED;
 
     /**
-     * 执行器
+     * Executor.
      */
     private final ExecutorService executor;
 
     /**
-     * 模块上下文缓存
+     * Module context cache.
      */
     private final Map<String, RuntimeContext> contextCache = new ConcurrentHashMap<>();
 
     /**
-     * 创建默认生命周期管理器
+     * Creates default lifecycle manager.
      * 
-     * @param registry 模块注册表
+     * @param registry module registry
      */
     public DefaultModuleLifecycleManager(ModuleRegistry registry) {
         this(registry, null);
     }
 
     /**
-     * 创建默认生命周期管理器
+     * Creates default lifecycle manager.
      * 
-     * @param registry 模块注册表
-     * @param contextFactory 上下文工厂
+     * @param registry module registry
+     * @param contextFactory context factory
      */
     public DefaultModuleLifecycleManager(ModuleRegistry registry, RuntimeContextFactory contextFactory) {
         this.registry = Objects.requireNonNull(registry, "Registry cannot be null");
@@ -192,7 +192,7 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
         state = LifecycleManagerState.STOPPING;
         logger.info("Stopping all modules...");
 
-        // 逆序停止
+        // Reverse order stop
         List<LifecycleCapability> modules = registry.getByShutdownOrder();
 
         return CompletableFuture.runAsync(() -> {
@@ -201,7 +201,7 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
                 try {
                     stopModule(module, moduleId);
                 } catch (Exception e) {
-                    // 停止时的错误不中断流程
+                    // Errors during stop should not interrupt the flow
                     logger.error("Error stopping module: {}", moduleId, e);
                     notifyError(moduleId, LifecyclePhase.STOP, e);
                 }
@@ -317,7 +317,7 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
         return state;
     }
 
-    // ==================== 私有方法 ====================
+    // ==================== Private Methods ====================
 
     private void initializeModule(LifecycleCapability module, String moduleId) {
         logger.debug("Initializing module: {}", moduleId);
@@ -384,7 +384,7 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
         }
     }
 
-    // ==================== 通知方法 ====================
+    // ==================== Notification Methods ====================
 
     private void notifyBeforeInit(String moduleId) {
         listeners.forEach(l -> {
@@ -458,7 +458,7 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
         });
     }
 
-    // ==================== 能力验证方法 ====================
+    // ==================== Capability Validation Methods ====================
 
     /**
      * {@inheritDoc}
@@ -472,12 +472,12 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
     /**
      * {@inheritDoc}
      * 
-     * <p>验证流程：</p>
+     * <p>Validation process:</p>
      * <ol>
-     *   <li>从 manifest 获取必需能力列表（capabilities.required）</li>
-     *   <li>检查每个必需能力是否被 Host 提供</li>
-     *   <li>如果存在缺失能力，抛出 {@link CapabilityMissingException}</li>
-     *   <li>可选能力缺失时仅记录警告日志</li>
+     *   <li>Get required capabilities list from manifest (capabilities.required)</li>
+     *   <li>Check if each required capability is provided by Host</li>
+     *   <li>If missing capabilities exist, throw {@link CapabilityMissingException}</li>
+     *   <li>For optional capability missing, only log warning</li>
      * </ol>
      */
     @Override
@@ -488,13 +488,13 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
 
         String moduleId = manifest.getModuleId();
         
-        // 如果没有设置能力提供者，跳过验证（允许在测试环境中使用）
+        // If no capability provider is set, skip validation (allow use in test environments)
         if (capabilityProvider == null) {
-            logger.warn("未设置 CapabilityProvider，跳过模块 {} 的能力验证", moduleId);
+            logger.warn("CapabilityProvider not set, skipping capability validation for module {}", moduleId);
             return;
         }
 
-        // 验证必需能力
+        // Validate required capabilities
         List<String> requiredCapabilities = manifest.getRequiredCapabilities();
         if (!requiredCapabilities.isEmpty()) {
             List<String> missingCapabilities = new ArrayList<>();
@@ -506,14 +506,14 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
             }
             
             if (!missingCapabilities.isEmpty()) {
-                logger.error("模块 {} 启动失败：缺少必需能力 {}", moduleId, missingCapabilities);
+                logger.error("Module {} startup failed: missing required capabilities {}", moduleId, missingCapabilities);
                 throw new CapabilityMissingException(moduleId, missingCapabilities);
             }
             
-            logger.debug("模块 {} 必需能力验证通过: {}", moduleId, requiredCapabilities);
+            logger.debug("Module {} required capability validation passed: {}", moduleId, requiredCapabilities);
         }
 
-        // 检查可选能力（仅记录警告）
+        // Check optional capabilities (only log warning)
         List<String> optionalCapabilities = manifest.getOptionalCapabilities();
         if (!optionalCapabilities.isEmpty()) {
             List<String> missingOptional = new ArrayList<>();
@@ -525,7 +525,7 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
             }
             
             if (!missingOptional.isEmpty()) {
-                logger.warn("模块 {} 缺少可选能力 {}，相关功能将不可用", moduleId, missingOptional);
+                logger.warn("Module {} missing optional capabilities {}, related features will be unavailable", moduleId, missingOptional);
             }
         }
     }

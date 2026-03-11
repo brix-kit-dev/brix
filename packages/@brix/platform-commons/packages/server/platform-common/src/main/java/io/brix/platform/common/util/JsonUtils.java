@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.common.util;
 
 import java.io.IOException;
@@ -13,8 +28,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 /**
- * <p>Jackson 序列化/反序列化工具，统一配置 ObjectMapper，避免各模块重复创建。</p>
- * <p>该工具类线程安全，可直接在多线程环境中复用。</p>
+ * <p>Jackson serialization/deserialization utility, unified ObjectMapper configuration,
+ * avoiding duplicate creation across modules.</p>
+ * <p>This utility class is thread-safe and can be directly reused in multi-threaded environments.</p>
  */
 public final class JsonUtils {
     private static final ObjectMapper MAPPER = new ObjectMapper()
@@ -25,59 +41,59 @@ public final class JsonUtils {
     }
 
     /**
-     * 将对象序列化为 JSON 字符串。
+     * Serialize an object to JSON string.
      *
-     * @param value 任意对象
-     * @return JSON 字符串
+     * @param value Any object
+     * @return JSON string
      */
     public static @NonNull String toJson(Object value) {
         try {
-            return Objects.requireNonNull(MAPPER.writeValueAsString(value), "JSON 序列化返回 null");
+            return Objects.requireNonNull(MAPPER.writeValueAsString(value), "JSON serialization returned null");
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("JSON 序列化失败", e);
+            throw new IllegalStateException("JSON serialization failed", e);
         }
     }
 
     /**
-     * 将 JSON 字符串反序列化为指定类型。
+     * Deserialize JSON string to specified type.
      *
-     * @param json  JSON 字符串
-     * @param clazz 目标类型
-     * @param <T>   泛型
-     * @return 目标对象
+     * @param json  JSON string
+     * @param clazz Target type
+     * @param <T>   Generic type
+     * @return Target object
      */
     public static <T> T fromJson(String json, Class<T> clazz) {
         try {
             return MAPPER.readValue(json, clazz);
         } catch (IOException e) {
-            throw new IllegalStateException("JSON 反序列化失败", e);
+            throw new IllegalStateException("JSON deserialization failed", e);
         }
     }
 
     /**
-     * 基于 TypeReference 的反序列化工具，适用于集合或泛型复杂类型。
+     * TypeReference-based deserialization utility, suitable for collections or complex generic types.
      */
     public static <T> T fromJson(String json, TypeReference<T> typeReference) {
         try {
             return MAPPER.readValue(json, typeReference);
         } catch (IOException e) {
-            throw new IllegalStateException("JSON 反序列化失败", e);
+            throw new IllegalStateException("JSON deserialization failed", e);
         }
     }
 
     /**
-     * 解析 JSON 字符串为 {@link JsonNode}，便于上层进行动态读取。
+     * Parse JSON string to {@link JsonNode} for dynamic reading.
      */
     public static JsonNode readTree(String json) {
         try {
             return MAPPER.readTree(json);
         } catch (IOException e) {
-            throw new IllegalStateException("JSON 解析失败", e);
+            throw new IllegalStateException("JSON parsing failed", e);
         }
     }
 
     /**
-     * 暴露底层 ObjectMapper，供必须自定义行为的业务场景使用。
+     * Expose underlying ObjectMapper for business scenarios requiring custom behavior.
      */
     public static ObjectMapper mapper() {
         return MAPPER;

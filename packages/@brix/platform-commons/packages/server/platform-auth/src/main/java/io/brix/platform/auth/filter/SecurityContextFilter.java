@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.filter;
 
 import java.io.IOException;
@@ -7,21 +22,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.auth.jwt.JwtProperties;
 import io.brix.platform.auth.jwt.JwtValidator;
 import io.brix.platform.auth.jwt.JwtValidator.JwtValidationException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * 安全上下文过滤器
+ * Security Context Filter
  * <p>
- * 从请求头提取 JWT Token，验证后设置SecurityContextHolder
- * 请求结束后清理上下文
+ * Extracts JWT Token from request header, validates and sets to SecurityContextHolder.
+ * Clears context after request ends.
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -53,7 +68,7 @@ public class SecurityContextFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
         
         try {
-            // 提取 Token
+            // Extract Token
             String token = extractToken(request);
             
             if (token != null && jwtValidator != null) {
@@ -67,20 +82,20 @@ public class SecurityContextFilter extends OncePerRequestFilter {
                 } catch (JwtValidationException e) {
                     logger.debug("Token validation failed: {} - {}", 
                             e.getReason(), e.getMessage());
-                    // 不抛异常，让后续 @Anonymous @RequirePermission 决定是否需要认
+                    // Do not throw exception, let @Anonymous or @RequirePermission decide if authentication is needed
                 }
             }
             
             filterChain.doFilter(request, response);
             
         } finally {
-            // 清理上下文，防止内存泄漏
+            // Clear context to prevent memory leak
             securityContextHolder.clear();
         }
     }
 
     /**
-     * 从请求头提取 Token
+     * Extract Token from request header
      */
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader(AUTHORIZATION_HEADER);
@@ -94,12 +109,12 @@ public class SecurityContextFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // 如果安全功能未启用，跳过过滤
+        // Skip filtering if security feature is not enabled
         if (!properties.isEnabled()) {
             return true;
         }
         
-        // 健康检查和监控端点跳过
+        // Skip health check and monitoring endpoints
         String path = request.getRequestURI();
         return path.startsWith("/actuator/") || 
                path.equals("/health") ||

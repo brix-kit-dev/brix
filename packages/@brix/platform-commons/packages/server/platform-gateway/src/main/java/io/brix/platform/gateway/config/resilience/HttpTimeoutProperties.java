@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -8,17 +23,17 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * HTTP 超时配置属
+ * HTTP Timeout Configuration Properties
  * <p>
- * MVP 红线要求：显式配HTTP 超时参数
- * 配置网关下游调用的超时策略，满足生产级别的可靠性要求
+ * MVP Red Line Requirement：Explicit configHTTP timeout parameters
+ * Configures timeout strategies for gateway downstream calls to meet production-level reliability requirements
  * </p>
  *
- * <h3>配置项说</h3>
+ * <h3>Configuration Item Desc</h3>
  * <ul>
- *   <li>connect-timeout: TCP 连接超时，建3-5 </li>
- *   <li>response-timeout: 响应读取超时，建10-30 </li>
- *   <li>global-timeout: 全局超时（包含重试），建30-60 </li>
+ *   <li>connect-timeout: TCP Connection timeout，recommended3-5 </li>
+ *   <li>response-timeout: Response read timeout，recommended10-30 </li>
+ *   <li>global-timeout: Global timeout（including retries），recommended30-60 </li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -29,13 +44,13 @@ import jakarta.validation.constraints.NotNull;
 public class HttpTimeoutProperties {
 
     /**
-     * 是否启用超时配置
+     * Whether to enable timeout configuration
      */
     private boolean enabled = true;
 
     /**
-     * TCP 连接超时（毫秒）
-     * MVP 红线：显式配置，默认 5000ms
+     * TCP connection timeout (milliseconds)
+     * MVP Red Line: Explicit configuration, default 5000ms
      */
     @NotNull
     @Min(1000)
@@ -43,9 +58,9 @@ public class HttpTimeoutProperties {
     private Integer connectTimeoutMs = 5000;
 
     /**
-     * 响应超时（毫秒）
-     * 从发送请求到收到完整响应的最大等待时
-     * MVP 红线：显式配置，默认 30000ms
+     * Response timeout (milliseconds)
+     * Maximum wait time from sending request to receiving complete response
+     * MVP Red Line: Explicit configuration, default 30000ms
      */
     @NotNull
     @Min(5000)
@@ -53,8 +68,8 @@ public class HttpTimeoutProperties {
     private Integer responseTimeoutMs = 30000;
 
     /**
-     * 全局超时（毫秒）
-     * 包含所有重试在内的总超时时
+     * Global timeout (milliseconds)
+     * Total timeout including all retries
      */
     @NotNull
     @Min(10000)
@@ -62,8 +77,8 @@ public class HttpTimeoutProperties {
     private Integer globalTimeoutMs = 60000;
 
     /**
-     * 读取超时（毫秒）
-     * 等待读取数据的最大时
+     * Read timeout (milliseconds)
+     * Maximum time to wait for reading data
      */
     @NotNull
     @Min(5000)
@@ -71,8 +86,8 @@ public class HttpTimeoutProperties {
     private Integer readTimeoutMs = 30000;
 
     /**
-     * 写入超时（毫秒）
-     * 等待写入数据的最大时
+     * Write timeout (milliseconds)
+     * Maximum time to wait for writing data
      */
     @NotNull
     @Min(5000)

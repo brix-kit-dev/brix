@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience.ratelimit;
 
 import java.util.Map;
@@ -14,35 +29,35 @@ import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import jakarta.annotation.PostConstruct;
 
 /**
- * 限流器配置类
+ * rate limiterconfigurationclass
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 基于 Resilience4j RateLimiter 实现滑动窗口 QPS 限流
- * 每个路由可以有独立的限流配置，也可以使用默认配置
+ * based on Resilience4j RateLimiter implementationslidingwindow QPS rate limit
+ * each routecantohasaloneestablishofRate Limit Configuration，alsocantousedefaultconfiguration
  * </p>
  * 
- * <h3>限流算法说明</h3>
+ * <h3>rate limitalgorithmdescription</h3>
  * <p>
- * Resilience4j RateLimiter 采用 AtomicRateLimiter 实现
- * 使用原子操作确保线程安全，适合高并发场景
- * 核心参数
+ * Resilience4j RateLimiter use AtomicRateLimiter implementation
+ * useoriginalsuboperationensurethreadsecurity，suitablecombinehighconcurrentscenario
+ * coreparameter
  * <ul>
- *   <li>limitForPeriod - 每个周期允许的请求数</li>
- *   <li>limitRefreshPeriod - 周期刷新时间</li>
- *   <li>timeoutDuration - 等待获取许可的超时时</li>
+ *   <li>limitForPeriod - each periodallowofrequestcount</li>
+ *   <li>limitRefreshPeriod - periodrefreshtime</li>
+ *   <li>timeoutDuration - waitobtainpermitoftimeouttime</li>
  * </ul>
  * </p>
  * 
- * <h3>使用示例</h3>
+ * <h3>useexample</h3>
  * <pre>{@code
  * RateLimiter limiter = rateLimitConfig.getRateLimiterForRoute("plugin-engine");
- * // 尝试获取许可
+ * // attemptobtainpermit
  * if (limiter.acquirePermission()) {
- *     // 执行请求
+ *     // executerequest
  * } else {
- *     // 闄愭祦鎷掔粷
+ *     // 
  * }
  * }</pre>
  *
@@ -59,20 +74,20 @@ public class RateLimitConfig {
     private static final Logger logger = LoggerFactory.getLogger(RateLimitConfig.class);
 
     /**
-     * 限流配置属
+     * Rate limit configuration properties
      */
     private final RateLimitProperties properties;
 
     /**
-     * 限流器注册表（缓存已创建的限流器实例
+     * Rate limiter registry (caches created rate limiter instances)
      * <p>
-     * 技术点：使ConcurrentHashMap 缓存限流器实例，避免重复创建
+     * Technical note: Uses ConcurrentHashMap to cache rate limiter instances, avoiding repeated creation.
      * </p>
      */
     private final Map<String, RateLimiter> rateLimiterCache = new ConcurrentHashMap<>();
 
     /**
-     * Resilience4j 限流器注册表
+     * Resilience4j rate limiter registry
      */
     private RateLimiterRegistry rateLimiterRegistry;
 
@@ -81,19 +96,19 @@ public class RateLimitConfig {
     }
 
     /**
-     * 初始化限流器注册
+     * initializationrate limiterregister
      * <p>
-     * Bean 初始化后执行，创建默认限流器配置并记录日
+     * Bean initializationafterexecute，createdefaultrate limiterconfigurationandrecorddate
      * </p>
      */
     @PostConstruct
     public void init() {
         if (!properties.isEnabled()) {
-            logger.info("[shinwa] RateLimit disabled");
+            logger.info("[brix] RateLimit disabled");
             return;
         }
 
-        // 创建默认限流配置
+        // createdefaultRate Limit Configuration
         RateLimitProperties.RateLimitConfig defaultCfg = properties.getDefaultConfig();
         RateLimiterConfig defaultConfig = RateLimiterConfig.custom()
                 .limitForPeriod(defaultCfg.getLimitForPeriod())
@@ -101,19 +116,19 @@ public class RateLimitConfig {
                 .timeoutDuration(defaultCfg.getTimeoutDuration())
                 .build();
 
-        // 创建限流器注册表（使用默认配置）
+        // Create rate limiter registry（usedefaultconfiguration）
         this.rateLimiterRegistry = RateLimiterRegistry.of(defaultConfig);
 
-        logger.info("[shinwa] RateLimit Configuration:");
-        logger.info("[shinwa]   enabled={}", properties.isEnabled());
-        logger.info("[shinwa]   default: limitForPeriod={}, refreshPeriod={}, timeout={}",
+        logger.info("[brix] RateLimit Configuration:");
+        logger.info("[brix]   enabled={}", properties.isEnabled());
+        logger.info("[brix]   default: limitForPeriod={}, refreshPeriod={}, timeout={}",
                 defaultCfg.getLimitForPeriod(),
                 defaultCfg.getLimitRefreshPeriod(),
                 defaultCfg.getTimeoutDuration());
 
-        // 预创建路由级别限流器
+        // Pre-create route-level rate limiters
         properties.getRoutes().forEach((routeId, config) -> {
-            logger.info("[shinwa]   route[{}]: limitForPeriod={}, refreshPeriod={}, timeout={}",
+            logger.info("[brix]   route[{}]: limitForPeriod={}, refreshPeriod={}, timeout={}",
                     routeId, config.getLimitForPeriod(), 
                     config.getLimitRefreshPeriod(), config.getTimeoutDuration());
             getRateLimiterForRoute(routeId);
@@ -121,14 +136,14 @@ public class RateLimitConfig {
     }
 
     /**
-     * 获取指定路由的限流器
+     * Get rate limiter for specified route
      * <p>
-     * 优先使用路由级别配置，如果没有则使用默认配置
-     * 限流器实例会被缓存，避免重复创建
+     * Prioritizes route-level configuration, falls back to default configuration if not found.
+     * Rate limiter instances are cached to avoid repeated creation.
      * </p>
      * 
-     * @param routeId 路由ID，如 "plugin-engine"
-     * @return 对应的限流器实例
+     * @param routeId route ID, e.g. "plugin-engine"
+     * @return corresponding rate limiter instance
      */
     public RateLimiter getRateLimiterForRoute(String routeId) {
         if (!properties.isEnabled() || rateLimiterRegistry == null) {
@@ -138,7 +153,7 @@ public class RateLimitConfig {
         return rateLimiterCache.computeIfAbsent(routeId, id -> {
             RateLimitProperties.RateLimitConfig config = properties.getConfigForRoute(id);
             
-            // 创建路由专用的限流配
+            // createroutespecialuseofrate limitconfiguration
             RateLimiterConfig rateLimiterConfig = RateLimiterConfig.custom()
                     .limitForPeriod(config.getLimitForPeriod())
                     .limitRefreshPeriod(config.getLimitRefreshPeriod())
@@ -150,30 +165,30 @@ public class RateLimitConfig {
     }
 
     /**
-     * 获取默认限流
+     * obtaindefaultrate limit
      * <p>
-     * 用于没有路由信息时的限流
+     * used fornohasrouteinformationtimeofrate limit
      * </p>
      * 
-     * @return 默认限流
+     * @return defaultrate limit
      */
     public RateLimiter getDefaultRateLimiter() {
         return getRateLimiterForRoute("default");
     }
 
     /**
-     * 检查限流是否启
+     * checkrate limitwhetherstart
      * 
-     * @return true 表示启用
+     * @return true representsenable
      */
     public boolean isEnabled() {
         return properties.isEnabled();
     }
 
     /**
-     * 获取配置属
+     * obtainconfigurationproperty
      * 
-     * @return 限流配置属
+     * @return Rate Limit Configurationproperty
      */
     public RateLimitProperties getProperties() {
         return properties;

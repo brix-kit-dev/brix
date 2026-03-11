@@ -15,11 +15,11 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
  *
  * <h2>Architecture Principle</h2>
  * <blockquote>
- * 红线 12：安全边界不可绕过（Security Boundary）
- * ✗ 禁止：插件自行实现认证逻辑（跳过 AuthCapability）
- * ✗ 禁止：在日志/错误信息中输出敏感数据
- * ✗ 禁止：硬编码凭证
- * ✗ 禁止：插件间直接传递用户凭证
+ * Red Line 12: Security Boundary Cannot Be Bypassed
+ * ✗ Prohibited: Plugins implementing authentication logic themselves (bypassing AuthCapability)
+ * ✗ Prohibited: Outputting sensitive data in logs/error messages
+ * ✗ Prohibited: Hardcoded credentials
+ * ✗ Prohibited: Direct credential passing between plugins
  * </blockquote>
  *
  * <h2>Source</h2>

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.config;
 
 import org.slf4j.Logger;
@@ -8,13 +23,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * 配置管理器
+ * Configuration manager.
  *
- * <p>提供配置的统一管理能力，包括：
+ * <p>Provides unified configuration management capabilities, including:
  * <ul>
- *   <li>配置获取</li>
- *   <li>配置变更监听</li>
- *   <li>配置刷新</li>
+ *   <li>Configuration retrieval</li>
+ *   <li>Configuration change listening</li>
+ *   <li>Configuration refresh</li>
  * </ul>
  *
  * @since 3.0.0
@@ -32,11 +47,11 @@ public class ConfigManager {
     }
 
     /**
-     * 获取配置值
+     * Get configuration value.
      *
-     * @param key 配置键
-     * @param <T> 配置值类型
-     * @return 配置值，不存在返回回 null
+     * @param key configuration key
+     * @param <T> configuration value type
+     * @return configuration value, returns null if not found
      */
     @SuppressWarnings("unchecked")
     public <T> T getConfig(String key) {
@@ -44,12 +59,12 @@ public class ConfigManager {
     }
 
     /**
-     * 获取配置值，不存在返回回默认值
+     * Get configuration value, returns default value if not found.
      *
-     * @param key          配置键
-     * @param defaultValue 默认值
-     * @param <T>          配置值类型
-     * @return 配置值
+     * @param key          configuration key
+     * @param defaultValue default value
+     * @param <T>          configuration value type
+     * @return configuration value
      */
     @SuppressWarnings("unchecked")
     public <T> T getConfig(String key, T defaultValue) {
@@ -58,10 +73,10 @@ public class ConfigManager {
     }
 
     /**
-     * 设置配置值
+     * Set configuration value.
      *
-     * @param key   配置键
-     * @param value 配置值
+     * @param key   configuration key
+     * @param value configuration value
      */
     public void setConfig(String key, Object value) {
         Object oldValue = configCache.put(key, value);
@@ -71,45 +86,45 @@ public class ConfigManager {
     }
 
     /**
-     * 注册配置变更监听器
+     * Register configuration change listener.
      *
-     * @param key      配置键
-     * @param listener 监听器
+     * @param key      configuration key
+     * @param listener listener
      */
     public void addListener(String key, Consumer<Object> listener) {
         listeners.put(key, listener);
-        log.debug("注册配置监听器: {}", key);
+        log.debug("Registered configuration listener: {}", key);
     }
 
     /**
-     * 移除配置变更监听器
+     * Remove configuration change listener.
      *
-     * @param key 配置键
+     * @param key configuration key
      */
     public void removeListener(String key) {
         listeners.remove(key);
-        log.debug("移除配置监听器: {}", key);
+        log.debug("Removed configuration listener: {}", key);
     }
 
     /**
-     * 刷新所有配置
+     * Refresh all configurations.
      */
     public void refresh() {
-        log.info("刷新所有配置...");
-        // 子类或扩展可以实现具体的刷新逻辑
+        log.info("Refreshing all configurations...");
+        // Subclasses or extensions can implement specific refresh logic
     }
 
     /**
-     * 通知监听器
+     * Notify listeners.
      */
     private void notifyListeners(String key, Object value) {
         Consumer<Object> listener = listeners.get(key);
         if (listener != null) {
             try {
                 listener.accept(value);
-                log.debug("配置变更通知成功: {} = {}", key, value);
+                log.debug("Configuration change notification succeeded: {} = {}", key, value);
             } catch (Exception e) {
-                log.error("配置变更通知失败: {} = {}", key, value, e);
+                log.error("Configuration change notification failed: {} = {}", key, value, e);
             }
         }
     }

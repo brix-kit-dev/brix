@@ -15,15 +15,9 @@
  */
 package io.brix.platform.starter.autoconfigure;
 
-import io.swagger.v3.oas.models.Components;
-import io.swagger.v3.oas.models.ExternalDocumentation;
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Contact;
-import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.info.License;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
-import io.swagger.v3.oas.models.security.SecurityScheme;
-import io.swagger.v3.oas.models.servers.Server;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -34,31 +28,38 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-import java.util.ArrayList;
-import java.util.List;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.ExternalDocumentation;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 
 /**
- * OpenAPI 自动配置类
+ * OpenAPI Auto-Configuration Class
  * 
- * <h3>Phase 5：OpenAPI 驱动的前后端契约自动化</h3>
- * <p>本配置类实现任务 5.1-2：配置 OpenAPI 全局元数据，包括：</p>
+ * <h3>Phase 5: OpenAPI-Driven Frontend-Backend Contract Automation</h3>
+ * <p>This configuration class implements Task 5.1-2: Configure OpenAPI global metadata, including:</p>
  * <ul>
- *   <li>API 基本信息（标题、版本、描述）</li>
- *   <li>联系人信息</li>
- *   <li>许可证信息</li>
- *   <li>安全方案定义（JWT Bearer Token）</li>
- *   <li>服务器地址配置</li>
- *   <li>外部文档链接</li>
+ *   <li>API basic information (title, version, description)</li>
+ *   <li>Contact information</li>
+ *   <li>License information</li>
+ *   <li>Security scheme definition (JWT Bearer Token)</li>
+ *   <li>Server address configuration</li>
+ *   <li>External documentation link</li>
  * </ul>
  * 
- * <h3>配置示例</h3>
+ * <h3>Configuration Example</h3>
  * <pre>
  * brix:
  *   openapi:
  *     enabled: true
  *     title: Brix Platform API
  *     version: 3.0.0
- *     description: Brix 运行壳平台 API 文档
+ *     description: Brix Runtime Shell Platform API Documentation
  *     contact-name: Brix Team
  *     contact-email: dev@brix.io
  *     contact-url: https://brix.io
@@ -66,15 +67,15 @@ import java.util.List;
  *     license-url: https://www.apache.org/licenses/LICENSE-2.0
  *     terms-of-service: https://brix.io/terms
  *     external-docs-url: https://docs.brix.io
- *     external-docs-description: 完整开发文档
+ *     external-docs-description: Complete development documentation
  * </pre>
  * 
- * <h3>安全方案</h3>
- * <p>默认配置 JWT Bearer Token 认证方案，所有需要认证的 API 端点
- * 可通过 {@code @SecurityRequirement(name = "bearerAuth")} 注解启用。</p>
+ * <h3>Security Scheme</h3>
+ * <p>Default configuration uses JWT Bearer Token authentication scheme. All API endpoints requiring authentication
+ * can be enabled via the {@code @SecurityRequirement(name = "bearerAuth")} annotation.</p>
  * 
- * <h3>架构位置</h3>
- * <p>Layer 3 能力实现层 - platform-commons/packages/server/platform-common-starter</p>
+ * <h3>Architecture Location</h3>
+ * <p>Layer 3 Capability Implementation Layer - platform-commons/packages/server/platform-common-starter</p>
  * 
  * @author Brix Platform Team
  * @since 3.1.0
@@ -93,38 +94,38 @@ import java.util.List;
 public class OpenApiAutoConfiguration {
     
     /**
-     * 服务名称（用于 API 标题）
-     * <p>从 spring.application.name 获取，默认为 "Brix Platform"</p>
+     * Service name (used for API title)
+     * <p>Retrieved from spring.application.name, defaults to "Brix Platform"</p>
      */
     @Value("${spring.application.name:Brix Platform}")
     private String applicationName;
     
     /**
-     * 服务端口（用于服务器地址配置）
+     * Service port (used for server address configuration)
      */
     @Value("${server.port:8080}")
     private int serverPort;
     
     /**
-     * 创建 OpenAPI 文档配置
+     * Create OpenAPI documentation configuration
      * 
-     * <p>配置 API 文档的全局元数据，包括：</p>
+     * <p>Configures API documentation global metadata, including:</p>
      * <ul>
-     *   <li>基本信息：标题、描述、版本、服务条款</li>
-     *   <li>联系人：名称、邮箱、网址</li>
-     *   <li>许可证：Apache-2.0</li>
-     *   <li>安全方案：JWT Bearer Token</li>
-     *   <li>服务器：本地开发服务器</li>
-     *   <li>外部文档：开发文档链接</li>
+     *   <li>Basic info: title, description, version, terms of service</li>
+     *   <li>Contact: name, email, URL</li>
+     *   <li>License: Apache-2.0</li>
+     *   <li>Security scheme: JWT Bearer Token</li>
+     *   <li>Server: local development server</li>
+     *   <li>External documentation: development docs link</li>
      * </ul>
      * 
-     * @param properties OpenAPI 配置属性
-     * @return OpenAPI 配置对象
+     * @param properties OpenAPI configuration properties
+     * @return OpenAPI configuration object
      */
     @Bean
     @ConditionalOnMissingBean
     public OpenAPI brixOpenAPI(OpenApiProperties properties) {
-        // 构建 API 基本信息
+        // Build API basic info
         Info info = new Info()
             .title(resolveTitle(properties))
             .version(properties.getVersion())
@@ -138,34 +139,34 @@ public class OpenApiAutoConfiguration {
                 .name(properties.getLicenseName())
                 .url(properties.getLicenseUrl()));
         
-        // 构建服务器列表
+        // Build server list
         List<Server> servers = new ArrayList<>();
         servers.add(new Server()
             .url("http://localhost:" + serverPort)
-            .description("本地开发服务器"));
+            .description("Local Development Server"));
         
-        // 如果配置了生产服务器地址，添加到列表
+        // If production server URL is configured, add to list
         if (properties.getProductionServerUrl() != null 
                 && !properties.getProductionServerUrl().isBlank()) {
             servers.add(new Server()
                 .url(properties.getProductionServerUrl())
-                .description("生产环境服务器"));
+                .description("Production Server"));
         }
         
-        // 构建外部文档链接
+        // Build external documentation link
         ExternalDocumentation externalDocs = new ExternalDocumentation()
             .description(properties.getExternalDocsDescription())
             .url(properties.getExternalDocsUrl());
         
-        // 构建安全方案组件
+        // Build security scheme components
         Components components = new Components()
             .addSecuritySchemes("bearerAuth", new SecurityScheme()
                 .type(SecurityScheme.Type.HTTP)
                 .scheme("bearer")
                 .bearerFormat("JWT")
-                .description("JWT 认证令牌。格式：Bearer {token}"));
+                .description("JWT authentication token. Format: Bearer {token}"));
         
-        // 构建并返回完整的 OpenAPI 配置
+        // Build and return complete OpenAPI configuration
         return new OpenAPI()
             .info(info)
             .servers(servers)
@@ -175,45 +176,45 @@ public class OpenApiAutoConfiguration {
     }
     
     /**
-     * 创建公共 API 分组
+     * Create public API group
      * 
-     * <p>按路径前缀 /api/** 分组所有公共 API 端点</p>
+     * <p>Group all public API endpoints by path prefix /api/**</p>
      * 
-     * @return GroupedOpenApi 公共 API 分组
+     * @return GroupedOpenApi public API group
      */
     @Bean
     @ConditionalOnMissingBean(name = "publicApiGroup")
     public GroupedOpenApi publicApiGroup() {
         return GroupedOpenApi.builder()
             .group("public-api")
-            .displayName("公共 API")
+            .displayName("Public API")
             .pathsToMatch("/api/**")
             .build();
     }
     
     /**
-     * 创建管理 API 分组
+     * Create management API group
      * 
-     * <p>按路径前缀 /actuator/** 和 /admin/** 分组管理端点</p>
+     * <p>Group management endpoints by path prefixes /actuator/** and /admin/**</p>
      * 
-     * @return GroupedOpenApi 管理 API 分组
+     * @return GroupedOpenApi management API group
      */
     @Bean
     @ConditionalOnMissingBean(name = "managementApiGroup")
     public GroupedOpenApi managementApiGroup() {
         return GroupedOpenApi.builder()
             .group("management-api")
-            .displayName("管理 API")
+            .displayName("Management API")
             .pathsToMatch("/actuator/**", "/admin/**")
             .build();
     }
     
     /**
-     * 解析 API 标题
-     * <p>优先使用配置的标题，否则使用应用名称</p>
+     * Resolve API title
+     * <p>Prioritizes configured title, otherwise uses application name</p>
      * 
-     * @param properties OpenAPI 配置属性
-     * @return API 标题
+     * @param properties OpenAPI configuration properties
+     * @return API title
      */
     private String resolveTitle(OpenApiProperties properties) {
         if (properties.getTitle() != null && !properties.getTitle().isBlank()) {
@@ -223,16 +224,16 @@ public class OpenApiAutoConfiguration {
     }
     
     /**
-     * 解析 API 描述
-     * <p>优先使用配置的描述，否则生成默认描述</p>
+     * Resolve API description
+     * <p>Prioritizes configured description, otherwise generates default description</p>
      * 
-     * @param properties OpenAPI 配置属性
-     * @return API 描述
+     * @param properties OpenAPI configuration properties
+     * @return API description
      */
     private String resolveDescription(OpenApiProperties properties) {
         if (properties.getDescription() != null && !properties.getDescription().isBlank()) {
             return properties.getDescription();
         }
-        return applicationName + " RESTful API 文档。基于 OpenAPI 3.0 规范自动生成。";
+        return applicationName + " RESTful API Documentation. Auto-generated based on OpenAPI 3.0 specification.";
     }
 }

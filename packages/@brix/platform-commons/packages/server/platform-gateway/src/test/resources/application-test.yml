@@ -1,5 +1,5 @@
-# ========================================
-# Shinwa Platform Gateway - Test Profile
+﻿# ========================================
+# Brix Enterprise Gateway - Test Profile
 # ========================================
 # MVP M014: Test Configuration for E2E and Unit Tests
 # ========================================
@@ -9,7 +9,7 @@ server:
 
 spring:
   application:
-    name: shinwa-platform-gateway-test
+    name: enterprise-shell-gateway-test
   
   cloud:
     gateway:

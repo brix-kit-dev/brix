@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import java.nio.charset.StandardCharsets;
@@ -25,20 +40,21 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 /**
- * API Key/Secret 认证过滤
+ * API Key/Secret Authentication Filter
  * <p>
- * 实现基于 API Key + Secret 的请求认证机制，所有未排除的请求必须携带有效凭证
+ * Implements API Key + Secret based request authentication mechanism.
+ * All non-excluded requests must carry valid credentials.
  * </p>
  * <p>
- * 认证方式
+ * Authentication methods:
  * <ul>
- *   <li>请求头携X-API-Key X-API-Secret</li>
- *   <li>Secret 使用时序安全比较，防止时序攻</li>
- *   <li>支持路径白名单排除认</li>
+ *   <li>Request headers carry X-API-Key and X-API-Secret</li>
+ *   <li>Secret uses timing-safe comparison to prevent timing attacks</li>
+ *   <li>Supports path whitelist to exclude authentication</li>
  * </ul>
  * </p>
  * <p>
- * 执行优先级：最高优先级（在所有业务过滤器之前执行
+ * Execution priority: Highest priority (executes before all business filters)
  * </p>
  *
  * @author Brix Platform Authors
@@ -51,9 +67,9 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
     private static final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     /**
-     * 认证成功时注入的请求属性键
+     * Request attribute key injected on auth success
      */
-    public static final String AUTH_KEY_NAME_ATTR = "shinwa.auth.keyName";
+    public static final String AUTH_KEY_NAME_ATTR = "brix.auth.keyName";
 
     private final ApiKeyAuthProperties properties;
 
@@ -64,7 +80,7 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
     @Override
     @SuppressWarnings("null")
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 检查是否启用认
+        // checkwhetherenablerecognize
         if (!properties.isEnabled()) {
             return chain.filter(exchange);
         }
@@ -74,63 +90,63 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
         String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
         String requestId = Objects.requireNonNullElse(request.getId(), "unknown");
 
-        // 检查是否为排除路径
+        // checkwhetherisexcludepath
         if (isExcludedPath(path)) {
-            logger.debug("[shinwa] Auth bypassed for excluded path: {} (ID: {})", path, requestId);
+            logger.debug("[brix] Auth bypassed for excluded path: {} (ID: {})", path, requestId);
             return chain.filter(exchange);
         }
 
-        // 提取认证凭证
+        // extractauthenticationcredential
         String apiKeyHeader = request.getHeaders().getFirst(properties.getHeaderName());
         String apiKey = apiKeyHeader != null ? apiKeyHeader : "";
         String apiSecretHeader = request.getHeaders().getFirst(properties.getSecretHeaderName());
         String apiSecret = apiSecretHeader != null ? apiSecretHeader : "";
 
-        // 验证凭证是否提供
+        // validatecredentialwhetherprovide
         if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(apiSecret)) {
-            logger.warn("[shinwa] Auth failed: Missing credentials for {} {} (ID: {})",
+            logger.warn("[brix] Auth failed: Missing credentials for {} {} (ID: {})",
                     method, path, requestId);
             return unauthorized(exchange, "Missing API Key or Secret");
         }
 
-        // 验证凭证有效
+        // Validate credentials
         Optional<ApiKeyAuthProperties.ApiKeyEntry> validEntry = validateCredentials(apiKey, apiSecret);
         if (validEntry.isEmpty()) {
-            logger.warn("[shinwa] Auth failed: Invalid credentials for {} {} (ID: {})",
+            logger.warn("[brix] Auth failed: Invalid credentials for {} {} (ID: {})",
                     method, path, requestId);
             return unauthorized(exchange, "Invalid API Key or Secret");
         }
 
         ApiKeyAuthProperties.ApiKeyEntry entry = validEntry.get();
 
-        // 检查路径权限（如果配置allowedPaths
+        // checkpathpermission（ifconfigurationallowedPaths
         if (!entry.getAllowedPaths().isEmpty() && !isPathAllowed(path, entry.getAllowedPaths())) {
-            logger.warn("[shinwa] Auth failed: Path not allowed for key '{}': {} (ID: {})",
+            logger.warn("[brix] Auth failed: Path not allowed for key '{}': {} (ID: {})",
                     entry.getName(), path, requestId);
             return forbidden(exchange, "Access to this path is not allowed");
         }
 
-        // 认证成功，记录审计日
-        logger.info("[shinwa] Auth success: [{}] {} {} (ID: {})",
+        // authenticationsuccessful，recordauditdate
+        logger.info("[brix] Auth success: [{}] {} {} (ID: {})",
                 entry.getName(), method, path, requestId);
 
-        // 将认证信息注入请求属性，供后续过滤器使用
+        // willauthenticationinformationinjectrequestproperties，provideaftercontinuefilteruse
         exchange.getAttributes().put(AUTH_KEY_NAME_ATTR, entry.getName());
 
         return chain.filter(exchange);
     }
 
     /**
-     * 验证 API Key Secret 是否有效
-     * 使用时序安全比较防止时序攻击
+     * Validate API Key Secret whethervalid
+     * usetimesequencesecuritycomparepreventtimesequenceattack
      */
     private Optional<ApiKeyAuthProperties.ApiKeyEntry> validateCredentials(String apiKey, String apiSecret) {
         for (ApiKeyAuthProperties.ApiKeyEntry entry : properties.getKeys()) {
-            // 先检Key（可使用普通比较，因为 Key 通常不需要保密）
+            // firstcheckKey（canusecommonpasscompare，causeis Key usuallynotneedconfidential）
             if (!entry.getKey().equals(apiKey)) {
                 continue;
             }
-            // Secret 使用时序安全比较
+            // Secret usetimesequencesecuritycompare
             if (MessageDigest.isEqual(
                     entry.getSecret().getBytes(StandardCharsets.UTF_8),
                     apiSecret.getBytes(StandardCharsets.UTF_8))) {
@@ -141,7 +157,7 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 检查路径是否在排除列表
+     * checkpathwhetheronexcludelist
      */
     private boolean isExcludedPath(String path) {
         for (String pattern : properties.getExcludePaths()) {
@@ -153,7 +169,7 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 检查路径是否在允许列表
+     * checkpathwhetheronallowlist
      */
     private boolean isPathAllowed(String path, List<String> allowedPaths) {
         for (String pattern : allowedPaths) {
@@ -165,21 +181,21 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 返回 401 Unauthorized 响应
+     * return 401 Unauthorized response
      */
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
         return writeErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "40100", message);
     }
 
     /**
-     * 返回 403 Forbidden 响应
+     * return 403 Forbidden response
      */
     private Mono<Void> forbidden(ServerWebExchange exchange, String message) {
         return writeErrorResponse(exchange, HttpStatus.FORBIDDEN, "40300", message);
     }
 
     /**
-     * 写入 JSON 格式的错误响
+     * write JSON formatoferrorresponse
      */
     @SuppressWarnings("null")
     private Mono<Void> writeErrorResponse(ServerWebExchange exchange, HttpStatus status,
@@ -188,7 +204,7 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
         response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        // 添加安全响应
+        // addsecurityresponse
         HttpHeaders headers = response.getHeaders();
         headers.set("X-Content-Type-Options", "nosniff");
         headers.set("Cache-Control", "no-store");
@@ -206,7 +222,7 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // 最高优先级，在所有其他过滤器之前执行
+        // mosthighpriority，onallhasotherfilterbeforeexecute
         return Ordered.HIGHEST_PRECEDENCE + 10;
     }
 }

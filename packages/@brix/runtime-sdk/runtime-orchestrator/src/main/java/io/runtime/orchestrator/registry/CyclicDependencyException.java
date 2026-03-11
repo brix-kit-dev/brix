@@ -18,27 +18,27 @@ package io.runtime.orchestrator.registry;
 import java.util.List;
 
 /**
- * 循环依赖异常
+ * Cyclic Dependency Exception.
  * 
- * <p>当模块之间存在循环依赖时抛出此异常。循环依赖会导致拓扑排序失败，
- * 系统无法确定正确的模块启动顺序。</p>
+ * <p>Thrown when cyclic dependencies exist between modules. Cyclic dependencies cause
+ * topological sorting to fail, and the system cannot determine the correct module startup order.</p>
  * 
- * <h3>示例</h3>
+ * <h3>Example</h3>
  * <pre>{@code
- * // 循环依赖场景
- * // module-a 依赖 module-b
- * // module-b 依赖 module-c  
- * // module-c 依赖 module-a  <- 形成循环
+ * // Cyclic dependency scenario
+ * // module-a depends on module-b
+ * // module-b depends on module-c  
+ * // module-c depends on module-a  <- forms a cycle
  * 
- * // 异常将包含循环路径信息
+ * // Exception will contain cycle path information
  * // cycle: [module-a, module-b, module-c, module-a]
  * }</pre>
  * 
- * <h3>解决方案</h3>
+ * <h3>Solutions</h3>
  * <ul>
- *   <li>重新设计模块边界，打破循环依赖</li>
- *   <li>使用事件解耦模块间的直接依赖</li>
- *   <li>将公共部分抽取到独立模块</li>
+ *   <li>Redesign module boundaries to break cyclic dependencies</li>
+ *   <li>Use events to decouple direct dependencies between modules</li>
+ *   <li>Extract common parts to a separate module</li>
  * </ul>
  * 
  * @author Runtime SDK Team
@@ -49,14 +49,14 @@ public class CyclicDependencyException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 循环依赖路径
+     * Cyclic dependency path.
      */
     private final List<String> cyclePath;
 
     /**
-     * 创建循环依赖异常
+     * Creates cyclic dependency exception.
      * 
-     * @param cyclePath 循环依赖路径，如 [A, B, C, A]
+     * @param cyclePath cyclic dependency path, e.g., [A, B, C, A]
      */
     public CyclicDependencyException(List<String> cyclePath) {
         super(buildMessage(cyclePath));
@@ -64,10 +64,10 @@ public class CyclicDependencyException extends RuntimeException {
     }
 
     /**
-     * 创建循环依赖异常（带原因）
+     * Creates cyclic dependency exception (with cause).
      * 
-     * @param cyclePath 循环依赖路径
-     * @param cause     原因异常
+     * @param cyclePath cyclic dependency path
+     * @param cause     cause exception
      */
     public CyclicDependencyException(List<String> cyclePath, Throwable cause) {
         super(buildMessage(cyclePath), cause);
@@ -75,27 +75,27 @@ public class CyclicDependencyException extends RuntimeException {
     }
 
     /**
-     * 获取循环依赖路径
+     * Gets cyclic dependency path.
      * 
-     * @return 不可变的循环路径列表
+     * @return immutable cycle path list
      */
     public List<String> getCyclePath() {
         return cyclePath;
     }
 
     /**
-     * 获取循环起始模块
+     * Gets the starting module of the cycle.
      * 
-     * @return 循环起始模块 ID
+     * @return cycle starting module ID
      */
     public String getCycleStart() {
         return cyclePath.isEmpty() ? null : cyclePath.get(0);
     }
 
     /**
-     * 构建错误消息
+     * Builds error message.
      */
     private static String buildMessage(List<String> cyclePath) {
-        return "检测到模块循环依赖，无法确定启动顺序。循环路径: " + String.join(" -> ", cyclePath);
+        return "Detected cyclic module dependency, cannot determine startup order. Cycle path: " + String.join(" -> ", cyclePath);
     }
 }

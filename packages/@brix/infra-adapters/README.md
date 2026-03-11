@@ -1,74 +1,96 @@
-# Brix Infrastructure Adapters
+﻿# Brix Infrastructure Adapters
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Java](https://img.shields.io/badge/Java-17+-green.svg)](https://openjdk.org/)
 
-基础设施适配器层 - Brix 开源框架的 Layer 2.5
+Infrastructure Adapters is the Layer 2C implementation repository in the Brix Runtime Shell architecture.
 
 ---
 
-## 架构定位
+## Architecture Position
 
-**Layer 2.5: 适配器层（Infrastructure Adapters）**
-
-本仓库负责封装 Kafka、Redis、HTTP 等基础设施，实现 runtime-sdk 定义的能力契约。
+This repository provides concrete infrastructure implementations for Runtime Capability Contracts defined in the Runtime SDK. It encapsulates infrastructure details such as Kafka, Redis, HTTP, object storage, telemetry, and platform-specific runtime integration.
 
 ```text
-Layer 3: Host 层（组装层）        ← 引用本层
+Layer 3: Host Assembly Layer                 <- assembles implementations from this repository
     ↓
-Layer 2.5: 适配器层 ★ 本仓库 ★    ← 实现能力契约
-    ↓
-Layer 2: 能力契约层              ← 依赖（仅接口）
-    ↑
-Layer 1: Plugin 层               ← 不依赖本层
+Layer 2C: Capability Implementation Layer    <- this repository
+    ↓ implements
+Layer 2A: Capability Contract Layer          <- runtime-sdk API packages
+    ↑ only dependency allowed for plugins
+Layer 1: Plugin Layer                        <- must never depend on this repository
 ```
 
-### 架构红线
+### Architectural Guardrails
 
-| 规则 | 说明 |
-|------|------|
-| ❌ 禁止被 Plugin 层依赖 | 插件只依赖 runtime-sdk-api |
-| ❌ 禁止依赖 platform-commons | 同层模块不互相依赖 |
-| ❌ 禁止依赖 shinwa-solutions | 不依赖业务层 |
-| ✅ 依赖 runtime-sdk-api | 实现能力契约接口 |
-| ✅ 依赖基础设施 SDK | Kafka Client、Redis Client 等 |
+| Rule | Description |
+|------|-------------|
+| Plugins must not depend on infra-adapters | Plugins may depend only on Runtime Capability Contracts |
+| Infra adapters must not depend on business modules | Infrastructure code stays isolated from solution logic |
+| Infra adapters must not define new contracts | Contracts belong to Layer 2A |
+| Infra adapters may depend on infrastructure SDKs | Kafka, Redis, OpenTelemetry, cloud SDKs, and similar libraries are allowed here |
+| Hosts assemble adapters through configuration | Host projects remain ultra-thin and contain no implementation logic |
 
 ---
 
-## 📦 模块列表
+## Package Layout
 
-| 模块 | 说明 | 实现的能力 |
-|-----|------|-----------|
-| `infra-adapter-kafka` | Apache Kafka 适配器 | `EventBusCapability` |
-| `infra-adapter-redis` | Redis 适配器 | `StateStoreCapability`, `LockCapability` |
-| `infra-adapter-webhook` | HTTP Webhook 适配器 | `EventBusCapability` (轻量级) |
-| `infra-adapter-otel` | OpenTelemetry 适配器 | `ObservabilityCapability` |
-
-## 🏗️ 架构定位
-
+```text
+packages/
+├── server/
+│   ├── infra-adapter-dataaccess/
+│   ├── infra-adapter-database/
+│   ├── infra-adapter-fallback/
+│   ├── infra-adapter-idgen/
+│   ├── infra-adapter-kafka/
+│   ├── infra-adapter-minio/
+│   ├── infra-adapter-otel/
+│   ├── infra-adapter-outbox/
+│   ├── infra-adapter-redis/
+│   ├── infra-adapter-simple/
+│   └── infra-adapter-webhook/
+├── web/
+│   ├── infra-adapter-http-web/
+│   ├── infra-adapter-iframe-web/
+│   ├── infra-adapter-mf-web/
+│   ├── infra-adapter-native-web/
+│   ├── infra-adapter-router-web/
+│   ├── infra-adapter-state-web/
+│   ├── infra-adapter-ui-mui/
+│   └── infra-adapter-ui-native/
+└── mobile/
+    ├── infra-adapter-biometric-mobile/
+    ├── infra-adapter-device-mobile/
+    ├── infra-adapter-module-mobile/
+    ├── infra-adapter-navigation-mobile/
+    ├── infra-adapter-push-mobile/
+    └── infra-adapter-storage-mobile/
 ```
-Layer 1: 接口契约层 (runtime-sdk-api)
-    ↓ 定义能力接口
-Layer 2: 适配器层 (infra-adapters) ← 本仓库
-    ↓ 实现能力接口
-Layer 3: Host 组装层 (host-assembly)
-    ↓ 组装为 RuntimeContext
-Layer 4+: 业务模块层
-```
 
-## 🚀 快速开始
+## Representative Capabilities
 
-### Maven 依赖
+| Adapter Area | Typical Capabilities |
+|--------------|----------------------|
+| Eventing | `EventBusCapability`, outbox processing, webhook-based delivery |
+| State and locking | `StateStoreCapability`, `LockCapability`, cache-oriented persistence |
+| Data access | relational data access, object storage, identifier generation |
+| Observability | tracing, metrics, and logging integration |
+| Frontend runtime integration | HTTP, router, module federation, native bridge, UI runtime adapters |
+| Mobile integration | device APIs, navigation, storage, push, and biometric support |
+
+---
+
+## Getting Started
+
+### Maven Dependencies
 
 ```xml
-<!-- Kafka 事件总线 -->
 <dependency>
     <groupId>io.brix</groupId>
     <artifactId>infra-adapter-kafka</artifactId>
     <version>3.0.0-SNAPSHOT</version>
 </dependency>
 
-<!-- Redis 状态存储 -->
 <dependency>
     <groupId>io.brix</groupId>
     <artifactId>infra-adapter-redis</artifactId>
@@ -76,12 +98,11 @@ Layer 4+: 业务模块层
 </dependency>
 ```
 
-### Spring Boot 自动配置
+### Spring Boot Auto-Configuration
 
-适配器模块提供 Spring Boot Auto-Configuration，只需添加依赖即可自动注册。
+Most server-side adapters expose Spring Boot auto-configuration. A Host can enable them declaratively through dependencies and configuration.
 
 ```yaml
-# application.yml
 spring:
   kafka:
     bootstrap-servers: localhost:9092
@@ -90,20 +111,21 @@ spring:
     port: 6379
 ```
 
-## 📖 命名规范
+## Naming Conventions
 
-| 项目 | 规范 | 说明 |
-|-----|------|------|
-| Maven GroupId | `io.brix` | 品牌标识 |
-| Java Package | `io.infra.adapter.*` | 中立命名 |
-| 许可证 | Apache 2.0 | 开源 |
+| Item | Convention | Notes |
+|------|------------|-------|
+| Maven GroupId | `io.brix` | Open-source package namespace |
+| Java package | `io.infra.adapter.*` | Neutral code package naming |
+| npm scope | `@brix` | Shared frontend package namespace |
+| License | Apache License 2.0 | See the repository license file |
 
-## 🔗 相关仓库
+## Related Repositories
 
-- [runtime-sdk](https://github.com/brix-framework/runtime-sdk) - SDK 核心（接口契约）
-- [host-assembly](https://github.com/brix-framework/host-assembly) - Host 组装层
-- [brix-ui](https://github.com/brix-framework/brix-ui) - 前端 UI SDK
+- Runtime contracts and orchestration live in the Runtime SDK repository.
+- Platform-level shared capabilities live in Platform Commons.
+- Host projects assemble these adapters through dependency declarations and configuration only.
 
-## 📄 License
+## License
 
-Apache License 2.0 - 详见 [LICENSE](LICENSE)
+Apache License 2.0. See [LICENSE](LICENSE) for details.

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.health;
 
 import java.time.Instant;
@@ -14,18 +29,18 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 /**
- * 轻量级健康检查端
+ * Lightweight Health Check Endpoint
  * <p>
- * 提供 /healthz 端点，用于简单的健康探测
- * 此端点被设计为尽可能轻量，适合高频率的负载均衡器健康检查
+ * Provides /healthz endpoint for simple health probes.
+ * This endpoint is designed to be as lightweight as possible, suitable for high-frequency load balancer health checks.
  * </p>
  * 
- * <h3>响应格式</h3>
+ * <h3>Response Format</h3>
  * <pre>
  * {
  *   "status": "UP",
  *   "timestamp": "2025-12-06T10:30:00Z",
- *   "service": "shinwa-platform-gateway"
+ *   "service": "brix-platform-gateway"
  * }
  * </pre>
  *
@@ -36,7 +51,7 @@ import reactor.core.publisher.Mono;
 @RestController
 public class HealthzController {
 
-    private static final String SERVICE_NAME = "shinwa-platform-gateway";
+    private static final String SERVICE_NAME = "brix-platform-gateway";
     private final HealthEndpoint healthEndpoint;
 
     public HealthzController(HealthEndpoint healthEndpoint) {
@@ -44,12 +59,12 @@ public class HealthzController {
     }
 
     /**
-     * 轻量级健康检查端
+     * Lightweight health check endpoint
      * <p>
-     * 返回简单的健康状态，用于负载均衡器或 K8s Ingress 健康检查
+     * Returns simple health status for load balancer or K8s Ingress health checks.
      * </p>
      * 
-     * @return 健康状态响
+     * @return health status response
      */
     @GetMapping("/healthz")
     public Mono<ResponseEntity<Map<String, Object>>> healthz() {
@@ -70,13 +85,13 @@ public class HealthzController {
     }
 
     /**
-     * 最简健康检查端
+     * Minimal health check endpoint
      * <p>
-     * 只返200 OK，用于最基础的存活检测
-     * 不检查任何依赖，仅表示进程存活
+     * Only returns 200 OK, for basic liveness detection.
+     * Does not check any dependencies, only indicates process is alive.
      * </p>
      * 
-     * @return 空响应体，状态码 200
+     * @return empty response body with 200 status code
      */
     @GetMapping("/health/ping")
     public Mono<ResponseEntity<Void>> ping() {

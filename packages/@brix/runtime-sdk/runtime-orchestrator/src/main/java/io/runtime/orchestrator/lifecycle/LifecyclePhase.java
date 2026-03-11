@@ -16,7 +16,7 @@
 package io.runtime.orchestrator.lifecycle;
 
 /**
- * 生命周期阶段
+ * Lifecycle Phase.
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -24,29 +24,29 @@ package io.runtime.orchestrator.lifecycle;
 public enum LifecyclePhase {
 
     /**
-     * 初始化阶段
+     * Initialization phase.
      */
-    INIT("初始化"),
+    INIT("Initialization"),
 
     /**
-     * 启动阶段
+     * Start phase.
      */
-    START("启动"),
+    START("Start"),
 
     /**
-     * 运行阶段
+     * Running phase.
      */
-    RUNNING("运行"),
+    RUNNING("Running"),
 
     /**
-     * 停止阶段
+     * Stop phase.
      */
-    STOP("停止"),
+    STOP("Stop"),
 
     /**
-     * 销毁阶段
+     * Destroy phase.
      */
-    DESTROY("销毁");
+    DESTROY("Destroy");
 
     private final String description;
 
@@ -55,9 +55,9 @@ public enum LifecyclePhase {
     }
 
     /**
-     * 获取阶段描述
+     * Gets phase description.
      * 
-     * @return 阶段描述
+     * @return phase description
      */
     public String getDescription() {
         return description;

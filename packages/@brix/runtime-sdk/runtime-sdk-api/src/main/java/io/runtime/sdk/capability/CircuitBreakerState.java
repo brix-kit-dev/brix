@@ -16,30 +16,30 @@
 package io.runtime.sdk.capability;
 
 /**
- * 熔断器状态枚举
+ * Circuit Breaker State Enumeration
  * 
- * <p>定义熔断器的三种状态，基于状态机模式实现故障隔离。</p>
+ * <p>Defines three states of a circuit breaker, implementing fault isolation based on state machine pattern.</p>
  * 
- * <h3>状态转换规则</h3>
+ * <h3>State Transition Rules</h3>
  * <pre>{@code
- *                 失败率超阈值
+ *                 Failure rate exceeds threshold
  * CLOSED ────────────────────> OPEN
  *   ^                            |
- *   |                            | 等待时间到
- *   |     成功率恢复              v
+ *   |                            | Wait time elapsed
+ *   |     Success rate recovered  v
  *   └──────────────────── HALF_OPEN
  *                            |
- *                            | 失败
+ *                            | Failure
  *                            v
  *                          OPEN
  * }</pre>
  * 
- * <h3>状态说明</h3>
+ * <h3>State Description</h3>
  * <table border="1">
- *   <tr><th>状态</th><th>说明</th><th>请求处理</th></tr>
- *   <tr><td>CLOSED</td><td>正常状态</td><td>所有请求正常通过</td></tr>
- *   <tr><td>OPEN</td><td>熔断状态</td><td>请求直接拒绝</td></tr>
- *   <tr><td>HALF_OPEN</td><td>半开状态</td><td>允许部分请求通过，用于探测恢复</td></tr>
+ *   <tr><th>State</th><th>Description</th><th>Request Handling</th></tr>
+ *   <tr><td>CLOSED</td><td>Normal state</td><td>All requests pass normally</td></tr>
+ *   <tr><td>OPEN</td><td>Circuit broken state</td><td>Requests directly rejected</td></tr>
+ *   <tr><td>HALF_OPEN</td><td>Half-open state</td><td>Some requests allowed for recovery probing</td></tr>
  * </table>
  * 
  * @author Runtime SDK Team
@@ -49,45 +49,45 @@ package io.runtime.sdk.capability;
 public enum CircuitBreakerState {
 
     /**
-     * 关闭状态（正常）
+     * Closed state (normal)
      * 
-     * <p>熔断器关闭，所有请求正常通过。
-     * 当失败率超过阈值时，转换为 OPEN 状态。</p>
+     * <p>Circuit breaker is closed, all requests pass normally.
+     * Transitions to OPEN state when failure rate exceeds threshold.</p>
      */
-    CLOSED("关闭（正常）"),
+    CLOSED("Closed (Normal)"),
 
     /**
-     * 打开状态（熔断）
+     * Open state (circuit broken)
      * 
-     * <p>熔断器打开，所有请求直接拒绝。
-     * 等待配置的时间后，转换为 HALF_OPEN 状态。</p>
+     * <p>Circuit breaker is open, all requests are directly rejected.
+     * Transitions to HALF_OPEN state after configured wait time.</p>
      */
-    OPEN("打开（熔断）"),
+    OPEN("Open (Circuit Broken)"),
 
     /**
-     * 半开状态（恢复中）
+     * Half-open state (recovering)
      * 
-     * <p>熔断器半开，允许配置数量的请求通过用于探测。
-     * 如果探测请求成功率高，转换为 CLOSED；否则转回 OPEN。</p>
+     * <p>Circuit breaker is half-open, allowing a configured number of requests for probing.
+     * Transitions to CLOSED if probe success rate is high; otherwise transitions back to OPEN.</p>
      */
-    HALF_OPEN("半开（恢复中）"),
+    HALF_OPEN("Half-Open (Recovering)"),
 
     /**
-     * 禁用状态
+     * Disabled state
      * 
-     * <p>熔断器被禁用，不进行任何熔断处理。</p>
+     * <p>Circuit breaker is disabled, no circuit breaking processing.</p>
      */
-    DISABLED("禁用"),
+    DISABLED("Disabled"),
 
     /**
-     * 强制打开状态
+     * Forced open state
      * 
-     * <p>手动强制打开，用于维护或测试。</p>
+     * <p>Manually forced open for maintenance or testing.</p>
      */
-    FORCED_OPEN("强制打开");
+    FORCED_OPEN("Forced Open");
 
     /**
-     * 状态描述
+     * State description
      */
     private final String description;
 
@@ -96,18 +96,18 @@ public enum CircuitBreakerState {
     }
 
     /**
-     * 获取状态描述
+     * Gets the state description
      * 
-     * @return 状态描述
+     * @return the state description
      */
     public String getDescription() {
         return description;
     }
 
     /**
-     * 判断是否允许请求通过
+     * Checks if requests are allowed to pass
      * 
-     * @return 如果允许请求通过返回 true
+     * @return true if requests are allowed to pass
      */
     public boolean isCallPermitted() {
         return this == CLOSED || this == HALF_OPEN || this == DISABLED;

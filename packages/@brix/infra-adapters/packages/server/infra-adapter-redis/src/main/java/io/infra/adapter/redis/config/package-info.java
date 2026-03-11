@@ -15,7 +15,7 @@
  */
 
 /**
- * Redis 能力配置
+ * Redis capability configuration.
  * 
  * @author Brix Platform Authors Platform Team
  * @since 3.0.0

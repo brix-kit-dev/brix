@@ -16,29 +16,29 @@
 package io.runtime.sdk.capability;
 
 /**
- * 模块健康状态枚举
+ * Module Health Status Enumeration
  * 
- * <p>定义模块的三种健康状态，用于健康检查和监控。</p>
+ * <p>Defines three health states for modules, used for health checks and monitoring.</p>
  * 
- * <h3>状态说明</h3>
+ * <h3>Status Description</h3>
  * <ul>
- *   <li><b>UP</b>：模块完全正常，所有功能可用</li>
- *   <li><b>DEGRADED</b>：模块部分功能受限，但核心功能可用</li>
- *   <li><b>DOWN</b>：模块不可用，需要关注或重启</li>
+ *   <li><b>UP</b>: Module is fully functional, all features available</li>
+ *   <li><b>DEGRADED</b>: Module has limited functionality, but core features are available</li>
+ *   <li><b>DOWN</b>: Module is unavailable, requires attention or restart</li>
  * </ul>
  * 
- * <h3>状态转换</h3>
+ * <h3>State Transitions</h3>
  * <pre>{@code
  * UP <-> DEGRADED <-> DOWN
  *  \__________|________/
  * }</pre>
  * 
- * <h3>处理策略</h3>
+ * <h3>Handling Strategy</h3>
  * <table border="1">
- *   <tr><th>状态</th><th>流量处理</th><th>告警级别</th></tr>
- *   <tr><td>UP</td><td>正常接收</td><td>无</td></tr>
- *   <tr><td>DEGRADED</td><td>限流/降级</td><td>WARN</td></tr>
- *   <tr><td>DOWN</td><td>拒绝/转移</td><td>ERROR</td></tr>
+ *   <tr><th>Status</th><th>Traffic Handling</th><th>Alert Level</th></tr>
+ *   <tr><td>UP</td><td>Normal accept</td><td>None</td></tr>
+ *   <tr><td>DEGRADED</td><td>Rate limit/Degrade</td><td>WARN</td></tr>
+ *   <tr><td>DOWN</td><td>Reject/Failover</td><td>ERROR</td></tr>
  * </table>
  * 
  * @author Runtime SDK Team
@@ -48,36 +48,36 @@ package io.runtime.sdk.capability;
 public enum HealthStatus {
 
     /**
-     * 健康状态 - 模块完全正常
+     * Healthy state - Module is fully functional
      */
-    UP("模块正常运行"),
+    UP("Module running normally"),
 
     /**
-     * 降级状态 - 部分功能受限
+     * Degraded state - Some functionality is limited
      * 
-     * <p>典型场景：</p>
+     * <p>Typical scenarios:</p>
      * <ul>
-     *   <li>外部依赖响应慢</li>
-     *   <li>缓存不可用，降级为数据库直查</li>
-     *   <li>非核心功能异常</li>
+     *   <li>External dependency responding slowly</li>
+     *   <li>Cache unavailable, falling back to direct database queries</li>
+     *   <li>Non-core functionality abnormal</li>
      * </ul>
      */
-    DEGRADED("模块降级运行"),
+    DEGRADED("Module running in degraded mode"),
 
     /**
-     * 不可用状态 - 模块无法提供服务
+     * Unavailable state - Module cannot provide service
      * 
-     * <p>典型场景：</p>
+     * <p>Typical scenarios:</p>
      * <ul>
-     *   <li>数据库连接断开</li>
-     *   <li>关键配置缺失</li>
-     *   <li>初始化失败</li>
+     *   <li>Database connection lost</li>
+     *   <li>Critical configuration missing</li>
+     *   <li>Initialization failed</li>
      * </ul>
      */
-    DOWN("模块不可用");
+    DOWN("Module unavailable");
 
     /**
-     * 状态描述
+     * Status description
      */
     private final String description;
 
@@ -86,27 +86,27 @@ public enum HealthStatus {
     }
 
     /**
-     * 获取状态描述
+     * Gets the status description
      * 
-     * @return 状态描述
+     * @return the status description
      */
     public String getDescription() {
         return description;
     }
 
     /**
-     * 判断是否健康（UP 或 DEGRADED）
+     * Checks if healthy (UP or DEGRADED)
      * 
-     * @return 如果可以提供服务返回 true
+     * @return true if the service can be provided
      */
     public boolean isHealthy() {
         return this == UP || this == DEGRADED;
     }
 
     /**
-     * 判断是否完全健康
+     * Checks if fully healthy
      * 
-     * @return 如果状态为 UP 返回 true
+     * @return true if the status is UP
      */
     public boolean isFullyHealthy() {
         return this == UP;

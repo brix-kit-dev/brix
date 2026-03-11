@@ -1,8 +1,28 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file Event-Related Type Definitions
  * @description Defines core types for the event system, including event messages, handlers, subscription options, etc.
  * @module @brix/runtime-sdk-api-web/types/event
- * @version 3.2.0
+ * @version 3.3.0
+ *
+ * [v3.3 Changes - Phase 3 Contract Layer Cleanup]
+ * - Migrated BaseEvent, MetadataEvent from platform-shared to runtime-sdk-api-web (LL3 compliance)
+ * - Added EventPriority, EventSubscriptionOptions, EventPublishOptions contract types
+ * - runtime-sdk-api-web is now the authoritative source for all event contract types
  *
  * [v3.2 Changes]
  * Extracted from index.ts into a standalone type file.
@@ -10,7 +30,220 @@
  * [Design Principles]
  * - Supports both simple Event Bus and Governed Event Bus modes
  * - Governed Event Bus provides complete event metadata and audit information
+ * - All event-related contract types are defined here (single source of truth)
  */
+
+// =========================================
+// Base Event Types (Contract Layer - Authoritative Source)
+// =========================================
+
+/**
+ * Base Event Interface
+ *
+ * <p>Defines the common fields for all events in the Brix Platform.
+ * This is the foundational contract type for the event system.</p>
+ *
+ * <h3>Design Rationale</h3>
+ * <ul>
+ *   <li>Provides minimal required fields for event identification</li>
+ *   <li>Extensible through interface inheritance</li>
+ *   <li>Platform-agnostic (works on Web/Mobile/Server)</li>
+ * </ul>
+ *
+ * <h3>Usage Example</h3>
+ * ```typescript
+ * interface UserCreatedEvent extends BaseEvent {
+ *   type: 'user:created';
+ *   userId: string;
+ *   email: string;
+ * }
+ * ```
+ *
+ * @since 3.3.0 Migrated from platform-shared (LL3 compliance)
+ */
+export interface BaseEvent {
+  /**
+   * Event type identifier
+   *
+   * <p>Follows the convention: `{domain}:{action}` (e.g., 'user:created', 'booking:confirmed').</p>
+   */
+  readonly type: string;
+
+  /**
+   * Event timestamp in milliseconds (Unix epoch)
+   *
+   * <p>Represents when the event was created/emitted.</p>
+   */
+  readonly timestamp: number;
+
+  /**
+   * Event source identifier (typically plugin ID)
+   *
+   * <p>Identifies which plugin or system component emitted the event.</p>
+   */
+  readonly source?: string;
+}
+
+/**
+ * Event with Metadata
+ *
+ * <p>Extends BaseEvent with rich metadata for observability, auditing, and governance.
+ * Used in scenarios requiring event tracing, multi-tenancy support, or detailed logging.</p>
+ *
+ * <h3>Relationship with Other Event Types</h3>
+ * <ul>
+ *   <li>{@link BaseEvent}: Minimal event contract</li>
+ *   <li>{@link MetadataEvent}: Extended with observability metadata (this interface)</li>
+ *   <li>{@link GovernedEvent}: Full governance support with strict typing</li>
+ * </ul>
+ *
+ * <h3>Usage Example</h3>
+ * ```typescript
+ * const event: MetadataEvent = {
+ *   type: 'order:placed',
+ *   timestamp: Date.now(),
+ *   source: 'plugin-orders',
+ *   metadata: {
+ *     sourcePlugin: 'plugin-orders',
+ *     scope: 'host',
+ *     traceId: 'trace-123',
+ *     timestamp: Date.now(),
+ *     tenantId: 'tenant-abc'
+ *   }
+ * };
+ * ```
+ *
+ * @since 3.3.0 Migrated from platform-shared (LL3 compliance)
+ */
+export interface MetadataEvent extends BaseEvent {
+  /**
+   * Event metadata for observability and governance
+   *
+   * <p>Contains tracing information, tenant context, and scope designation.</p>
+   */
+  readonly metadata: EventMetadata;
+}
+
+/**
+ * Event Priority Levels
+ *
+ * <p>Defines the priority levels for event processing order.
+ * Higher priority events are processed before lower priority ones.</p>
+ *
+ * <h3>Priority Semantics</h3>
+ * <ul>
+ *   <li>`low`: Background tasks, analytics, non-critical updates</li>
+ *   <li>`normal`: Standard business events (default)</li>
+ *   <li>`high`: Important business events requiring prompt processing</li>
+ *   <li>`critical`: System-critical events, error handling, security alerts</li>
+ * </ul>
+ *
+ * @since 3.3.0 Migrated from platform-shared (LL3 compliance)
+ */
+export type EventPriority = 'low' | 'normal' | 'high' | 'critical';
+
+/**
+ * Event Subscription Options (Extended)
+ *
+ * <p>Configuration options for event subscription with priority and filtering support.
+ * Extends the basic {@link SubscriptionOptions} with additional capabilities.</p>
+ *
+ * <h3>Relationship with SubscriptionOptions</h3>
+ * <ul>
+ *   <li>{@link SubscriptionOptions}: Basic subscription options (once, filter)</li>
+ *   <li>{@link EventSubscriptionOptions}: Extended options with priority support</li>
+ * </ul>
+ *
+ * <h3>Usage Example</h3>
+ * ```typescript
+ * eventBus.on('user:action', handler, {
+ *   priority: 'high',
+ *   once: false,
+ *   filter: (event) => event.userId === currentUserId
+ * });
+ * ```
+ *
+ * @since 3.3.0 Migrated from platform-shared (LL3 compliance)
+ */
+export interface EventSubscriptionOptions {
+  /**
+   * Whether to trigger only once
+   *
+   * <p>If true, the handler is automatically unsubscribed after first invocation.</p>
+   */
+  readonly once?: boolean;
+
+  /**
+   * Subscription priority
+   *
+   * <p>Determines the order in which handlers are invoked.
+   * Higher priority handlers are called before lower priority ones.</p>
+   *
+   * @default 'normal'
+   */
+  readonly priority?: EventPriority;
+
+  /**
+   * Filter function for selective event handling
+   *
+   * <p>If provided, the handler is only invoked when the filter returns true.</p>
+   *
+   * @param event The event payload
+   * @returns Whether to invoke the handler
+   */
+  readonly filter?: (event: unknown) => boolean;
+}
+
+/**
+ * Event Publish Options
+ *
+ * <p>Configuration options for event publishing behavior.
+ * Supports async/sync modes, delayed emission, and rate limiting.</p>
+ *
+ * <h3>Usage Example</h3>
+ * ```typescript
+ * eventBus.emit('analytics:track', payload, {
+ *   async: true,
+ *   debounce: 300,
+ *   tags: ['analytics', 'user-action']
+ * });
+ * ```
+ *
+ * @since 3.3.0 Migrated from platform-shared (LL3 compliance)
+ */
+export interface EventPublishOptions {
+  /**
+   * Whether to emit asynchronously
+   *
+   * <p>If true, the event is queued and emitted in the next microtask.
+   * If false, handlers are invoked synchronously.</p>
+   *
+   * @default true
+   */
+  readonly async?: boolean;
+
+  /**
+   * Delay before emission in milliseconds
+   *
+   * <p>If specified, the event emission is delayed by this amount.</p>
+   */
+  readonly delay?: number;
+
+  /**
+   * Debounce interval in milliseconds
+   *
+   * <p>If specified, rapid emissions of the same event type are debounced.
+   * Only the last emission within the interval is actually sent.</p>
+   */
+  readonly debounce?: number;
+
+  /**
+   * Throttle interval in milliseconds
+   *
+   * <p>If specified, emissions are throttled to at most one per interval.</p>
+   */
+  readonly throttle?: number;
+}
 
 // =========================================
 // Event Message

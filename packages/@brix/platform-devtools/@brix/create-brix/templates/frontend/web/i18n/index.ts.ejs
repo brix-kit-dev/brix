@@ -1,36 +1,36 @@
-/**
- * 国际化配置
+﻿/**
+ * Internationalization Configuration
  * 
- * @module @shinwa/<%= name %>-web
+ * @module @brix/<%= name %>-web
  * @generated <%= date %>
  * 
- * 使用说明：
- * 1. 在 locales 目录下添加各语言的翻译文件
- * 2. 在组件中使用 useTranslation hook 获取 t 函数
- * 3. 调用 addPluginTranslations() 将翻译资源添加到基座 i18n 实例
+ * Usage:
+ * 1. Add translation files for each language in the locales directory
+ * 2. Use useTranslation hook in components to get the t function
+ * 3. Call addPluginTranslations() to add translation resources to host i18n instance
  */
 
 import i18n from 'i18next';
 
-// 中文翻译
+// Chinese translations
 const zhCN = {
   '<%= name.replace('plugin-', '') %>': {
     list: {
       title: '<%= displayName %>列表',
-      searchPlaceholder: '搜索<%= displayName %>...',
+      searchPlaceholder: 'Search<%= displayName %>...',
       add: '新增<%= displayName %>',
-      name: '名称',
-      createdAt: '创建时间',
+      name: 'Name',
+      createdAt: 'Created at',
     },
     detail: {
       title: '<%= displayName %>详情',
       basicInfo: '基本信息',
       id: 'ID',
-      name: '名称',
-      description: '描述',
-      status: '状态',
-      createdAt: '创建时间',
-      updatedAt: '更新时间',
+      name: 'Name',
+      description: 'Description',
+      status: 'Status',
+      createdAt: 'Created at',
+      updatedAt: 'Updated at',
     },
   },
 };
@@ -64,7 +64,7 @@ let translationsAdded = false;
 /**
  * 将插件翻译资源添加到基座的 i18n 实例
  * 
- * 该函数应该在每个暴露的组件入口处调用，
+ * 该函数应该在每个暴露的组件入口处Calls，
  * 确保翻译资源在组件渲染前已添加到 i18n 实例
  */
 export function addPluginTranslations(): void {
@@ -78,7 +78,7 @@ export function addPluginTranslations(): void {
     return;
   }
 
-  // 添加中文翻译
+  // Add Chinese translations
   i18n.addResourceBundle('zh-CN', 'translation', zhCN, true, true);
   i18n.addResourceBundle('zh', 'translation', zhCN, true, true);
   

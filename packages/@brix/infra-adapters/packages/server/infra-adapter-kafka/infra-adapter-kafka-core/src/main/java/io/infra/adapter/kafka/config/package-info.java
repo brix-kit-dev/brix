@@ -15,9 +15,9 @@
  */
 
 /**
- * Kafka 事件总线配置
+ * Kafka Event Bus Configuration.
  * 
- * <p>包含 Spring Boot 自动配置类和配置属性。</p>
+ * <p>Contains Spring Boot auto-configuration classes and configuration properties.</p>
  * 
  * @author Brix Platform Authors Platform Team
  * @since 3.0.0

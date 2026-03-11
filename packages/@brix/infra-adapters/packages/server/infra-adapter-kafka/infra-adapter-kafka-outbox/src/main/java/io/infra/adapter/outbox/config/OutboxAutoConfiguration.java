@@ -35,36 +35,37 @@ import io.infra.adapter.outbox.OutboxEventPublisher;
 import io.infra.adapter.outbox.OutboxEventRepository;
 
 /**
- * Outbox 模式自动配置
+ * Outbox Pattern Auto-Configuration.
  *
- * <p>Spring Boot 自动配置类，当 classpath 同时存在 JPA 和 Kafka 依赖，
- * 且 Kafka 适配器已启用时，自动配置 Outbox 事件发布器。</p>
+ * <p>Spring Boot auto-configuration class. When classpath contains both JPA and Kafka dependencies,
+ * and Kafka adapter is enabled, automatically configures the Outbox event publisher.</p>
  *
- * <h3>架构定位</h3>
+ * <h3>Architecture Position</h3>
  * <p>
- * 本配置属于 {@code infra-adapter-outbox} 独立模块（Layer 2.5: Adapter 层）。
- * Outbox 是跨基础设施的模式（需要 DB + MQ 协同），作为 {@code infra-adapter-kafka}
- * 的可选增强模块，独立管理 JPA 实体扫描和 Repository 注册。
+ * This configuration belongs to the {@code infra-adapter-outbox} standalone module (Layer 2.5: Adapter Layer).
+ * Outbox is a cross-infrastructure pattern (requires DB + MQ coordination), serving as an optional
+ * enhancement module for {@code infra-adapter-kafka}, independently managing JPA entity scanning
+ * and Repository registration.
  * </p>
  *
- * <h3>激活条件</h3>
+ * <h3>Activation Conditions</h3>
  * <ul>
- *   <li>classpath 存在 {@link KafkaTemplate}（spring-kafka 依赖）</li>
- *   <li>classpath 存在 JPA Repository（spring-boot-starter-data-jpa 依赖）</li>
- *   <li>配置 {@code brix.infra.kafka.enabled=true}（默认启用）</li>
- *   <li>存在 {@link EventTopicResolver} Bean（由 kafka 适配器提供）</li>
+ *   <li>classpath contains {@link KafkaTemplate} (spring-kafka dependency)</li>
+ *   <li>classpath contains JPA Repository (spring-boot-starter-data-jpa dependency)</li>
+ *   <li>configured {@code brix.infra.kafka.enabled=true} (default enabled)</li>
+ *   <li>exists {@link EventTopicResolver} Bean (provided by kafka adapter)</li>
  * </ul>
  *
- * <h3>配置项</h3>
- * <p>通过 {@code brix.infra.kafka.outbox.*} 前缀配置：</p>
+ * <h3>Configuration Items</h3>
+ * <p>Configured via {@code brix.infra.kafka.outbox.*} prefix:</p>
  * <table border="1">
- *   <tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
- *   <tr><td>brix.infra.kafka.outbox.batch-size</td><td>每批处理事件数</td><td>100</td></tr>
- *   <tr><td>brix.infra.kafka.outbox.max-retry-count</td><td>最大重试次数</td><td>5</td></tr>
- *   <tr><td>brix.infra.kafka.outbox.retention-days</td><td>已完成事件保留天数</td><td>7</td></tr>
- *   <tr><td>brix.infra.kafka.outbox.process-interval-ms</td><td>处理间隔（毫秒）</td><td>1000</td></tr>
- *   <tr><td>brix.infra.kafka.outbox.retry-interval-ms</td><td>重试间隔（毫秒）</td><td>30000</td></tr>
- *   <tr><td>brix.infra.kafka.outbox.cleanup-cron</td><td>清理定时 Cron</td><td>0 0 3 * * ?</td></tr>
+ *   <tr><th>Configuration</th><th>Description</th><th>Default</th></tr>
+ *   <tr><td>brix.infra.kafka.outbox.batch-size</td><td>Events per batch</td><td>100</td></tr>
+ *   <tr><td>brix.infra.kafka.outbox.max-retry-count</td><td>Maximum retry count</td><td>5</td></tr>
+ *   <tr><td>brix.infra.kafka.outbox.retention-days</td><td>Completed event retention days</td><td>7</td></tr>
+ *   <tr><td>brix.infra.kafka.outbox.process-interval-ms</td><td>Processing interval (ms)</td><td>1000</td></tr>
+ *   <tr><td>brix.infra.kafka.outbox.retry-interval-ms</td><td>Retry interval (ms)</td><td>30000</td></tr>
+ *   <tr><td>brix.infra.kafka.outbox.cleanup-cron</td><td>Cleanup scheduled Cron</td><td>0 0 3 * * ?</td></tr>
  * </table>
  *
  * @author Brix Platform Authors
@@ -78,20 +79,20 @@ import io.infra.adapter.outbox.OutboxEventRepository;
 public class OutboxAutoConfiguration {
 
     /**
-     * 创建 Outbox 事件序列化专用 ObjectMapper（内部使用，不注册为 Spring Bean）
+     * Create Outbox event serialization dedicated ObjectMapper (internal use, not registered as Spring Bean).
      *
-     * <p>避免与 Spring Boot 自动配置的全局 ObjectMapper 冲突。
-     * 配置 Java 8 时间模块和 ISO-8601 日期格式。</p>
+     * <p>Avoids conflicts with Spring Boot auto-configured global ObjectMapper.
+     * Configures Java 8 time module and ISO-8601 date format.</p>
      *
-     * @return ObjectMapper 实例
+     * @return ObjectMapper instance
      */
     private static ObjectMapper createOutboxObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-        // 注册 Java 8 时间模块（支持 Instant、LocalDateTime 等）
+        // Register Java 8 time module (supports Instant, LocalDateTime, etc.)
         mapper.registerModule(new JavaTimeModule());
-        // 日期时间序列化为 ISO-8601 格式（而非时间戳）
+        // Serialize datetime in ISO-8601 format (not timestamps)
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        // 忽略未知属性（兼容性，避免反序列化失败）
+        // Ignore unknown properties (compatibility, avoids deserialization failures)
         mapper.configure(
                 com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
                 false);
@@ -99,16 +100,16 @@ public class OutboxAutoConfiguration {
     }
 
     /**
-     * 配置 Outbox 事件发布器
+     * Configure Outbox event publisher.
      *
-     * <p>当存在 {@link OutboxEventRepository} Bean（JPA 自动代理生成）
-     * 和 {@link EventTopicResolver} Bean（由 kafka 适配器提供）时自动配置。</p>
+     * <p>Auto-configures when {@link OutboxEventRepository} Bean (JPA auto-proxied)
+     * and {@link EventTopicResolver} Bean (provided by kafka adapter) exist.</p>
      *
-     * @param outboxRepository Outbox JPA 仓储
-     * @param kafkaTemplate    Kafka 消息模板
-     * @param topicResolver    事件 Topic 解析器（来自 infra-adapter-kafka）
-     * @param properties       Kafka 配置属性（含 Outbox 子配置）
-     * @return OutboxEventPublisher 实例
+     * @param outboxRepository Outbox JPA repository
+     * @param kafkaTemplate    Kafka message template
+     * @param topicResolver    Event Topic resolver (from infra-adapter-kafka)
+     * @param properties       Kafka configuration properties (includes Outbox sub-configuration)
+     * @return OutboxEventPublisher instance
      */
     @Bean
     @ConditionalOnMissingBean

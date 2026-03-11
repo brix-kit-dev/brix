@@ -15,18 +15,18 @@
  */
 
 /**
- * 支持类包
+ * Support Package
  * 
- * <p>本包提供模块开发的支持类（便利包装）：</p>
+ * <p>This package provides support classes (convenience wrappers) for module development:</p>
  * <ul>
- *   <li>{@link io.runtime.sdk.support.AbstractModule} - 模块抽象基类</li>
- *   <li>{@link io.runtime.sdk.support.ModuleState} - 模块状态枚举</li>
- *   <li>{@link io.runtime.sdk.support.ModuleInitializationException} - 模块初始化异常</li>
- *   <li>{@link io.runtime.sdk.support.ModuleStartupException} - 模块启动异常</li>
+ *   <li>{@link io.runtime.sdk.support.AbstractModule} - Module abstract base class</li>
+ *   <li>{@link io.runtime.sdk.support.ModuleState} - Module state enumeration</li>
+ *   <li>{@link io.runtime.sdk.support.ModuleInitializationException} - Module initialization exception</li>
+ *   <li>{@link io.runtime.sdk.support.ModuleStartupException} - Module startup exception</li>
  * </ul>
  * 
- * <p>注意：这些类是"便利包装"，不是能力实现。它们仅封装对 RuntimeContext 的调用，
- * 减少插件开发者的样板代码。</p>
+ * <p>Note: These classes are "convenience wrappers", not capability implementations.
+ * They only encapsulate calls to RuntimeContext, reducing boilerplate code for plugin developers.</p>
  * 
  * @since 3.0.0
  */

@@ -22,7 +22,6 @@ import java.util.List;
  * Resource Configuration.
  *
  * <p>Defines routes, menus, and static assets contributed by a module.</p>
- * <p>【资源配置】定义模块贡献的路由、菜单和静态资源。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -35,19 +34,16 @@ public class ResourceConfig {
 
     /**
      * Route configuration.
-     * 路由配置
      */
     private List<RouteConfig> routes = new ArrayList<>();
 
     /**
      * Menu configuration.
-     * 菜单配置
      */
     private List<MenuConfig> menus = new ArrayList<>();
 
     /**
      * Static asset configuration.
-     * 静态资源配置
      */
     private List<AssetConfig> assets = new ArrayList<>();
 

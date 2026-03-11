@@ -25,14 +25,14 @@ import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 /**
- * Fallback 配置存储能力实现
+ * Fallback Configuration Store Capability Implementation.
  * 
- * <p>基于环境变量和系统属性的简单配置实现。</p>
+ * <p>Simple configuration implementation based on environment variables and system properties.</p>
  * 
- * <p>配置查找顺序：</p>
+ * <p>Configuration lookup order:</p>
  * <ol>
- *   <li>系统属性（System.getProperty）</li>
- *   <li>环境变量（System.getenv），key 转换为 UPPER_SNAKE_CASE</li>
+ *   <li>System properties (System.getProperty)</li>
+ *   <li>Environment variables (System.getenv), key converted to UPPER_SNAKE_CASE</li>
  * </ol>
  * 
  * @author Brix Team
@@ -41,7 +41,7 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 @Capability(
     type = ConfigStoreCapability.class,
     name = "fallback-config-store",
-    description = "基于系统属性和环境变量的 Fallback 配置存储实现",
+    description = "Fallback config store implementation based on system properties and environment variables",
     level = CapabilityLevel.EXPERIMENTAL,
     aliases = {"fallbackConfig"}
 )
@@ -52,10 +52,10 @@ public class FallbackConfigStoreCapability implements ConfigStoreCapability {
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<T> get(String key, Class<T> type) {
-        // 1. 先尝试系统属性
+        // 1. First try system properties
         String value = System.getProperty(key);
         
-        // 2. 再尝试环境变量（转换为 UPPER_SNAKE_CASE）
+        // 2. Then try environment variables (convert to UPPER_SNAKE_CASE)
         if (value == null) {
             String envKey = key.replace(".", "_").replace("-", "_").toUpperCase();
             value = System.getenv(envKey);
@@ -82,7 +82,7 @@ public class FallbackConfigStoreCapability implements ConfigStoreCapability {
                 return Optional.of((T) Double.valueOf(value));
             }
         } catch (NumberFormatException e) {
-            log.warn("[Fallback] 无法将配置值 '{}' 转换为类型 {}", value, type.getSimpleName());
+            log.warn("[Fallback] Unable to convert config value '{}' to type {}", value, type.getSimpleName());
         }
         
         return Optional.empty();

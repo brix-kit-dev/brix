@@ -16,24 +16,24 @@
 package io.infra.adapter.kafka;
 
 /**
- * 事件序列化异常。
+ * Event serialization exception.
  *
- * <p>当事件对象无法被序列化为 JSON 时抛出此异常。
- * 该异常被 {@code KafkaEventBusCapability} 和 {@code OutboxEventPublisher}
- * 在事件发布过程中使用，用于封装底层 Jackson 序列化错误，
- * 提供统一的序列化失败语义。</p>
+ * <p>Thrown when an event object cannot be serialized to JSON.
+ * This exception is used by {@code KafkaEventBusCapability} and {@code OutboxEventPublisher}
+ * during event publishing to wrap underlying Jackson serialization errors,
+ * providing unified serialization failure semantics.</p>
  *
- * <p>可能的原因包括：</p>
+ * <p>Possible causes include:</p>
  * <ul>
- *   <li>事件对象包含无法序列化的字段（如循环引用）</li>
- *   <li>缺少无参构造函数或 getter 方法</li>
- *   <li>Jackson 序列化配置不正确</li>
+ *   <li>Event object contains non-serializable fields (e.g., circular references)</li>
+ *   <li>Missing no-arg constructor or getter methods</li>
+ *   <li>Incorrect Jackson serialization configuration</li>
  * </ul>
  *
- * <p>使用位置：</p>
+ * <p>Usage locations:</p>
  * <ul>
- *   <li>{@code KafkaEventBusCapability#serializeEvent} — Kafka 事件发布序列化</li>
- *   <li>{@code OutboxEventPublisher#serializePayload} — Outbox 模式事件持久化序列化</li>
+ *   <li>{@code KafkaEventBusCapability#serializeEvent} — Kafka event publishing serialization</li>
+ *   <li>{@code OutboxEventPublisher#serializePayload} — Outbox pattern event persistence serialization</li>
  * </ul>
  *
  * @author Brix Platform Team
@@ -45,19 +45,19 @@ public class EventSerializationException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 构造函数
+     * Constructor.
      * 
-     * @param message 错误消息
+     * @param message the error message
      */
     public EventSerializationException(String message) {
         super(message);
     }
 
     /**
-     * 带原因的构造函数
+     * Constructor with cause.
      * 
-     * @param message 错误消息
-     * @param cause   原始异常
+     * @param message the error message
+     * @param cause   the original exception
      */
     public EventSerializationException(String message, Throwable cause) {
         super(message, cause);

@@ -19,135 +19,137 @@ import java.security.Principal;
 import java.util.Set;
 
 /**
- * 认证上下文能力契约
+ * Authentication Context Capability Contract
  * 
- * <p>提供当前请求的身份认证和权限信息，是安全能力的核心抽象。
- * 模块通过此接口获取用户身份、检查权限，无需感知认证实现细节（JWT/OAuth/SAML）。</p>
+ * <p>Provides authentication and authorization information for the current request,
+ * serving as the core security capability abstraction.
+ * Modules use this interface to retrieve user identity and check permissions
+ * without knowing authentication implementation details (JWT/OAuth/SAML).</p>
  * 
- * <h3>命名说明（v3.2.0）</h3>
- * <p>为统一前后端能力命名，新增 {@link AuthCapability} 作为标准名称。
- * 建议新代码使用 {@code AuthCapability}，此接口保留用于向后兼容。</p>
+ * <h3>Naming Note (v3.2.0)</h3>
+ * <p>To unify frontend/backend capability naming, {@link AuthCapability} was added as the standard name.
+ * New code should use {@code AuthCapability}; this interface is retained for backward compatibility.</p>
  * 
- * <h3>核心职责</h3>
+ * <h3>Core Responsibilities</h3>
  * <ul>
- *   <li>获取当前用户身份（Principal）</li>
- *   <li>权限检查（Permission）</li>
- *   <li>角色检查（Role）</li>
- *   <li>数据权限范围（DataScope）</li>
+ *   <li>Get current user identity (Principal)</li>
+ *   <li>Permission checking (Permission)</li>
+ *   <li>Role checking (Role)</li>
+ *   <li>Data permission scope (DataScope)</li>
  * </ul>
  * 
- * <h3>设计原则</h3>
+ * <h3>Design Principles</h3>
  * <ul>
- *   <li><b>上下文透明</b>：认证信息通过请求上下文自动传递</li>
- *   <li><b>实现无关</b>：不暴露 JWT Token 等实现细节</li>
- *   <li><b>多租户支持</b>：支持获取租户信息和数据权限</li>
+ *   <li><b>Context Transparency</b>: Authentication info automatically propagated through request context</li>
+ *   <li><b>Implementation Agnostic</b>: Does not expose implementation details like JWT tokens</li>
+ *   <li><b>Multi-tenancy Support</b>: Supports tenant info and data permissions</li>
  * </ul>
  * 
- * <h3>权限模型</h3>
+ * <h3>Permission Model</h3>
  * <ul>
- *   <li><b>Permission（权限）</b>：细粒度操作权限，如 "booking:create"</li>
- *   <li><b>Role（角色）</b>：权限集合，如 "ADMIN", "OPERATOR"</li>
- *   <li><b>DataScope（数据范围）</b>：数据访问边界，如部门、地区</li>
+ *   <li><b>Permission</b>: Fine-grained operation permissions, e.g., "booking:create"</li>
+ *   <li><b>Role</b>: Permission collections, e.g., "ADMIN", "OPERATOR"</li>
+ *   <li><b>DataScope</b>: Data access boundaries, e.g., department, region</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * @Inject
  * private AuthContextCapability authContext;
  * 
  * public void createReservation(ReservationCommand command) {
- *     // 获取当前用户
+ *     // Get current user
  *     Principal user = authContext.getCurrentPrincipal();
  *     
- *     // 检查权限
+ *     // Check permission
  *     if (!authContext.hasPermission("booking:create")) {
- *         throw new AccessDeniedException("无预约创建权限");
+ *         throw new AccessDeniedException("No booking create permission");
  *     }
  *     
- *     // 获取数据权限范围
+ *     // Get data permission scope
  *     Set<DataScope> scopes = authContext.getAuthorizedScopes();
- *     // 基于 scopes 过滤可访问的数据...
+ *     // Filter accessible data based on scopes...
  * }
  * }</pre>
  * 
- * <h3>实现说明</h3>
+ * <h3>Implementation Notes</h3>
  * <ul>
- *   <li>Full Product Host：JWT + 本地权限缓存</li>
- *   <li>Embedded Host：委托客户系统认证（Delegated Auth）</li>
+ *   <li>Full Product Host: JWT + local permission cache</li>
+ *   <li>Embedded Host: Delegated Auth to customer system</li>
  * </ul>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
- * @see AuthCapability 推荐使用此标准化名称
+ * @see AuthCapability Recommended standardized name
  * @see Principal
  * @see DataScope
  */
 public interface AuthContextCapability {
 
     /**
-     * 获取当前用户身份
+     * Get current user identity
      * 
-     * <p>返回的 Principal 包含用户标识信息，可能包括：</p>
+     * <p>The returned Principal contains user identification information, possibly including:</p>
      * <ul>
-     *   <li>用户 ID</li>
-     *   <li>用户名</li>
-     *   <li>租户 ID</li>
+     *   <li>User ID</li>
+     *   <li>Username</li>
+     *   <li>Tenant ID</li>
      * </ul>
      * 
-     * @return 当前用户身份，如果未认证返回 null
+     * @return current user identity, null if not authenticated
      */
     Principal getCurrentPrincipal();
 
     /**
-     * 检查是否拥有指定权限
+     * Check if user has specified permission
      * 
-     * <p>权限命名规范：{模块}:{操作}，如 "booking:create", "user:read"</p>
+     * <p>Permission naming convention: {module}:{operation}, e.g., "booking:create", "user:read"</p>
      * 
-     * @param permission 权限标识，不能为空
-     * @return 如果拥有权限返回 true，否则返回 false
-     * @throws IllegalArgumentException 如果 permission 为 null 或空
+     * @param permission permission identifier, cannot be empty
+     * @return true if user has the permission, false otherwise
+     * @throws IllegalArgumentException if permission is null or empty
      */
     boolean hasPermission(String permission);
 
     /**
-     * 检查是否拥有指定角色
+     * Check if user has specified role
      * 
-     * <p>角色通常为大写字母，如 "ADMIN", "OPERATOR", "USER"</p>
+     * <p>Roles are typically uppercase, e.g., "ADMIN", "OPERATOR", "USER"</p>
      * 
-     * @param role 角色标识，不能为空
-     * @return 如果拥有角色返回 true，否则返回 false
-     * @throws IllegalArgumentException 如果 role 为 null 或空
+     * @param role role identifier, cannot be empty
+     * @return true if user has the role, false otherwise
+     * @throws IllegalArgumentException if role is null or empty
      */
     boolean hasRole(String role);
 
     /**
-     * 获取授权的数据范围
+     * Get authorized data scopes
      * 
-     * <p>数据范围用于行级数据权限控制，常见类型：</p>
+     * <p>Data scopes are used for row-level data permission control. Common types:</p>
      * <ul>
-     *   <li>部门范围：用户只能访问所属部门的数据</li>
-     *   <li>地区范围：用户只能访问指定地区的数据</li>
-     *   <li>自定义范围：根据业务定义的数据边界</li>
+     *   <li>Department scope: User can only access data from their department</li>
+     *   <li>Region scope: User can only access data from specified regions</li>
+     *   <li>Custom scope: Business-defined data boundaries</li>
      * </ul>
      * 
-     * @return 授权的数据范围集合，不会返回 null
+     * @return set of authorized data scopes, never returns null
      */
     Set<DataScope> getAuthorizedScopes();
 
     /**
-     * 检查是否已认证
+     * Check if authenticated
      * 
-     * @return 如果当前请求已认证返回 true
+     * @return true if current request is authenticated
      */
     default boolean isAuthenticated() {
         return getCurrentPrincipal() != null;
     }
 
     /**
-     * 检查是否拥有所有指定权限
+     * Check if user has all specified permissions
      * 
-     * @param permissions 权限列表
-     * @return 如果拥有所有权限返回 true
+     * @param permissions permission list
+     * @return true if user has all permissions
      */
     default boolean hasAllPermissions(String... permissions) {
         for (String permission : permissions) {
@@ -159,10 +161,10 @@ public interface AuthContextCapability {
     }
 
     /**
-     * 检查是否拥有任一指定权限
+     * Check if user has any of specified permissions
      * 
-     * @param permissions 权限列表
-     * @return 如果拥有任一权限返回 true
+     * @param permissions permission list
+     * @return true if user has any permission
      */
     default boolean hasAnyPermission(String... permissions) {
         for (String permission : permissions) {
@@ -174,11 +176,11 @@ public interface AuthContextCapability {
     }
 
     /**
-     * 获取当前租户 ID
+     * Get current tenant ID
      * 
-     * <p>在多租户场景下，返回当前请求所属的租户标识</p>
+     * <p>In multi-tenant scenarios, returns the tenant identifier for the current request</p>
      * 
-     * @return 租户 ID，如果不是多租户场景返回 null
+     * @return tenant ID, null if not in multi-tenant scenario
      */
     default String getTenantId() {
         Principal principal = getCurrentPrincipal();

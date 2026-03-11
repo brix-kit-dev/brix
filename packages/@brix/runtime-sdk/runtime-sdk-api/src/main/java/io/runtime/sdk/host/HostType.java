@@ -16,17 +16,17 @@
 package io.runtime.sdk.host;
 
 /**
- * Host 类型枚举
+ * Host Type Enumeration
  * 
- * <p>定义不同类型的 Host 实现，每种类型有不同的能力支持和适用场景。</p>
+ * <p>Defines different types of Host implementations, each with different capability support and use cases.</p>
  * 
- * <h3>类型说明</h3>
+ * <h3>Type Description</h3>
  * <table border="1">
- *   <tr><th>类型</th><th>能力级别</th><th>典型用途</th></tr>
- *   <tr><td>FULL_PRODUCT</td><td>完整</td><td>独立部署的完整产品</td></tr>
- *   <tr><td>EMBEDDED</td><td>精简</td><td>嵌入客户系统</td></tr>
- *   <tr><td>STANDALONE</td><td>最小</td><td>单机开发测试</td></tr>
- *   <tr><td>TEST</td><td>Mock</td><td>单元测试</td></tr>
+ *   <tr><th>Type</th><th>Capability Level</th><th>Typical Usage</th></tr>
+ *   <tr><td>FULL_PRODUCT</td><td>Complete</td><td>Standalone deployed complete product</td></tr>
+ *   <tr><td>EMBEDDED</td><td>Streamlined</td><td>Embedded in customer systems</td></tr>
+ *   <tr><td>STANDALONE</td><td>Minimal</td><td>Local development and testing</td></tr>
+ *   <tr><td>TEST</td><td>Mock</td><td>Unit testing</td></tr>
  * </table>
  * 
  * @author Runtime SDK Team
@@ -36,64 +36,64 @@ package io.runtime.sdk.host;
 public enum HostType {
 
     /**
-     * 完整产品 Host
+     * Full Product Host
      * 
-     * <p>提供所有能力的完整实现，包括：</p>
+     * <p>Provides complete implementation of all capabilities, including:</p>
      * <ul>
-     *   <li>Kafka 事件总线</li>
-     *   <li>Redis 状态存储</li>
-     *   <li>完整的可观测性（OpenTelemetry）</li>
-     *   <li>JWT 认证</li>
-     *   <li>所有可选能力</li>
+     *   <li>Kafka EventBus</li>
+     *   <li>Redis StateStore</li>
+     *   <li>Complete Observability (OpenTelemetry)</li>
+     *   <li>JWT Authentication</li>
+     *   <li>All optional capabilities</li>
      * </ul>
      */
-    FULL_PRODUCT("full-product", "完整产品模式"),
+    FULL_PRODUCT("full-product", "Full Product Mode"),
 
     /**
-     * 嵌入式 Host
+     * Embedded Host
      * 
-     * <p>精简的能力实现，适合嵌入客户系统：</p>
+     * <p>Streamlined capability implementation, suitable for embedding in customer systems:</p>
      * <ul>
-     *   <li>HTTP Webhook 事件总线</li>
-     *   <li>本地内存状态存储</li>
-     *   <li>委托认证（Delegated Auth）</li>
-     *   <li>基础可观测性</li>
+     *   <li>HTTP Webhook EventBus</li>
+     *   <li>Local memory StateStore</li>
+     *   <li>Delegated Auth</li>
+     *   <li>Basic Observability</li>
      * </ul>
      */
-    EMBEDDED("embedded", "嵌入模式"),
+    EMBEDDED("embedded", "Embedded Mode"),
 
     /**
-     * 单机 Host
+     * Standalone Host
      * 
-     * <p>最小化实现，用于本地开发：</p>
+     * <p>Minimal implementation for local development:</p>
      * <ul>
-     *   <li>内存事件总线</li>
-     *   <li>内存状态存储</li>
-     *   <li>简单认证</li>
-     *   <li>控制台日志</li>
+     *   <li>In-memory EventBus</li>
+     *   <li>In-memory StateStore</li>
+     *   <li>Simple Authentication</li>
+     *   <li>Console logging</li>
      * </ul>
      */
-    STANDALONE("standalone", "单机模式"),
+    STANDALONE("standalone", "Standalone Mode"),
 
     /**
-     * 测试 Host
+     * Test Host
      * 
-     * <p>Mock 实现，用于单元测试：</p>
+     * <p>Mock implementation for unit testing:</p>
      * <ul>
-     *   <li>所有能力为 Mock 实现</li>
-     *   <li>支持断言和验证</li>
-     *   <li>可配置行为</li>
+     *   <li>All capabilities are Mock implementations</li>
+     *   <li>Supports assertions and verification</li>
+     *   <li>Configurable behavior</li>
      * </ul>
      */
-    TEST("test", "测试模式");
+    TEST("test", "Test Mode");
 
     /**
-     * 类型标识
+     * Type identifier
      */
     private final String code;
 
     /**
-     * 类型描述
+     * Type description
      */
     private final String description;
 
@@ -103,28 +103,28 @@ public enum HostType {
     }
 
     /**
-     * 获取类型标识
+     * Get type identifier
      * 
-     * @return 类型标识
+     * @return type identifier
      */
     public String getCode() {
         return code;
     }
 
     /**
-     * 获取类型描述
+     * Get type description
      * 
-     * @return 类型描述
+     * @return type description
      */
     public String getDescription() {
         return description;
     }
 
     /**
-     * 根据标识查找类型
+     * Find type by identifier
      * 
-     * @param code 类型标识
-     * @return 对应的 HostType，如果未找到返回 null
+     * @param code type identifier
+     * @return corresponding HostType, or null if not found
      */
     public static HostType fromCode(String code) {
         for (HostType type : values()) {

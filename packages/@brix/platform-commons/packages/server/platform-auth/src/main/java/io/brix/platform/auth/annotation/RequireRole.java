@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.annotation;
 
 import java.lang.annotation.Documented;
@@ -7,9 +22,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 角色检查注
+ * Role Check Annotation
  * <p>
- * 标注在方法或类上，表示需要指定角色才能访问
+ * When annotated on a method or class, indicates specified roles are required for access
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -21,20 +36,20 @@ import java.lang.annotation.Target;
 public @interface RequireRole {
 
     /**
-     * 需要的角色列表
+     * Required role list
      *
-     * @return 角色名称数组
+     * @return Array of role names
      */
     String[] value();
 
     /**
-     * 逻辑模式
+     * Logical mode
      * <ul>
-     *   <li>AND - 需要拥有所有角</li>
-     *   <li>OR - 只需拥有任一角色</li>
+     *   <li>AND - All roles required</li>
+     *   <li>OR - Any one role sufficient</li>
      * </ul>
      *
-     * @return 逻辑模式，默OR
+     * @return Logical mode, default is OR
      */
     RequirePermission.Logical logical() default RequirePermission.Logical.OR;
 }

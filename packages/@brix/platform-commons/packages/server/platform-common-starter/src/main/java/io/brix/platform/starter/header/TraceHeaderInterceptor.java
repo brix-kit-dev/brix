@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.header;
 
 import org.slf4j.Logger;
@@ -12,30 +27,30 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * 追踪 Header 拦截器（出站请求
+ * Trace Header Interceptor (Outbound Requests)
  * 
- * <p>自动为出HTTP 请求添加分布式追踪相关的 Headers
- * 确保请求链路可以被完整追踪</p>
+ * <p>Automatically adds distributed tracing related Headers to outbound HTTP requests,
+ * ensuring request chains can be completely traced.</p>
  * 
- * <p>设计目的</p>
+ * <p>Design Purpose:</p>
  * <ul>
- *   <li>在服务间调用时传递追ID</li>
- *   <li>生成 Span ID 标识当前请求节点</li>
- *   <li>Zipkin/Jaeger 等追踪系统兼</li>
+ *   <li>Propagate trace ID during inter-service calls</li>
+ *   <li>Generate Span ID to identify current request node</li>
+ *   <li>Compatible with Zipkin/Jaeger and other tracing systems</li>
  * </ul>
  * 
- * <p>添加Headers</p>
+ * <p>Added Headers:</p>
  * <ul>
- *   <li>X-Trace-Id：追ID，从上下文获取或自动生成</li>
- *   <li>X-Span-Id：跨ID，为每个出站请求生成新的</li>
- *   <li>X-Request-Id：请ID，唯一标识本次请求</li>
+ *   <li>X-Trace-Id: Trace ID, retrieved from context or auto-generated</li>
+ *   <li>X-Span-Id: Span ID, generated new for each outbound request</li>
+ *   <li>X-Request-Id: Request ID, uniquely identifies this request</li>
  * </ul>
  * 
- * <p>追踪 ID 传递规则：</p>
+ * <p>Trace ID Propagation Rules:</p>
  * <ol>
- *   <li>如果请求已有 X-Trace-Id，则保留</li>
- *   <li>如果 TenantContextHolder 中有追踪 ID，则使用</li>
- *   <li>否则自动生成新的追踪 ID</li>
+ *   <li>If request already has X-Trace-Id, keep it</li>
+ *   <li>If TenantContextHolder has trace ID, use it</li>
+ *   <li>Otherwise auto-generate new trace ID</li>
  * </ol>
  * 
  * @author Brix Platform Authors Team
@@ -48,20 +63,20 @@ public class TraceHeaderInterceptor implements ClientHttpRequestInterceptor {
     private static final Logger log = LoggerFactory.getLogger(TraceHeaderInterceptor.class);
     
     /**
-     * 默认构造函数
+     * Default constructor
      */
     public TraceHeaderInterceptor() {
-        // 鏃犻渶渚濊禆
+        // No dependencies
     }
     
     /**
-     * 拦截出站请求并添加追Headers
+     * Intercept outbound requests and add trace Headers
      * 
-     * @param request   HTTP 请求
-     * @param body      请求
-     * @param execution 执行
-     * @return HTTP 响应
-     * @throws IOException 如果请求执行失败
+     * @param request   HTTP request
+     * @param body      Request body
+     * @param execution Execution chain
+     * @return HTTP response
+     * @throws IOException if request execution fails
      */
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, 
@@ -73,42 +88,42 @@ public class TraceHeaderInterceptor implements ClientHttpRequestInterceptor {
     }
     
     /**
-     * 添加追踪相关Headers
+     * Add tracing related Headers
      * 
-     * @param request HTTP 请求
+     * @param request HTTP request
      */
     private void addTraceHeaders(HttpRequest request) {
         var headers = request.getHeaders();
         
-        // 1. 添加或传Trace ID
+        // 1. Add or propagate Trace ID
         if (!headers.containsKey(PlatformHeaders.TRACE_ID)) {
             String traceId = getOrGenerateTraceId();
             headers.add(PlatformHeaders.TRACE_ID, traceId);
         }
         
-        // 2. 生成新的 Span ID（每个出站请求都是新Span
+        // 2. Generate new Span ID (each outbound request is a new Span)
         if (!headers.containsKey(PlatformHeaders.SPAN_ID)) {
             String spanId = generateSpanId();
             headers.add(PlatformHeaders.SPAN_ID, spanId);
         }
         
-        // 3. 生成请求 ID
+        // 3. Generate Request ID
         if (!headers.containsKey(PlatformHeaders.REQUEST_ID)) {
             String requestId = generateRequestId();
             headers.add(PlatformHeaders.REQUEST_ID, requestId);
         }
         
-        log.debug("[TraceHeaderInterceptor] 添加追踪 traceId={}, spanId={}", 
+        log.debug("[TraceHeaderInterceptor] Added trace headers traceId={}, spanId={}", 
             headers.getFirst(PlatformHeaders.TRACE_ID),
             headers.getFirst(PlatformHeaders.SPAN_ID));
     }
     
     /**
-     * 获取或生成追ID
+     * Get or generate trace ID
      * 
-     * <p>优先从上下文获取，如果没有则生成新的</p>
+     * <p>Prioritizes getting from context, generates new one if not present</p>
      * 
-     * @return 杩借釜 ID
+     * @return Trace ID
      */
     private String getOrGenerateTraceId() {
         String traceId = TenantContextHolder.getTraceId();
@@ -119,20 +134,20 @@ public class TraceHeaderInterceptor implements ClientHttpRequestInterceptor {
     }
     
     /**
-     * 生成追踪 ID
+     * Generate trace ID
      * 
-     * <p>使用 UUID 生成，长32 字符</p>
+     * <p>Uses UUID to generate, 32 characters long</p>
      * 
-     * @return 杩借釜 ID
+     * @return Trace ID
      */
     private String generateTraceId() {
         return UUID.randomUUID().toString().replace("-", "");
     }
     
     /**
-     * 生成 Span ID
+     * Generate Span ID
      * 
-     * <p>使用 UUID 的前 16 位，Zipkin 兼容</p>
+     * <p>Uses first 16 characters of UUID, Zipkin compatible</p>
      * 
      * @return Span ID
      */
@@ -141,11 +156,11 @@ public class TraceHeaderInterceptor implements ClientHttpRequestInterceptor {
     }
     
     /**
-     * 生成请求 ID
+     * Generate Request ID
      * 
-     * <p>使用 UUID 生成唯一标识</p>
+     * <p>Uses UUID to generate unique identifier</p>
      * 
-     * @return 请求 ID
+     * @return Request ID
      */
     private String generateRequestId() {
         return UUID.randomUUID().toString().replace("-", "");

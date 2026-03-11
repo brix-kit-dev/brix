@@ -26,6 +26,10 @@ packages:
   - 'packages/@brix/platform-devtools'
   - 'packages/@brix/platform-devtools/*'
   
+  # Shared Runtime - Layer 2B unified runtime dependencies
+  - 'packages/@brix/shared-runtime'
+  - 'packages/@brix/shared-runtime/*'
+  
   # ==================== Examples ====================
   - 'examples/*'
 

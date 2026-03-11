@@ -21,30 +21,30 @@ import io.runtime.sdk.event.IntegrationEvent;
 import java.util.function.Consumer;
 
 /**
- * 事件分发器
+ * Event Dispatcher.
  * 
- * <p>负责事件的分发和路由。接收来自 EventBusCapability 的事件，
- * 并分发给订阅的模块处理器。</p>
+ * <p>Responsible for event dispatch and routing. Receives events from EventBusCapability
+ * and dispatches them to subscribed module handlers.</p>
  * 
- * <h3>核心职责</h3>
+ * <h3>Core Responsibilities</h3>
  * <ul>
- *   <li>管理事件订阅关系</li>
- *   <li>分发领域事件和集成事件</li>
- *   <li>支持同步和异步分发</li>
- *   <li>事件过滤和转换</li>
+ *   <li>Manages event subscriptions</li>
+ *   <li>Dispatches domain events and integration events</li>
+ *   <li>Supports synchronous and asynchronous dispatch</li>
+ *   <li>Event filtering and transformation</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
- * // 订阅事件
+ * // Subscribe to event
  * dispatcher.subscribe(OrderCreatedEvent.class, event -> {
  *     processNewOrder(event);
  * });
  * 
- * // 发布事件
+ * // Dispatch event
  * dispatcher.dispatch(new OrderCreatedEvent(orderId));
  * 
- * // 异步发布
+ * // Async dispatch
  * dispatcher.dispatchAsync(new OrderCreatedEvent(orderId));
  * }</pre>
  * 
@@ -54,142 +54,142 @@ import java.util.function.Consumer;
 public interface EventDispatcher {
 
     /**
-     * 订阅领域事件
+     * Subscribes to domain event.
      * 
-     * @param eventType 事件类型
-     * @param handler 事件处理器
-     * @param <T> 事件类型
-     * @return 订阅句柄，用于取消订阅
+     * @param eventType event type
+     * @param handler event handler
+     * @param <T> event type
+     * @return subscription handle, used for unsubscribing
      */
     <T extends DomainEvent> Subscription subscribe(Class<T> eventType, Consumer<T> handler);
 
     /**
-     * 订阅领域事件（指定模块）
+     * Subscribes to domain event (for specific module).
      * 
-     * @param eventType 事件类型
-     * @param moduleId 订阅模块 ID
-     * @param handler 事件处理器
-     * @param <T> 事件类型
-     * @return 订阅句柄
+     * @param eventType event type
+     * @param moduleId subscribing module ID
+     * @param handler event handler
+     * @param <T> event type
+     * @return subscription handle
      */
     <T extends DomainEvent> Subscription subscribe(Class<T> eventType, String moduleId, Consumer<T> handler);
 
     /**
-     * 订阅集成事件
+     * Subscribes to integration event.
      * 
-     * @param eventType 事件类型
-     * @param handler 事件处理器
-     * @param <T> 事件类型
-     * @return 订阅句柄
+     * @param eventType event type
+     * @param handler event handler
+     * @param <T> event type
+     * @return subscription handle
      */
     <T extends IntegrationEvent> Subscription subscribeIntegration(Class<T> eventType, Consumer<T> handler);
 
     /**
-     * 取消订阅
+     * Unsubscribes.
      * 
-     * @param subscription 订阅句柄
+     * @param subscription subscription handle
      */
     void unsubscribe(Subscription subscription);
 
     /**
-     * 取消模块的所有订阅
+     * Unsubscribes all subscriptions for a module.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     void unsubscribeAll(String moduleId);
 
     /**
-     * 同步分发领域事件
+     * Synchronously dispatches domain event.
      * 
-     * <p>事件将同步发送给所有订阅者，在当前线程执行</p>
+     * <p>Event will be synchronously sent to all subscribers, executed in current thread</p>
      * 
-     * @param event 领域事件
+     * @param event domain event
      */
     void dispatch(DomainEvent event);
 
     /**
-     * 异步分发领域事件
+     * Asynchronously dispatches domain event.
      * 
-     * <p>事件将异步发送给所有订阅者</p>
+     * <p>Event will be asynchronously sent to all subscribers</p>
      * 
-     * @param event 领域事件
+     * @param event domain event
      */
     void dispatchAsync(DomainEvent event);
 
     /**
-     * 分发集成事件
+     * Dispatches integration event.
      * 
-     * <p>集成事件默认异步分发</p>
+     * <p>Integration events are dispatched asynchronously by default</p>
      * 
-     * @param event 集成事件
+     * @param event integration event
      */
     void dispatchIntegration(IntegrationEvent event);
 
     /**
-     * 获取指定事件类型的订阅者数量
+     * Gets subscriber count for specified event type.
      * 
-     * @param eventType 事件类型
-     * @return 订阅者数量
+     * @param eventType event type
+     * @return subscriber count
      */
     int getSubscriberCount(Class<?> eventType);
 
     /**
-     * 检查是否有指定事件类型的订阅者
+     * Checks if there are subscribers for specified event type.
      * 
-     * @param eventType 事件类型
-     * @return 如果有订阅者返回 true
+     * @param eventType event type
+     * @return true if there are subscribers
      */
     boolean hasSubscribers(Class<?> eventType);
 
     /**
-     * 清空所有订阅
+     * Clears all subscriptions.
      */
     void clear();
 
     /**
-     * 关闭分发器
+     * Shuts down the dispatcher.
      * 
-     * <p>释放资源，停止异步分发</p>
+     * <p>Releases resources, stops async dispatch</p>
      */
     void shutdown();
 
     /**
-     * 订阅句柄
+     * Subscription handle.
      * 
-     * <p>用于标识和取消订阅</p>
+     * <p>Used for identifying and canceling subscriptions</p>
      */
     interface Subscription {
         
         /**
-         * 获取订阅 ID
+         * Gets subscription ID.
          * 
-         * @return 订阅 ID
+         * @return subscription ID
          */
         String getId();
 
         /**
-         * 获取事件类型
+         * Gets event type.
          * 
-         * @return 事件类型
+         * @return event type
          */
         Class<?> getEventType();
 
         /**
-         * 获取订阅模块 ID
+         * Gets subscribing module ID.
          * 
-         * @return 模块 ID，如果没有指定则返回 null
+         * @return module ID, returns null if not specified
          */
         String getModuleId();
 
         /**
-         * 是否活跃
+         * Checks if subscription is active.
          * 
-         * @return 如果订阅活跃返回 true
+         * @return true if subscription is active
          */
         boolean isActive();
 
         /**
-         * 取消订阅
+         * Cancels subscription.
          */
         void cancel();
     }

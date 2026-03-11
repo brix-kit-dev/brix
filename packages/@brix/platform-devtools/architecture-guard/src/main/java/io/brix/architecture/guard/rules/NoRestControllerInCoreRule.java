@@ -20,7 +20,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * <h2>Violation Example</h2>
  * <pre>{@code
  * // In case-core module - VIOLATION!
- * package com.shinwa.app.casemanagement.controller;
+ * package io.brix.app.casemanagement.controller;
  * 
  * @RestController  // VIOLATION: should be in case-server
  * public class CaseController { }
@@ -28,7 +28,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <h2>Correct Structure</h2>
  * <pre>
- * shinwa-app-case/
+ * brix-app-case/
  *   case-core/      <- Business logic, no @RestController
  *   case-server/    <- @RestController allowed here
  * </pre>

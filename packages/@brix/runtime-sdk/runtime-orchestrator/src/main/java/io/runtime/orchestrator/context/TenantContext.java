@@ -19,64 +19,64 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 租户上下文持有器
+ * Tenant Context Holder.
  * 
- * <p>基于 ThreadLocal 实现的租户上下文管理，在请求处理期间存储当前租户信息。
- * 这是多租户隔离架构的核心组件。</p>
+ * <p>ThreadLocal-based tenant context management, storing current tenant information during request processing.
+ * This is the core component of multi-tenant isolation architecture.</p>
  * 
- * <h2>核心用途</h2>
+ * <h2>Core Use Cases</h2>
  * <ul>
- *   <li>请求处理期间保持租户身份</li>
- *   <li>数据库查询自动追加租户条件</li>
- *   <li>缓存 Key 自动添加租户前缀</li>
- *   <li>事件发布时自动携带租户信息</li>
+ *   <li>Maintaining tenant identity during request processing</li>
+ *   <li>Auto-appending tenant conditions to database queries</li>
+ *   <li>Auto-adding tenant prefix to cache keys</li>
+ *   <li>Auto-carrying tenant information when publishing events</li>
  * </ul>
  * 
- * <h2>上下文传播流程</h2>
+ * <h2>Context Propagation Flow</h2>
  * <pre>
- * 客户端请求
- *     │
- *     ▼  Header: X-Tenant-Id: tenant-001
- * ┌─────────────────┐
- * │  Gateway        │  TenantContextFilter 解析并验证租户ID
- * └────────┬────────┘
- *          │  TenantContext.set("tenant-001")
- *          ▼
- * ┌─────────────────┐
- * │  Module Service │  RuntimeContext.getTenantId()
- * └────────┬────────┘
- *          │  事件发布时自动携带 tenantId
- *          ▼
- * ┌─────────────────┐
- * │  EventBus       │  事件头部包含 tenantId，消费时自动恢复
- * └─────────────────┘
+ * Client Request
+ *     |
+ *     v  Header: X-Tenant-Id: tenant-001
+ * +------------------+
+ * |  Gateway         |  TenantContextFilter parses and validates tenant ID
+ * +--------+---------+
+ *          |  TenantContext.set("tenant-001")
+ *          v
+ * +------------------+
+ * |  Module Service  |  RuntimeContext.getTenantId()
+ * +--------+---------+
+ *          |  Auto-carries tenantId when publishing events
+ *          v
+ * +------------------+
+ * |  EventBus        |  Event header contains tenantId, auto-restored on consume
+ * +------------------+
  * </pre>
  * 
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
- * // 在 Filter 中设置租户上下文
+ * // Set tenant context in Filter
  * public void doFilter(ServletRequest request, ...) {
  *     String tenantId = httpRequest.getHeader("X-Tenant-Id");
  *     TenantContext.set(tenantId);
  *     try {
  *         chain.doFilter(request, response);
  *     } finally {
- *         TenantContext.clear();  // 重要！必须清理
+ *         TenantContext.clear();  // Important! Must clear
  *     }
  * }
  * 
- * // 在业务代码中获取租户
+ * // Get tenant in business code
  * String tenantId = TenantContext.get();
  * }</pre>
  * 
- * <h2>重要提醒</h2>
- * <p><b>必须</b>在请求结束时调用 {@link #clear()} 方法清理上下文，
- * 避免线程复用导致的租户信息泄露。</p>
+ * <h2>Important Reminder</h2>
+ * <p><b>Must</b> call {@link #clear()} method to clean up context at request end,
+ * to avoid tenant information leakage due to thread reuse.</p>
  * 
- * <h2>架构归属</h2>
- * <p>本类属于 <b>编排层（Orchestrator）</b>，负责运行时多租户上下文管理。
- * 从 runtime-sdk-api 迁移至此，因为租户上下文管理属于运行时编排职责，
- * 而非基础契约定义。SDK API 层只定义纯 Capability 接口契约。</p>
+ * <h2>Architecture Position</h2>
+ * <p>This class belongs to the <b>Orchestration Layer (Orchestrator)</b>, responsible for runtime multi-tenant context management.
+ * Migrated from runtime-sdk-api, because tenant context management is a runtime orchestration responsibility,
+ * not a basic contract definition. SDK API layer only defines pure Capability interface contracts.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -86,75 +86,75 @@ public final class TenantContext {
     private static final Logger log = LoggerFactory.getLogger(TenantContext.class);
 
     /**
-     * 请求头中的租户ID字段名
+     * Tenant ID header field name in requests.
      */
     public static final String TENANT_HEADER = "X-Tenant-Id";
 
     /**
-     * 默认租户ID（系统级操作使用）
+     * Default tenant ID (for system-level operations).
      */
     public static final String DEFAULT_TENANT = "default";
 
     /**
-     * 系统租户ID（超级管理员使用）
+     * System tenant ID (for super admin use).
      */
     public static final String SYSTEM_TENANT = "system";
 
     /**
-     * ThreadLocal 存储当前租户ID
+     * ThreadLocal storage for current tenant ID.
      * 
-     * <p>每个线程持有独立的租户ID副本，实现线程安全的租户上下文传播。
-     * 在异步场景（如 CompletableFuture）中需要手动传播。</p>
+     * <p>Each thread holds an independent tenant ID copy, enabling thread-safe tenant context propagation.
+     * In async scenarios (e.g., CompletableFuture), manual propagation is needed.</p>
      */
     private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
 
     /**
-     * ThreadLocal 存储是否忽略租户过滤
+     * ThreadLocal storage for whether to ignore tenant filtering.
      * 
-     * <p>用于系统级跨租户操作，如定时任务统计、超级管理员查询等。
-     * 默认值为 false，即默认启用租户过滤。</p>
+     * <p>Used for system-level cross-tenant operations, such as scheduled task statistics, super admin queries.
+     * Default value is false, meaning tenant filtering is enabled by default.</p>
      */
     private static final ThreadLocal<Boolean> IGNORE_TENANT = ThreadLocal.withInitial(() -> false);
 
     /**
-     * 私有构造函数，工具类不允许实例化
+     * Private constructor, utility class cannot be instantiated.
      */
     private TenantContext() {
-        throw new UnsupportedOperationException("工具类不允许实例化");
+        throw new UnsupportedOperationException("Utility class cannot be instantiated");
     }
 
-    // ==================== 基础操作 ====================
+    // ==================== Basic Operations ====================
 
     /**
-     * 设置当前租户ID
+     * Sets current tenant ID.
      * 
-     * <p>通常由 Filter 或 Interceptor 在请求入口处调用。</p>
+     * <p>Usually called by Filter or Interceptor at request entry point.</p>
      * 
-     * @param tenantId 租户ID，不能为 null 或空
-     * @throws IllegalArgumentException 如果 tenantId 为 null 或空
+     * @param tenantId tenant ID, cannot be null or empty
+     * @throws IllegalArgumentException if tenantId is null or empty
      */
     public static void set(String tenantId) {
         if (tenantId == null || tenantId.trim().isEmpty()) {
-            throw new IllegalArgumentException("租户ID不能为空");
+            throw new IllegalArgumentException("Tenant ID cannot be null or empty");
         }
         CURRENT_TENANT.set(tenantId.trim());
-        log.debug("设置租户上下文: {}", tenantId);
+        log.debug("Set tenant context: {}", tenantId);
     }
 
     /**
-     * 获取当前租户ID
+     * Gets current tenant ID.
      * 
-     * @return 当前租户ID，未设置时返回 null
+     * @return current tenant ID, returns null if not set
      */
     public static String get() {
         return CURRENT_TENANT.get();
     }
 
     /**
-     * 获取当前租户ID，如果未设置返回默认值
+     * Gets current tenant ID, returns default value if not set.
      * 
-     * @param defaultValue 默认值
-     * @return 当前租户ID或默认值
+     * @param defaultValue default value
+     * @return current tenant ID or default value
      */
     public static String getOrDefault(String defaultValue) {
         String tenantId = CURRENT_TENANT.get();
@@ -162,106 +162,106 @@ public final class TenantContext {
     }
 
     /**
-     * 获取当前租户ID，如果未设置则抛出异常
+     * Gets current tenant ID, throws exception if not set.
      * 
-     * @return 当前租户ID
-     * @throws TenantNotSetException 如果租户上下文未设置
+     * @return current tenant ID
+     * @throws TenantNotSetException if tenant context is not set
      */
     public static String getRequired() {
         String tenantId = CURRENT_TENANT.get();
         if (tenantId == null) {
-            throw new TenantNotSetException("租户上下文未设置");
+            throw new TenantNotSetException("Tenant context not set");
         }
         return tenantId;
     }
 
     /**
-     * 清除当前租户上下文
+     * Clears current tenant context.
      * 
-     * <p><b>重要</b>：必须在请求结束时调用，避免线程复用导致的数据泄露。
-     * 推荐在 try-finally 中使用。</p>
+     * <p><b>Important</b>: Must be called at request end to avoid data leakage due to thread reuse.
+     * Recommended to use in try-finally.</p>
      */
     public static void clear() {
         String tenantId = CURRENT_TENANT.get();
         CURRENT_TENANT.remove();
         IGNORE_TENANT.remove();
         if (tenantId != null) {
-            log.debug("清除租户上下文: {}", tenantId);
+            log.debug("Cleared tenant context: {}", tenantId);
         }
     }
 
-    // ==================== 状态检查 ====================
+    // ==================== Status Checks ====================
 
     /**
-     * 检查是否已设置租户上下文
+     * Checks if tenant context is set.
      * 
-     * @return 如果已设置返回 true
+     * @return true if set
      */
     public static boolean isSet() {
         return CURRENT_TENANT.get() != null;
     }
 
     /**
-     * 检查当前租户是否为默认租户
+     * Checks if current tenant is default tenant.
      * 
-     * @return 如果是默认租户返回 true
+     * @return true if default tenant
      */
     public static boolean isDefaultTenant() {
         return DEFAULT_TENANT.equals(CURRENT_TENANT.get());
     }
 
     /**
-     * 检查当前租户是否为系统租户
+     * Checks if current tenant is system tenant.
      * 
-     * @return 如果是系统租户返回 true
+     * @return true if system tenant
      */
     public static boolean isSystemTenant() {
         return SYSTEM_TENANT.equals(CURRENT_TENANT.get());
     }
 
-    // ==================== 租户过滤控制 ====================
+    // ==================== Tenant Filter Control ====================
 
     /**
-     * 设置忽略租户过滤标志
+     * Sets ignore tenant filter flag.
      * 
-     * <p>用于系统级操作需要查询所有租户数据的场景。
-     * 设置后，数据访问层应跳过租户过滤条件。</p>
+     * <p>Used for system-level operations that need to query data across all tenants.
+     * After setting, data access layer should skip tenant filter conditions.</p>
      * 
-     * @param ignore 是否忽略租户过滤
+     * @param ignore whether to ignore tenant filter
      */
     public static void setIgnoreFilter(boolean ignore) {
         IGNORE_TENANT.set(ignore);
-        log.debug("设置忽略租户过滤: {}", ignore);
+        log.debug("Set ignore tenant filter: {}", ignore);
     }
 
     /**
-     * 检查是否应该忽略租户过滤
+     * Checks if tenant filter should be ignored.
      * 
-     * @return 如果应忽略返回 true
+     * @return true if should ignore
      */
     public static boolean shouldIgnoreFilter() {
         return Boolean.TRUE.equals(IGNORE_TENANT.get());
     }
 
-    // ==================== 执行上下文 ====================
+    // ==================== Execution Context ====================
 
     /**
-     * 在指定租户上下文中执行操作
+     * Executes operation in specified tenant context.
      * 
-     * <p>临时切换到指定租户，执行完成后自动恢复原租户上下文。
-     * 适用于需要跨租户操作的场景，如数据迁移、批量处理等。</p>
+     * <p>Temporarily switches to specified tenant, auto-restores original tenant context after execution.
+     * Suitable for cross-tenant operation scenarios, such as data migration, batch processing, etc.</p>
      * 
-     * <h4>使用示例</h4>
+     * <h4>Usage Example</h4>
      * <pre>{@code
      * TenantContext.runAs("tenant-002", () -> {
-     *     // 在 tenant-002 上下文中执行
-     *     repository.findAll();  // 只查询 tenant-002 的数据
+     *     // Execute in tenant-002 context
+     *     repository.findAll();  // Only queries tenant-002's data
      * });
-     * // 恢复原租户上下文
+     * // Restores original tenant context
      * }</pre>
      * 
-     * @param tenantId 临时租户ID
-     * @param runnable 要执行的操作
+     * @param tenantId temporary tenant ID
+     * @param runnable operation to execute
      */
     public static void runAs(String tenantId, Runnable runnable) {
         String previous = CURRENT_TENANT.get();
@@ -278,12 +278,12 @@ public final class TenantContext {
     }
 
     /**
-     * 在指定租户上下文中执行操作并返回结果
+     * Executes operation in specified tenant context and returns result.
      * 
-     * @param tenantId 临时租户ID
-     * @param supplier 要执行的操作
-     * @param <T> 返回值类型
-     * @return 操作结果
+     * @param tenantId temporary tenant ID
+     * @param supplier operation to execute
+     * @param <T> return value type
+     * @return operation result
      */
     public static <T> T callAs(String tenantId, java.util.function.Supplier<T> supplier) {
         String previous = CURRENT_TENANT.get();
@@ -300,12 +300,12 @@ public final class TenantContext {
     }
 
     /**
-     * 在忽略租户过滤的情况下执行操作
+     * Executes operation while ignoring tenant filter.
      * 
-     * <p>用于需要访问所有租户数据的系统级操作。
-     * 执行完毕后自动恢复之前的过滤状态。</p>
+     * <p>Used for system-level operations that need access to all tenant data.
+     * After execution, auto-restores previous filter state.</p>
      * 
-     * @param runnable 要执行的操作
+     * @param runnable operation to execute
      */
     public static void runWithoutFilter(Runnable runnable) {
         Boolean previous = IGNORE_TENANT.get();
@@ -318,10 +318,10 @@ public final class TenantContext {
     }
 
     /**
-     * 租户上下文未设置异常
+     * Tenant context not set exception.
      * 
-     * <p>当业务代码要求租户上下文但未设置时抛出。
-     * 通常意味着请求链路中缺少 TenantContextFilter 或 tenantId 未传播。</p>
+     * <p>Thrown when business code requires tenant context but it is not set.
+     * Usually means TenantContextFilter is missing in the request chain or tenantId was not propagated.</p>
      */
     public static class TenantNotSetException extends RuntimeException {
         public TenantNotSetException(String message) {

@@ -43,9 +43,6 @@ import com.zaxxer.hikari.HikariPoolMXBean;
  *   <li><b>pool.waiting</b>: Threads waiting for connection</li>
  * </ul>
  *
- * <p>健康指示器用于检查通过 HikariCP 的数据库连通性。当可以获取并验证数据库连接时报告 UP，
- * 否则报告 DOWN。</p>
- *
  * @author Brix Platform Team
  * @since 3.0.0
  * @see HealthIndicator
@@ -72,8 +69,6 @@ public class DatabaseHealthIndicator implements HealthIndicator {
      * <p>The health check obtains a connection from the pool and retrieves database
      * metadata to verify connectivity. Pool statistics are also included for monitoring.</p>
      *
-     * <p>通过从连接池获取连接并查询元数据来执行健康检查。连接池统计信息也包含在内用于监控。</p>
-     *
      * @return Health status with database and pool details
      */
     @Override
@@ -81,12 +76,12 @@ public class DatabaseHealthIndicator implements HealthIndicator {
         Health.Builder builder = Health.unknown();
 
         try (Connection connection = dataSource.getConnection()) {
-            // 获取数据库元数据 - Get database metadata
+            // Get database metadata
             DatabaseMetaData metaData = connection.getMetaData();
             String databaseName = metaData.getDatabaseProductName();
             String databaseVersion = metaData.getDatabaseProductVersion();
 
-            // 获取连接池统计 - Get connection pool statistics
+            // Get connection pool statistics
             HikariPoolMXBean pool = dataSource.getHikariPoolMXBean();
 
             builder.up()
@@ -95,19 +90,19 @@ public class DatabaseHealthIndicator implements HealthIndicator {
                     .withDetail("pool.name", dataSource.getPoolName());
 
             if (pool != null) {
-                // 连接池详情 - Connection pool details
+                // Connection pool details
                 builder.withDetail("pool.active", pool.getActiveConnections())
                         .withDetail("pool.idle", pool.getIdleConnections())
                         .withDetail("pool.total", pool.getTotalConnections())
                         .withDetail("pool.waiting", pool.getThreadsAwaitingConnection());
 
-                // 警告：等待线程过多 - Warning: too many waiting threads
+                // Warning: too many waiting threads
                 if (pool.getThreadsAwaitingConnection() > 0) {
                     log.warn("Database health: {} threads waiting for connection", 
                             pool.getThreadsAwaitingConnection());
                 }
 
-                // 警告：连接池接近满载 - Warning: pool near capacity
+                // Warning: pool near capacity
                 int activeRatio = pool.getActiveConnections() * 100 / dataSource.getMaximumPoolSize();
                 if (activeRatio > 80) {
                     log.warn("Database health: connection pool at {}% capacity", activeRatio);
@@ -118,7 +113,7 @@ public class DatabaseHealthIndicator implements HealthIndicator {
             return builder.build();
 
         } catch (SQLException e) {
-            // 连接失败 - Connection failed
+            // Connection failed
             log.warn("Database health check failed: {}", e.getMessage());
             return Health.down(e)
                     .withDetail("error", e.getMessage())

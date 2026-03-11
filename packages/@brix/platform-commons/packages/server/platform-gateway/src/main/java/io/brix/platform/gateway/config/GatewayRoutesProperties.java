@@ -1,20 +1,35 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 网关路由配置属性
+ * Gateway Route Configuration Properties
  * <p>
- * 支持通过配置文件自定义 Redis key 前缀等参数
+ * Supports customizing Redis key prefix and other parameters via configuration file.
  * </p>
  * 
- * <p><b>【v3.1 品牌名隔离】</b></p>
+ * <p><b>[v3.1 Brand Name Isolation]</b></p>
  * <p>
- * 将硬编码的 `shinwa:gateway:routes` 改为可配置前缀，
- * 支持不同部署环境使用不同的 Redis key 命名空间。
+ * Changed hardcoded `brix:gateway:routes` to configurable prefix,
+ * supporting different Redis key namespaces for different deployment environments.
  * </p>
  * 
- * <p><b>配置示例：</b></p>
+ * <p><b>Configuration Example:</b></p>
  * <pre>
  * brix:
  *   gateway:
@@ -32,25 +47,25 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class GatewayRoutesProperties {
 
     /**
-     * Redis Hash Key 用于存储动态路由
+     * Redis Hash Key for storing dynamic routes
      * <p>
-     * 默认值: brix:gateway:routes
+     * Default: brix:gateway:routes
      * </p>
      */
     private String keyPrefix = "brix:gateway:routes";
 
     /**
-     * Redis Pub/Sub 频道用于路由刷新事件
+     * Redis Pub/Sub channel for route refresh events
      * <p>
-     * 默认值: brix:gateway:routes:event
+     * Default: brix:gateway:routes:event
      * </p>
      */
     private String eventChannel = "brix:gateway:routes:event";
 
     /**
-     * 日志前缀标识
+     * Log prefix identifier
      * <p>
-     * 默认值: [brix]
+     * Default: [brix]
      * </p>
      */
     private String logPrefix = "[brix]";
@@ -60,54 +75,54 @@ public class GatewayRoutesProperties {
     // ========================================================================
 
     /**
-     * 获取 Redis Hash Key 前缀
+     * Get Redis Hash Key prefix
      * 
-     * @return Redis key 前缀
+     * @return Redis key prefix
      */
     public String getKeyPrefix() {
         return keyPrefix;
     }
 
     /**
-     * 设置 Redis Hash Key 前缀
+     * Set Redis Hash Key prefix
      * 
-     * @param keyPrefix Redis key 前缀
+     * @param keyPrefix Redis key prefix
      */
     public void setKeyPrefix(String keyPrefix) {
         this.keyPrefix = keyPrefix;
     }
 
     /**
-     * 获取 Redis 事件频道名
+     * Get Redis event channel name
      * 
-     * @return 事件频道名
+     * @return event channel name
      */
     public String getEventChannel() {
         return eventChannel;
     }
 
     /**
-     * 设置 Redis 事件频道名
+     * Set Redis event channel name
      * 
-     * @param eventChannel 事件频道名
+     * @param eventChannel event channel name
      */
     public void setEventChannel(String eventChannel) {
         this.eventChannel = eventChannel;
     }
 
     /**
-     * 获取日志前缀
+     * Get log prefix
      * 
-     * @return 日志前缀
+     * @return log prefix
      */
     public String getLogPrefix() {
         return logPrefix;
     }
 
     /**
-     * 设置日志前缀
+     * Set log prefix
      * 
-     * @param logPrefix 日志前缀
+     * @param logPrefix log prefix
      */
     public void setLogPrefix(String logPrefix) {
         this.logPrefix = logPrefix;

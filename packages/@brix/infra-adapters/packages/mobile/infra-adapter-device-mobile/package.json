@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-device-mobile",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix Mobile Device Capability Adapter - Camera, Location and other native capability wrappers",
   "type": "module",
   "main": "./dist/index.js",

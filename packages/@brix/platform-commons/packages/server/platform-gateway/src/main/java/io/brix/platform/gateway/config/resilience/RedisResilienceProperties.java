@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -8,17 +23,17 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * Redis 弹性配置属
+ * Redis resilienceconfigurationproperty
  * <p>
- * MVP 红线要求：Redis 显式超时配置
- * 配置 Redis 操作的超时与重试策略，确保生产级别的可靠性
+ * MVP Red Line Requirements：Redis explicittimeoutconfiguration
+ * configuration Redis operationoftimeoutwithretrystrategy，ensureproductionlevelofreliability
  * </p>
  *
- * <h3>配置项说</h3>
+ * <h3>configurationitemsay</h3>
  * <ul>
- *   <li>command-timeout: 单次 Redis 命令执行超时</li>
- *   <li>connect-timeout: Redis 连接建立超时</li>
- *   <li>max-attempts: 命令失败时的最大重试次</li>
+ *   <li>command-timeout: singletimes Redis commandexecutetimeout</li>
+ *   <li>connect-timeout: Redis connectionestablishtimeout</li>
+ *   <li>max-attempts: commandfailedtimeofmaximumretrytimes</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -29,14 +44,14 @@ import jakarta.validation.constraints.NotNull;
 public class RedisResilienceProperties {
 
     /**
-     * 是否启用 Redis 弹性配
+     * whetherenable Redis resilienceconfiguration
      */
     private boolean enabled = true;
 
     /**
-     * 命令超时（毫秒）
-     * 单次 Redis 命令的最大执行时
-     * MVP 红线：显式配置，默认 5000ms
+     * commandtimeout（ms）
+     * singletimes Redis commandofmaximumexecutetime
+     * MVP redline：explicitconfiguration，default 5000ms
      */
     @NotNull
     @Min(1000)
@@ -44,8 +59,8 @@ public class RedisResilienceProperties {
     private Integer commandTimeoutMs = 5000;
 
     /**
-     * 连接超时（毫秒）
-     * 建立 Redis 连接的最大等待时
+     * connectiontimeout（ms）
+     * establish Redis connectionofmaximumwaittime
      */
     @NotNull
     @Min(1000)
@@ -53,9 +68,9 @@ public class RedisResilienceProperties {
     private Integer connectTimeoutMs = 5000;
 
     /**
-     * 最大重试次
-     * 命令执行失败时的重试次数
-     * MVP 红线：最3 
+     * maximumretrytimes
+     * commandexecutefailedtimeofretrycount
+     * MVP redline：most3 
      */
     @NotNull
     @Min(0)
@@ -63,7 +78,7 @@ public class RedisResilienceProperties {
     private Integer maxAttempts = 3;
 
     /**
-     * 重试初始延迟（毫秒）
+     * retryinitialdelay（ms）
      */
     @NotNull
     @Min(100)
@@ -71,7 +86,7 @@ public class RedisResilienceProperties {
     private Integer retryInitialDelayMs = 200;
 
     /**
-     * 重试最大延迟（毫秒
+     * retrymaximumdelay（ms
      */
     @NotNull
     @Min(500)
@@ -79,19 +94,19 @@ public class RedisResilienceProperties {
     private Integer retryMaxDelayMs = 2000;
 
     /**
-     * 是否在连接丢失时自动重连
+     * whetheronconnectionlosttimeautomaticre-connect
      */
     private boolean autoReconnect = true;
 
     /**
-     * 连接池最小空闲连接数
+     * connectionpoolminimumidleconnectioncount
      */
     @Min(1)
     @Max(50)
     private Integer minIdleConnections = 5;
 
     /**
-     * 连接池最大连接数
+     * connectionpoolmaximumconnectioncount
      */
     @Min(10)
     @Max(200)

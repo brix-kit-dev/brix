@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability;
 
 import java.util.ArrayList;
@@ -6,7 +21,7 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 可观测性配置属- 标准v1.0
+ * Observability Configuration Properties - Standard v1.0
  *
  * @author Brix Platform Authors Platform Team
  * @version 1.0.0
@@ -14,19 +29,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "observability")
 public class ObservabilityProperties {
 
-    /** 是否启用可观测性功*/
+    /** Whether to enable observability features */
     private boolean enabled = true;
 
-    /** 链路追踪配置 */
+    /** Tracing configuration */
     private TracingProperties tracing = new TracingProperties();
 
-    /** 日志配置 */
+    /** Logging configuration */
     private LoggingProperties logging = new LoggingProperties();
 
-    /** 健康检查配*/
+    /** Health check configuration */
     private HealthProperties health = new HealthProperties();
 
-    /** 指标配置 */
+    /** Metrics configuration */
     private MetricsProperties metrics = new MetricsProperties();
 
     // ========== Getters and Setters ==========
@@ -71,23 +86,23 @@ public class ObservabilityProperties {
         this.metrics = metrics;
     }
 
-    // ========== 嵌套配置==========
+    // ========== Nested Configurations ==========
 
     /**
-     * 链路追踪配置
+     * Tracing configuration
      */
     public static class TracingProperties {
-        /** 是否启用链路追踪 */
+        /** Whether to enable tracing */
         private boolean enabled = true;
 
-        /** 需要传播的请求头列*/
+        /** List of request headers to propagate */
         private List<String> propagationHeaders = new ArrayList<>(List.of(
             "X-Trace-ID",
             "X-Request-ID",
             "X-Tenant-ID"
         ));
 
-        /** TraceId 响应头名*/
+        /** TraceId response header name */
         private String traceIdHeader = "X-Trace-ID";
 
         public boolean isEnabled() {
@@ -116,16 +131,16 @@ public class ObservabilityProperties {
     }
 
     /**
-     * 日志配置
+     * Logging configuration
      */
     public static class LoggingProperties {
-        /** 日志格式：json text */
+        /** Log format: json or text */
         private String format = "json";
 
-        /** 是否包含请求*/
+        /** Whether to include request body */
         private boolean includeRequestBody = false;
 
-        /** 最大请求体长度 */
+        /** Maximum request body length */
         private int maxBodyLength = 1024;
 
         public String getFormat() {
@@ -154,13 +169,13 @@ public class ObservabilityProperties {
     }
 
     /**
-     * 健康检查配
+     * Health check configuration
      */
     public static class HealthProperties {
-        /** Redis 健康检*/
+        /** Redis health check */
         private ComponentHealthProperties redis = new ComponentHealthProperties();
 
-        /** Kafka 健康检*/
+        /** Kafka health check */
         private ComponentHealthProperties kafka = new ComponentHealthProperties();
 
         public ComponentHealthProperties getRedis() {
@@ -181,13 +196,13 @@ public class ObservabilityProperties {
     }
 
     /**
-     * 组件健康检查配
+     * Component health check configuration
      */
     public static class ComponentHealthProperties {
-        /** 是否启用 */
+        /** Whether to enable */
         private boolean enabled = true;
 
-        /** 超时时间（毫秒） */
+        /** Timeout (milliseconds) */
         private long timeoutMs = 3000;
 
         public boolean isEnabled() {
@@ -208,10 +223,10 @@ public class ObservabilityProperties {
     }
 
     /**
-     * 指标配置
+     * Metrics configuration
      */
     public static class MetricsProperties {
-        /** 缓存指标 */
+        /** Cache metrics */
         private CacheMetricsProperties cache = new CacheMetricsProperties();
 
         public CacheMetricsProperties getCache() {
@@ -224,10 +239,10 @@ public class ObservabilityProperties {
     }
 
     /**
-     * 缓存指标配置
+     * Cache metrics configuration
      */
     public static class CacheMetricsProperties {
-        /** 是否启用缓存指标 */
+        /** Whether to enable cache metrics */
         private boolean enabled = true;
 
         public boolean isEnabled() {

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.health;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -7,13 +22,13 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 /**
- * 健康探针配置属性
+ * Health Probe Configuration Properties
  * <p>
- * 配置 Gateway 健康检查相关参数，包括 K8s 探针超时、依赖服务检查等。
- * 支持通过 application.yml 中的 gateway.health.* 配置覆盖默认值。
+ * Configures Gateway health check parameters including K8s probe timeouts, dependency service checks, etc.
+ * Supports overriding defaults via gateway.health.* configuration in application.yml.
  * </p>
  * 
- * <h3>配置示例:</h3>
+ * <h3>Configuration Example:</h3>
  * <pre>
  * gateway:
  *   health:
@@ -35,73 +50,73 @@ import jakarta.validation.constraints.Min;
 public class HealthProperties {
 
     /**
-     * 是否启用健康检查增强功能
+     * Whether to enable enhanced health check functionality
      * <p>
-     * 默认启用。禁用后将仅使用 Spring Boot Actuator 默认的健康检查。
+     * Enabled by default. When disabled, only Spring Boot Actuator's default health checks will be used.
      * </p>
      */
     private boolean enabled = true;
 
     /**
-     * 是否启用插件引擎健康检查
+     * Whether to enable Plugin Engine health check
      * <p>
-     * 启用后，Gateway 的就绪探针会依赖 Engine 的健康状态。
-     * MVP 红线要求：就绪需 Engine 健康。
+     * When enabled, Gateway's readiness probe will depend on Engine's health status.
+     * MVP Red Line Requirement: Readiness requires Engine to be healthy.
      * </p>
      */
     private boolean engineCheckEnabled = true;
 
     /**
-     * 插件引擎服务的 URL
+     * Plugin Engine service URL
      * <p>
-     * 用于健康检查时访问 Engine 的 actuator 端点。
-     * 默认：http://localhost:8085
+     * Used to access Engine's actuator endpoint for health checks.
+     * Default: http://localhost:8085
      * </p>
      */
     private String engineUrl = "http://localhost:8085";
 
     /**
-     * 插件引擎健康检查路径
+     * Plugin Engine health check path
      * <p>
-     * 默认使用 /actuator/health/liveness 进行轻量级检查。
+     * Uses /actuator/health/liveness by default for lightweight checking.
      * </p>
      */
     private String engineHealthPath = "/actuator/health/liveness";
 
     /**
-     * 插件引擎健康检查超时时间（毫秒）
+     * Plugin Engine health check timeout (milliseconds)
      * <p>
-     * 如果在此时间内未能得到响应，将认为 Engine 不健康。
-     * 默认 3000 毫秒（3秒），应小于 K8s 探针的超时配置。
+     * If no response is received within this time, Engine will be considered unhealthy.
+     * Default 3000 milliseconds (3 seconds), should be less than K8s probe timeout configuration.
      * </p>
      */
-    @Min(value = 500, message = "engine-timeout-ms 不能小于 500 毫秒")
-    @Max(value = 30000, message = "engine-timeout-ms 不能超过 30000 毫秒")
+    @Min(value = 500, message = "engine-timeout-ms cannot be less than 500 milliseconds")
+    @Max(value = 30000, message = "engine-timeout-ms cannot exceed 30000 milliseconds")
     private int engineTimeoutMs = 3000;
 
     /**
-     * 是否启用 Redis 健康检查
+     * Whether to enable Redis health check
      * <p>
-     * 默认启用。Gateway 依赖 Redis 进行动态路由，Redis 不可用时应标记为 DOWN。
+     * Enabled by default. Gateway depends on Redis for dynamic routing; should be marked DOWN when Redis is unavailable.
      * </p>
      */
     private boolean redisCheckEnabled = true;
 
     /**
-     * 健康状态缓存 TTL（秒）
+     * Health status cache TTL (seconds)
      * <p>
-     * 为避免频繁调用下游服务，健康状态会进行短暂缓存。
-     * 默认 5 秒，K8s 探针周期通常为 10 秒。
+     * To avoid frequent calls to downstream services, health status is briefly cached.
+     * Default 5 seconds, K8s probe period is typically 10 seconds.
      * </p>
      */
-    @Min(value = 1, message = "cache-ttl-seconds 不能小于 1 秒")
-    @Max(value = 60, message = "cache-ttl-seconds 不能超过 60 秒")
+    @Min(value = 1, message = "cache-ttl-seconds cannot be less than 1 second")
+    @Max(value = 60, message = "cache-ttl-seconds cannot exceed 60 seconds")
     private int cacheTtlSeconds = 5;
 
     /**
-     * 是否在详细信息中显示依赖服务状态
+     * Whether to show dependency service status in detailed information
      * <p>
-     * 默认在非生产环境显示，生产环境建议隐藏以避免泄露内部架构。
+     * Shown by default in non-production environments; recommended to hide in production to avoid exposing internal architecture.
      * </p>
      */
     private boolean showDetails = true;

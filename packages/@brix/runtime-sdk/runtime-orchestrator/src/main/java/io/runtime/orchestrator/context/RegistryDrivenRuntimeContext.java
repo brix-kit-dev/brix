@@ -24,47 +24,50 @@ import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.context.RuntimeContext;
 
 /**
- * 基于注册表驱动的运行时上下文实现
+ * Registry-driven RuntimeContext Implementation.
  *
- * <p>这是 {@link RuntimeContext} 的标准实现，所有能力通过 {@link CapabilityRegistry} 动态获取。
- * 本类从原 host-shell-standalone 的 {@code StandaloneShellContext} 和
- * host-shell-embedded 的 {@code EmbeddedShellContext} 合并而来，
- * 统一了两种 Host 模式的 RuntimeContext 实现。</p>
+ * <p>This is the standard implementation of {@link RuntimeContext}, where all capabilities
+ * are dynamically retrieved through {@link CapabilityRegistry}.
+ * This class was merged from the original {@code StandaloneShellContext} in host-shell-standalone
+ * and {@code EmbeddedShellContext} in host-shell-embedded, unifying the RuntimeContext
+ * implementation across both Host modes.</p>
  *
- * <h2>架构定位（v3.0 运行壳架构蓝图）</h2>
+ * <h2>Architecture Position (Runtime Shell Architecture)</h2>
  * <p>
- * 本类属于 <b>runtime-orchestrator</b>（编排层），实现 runtime-sdk-api（契约层）定义的
- * {@link RuntimeContext} 接口。蓝图明确要求契约层（Layer 2）仅包含纯接口定义，
- * 而实现类应位于编排层。Standalone 和 Embedded Host 共享同一个 Context 实现，
- * 通过 Host 层的 AutoConfiguration 注入不同的能力组合。
+ * This class belongs to <b>runtime-orchestrator</b> (orchestration layer), implementing
+ * the {@link RuntimeContext} interface defined in runtime-sdk-api (contract layer).
+ * The architecture requires the contract layer (Layer 2) to contain only pure interface
+ * definitions, while implementations should reside in the orchestration layer.
+ * Standalone and Embedded Hosts share the same Context implementation, with different
+ * capability combinations injected via Host layer AutoConfiguration.
  * </p>
  *
- * <h2>设计原则</h2>
+ * <h2>Design Principles</h2>
  * <ul>
- *   <li><b>注册表驱动</b>：所有能力通过 CapabilityRegistry 获取，不在 Context 中硬编码字段</li>
- *   <li><b>声明式组装</b>：能力由 Host 层的 AutoConfiguration 决定注入什么</li>
- *   <li><b>向后兼容</b>：{@link RuntimeContext} 接口的 default 方法提供快捷访问</li>
- *   <li><b>Host 无关</b>：Standalone 和 Embedded 共享同一个 Context 实现</li>
+ *   <li><b>Registry-driven</b>: All capabilities retrieved via CapabilityRegistry, no hardcoded fields in Context</li>
+ *   <li><b>Declarative Assembly</b>: Host layer AutoConfiguration determines which capabilities to inject</li>
+ *   <li><b>Backward Compatible</b>: {@link RuntimeContext} interface default methods provide convenient access</li>
+ *   <li><b>Host-agnostic</b>: Standalone and Embedded share the same Context implementation</li>
  * </ul>
  *
- * <h2>与旧实现的区别</h2>
+ * <h2>Comparison with Legacy Implementations</h2>
  * <table>
- *   <tr><th>维度</th><th>旧 EmbeddedShellContext</th><th>旧 StandaloneShellContext</th><th>本类</th></tr>
- *   <tr><td>能力获取</td><td>硬编码字段</td><td>注册表驱动</td><td>注册表驱动</td></tr>
- *   <tr><td>注册表类型</td><td>EmbeddedCapabilityRegistry（非标准）</td><td>StandaloneCapabilityRegistry</td><td>DefaultCapabilityRegistry</td></tr>
- *   <tr><td>Builder</td><td>有</td><td>无</td><td>无（注册逻辑在 Host AutoConfiguration 中）</td></tr>
+ *   <tr><th>Dimension</th><th>Legacy EmbeddedShellContext</th><th>Legacy StandaloneShellContext</th><th>This Class</th></tr>
+ *   <tr><td>Capability Access</td><td>Hardcoded fields</td><td>Registry-driven</td><td>Registry-driven</td></tr>
+ *   <tr><td>Registry Type</td><td>EmbeddedCapabilityRegistry (non-standard)</td><td>StandaloneCapabilityRegistry</td><td>DefaultCapabilityRegistry</td></tr>
+ *   <tr><td>Builder</td><td>Yes</td><td>No</td><td>No (registration logic in Host AutoConfiguration)</td></tr>
  * </table>
  *
- * <h2>使用示例</h2>
+ * <h2>Usage Example</h2>
  * <pre>{@code
- * // Host 层 AutoConfiguration 中创建
+ * // Created in Host layer AutoConfiguration
  * DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
  * registry.register(EventBusCapability.class, kafkaEventBus);
  * registry.freeze();
  *
  * RuntimeContext context = new RegistryDrivenRuntimeContext(registry, "platform", "default");
  *
- * // 插件层使用
+ * // Plugin layer usage
  * EventBusCapability eventBus = context.getEventBus();
  * context.getCapability(LockCapability.class).ifPresent(lock -> ...);
  * }</pre>
@@ -79,43 +82,43 @@ public class RegistryDrivenRuntimeContext implements RuntimeContext {
 
     private static final Logger log = LoggerFactory.getLogger(RegistryDrivenRuntimeContext.class);
 
-    /** 能力注册表（运行时只读） */
+    /** Capability registry (read-only at runtime) */
     private final CapabilityRegistry registry;
 
-    /** 模块标识符 */
+    /** Module identifier */
     private final String moduleId;
 
-    /** 租户标识符 */
+    /** Tenant identifier */
     private final String tenantId;
 
     /**
-     * 构造基于注册表驱动的运行时上下文
+     * Constructs registry-driven runtime context.
      *
-     * @param registry 能力注册表（通常已冻结）
-     * @param moduleId 模块唯一标识
-     * @param tenantId 租户标识，null 时默认为 "default"
-     * @throws NullPointerException registry 或 moduleId 为 null 时
+     * @param registry capability registry (usually frozen)
+     * @param moduleId module unique identifier
+     * @param tenantId tenant identifier, defaults to "default" if null
+     * @throws NullPointerException when registry or moduleId is null
      */
     public RegistryDrivenRuntimeContext(CapabilityRegistry registry,
                                          String moduleId,
                                          String tenantId) {
-        this.registry = Objects.requireNonNull(registry, "能力注册表不能为空");
-        this.moduleId = Objects.requireNonNull(moduleId, "moduleId 不能为空");
+        this.registry = Objects.requireNonNull(registry, "Capability registry cannot be null");
+        this.moduleId = Objects.requireNonNull(moduleId, "moduleId cannot be null");
         this.tenantId = tenantId != null ? tenantId : "default";
 
-        log.info("创建 RegistryDrivenRuntimeContext: moduleId={}, tenantId={}, capabilities={}",
+        log.info("Creating RegistryDrivenRuntimeContext: moduleId={}, tenantId={}, capabilities={}",
                 moduleId, this.tenantId, registry.size());
     }
 
-    // ==================== RuntimeContext 接口实现 ====================
+    // ==================== RuntimeContext Interface Implementation ====================
 
     /**
-     * 获取能力注册表
+     * Gets capability registry.
      *
-     * <p>通过注册表可以获取任意已注册的能力、查询元数据、检查可用性。
-     * 这是获取所有能力的核心入口。</p>
+     * <p>Through the registry, you can get any registered capability, query metadata, check availability.
+     * This is the core entry point for accessing all capabilities.</p>
      *
-     * @return 能力注册表实例
+     * @return capability registry instance
      */
     @Override
     public CapabilityRegistry getCapabilityRegistry() {
@@ -123,9 +126,9 @@ public class RegistryDrivenRuntimeContext implements RuntimeContext {
     }
 
     /**
-     * 获取租户标识符
+     * Gets tenant identifier.
      *
-     * @return 租户 ID
+     * @return tenant ID
      */
     @Override
     public String getTenantId() {
@@ -133,9 +136,9 @@ public class RegistryDrivenRuntimeContext implements RuntimeContext {
     }
 
     /**
-     * 获取模块标识符
+     * Gets module identifier.
      *
-     * @return 模块 ID
+     * @return module ID
      */
     @Override
     public String getModuleId() {

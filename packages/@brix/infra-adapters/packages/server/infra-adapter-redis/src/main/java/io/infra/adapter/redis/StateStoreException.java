@@ -16,9 +16,9 @@
 package io.infra.adapter.redis;
 
 /**
- * 状态存储异常
+ * State store exception.
  * 
- * <p>当状态存储操作失败时抛出此异常。</p>
+ * <p>Thrown when a state store operation fails.</p>
  * 
  * @author Brix Platform Authors Platform Team
  * @since 3.0.0
@@ -28,19 +28,19 @@ public class StateStoreException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 构造函数
+     * Constructor.
      * 
-     * @param message 错误消息
+     * @param message error message
      */
     public StateStoreException(String message) {
         super(message);
     }
 
     /**
-     * 带原因的构造函数
+     * Constructor with cause.
      * 
-     * @param message 错误消息
-     * @param cause   原始异常
+     * @param message error message
+     * @param cause   original exception
      */
     public StateStoreException(String message, Throwable cause) {
         super(message, cause);

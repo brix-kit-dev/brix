@@ -18,9 +18,9 @@ package io.infra.adapter.kafka.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Kafka 事件总线配置属性
+ * Kafka Event Bus Configuration Properties.
  * 
- * <p>定义 Kafka 事件总线的配置项，对应 application.yml 中的 {@code brix.infra.kafka} 前缀。</p>
+ * <p>Defines configuration items for Kafka event bus, corresponding to the {@code brix.infra.kafka} prefix in application.yml.</p>
  * 
  * <pre>{@code
  * brix:
@@ -45,40 +45,40 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class KafkaEventBusProperties {
 
     /**
-     * 是否启用 Kafka 事件总线
+     * Whether to enable Kafka event bus.
      * 
-     * <p>默认启用。设置为 false 时将不会创建 Kafka 相关 Bean</p>
+     * <p>Enabled by default. When set to false, Kafka-related Beans will not be created.</p>
      */
     private boolean enabled = true;
 
     /**
-     * Kafka Bootstrap Servers 地址
+     * Kafka Bootstrap Servers address.
      * 
-     * <p>多个地址用逗号分隔，如：localhost:9092,localhost:9093</p>
+     * <p>Multiple addresses separated by commas, e.g.: localhost:9092,localhost:9093</p>
      */
     private String bootstrapServers = "localhost:9092";
 
     /**
-     * Topic 前缀
+     * Topic prefix.
      * 
-     * <p>用于多环境隔离，如：dev-, staging-, prod-</p>
+     * <p>Used for multi-environment isolation, e.g.: dev-, staging-, prod-</p>
      */
     private String topicPrefix = "";
 
     /**
-     * 生产者配置
+     * Producer configuration.
      */
     private ProducerProperties producer = new ProducerProperties();
 
     /**
-     * 消费者配置
+     * Consumer configuration.
      */
     private ConsumerProperties consumer = new ConsumerProperties();
 
     /**
-     * Outbox 模式配置
+     * Outbox pattern configuration.
      * 
-     * <p>控制 Outbox 事件发布器的批次大小、重试策略、清理周期等参数。</p>
+     * <p>Controls Outbox event publisher's batch size, retry strategy, cleanup cycle, etc.</p>
      */
     private OutboxProperties outbox = new OutboxProperties();
 
@@ -86,7 +86,6 @@ public class KafkaEventBusProperties {
      * Health check configuration.
      *
      * <p>Controls health indicator behavior for Actuator endpoint.</p>
-     * <p>健康检查配置，控制 Actuator 端点的健康指示器行为。</p>
      */
     private HealthProperties health = new HealthProperties();
 
@@ -148,35 +147,35 @@ public class KafkaEventBusProperties {
         this.health = health;
     }
 
-    // ==================== 嵌套配置类 ====================
+    // ==================== Nested Configuration Classes ====================
 
     /**
-     * 生产者配置
+     * Producer configuration.
      */
     public static class ProducerProperties {
 
         /**
-         * 确认模式：all, 1, 0
+         * Acknowledgment mode: all, 1, 0
          */
         private String acks = "all";
 
         /**
-         * 重试次数
+         * Retry count.
          */
         private int retries = 3;
 
         /**
-         * 批量大小（字节）
+         * Batch size (bytes).
          */
         private int batchSize = 16384;
 
         /**
-         * 等待时间（毫秒）
+         * Linger time (milliseconds).
          */
         private int lingerMs = 5;
 
         /**
-         * 缓冲区大小（字节）
+         * Buffer memory size (bytes).
          */
         private int bufferMemory = 33554432;
 
@@ -223,27 +222,27 @@ public class KafkaEventBusProperties {
     }
 
     /**
-     * 消费者配置
+     * Consumer configuration.
      */
     public static class ConsumerProperties {
 
         /**
-         * 消费者组 ID
+         * Consumer group ID.
          */
         private String groupId;
 
         /**
-         * 自动偏移重置策略：earliest, latest, none
+         * Auto offset reset strategy: earliest, latest, none
          */
         private String autoOffsetReset = "earliest";
 
         /**
-         * 是否自动提交偏移
+         * Whether to enable auto commit of offsets.
          */
         private boolean enableAutoCommit = false;
 
         /**
-         * 最大拉取记录数
+         * Maximum poll records.
          */
         private int maxPollRecords = 500;
 
@@ -282,39 +281,40 @@ public class KafkaEventBusProperties {
     }
 
     /**
-     * Outbox 模式配置
+     * Outbox Pattern Configuration.
      * 
-     * <p>Outbox 模式通过数据库表暂存待发布事件，定时批量发送至 Kafka，
-     * 确保事件发布与业务数据的最终一致性。</p>
+     * <p>The Outbox pattern temporarily stores events to be published in a database table,
+     * then sends them to Kafka in scheduled batches, ensuring eventual consistency between
+     * event publishing and business data.</p>
      * 
-     * <p>配置项控制以下行为：</p>
+     * <p>Configuration items control the following behaviors:</p>
      * <ul>
-     *   <li>{@code batchSize} - 每次轮询处理的最大事件数</li>
-     *   <li>{@code maxRetryCount} - 发送失败的最大重试次数</li>
-     *   <li>{@code retentionDays} - 已完成事件的保留天数</li>
-     *   <li>{@code processIntervalMs} - Outbox 轮询间隔（毫秒）</li>
-     *   <li>{@code retryIntervalMs} - 失败事件重试间隔（毫秒）</li>
-     *   <li>{@code cleanupCron} - 已完成事件清理的 Cron 表达式</li>
+     *   <li>{@code batchSize} - Maximum number of events processed per poll</li>
+     *   <li>{@code maxRetryCount} - Maximum retry count for failed sends</li>
+     *   <li>{@code retentionDays} - Retention days for completed events</li>
+     *   <li>{@code processIntervalMs} - Outbox polling interval (milliseconds)</li>
+     *   <li>{@code retryIntervalMs} - Failed event retry interval (milliseconds)</li>
+     *   <li>{@code cleanupCron} - Cron expression for completed event cleanup</li>
      * </ul>
      */
     public static class OutboxProperties {
 
-        /** 每次处理的最大事件批次大小 */
+        /** Maximum event batch size per processing. */
         private int batchSize = 100;
 
-        /** 发送失败后的最大重试次数 */
+        /** Maximum retry count after send failure. */
         private int maxRetryCount = 5;
 
-        /** 已完成事件的保留天数（超过后自动清理） */
+        /** Retention days for completed events (auto-cleanup after expiration). */
         private int retentionDays = 7;
 
-        /** Outbox 事件处理轮询间隔（毫秒） */
+        /** Outbox event processing polling interval (milliseconds). */
         private long processIntervalMs = 1000;
 
-        /** 失败事件重试轮询间隔（毫秒） */
+        /** Failed event retry polling interval (milliseconds). */
         private long retryIntervalMs = 30000;
 
-        /** 已完成事件清理的 Cron 表达式（默认每日凌晨 3 点） */
+        /** Cron expression for completed event cleanup (default: 3 AM daily). */
         private String cleanupCron = "0 0 3 * * ?";
 
         // ==================== Getters & Setters ====================
@@ -342,13 +342,11 @@ public class KafkaEventBusProperties {
      * Health check configuration properties.
      *
      * <p>Controls the behavior of the Kafka health indicator for Spring Boot Actuator.</p>
-     * <p>健康检查配置，用于控制 Spring Boot Actuator 的 Kafka 健康指示器行为。</p>
      */
     public static class HealthProperties {
 
         /**
          * Timeout in seconds for health check operations.
-         * 健康检查操作超时时间（秒）
          */
         private int timeoutSeconds = 5;
 

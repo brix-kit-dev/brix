@@ -16,9 +16,9 @@
 package io.runtime.sdk.capability;
 
 /**
- * 配置未找到异常
+ * Configuration Not Found Exception
  * 
- * <p>当尝试获取必需配置但配置不存在时抛出此异常。</p>
+ * <p>Thrown when attempting to get a required configuration but the configuration does not exist.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -29,14 +29,14 @@ public class ConfigNotFoundException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 配置键
+     * Configuration key
      */
     private final String configKey;
 
     /**
-     * 创建配置未找到异常
+     * Creates a configuration not found exception
      * 
-     * @param message 异常消息
+     * @param message the exception message
      */
     public ConfigNotFoundException(String message) {
         super(message);
@@ -44,10 +44,10 @@ public class ConfigNotFoundException extends RuntimeException {
     }
 
     /**
-     * 创建配置未找到异常
+     * Creates a configuration not found exception
      * 
-     * @param configKey 配置键
-     * @param message   异常消息
+     * @param configKey the configuration key
+     * @param message   the exception message
      */
     public ConfigNotFoundException(String configKey, String message) {
         super(message);
@@ -55,16 +55,16 @@ public class ConfigNotFoundException extends RuntimeException {
     }
 
     /**
-     * 获取配置键
+     * Gets the configuration key
      * 
-     * @return 配置键
+     * @return the configuration key
      */
     public String getConfigKey() {
         return configKey;
     }
 
     /**
-     * 从消息中提取配置键
+     * Extracts the configuration key from the message
      */
     private static String extractKeyFromMessage(String message) {
         if (message != null && message.contains(":")) {

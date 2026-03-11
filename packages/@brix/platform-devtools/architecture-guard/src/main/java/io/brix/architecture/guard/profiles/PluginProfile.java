@@ -43,13 +43,13 @@ import io.brix.architecture.guard.rules.SecurityBoundaryRule;
  *
  * <h2>Red Lines Covered</h2>
  * <ul>
- *   <li>红线 1: 插件不得直接依赖基础设施</li>
- *   <li>红线 2: 插件不得绕过 Runtime Shell</li>
- *   <li>红线 5: 插件必须支持独立启停</li>
- *   <li>红线 8: 数据隔离（Data Ownership）</li>
- *   <li>红线 11: 无循环依赖</li>
- *   <li>红线 12: 安全边界不可绕过</li>
- *   <li>红线 13: 跨服务事件一致性（Transactional Outbox）</li>
+ *   <li>Red Line 1: Plugins must not directly depend on infrastructure</li>
+ *   <li>Red Line 2: Plugins must not bypass Runtime Shell</li>
+ *   <li>Red Line 5: Plugins must support independent start/stop</li>
+ *   <li>Red Line 8: Data isolation (Data Ownership)</li>
+ *   <li>Red Line 11: No circular dependencies</li>
+ *   <li>Red Line 12: Security boundary cannot be bypassed</li>
+ *   <li>Red Line 13: Cross-service event consistency (Transactional Outbox)</li>
  * </ul>
  *
  * <h2>Usage</h2>

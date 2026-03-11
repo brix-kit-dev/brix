@@ -38,12 +38,12 @@ import io.runtime.sdk.capability.SchedulingCapability;
 import io.runtime.sdk.capability.StateStoreCapability;
 
 /**
- * Simple 适配器自动配置
+ * Simple Adapter Auto-Configuration
  * 
- * <p>当配置 {@code brix.infra.simple.enabled=true} 时，自动装配内存实现的能力。
- * 适用于本地开发和测试场景。</p>
+ * <p>When configured with {@code brix.infra.simple.enabled=true}, automatically assembles
+ * in-memory capability implementations. Suitable for local development and testing scenarios.</p>
  * 
- * <h3>配置示例</h3>
+ * <h3>Configuration Example</h3>
  * <pre>{@code
  * brix:
  *   infra:
@@ -72,17 +72,17 @@ public class SimpleAdapterAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(SimpleAdapterAutoConfiguration.class);
 
     /**
-     * 配置内存事件总线
+     * Configures in-memory event bus
      * 
-     * @param properties 配置属性
-     * @return 事件总线能力实例
+     * @param properties Configuration properties
+     * @return Event bus capability instance
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)
     public EventBusCapability eventBusCapability(SimpleAdapterProperties properties) {
         SimpleAdapterProperties.EventBusConfig config = properties.getEventBus();
         
-        log.info("配置内存事件总线: asyncMode={}, maxHistorySize={}", 
+        log.info("Configuring in-memory event bus: asyncMode={}, maxHistorySize={}", 
             config.isAsyncMode(), config.getMaxHistorySize());
         
         return new InMemoryEventBusCapability(
@@ -92,17 +92,17 @@ public class SimpleAdapterAutoConfiguration {
     }
 
     /**
-     * 配置内存状态存储
+     * Configures in-memory state store
      * 
-     * @param properties 配置属性
-     * @return 状态存储能力实例
+     * @param properties Configuration properties
+     * @return State store capability instance
      */
     @Bean
     @ConditionalOnMissingBean(StateStoreCapability.class)
     public StateStoreCapability stateStoreCapability(SimpleAdapterProperties properties) {
         SimpleAdapterProperties.StateStoreConfig config = properties.getStateStore();
         
-        log.info("配置内存状态存储: maxSize={}, defaultTtl={}", 
+        log.info("Configuring in-memory state store: maxSize={}, defaultTtl={}", 
             config.getMaxSize(), config.getDefaultTtl());
         
         return new InMemoryStateStoreCapability(
@@ -112,44 +112,44 @@ public class SimpleAdapterAutoConfiguration {
     }
 
     /**
-     * 配置内存分布式锁
+     * Configures in-memory distributed lock
      * 
-     * @param properties 配置属性
-     * @return 锁能力实例
+     * @param properties Configuration properties
+     * @return Lock capability instance
      */
     @Bean
     @ConditionalOnMissingBean(LockCapability.class)
     public LockCapability lockCapability(SimpleAdapterProperties properties) {
         SimpleAdapterProperties.LockConfig config = properties.getLock();
         
-        log.info("配置内存分布式锁: fair={}", config.isFair());
+        log.info("Configuring in-memory distributed lock: fair={}", config.isFair());
         
         return new InMemoryLockCapability(config.isFair());
     }
 
     /**
-     * 配置内存定时任务
+     * Configures in-memory scheduled tasks
      * 
-     * @param properties 配置属性
-     * @return 调度能力实例
+     * @param properties Configuration properties
+     * @return Scheduling capability instance
      */
     @Bean
     @ConditionalOnMissingBean(SchedulingCapability.class)
     public SchedulingCapability schedulingCapability(SimpleAdapterProperties properties) {
         SimpleAdapterProperties.SchedulingConfig config = properties.getScheduling();
         
-        log.info("配置内存定时任务: poolSize={}", config.getPoolSize());
+        log.info("Configuring in-memory scheduled tasks: poolSize={}", config.getPoolSize());
         
         return new InMemorySchedulingCapability(config.getPoolSize());
     }
 
     /**
-     * 配置委托认证上下文
+     * Configures delegated authentication context
      * 
-     * <p>用于嵌入模式对接客户 SSO 系统。</p>
+     * <p>Used for embedded mode integration with customer SSO systems.</p>
      * 
-     * @param properties 配置属性
-     * @return 认证上下文能力实例
+     * @param properties Configuration properties
+     * @return Authentication context capability instance
      */
     @Bean
     @ConditionalOnMissingBean(AuthContextCapability.class)
@@ -157,7 +157,7 @@ public class SimpleAdapterAutoConfiguration {
     public AuthContextCapability delegatedAuthContextCapability(SimpleAdapterProperties properties) {
         SimpleAdapterProperties.DelegatedAuthConfig config = properties.getDelegatedAuth();
         
-        log.info("配置委托认证: validationUrl={}, cacheTtl={}", 
+        log.info("Configuring delegated authentication: validationUrl={}, cacheTtl={}", 
             config.getTokenValidationUrl(), config.getCacheTtl());
         
         DelegatedAuthConfig authConfig = new DelegatedAuthConfig();
@@ -170,16 +170,17 @@ public class SimpleAdapterAutoConfiguration {
     }
 
     /**
-     * 配置 JDK HTTP 能力
+     * Configures JDK HTTP capability
      * 
-     * <p>使用 JDK 标准 HttpClient 提供 HTTP 通信能力，适用于开发和测试场景。</p>
+     * <p>Uses JDK standard HttpClient to provide HTTP communication capability,
+     * suitable for development and testing scenarios.</p>
      * 
-     * @return HTTP 能力实例
+     * @return HTTP capability instance
      */
     @Bean
     @ConditionalOnMissingBean(HttpCapability.class)
     public HttpCapability httpCapability() {
-        log.info("配置 JDK HTTP 能力: connectTimeout=10s");
+        log.info("Configuring JDK HTTP capability: connectTimeout=10s");
         return new JdkHttpCapability();
     }
 }

@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-native-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix UI native module adapter - Local plugin loading via dynamic import (simplest mode)",
   "type": "module",
   "main": "dist/index.js",

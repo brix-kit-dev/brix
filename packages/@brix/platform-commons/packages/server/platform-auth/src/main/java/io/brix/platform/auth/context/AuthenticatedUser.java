@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.context;
 
 import java.io.Serializable;
@@ -6,9 +21,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 认证用户信息
+ * Authenticated User Information
  * <p>
- * JWT Token 解析出的用户上下文信息
+ * User context information parsed from JWT Token
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -19,37 +34,37 @@ public class AuthenticatedUser implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 用户 ID
+     * User ID
      */
     private String userId;
 
     /**
-     * 绉熸埛 ID
+     * Tenant ID
      */
     private String tenantId;
 
     /**
-     * 用户
+     * Username
      */
     private String username;
 
     /**
-     * 閭
+     * Email address
      */
     private String email;
 
     /**
-     * Token 版本号，用于强制失效
+     * Token version number, used for forced invalidation
      */
     private Long tokenVersion;
 
     /**
-     * 角色列表
+     * Role list
      */
     private List<String> roles = new ArrayList<>();
 
     /**
-     * 权限列表 (Immutable Permission ID)
+     * Permission list (Immutable Permission ID)
      */
     private List<String> permissions = new ArrayList<>();
 
@@ -111,23 +126,23 @@ public class AuthenticatedUser implements Serializable {
         this.permissions = permissions != null ? permissions : new ArrayList<>();
     }
 
-    // ========== 便捷方法 ==========
+    // ========== Convenience Methods ==========
 
     /**
-     * 检查是否拥有指定角
+     * Check if user has specified role
      *
-     * @param role 角色名称
-     * @return 是否拥有
+     * @param role Role name
+     * @return Whether the role is owned
      */
     public boolean hasRole(String role) {
         return roles != null && roles.contains(role);
     }
 
     /**
-     * 检查是否拥有任一角色
+     * Check if user has any of the specified roles
      *
-     * @param requiredRoles 角色列表
-     * @return 是否拥有任一角色
+     * @param requiredRoles Role list
+     * @return Whether any role is owned
      */
     public boolean hasAnyRole(String... requiredRoles) {
         if (roles == null || requiredRoles == null) {
@@ -142,20 +157,20 @@ public class AuthenticatedUser implements Serializable {
     }
 
     /**
-     * 检查是否拥有指定权
+     * Check if user has specified permission
      *
-     * @param permission 权限标识
-     * @return 是否拥有
+     * @param permission Permission identifier
+     * @return Whether the permission is owned
      */
     public boolean hasPermission(String permission) {
         return permissions != null && permissions.contains(permission);
     }
 
     /**
-     * 检查是否拥有任一权限
+     * Check if user has any of the specified permissions
      *
-     * @param requiredPermissions 权限列表
-     * @return 是否拥有任一权限
+     * @param requiredPermissions Permission list
+     * @return Whether any permission is owned
      */
     public boolean hasAnyPermission(String... requiredPermissions) {
         if (permissions == null || requiredPermissions == null) {
@@ -170,10 +185,10 @@ public class AuthenticatedUser implements Serializable {
     }
 
     /**
-     * 检查是否拥有所有权
+     * Check if user has all specified permissions
      *
-     * @param requiredPermissions 权限列表
-     * @return 是否拥有所有权
+     * @param requiredPermissions Permission list
+     * @return Whether all permissions are owned
      */
     public boolean hasAllPermissions(String... requiredPermissions) {
         if (permissions == null || requiredPermissions == null) {
@@ -188,7 +203,7 @@ public class AuthenticatedUser implements Serializable {
     }
 
     /**
-     * 是否为超级管理员
+     * Check if user is super admin
      */
     public boolean isSuperAdmin() {
         return hasRole("SUPER_ADMIN") || hasRole("ROLE_SUPER_ADMIN");

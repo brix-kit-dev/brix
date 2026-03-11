@@ -19,7 +19,6 @@ package io.runtime.manifest.model;
  * Static Asset Configuration.
  *
  * <p>Configures static assets contributed by a module.</p>
- * <p>【静态资源配置】配置模块贡献的静态资源。</p>
  *
  * <p>Extracted from ModuleManifest.java as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.</p>
@@ -32,13 +31,11 @@ public class AssetConfig {
 
     /**
      * Asset type.
-     * 资源类型
      */
     private String type;
 
     /**
      * Asset path.
-     * 资源路径
      */
     private String path;
 

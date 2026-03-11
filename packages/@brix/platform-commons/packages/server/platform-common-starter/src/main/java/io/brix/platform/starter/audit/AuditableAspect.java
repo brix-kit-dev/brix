@@ -1,6 +1,30 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.audit;
 
-import jakarta.servlet.http.HttpServletRequest;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -13,40 +37,37 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.time.Instant;
-import java.util.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * 增强审计切面
+ * Enhanced Audit Aspect
  * 
- * <p>v2.1 阶段4 审计日志增强实现</p>
+ * <p>v2.1 Phase 4 - Audit Logging Enhancement Implementation</p>
  * 
- * <p>功能说明</p>
- * <p>拦截标注@Auditable 注解的方法，记录详细的审计日志</p>
+ * <p>Functionality</p>
+ * <p>Intercepts methods annotated with @Auditable to record detailed audit logs.</p>
  * 
- * <p>AuditAspect 的区别：</p>
+ * <p>Difference from AuditAspect:</p>
  * <ul>
- *   <li>AuditAspect：记录所有 REST 接口的基础审计</li>
- *   <li>AuditableAspect：记录标注了 @Auditable 的方法的详细审计</li>
+ *   <li>AuditAspect: Records basic audit for all REST interfaces</li>
+ *   <li>AuditableAspect: Records detailed audit for methods annotated with @Auditable</li>
  * </ul>
  * 
- * <p>审计日志包含</p>
+ * <p>Audit Log Contains:</p>
  * <ul>
- *   <li>操作类型和资源类</li>
- *   <li>请求参数（可配置脱敏</li>
- *   <li>操作结果（成失败</li>
- *   <li>执行耗时</li>
- *   <li>用户信息和客户端信息</li>
+ *   <li>Action type and resource type</li>
+ *   <li>Request parameters (configurable masking)</li>
+ *   <li>Operation result (success/failure)</li>
+ *   <li>Execution duration</li>
+ *   <li>User information and client information</li>
  * </ul>
  * 
- * <p>配置项：</p>
+ * <p>Configuration:</p>
  * <pre>
- * shinwa:
+ * brix:
  *   audit:
  *     enhanced:
- *       enabled: true  # 是否启用增强审计
+ *       enabled: true  # Whether to enable enhanced audit
  * </pre>
  * 
  * @author Brix Platform Authors Platform Team
@@ -55,9 +76,9 @@ import java.util.*;
  */
 @Aspect
 @Component
-@Order(2)  // 在基础审计切面之后执行
+@Order(2)  // Execute after basic audit aspect
 @ConditionalOnProperty(
-    prefix = "shinwa.audit.enhanced",
+    prefix = "brix.audit.enhanced",
     name = "enabled",
     havingValue = "true",
     matchIfMissing = true
@@ -67,40 +88,40 @@ public class AuditableAspect {
     private static final Logger auditLog = LoggerFactory.getLogger("AUDIT.ENHANCED");
     private static final Logger log = LoggerFactory.getLogger(AuditableAspect.class);
     
-    /** 用户 ID 头名*/
+    /** User ID header name */
     private static final String USER_ID_HEADER = "X-User-ID";
-    /** 租户 ID 头名*/
+    /** Tenant ID header name */
     private static final String TENANT_ID_HEADER = "X-Tenant-ID";
-    /** 请求 ID 头名*/
+    /** Request ID header name */
     private static final String REQUEST_ID_HEADER = "X-Request-ID";
     
-    /** 脱敏占位*/
+    /** Masking placeholder */
     private static final String MASKED_VALUE = "****";
     
-    /** 参数值最大长*/
+    /** Maximum parameter value length */
     private static final int MAX_PARAM_VALUE_LENGTH = 200;
     
     /**
-     * 构造函数
+     * Constructor
      */
     public AuditableAspect() {
-        log.info("[AuditableAspect] 增强审计切面已启");
+        log.info("[AuditableAspect] Enhanced audit aspect initialized");
     }
     
     /**
-     * 拦截 @Auditable 注解的方
+     * Intercept methods annotated with @Auditable
      * 
-     * @param joinPoint 鍒囩偣
-     * @param auditable 审计注解
-     * @return 方法返回
-     * @throws Throwable 方法执行异常
+     * @param joinPoint Join point
+     * @param auditable Audit annotation
+     * @return Method return value
+     * @throws Throwable Method execution exception
      */
     @Around("@annotation(auditable)")
     public Object auditMethod(ProceedingJoinPoint joinPoint, Auditable auditable) throws Throwable {
         long startTime = System.currentTimeMillis();
         Instant timestamp = Instant.now();
         
-        // 提取上下文信
+        // Extract context information
         AuditContext context = buildAuditContext(joinPoint, auditable);
         
         String status = "SUCCESS";
@@ -108,7 +129,7 @@ public class AuditableAspect {
         Object result = null;
         
         try {
-            // 执行目标方法
+            // Execute target method
             result = joinPoint.proceed();
             return result;
         } catch (Exception e) {
@@ -118,14 +139,14 @@ public class AuditableAspect {
         } finally {
             long duration = System.currentTimeMillis() - startTime;
             
-            // 记录审计日志
+            // Record audit log
             logEnhancedAudit(context, status, errorMessage, duration, timestamp, 
                 auditable.recordResult() ? result : null);
         }
     }
     
     /**
-     * 构建审计上下
+     * Build audit context
      */
     private AuditContext buildAuditContext(ProceedingJoinPoint joinPoint, Auditable auditable) {
         AuditContext context = new AuditContext();
@@ -133,11 +154,11 @@ public class AuditableAspect {
         context.resource = auditable.resource();
         context.description = auditable.description();
         
-        // 提取方法信息
+        // Extract method information
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         context.methodName = signature.getDeclaringType().getSimpleName() + "." + signature.getName();
         
-        // 提取请求信息
+        // Extract request information
         ServletRequestAttributes attributes = 
             (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         
@@ -151,7 +172,7 @@ public class AuditableAspect {
             context.httpMethod = request.getMethod();
         }
         
-        // 提取参数（如果配置了记录参数
+        // Extract parameters (if configured to record parameters)
         if (auditable.recordParams()) {
             context.params = extractParams(joinPoint, auditable.sensitiveParams());
         }
@@ -160,7 +181,7 @@ public class AuditableAspect {
     }
     
     /**
-     * 提取方法参数
+     * Extract method parameters
      */
     private Map<String, String> extractParams(ProceedingJoinPoint joinPoint, String[] sensitiveParams) {
         Map<String, String> params = new LinkedHashMap<>();
@@ -175,13 +196,13 @@ public class AuditableAspect {
             String paramName = parameters[i].getName();
             Object paramValue = args[i];
             
-            // 检查是否为敏感参数
+            // Check if parameter is sensitive
             if (sensitiveSet.contains(paramName.toLowerCase())) {
                 params.put(paramName, MASKED_VALUE);
                 continue;
             }
             
-            // 转换参数
+            // Convert parameter value
             String valueStr = convertParamValue(paramValue);
             params.put(paramName, valueStr);
         }
@@ -190,7 +211,7 @@ public class AuditableAspect {
     }
     
     /**
-     * 转换参数值为字符
+     * Convert parameter value to string
      */
     private String convertParamValue(Object value) {
         if (value == null) {
@@ -212,7 +233,7 @@ public class AuditableAspect {
             str = "[" + value.getClass().getSimpleName() + "]";
         }
         
-        // 截断过长的
+        // Truncate if too long
         if (str.length() > MAX_PARAM_VALUE_LENGTH) {
             str = str.substring(0, MAX_PARAM_VALUE_LENGTH) + "...";
         }
@@ -221,7 +242,7 @@ public class AuditableAspect {
     }
     
     /**
-     * 获取客户IP
+     * Get client IP address
      */
     private String getClientIp(HttpServletRequest request) {
         String[] headers = {"X-Forwarded-For", "X-Real-IP", "Proxy-Client-IP"};
@@ -240,7 +261,7 @@ public class AuditableAspect {
     }
     
     /**
-     * 记录增强审计日志
+     * Record enhanced audit log
      */
     private void logEnhancedAudit(AuditContext context, String status, String errorMessage,
                                    long duration, Instant timestamp, Object result) {
@@ -295,7 +316,7 @@ public class AuditableAspect {
     }
     
     /**
-     * 审计上下
+     * Audit context
      */
     private static class AuditContext {
         String action;

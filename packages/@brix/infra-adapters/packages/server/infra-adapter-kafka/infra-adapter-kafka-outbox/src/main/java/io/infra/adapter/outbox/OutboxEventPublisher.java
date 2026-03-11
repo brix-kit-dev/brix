@@ -40,36 +40,36 @@ import io.infra.adapter.kafka.config.KafkaEventBusProperties;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * Outbox 模式事件发布器
+ * Outbox Pattern Event Publisher.
  *
- * <p>实现 Outbox 模式，保证事件发布的事务一致性。
- * 核心流程：</p>
+ * <p>Implements the Outbox pattern to ensure transactional consistency of event publishing.
+ * Core flow:</p>
  * <ol>
- *   <li>业务代码调用 {@link #saveForLater} 将事件保存到 Outbox 表</li>
- *   <li>定时任务 {@link #processOutbox} 读取并发送待处理事件</li>
- *   <li>发送成功后标记事件为已完成</li>
+ *   <li>Business code calls {@link #saveForLater} to save event to Outbox table</li>
+ *   <li>Scheduled task {@link #processOutbox} reads and sends pending events</li>
+ *   <li>Mark event as completed after successful send</li>
  * </ol>
  *
- * <h3>架构定位</h3>
+ * <h3>Architecture Position</h3>
  * <p>
- * 本类属于 {@code infra-adapter-outbox} 独立模块（Layer 2.5: Adapter 层）。
- * Outbox 是跨基础设施的模式（需要 DB + MQ 协同），因此从 {@code infra-adapter-kafka}
- * 中独立出来。本模块依赖 {@code infra-adapter-kafka} 以复用
- * {@link EventTopicResolver} 和 {@link KafkaEventBusProperties.OutboxProperties}。
+ * This class belongs to the {@code infra-adapter-outbox} standalone module (Layer 2.5: Adapter Layer).
+ * Outbox is a cross-infrastructure pattern (requires DB + MQ coordination), so it was separated from
+ * {@code infra-adapter-kafka}. This module depends on {@code infra-adapter-kafka} to reuse
+ * {@link EventTopicResolver} and {@link KafkaEventBusProperties.OutboxProperties}.
  * </p>
  *
- * <h3>事务保证</h3>
- * <p>Outbox 记录与业务数据在同一个数据库事务中写入，
- * 确保"业务操作成功 → 事件已记录"的一致性。</p>
+ * <h3>Transaction Guarantee</h3>
+ * <p>Outbox records are written in the same database transaction as business data,
+ * ensuring "business operation success → event recorded" consistency.</p>
  *
- * <h3>配置外部化</h3>
- * <p>所有定时任务参数均通过 {@link KafkaEventBusProperties.OutboxProperties} 外部化，
- * 可在 {@code application.yml} 中通过 {@code brix.infra.kafka.outbox.*} 前缀配置。</p>
+ * <h3>Configuration Externalization</h3>
+ * <p>All scheduled task parameters are externalized through {@link KafkaEventBusProperties.OutboxProperties},
+ * configurable in {@code application.yml} via {@code brix.infra.kafka.outbox.*} prefix.</p>
  *
- * <h3>故障恢复</h3>
+ * <h3>Failure Recovery</h3>
  * <ul>
- *   <li>发送失败的事件会自动重试（最大重试次数可配置）</li>
- *   <li>超过重试次数的事件标记为 FAILED，需人工介入</li>
+ *   <li>Failed events are automatically retried (maximum retry count configurable)</li>
+ *   <li>Events exceeding retry count are marked as FAILED, requiring manual intervention</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -79,29 +79,29 @@ public class OutboxEventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxEventPublisher.class);
 
-    /** Outbox JPA 仓储 */
+    /** Outbox JPA repository */
     private final OutboxEventRepository outboxRepository;
 
-    /** Kafka 消息模板 */
+    /** Kafka message template */
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    /** 事件 Topic 解析器（从 infra-adapter-kafka 复用） */
+    /** Event Topic resolver (reused from infra-adapter-kafka) */
     private final EventTopicResolver topicResolver;
 
-    /** JSON 序列化器 */
+    /** JSON serializer */
     private final ObjectMapper objectMapper;
 
-    /** Outbox 配置属性（通过 brix.infra.kafka.outbox.* 外部化配置） */
+    /** Outbox configuration properties (externalized via brix.infra.kafka.outbox.*) */
     private final KafkaEventBusProperties.OutboxProperties outboxConfig;
 
     /**
-     * 构造 Outbox 事件发布器
+     * Construct Outbox event publisher.
      *
-     * @param outboxRepository Outbox JPA 仓储
-     * @param kafkaTemplate    Kafka 消息模板
-     * @param topicResolver    事件 Topic 解析器
-     * @param objectMapper     JSON 序列化器
-     * @param outboxConfig     Outbox 外部化配置属性
+     * @param outboxRepository Outbox JPA repository
+     * @param kafkaTemplate    Kafka message template
+     * @param topicResolver    Event Topic resolver
+     * @param objectMapper     JSON serializer
+     * @param outboxConfig     Outbox externalized configuration properties
      */
     public OutboxEventPublisher(
             OutboxEventRepository outboxRepository,
@@ -117,97 +117,97 @@ public class OutboxEventPublisher {
     }
 
     /**
-     * 保存事件到 Outbox（用于事务性发布）
+     * Save event to Outbox (for transactional publishing).
      *
-     * <p>此方法应在业务事务中调用，确保事件记录与业务数据一起提交。</p>
+     * <p>This method should be called within business transaction to ensure event record is committed with business data.</p>
      *
-     * <h4>使用示例</h4>
+     * <h4>Usage Example</h4>
      * <pre>{@code
      * @Transactional
      * public void createReservation(ReservationCommand cmd) {
-     *     // 保存业务数据
+     *     // Save business data
      *     Reservation reservation = repository.save(new Reservation(cmd));
      *
-     *     // 保存事件到 Outbox（与业务数据同事务）
+     *     // Save event to Outbox (same transaction as business data)
      *     outboxPublisher.saveForLater(new ReservationCreatedEvent(reservation.getId()));
      * }
      * }</pre>
      *
-     * @param event 要发布的集成事件
-     * @throws EventSerializationException 如果事件序列化失败
+     * @param event the integration event to publish
+     * @throws EventSerializationException if event serialization fails
      */
     @Transactional
     public void saveForLater(IntegrationEvent event) {
-        Objects.requireNonNull(event, "事件不能为空");
+        Objects.requireNonNull(event, "Event cannot be null");
 
-        // 幂等性检查：如果事件已存在，直接返回
+        // Idempotency check: if event already exists, return directly
         if (outboxRepository.existsByEventId(event.getEventId())) {
-            log.warn("事件已存在，跳过保存: eventId={}", event.getEventId());
+            log.warn("Event already exists, skipping save: eventId={}", event.getEventId());
             return;
         }
 
         try {
-            // 序列化事件为 JSON
+            // Serialize event to JSON
             String payload = objectMapper.writeValueAsString(event);
 
-            // 通过 EventTopicResolver 解析目标 Topic
+            // Resolve target Topic via EventTopicResolver
             String topic = topicResolver.resolveIntegrationTopic(event);
 
-            // 创建 Outbox 记录（PENDING 状态）
+            // Create Outbox record (PENDING status)
             OutboxEvent outboxEvent = OutboxEvent.from(event, payload, topic);
 
-            // 保存到数据库（与业务操作在同一事务中）
+            // Save to database (same transaction as business operation)
             outboxRepository.save(outboxEvent);
 
-            log.debug("事件已保存到 Outbox: eventId={}, type={}",
+            log.debug("Event saved to Outbox: eventId={}, type={}",
                     event.getEventId(), event.getEventType());
 
         } catch (JsonProcessingException e) {
-            throw new EventSerializationException("事件序列化失败: " + event.getEventType(), e);
+            throw new EventSerializationException("Event serialization failed: " + event.getEventType(), e);
         }
     }
 
     /**
-     * 处理 Outbox 中的待发送事件
+     * Process pending events in Outbox.
      *
-     * <p>定时任务，按 {@code brix.infra.kafka.outbox.process-interval-ms} 配置的间隔执行。
-     * 默认每隔 1 秒轮询一次。</p>
+     * <p>Scheduled task, executes at interval configured by {@code brix.infra.kafka.outbox.process-interval-ms}.
+     * Default: polls every 1 second.</p>
      *
-     * <h4>处理流程</h4>
+     * <h4>Processing Flow</h4>
      * <ol>
-     *   <li>查询 PENDING 状态的事件（按创建时间升序，限制批次大小）</li>
-     *   <li>批量标记为 PROCESSING（乐观锁防止并发重复处理）</li>
-     *   <li>逐个发送到 Kafka（同步确认）</li>
-     *   <li>成功则标记 COMPLETED，失败则增加重试计数</li>
+     *   <li>Query events with PENDING status (ordered by creation time ascending, limited by batch size)</li>
+     *   <li>Batch mark as PROCESSING (optimistic lock prevents concurrent duplicate processing)</li>
+     *   <li>Send to Kafka one by one (synchronous confirmation)</li>
+     *   <li>Mark COMPLETED on success, increment retry count on failure</li>
      * </ol>
      */
     @Scheduled(fixedDelayString = "${brix.infra.kafka.outbox.process-interval-ms:1000}")
     @Transactional
     public void processOutbox() {
         int batchSize = outboxConfig.getBatchSize();
-        // 查询待处理事件
+        // Query pending events
         List<OutboxEvent> events = outboxRepository.findPendingEvents(batchSize);
 
         if (events.isEmpty()) {
             return;
         }
 
-        log.debug("开始处理 Outbox 事件，数量: {}", events.size());
+        log.debug("Starting to process Outbox events, count: {}", events.size());
 
-        // 批量标记为处理中（防止并发重复处理）
+        // Batch mark as processing (prevent concurrent duplicate processing)
         List<UUID> ids = events.stream()
                 .map(OutboxEvent::getId)
                 .collect(Collectors.toList());
         outboxRepository.markAsProcessing(ids);
 
-        // 逐个发送到 Kafka
+        // Send to Kafka one by one
         for (OutboxEvent event : events) {
             try {
                 sendToKafka(event);
                 event.markCompleted();
                 outboxRepository.save(event);
 
-                log.debug("Outbox 事件发送成功: eventId={}", event.getEventId());
+                log.debug("Outbox event sent successfully: eventId={}", event.getEventId());
 
             } catch (Exception e) {
                 handleSendFailure(event, e);
@@ -216,10 +216,10 @@ public class OutboxEventPublisher {
     }
 
     /**
-     * 处理需要重试的失败事件
+     * Process failed events that need retry.
      *
-     * <p>定时任务，按 {@code brix.infra.kafka.outbox.retry-interval-ms} 配置的间隔执行。
-     * 默认每 30 秒轮询一次。将 FAILED 状态的事件（未超过最大重试次数）重置为 PENDING。</p>
+     * <p>Scheduled task, executes at interval configured by {@code brix.infra.kafka.outbox.retry-interval-ms}.
+     * Default: polls every 30 seconds. Resets FAILED status events (not exceeding max retry count) to PENDING.</p>
      */
     @Scheduled(fixedDelayString = "${brix.infra.kafka.outbox.retry-interval-ms:30000}")
     @Transactional
@@ -232,7 +232,7 @@ public class OutboxEventPublisher {
             return;
         }
 
-        log.info("开始重试失败事件，数量: {}", events.size());
+        log.info("Starting to retry failed events, count: {}", events.size());
 
         for (OutboxEvent event : events) {
             event.incrementRetryCount();
@@ -242,10 +242,10 @@ public class OutboxEventPublisher {
     }
 
     /**
-     * 清理已完成的旧事件
+     * Clean up old completed events.
      *
-     * <p>定时任务，按 {@code brix.infra.kafka.outbox.cleanup-cron} 配置的 Cron 表达式执行。
-     * 默认每天凌晨 3 点清理超过保留天数的已完成事件，防止 Outbox 表无限膨胀。</p>
+     * <p>Scheduled task, executes according to Cron expression configured by {@code brix.infra.kafka.outbox.cleanup-cron}.
+     * Default: 3 AM daily. Cleans completed events older than retention days to prevent Outbox table from growing indefinitely.</p>
      */
     @Scheduled(cron = "${brix.infra.kafka.outbox.cleanup-cron:0 0 3 * * ?}")
     @Transactional
@@ -255,22 +255,22 @@ public class OutboxEventPublisher {
         int deleted = outboxRepository.deleteCompletedBefore(cutoff);
 
         if (deleted > 0) {
-            log.info("清理已完成的 Outbox 事件: {} 条（保留天数: {}）", deleted, retentionDays);
+            log.info("Cleaned up completed Outbox events: {} records (retention days: {})", deleted, retentionDays);
         }
     }
 
-    // ==================== 内部方法 ====================
+    // ==================== Internal Methods ====================
 
     /**
-     * 发送事件到 Kafka
+     * Send event to Kafka.
      *
-     * <p>构建包含事件元数据 Header 的 ProducerRecord，使用同步方式发送
-     * 以确保 Outbox 场景下能准确判断发送结果。</p>
+     * <p>Builds ProducerRecord with event metadata Headers, sends synchronously
+     * to accurately determine send result in Outbox scenario.</p>
      *
-     * @param event Outbox 事件实体
+     * @param event Outbox event entity
      */
     private void sendToKafka(OutboxEvent event) {
-        // 构建 Kafka 消息 Headers，携带事件元数据
+        // Build Kafka message Headers with event metadata
         RecordHeaders headers = new RecordHeaders();
         headers.add("eventId", event.getEventId().getBytes(StandardCharsets.UTF_8));
         headers.add("eventType", event.getEventType().getBytes(StandardCharsets.UTF_8));
@@ -279,7 +279,7 @@ public class OutboxEventPublisher {
             headers.add("sourceModule", event.getSourceModule().getBytes(StandardCharsets.UTF_8));
         }
 
-        // 创建 ProducerRecord（使用 routingKey 作为 Partition Key 保证有序）
+        // Create ProducerRecord (use routingKey as Partition Key to ensure ordering)
         ProducerRecord<String, String> record = new ProducerRecord<>(
                 event.getTopic(),
                 null,
@@ -288,32 +288,32 @@ public class OutboxEventPublisher {
                 headers
         );
 
-        // 同步发送（Outbox 场景需要确认发送结果）
+        // Synchronous send (Outbox scenario requires confirmation of send result)
         kafkaTemplate.send(record).join();
     }
 
     /**
-     * 处理发送失败
+     * Handle send failure.
      *
-     * <p>根据已配置的最大重试次数决定事件状态：
-     * 超过上限标记为 FAILED（需人工介入），否则重置为 PENDING 等待下次重试。</p>
+     * <p>Based on configured maximum retry count, determines event status:
+     * mark as FAILED (requires manual intervention) if limit exceeded, otherwise reset to PENDING for next retry.</p>
      *
-     * @param event 发送失败的 Outbox 事件
-     * @param e     发送异常
+     * @param event failed Outbox event
+     * @param e     send exception
      */
     private void handleSendFailure(OutboxEvent event, Exception e) {
         event.incrementRetryCount();
         int maxRetry = outboxConfig.getMaxRetryCount();
 
         if (event.getRetryCount() >= maxRetry) {
-            // 超过重试次数，标记为失败
+            // Exceeded retry count, mark as failed
             event.markFailed(e.getMessage());
-            log.error("Outbox 事件发送失败（已达最大重试次数 {}）: eventId={}, error={}",
+            log.error("Outbox event send failed (reached max retry count {}): eventId={}, error={}",
                     maxRetry, event.getEventId(), e.getMessage());
         } else {
-            // 重置为待处理，等待下次重试
+            // Reset to pending, wait for next retry
             event.resetToPending();
-            log.warn("Outbox 事件发送失败，将重试: eventId={}, retryCount={}, error={}",
+            log.warn("Outbox event send failed, will retry: eventId={}, retryCount={}, error={}",
                     event.getEventId(), event.getRetryCount(), e.getMessage());
         }
 

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.resilience;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -7,43 +22,43 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 熔断器配置属
+ * Circuit Breaker Configuration Properties
  * 
- * <p>v2.1 阶段4 熔断降级配置</p>
+ * <p>v2.1 Phase 4 Circuit Breaker Configuration</p>
  * 
- * <p>配置示例</p>
+ * <p>Configuration example</p>
  * <pre>
- * shinwa:
+ * brix:
  *   resilience:
  *     enabled: true
  *     circuit-breaker:
  *       default:
- *         failure-rate-threshold: 50      # 失败率阈值（%
- *         slow-call-rate-threshold: 100   # 慢调用率阈值（%
- *         slow-call-duration-millis: 3000 # 慢调用判定时间（毫秒
- *         sliding-window-size: 10         # 滑动窗口大小
- *         minimum-calls: 5                # 最小调用次
- *         wait-duration-open-millis: 30000 # 熔断等待时间（毫秒）
- *         permitted-calls-half-open: 3    # 半开状态允许的调用
+ *         failure-rate-threshold: 50      # Failure rate threshold (%)
+ *         slow-call-rate-threshold: 100   # Slow call rate threshold (%)
+ *         slow-call-duration-millis: 3000 # Slow call determination time (ms)
+ *         sliding-window-size: 10         # Sliding window size
+ *         minimum-calls: 5                # Minimum call count
+ *         wait-duration-open-millis: 30000 # Circuit breaker wait duration (ms)
+ *         permitted-calls-half-open: 3    # Permitted calls in half-open state
  *       fileStorage:
- *         failure-rate-threshold: 30      # 文件存储更严格的阈
- *         slow-call-duration-millis: 5000 # 文件操作允许更长时间
+ *         failure-rate-threshold: 30      # Stricter threshold for file storage
+ *         slow-call-duration-millis: 5000 # Allow longer time for file operations
  * </pre>
  * 
  * @author Brix Platform Authors Platform Team
  * @since v2.1
  */
 @Component
-@ConfigurationProperties(prefix = "shinwa.resilience")
+@ConfigurationProperties(prefix = "brix.resilience")
 public class ResilienceProperties {
     
     /**
-     * 是否启用熔断保护
+     * Whether to enable circuit breaker protection
      */
     private boolean enabled = true;
     
     /**
-     * 熔断器配置（按名称）
+     * Circuit breaker configurations (by name)
      */
     private Map<String, CircuitBreakerConfig> circuitBreaker = new HashMap<>();
     
@@ -66,7 +81,7 @@ public class ResilienceProperties {
     }
     
     /**
-     * 获取指定名称的熔断器配置，不存在则返回默认配
+     * Get circuit breaker configuration for specified name, returns default if not exists
      */
     public CircuitBreakerConfig getCircuitBreakerConfig(String name) {
         return circuitBreaker.getOrDefault(name, 
@@ -74,56 +89,56 @@ public class ResilienceProperties {
     }
     
     /**
-     * 熔断器配
+     * Circuit breaker configuration
      */
     public static class CircuitBreakerConfig {
         
         /**
-         * 失败率阈值（百分比）
-         * <p>默认0%</p>
-         * <p>当滑动窗口内失败率超过此阈值时触发熔断</p>
+         * Failure rate threshold (percentage)
+         * <p>Default: 50%</p>
+         * <p>Circuit breaker is triggered when failure rate in sliding window exceeds this threshold</p>
          */
         private int failureRateThreshold = 50;
         
         /**
-         * 慢调用率阈值（百分比）
-         * <p>默认100%（不按慢调用熔断</p>
-         * <p>当滑动窗口内慢调用率超过此阈值时触发熔断</p>
+         * Slow call rate threshold (percentage)
+         * <p>Default: 100% (no circuit break based on slow calls)</p>
+         * <p>Circuit breaker is triggered when slow call rate in sliding window exceeds this threshold</p>
          */
         private int slowCallRateThreshold = 100;
         
         /**
-         * 慢调用判定时间（毫秒
-         * <p>默认000ms (3</p>
-         * <p>响应时间超过此值的调用被视为慢调用</p>
+         * Slow call determination time (milliseconds)
+         * <p>Default: 3000ms (3s)</p>
+         * <p>Calls with response time exceeding this value are considered slow calls</p>
          */
         private long slowCallDurationMillis = 3000;
         
         /**
-         * 滑动窗口大小
-         * <p>默认0</p>
-         * <p>用于计算失败率的请求数量</p>
+         * Sliding window size
+         * <p>Default: 10</p>
+         * <p>Number of requests used to calculate failure rate</p>
          */
         private int slidingWindowSize = 10;
         
         /**
-         * 最小调用次
-         * <p>默认</p>
-         * <p>滑动窗口内至少需要此数量的调用才会计算失败率</p>
+         * Minimum call count
+         * <p>Default: 5</p>
+         * <p>Minimum number of calls in sliding window required to calculate failure rate</p>
          */
         private int minimumCalls = 5;
         
         /**
-         * 熔断状态持续时间（毫秒
-         * <p>默认0000ms (30</p>
-         * <p>熔断后等待此时间进入半开状态</p>
+         * Circuit breaker state duration (milliseconds)
+         * <p>Default: 30000ms (30s)</p>
+         * <p>Wait time before entering half-open state after circuit break</p>
          */
         private long waitDurationOpenMillis = 30000;
         
         /**
-         * 半开状态允许的调用
-         * <p>默认</p>
-         * <p>半开状态下允许的探测请求数</p>
+         * Permitted calls in half-open state
+         * <p>Default: 3</p>
+         * <p>Number of probe requests allowed in half-open state</p>
          */
         private int permittedCallsHalfOpen = 3;
         

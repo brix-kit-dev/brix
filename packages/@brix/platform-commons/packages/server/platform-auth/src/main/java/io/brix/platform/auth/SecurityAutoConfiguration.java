@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -15,25 +30,25 @@ import io.brix.platform.auth.jwt.JwtProperties;
 import io.brix.platform.auth.jwt.JwtValidator;
 
 /**
- * 安全自动配置 - 标准v1.0
+ * Security Auto Configuration - Standardization v1.0
  * <p>
- * 提供轻量级安全能力，包括
+ * Provides lightweight security capabilities including:
  * <ul>
- *   <li>JWT 公钥验证（不签发 Token，仅验证</li>
- *   <li>权限注解 (@RequirePermission, @RequireRole)</li>
- *   <li>安全上下(SecurityContextHolder)</li>
+ *   <li>JWT public key verification (does not issue Token, only verifies)</li>
+ *   <li>Permission annotations (@RequirePermission, @RequireRole)</li>
+ *   <li>Security context (SecurityContextHolder)</li>
  * </ul>
  * </p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * @RequirePermission("USER_READ")
  * @GetMapping("/{id}")
  * public ApiResponse<UserDTO> getUser(@PathVariable Long id) {
- *     // 自动检查权限，无权限抛403
+ *     // Permission check is automatic, throws 403 if unauthorized
  * }
  * 
- * // 获取当前用户
+ * // Get current user
  * AuthenticatedUser user = SecurityContextHolder.getUser();
  * }</pre>
  *

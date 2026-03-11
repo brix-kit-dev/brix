@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -7,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 日志脱敏服务单元测试
+ * Log Sanitizer Service Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
@@ -25,7 +40,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该对 Authorization 头进行脱敏")
+    @DisplayName("Should sanitize Authorization header")
     void shouldSanitizeAuthorizationHeader() {
         String headerValue = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
         
@@ -37,7 +52,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该对 X-API-Key 头进行脱敏")
+    @DisplayName("Should sanitize X-API-Key header")
     void shouldSanitizeApiKeyHeader() {
         String apiKey = "sk-1234567890abcdef1234567890abcdef";
         
@@ -48,7 +63,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该保留非敏感头原始值")
+    @DisplayName("Should keep original value for non-sensitive headers")
     void shouldKeepNonSensitiveHeaderValue() {
         String contentType = "application/json";
         
@@ -58,7 +73,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该Bearer token 进行特殊处理")
+    @DisplayName("Should handle Bearer token specially")
     void shouldHandleBearerTokenSpecially() {
         String bearerToken = "Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature";
         
@@ -70,7 +85,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该Basic auth 进行脱敏")
+    @DisplayName("Should sanitize Basic auth")
     void shouldSanitizeBasicAuth() {
         String basicAuth = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=";
         
@@ -82,7 +97,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该对文本中的密码模式进行脱敏")
+    @DisplayName("Should sanitize password patterns in text")
     void shouldSanitizePasswordPatternInText() {
         String text = "user=admin&password=secret123&token=abc";
         
@@ -94,7 +109,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该对短值进行完全掩码")
+    @DisplayName("Should fully mask short values")
     void shouldFullyMaskShortValues() {
         String shortValue = "abc";
         
@@ -107,7 +122,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("应该对长值保留首尾字符")
+    @DisplayName("Should keep prefix and suffix for long values")
     void shouldKeepPrefixAndSuffixForLongValues() {
         String longValue = "abcdefghijklmnopqrstuvwxyz";
         
@@ -119,7 +134,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("处理 null 值应该返回 null")
+    @DisplayName("Handling null value should return null")
     void shouldHandleNullValue() {
         assertNull(logSanitizer.maskValue(null));
         assertNull(logSanitizer.sanitizeHeader("Authorization", null));
@@ -127,7 +142,7 @@ class LogSanitizerTest {
     }
 
     @Test
-    @DisplayName("禁用脱敏时应该返回原始值")
+    @DisplayName("Should return original value when sanitization is disabled")
     void shouldReturnOriginalValueWhenDisabled() {
         properties.setEnabled(false);
         properties.init();

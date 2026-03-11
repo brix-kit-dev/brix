@@ -16,12 +16,12 @@
 package io.runtime.orchestrator.event;
 
 /**
- * 事件分发包
+ * Event Dispatch Package.
  * 
- * <p>本包提供事件分发功能：</p>
+ * <p>This package provides event dispatch functionality:</p>
  * <ul>
- *   <li>{@link EventDispatcher} - 事件分发器接口</li>
- *   <li>{@link DefaultEventDispatcher} - 默认实现</li>
+ *   <li>{@link EventDispatcher} - Event dispatcher interface</li>
+ *   <li>{@link DefaultEventDispatcher} - Default implementation</li>
  * </ul>
  * 
  * @since 3.0.0

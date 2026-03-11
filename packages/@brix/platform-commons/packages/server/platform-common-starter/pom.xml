@@ -24,7 +24,7 @@
   
   依赖关系：
   - 依赖 platform-common（Entity/DTO/Exception）
-  - 被 shinwa-host-assembly 组装
+  - 被 brix-host-assembly 组装
   - 插件不直接依赖此 Starter
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"

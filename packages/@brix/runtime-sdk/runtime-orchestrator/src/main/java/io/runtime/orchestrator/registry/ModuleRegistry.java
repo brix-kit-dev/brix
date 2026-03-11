@@ -22,31 +22,31 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * 模块注册表
+ * Module Registry.
  * 
- * <p>负责模块的注册、注销和查询。作为运行时所有模块的中央目录，
- * 提供模块发现和元数据管理功能。</p>
+ * <p>Responsible for module registration, unregistration, and querying. As the central directory
+ * of all modules at runtime, it provides module discovery and metadata management capabilities.</p>
  * 
- * <h3>核心职责</h3>
+ * <h3>Core Responsibilities</h3>
  * <ul>
- *   <li>维护已注册模块的清单</li>
- *   <li>提供模块查询接口</li>
- *   <li>管理模块元数据</li>
- *   <li>检测模块依赖关系</li>
+ *   <li>Maintains inventory of registered modules</li>
+ *   <li>Provides module query interface</li>
+ *   <li>Manages module metadata</li>
+ *   <li>Detects module dependencies</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
- * // 注册模块
+ * // Register module
  * registry.register(bookingModule);
  * 
- * // 查询模块
- * Optional<LifecycleCapability> module = registry.get("shinwa-app-booking");
+ * // Query module
+ * Optional<LifecycleCapability> module = registry.get("brix-app-booking");
  * 
- * // 获取所有模块
+ * // Get all modules
  * Collection<LifecycleCapability> allModules = registry.getAll();
  * 
- * // 按启动顺序获取模块
+ * // Get modules by startup order
  * List<LifecycleCapability> sorted = registry.getByStartupOrder();
  * }</pre>
  * 
@@ -56,135 +56,135 @@ import java.util.Optional;
 public interface ModuleRegistry {
 
     /**
-     * 注册模块
+     * Registers a module.
      * 
-     * <p>将模块添加到注册表中。如果已存在同 ID 模块，将抛出异常。</p>
+     * <p>Adds the module to the registry. Throws exception if module with same ID already exists.</p>
      * 
-     * @param module 要注册的模块
-     * @throws IllegalArgumentException 如果 module 为 null
-     * @throws ModuleAlreadyRegisteredException 如果模块 ID 已存在
+     * @param module the module to register
+     * @throws IllegalArgumentException if module is null
+     * @throws ModuleAlreadyRegisteredException if module ID already exists
      */
     void register(LifecycleCapability module);
 
     /**
-     * 注销模块
+     * Unregisters a module.
      * 
-     * <p>从注册表移除指定模块。如果模块正在运行，应先停止模块。</p>
+     * <p>Removes the specified module from the registry. Should stop the module first if it's running.</p>
      * 
-     * @param moduleId 模块 ID
-     * @return 如果模块存在并被移除返回 true
+     * @param moduleId module ID
+     * @return true if module existed and was removed
      */
     boolean unregister(String moduleId);
 
     /**
-     * 获取模块
+     * Gets a module.
      * 
-     * @param moduleId 模块 ID
-     * @return 模块实例，如果不存在返回回 empty
+     * @param moduleId module ID
+     * @return module instance, returns empty if not exists
      */
     Optional<LifecycleCapability> get(String moduleId);
 
     /**
-     * 获取模块（必须存在）
+     * Gets a module (must exist).
      * 
-     * @param moduleId 模块 ID
-     * @return 模块实例
-     * @throws ModuleNotFoundException 如果模块不存在
+     * @param moduleId module ID
+     * @return module instance
+     * @throws ModuleNotFoundException if module does not exist
      */
     LifecycleCapability getRequired(String moduleId);
 
     /**
-     * 获取所有已注册模块
+     * Gets all registered modules.
      * 
-     * @return 不可变的模块集合
+     * @return immutable collection of modules
      */
     Collection<LifecycleCapability> getAll();
 
     /**
-     * 按启动顺序获取模块
+     * Gets modules by startup order.
      * 
-     * <p>返回按 startupOrder 排序的模块列表，用于有序启动</p>
+     * <p>Returns module list sorted by startupOrder, for ordered startup</p>
      * 
-     * @return 排序后的模块列表
+     * @return sorted list of modules
      */
     java.util.List<LifecycleCapability> getByStartupOrder();
 
     /**
-     * 按停止顺序获取模块
+     * Gets modules by shutdown order.
      * 
-     * <p>返回按 startupOrder 倒序排列的模块列表，用于有序停止</p>
+     * <p>Returns module list in reverse startupOrder, for ordered shutdown</p>
      * 
-     * @return 排序后的模块列表
+     * @return sorted list of modules
      */
     java.util.List<LifecycleCapability> getByShutdownOrder();
 
     /**
-     * 检查模块是否已注册
+     * Checks if a module is registered.
      * 
-     * @param moduleId 模块 ID
-     * @return 如果已注册返回 true
+     * @param moduleId module ID
+     * @return true if registered
      */
     boolean contains(String moduleId);
 
     /**
-     * 获取已注册模块数量
+     * Gets the number of registered modules.
      * 
-     * @return 模块数量
+     * @return module count
      */
     int size();
 
     /**
-     * 清空注册表
+     * Clears the registry.
      * 
-     * <p>警告：此操作会移除所有已注册模块，通常仅用于测试</p>
+     * <p>Warning: This operation removes all registered modules, typically only for testing</p>
      */
     void clear();
 
     /**
-     * 获取模块的依赖模块列表
+     * Gets the dependencies of a module.
      * 
-     * @param moduleId 模块 ID
-     * @return 依赖的模块 ID 列表
+     * @param moduleId module ID
+     * @return list of dependency module IDs
      */
     java.util.List<String> getDependencies(String moduleId);
 
     /**
-     * 获取依赖指定模块的模块列表
+     * Gets modules that depend on the specified module.
      * 
-     * @param moduleId 模块 ID
-     * @return 依赖此模块的模块 ID 列表
+     * @param moduleId module ID
+     * @return list of dependent module IDs
      */
     java.util.List<String> getDependents(String moduleId);
 
     /**
-     * 验证所有模块依赖是否满足
+     * Validates that all module dependencies are satisfied.
      * 
-     * @return 验证结果
+     * @return validation result
      */
     DependencyValidationResult validateDependencies();
 
     /**
-     * 获取模块元数据
+     * Gets module metadata.
      * 
-     * @param moduleId 模块 ID
-     * @return 模块元数据
+     * @param moduleId module ID
+     * @return module metadata
      */
     Optional<ModuleMetadata> getMetadata(String moduleId);
 
     /**
-     * 按依赖关系拓扑排序获取模块
+     * Gets modules in topological order by dependencies.
      * 
-     * <p>返回按依赖关系排序的模块列表，确保被依赖的模块排在前面。
-     * 同时考虑 startupOrder 作为次要排序条件。</p>
+     * <p>Returns module list sorted by dependencies, ensuring depended modules come first.
+     * Also considers startupOrder as secondary sort criterion.</p>
      * 
-     * <h4>排序规则</h4>
+     * <h4>Sorting Rules</h4>
      * <ol>
-     *   <li>被依赖的模块优先启动</li>
-     *   <li>同级别模块按 startupOrder 升序排列</li>
+     *   <li>Depended modules start first</li>
+     *   <li>Same level modules sorted by startupOrder ascending</li>
      * </ol>
      * 
-     * @return 拓扑排序后的模块列表
-     * @throws CyclicDependencyException 如果存在循环依赖
+     * @return topologically sorted list of modules
+     * @throws CyclicDependencyException if cyclic dependency exists
      */
     java.util.List<LifecycleCapability> getByTopologicalOrder();
 }

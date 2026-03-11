@@ -1,7 +1,7 @@
-# ==============================================================================
+﻿# ==============================================================================
 # <%= displayName %> Dockerfile
 # ==============================================================================
-# 【v3.0 架构说明】
+# [v3.0 Architecture]
 # 多阶段构建镜像，利用 Spring Boot 分层 JAR 优化镜像大小和构建速度
 # 
 # @author <%= author %>
@@ -52,7 +52,7 @@ USER shinwa
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD wget -q --spider http://localhost:<%= serverPort %>/actuator/health || exit 1
 
-# 暴露端口
+# 暴露Port
 EXPOSE <%= serverPort %>
 
 # JVM 配置

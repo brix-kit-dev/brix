@@ -16,9 +16,9 @@
 package io.runtime.sdk.support;
 
 /**
- * 模块启动异常
+ * Module Startup Exception
  * 
- * <p>当模块在启动阶段（onStart）发生错误时抛出。</p>
+ * <p>Thrown when a module encounters an error during startup phase (onStart).</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -28,15 +28,15 @@ public class ModuleStartupException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 模块 ID
+     * Module ID
      */
     private final String moduleId;
 
     /**
-     * 创建模块启动异常
+     * Create module startup exception
      * 
-     * @param moduleId 模块 ID
-     * @param cause    原因异常
+     * @param moduleId module ID
+     * @param cause    cause exception
      */
     public ModuleStartupException(String moduleId, Throwable cause) {
         super("Failed to start module: " + moduleId, cause);
@@ -44,10 +44,10 @@ public class ModuleStartupException extends RuntimeException {
     }
 
     /**
-     * 创建模块启动异常
+     * Create module startup exception
      * 
-     * @param moduleId 模块 ID
-     * @param message  异常消息
+     * @param moduleId module ID
+     * @param message  exception message
      */
     public ModuleStartupException(String moduleId, String message) {
         super("Failed to start module [" + moduleId + "]: " + message);
@@ -55,9 +55,9 @@ public class ModuleStartupException extends RuntimeException {
     }
 
     /**
-     * 获取模块 ID
+     * Get module ID
      * 
-     * @return 模块 ID
+     * @return module ID
      */
     public String getModuleId() {
         return moduleId;

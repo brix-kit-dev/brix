@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability.metrics;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -13,23 +28,23 @@ import java.lang.management.MemoryMXBean;
 import java.lang.management.ThreadMXBean;
 
 /**
- * JVM 指标收集
+ * JVM metrics collector.
  * 
- * <p>v2.1 阶段4 可观测性增强</p>
+ * <p>v2.1 Phase 4 Observability Enhancement</p>
  * 
- * <p>功能说明</p>
- * <p>定期收集 JVM 相关指标，用于监控应用健康状态</p>
+ * <p>Features</p>
+ * <p>Periodically collects JVM-related metrics for monitoring application health.</p>
  * 
- * <p>收集的指标：</p>
+ * <p>Collected metrics:</p>
  * <ul>
- *   <li><b>shinwa.jvm.memory.heap.used</b>：堆内存使用</li>
- *   <li><b>shinwa.jvm.memory.heap.max</b>：堆内存最大</li>
- *   <li><b>shinwa.jvm.memory.nonheap.used</b>：非堆内存使用量</li>
- *   <li><b>shinwa.jvm.threads.count</b>：线程数</li>
- *   <li><b>shinwa.jvm.threads.peak</b>：峰值线程数</li>
+ *   <li><b>brix.jvm.memory.heap.used</b>: Heap memory usage</li>
+ *   <li><b>brix.jvm.memory.heap.max</b>: Maximum heap memory</li>
+ *   <li><b>brix.jvm.memory.nonheap.used</b>: Non-heap memory usage</li>
+ *   <li><b>brix.jvm.threads.count</b>: Thread count</li>
+ *   <li><b>brix.jvm.threads.peak</b>: Peak thread count</li>
  * </ul>
  * 
- * <p>配置项：</p>
+ * <p>Configuration:</p>
  * <pre>
  * observability:
  *   metrics:
@@ -53,77 +68,77 @@ public class JvmMetricsCollector {
     
     private static final Logger log = LoggerFactory.getLogger(JvmMetricsCollector.class);
     
-    private static final String METRIC_PREFIX = "shinwa.jvm.";
+    private static final String METRIC_PREFIX = "brix.jvm.";
     
     private final MeterRegistry meterRegistry;
     private final MemoryMXBean memoryMXBean;
     private final ThreadMXBean threadMXBean;
     
     /**
-     * 构造函数
+     * Constructor.
      */
     public JvmMetricsCollector(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
         this.memoryMXBean = ManagementFactory.getMemoryMXBean();
         this.threadMXBean = ManagementFactory.getThreadMXBean();
         
-        // 注册 Gauge 指标
+        // Register Gauge metrics
         registerGauges();
         
-        log.info("[JvmMetricsCollector] JVM 指标收集器已初始");
+        log.info("[JvmMetricsCollector] JVM metrics collector initialized");
     }
     
     /**
-     * 注册 Gauge 指标
+     * Register Gauge metrics.
      */
     private void registerGauges() {
-        // 堆内存使用量
+        // Heap memory usage
         meterRegistry.gauge(METRIC_PREFIX + "memory.heap.used", this, 
             collector -> collector.getHeapMemoryUsed());
         
-        // 堆内存最大
+        // Maximum heap memory
         meterRegistry.gauge(METRIC_PREFIX + "memory.heap.max", this, 
             collector -> collector.getHeapMemoryMax());
         
-        // 堆内存使用率
+        // Heap memory usage ratio
         meterRegistry.gauge(METRIC_PREFIX + "memory.heap.usage", this, 
             collector -> collector.getHeapMemoryUsage());
         
-        // 非堆内存使用
+        // Non-heap memory usage
         meterRegistry.gauge(METRIC_PREFIX + "memory.nonheap.used", this, 
             collector -> collector.getNonHeapMemoryUsed());
         
-        // 线程
+        // Thread count
         meterRegistry.gauge(METRIC_PREFIX + "threads.count", this, 
             collector -> collector.getThreadCount());
         
-        // 峰值线程数
+        // Peak thread count
         meterRegistry.gauge(METRIC_PREFIX + "threads.peak", this, 
             collector -> collector.getPeakThreadCount());
         
-        // 守护线程
+        // Daemon thread count
         meterRegistry.gauge(METRIC_PREFIX + "threads.daemon", this, 
             collector -> collector.getDaemonThreadCount());
     }
     
-    // ==================== 指标值获取方====================
+    // ==================== Metric Value Getters ====================
     
     /**
-     * 获取堆内存使用量（字节）
+     * Get heap memory usage (bytes).
      */
     public long getHeapMemoryUsed() {
         return memoryMXBean.getHeapMemoryUsage().getUsed();
     }
     
     /**
-     * 获取堆内存最大值（字节
+     * Get maximum heap memory (bytes).
      */
     public long getHeapMemoryMax() {
         return memoryMXBean.getHeapMemoryUsage().getMax();
     }
     
     /**
-     * 获取堆内存使用率-1
+     * Get heap memory usage ratio (0-1).
      */
     public double getHeapMemoryUsage() {
         long used = memoryMXBean.getHeapMemoryUsage().getUsed();
@@ -135,40 +150,40 @@ public class JvmMetricsCollector {
     }
     
     /**
-     * 获取非堆内存使用量（字节
+     * Get non-heap memory usage (bytes).
      */
     public long getNonHeapMemoryUsed() {
         return memoryMXBean.getNonHeapMemoryUsage().getUsed();
     }
     
     /**
-     * 获取线程
+     * Get thread count.
      */
     public int getThreadCount() {
         return threadMXBean.getThreadCount();
     }
     
     /**
-     * 获取峰值线程数
+     * Get peak thread count.
      */
     public int getPeakThreadCount() {
         return threadMXBean.getPeakThreadCount();
     }
     
     /**
-     * 获取守护线程
+     * Get daemon thread count.
      */
     public int getDaemonThreadCount() {
         return threadMXBean.getDaemonThreadCount();
     }
     
     /**
-     * 定期记录指标概况（可选，用于日志
+     * Periodically log metrics summary (optional, for logging).
      */
     @Scheduled(fixedDelayString = "${observability.metrics.jvm.log-interval-ms:60000}")
     public void logMetricsSummary() {
         if (log.isDebugEnabled()) {
-            log.debug("[JVM指标] heap={}MB/{}MB ({}%), threads={} (peak={})",
+            log.debug("[JvmMetrics] heap={}MB/{}MB ({}%), threads={} (peak={})",
                 getHeapMemoryUsed() / 1024 / 1024,
                 getHeapMemoryMax() / 1024 / 1024,
                 Math.round(getHeapMemoryUsage() * 100),

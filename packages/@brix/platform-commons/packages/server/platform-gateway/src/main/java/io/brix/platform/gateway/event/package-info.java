@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 /**
- * 网关事件定义包
+ * Gateway Event Definition Package
  * 
- * <p>定义网关模块使用的事件类型，与 module-manifest.yaml 中声明的事件对应：</p>
+ * <p>Defines event types used by the gateway module, corresponding to events declared in module-manifest.yaml:</p>
  * <ul>
- *   <li>{@link io.brix.platform.gateway.event.ModuleStartedEvent} - 模块启动事件</li>
- *   <li>{@link io.brix.platform.gateway.event.ModuleStoppedEvent} - 模块停止事件</li>
- *   <li>{@link io.brix.platform.gateway.event.RouteRefreshRequestedEvent} - 路由刷新请求事件</li>
+ *   <li>{@link io.brix.platform.gateway.event.ModuleStartedEvent} - Module started event</li>
+ *   <li>{@link io.brix.platform.gateway.event.ModuleStoppedEvent} - Module stopped event</li>
+ *   <li>{@link io.brix.platform.gateway.event.RouteRefreshRequestedEvent} - Route refresh request event</li>
  * </ul>
  * 
- * <h3>事件流转</h3>
- * <p>EventBusCapability 实现会将外部事件（如 Kafka 消息）转换为这些事件类，
- * 并通过 Spring ApplicationEventPublisher 发布，使得 EventDrivenRouteRefresher
- * 可以通过 @EventListener 接收。</p>
+ * <h3>Event Flow</h3>
+ * <p>EventBusCapability implementations convert external events (e.g., Kafka messages) to these event classes
+ * and publish them via Spring ApplicationEventPublisher, allowing EventDrivenRouteRefresher
+ * to receive them via @EventListener.</p>
  * 
- * <h3>与改造清单的对应</h3>
- * <p>对应《v3.0-代码改造清单.md》中 3.4 节网关改造方案</p>
+ * <h3>Mapping to Refactoring Checklist</h3>
+ * <p>Corresponds to Section 3.4 Gateway Refactoring Plan in v3.0-Code-Refactoring-Checklist.md</p>
  * 
  * @since 3.0.0
  */

@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/platform-router-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Platform Internal Router Service - Wraps react-router-dom, not exposed to plugins",
   "type": "module",
   "main": "dist/index.js",
@@ -25,12 +25,12 @@
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
-  "dependencies": {
-    "react-router-dom": "^6.21.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
+    "@brix/shared-runtime-web": "^1.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

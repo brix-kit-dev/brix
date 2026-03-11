@@ -1,12 +1,12 @@
-/**
- * <%= classPrefix %> 详情页面
+﻿/**
+ * <%= classPrefix %> Detail Page
  * 
- * @module @shinwa/<%= name %>-web
+ * @module @brix/<%= name %>-web
  * @generated <%= date %>
  * 
- * 功能说明：
- * - 展示 <%= displayName %> 详情信息
- * - 支持编辑和返回列表
+ * Features:
+ * - Display <%= displayName %> detail information
+ * - Support edit and return to list
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -31,7 +31,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 /**
- * 详情字段组件
+ * Detail Field Component
  */
 interface DetailFieldProps {
   label: string;
@@ -48,77 +48,77 @@ const DetailField: React.FC<DetailFieldProps> = ({ label, value }) => (
 );
 
 /**
- * <%= displayName %> 详情页面组件
+ * <%= displayName %> Detail Page Component
  */
 export default function <%= classPrefix %>Detail(): React.ReactElement {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   
-  // 状态管理
+  // State management
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 加载详情数据
+  // Load detail data
   const fetchDetail = useCallback(async () => {
     if (!id) return;
     
     setLoading(true);
     setError(null);
     try {
-      // TODO: 替换为实际的 API 调用
+      // TODO: Replace with actual API call
       // const response = await api.get<%= classPrefix %>Detail(id);
       // setData(response.data);
       
-      // 模拟数据
+      // Mock data
       await new Promise(resolve => setTimeout(resolve, 500));
       setData({
         id,
-        name: '<%= displayName %> 示例',
-        description: '这是一个示例描述',
+        name: '<%= displayName %> Sample',
+        description: 'This is a sample description',
         status: 'ACTIVE',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载详情失败');
+      setError(err instanceof Error ? err.message : 'Failed to load details');
     } finally {
       setLoading(false);
     }
   }, [id]);
 
-  // 首次加载
+  // Initial load
   useEffect(() => {
     fetchDetail();
   }, [fetchDetail]);
 
-  // 返回列表
+  // Return to list
   const handleBack = () => {
     navigate('/<%= name.replace('plugin-', '') %>');
   };
 
-  // 编辑
+  // Edit
   const handleEdit = () => {
     navigate(`/<%= name.replace('plugin-', '') %>/${id}/edit`);
   };
 
-  // 删除确认
+  // Delete confirmation
   const handleDelete = async () => {
-    if (!window.confirm(t('common.deleteConfirm', '确定要删除吗？'))) {
+    if (!window.confirm(t('common.deleteConfirm', '确定要Delete吗？'))) {
       return;
     }
     
     try {
-      // TODO: 替换为实际的 API 调用
+      // TODO: Replace with actual API call
       // await api.delete<%= classPrefix %>(id);
       navigate('/<%= name.replace('plugin-', '') %>');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除失败');
+      setError(err instanceof Error ? err.message : 'Failed to delete');
     }
   };
 
-  // 加载中状态
+  // Loading state
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -127,7 +127,7 @@ export default function <%= classPrefix %>Detail(): React.ReactElement {
     );
   }
 
-  // 错误状态
+  // Error state
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
@@ -142,7 +142,7 @@ export default function <%= classPrefix %>Detail(): React.ReactElement {
     );
   }
 
-  // 数据不存在
+  // Data not found
   if (!data) {
     return (
       <Box sx={{ p: 3 }}>
@@ -155,11 +155,11 @@ export default function <%= classPrefix %>Detail(): React.ReactElement {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* 页面标题和操作栏 */}
+      {/* Page title and action bar */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <Button startIcon={<ArrowBack />} onClick={handleBack}>
-            {t('common.back', '返回')}
+            {t('common.back', 'Back')}
           </Button>
           <Typography variant="h5" component="h1">
             {t('<%= name.replace('plugin-', '') %>.detail.title', '<%= displayName %>详情')}
@@ -167,10 +167,10 @@ export default function <%= classPrefix %>Detail(): React.ReactElement {
         </Stack>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<Edit />} onClick={handleEdit}>
-            {t('common.edit', '编辑')}
+            {t('common.edit', 'Edit')}
           </Button>
           <Button variant="outlined" color="error" startIcon={<Delete />} onClick={handleDelete}>
-            {t('common.delete', '删除')}
+            {t('common.delete', 'Delete')}
           </Button>
         </Stack>
       </Stack>
@@ -191,13 +191,13 @@ export default function <%= classPrefix %>Detail(): React.ReactElement {
           </Grid>
           <Grid item xs={12} md={6}>
             <DetailField 
-              label={t('<%= name.replace('plugin-', '') %>.detail.name', '名称')} 
+              label={t('<%= name.replace('plugin-', '') %>.detail.name', 'Name')} 
               value={data.name} 
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <DetailField 
-              label={t('<%= name.replace('plugin-', '') %>.detail.status', '状态')} 
+              label={t('<%= name.replace('plugin-', '') %>.detail.status', 'Status')} 
               value={
                 <Chip 
                   label={data.status} 
@@ -209,19 +209,19 @@ export default function <%= classPrefix %>Detail(): React.ReactElement {
           </Grid>
           <Grid item xs={12}>
             <DetailField 
-              label={t('<%= name.replace('plugin-', '') %>.detail.description', '描述')} 
+              label={t('<%= name.replace('plugin-', '') %>.detail.description', 'Description')} 
               value={data.description} 
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <DetailField 
-              label={t('<%= name.replace('plugin-', '') %>.detail.createdAt', '创建时间')} 
+              label={t('<%= name.replace('plugin-', '') %>.detail.createdAt', 'Created at')} 
               value={new Date(data.createdAt).toLocaleString()} 
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <DetailField 
-              label={t('<%= name.replace('plugin-', '') %>.detail.updatedAt', '更新时间')} 
+              label={t('<%= name.replace('plugin-', '') %>.detail.updatedAt', 'Updated at')} 
               value={new Date(data.updatedAt).toLocaleString()} 
             />
           </Grid>

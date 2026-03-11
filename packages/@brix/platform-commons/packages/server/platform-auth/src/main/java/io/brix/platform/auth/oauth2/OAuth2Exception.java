@@ -1,14 +1,29 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.oauth2;
 
 /**
- * OAuth2 认证异常
+ * OAuth2 Authentication Exception
  * <p>
- * 用于 OAuth2 登录流程中的各种异常情况
+ * Used for various exception scenarios in OAuth2 login flow:
  * <ul>
- *   <li>无效state 参数</li>
- *   <li>Token 交换失败</li>
- *   <li>用户信息获取失败</li>
- *   <li>用户绑定失败</li>
+ *   <li>Invalid state parameter</li>
+ *   <li>Token exchange failure</li>
+ *   <li>User info retrieval failure</li>
+ *   <li>User binding failure</li>
  * </ul>
  * </p>
  *
@@ -19,14 +34,14 @@ package io.brix.platform.auth.oauth2;
 public class OAuth2Exception extends RuntimeException {
 
     /**
-     * 错误
+     * Error code
      */
     private final String errorCode;
 
     /**
-     * 创建 OAuth2 异常
+     * Create OAuth2 exception
      *
-     * @param message 错误消息
+     * @param message Error message
      */
     public OAuth2Exception(String message) {
         super(message);
@@ -34,10 +49,10 @@ public class OAuth2Exception extends RuntimeException {
     }
 
     /**
-     * 创建 OAuth2 异常
+     * Create OAuth2 exception
      *
-     * @param message   错误消息
-     * @param errorCode 错误
+     * @param message   Error message
+     * @param errorCode Error code
      */
     public OAuth2Exception(String message, String errorCode) {
         super(message);
@@ -45,10 +60,10 @@ public class OAuth2Exception extends RuntimeException {
     }
 
     /**
-     * 创建 OAuth2 异常
+     * Create OAuth2 exception
      *
-     * @param message 错误消息
-     * @param cause   原始异常
+     * @param message Error message
+     * @param cause   Original exception
      */
     public OAuth2Exception(String message, Throwable cause) {
         super(message, cause);
@@ -56,46 +71,46 @@ public class OAuth2Exception extends RuntimeException {
     }
 
     /**
-     * 获取错误
+     * Get error code
      *
-     * @return 错误
+     * @return Error code
      */
     public String getErrorCode() {
         return errorCode;
     }
 
     /**
-     * 无效state 参数
+     * Invalid state parameter
      */
     public static OAuth2Exception invalidState() {
-        return new OAuth2Exception("无效state 参数，可能存CSRF 攻击", "INVALID_STATE");
+        return new OAuth2Exception("Invalid state parameter, possible CSRF attack", "INVALID_STATE");
     }
 
     /**
-     * Token 交换失败
+     * Token exchange failed
      */
     public static OAuth2Exception tokenExchangeFailed(String reason) {
-        return new OAuth2Exception("Token 交换失败: " + reason, "TOKEN_EXCHANGE_FAILED");
+        return new OAuth2Exception("Token exchange failed: " + reason, "TOKEN_EXCHANGE_FAILED");
     }
 
     /**
-     * 用户信息获取失败
+     * User info retrieval failed
      */
     public static OAuth2Exception userInfoFailed(String reason) {
-        return new OAuth2Exception("获取用户信息失败: " + reason, "USER_INFO_FAILED");
+        return new OAuth2Exception("Failed to get user info: " + reason, "USER_INFO_FAILED");
     }
 
     /**
-     * 提供商未启用
+     * Provider not enabled
      */
     public static OAuth2Exception providerNotEnabled(String provider) {
-        return new OAuth2Exception("不支持的登录方式: " + provider, "PROVIDER_NOT_ENABLED");
+        return new OAuth2Exception("Unsupported login method: " + provider, "PROVIDER_NOT_ENABLED");
     }
 
     /**
-     * 用户绑定失败
+     * User binding failed
      */
     public static OAuth2Exception bindingFailed(String reason) {
-        return new OAuth2Exception("用户绑定失败: " + reason, "BINDING_FAILED");
+        return new OAuth2Exception("User binding failed: " + reason, "BINDING_FAILED");
     }
 }

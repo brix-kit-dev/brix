@@ -26,7 +26,6 @@ import io.runtime.manifest.model.ModuleManifest;
  *
  * <p>Responsible for loading module manifest files from different sources.
  * Supports file system, classpath, and input stream loading.</p>
- * <p>负责从不同来源加载模块清单文件。支持文件系统、类路径和输入流加载。</p>
  *
  * <h3>Supported Formats</h3>
  * <ul>
@@ -57,7 +56,6 @@ public interface ManifestLoader {
 
     /**
      * Default manifest file names.
-     * 默认 manifest 文件名列表
      */
     List<String> DEFAULT_MANIFEST_NAMES = List.of(
         "module.manifest.yaml",

@@ -45,25 +45,26 @@ import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.context.RuntimeContext;
 
 /**
- * 能力扫描与组装自动配置
+ * Auto-configuration for capability scanning and assembly.
  *
- * <h2>架构定位（v3.0.4 架构红线修复）</h2>
+ * <h2>Architecture Position</h2>
  * <p>
- * 本类从 host-shell-standalone 的 {@code StandaloneShellAutoConfiguration} 和
- * host-shell-embedded 的 {@code EmbeddedShellAutoConfiguration} 中提取出的公共能力扫描逻辑。
- * 遵循 <b>Host 极薄化</b> 原则：Host 层只负责组合配置和 Import，不包含业务逻辑。
+ * This class extracts common capability scanning logic from host-shell-standalone's
+ * {@code StandaloneShellAutoConfiguration} and host-shell-embedded's 
+ * {@code EmbeddedShellAutoConfiguration}. Follows the <b>Ultra-Thin Host</b> principle:
+ * Host layer only handles assembly configuration and Import, containing no business logic.
  * </p>
  *
- * <h2>核心职责</h2>
+ * <h2>Core Responsibilities</h2>
  * <ul>
- *   <li><b>能力自动发现</b>：扫描所有带有 {@link Capability @Capability} 注解的 Bean</li>
- *   <li><b>能力注册</b>：将发现的能力注册到 {@link CapabilityRegistry}</li>
- *   <li><b>能力过滤</b>：根据配置过滤禁用的能力</li>
- *   <li><b>必需能力验证</b>：启动时验证必需能力是否已注册</li>
- *   <li><b>RuntimeContext 创建</b>：组装 {@link RegistryDrivenRuntimeContext}</li>
+ *   <li><b>Auto-discovery</b>: Scans all beans annotated with {@link Capability @Capability}</li>
+ *   <li><b>Registration</b>: Registers discovered capabilities to {@link CapabilityRegistry}</li>
+ *   <li><b>Filtering</b>: Filters out disabled capabilities based on configuration</li>
+ *   <li><b>Validation</b>: Verifies required capabilities are registered at startup</li>
+ *   <li><b>RuntimeContext creation</b>: Assembles {@link RegistryDrivenRuntimeContext}</li>
  * </ul>
  *
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   capability:
@@ -75,7 +76,7 @@ import io.runtime.sdk.context.RuntimeContext;
  *       - io.runtime.sdk.capability.ResilienceCapability
  * }</pre>
  *
- * <h2>Host 层使用方式</h2>
+ * <h2>Host Layer Usage</h2>
  * <pre>{@code
  * @AutoConfiguration
  * @Import(CapabilityAutoConfiguration.class)
@@ -107,153 +108,154 @@ public class CapabilityAutoConfiguration {
     private final CapabilityProperties properties;
 
     /**
-     * 构造能力自动配置
+     * Constructs capability auto-configuration.
      *
-     * @param properties 能力配置属性
+     * @param properties capability configuration properties
      */
     public CapabilityAutoConfiguration(CapabilityProperties properties) {
         this.properties = properties;
-        log.info("初始化 CapabilityAutoConfiguration: autoDiscovery={}, validateOnStartup={}",
+        log.info("Initializing CapabilityAutoConfiguration: autoDiscovery={}, validateOnStartup={}",
                 properties.isAutoDiscovery(), properties.isValidateOnStartup());
     }
 
     /**
-     * 创建能力注册表 Bean
+     * Creates the capability registry bean.
      *
-     * <p>扫描所有带有 @Capability 注解的 Bean，根据配置过滤和注册能力。</p>
+     * <p>Scans all beans annotated with @Capability, filters and registers capabilities based on configuration.</p>
      *
-     * <h3>扫描流程</h3>
+     * <h3>Scanning Process</h3>
      * <ol>
-     *   <li>获取所有带有 @Capability 注解的 Bean</li>
-     *   <li>过滤掉 disabled 列表中的能力</li>
-     *   <li>注册到 DefaultCapabilityRegistry</li>
-     *   <li>通过类型匹配补充注册 required/optional 列表中的能力</li>
-     *   <li>验证必需能力是否全部注册</li>
-     *   <li>冻结注册表</li>
+     *   <li>Retrieves all beans annotated with @Capability</li>
+     *   <li>Filters out capabilities in the disabled list</li>
+     *   <li>Registers to DefaultCapabilityRegistry</li>
+     *   <li>Supplements registration for capabilities in required/optional lists via type matching</li>
+     *   <li>Validates all required capabilities are registered</li>
+     *   <li>Freezes the registry</li>
      * </ol>
      *
-     * @param applicationContext Spring 应用上下文
-     * @param observabilityCapabilities 可观测性能力提供者（用于强制实例化）
-     * @return 能力注册表
+     * @param applicationContext Spring application context
+     * @param observabilityCapabilities observability capability provider (for forced instantiation)
+     * @return capability registry
      */
     @Bean
     @ConditionalOnMissingBean(CapabilityRegistry.class)
     public CapabilityRegistry capabilityRegistry(
             ApplicationContext applicationContext,
             ObjectProvider<List<ObservabilityCapability>> observabilityCapabilities) {
-        log.info("创建能力注册表...");
+        log.info("Creating capability registry...");
 
-        // 强制实例化所有 ObservabilityCapability beans，确保它们在扫描前已被创建
+        // Force instantiation of all ObservabilityCapability beans to ensure they are created before scanning
         List<ObservabilityCapability> obsCapabilities = observabilityCapabilities.getIfAvailable();
         if (obsCapabilities != null && !obsCapabilities.isEmpty()) {
-            log.debug("已强制实例化 {} 个 ObservabilityCapability Bean", obsCapabilities.size());
+            log.debug("Force instantiated {} ObservabilityCapability beans", obsCapabilities.size());
         }
 
         DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
         Set<String> disabledCapabilities = new HashSet<>(properties.getDisabled());
 
-        // 自动发现并注册带有 @Capability 注解的 Bean
+        // Auto-discover and register beans annotated with @Capability
         if (properties.isAutoDiscovery()) {
             scanAndRegisterAnnotatedCapabilities(applicationContext, registry, disabledCapabilities);
         }
 
-        // 通过类型匹配注册 required/optional 列表中的能力
+        // Register capabilities in required/optional lists via type matching
         registerCapabilitiesByType(applicationContext, registry, disabledCapabilities);
 
-        // 验证必需能力是否全部注册
+        // Validate all required capabilities are registered
         if (properties.isValidateOnStartup()) {
             validateRequiredCapabilities(registry);
         }
 
-        // 冻结注册表，防止运行时篡改
+        // Freeze registry to prevent runtime tampering
         registry.freeze();
-        log.info("能力注册表已冻结，共注册 {} 个能力", registry.getAllDescriptors().size());
+        log.info("Capability registry frozen, {} capabilities registered", registry.getAllDescriptors().size());
 
         return registry;
     }
 
     /**
-     * 创建模块注册表 Bean
+     * Creates the module registry bean.
      *
-     * <p>扫描所有实现 {@link io.runtime.sdk.capability.LifecycleCapability} 的 Bean，
-     * 自动注册到 {@link ModuleRegistry}。这是插件动态发现的基础。</p>
+     * <p>Scans all beans implementing {@link io.runtime.sdk.capability.LifecycleCapability},
+     * auto-registers them to {@link ModuleRegistry}. This is the foundation for plugin dynamic discovery.</p>
      *
-     * @param applicationContext Spring 应用上下文
-     * @return 模块注册表
+     * @param applicationContext Spring application context
+     * @return module registry
      */
     @Bean
     @ConditionalOnMissingBean(ModuleRegistry.class)
     public ModuleRegistry moduleRegistry(ApplicationContext applicationContext) {
-        log.info("创建模块注册表...");
+        log.info("Creating module registry...");
 
         DefaultModuleRegistry registry = new DefaultModuleRegistry();
 
-        // 扫描所有 LifecycleCapability Bean 并注册
+        // Scan and register all LifecycleCapability beans
         Map<String, io.runtime.sdk.capability.LifecycleCapability> modules =
                 applicationContext.getBeansOfType(io.runtime.sdk.capability.LifecycleCapability.class);
 
-        log.info("发现 {} 个 LifecycleCapability 模块", modules.size());
+        log.info("Discovered {} LifecycleCapability modules", modules.size());
 
         for (io.runtime.sdk.capability.LifecycleCapability module : modules.values()) {
             registry.register(module);
-            log.debug("注册模块: {}", module.getMetadata().getModuleId());
+            log.debug("Registered module: {}", module.getMetadata().getModuleId());
         }
 
-        log.info("模块注册表创建完成，共注册 {} 个模块", registry.size());
+        log.info("Module registry created, {} modules registered", registry.size());
         return registry;
     }
 
     /**
-     * 创建模块生命周期管理器 Bean
+     * Creates the module lifecycle manager bean.
      *
-     * <p>【v3.1.0 新增】负责管理所有模块的生命周期，包括初始化、启动、健康检查和停止。
-     * 遵循 v3.0.4 蓝图 LifecycleCapability 规范，实现完整的插件生命周期管理。</p>
+     * <p>[v3.1.0 New] Manages lifecycle for all modules including initialization, startup,
+     * health checks, and shutdown. Follows LifecycleCapability specification for complete
+     * plugin lifecycle management.</p>
      *
-     * <h3>生命周期阶段</h3>
+     * <h3>Lifecycle Phases</h3>
      * <ol>
-     *   <li>INIT - 初始化阶段（能力验证、依赖检查）</li>
-     *   <li>START - 启动阶段（按依赖顺序启动）</li>
-     *   <li>RUNNING - 运行阶段（定期健康检查）</li>
-     *   <li>STOP - 停止阶段（按逆序优雅停止）</li>
-     * </ol>
+ *   <li>INIT - Initialization phase (capability validation, dependency checks)</li>
+ *   <li>START - Startup phase (start in dependency order)</li>
+ *   <li>RUNNING - Running phase (periodic health checks)</li>
+ *   <li>STOP - Shutdown phase (graceful stop in reverse order)</li>
+ * </ol>
      *
-     * @param moduleRegistry 模块注册表
-     * @param runtimeContext 运行时上下文（用于构建上下文工厂）
-     * @return 模块生命周期管理器
+     * @param moduleRegistry module registry
+     * @param runtimeContext runtime context (for building context factory)
+     * @return module lifecycle manager
      */
     @Bean
     @ConditionalOnMissingBean(ModuleLifecycleManager.class)
     public ModuleLifecycleManager moduleLifecycleManager(ModuleRegistry moduleRegistry, RuntimeContext runtimeContext) {
-        log.info("创建模块生命周期管理器...");
+        log.info("Creating module lifecycle manager...");
 
-        // 创建基于 RuntimeContext 的上下文工厂
+        // Create context factory based on RuntimeContext
         DefaultModuleLifecycleManager.RuntimeContextFactory contextFactory = moduleId -> {
-            // 对于每个模块，创建独立的运行时上下文
-            // 在实际场景中，可以为每个模块创建隔离的上下文
+            // For each module, create an independent runtime context
+            // In actual scenarios, isolated contexts can be created for each module
             return runtimeContext;
         };
 
         DefaultModuleLifecycleManager lifecycleManager = new DefaultModuleLifecycleManager(
                 moduleRegistry, contextFactory);
 
-        log.info("模块生命周期管理器创建完成，准备管理 {} 个模块的生命周期", moduleRegistry.size());
+        log.info("Module lifecycle manager created, ready to manage {} module lifecycles", moduleRegistry.size());
         return lifecycleManager;
     }
 
     /**
-     * 创建 RuntimeContext Bean
+     * Creates the RuntimeContext bean.
      *
-     * <p>使用统一的 {@link RegistryDrivenRuntimeContext} 实现，
-     * 所有能力访问均通过 {@link CapabilityRegistry} 委托。</p>
+     * <p>Uses the unified {@link RegistryDrivenRuntimeContext} implementation,
+     * all capability access is delegated through {@link CapabilityRegistry}.</p>
      *
-     * @param capabilityRegistry 能力注册表
-     * @return 运行时上下文
+     * @param capabilityRegistry capability registry
+     * @return runtime context
      */
     @Bean
     @Primary
     @ConditionalOnMissingBean(RuntimeContext.class)
     public RuntimeContext runtimeContext(CapabilityRegistry capabilityRegistry) {
-        log.info("创建 RegistryDrivenRuntimeContext: moduleId={}, tenantId={}",
+        log.info("Creating RegistryDrivenRuntimeContext: moduleId={}, tenantId={}",
                 properties.getModuleId(), properties.getTenantId());
 
         RegistryDrivenRuntimeContext context = new RegistryDrivenRuntimeContext(
@@ -262,19 +264,19 @@ public class CapabilityAutoConfiguration {
                 properties.getTenantId()
         );
 
-        log.info("RegistryDrivenRuntimeContext 创建完成: {}", context);
+        log.info("RegistryDrivenRuntimeContext created: {}", context);
         return context;
     }
 
     /**
-     * 创建 RegistryDrivenRuntimeContext 类型的 Bean（向后兼容）
+     * Creates the RegistryDrivenRuntimeContext typed bean (for backward compatibility).
      *
-     * <p>某些场景可能需要直接注入 {@link RegistryDrivenRuntimeContext} 类型，
-     * 本方法提供类型安全的转换。</p>
+     * <p>Some scenarios may require direct injection of {@link RegistryDrivenRuntimeContext} type,
+     * this method provides type-safe conversion.</p>
      *
-     * @param runtimeContext 运行时上下文
-     * @return RegistryDrivenRuntimeContext 实例
-     * @throws IllegalStateException 如果 runtimeContext 不是 RegistryDrivenRuntimeContext 类型
+     * @param runtimeContext runtime context
+     * @return RegistryDrivenRuntimeContext instance
+     * @throws IllegalStateException if runtimeContext is not of RegistryDrivenRuntimeContext type
      */
     @Bean
     @ConditionalOnMissingBean(RegistryDrivenRuntimeContext.class)
@@ -282,23 +284,23 @@ public class CapabilityAutoConfiguration {
         if (runtimeContext instanceof RegistryDrivenRuntimeContext registryDriven) {
             return registryDriven;
         }
-        throw new IllegalStateException("RuntimeContext 不是 RegistryDrivenRuntimeContext 类型");
+        throw new IllegalStateException("RuntimeContext is not of RegistryDrivenRuntimeContext type");
     }
 
-    // ==================== 私有辅助方法 ====================
+    // ==================== Private Helper Methods ====================
 
     /**
-     * 扫描并注册带有 @Capability 注解的 Bean
+     * Scans and registers beans annotated with @Capability.
      *
-     * @param ctx Spring 应用上下文
-     * @param registry 能力注册表
-     * @param disabledCapabilities 禁用的能力类型名称集合
+     * @param ctx Spring application context
+     * @param registry capability registry
+     * @param disabledCapabilities set of disabled capability type names
      */
     private void scanAndRegisterAnnotatedCapabilities(ApplicationContext ctx,
                                                        DefaultCapabilityRegistry registry,
                                                        Set<String> disabledCapabilities) {
         Map<String, Object> capabilityBeans = ctx.getBeansWithAnnotation(Capability.class);
-        log.info("发现 {} 个带有 @Capability 注解的 Bean", capabilityBeans.size());
+        log.info("Found {} beans annotated with @Capability", capabilityBeans.size());
 
         for (Map.Entry<String, Object> entry : capabilityBeans.entrySet()) {
             Object bean = entry.getValue();
@@ -308,29 +310,29 @@ public class CapabilityAutoConfiguration {
                 CapabilityDescriptor descriptor = CapabilityDescriptor.fromAnnotation(annotation, bean.getClass());
                 String typeName = descriptor.getType().getName();
 
-                // 检查是否被禁用
+                // Check if disabled
                 if (disabledCapabilities.contains(typeName)) {
-                    log.info("跳过禁用的能力: {}", typeName);
+                    log.info("Skipping disabled capability: {}", typeName);
                     continue;
                 }
 
                 @SuppressWarnings("unchecked")
                 Class<Object> capabilityType = (Class<Object>) descriptor.getType();
                 registry.register(capabilityType, bean, descriptor);
-                log.debug("注册能力: {} -> {}", typeName, bean.getClass().getSimpleName());
+                log.debug("Registered capability: {} -> {}", typeName, bean.getClass().getSimpleName());
             }
         }
     }
 
     /**
-     * 通过类型匹配注册能力
+     * Registers capabilities via type matching.
      *
-     * <p>遍历 required 和 optional 列表中的能力类型，
-     * 如果尚未注册且存在对应的 Bean，则进行注册。</p>
+     * <p>Iterates through capability types in required and optional lists,
+     * registers them if not yet registered and corresponding beans exist.</p>
      *
-     * @param ctx Spring 应用上下文
-     * @param registry 能力注册表
-     * @param disabledCapabilities 禁用的能力类型名称集合
+     * @param ctx Spring application context
+     * @param registry capability registry
+     * @param disabledCapabilities set of disabled capability type names
      */
     private void registerCapabilitiesByType(ApplicationContext ctx,
                                              DefaultCapabilityRegistry registry,
@@ -347,34 +349,34 @@ public class CapabilityAutoConfiguration {
             try {
                 Class<?> capabilityType = Class.forName(typeName);
 
-                // 如果已注册，跳过
+                // Skip if already registered
                 if (registry.isAvailable(capabilityType)) {
                     continue;
                 }
 
-                // 尝试从 Spring 上下文获取 Bean
+                // Try to get bean from Spring context
                 Map<String, ?> beans = ctx.getBeansOfType(capabilityType);
                 if (!beans.isEmpty()) {
                     Object bean = beans.values().iterator().next();
                     @SuppressWarnings("unchecked")
                     Class<Object> type = (Class<Object>) capabilityType;
                     registry.registerIfAbsent(type, bean);
-                    log.debug("通过类型匹配注册能力: {} -> {}", typeName, bean.getClass().getSimpleName());
+                    log.debug("Registered capability via type matching: {} -> {}", typeName, bean.getClass().getSimpleName());
                 }
             } catch (ClassNotFoundException e) {
-                log.warn("能力类型未找到: {}", typeName);
+                log.warn("Capability type not found: {}", typeName);
             }
         }
     }
 
     /**
-     * 验证必需能力是否全部注册
+     * Validates that all required capabilities are registered.
      *
-     * <p>遍历 required 列表，检查每个能力是否已注册。
-     * 如果有必需能力未注册，抛出 {@link IllegalStateException}。</p>
+     * <p>Iterates through required list, checks if each capability is registered.
+     * Throws {@link IllegalStateException} if any required capability is not registered.</p>
      *
-     * @param registry 能力注册表
-     * @throws IllegalStateException 如果有必需能力未注册
+     * @param registry capability registry
+     * @throws IllegalStateException if any required capability is not registered
      */
     private void validateRequiredCapabilities(DefaultCapabilityRegistry registry) {
         for (String typeName : properties.getRequired()) {
@@ -382,14 +384,14 @@ public class CapabilityAutoConfiguration {
                 Class<?> capabilityType = Class.forName(typeName);
                 if (!registry.isAvailable(capabilityType)) {
                     throw new IllegalStateException(
-                            "必需能力未注册: " + typeName +
-                                    "。请确保提供该能力的适配器已添加到依赖中，" +
-                                    "或在配置中将其移至 optional 列表。");
+                            "Required capability not registered: " + typeName +
+                                    ". Please ensure the adapter providing this capability is added to dependencies, " +
+                                    "or move it to the optional list in configuration.");
                 }
             } catch (ClassNotFoundException e) {
-                log.warn("必需能力类型未找到（可能是配置错误）: {}", typeName);
+                log.warn("Required capability type not found (possible configuration error): {}", typeName);
             }
         }
-        log.info("必需能力验证通过");
+        log.info("Required capabilities validation passed");
     }
 }

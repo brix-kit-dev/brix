@@ -18,7 +18,7 @@
 
     <artifactId>platform-common</artifactId>
     <name>platform-common</name>
-    <description>Shinwa 平台通用能力模块（包含 TenantContext、OutboxWriter、公共异常等）</description>
+    <description>Brix 平台通用能力模块（包含 TenantContext、OutboxWriter、公共异常等）</description>
 
     <dependencies>
         <!-- Spring Boot Web -->

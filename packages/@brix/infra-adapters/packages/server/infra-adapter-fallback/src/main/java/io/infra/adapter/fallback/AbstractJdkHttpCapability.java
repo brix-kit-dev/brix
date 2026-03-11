@@ -30,38 +30,40 @@ import io.runtime.sdk.capability.HttpCapability;
 import io.runtime.sdk.capability.HttpCapabilityException;
 
 /**
- * 基于 JDK HttpClient 的 HTTP 能力抽象基类
+ * Abstract base class for HTTP capability based on JDK HttpClient.
  * 
- * <p>提供基于 Java 标准库 {@link java.net.http.HttpClient} 的 HTTP 通信能力公共实现。
- * 子类可以通过继承本类快速实现 {@link HttpCapability} 接口。</p>
+ * <p>Provides common HTTP communication implementation based on the Java standard library
+ * {@link java.net.http.HttpClient}. Subclasses can quickly implement the {@link HttpCapability}
+ * interface by extending this class.</p>
  * 
- * <h3>架构说明</h3>
+ * <h3>Architecture Overview</h3>
  * <p>
- * 本类属于 {@code infra-adapter-fallback} 模块（Layer 2.5: Adapter 层），
- * 是 HTTP 能力实现的公共基类。以下类继承自本类：
+ * This class belongs to the {@code infra-adapter-fallback} module (Layer 2.5: Adapter Layer),
+ * serving as the common base class for HTTP capability implementations. The following classes
+ * extend this class:
  * <ul>
- *   <li>{@code FallbackHttpCapability} — infra-adapter-fallback 模块中的 Fallback 实现</li>
- *   <li>{@code JdkHttpCapability} — infra-adapter-simple 模块中的简单实现</li>
+ *   <li>{@code FallbackHttpCapability} — Fallback implementation in infra-adapter-fallback module</li>
+ *   <li>{@code JdkHttpCapability} — Simple implementation in infra-adapter-simple module</li>
  * </ul>
  * </p>
  * 
- * <h3>技术特性</h3>
+ * <h3>Technical Features</h3>
  * <ul>
- *   <li><b>零外部依赖</b> — 仅使用 JDK 11+ 标准库 {@link java.net.http.HttpClient}</li>
- *   <li><b>HTTP/2 支持</b> — 自动协商协议版本（HTTP/1.1 或 HTTP/2）</li>
- *   <li><b>可配置超时</b> — 支持连接超时和请求超时配置</li>
- *   <li><b>线程安全</b> — {@link HttpClient} 实例线程安全，可安全共享</li>
+ *   <li><b>Zero External Dependencies</b> — Uses only JDK 11+ standard library {@link java.net.http.HttpClient}</li>
+ *   <li><b>HTTP/2 Support</b> — Automatic protocol version negotiation (HTTP/1.1 or HTTP/2)</li>
+ *   <li><b>Configurable Timeouts</b> — Supports connection timeout and request timeout configuration</li>
+ *   <li><b>Thread-Safe</b> — {@link HttpClient} instance is thread-safe and can be safely shared</li>
  * </ul>
  * 
- * <h3>超时配置说明</h3>
+ * <h3>Timeout Configuration</h3>
  * <ul>
- *   <li><b>连接超时（connectTimeout）</b>：建立 TCP 连接的最大等待时间，默认 10 秒</li>
- *   <li><b>请求超时（requestTimeout）</b>：单次 HTTP 请求的最大等待时间，默认 30 秒</li>
+ *   <li><b>Connection Timeout (connectTimeout)</b>: Maximum wait time for establishing TCP connection, default 10 seconds</li>
+ *   <li><b>Request Timeout (requestTimeout)</b>: Maximum wait time for a single HTTP request, default 30 seconds</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Examples</h3>
  * <pre>{@code
- * // 继承方式
+ * // Inheritance approach
  * @Capability(type = HttpCapability.class, name = "my-http")
  * public class MyHttpCapability extends AbstractJdkHttpCapability {
  *     public MyHttpCapability() {
@@ -69,7 +71,7 @@ import io.runtime.sdk.capability.HttpCapabilityException;
  *     }
  * }
  * 
- * // 直接使用
+ * // Direct usage
  * HttpCapability http = new FallbackHttpCapability();
  * HttpResult result = http.get("https://api.example.com/users", 
  *     Map.of("Authorization", "Bearer token"));
@@ -85,73 +87,77 @@ import io.runtime.sdk.capability.HttpCapabilityException;
 public abstract class AbstractJdkHttpCapability implements HttpCapability {
 
     /**
-     * 日志记录器
+     * Logger instance.
      * 
-     * <p>使用子类的类名作为日志名称，便于区分不同实现的日志输出。</p>
+     * <p>Uses the subclass name as the logger name to distinguish log output
+     * from different implementations.</p>
      */
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
     /**
-     * JDK HttpClient 实例
+     * JDK HttpClient instance.
      * 
-     * <p>HttpClient 是线程安全的，可以在多个线程间安全共享。
-     * 此实例在构造时创建，生命周期与 Capability 实例相同。</p>
+     * <p>HttpClient is thread-safe and can be safely shared across multiple threads.
+     * This instance is created during construction and has the same lifecycle as the
+     * Capability instance.</p>
      */
     protected final HttpClient httpClient;
 
     /**
-     * 请求超时时间
+     * Request timeout duration.
      * 
-     * <p>用于设置单次 HTTP 请求的最大等待时间。
-     * 注意：这不同于连接超时，请求超时包含连接建立后的数据传输时间。</p>
+     * <p>Used to set the maximum wait time for a single HTTP request.
+     * Note: This differs from connection timeout; request timeout includes
+     * data transfer time after the connection is established.</p>
      */
     protected final Duration requestTimeout;
 
     /**
-     * 使用指定配置创建实例
+     * Creates an instance with specified configuration.
      * 
-     * <p>配置说明：
+     * <p>Configuration details:
      * <ul>
-     *   <li>连接超时：建立 TCP 连接的最大等待时间</li>
-     *   <li>请求超时：单次 HTTP 请求的最大等待时间</li>
+     *   <li>Connection timeout: Maximum wait time for establishing TCP connection</li>
+     *   <li>Request timeout: Maximum wait time for a single HTTP request</li>
      * </ul>
      * </p>
      * 
-     * @param connectTimeoutSeconds 连接超时秒数（建立 TCP 连接的最大等待时间）
-     * @param requestTimeoutSeconds 请求超时秒数（单次 HTTP 请求的最大等待时间）
+     * @param connectTimeoutSeconds Connection timeout in seconds (maximum wait time for TCP connection)
+     * @param requestTimeoutSeconds Request timeout in seconds (maximum wait time for HTTP request)
      */
     protected AbstractJdkHttpCapability(int connectTimeoutSeconds, int requestTimeoutSeconds) {
-        // 创建 HttpClient 实例，配置连接超时
-        // HttpClient 使用建造者模式，支持链式配置
+        // Create HttpClient instance with connection timeout configuration
+        // HttpClient uses builder pattern for fluent configuration
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(connectTimeoutSeconds))
                 .build();
         this.requestTimeout = Duration.ofSeconds(requestTimeoutSeconds);
         
-        log.info("[{}] 初始化完成: connectTimeout={}s, requestTimeout={}s",
+        log.info("[{}] Initialization complete: connectTimeout={}s, requestTimeout={}s",
                 getClass().getSimpleName(), connectTimeoutSeconds, requestTimeoutSeconds);
     }
 
     /**
-     * 使用默认超时创建实例
+     * Creates an instance with default timeouts.
      * 
-     * <p>使用推荐的默认超时值：连接 10 秒，请求 30 秒。
-     * 这些值适合大多数业务场景，避免长时间等待导致的资源占用。</p>
+     * <p>Uses recommended default timeout values: 10 seconds for connection, 30 seconds for request.
+     * These values are suitable for most business scenarios and prevent resource occupation
+     * due to prolonged waiting.</p>
      */
     protected AbstractJdkHttpCapability() {
         this(10, 30);
     }
 
     /**
-     * 执行 HTTP GET 请求
+     * Executes an HTTP GET request.
      * 
-     * <p>发送 HTTP GET 请求到指定 URL，并返回响应结果。
-     * GET 请求用于获取资源，是幂等操作。</p>
+     * <p>Sends an HTTP GET request to the specified URL and returns the response.
+     * GET requests are used to retrieve resources and are idempotent operations.</p>
      * 
-     * @param url 请求 URL（必须是完整的 HTTP/HTTPS URL）
-     * @param headers 请求头（可以为 null）
-     * @return HTTP 响应结果，包含状态码、响应体和响应头
-     * @throws HttpCapabilityException 当请求失败时抛出
+     * @param url Request URL (must be a complete HTTP/HTTPS URL)
+     * @param headers Request headers (can be null)
+     * @return HTTP response result containing status code, response body, and headers
+     * @throws HttpCapabilityException When the request fails
      */
     @Override
     public HttpResult get(String url, Map<String, String> headers) {
@@ -164,16 +170,16 @@ public abstract class AbstractJdkHttpCapability implements HttpCapability {
     }
 
     /**
-     * 执行 HTTP POST 请求
+     * Executes an HTTP POST request.
      * 
-     * <p>发送 HTTP POST 请求到指定 URL，包含请求体。
-     * POST 请求用于创建资源，不是幂等操作。</p>
+     * <p>Sends an HTTP POST request to the specified URL with a request body.
+     * POST requests are used to create resources and are not idempotent operations.</p>
      * 
-     * @param url 请求 URL
-     * @param body 请求体（可以为 null，将发送空 body）
-     * @param headers 请求头（可以为 null，建议至少设置 Content-Type）
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 当请求失败时抛出
+     * @param url Request URL
+     * @param body Request body (can be null, will send empty body)
+     * @param headers Request headers (can be null, recommend setting Content-Type at minimum)
+     * @return HTTP response result
+     * @throws HttpCapabilityException When the request fails
      */
     @Override
     public HttpResult post(String url, String body, Map<String, String> headers) {
@@ -186,16 +192,16 @@ public abstract class AbstractJdkHttpCapability implements HttpCapability {
     }
 
     /**
-     * 执行 HTTP PUT 请求
+     * Executes an HTTP PUT request.
      * 
-     * <p>发送 HTTP PUT 请求到指定 URL，包含请求体。
-     * PUT 请求用于更新资源，是幂等操作。</p>
+     * <p>Sends an HTTP PUT request to the specified URL with a request body.
+     * PUT requests are used to update resources and are idempotent operations.</p>
      * 
-     * @param url 请求 URL
-     * @param body 请求体（可以为 null）
-     * @param headers 请求头
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 当请求失败时抛出
+     * @param url Request URL
+     * @param body Request body (can be null)
+     * @param headers Request headers
+     * @return HTTP response result
+     * @throws HttpCapabilityException When the request fails
      */
     @Override
     public HttpResult put(String url, String body, Map<String, String> headers) {
@@ -208,15 +214,15 @@ public abstract class AbstractJdkHttpCapability implements HttpCapability {
     }
 
     /**
-     * 执行 HTTP DELETE 请求
+     * Executes an HTTP DELETE request.
      * 
-     * <p>发送 HTTP DELETE 请求到指定 URL。
-     * DELETE 请求用于删除资源，是幂等操作。</p>
+     * <p>Sends an HTTP DELETE request to the specified URL.
+     * DELETE requests are used to remove resources and are idempotent operations.</p>
      * 
-     * @param url 请求 URL
-     * @param headers 请求头
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 当请求失败时抛出
+     * @param url Request URL
+     * @param headers Request headers
+     * @return HTTP response result
+     * @throws HttpCapabilityException When the request fails
      */
     @Override
     public HttpResult delete(String url, Map<String, String> headers) {
@@ -228,62 +234,62 @@ public abstract class AbstractJdkHttpCapability implements HttpCapability {
         return execute(builder.build());
     }
 
-    // ==================== 内部方法 ====================
+    // ==================== Internal Methods ====================
 
     /**
-     * 执行 HTTP 请求并返回结果
+     * Executes an HTTP request and returns the result.
      * 
-     * <p>统一的请求执行方法，处理：
+     * <p>Unified request execution method that handles:
      * <ul>
-     *   <li>发送请求并等待响应</li>
-     *   <li>处理中断异常（恢复中断状态）</li>
-     *   <li>将异常转换为 {@link HttpCapabilityException}</li>
-     *   <li>记录请求日志（DEBUG 级别）</li>
+     *   <li>Sending the request and waiting for response</li>
+     *   <li>Handling interrupt exceptions (restoring interrupt status)</li>
+     *   <li>Converting exceptions to {@link HttpCapabilityException}</li>
+     *   <li>Logging requests (DEBUG level)</li>
      * </ul>
      * </p>
      * 
-     * @param request 构建好的 HTTP 请求
-     * @return HTTP 响应结果
-     * @throws HttpCapabilityException 当请求失败时抛出
+     * @param request The constructed HTTP request
+     * @return HTTP response result
+     * @throws HttpCapabilityException When the request fails
      */
     protected HttpResult execute(HttpRequest request) {
         try {
-            // 记录请求日志（DEBUG 级别，避免生产环境日志过多）
+            // Log request at DEBUG level to avoid excessive logging in production
             log.debug("[HTTP] {} {}", request.method(), request.uri());
             
-            // 发送同步请求，使用 String 作为响应体处理器
+            // Send synchronous request using String as response body handler
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            // 提取响应头（转换为不可变 Map）
+            // Extract response headers (converted to immutable Map)
             Map<String, List<String>> responseHeaders = response.headers().map();
             
-            // 记录响应日志
+            // Log response
             log.debug("[HTTP] {} {} -> {}", request.method(), request.uri(), response.statusCode());
 
-            // 返回包装后的结果
+            // Return wrapped result
             return new HttpResult(response.statusCode(), response.body(), responseHeaders);
             
         } catch (InterruptedException e) {
-            // 【关键】处理中断异常：必须恢复中断状态
-            // 参考：Java Concurrency in Practice, Chapter 7
+            // CRITICAL: Handle interrupt exception - must restore interrupt status
+            // Reference: Java Concurrency in Practice, Chapter 7
             Thread.currentThread().interrupt();
-            throw new HttpCapabilityException("HTTP 请求被中断: " + request.uri(), e);
+            throw new HttpCapabilityException("HTTP request interrupted: " + request.uri(), e);
             
         } catch (Exception e) {
-            // 将所有其他异常包装为 HttpCapabilityException
+            // Wrap all other exceptions as HttpCapabilityException
             throw new HttpCapabilityException(
-                    "HTTP 请求失败: " + request.method() + " " + request.uri() + " - " + e.getMessage(), e);
+                    "HTTP request failed: " + request.method() + " " + request.uri() + " - " + e.getMessage(), e);
         }
     }
 
     /**
-     * 应用请求头到 HttpRequest.Builder
+     * Applies request headers to HttpRequest.Builder.
      * 
-     * <p>将 Map 形式的请求头逐一添加到请求构建器中。
-     * 如果 headers 为 null，则不做任何操作。</p>
+     * <p>Adds Map-formatted request headers one by one to the request builder.
+     * If headers is null, no operation is performed.</p>
      * 
-     * @param builder 请求构建器
-     * @param headers 请求头 Map（可以为 null）
+     * @param builder Request builder
+     * @param headers Request headers Map (can be null)
      */
     protected void applyHeaders(HttpRequest.Builder builder, Map<String, String> headers) {
         if (headers != null) {
@@ -292,17 +298,17 @@ public abstract class AbstractJdkHttpCapability implements HttpCapability {
     }
 
     /**
-     * 创建请求体发布器
+     * Creates a request body publisher.
      * 
-     * <p>根据 body 是否为 null，返回相应的 BodyPublisher：
+     * <p>Returns the appropriate BodyPublisher based on whether body is null:
      * <ul>
-     *   <li>body 非 null：返回字符串发布器</li>
-     *   <li>body 为 null：返回空发布器</li>
+     *   <li>body is not null: returns string publisher</li>
+     *   <li>body is null: returns empty publisher</li>
      * </ul>
      * </p>
      * 
-     * @param body 请求体字符串（可以为 null）
-     * @return 对应的 BodyPublisher
+     * @param body Request body string (can be null)
+     * @return Corresponding BodyPublisher
      */
     protected HttpRequest.BodyPublisher bodyPublisher(String body) {
         return body != null

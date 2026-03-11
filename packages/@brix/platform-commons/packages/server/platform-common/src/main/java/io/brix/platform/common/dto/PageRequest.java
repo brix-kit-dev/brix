@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.common.dto;
 
 import jakarta.validation.constraints.Max;
@@ -8,26 +23,28 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * <p>统一分页入参对象，封装页码、大小与排序字段，使控制层无需重复解析参数。</p>
- * <p>默认页码从 1 开始，未显式指定时将采用文档中推荐的最小分页配置。</p>
+ * <p>Unified pagination request object, encapsulating page number, size, and sort fields,
+ * eliminating the need for controllers to repeatedly parse parameters.</p>
+ * <p>Default page number starts from 1. When not explicitly specified,
+ * the minimum pagination configuration recommended in the documentation is used.</p>
  */
 public final class PageRequest implements Serializable {
     @Serial
     private static final long serialVersionUID = -5355081423527869775L;
 
-    @NotNull(message = "页码不能为空")
-    @Min(value = 1, message = "页码从 1 开始")
+    @NotNull(message = "Page number cannot be null")
+    @Min(value = 1, message = "Page number starts from 1")
     private Integer page = 1;
 
-    @NotNull(message = "分页大小不能为空")
-    @Min(value = 1, message = "分页大小至少为 1")
-    @Max(value = 200, message = "分页大小不得超过 200")
+    @NotNull(message = "Page size cannot be null")
+    @Min(value = 1, message = "Page size must be at least 1")
+    @Max(value = 200, message = "Page size cannot exceed 200")
     private Integer size = 20;
 
-    @NotBlank(message = "排序字段不能为空")
+    @NotBlank(message = "Sort field cannot be empty")
     private String sortBy = "id";
 
-    @NotNull(message = "排序方式不能为空")
+    @NotNull(message = "Sort direction cannot be null")
     private SortDirection direction = SortDirection.DESC;
 
     public PageRequest() {
@@ -73,16 +90,16 @@ public final class PageRequest implements Serializable {
     }
 
     /**
-     * 计算分页偏移量，供数据访问层统一引用，避免重复计算。
+     * Calculate pagination offset for data access layer, avoiding repeated calculations.
      *
-     * @return offset 数值
+     * @return offset value
      */
     public int offset() {
         return (Math.max(1, page) - 1) * Math.max(1, size);
     }
 
     /**
-     * 排序方向枚举，严格限定为 ASC/DESC，避免魔法字符串。
+     * Sort direction enum, strictly limited to ASC/DESC to avoid magic strings.
      */
     public enum SortDirection {
         ASC,

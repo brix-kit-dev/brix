@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import java.util.ArrayList;
@@ -12,7 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * API Key 认证配置属性单元测试
+ * API Key Authentication Configuration Properties Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
@@ -27,7 +42,7 @@ class ApiKeyAuthPropertiesTest {
     }
 
     @Test
-    @DisplayName("有效配置应该通过验证")
+    @DisplayName("Valid configuration should pass validation")
     void shouldPassValidationWithValidConfig() {
         ApiKeyAuthProperties.ApiKeyEntry entry = new ApiKeyAuthProperties.ApiKeyEntry();
         entry.setName("test-key");
@@ -40,7 +55,7 @@ class ApiKeyAuthPropertiesTest {
     }
 
     @Test
-    @DisplayName("空 Key 列表启用认证时应该抛出异常")
+    @DisplayName("Empty Key list with auth enabled should throw exception")
     void shouldThrowExceptionWhenEnabledWithNoKeys() {
         properties.setEnabled(true);
         properties.setKeys(new ArrayList<>());
@@ -49,7 +64,7 @@ class ApiKeyAuthPropertiesTest {
     }
 
     @Test
-    @DisplayName("Key 值为空时应该抛出异常")
+    @DisplayName("Empty Key value should throw exception")
     void shouldThrowExceptionWhenKeyIsEmpty() {
         ApiKeyAuthProperties.ApiKeyEntry entry = new ApiKeyAuthProperties.ApiKeyEntry();
         entry.setName("test-key");
@@ -62,7 +77,7 @@ class ApiKeyAuthPropertiesTest {
     }
 
     @Test
-    @DisplayName("Secret 值为空时应该抛出异常")
+    @DisplayName("Empty Secret value should throw exception")
     void shouldThrowExceptionWhenSecretIsEmpty() {
         ApiKeyAuthProperties.ApiKeyEntry entry = new ApiKeyAuthProperties.ApiKeyEntry();
         entry.setName("test-key");
@@ -75,7 +90,7 @@ class ApiKeyAuthPropertiesTest {
     }
 
     @Test
-    @DisplayName("重复Key 应该抛出异常")
+    @DisplayName("Duplicate Key should throw exception")
     void shouldThrowExceptionForDuplicateKeys() {
         ApiKeyAuthProperties.ApiKeyEntry entry1 = new ApiKeyAuthProperties.ApiKeyEntry();
         entry1.setName("key-1");
@@ -84,7 +99,7 @@ class ApiKeyAuthPropertiesTest {
         
         ApiKeyAuthProperties.ApiKeyEntry entry2 = new ApiKeyAuthProperties.ApiKeyEntry();
         entry2.setName("key-2");
-        entry2.setKey("same-api-key-123456"); // 重复Key
+        entry2.setKey("same-api-key-123456"); // Duplicate Key
         entry2.setSecret("secret-2-12345678901234567890");
         
         properties.setKeys(List.of(entry1, entry2));
@@ -93,23 +108,23 @@ class ApiKeyAuthPropertiesTest {
     }
 
     @Test
-    @DisplayName("禁用认证时不应该验证 Key 配置")
+    @DisplayName("Should not validate Key configuration when auth is disabled")
     void shouldNotValidateKeysWhenDisabled() {
         properties.setEnabled(false);
-        properties.setKeys(new ArrayList<>()); // 空列表
+        properties.setKeys(new ArrayList<>()); // Empty list
         
         assertDoesNotThrow(() -> properties.validate());
     }
 
     @Test
-    @DisplayName("默认请求头名称应该正确")
+    @DisplayName("Default header names should be correct")
     void shouldHaveCorrectDefaultHeaderNames() {
         assertEquals("X-API-Key", properties.getHeaderName());
         assertEquals("X-API-Secret", properties.getSecretHeaderName());
     }
 
     @Test
-    @DisplayName("应该能够配置排除路径")
+    @DisplayName("Should allow configuring exclude paths")
     void shouldAllowExcludePaths() {
         properties.setExcludePaths(List.of("/actuator/health", "/healthz"));
         
@@ -118,7 +133,7 @@ class ApiKeyAuthPropertiesTest {
     }
 
     @Test
-    @DisplayName("ApiKeyEntry 应该支持路径限制")
+    @DisplayName("ApiKeyEntry should support path restrictions")
     void shouldSupportAllowedPathsInEntry() {
         ApiKeyAuthProperties.ApiKeyEntry entry = new ApiKeyAuthProperties.ApiKeyEntry();
         entry.setAllowedPaths(List.of("/api/plugins/**", "/api/engine/**"));

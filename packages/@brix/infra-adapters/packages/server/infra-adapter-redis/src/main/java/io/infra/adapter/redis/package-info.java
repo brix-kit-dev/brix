@@ -15,23 +15,23 @@
  */
 
 /**
- * Redis 状态存储能力实现包
+ * Redis state store capability implementation package.
  * 
- * <p>本包提供基于 Redis {@link io.runtime.sdk.capability.StateStoreCapability} 
- * {@link io.runtime.sdk.capability.LockCapability} 实现
- * 是运行壳商业实现层（Layer 3: Host 层）的核心组件之一。</p>
+ * <p>This package provides Redis-based implementations of {@link io.runtime.sdk.capability.StateStoreCapability} 
+ * and {@link io.runtime.sdk.capability.LockCapability}.
+ * It is one of the core components of the Runtime Shell Commercial Implementation Layer (Layer 3: Host Layer).</p>
  * 
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link com.shinwa.runtime.redis.RedisStateStoreCapability} - StateStore 能力实现</li>
- *   <li>{@link com.shinwa.runtime.redis.RedisLockCapability} - Lock 能力实现</li>
+ *   <li>{@link io.brix.runtime.redis.RedisStateStoreCapability} - StateStore capability implementation</li>
+ *   <li>{@link io.brix.runtime.redis.RedisLockCapability} - Lock capability implementation</li>
  * </ul>
  * 
- * <h2>设计原则</h2>
+ * <h2>Design Principles</h2>
  * <ul>
- *   <li>遵循运行壳架构约束，不暴Redis 细节给模。</li>
- *   <li>支持 JSON 序列化存储复杂对。</li>
- *   <li>使用 Redisson 实现分布式锁</li>
+ *   <li>Follows runtime shell architecture constraints, does not expose Redis details to modules.</li>
+ *   <li>Supports JSON serialization for storing complex objects.</li>
+ *   <li>Uses Redisson for distributed lock implementation</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team

@@ -19,15 +19,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 路由定义
+ * Route Definition
  * 
- * <p>定义单个 API 路由的配置信息，包括路径匹配、目标服务、过滤器等。</p>
+ * <p>Defines configuration for a single API route, including path matching, target service, filters, etc.</p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * RouteDefinition route = new RouteDefinition();
  * route.setId("booking-api");
- * route.setUri("lb://shinwa-service-booking");
+ * route.setUri("lb://brix-service-booking");
  * route.setPredicates(List.of("Path=/api/booking/**"));
  * route.setFilters(List.of("StripPrefix=1"));
  * }</pre>
@@ -38,47 +38,47 @@ import java.util.Map;
 public class RouteDefinition {
 
     /**
-     * 路由唯一标识
+     * Route unique identifier
      */
     private String id;
 
     /**
-     * 目标服务 URI
+     * Target service URI
      * 
-     * <p>支持格式：</p>
+     * <p>Supported formats:</p>
      * <ul>
-     *   <li>lb://service-name - 负载均衡到服务</li>
-     *   <li>http://host:port - 直接转发</li>
+     *   <li>lb://service-name - Load balance to service</li>
+     *   <li>http://host:port - Direct forwarding</li>
      * </ul>
      */
     private String uri;
 
     /**
-     * 路由顺序（数字越小优先级越高）
+     * Route order (lower number = higher priority)
      */
     private int order = 0;
 
     /**
-     * 断言列表（路径匹配规则）
+     * Predicate list (path matching rules)
      * 
-     * <p>示例：Path=/api/booking/**, Method=GET</p>
+     * <p>Example: Path=/api/booking/**, Method=GET</p>
      */
     private List<String> predicates;
 
     /**
-     * 过滤器列表
+     * Filter list
      * 
-     * <p>示例：StripPrefix=1, AddRequestHeader=X-Request-Source, Gateway</p>
+     * <p>Example: StripPrefix=1, AddRequestHeader=X-Request-Source, Gateway</p>
      */
     private List<String> filters;
 
     /**
-     * 路由元数据
+     * Route metadata
      */
     private Map<String, Object> metadata;
 
     /**
-     * 所属模块 ID
+     * Owning module ID
      */
     private String moduleId;
 

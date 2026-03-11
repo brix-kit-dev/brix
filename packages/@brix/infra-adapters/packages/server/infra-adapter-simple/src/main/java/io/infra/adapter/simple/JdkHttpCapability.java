@@ -23,30 +23,30 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 import java.net.http.HttpClient;
 
 /**
- * 基于 JDK HttpClient 的 HTTP 能力实现
+ * JDK HttpClient-based HTTP Capability Implementation
  * 
- * <p>使用 Java 标准库 {@link java.net.http.HttpClient} 提供 HTTP 通信能力。
- * 适用于 Simple Adapter 场景（开发、测试、嵌入式部署）。</p>
+ * <p>Provides HTTP communication capability using the Java standard library {@link java.net.http.HttpClient}.
+ * Suitable for Simple Adapter scenarios (development, testing, embedded deployment).</p>
  * 
- * <h3>架构说明</h3>
+ * <h3>Architecture Note</h3>
  * <p>
- * 本类属于 {@code infra-adapter-simple} 模块（Layer 2.5: Adapter 层），
- * 实现 {@link HttpCapability} 契约，为插件提供 HTTP 通信能力。
+ * This class belongs to the {@code infra-adapter-simple} module (Layer 2.5: Adapter Layer),
+ * implementing the {@link HttpCapability} contract to provide HTTP communication capability for plugins.
  * </p>
  * 
- * <h3>继承说明</h3>
- * <p>本类继承自 {@link AbstractJdkHttpCapability}，复用其所有 HTTP 方法实现。
- * 这消除了与 {@code FallbackHttpCapability} 的代码重复，符合 DRY 原则。</p>
+ * <h3>Inheritance Note</h3>
+ * <p>This class extends {@link AbstractJdkHttpCapability}, reusing all its HTTP method implementations.
+ * This eliminates code duplication with {@code FallbackHttpCapability}, following the DRY principle.</p>
  * 
- * <h3>特性</h3>
+ * <h3>Features</h3>
  * <ul>
- *   <li><b>零外部依赖</b> — 仅使用 JDK 11+ 标准库 {@link java.net.http.HttpClient}</li>
- *   <li><b>可配置超时</b> — 支持连接超时和请求超时配置</li>
- *   <li><b>HTTP/2 支持</b> — 自动协商协议版本</li>
- *   <li><b>简单部署</b> — 适用于开发、测试、嵌入式部署等简化场景</li>
+ *   <li><b>Zero External Dependencies</b> — Uses only JDK 11+ standard library {@link java.net.http.HttpClient}</li>
+ *   <li><b>Configurable Timeouts</b> — Supports connection timeout and request timeout configuration</li>
+ *   <li><b>HTTP/2 Support</b> — Automatic protocol version negotiation</li>
+ *   <li><b>Simple Deployment</b> — Suitable for development, testing, and embedded deployment scenarios</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * HttpCapability http = new JdkHttpCapability();
  * HttpResult result = http.get("https://api.example.com/users", 
@@ -62,24 +62,24 @@ import java.net.http.HttpClient;
 @Capability(
     type = HttpCapability.class,
     name = "jdk-http",
-    description = "基于 JDK HttpClient 的 HTTP 能力实现，零外部依赖，适用于开发和简化部署场景",
+    description = "JDK HttpClient-based HTTP capability implementation, zero external dependencies, suitable for development and simplified deployment scenarios",
     level = CapabilityLevel.STANDARD,
     aliases = {"jdkHttp", "simpleHttp"}
 )
 public class JdkHttpCapability extends AbstractJdkHttpCapability {
 
     /**
-     * 使用指定超时创建实例
+     * Creates an instance with specified timeouts
      * 
-     * @param connectTimeoutSeconds 连接超时秒数（建立 TCP 连接的最大等待时间）
-     * @param requestTimeoutSeconds 请求超时秒数（单次 HTTP 请求的最大等待时间）
+     * @param connectTimeoutSeconds Connection timeout in seconds (maximum wait time to establish TCP connection)
+     * @param requestTimeoutSeconds Request timeout in seconds (maximum wait time for a single HTTP request)
      */
     public JdkHttpCapability(int connectTimeoutSeconds, int requestTimeoutSeconds) {
         super(connectTimeoutSeconds, requestTimeoutSeconds);
     }
 
     /**
-     * 使用默认超时创建实例（连接10秒，请求30秒）
+     * Creates an instance with default timeouts (connection 10s, request 30s)
      */
     public JdkHttpCapability() {
         super();

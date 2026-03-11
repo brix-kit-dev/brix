@@ -15,42 +15,53 @@
  */
 package io.infra.adapter.minio;
 
-import io.runtime.sdk.capability.FileStorageCapability;
-import io.runtime.sdk.capability.registry.Capability;
-import io.runtime.sdk.capability.registry.CapabilityLevel;
-
-import io.minio.*;
-import io.minio.http.Method;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.minio.BucketExistsArgs;
+import io.minio.CopyObjectArgs;
+import io.minio.CopySource;
+import io.minio.GetObjectArgs;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MakeBucketArgs;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
+import io.minio.StatObjectArgs;
+import io.minio.StatObjectResponse;
+import io.minio.http.Method;
+import io.runtime.sdk.capability.FileStorageCapability;
+import io.runtime.sdk.capability.registry.Capability;
+import io.runtime.sdk.capability.registry.CapabilityLevel;
+
 /**
- * 基于 MinIO 的文件存储能力实现
+ * MinIO-based file storage capability implementation.
  * 
- * <p>本类是 {@link FileStorageCapability} 的生产实现，
- * 提供基于 MinIO（S3 兼容 API）的分布式对象存储能力。
- * 插件通过此实现上传、下载、管理文件，无需感知 MinIO SDK 的存在。</p>
+ * <p>This class is the production implementation of {@link FileStorageCapability},
+ * providing distributed object storage capability based on MinIO (S3-compatible API).
+ * Plugins use this implementation to upload, download, and manage files without
+ * needing to know about the MinIO SDK.</p>
  * 
- * <h3>核心特性</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li><b>S3 兼容</b>：基于 MinIO SDK，兼容所有 S3 API 存储</li>
- *   <li><b>Bucket 自动管理</b>：首次使用时自动创建 Bucket</li>
- *   <li><b>签名 URL</b>：支持预签名的下载和上传 URL</li>
- *   <li><b>文件元信息</b>：支持查询文件大小、存在性检查</li>
+ *   <li><b>S3 Compatible</b>: Based on MinIO SDK, compatible with all S3 API storage</li>
+ *   <li><b>Auto Bucket Management</b>: Automatically creates bucket on first use</li>
+ *   <li><b>Signed URLs</b>: Supports pre-signed download and upload URLs</li>
+ *   <li><b>File Metadata</b>: Supports file size queries, existence checks</li>
  * </ul>
  * 
- * <h3>蓝图对照</h3>
- * <p>对应蓝图 v3.0.2 红线 1 修复方案：将 MinIO 访问从插件层（shinwa-solutions）
- * 移至适配器层（Layer 2.5），插件通过能力契约访问。
- * 参考现有模式：{@code infra-adapter-kafka}、{@code infra-adapter-redis}。</p>
+ * <h3>Architecture Compliance</h3>
+ * <p>Abstracts MinIO access from plugin layer to adapter layer (Layer 2.5),
+ * plugins access via capability contract.
+ * Follows existing adapter patterns: {@code infra-adapter-kafka}, {@code infra-adapter-redis}.</p>
  * 
- * <h3>线程安全</h3>
- * <p>本类是线程安全的。MinioClient 支持并发访问。</p>
+ * <h3>Thread Safety</h3>
+ * <p>This class is thread-safe. MinioClient supports concurrent access.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -59,7 +70,7 @@ import java.util.concurrent.TimeUnit;
 @Capability(
     type = FileStorageCapability.class,
     name = "minio-file-storage",
-    description = "基于 MinIO (S3兼容) 的文件存储能力实现",
+    description = "MinIO (S3-compatible) file storage capability implementation",
     level = CapabilityLevel.STANDARD,
     aliases = {"fileStorage", "minioFileStorage"}
 )
@@ -68,37 +79,39 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     private static final Logger log = LoggerFactory.getLogger(MinioFileStorageCapability.class);
 
     /**
-     * MinIO 客户端
+     * MinIO client.
      * 
-     * <p>由自动配置类根据外部配置创建，封装了 S3 兼容 API 调用。</p>
+     * <p>Created by auto-configuration based on external configuration,
+     * encapsulates S3-compatible API calls.</p>
      */
     private final MinioClient minioClient;
 
     /**
-     * 默认 Bucket 名称
+     * Default bucket name.
      */
     private final String bucketName;
 
     /**
-     * 构造函数
+     * Constructor.
      * 
-     * @param minioClient MinIO 客户端实例
-     * @param bucketName  默认 Bucket 名称
+     * @param minioClient MinIO client instance
+     * @param bucketName  Default bucket name
      */
     public MinioFileStorageCapability(MinioClient minioClient, String bucketName) {
-        this.minioClient = Objects.requireNonNull(minioClient, "minioClient 不能为空");
-        this.bucketName = Objects.requireNonNull(bucketName, "bucketName 不能为空");
+        this.minioClient = Objects.requireNonNull(minioClient, "minioClient cannot be null");
+        this.bucketName = Objects.requireNonNull(bucketName, "bucketName cannot be null");
 
-        // 确保 Bucket 存在
+        // Ensure bucket exists
         ensureBucketExists();
 
-        log.info("[MinIO] 文件存储能力初始化完成: bucket={}", bucketName);
+        log.info("[MinIO] File storage capability initialized: bucket={}", bucketName);
     }
 
     /**
-     * 确保 Bucket 存在
+     * Ensures bucket exists.
      * 
-     * <p>如果目标 Bucket 不存在，自动创建。此操作仅在适配器初始化时执行一次。</p>
+     * <p>Automatically creates the target bucket if it does not exist. This operation
+     * is executed only once during adapter initialization.</p>
      */
     private void ensureBucketExists() {
         try {
@@ -107,23 +120,23 @@ public class MinioFileStorageCapability implements FileStorageCapability {
             if (!exists) {
                 minioClient.makeBucket(
                         MakeBucketArgs.builder().bucket(bucketName).build());
-                log.info("[MinIO] 创建存储桶: {}", bucketName);
+                log.info("[MinIO] Created bucket: {}", bucketName);
             }
         } catch (Exception e) {
-            log.error("[MinIO] 检查/创建存储桶失败: bucket={}", bucketName, e);
-            throw new RuntimeException("MinIO 初始化失败: " + e.getMessage(), e);
+            log.error("[MinIO] Failed to check/create bucket: bucket={}", bucketName, e);
+            throw new RuntimeException("MinIO initialization failed: " + e.getMessage(), e);
         }
     }
 
     /**
      * {@inheritDoc}
      * 
-     * <p>将文件上传到 MinIO 指定路径，自动设置 Content-Type。</p>
+     * <p>Uploads a file to the specified MinIO path with automatic Content-Type setting.</p>
      */
     @Override
     public String upload(String storagePath, InputStream inputStream, String contentType, long fileSize) {
-        Objects.requireNonNull(storagePath, "storagePath 不能为空");
-        Objects.requireNonNull(inputStream, "inputStream 不能为空");
+        Objects.requireNonNull(storagePath, "storagePath cannot be null");
+        Objects.requireNonNull(inputStream, "inputStream cannot be null");
 
         try {
             minioClient.putObject(
@@ -134,11 +147,11 @@ public class MinioFileStorageCapability implements FileStorageCapability {
                             .contentType(contentType)
                             .build());
 
-            log.info("[MinIO] 文件上传成功: bucket={}, path={}, size={}", bucketName, storagePath, fileSize);
+            log.info("[MinIO] File uploaded successfully: bucket={}, path={}, size={}", bucketName, storagePath, fileSize);
             return storagePath;
         } catch (Exception e) {
-            log.error("[MinIO] 文件上传失败: path={}", storagePath, e);
-            throw new RuntimeException("文件上传失败: " + e.getMessage(), e);
+            log.error("[MinIO] File upload failed: path={}", storagePath, e);
+            throw new RuntimeException("File upload failed: " + e.getMessage(), e);
         }
     }
 
@@ -147,7 +160,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
      */
     @Override
     public InputStream download(String storagePath) {
-        Objects.requireNonNull(storagePath, "storagePath 不能为空");
+        Objects.requireNonNull(storagePath, "storagePath cannot be null");
 
         try {
             return minioClient.getObject(
@@ -156,8 +169,8 @@ public class MinioFileStorageCapability implements FileStorageCapability {
                             .object(storagePath)
                             .build());
         } catch (Exception e) {
-            log.error("[MinIO] 文件下载失败: path={}", storagePath, e);
-            throw new RuntimeException("文件下载失败: " + e.getMessage(), e);
+            log.error("[MinIO] File download failed: path={}", storagePath, e);
+            throw new RuntimeException("File download failed: " + e.getMessage(), e);
         }
     }
 
@@ -166,7 +179,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
      */
     @Override
     public void delete(String storagePath) {
-        Objects.requireNonNull(storagePath, "storagePath 不能为空");
+        Objects.requireNonNull(storagePath, "storagePath cannot be null");
 
         try {
             minioClient.removeObject(
@@ -174,10 +187,10 @@ public class MinioFileStorageCapability implements FileStorageCapability {
                             .bucket(bucketName)
                             .object(storagePath)
                             .build());
-            log.info("[MinIO] 文件删除成功: path={}", storagePath);
+            log.info("[MinIO] File deleted successfully: path={}", storagePath);
         } catch (Exception e) {
-            log.error("[MinIO] 文件删除失败: path={}", storagePath, e);
-            throw new RuntimeException("文件删除失败: " + e.getMessage(), e);
+            log.error("[MinIO] File deletion failed: path={}", storagePath, e);
+            throw new RuntimeException("File deletion failed: " + e.getMessage(), e);
         }
     }
 
@@ -186,7 +199,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
      */
     @Override
     public boolean exists(String storagePath) {
-        Objects.requireNonNull(storagePath, "storagePath 不能为空");
+        Objects.requireNonNull(storagePath, "storagePath cannot be null");
 
         try {
             minioClient.statObject(
@@ -203,12 +216,12 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     /**
      * {@inheritDoc}
      * 
-     * <p>使用 MinIO 预签名 URL 机制生成带时效的下载链接。</p>
+     * <p>Uses MinIO pre-signed URL mechanism to generate time-limited download links.</p>
      */
     @Override
     public String generateSignedUrl(String storagePath, Duration expiration) {
-        Objects.requireNonNull(storagePath, "storagePath 不能为空");
-        Objects.requireNonNull(expiration, "expiration 不能为空");
+        Objects.requireNonNull(storagePath, "storagePath cannot be null");
+        Objects.requireNonNull(expiration, "expiration cannot be null");
 
         try {
             return minioClient.getPresignedObjectUrl(
@@ -219,20 +232,20 @@ public class MinioFileStorageCapability implements FileStorageCapability {
                             .expiry((int) expiration.getSeconds(), TimeUnit.SECONDS)
                             .build());
         } catch (Exception e) {
-            log.error("[MinIO] 生成签名 URL 失败: path={}", storagePath, e);
-            throw new RuntimeException("生成签名 URL 失败: " + e.getMessage(), e);
+            log.error("[MinIO] Failed to generate signed URL: path={}", storagePath, e);
+            throw new RuntimeException("Failed to generate signed URL: " + e.getMessage(), e);
         }
     }
 
     /**
      * {@inheritDoc}
      * 
-     * <p>生成预签名上传 URL，支持客户端直传模式。</p>
+     * <p>Generates a pre-signed upload URL supporting client-side direct upload mode.</p>
      */
     @Override
     public String generatePresignedUploadUrl(String storagePath, Duration expiration) {
-        Objects.requireNonNull(storagePath, "storagePath 不能为空");
-        Objects.requireNonNull(expiration, "expiration 不能为空");
+        Objects.requireNonNull(storagePath, "storagePath cannot be null");
+        Objects.requireNonNull(expiration, "expiration cannot be null");
 
         try {
             return minioClient.getPresignedObjectUrl(
@@ -243,8 +256,8 @@ public class MinioFileStorageCapability implements FileStorageCapability {
                             .expiry((int) expiration.getSeconds(), TimeUnit.SECONDS)
                             .build());
         } catch (Exception e) {
-            log.error("[MinIO] 生成上传签名 URL 失败: path={}", storagePath, e);
-            throw new RuntimeException("生成上传签名 URL 失败: " + e.getMessage(), e);
+            log.error("[MinIO] Failed to generate upload signed URL: path={}", storagePath, e);
+            throw new RuntimeException("Failed to generate upload signed URL: " + e.getMessage(), e);
         }
     }
 
@@ -261,8 +274,8 @@ public class MinioFileStorageCapability implements FileStorageCapability {
      */
     @Override
     public void copy(String sourcePath, String targetPath) {
-        Objects.requireNonNull(sourcePath, "sourcePath 不能为空");
-        Objects.requireNonNull(targetPath, "targetPath 不能为空");
+        Objects.requireNonNull(sourcePath, "sourcePath cannot be null");
+        Objects.requireNonNull(targetPath, "targetPath cannot be null");
 
         try {
             minioClient.copyObject(
@@ -274,10 +287,10 @@ public class MinioFileStorageCapability implements FileStorageCapability {
                                     .object(sourcePath)
                                     .build())
                             .build());
-            log.info("[MinIO] 文件复制成功: source={}, target={}", sourcePath, targetPath);
+            log.info("[MinIO] File copied successfully: source={}, target={}", sourcePath, targetPath);
         } catch (Exception e) {
-            log.error("[MinIO] 文件复制失败: source={}, target={}", sourcePath, targetPath, e);
-            throw new RuntimeException("文件复制失败: " + e.getMessage(), e);
+            log.error("[MinIO] File copy failed: source={}, target={}", sourcePath, targetPath, e);
+            throw new RuntimeException("File copy failed: " + e.getMessage(), e);
         }
     }
 
@@ -286,7 +299,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
      */
     @Override
     public long getFileSize(String storagePath) {
-        Objects.requireNonNull(storagePath, "storagePath 不能为空");
+        Objects.requireNonNull(storagePath, "storagePath cannot be null");
 
         try {
             StatObjectResponse stat = minioClient.statObject(
@@ -296,8 +309,8 @@ public class MinioFileStorageCapability implements FileStorageCapability {
                             .build());
             return stat.size();
         } catch (Exception e) {
-            log.error("[MinIO] 获取文件大小失败: path={}", storagePath, e);
-            throw new RuntimeException("获取文件大小失败: " + e.getMessage(), e);
+            log.error("[MinIO] Failed to get file size: path={}", storagePath, e);
+            throw new RuntimeException("Failed to get file size: " + e.getMessage(), e);
         }
     }
 }

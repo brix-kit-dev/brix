@@ -15,9 +15,9 @@
  */
 
 /**
- * MinIO 文件存储适配器自动配置包
+ * MinIO file storage adapter auto-configuration package.
  * 
- * <p>包含 Spring Boot 自动配置类和外部化配置属性定义。</p>
+ * <p>Contains Spring Boot auto-configuration classes and externalized configuration property definitions.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0

@@ -1,4 +1,4 @@
-package <%= packageName %>.api.event;
+﻿package <%= packageName %>.api.event;
 
 import io.runtime.sdk.event.DomainEvent;
 import lombok.Data;
@@ -7,20 +7,20 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
- * <%= displayName %>创建事件
+ * <%= displayName %>Created Event
  * 
- * <p>当新的<%= displayName %>被创建时发布此领域事件。</p>
+ * <p>When a new<%= displayName %>publishes this domain event when created。</p>
  * 
- * <p>【v3.0 事件模型说明】</p>
+ * <p>[v3.0 Event Model]</p>
  * <ul>
- *   <li>继承自 {@link DomainEvent}，由 Runtime Shell 统一路由</li>
- *   <li>在 module-manifest.yaml 中声明 publishes</li>
- *   <li>模块不直接操作 Kafka/RabbitMQ，而是通过 EventBusCapability 发布</li>
+ *   <li>Extends {@link DomainEvent}，routed uniformly by Runtime Shell</li>
+ *   <li>Declared in module-manifest.yaml publishes</li>
+ *   <li>moduleDoes not directly operate Kafka/RabbitMQ，but through EventBusCapability publish</li>
  * </ul>
  * 
- * <p>【使用示例】</p>
+ * <p>[Usage Example]</p>
  * <pre>{@code
- * // 在 Service 中发布事件
+ * // 在 Service 中publish事件
  * var event = <%= classPrefix %>CreatedEvent.builder()
  *     .<%= name.replace(/-/g, '') %>Id(entity.getId())
  *     .<%= name.replace(/-/g, '') %>Name(entity.getName())
@@ -43,7 +43,7 @@ public class <%= classPrefix %>CreatedEvent extends DomainEvent {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 事件类型常量
+     * 事件Type常量
      */
     public static final String EVENT_TYPE = "<%= classPrefix %>CreatedEvent";
 
@@ -53,24 +53,24 @@ public class <%= classPrefix %>CreatedEvent extends DomainEvent {
     private String <%= name.replace(/-/g, '') %>Id;
 
     /**
-     * <%= displayName %> 名称
+     * <%= displayName %> Name
      */
     private String <%= name.replace(/-/g, '') %>Name;
 
     /**
-     * 创建者 ID
+     * Creator ID
      */
     private String createdBy;
 
     /**
-     * 租户 ID
+     * Tenant ID
      */
     private String tenantId;
 
     /**
-     * 获取事件类型
+     * 获取事件Type
      * 
-     * @return 事件类型字符串
+     * @return 事件Typecharacters串
      */
     @Override
     public String getEventType() {

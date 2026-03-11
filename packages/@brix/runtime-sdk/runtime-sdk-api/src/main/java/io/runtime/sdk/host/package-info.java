@@ -16,12 +16,12 @@
 package io.runtime.sdk.host;
 
 /**
- * Host 包
+ * Host Package
  * 
- * <p>本包定义 Host 层的核心接口：</p>
+ * <p>This package defines core Host layer interfaces:</p>
  * <ul>
- *   <li>{@link Host} - Host 抽象接口，能力契约的实现者</li>
- *   <li>{@link HostType} - Host 类型枚举</li>
+ *   <li>{@link Host} - Host abstract interface, implementor of capability contracts</li>
+ *   <li>{@link HostType} - Host type enumeration</li>
  * </ul>
  * 
  * @since 3.0.0

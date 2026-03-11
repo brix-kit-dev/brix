@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapters-workspace",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Brix Infrastructure Adapters Layer - Unified frontend/backend repository providing various infrastructure implementations for runtime-sdk capabilities",
   "keywords": [

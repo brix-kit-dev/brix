@@ -17,7 +17,6 @@ package io.runtime.manifest.loader;
 
 /**
  * Manifest Loader Package.
- * Manifest 加载器包
  *
  * <p>This package provides manifest file loading functionality:</p>
  * <ul>

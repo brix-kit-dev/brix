@@ -1,6 +1,6 @@
 {
   "name": "@brix/runtime-sdk-react",
-  "version": "3.2.0-SNAPSHOT",
+  "version": "3.2.3-SNAPSHOT",
   "description": "Brix Runtime SDK React Bindings - React Context and Hooks bindings",
   "type": "module",
   "main": "./dist/index.js",
@@ -29,6 +29,12 @@
     "typescript": "^5.7.3"
   },
   "peerDependencies": {
-    "react": "^18.0.0"
+    "@brix/shared-runtime-web": "^1.0.0",
+    "react": "^18.2.0"
   }
 }
+
+
+
+
+

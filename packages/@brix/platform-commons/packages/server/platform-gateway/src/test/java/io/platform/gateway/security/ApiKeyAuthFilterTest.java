@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**
- * API Key 认证过滤器单元测
+ * API Key Authentication Filter Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
@@ -61,7 +76,7 @@ class ApiKeyAuthFilterTest {
     }
 
     @Test
-    @DisplayName("有效凭证应该通过认证")
+    @DisplayName("Valid credentials should pass authentication")
     void shouldPassWithValidCredentials() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -75,12 +90,12 @@ class ApiKeyAuthFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        // 验证认证信息被注
+        // Verify authentication info is injected
         assertEquals("test", exchange.getAttribute(ApiKeyAuthFilter.AUTH_KEY_NAME_ATTR));
     }
 
     @Test
-    @DisplayName("缺少凭证应该返回 401")
+    @DisplayName("Missing credentials should return 401")
     void shouldReturn401WhenCredentialsMissing() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -94,7 +109,7 @@ class ApiKeyAuthFilterTest {
     }
 
     @Test
-    @DisplayName("无效凭证应该返回 401")
+    @DisplayName("Invalid credentials should return 401")
     void shouldReturn401WithInvalidCredentials() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -110,7 +125,7 @@ class ApiKeyAuthFilterTest {
     }
 
     @Test
-    @DisplayName("排除路径应该跳过认证")
+    @DisplayName("Excluded paths should skip authentication")
     void shouldSkipAuthForExcludedPaths() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/actuator/health")
@@ -122,12 +137,12 @@ class ApiKeyAuthFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        // 排除路径不应该设置认证信息
+        // Excluded paths should not set authentication info
         assertNull(exchange.getAttribute(ApiKeyAuthFilter.AUTH_KEY_NAME_ATTR));
     }
 
     @Test
-    @DisplayName("禁用认证时应该跳过验证")
+    @DisplayName("Should skip validation when auth is disabled")
     void shouldSkipAuthWhenDisabled() {
         properties.setEnabled(false);
 
@@ -141,12 +156,12 @@ class ApiKeyAuthFilterTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
 
-        // 响应状态应该是默认的（未被拒绝
+        // Response status should be default (not rejected)
         assertNull(exchange.getResponse().getStatusCode());
     }
 
     @Test
-    @DisplayName("正确Key 但错误的 Secret 应该返回 401")
+    @DisplayName("Correct Key but incorrect Secret should return 401")
     void shouldReturn401WithValidKeyButInvalidSecret() {
         MockServerHttpRequest request = MockServerHttpRequest
                 .get("/api/test")
@@ -162,9 +177,9 @@ class ApiKeyAuthFilterTest {
     }
 
     @Test
-    @DisplayName("路径不在允许列表中应该返403")
+    @DisplayName("Path not in allowed list should return 403")
     void shouldReturn403WhenPathNotAllowed() {
-        // 创建一个有路径限制Key
+        // Create a Key with path restrictions
         ApiKeyAuthProperties.ApiKeyEntry restrictedEntry = new ApiKeyAuthProperties.ApiKeyEntry();
         restrictedEntry.setName("restricted");
         restrictedEntry.setKey("restricted-key-123");
@@ -188,7 +203,7 @@ class ApiKeyAuthFilterTest {
     }
 
     @Test
-    @DisplayName("过滤器顺序应该是最高优先级")
+    @DisplayName("Filter order should be highest precedence")
     void shouldHaveHighestPrecedence() {
         assertTrue(filter.getOrder() < 100);
     }

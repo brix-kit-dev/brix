@@ -31,19 +31,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 动态路由服务
+ * Dynamic Route Service
  * 
- * <p>管理 API 网关的动态路由，支持运行时注册、移除和刷新路由。</p>
+ * <p>Manages API Gateway dynamic routes, supports runtime registration, removal and refresh.</p>
  * 
- * <h3>核心功能</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li>注册路由：接收模块的路由定义并注册到网关</li>
- *   <li>移除路由：模块停止时移除对应的路由</li>
- *   <li>刷新路由：触发 Spring Cloud Gateway 重新加载路由</li>
+ *   <li>Register routes: Receives module route definitions and registers to gateway</li>
+ *   <li>Remove routes: Removes corresponding routes when module stops</li>
+ *   <li>Refresh routes: Triggers Spring Cloud Gateway to reload routes</li>
  * </ul>
  * 
- * <h3>与 EventDrivenRouteRefresher 的关系</h3>
- * <p>EventDrivenRouteRefresher 负责监听事件，DynamicRouteService 负责实际的路由操作。</p>
+ * <h3>Relationship with EventDrivenRouteRefresher</h3>
+ * <p>EventDrivenRouteRefresher handles event listening, DynamicRouteService handles actual route operations.</p>
  * 
  * @author Brix Team
  * @since 3.0.0
@@ -54,145 +54,145 @@ public class DynamicRouteService {
     private static final Logger log = LoggerFactory.getLogger(DynamicRouteService.class);
 
     /**
-     * Spring Cloud Gateway 路由定义写入器
+     * Spring Cloud Gateway route definition writer
      */
     private final RouteDefinitionWriter routeDefinitionWriter;
 
     /**
-     * 事件发布器（用于触发路由刷新）
+     * Event publisher (for triggering route refresh)
      */
     private final ApplicationEventPublisher eventPublisher;
 
     /**
-     * 模块路由映射表
+     * Module route mapping table
      * 
-     * <p>记录每个模块注册的路由 ID 列表，用于模块停止时批量移除。</p>
+     * <p>Records list of route IDs registered by each module for batch removal when module stops.</p>
      */
     private final Map<String, List<String>> moduleRoutes = new ConcurrentHashMap<>();
 
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param routeDefinitionWriter 路由定义写入器
-     * @param eventPublisher        事件发布器
+     * @param routeDefinitionWriter route definition writer
+     * @param eventPublisher        event publisher
      */
     public DynamicRouteService(RouteDefinitionWriter routeDefinitionWriter,
                                ApplicationEventPublisher eventPublisher) {
         this.routeDefinitionWriter = routeDefinitionWriter;
         this.eventPublisher = eventPublisher;
         
-        log.info("DynamicRouteService 初始化完成");
+        log.info("DynamicRouteService initialization complete");
     }
 
     /**
-     * 注册模块的路由
+     * Register module routes
      * 
-     * <p>将模块定义的路由注册到网关，并记录模块-路由的映射关系。</p>
+     * <p>Registers module-defined routes to gateway and records module-route mapping.</p>
      * 
-     * @param moduleId 模块 ID
-     * @param routes   路由定义列表
+     * @param moduleId module ID
+     * @param routes   route definition list
      */
     public void registerRoutes(String moduleId, List<RouteDefinition> routes) {
         if (routes == null || routes.isEmpty()) {
-            log.debug("模块 {} 没有定义路由", moduleId);
+            log.debug("Module {} has no defined routes", moduleId);
             return;
         }
 
-        log.info("为模块 {} 注册 {} 条路由", moduleId, routes.size());
+        log.info("Registering {} routes for module {}", routes.size(), moduleId);
 
         List<String> routeIds = new ArrayList<>();
 
         for (RouteDefinition route : routes) {
             try {
-                // 转换为 Spring Cloud Gateway 的路由定义
+                // Convert to Spring Cloud Gateway route definition
                 org.springframework.cloud.gateway.route.RouteDefinition gatewayRoute = 
                         convertToGatewayRoute(route);
                 
-                // 保存路由
+                // Save route
                 routeDefinitionWriter.save(Mono.just(gatewayRoute)).subscribe();
                 routeIds.add(route.getId());
                 
-                log.debug("路由注册成功: id={}, uri={}, predicates={}", 
+                log.debug("Route registration successful: id={}, uri={}, predicates={}", 
                         route.getId(), route.getUri(), route.getPredicates());
                 
             } catch (Exception e) {
-                log.error("路由注册失败: moduleId={}, routeId={}", moduleId, route.getId(), e);
+                log.error("Route registration failed: moduleId={}, routeId={}", moduleId, route.getId(), e);
             }
         }
 
-        // 记录模块-路由映射
+        // Record module-route mapping
         moduleRoutes.put(moduleId, routeIds);
 
-        // 触发路由刷新
+        // Trigger route refresh
         refreshRoutes();
 
-        log.info("模块 {} 路由注册完成，共 {} 条", moduleId, routeIds.size());
+        log.info("Module {} route registration complete, total {} routes", moduleId, routeIds.size());
     }
 
     /**
-     * 移除模块的所有路由
+     * Remove all routes for a module
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     public void removeRoutes(String moduleId) {
         List<String> routeIds = moduleRoutes.remove(moduleId);
         
         if (routeIds == null || routeIds.isEmpty()) {
-            log.debug("模块 {} 没有已注册的路由", moduleId);
+            log.debug("Module {} has no registered routes", moduleId);
             return;
         }
 
-        log.info("移除模块 {} 的 {} 条路由", moduleId, routeIds.size());
+        log.info("Removing {} routes for module {}", routeIds.size(), moduleId);
 
         for (String routeId : routeIds) {
             try {
                 routeDefinitionWriter.delete(Mono.just(routeId)).subscribe();
-                log.debug("路由移除成功: id={}", routeId);
+                log.debug("Route removal successful: id={}", routeId);
             } catch (Exception e) {
-                log.error("路由移除失败: moduleId={}, routeId={}", moduleId, routeId, e);
+                log.error("Route removal failed: moduleId={}, routeId={}", moduleId, routeId, e);
             }
         }
 
-        // 触发路由刷新
+        // Trigger route refresh
         refreshRoutes();
 
-        log.info("模块 {} 路由移除完成", moduleId);
+        log.info("Module {} route removal complete", moduleId);
     }
 
     /**
-     * 刷新所有路由
+     * Refresh all routes
      * 
-     * <p>触发 Spring Cloud Gateway 重新加载路由配置。</p>
+     * <p>Triggers Spring Cloud Gateway to reload route configuration.</p>
      */
     public void refreshRoutes() {
-        log.debug("触发路由刷新");
+        log.debug("Triggering route refresh");
         eventPublisher.publishEvent(new RefreshRoutesEvent(this));
     }
 
     /**
-     * 获取模块注册的路由 ID 列表
+     * Get route ID list registered by a module
      * 
-     * @param moduleId 模块 ID
-     * @return 路由 ID 列表，如果模块没有注册路由返回空列表
+     * @param moduleId module ID
+     * @return route ID list, empty list if module has no registered routes
      */
     public List<String> getRoutesByModule(String moduleId) {
         return moduleRoutes.getOrDefault(moduleId, List.of());
     }
 
     /**
-     * 获取所有已注册的模块 ID
+     * Get all registered module IDs
      * 
-     * @return 模块 ID 列表
+     * @return module ID list
      */
     public List<String> getRegisteredModules() {
         return new ArrayList<>(moduleRoutes.keySet());
     }
 
     /**
-     * 转换为 Spring Cloud Gateway 的路由定义
+     * Convert to Spring Cloud Gateway route definition
      * 
-     * @param route 自定义路由定义
-     * @return Spring Cloud Gateway 路由定义
+     * @param route custom route definition
+     * @return Spring Cloud Gateway route definition
      */
     private org.springframework.cloud.gateway.route.RouteDefinition convertToGatewayRoute(
             RouteDefinition route) {
@@ -204,7 +204,7 @@ public class DynamicRouteService {
         gatewayRoute.setUri(URI.create(route.getUri()));
         gatewayRoute.setOrder(route.getOrder());
         
-        // 转换断言
+        // convertbreaklanguage
         if (route.getPredicates() != null) {
             List<org.springframework.cloud.gateway.handler.predicate.PredicateDefinition> predicates = 
                     new ArrayList<>();
@@ -214,7 +214,7 @@ public class DynamicRouteService {
             gatewayRoute.setPredicates(predicates);
         }
         
-        // 转换过滤器
+        // convertfilter
         if (route.getFilters() != null) {
             List<org.springframework.cloud.gateway.filter.FilterDefinition> filters = 
                     new ArrayList<>();
@@ -224,7 +224,7 @@ public class DynamicRouteService {
             gatewayRoute.setFilters(filters);
         }
         
-        // 设置元数据
+        // setelementcountdata
         if (route.getMetadata() != null) {
             gatewayRoute.setMetadata(route.getMetadata());
         }

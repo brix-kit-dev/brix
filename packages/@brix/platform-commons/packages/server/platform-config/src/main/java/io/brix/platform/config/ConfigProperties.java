@@ -1,9 +1,24 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 配置中心属性
+ * Configuration center properties.
  *
  * @since 3.0.0
  */
@@ -11,22 +26,22 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ConfigProperties {
 
     /**
-     * 是否启用配置中心
+     * Whether to enable the configuration center.
      */
     private boolean enabled = true;
 
     /**
-     * 配置刷新间隔（毫秒）
+     * Configuration refresh interval (milliseconds).
      */
     private long refreshInterval = 30000;
 
     /**
-     * 是否启用配置加密
+     * Whether to enable configuration encryption.
      */
     private boolean encryptEnabled = false;
 
     /**
-     * 加密密钥（仅在 encryptEnabled=true 时有效）
+     * Encryption key (only effective when encryptEnabled=true).
      */
     private String encryptKey;
 

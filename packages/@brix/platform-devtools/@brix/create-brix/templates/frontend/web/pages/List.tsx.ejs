@@ -1,13 +1,13 @@
-/**
- * <%= classPrefix %> 列表页面
+﻿/**
+ * <%= classPrefix %> List Page
  * 
- * @module @shinwa/<%= name %>-web
+ * @module @brix/<%= name %>-web
  * @generated <%= date %>
  * 
- * 功能说明：
- * - 展示 <%= displayName %> 数据列表
- * - 支持分页和搜索
- * - 支持查看详情、编辑、删除操作
+ * Features:
+ * - Display <%= displayName %> data list
+ * - Support pagination and search
+ * - Support view details, edit, and delete operations
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -42,13 +42,13 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 /**
- * <%= displayName %> 列表页面组件
+ * <%= displayName %> List Page Component
  */
 export default function <%= classPrefix %>List(): React.ReactElement {
   const navigate = useNavigate();
   const { t } = useTranslation();
   
-  // 状态管理
+  // State management
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,49 +60,49 @@ export default function <%= classPrefix %>List(): React.ReactElement {
     totalPages: 0,
   });
 
-  // 加载数据
+  // Load data
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: 替换为实际的 API 调用
+      // TODO: Replace with actual API call
       // const response = await api.get<%= classPrefix %>List({ keyword, page: pagination.page, size: pagination.size });
       // setData(response.data.content);
       // setPagination(prev => ({ ...prev, totalElements: response.data.totalElements, totalPages: response.data.totalPages }));
       
-      // 模拟数据
+      // Mock data
       await new Promise(resolve => setTimeout(resolve, 500));
       setData([
-        { id: '1', name: '<%= displayName %> 示例 1', createdAt: new Date().toISOString() },
-        { id: '2', name: '<%= displayName %> 示例 2', createdAt: new Date().toISOString() },
+        { id: '1', name: '<%= displayName %> Sample 1', createdAt: new Date().toISOString() },
+        { id: '2', name: '<%= displayName %> Sample 2', createdAt: new Date().toISOString() },
       ]);
       setPagination(prev => ({ ...prev, totalElements: 2, totalPages: 1 }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载数据失败');
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
   }, [keyword, pagination.page, pagination.size]);
 
-  // 首次加载
+  // Initial load
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // 搜索处理
+  // Search handler
   const handleSearch = useCallback(() => {
     setPagination(prev => ({ ...prev, page: 0 }));
     fetchData();
   }, [fetchData]);
 
-  // 刷新处理
+  // Refresh handler
   const handleRefresh = useCallback(() => {
     setKeyword('');
     setPagination(prev => ({ ...prev, page: 0 }));
     fetchData();
   }, [fetchData]);
 
-  // 分页处理
+  // Pagination handler
   const handleChangePage = (_: unknown, newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
   };
@@ -111,24 +111,24 @@ export default function <%= classPrefix %>List(): React.ReactElement {
     setPagination(prev => ({ ...prev, page: 0, size: parseInt(event.target.value, 10) }));
   };
 
-  // 查看详情
+  // View details
   const handleView = (id: string) => {
     navigate(`/<%= name.replace('plugin-', '') %>/${id}`);
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* 页面标题 */}
+      {/* Page title */}
       <Typography variant="h5" component="h1" gutterBottom>
         {t('<%= name.replace('plugin-', '') %>.list.title', '<%= displayName %>列表')}
       </Typography>
 
-      {/* 工具栏 */}
+      {/* Toolbar */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={2} alignItems="center">
           <TextField
             size="small"
-            placeholder={t('<%= name.replace('plugin-', '') %>.list.searchPlaceholder', '搜索...')}
+            placeholder={t('<%= name.replace('plugin-', '') %>.list.searchPlaceholder', 'Search...')}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -142,10 +142,10 @@ export default function <%= classPrefix %>List(): React.ReactElement {
             sx={{ minWidth: 250 }}
           />
           <Button variant="outlined" onClick={handleSearch} startIcon={<Search />}>
-            {t('common.search', '搜索')}
+            {t('common.search', 'Search')}
           </Button>
           <Button variant="outlined" onClick={handleRefresh} startIcon={<Refresh />}>
-            {t('common.refresh', '刷新')}
+            {t('common.refresh', 'Refresh')}
           </Button>
           <Box sx={{ flexGrow: 1 }} />
           <Button variant="contained" startIcon={<Add />} onClick={() => navigate('/<%= name.replace('plugin-', '') %>/new')}>
@@ -154,14 +154,14 @@ export default function <%= classPrefix %>List(): React.ReactElement {
         </Stack>
       </Paper>
 
-      {/* 错误提示 */}
+      {/* Error alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* 数据表格 */}
+      {/* Data table */}
       <Paper>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -173,8 +173,8 @@ export default function <%= classPrefix %>List(): React.ReactElement {
               <TableHead>
                 <TableRow>
                   <TableCell>ID</TableCell>
-                  <TableCell>{t('<%= name.replace('plugin-', '') %>.list.name', '名称')}</TableCell>
-                  <TableCell>{t('<%= name.replace('plugin-', '') %>.list.createdAt', '创建时间')}</TableCell>
+                  <TableCell>{t('<%= name.replace('plugin-', '') %>.list.name', 'Name')}</TableCell>
+                  <TableCell>{t('<%= name.replace('plugin-', '') %>.list.createdAt', 'Created at')}</TableCell>
                   <TableCell align="right">{t('common.actions', '操作')}</TableCell>
                 </TableRow>
               </TableHead>
@@ -185,17 +185,17 @@ export default function <%= classPrefix %>List(): React.ReactElement {
                     <TableCell>{item.name}</TableCell>
                     <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
                     <TableCell align="right">
-                      <Tooltip title={t('common.view', '查看')}>
+                      <Tooltip title={t('common.view', 'View')}>
                         <IconButton size="small" onClick={() => handleView(item.id)}>
                           <Visibility />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title={t('common.edit', '编辑')}>
+                      <Tooltip title={t('common.edit', 'Edit')}>
                         <IconButton size="small" onClick={() => navigate(`/<%= name.replace('plugin-', '') %>/${item.id}/edit`)}>
                           <Edit />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title={t('common.delete', '删除')}>
+                      <Tooltip title={t('common.delete', 'Delete')}>
                         <IconButton size="small" color="error">
                           <Delete />
                         </IconButton>
@@ -207,7 +207,7 @@ export default function <%= classPrefix %>List(): React.ReactElement {
                   <TableRow>
                     <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">
-                        {t('common.noData', '暂无数据')}
+                        {t('common.noData', 'No data')}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -222,7 +222,7 @@ export default function <%= classPrefix %>List(): React.ReactElement {
               onPageChange={handleChangePage}
               onRowsPerPageChange={handleChangeRowsPerPage}
               rowsPerPageOptions={[10, 20, 50]}
-              labelRowsPerPage={t('common.rowsPerPage', '每页行数')}
+              labelRowsPerPage={t('common.rowsPerPage', '每pages行数')}
             />
           </>
         )}

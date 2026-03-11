@@ -16,20 +16,20 @@
 package io.runtime.sdk.event;
 
 /**
- * 事件包
+ * Event Package
  * 
- * <p>本包定义了运行壳事件模型的核心类：</p>
+ * <p>This package defines core classes of the Runtime Shell event model:</p>
  * <ul>
- *   <li>{@link DomainEvent} - 领域事件基类，用于模块内部事件</li>
- *   <li>{@link IntegrationEvent} - 集成事件基类，用于跨模块/跨系统通信</li>
+ *   <li>{@link DomainEvent} - Domain event base class, for module internal events</li>
+ *   <li>{@link IntegrationEvent} - Integration event base class, for cross-module/cross-system communication</li>
  * </ul>
  * 
- * <h3>事件设计原则</h3>
+ * <h3>Event Design Principles</h3>
  * <ol>
- *   <li>事件是不可变的（Immutable）</li>
- *   <li>事件表示已经发生的事实（Past Tense）</li>
- *   <li>事件必须可序列化（Serializable）</li>
- *   <li>事件消费必须支持幂等（Idempotent）</li>
+ *   <li>Events are immutable (Immutable)</li>
+ *   <li>Events represent facts that have occurred (Past Tense)</li>
+ *   <li>Events must be serializable (Serializable)</li>
+ *   <li>Event consumption must support idempotency (Idempotent)</li>
  * </ol>
  * 
  * @since 3.0.0

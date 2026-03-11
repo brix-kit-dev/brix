@@ -19,28 +19,28 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * 数据权限范围
+ * Data Permission Scope
  * 
- * <p>定义用户可访问的数据边界，用于行级数据权限控制。
- * DataScope 是一个不可变对象，包含范围类型和范围值。</p>
+ * <p>Defines the data boundaries accessible by users for row-level data permission control.
+ * DataScope is an immutable object containing scope type and scope value.</p>
  * 
- * <h3>常见范围类型</h3>
+ * <h3>Common Scope Types</h3>
  * <ul>
- *   <li><b>DEPARTMENT</b>：部门范围</li>
- *   <li><b>ORGANIZATION</b>：组织范围</li>
- *   <li><b>REGION</b>：地区范围</li>
- *   <li><b>SELF</b>：仅自己的数据</li>
- *   <li><b>ALL</b>：所有数据</li>
+ *   <li><b>DEPARTMENT</b>: Department scope</li>
+ *   <li><b>ORGANIZATION</b>: Organization scope</li>
+ *   <li><b>REGION</b>: Region scope</li>
+ *   <li><b>SELF</b>: Only own data</li>
+ *   <li><b>ALL</b>: All data</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
- * // 在服务层使用数据范围过滤
+ * // Filter by data scope in service layer
  * Set<DataScope> scopes = authContext.getAuthorizedScopes();
  * 
  * for (DataScope scope : scopes) {
  *     if ("DEPARTMENT".equals(scope.getType())) {
- *         // 添加部门过滤条件
+ *         // Add department filter condition
  *         query.where("department_id", scope.getValue());
  *     }
  * }
@@ -55,25 +55,25 @@ public final class DataScope implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 范围类型
+     * Scope type
      * 
-     * <p>如 "DEPARTMENT", "ORGANIZATION", "REGION"</p>
+     * <p>e.g., "DEPARTMENT", "ORGANIZATION", "REGION"</p>
      */
     private final String type;
 
     /**
-     * 范围值
+     * Scope value
      * 
-     * <p>具体的范围标识，如部门 ID、组织 ID、地区编码</p>
+     * <p>The specific scope identifier, such as department ID, organization ID, region code</p>
      */
     private final String value;
 
     /**
-     * 创建数据权限范围
+     * Creates a data permission scope
      * 
-     * @param type  范围类型，不能为空
-     * @param value 范围值，不能为空
-     * @throws IllegalArgumentException 如果参数为空
+     * @param type  the scope type, cannot be null or blank
+     * @param value the scope value, cannot be null or blank
+     * @throws IllegalArgumentException if parameters are null or blank
      */
     public DataScope(String type, String value) {
         if (type == null || type.isBlank()) {
@@ -87,67 +87,67 @@ public final class DataScope implements Serializable {
     }
 
     /**
-     * 获取范围类型
+     * Gets the scope type
      * 
-     * @return 范围类型
+     * @return the scope type
      */
     public String getType() {
         return type;
     }
 
     /**
-     * 获取范围值
+     * Gets the scope value
      * 
-     * @return 范围值
+     * @return the scope value
      */
     public String getValue() {
         return value;
     }
 
     /**
-     * 创建部门范围
+     * Creates a department scope
      * 
-     * @param departmentId 部门 ID
-     * @return DataScope 实例
+     * @param departmentId the department ID
+     * @return a DataScope instance
      */
     public static DataScope department(String departmentId) {
         return new DataScope("DEPARTMENT", departmentId);
     }
 
     /**
-     * 创建组织范围
+     * Creates an organization scope
      * 
-     * @param organizationId 组织 ID
-     * @return DataScope 实例
+     * @param organizationId the organization ID
+     * @return a DataScope instance
      */
     public static DataScope organization(String organizationId) {
         return new DataScope("ORGANIZATION", organizationId);
     }
 
     /**
-     * 创建地区范围
+     * Creates a region scope
      * 
-     * @param regionCode 地区编码
-     * @return DataScope 实例
+     * @param regionCode the region code
+     * @return a DataScope instance
      */
     public static DataScope region(String regionCode) {
         return new DataScope("REGION", regionCode);
     }
 
     /**
-     * 创建自身数据范围
+     * Creates a self data scope
      * 
-     * @param userId 用户 ID
-     * @return DataScope 实例
+     * @param userId the user ID
+     * @return a DataScope instance
      */
     public static DataScope self(String userId) {
         return new DataScope("SELF", userId);
     }
 
     /**
-     * 创建全部数据范围
+     * Creates an all data scope
      * 
-     * @return DataScope 实例
+     * @return a DataScope instance
      */
     public static DataScope all() {
         return new DataScope("ALL", "*");

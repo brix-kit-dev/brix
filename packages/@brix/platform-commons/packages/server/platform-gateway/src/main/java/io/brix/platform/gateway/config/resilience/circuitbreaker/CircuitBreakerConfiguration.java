@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience.circuitbreaker;
 
 import java.util.Map;
@@ -15,44 +30,44 @@ import io.github.resilience4j.circuitbreaker.event.CircuitBreakerOnStateTransiti
 import jakarta.annotation.PostConstruct;
 
 /**
- * 熔断器配置类
+ * Circuit Breaker Configurationclass
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 基于 Resilience4j CircuitBreaker 实现熔断保护
- * 支持基于失败率和慢调用率的熔断策略
+ * based on Resilience4j CircuitBreaker implementationcircuit breakerprotect
+ * supportbased onfailedrateandslowcallrateofcircuit breakerstrategy
  * </p>
  * 
- * <h3>熔断器状态转换流</h3>
+ * <h3>circuit breakererState transitionflow</h3>
  * <pre>
  *                      ┌──────────────────
- *                          CLOSED       ◄─── 正常状
- *                       (请求正常通过)    
+ *                          CLOSED       ◄─── normalstatus
+ *                       (requestnormalvia)    
  *                      └────────┬─────────
- *                               失败慢调用率超过阈
+ *                               failedslowcallrateexceedthreshold
  *                               
  *                      ┌──────────────────
- *                           OPEN        ◄─── 熔断状
- *                        (拒绝所有请   
+ *                           OPEN        ◄─── circuit breakerstatus
+ *                        (rejectedallhasplease   
  *                      └────────┬─────────
- *                               等待时间结束
+ *                               waittimeend
  *                               
  *                      ┌──────────────────
- *                         HALF_OPEN     ◄─── 半开状
- *                       (允许部分请求)    
+ *                         HALF_OPEN     ◄─── half-openstatus
+ *                       (allowpartrequest)    
  *                      └────────┬─────────
  *                               
  *             ┌─────────────────┼─────────────────
- *             试探成功                         试探失败
+ *             probesuccessful                         probefailed
  *                                               
- *        回到 CLOSED                          回到 OPEN
+ *        backto CLOSED                          backto OPEN
  * </pre>
  * 
- * <h3>事件监听</h3>
+ * <h3>eventlisten</h3>
  * <p>
- * 配置类会自动注册状态转换事件监听器，在熔断器状态变化时记录日志
- * 便于运维监控和问题排查
+ * configurationclasswillautomaticregisterState transitionEvent listener，oncircuit breakererstatuschangetimerecordlog
+ * conveniencefor operationsmonitorandaskissuearrangesearch
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -68,21 +83,21 @@ public class CircuitBreakerConfiguration {
     private static final Logger logger = LoggerFactory.getLogger(CircuitBreakerConfiguration.class);
 
     /**
-     * 熔断配置属
+     * Circuit breaker configuration properties
      */
     private final CircuitBreakerProperties properties;
 
     /**
-     * 熔断器实例缓
+     * Circuit breaker instance cache
      * <p>
-     * 技术点：使ConcurrentHashMap 缓存熔断器实
-     * Key: 路由ID，Value: 对应的熔断器实例
+     * Technical note: Uses ConcurrentHashMap to cache circuit breaker instances.
+     * Key: Route ID, Value: Corresponding circuit breaker instance
      * </p>
      */
     private final Map<String, CircuitBreaker> circuitBreakerCache = new ConcurrentHashMap<>();
 
     /**
-     * Resilience4j 熔断器注册表
+     * Resilience4j circuit breaker registry
      */
     private CircuitBreakerRegistry circuitBreakerRegistry;
 
@@ -91,28 +106,28 @@ public class CircuitBreakerConfiguration {
     }
 
     /**
-     * 初始化熔断器注册
+     * Initialize circuit breaker registry
      * <p>
-     * Bean 初始化后执行，创建默认熔断配置并记录日志
+     * Executed after Bean initialization, creates default circuit breaker configuration and logs it.
      * </p>
      */
     @PostConstruct
     public void init() {
         if (!properties.isEnabled()) {
-            logger.info("[shinwa] CircuitBreaker disabled");
+            logger.info("[brix] CircuitBreaker disabled");
             return;
         }
 
-        // 创建默认熔断配置
+        // Create default circuit breaker configuration
         CircuitBreakerProperties.CircuitBreakerConfig defaultCfg = properties.getDefaultConfig();
         CircuitBreakerConfig defaultConfig = buildCircuitBreakerConfig(defaultCfg);
 
-        // 创建熔断器注册表
+        // Create circuit breaker registry
         this.circuitBreakerRegistry = CircuitBreakerRegistry.of(defaultConfig);
 
-        logger.info("[shinwa] CircuitBreaker Configuration:");
-        logger.info("[shinwa]   enabled={}", properties.isEnabled());
-        logger.info("[shinwa]   default: failureRateThreshold={}%, slidingWindow={}/{}, " +
+        logger.info("[brix] CircuitBreaker Configuration:");
+        logger.info("[brix]   enabled={}", properties.isEnabled());
+        logger.info("[brix]   default: failureRateThreshold={}%, slidingWindow={}/{}, " +
                         "minCalls={}, waitDuration={}",
                 defaultCfg.getFailureRateThreshold(),
                 defaultCfg.getSlidingWindowType(),
@@ -120,9 +135,9 @@ public class CircuitBreakerConfiguration {
                 defaultCfg.getMinimumNumberOfCalls(),
                 defaultCfg.getWaitDurationInOpenState());
 
-        // 预创建路由级别熔断器
+        // precreateroutelevelcircuit breakerer
         properties.getRoutes().forEach((routeId, config) -> {
-            logger.info("[shinwa]   route[{}]: failureRateThreshold={}%, slidingWindow={}/{}, " +
+            logger.info("[brix]   route[{}]: failureRateThreshold={}%, slidingWindow={}/{}, " +
                             "minCalls={}, waitDuration={}",
                     routeId, config.getFailureRateThreshold(),
                     config.getSlidingWindowType(), config.getSlidingWindowSize(),
@@ -132,47 +147,47 @@ public class CircuitBreakerConfiguration {
     }
 
     /**
-     * 构建 Resilience4j 熔断器配
+     * build Resilience4j circuit breakererconfiguration
      * 
-     * @param cfg 配置属
-     * @return Resilience4j 熔断器配
+     * @param cfg configurationproperty
+     * @return Resilience4j circuit breakererconfiguration
      */
     private CircuitBreakerConfig buildCircuitBreakerConfig(CircuitBreakerProperties.CircuitBreakerConfig cfg) {
         return CircuitBreakerConfig.custom()
-                // 失败率阈
+                // failedratethreshold
                 .failureRateThreshold(cfg.getFailureRateThreshold())
-                // 慢调用率阈
+                // slowcallratethreshold
                 .slowCallRateThreshold(cfg.getSlowCallRateThreshold())
-                // 慢调用时间阈
+                // slowcalltimethreshold
                 .slowCallDurationThreshold(cfg.getSlowCallDurationThreshold())
-                // 滑动窗口类型
+                // slidingwindowtype
                 .slidingWindowType(cfg.getSlidingWindowType())
-                // 滑动窗口大小
+                // slidingwindowsize
                 .slidingWindowSize(cfg.getSlidingWindowSize())
-                // 最小调用次
+                // minimumcalltimes
                 .minimumNumberOfCalls(cfg.getMinimumNumberOfCalls())
-                // 熔断等待时间
+                // circuit breakerwaittime
                 .waitDurationInOpenState(cfg.getWaitDurationInOpenState())
-                // 半开状态允许的调用次数
+                // half-openstatusallowofcallcount
                 .permittedNumberOfCallsInHalfOpenState(cfg.getPermittedNumberOfCallsInHalfOpenState())
-                // 是否自动转换状
+                // whetherautomaticconvertstatus
                 .automaticTransitionFromOpenToHalfOpenEnabled(cfg.isAutomaticTransitionFromOpenToHalfOpenEnabled())
                 .build();
     }
 
     /**
-     * 获取指定路由的熔断器
+     * Get circuit breaker for specified route
      * <p>
-     * 优先使用路由级别配置，如果没有则使用默认配置
-     * 熔断器实例会被缓存，避免重复创建
+     * Prioritizes route-level configuration, falls back to default configuration if not found.
+     * Circuit breaker instances are cached to avoid repeated creation.
      * </p>
      * <p>
-     * 技术点：首次创建熔断器时会注册状态转换事件监听器
-     * 用于在熔断器状态变化时记录日志
+     * Technical note: When creating a circuit breaker for the first time,
+     * a state transition event listener is registered for logging state changes.
      * </p>
      * 
-     * @param routeId 路由ID，如 "plugin-engine"
-     * @return 对应的熔断器实例
+     * @param routeId route ID, e.g. "plugin-engine"
+     * @return corresponding circuit breaker instance
      */
     public CircuitBreaker getCircuitBreakerForRoute(String routeId) {
         if (!properties.isEnabled() || circuitBreakerRegistry == null) {
@@ -185,8 +200,8 @@ public class CircuitBreakerConfiguration {
             
             CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(id, cbConfig);
             
-            // 注册状态转换事件监听器
-            // 技术点：监听熔断器状态变化，便于运维监控
+            // registerState transitionEvent listener
+            // technical point：listencircuit breakererstatuschange，conveniencefor operationsmonitor
             circuitBreaker.getEventPublisher()
                     .onStateTransition(this::handleStateTransition);
             
@@ -195,55 +210,55 @@ public class CircuitBreakerConfiguration {
     }
 
     /**
-     * 处理熔断器状态转换事
+     * processcircuit breakererState transitionevent
      * <p>
-     * 技术点：根据状态转换的严重程度使用不同日志级别
-     * - OPEN 状态：WARN 级别，表示服务可能存在问
-     * - 其他状态：INFO 级别
+     * technical point：according toState transitionofstrictre-degreeusenotsameloglevel
+     * - OPEN status：WARN level，representsservicecancanstoreonask
+     * - otherstatus：INFO level
      * </p>
      * 
-     * @param event 状态转换事
+     * @param event State transitionevent
      */
     private void handleStateTransition(CircuitBreakerOnStateTransitionEvent event) {
         String cbName = event.getCircuitBreakerName();
         String fromState = event.getStateTransition().getFromState().name();
         String toState = event.getStateTransition().getToState().name();
 
-        // 根据目标状态决定日志级
+        // according totargetstatusdetermineloglevel
         if ("OPEN".equals(toState)) {
-            logger.warn("[shinwa] CircuitBreaker[{}] state transition: {} -> {} (熔断器已打开，下游服务可能故",
+            logger.warn("[brix] CircuitBreaker[{}] state transition: {} -> {} (circuit breakereralreadyopen，downstreamservicecancanhence",
                     cbName, fromState, toState);
         } else if ("CLOSED".equals(toState)) {
-            logger.info("[shinwa] CircuitBreaker[{}] state transition: {} -> {} (熔断器已关闭，服务恢复正",
+            logger.info("[brix] CircuitBreaker[{}] state transition: {} -> {} (circuit breakereralreadyclosed，servicerecovercorrect",
                     cbName, fromState, toState);
         } else {
-            logger.info("[shinwa] CircuitBreaker[{}] state transition: {} -> {}",
+            logger.info("[brix] CircuitBreaker[{}] state transition: {} -> {}",
                     cbName, fromState, toState);
         }
     }
 
     /**
-     * 获取默认熔断
+     * obtaindefaultcircuit breaker
      * 
-     * @return 默认熔断
+     * @return defaultcircuit breaker
      */
     public CircuitBreaker getDefaultCircuitBreaker() {
         return getCircuitBreakerForRoute("default");
     }
 
     /**
-     * 检查熔断功能是否启
+     * checkcircuit breakerfunctionalitywhetherstart
      * 
-     * @return true 表示启用
+     * @return true representsenable
      */
     public boolean isEnabled() {
         return properties.isEnabled();
     }
 
     /**
-     * 获取配置属
+     * obtainconfigurationproperty
      * 
-     * @return 熔断配置属
+     * @return circuit breakerconfigurationproperty
      */
     public CircuitBreakerProperties getProperties() {
         return properties;

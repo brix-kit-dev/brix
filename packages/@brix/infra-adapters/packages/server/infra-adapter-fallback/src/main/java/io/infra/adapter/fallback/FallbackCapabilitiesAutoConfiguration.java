@@ -31,28 +31,29 @@ import io.runtime.sdk.capability.ObservabilityCapability;
 import io.runtime.sdk.capability.ResilienceCapability;
 
 /**
- * Fallback 能力适配器自动配置
+ * Fallback Capability Adapter Auto Configuration.
  * 
- * <p>提供最小化的默认能力实现，当没有其他具体适配器时作为 fallback。</p>
+ * <p>Provides minimal default capability implementations, serving as fallback
+ * when no other specific adapters are available.</p>
  * 
- * <h3>架构说明</h3>
+ * <h3>Architecture Overview</h3>
  * <p>
- * 根据 v3.0 运行壳架构设计蓝图：
+ * According to the v3.0 Runtime Shell Architecture Blueprint:
  * <ul>
- *   <li>Host 层（shinwa-host-assembly）只做组装，不含实现代码</li>
- *   <li>所有能力实现必须在 infra-adapters 或 platform-commons</li>
- *   <li>此模块提供 fallback 实现，确保基本功能可用</li>
+ *   <li>Host layer (shinwa-host-assembly) only performs assembly, contains no implementation code</li>
+ *   <li>All capability implementations must be in infra-adapters or platform-commons</li>
+ *   <li>This module provides fallback implementations to ensure basic functionality</li>
  * </ul>
  * </p>
  * 
- * <h3>提供的默认能力</h3>
+ * <h3>Default Capabilities Provided</h3>
  * <ul>
- *   <li>{@link AuthContextCapability} - 匿名访问，允许所有权限</li>
- *   <li>{@link ObservabilityCapability} - 基于 SLF4J 的日志实现</li>
- *   <li>{@link ConfigStoreCapability} - 基于环境变量和系统属性</li>
- *   <li>{@link LifecycleCapability} - 空操作实现</li>
- *   <li>{@link ResilienceCapability} - 透传式实现，无真实弹性保护</li>
- *   <li>{@link HttpCapability} - 基于 JDK HttpClient 的 HTTP 通信能力</li>
+ *   <li>{@link AuthContextCapability} - Anonymous access, allows all permissions</li>
+ *   <li>{@link ObservabilityCapability} - SLF4J-based logging implementation</li>
+ *   <li>{@link ConfigStoreCapability} - Based on environment variables and system properties</li>
+ *   <li>{@link LifecycleCapability} - No-op implementation</li>
+ *   <li>{@link ResilienceCapability} - Pass-through implementation, no real resilience protection</li>
+ *   <li>{@link HttpCapability} - JDK HttpClient-based HTTP communication capability</li>
  * </ul>
  * 
  * @author Brix Team
@@ -80,10 +81,10 @@ public class FallbackCapabilitiesAutoConfiguration {
      *   <li>{@code @ConditionalOnMissingBean} - Skipped if a real auth capability exists</li>
      * </ul>
      *
-     * <!-- 生产环境三重保护机制 -->
-     * <!-- 1. Profile 排除：spring.profiles.active 包含 production 时不注册 -->
-     * <!-- 2. 配置门控：必须显式设置 brix.fallback.auth.enabled=true -->
-     * <!-- 3. Bean 优先级：存在真实认证实现时自动跳过 -->
+     * <!-- Production environment triple protection mechanism -->
+     * <!-- 1. Profile exclusion: Not registered when spring.profiles.active contains production -->
+     * <!-- 2. Config gate: Must explicitly set brix.fallback.auth.enabled=true -->
+     * <!-- 3. Bean priority: Automatically skipped when real auth implementation exists -->
      *
      * @return the fallback authentication context capability
      */
@@ -102,68 +103,69 @@ public class FallbackCapabilitiesAutoConfiguration {
     }
 
     /**
-     * 默认可观测性能力 - 基于 SLF4J 日志
+     * Default observability capability - SLF4J-based logging.
      */
     @Bean
     @ConditionalOnMissingBean(ObservabilityCapability.class)
     public ObservabilityCapability fallbackObservabilityCapability() {
-        log.info("[Fallback] 创建 Fallback ObservabilityCapability（基于 SLF4J）");
+        log.info("[Fallback] Creating Fallback ObservabilityCapability (SLF4J-based)");
         return new FallbackObservabilityCapability();
     }
 
     /**
-     * 默认配置存储能力 - 基于环境变量和系统属性
+     * Default config store capability - Based on environment variables and system properties.
      */
     @Bean
     @ConditionalOnMissingBean(ConfigStoreCapability.class)
     public ConfigStoreCapability fallbackConfigStoreCapability() {
-        log.info("[Fallback] 创建 Fallback ConfigStoreCapability（基于环境变量和系统属性）");
+        log.info("[Fallback] Creating Fallback ConfigStoreCapability (environment variables and system properties)");
         return new FallbackConfigStoreCapability();
     }
 
     /**
-     * 默认生命周期能力 - 空操作实现
+     * Default lifecycle capability - No-op implementation.
      */
     @Bean
     @ConditionalOnMissingBean(LifecycleCapability.class)
     public LifecycleCapability fallbackLifecycleCapability() {
-        log.info("[Fallback] 创建 Fallback LifecycleCapability（空操作）");
+        log.info("[Fallback] Creating Fallback LifecycleCapability (no-op)");
         return new FallbackLifecycleCapability();
     }
 
     /**
-     * 默认韧性能力 - 透传式实现，不提供真实弹性保护
+     * Default resilience capability - Pass-through implementation, no real resilience protection.
      * 
-     * <p>⚠️ 警告：此实现不具备熔断/限流能力，仅保证 API 契约可用。
-     * 生产环境应使用基于 Resilience4j 的正式适配器。</p>
+     * <p>WARNING: This implementation does not provide circuit breaker/rate limiting capabilities,
+     * only ensures API contract availability.
+     * Production environments should use the Resilience4j-based adapter.</p>
      */
     @Bean
     @ConditionalOnMissingBean(ResilienceCapability.class)
     public ResilienceCapability fallbackResilienceCapability() {
-        log.warn("[Fallback] 创建 Fallback ResilienceCapability（透传，无真实弹性保护）- 生产环境应使用 Resilience4j 适配器");
+        log.warn("[Fallback] Creating Fallback ResilienceCapability (pass-through, no real resilience protection) - Production should use Resilience4j adapter");
         return new FallbackResilienceCapability();
     }
 
     /**
-     * 默认 HTTP 能力 - 基于 JDK HttpClient
+     * Default HTTP capability - Based on JDK HttpClient.
      * 
-     * <p>使用 Java 标准库 {@link java.net.http.HttpClient} 提供 HTTP 通信能力。
-     * 此实现零外部依赖，适用于大多数场景。</p>
+     * <p>Uses Java standard library {@link java.net.http.HttpClient} to provide HTTP communication capability.
+     * This implementation has zero external dependencies and is suitable for most scenarios.</p>
      * 
-     * <h4>技术特性</h4>
+     * <h4>Technical Features</h4>
      * <ul>
-     *   <li>零外部依赖 — 仅使用 JDK 11+ 标准库</li>
-     *   <li>HTTP/2 支持 — 自动协商协议版本</li>
-     *   <li>可配置超时 — 连接 10 秒，请求 30 秒（默认）</li>
+     *   <li>Zero External Dependencies — Uses only JDK 11+ standard library</li>
+     *   <li>HTTP/2 Support — Automatic protocol version negotiation</li>
+     *   <li>Configurable Timeouts — Connection 10 seconds, request 30 seconds (default)</li>
      * </ul>
      * 
-     * <p>如需更高级功能（连接池管理、拦截器等），可引入
-     * {@code infra-adapter-okhttp} 或 {@code infra-adapter-apache-http}。</p>
+     * <p>For advanced features (connection pooling, interceptors, etc.), consider using
+     * {@code infra-adapter-okhttp} or {@code infra-adapter-apache-http}.</p>
      */
     @Bean
     @ConditionalOnMissingBean(HttpCapability.class)
     public HttpCapability fallbackHttpCapability() {
-        log.info("[Fallback] 创建 Fallback HttpCapability（基于 JDK HttpClient）");
+        log.info("[Fallback] Creating Fallback HttpCapability (JDK HttpClient-based)");
         return new FallbackHttpCapability();
     }
 }

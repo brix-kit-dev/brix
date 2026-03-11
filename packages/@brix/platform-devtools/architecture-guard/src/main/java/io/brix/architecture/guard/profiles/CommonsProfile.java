@@ -29,16 +29,17 @@ import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_
  *
  * <h2>Architecture Principle</h2>
  * <blockquote>
- * platform-commons 是纯工具库层，提供跨模块复用的基础设施无关代码。
- * 它不能依赖任何业务模块、基础设施适配器或 Host 层。
+ * platform-commons is a pure utility library layer, providing infrastructure-independent
+ * code that can be reused across modules.
+ * It must not depend on any business modules, infrastructure adapters, or Host layer.
  * </blockquote>
  *
  * <h2>Covered Constraints</h2>
  * <ul>
- *   <li>Commons 不依赖业务模块（shinwa-solutions）</li>
- *   <li>Commons 不依赖基础设施适配器</li>
- *   <li>Commons 不依赖 Host 层</li>
- *   <li>Commons 不依赖 runtime-orchestrator</li>
+ *   <li>Commons must not depend on business modules (brix-solutions)</li>
+ *   <li>Commons must not depend on infrastructure adapters</li>
+ *   <li>Commons must not depend on Host layer</li>
+ *   <li>Commons must not depend on runtime-orchestrator</li>
  * </ul>
  *
  * <h2>Usage</h2>
@@ -65,7 +66,7 @@ public class CommonsProfile {
     static final ArchRule commonsNotDependOnPlugins = noClasses()
             .that().resideInAPackage("io.brix.commons..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("com.shinwa.app..", "shinwa.plugin..")
+            .resideInAnyPackage("io.brix.app..", "brix.plugin..")
             .because("platform-commons must not depend on business modules")
             .allowEmptyShould(true);
 

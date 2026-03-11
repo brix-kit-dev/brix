@@ -1,13 +1,13 @@
-/**
- * @file orval 配置文件 — <%= displayName %> API 类型自动生成
- * @description 从 OpenAPI 规范自动生成 TypeScript 类型和 Repository 客户端
- * @module @shinwa/<%= name %>-shared
+﻿/**
+ * @file orval Configuration file — <%= displayName %> API TypeAuto-generated
+ * @description 从 OpenAPI 规范Auto-generated TypeScript Type和 Repository 客户端
+ * @module @brix/<%= name %>-shared
  * @version <%= version %>
  *
- * 【设计说明】
- * 本配置实现 Phase 5.2 前端类型自动生成管线：
+ * [Design Notes]
+ * 本配置实现 Phase 5.2 前端TypeAuto-generated管线：
  * 1. 从 <%= name %>-api/src/main/resources/openapi.json 读取 OpenAPI 规范
- * 2. 生成 TypeScript 类型定义 (types.generated.ts)
+ * 2. 生成 TypeScript Type定义 (types.generated.ts)
  * 3. 生成 Repository 客户端 (<%= classPrefix %>Repository.generated.ts)
  * 4. 使用自定义 HttpCapability 适配器替代 axios/fetch
  *
@@ -19,7 +19,7 @@
  * <%= name %>-shared/src/generated/
  *   ├── types.generated.ts      ← 从 DTO Schema 生成
  *   ├── <%= classPrefix %>Repository.ts    ← 从 API Path 生成（使用 HttpCapability）
- *   └── index.ts                ← 统一导出
+ *   └── index.ts                ← 统一Export
  *
  * 【运行命令】
  * pnpm run generate:api
@@ -41,7 +41,7 @@ export default defineConfig({
      * 输入配置 — OpenAPI 规范文件
      */
     input: {
-      /** OpenAPI 规范文件路径（相对于本配置文件） */
+      /** OpenAPI 规范文件路径（相对于本Configuration file） */
       target: '../<%= name %>-api/src/main/resources/openapi.json',
       /** 输入验证选项 */
       validation: true,
@@ -55,9 +55,9 @@ export default defineConfig({
       mode: 'tags-split',
       /** Repository 客户端输出目录 */
       target: './src/generated/repositories',
-      /** 类型定义输出目录 */
+      /** Type定义输出目录 */
       schemas: './src/generated/types',
-      /** 客户端类型：react-query 支持 TanStack Query hooks */
+      /** 客户端Type：react-query 支持 TanStack Query hooks */
       client: 'react-query',
       /** 不生成 Mock 数据 */
       mock: false,
@@ -70,13 +70,13 @@ export default defineConfig({
          * 自定义 HTTP 客户端 mutator
          *
          * 【架构红线 R3】
-         * 使用 HttpCapability 适配器替代默认的 axios/fetch
+         * 使用 HttpCapability 适配器替代Default的 axios/fetch
          * 所有 HTTP 请求必须通过能力契约发起
          */
         mutator: {
           /** 适配器文件路径（相对于输出目录） */
           path: '../http-client.ts',
-          /** 导出的函数名 */
+          /** Export的函数名 */
           name: 'httpCapabilityClient',
         },
         /**
@@ -89,7 +89,7 @@ export default defineConfig({
           useInfinite: true,
           /** Query 选项 */
           options: {
-            /** 默认 staleTime（5 分钟） */
+            /** Default staleTime（5 分钟） */
             staleTime: 5 * 60 * 1000,
           },
         },

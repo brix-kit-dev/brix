@@ -15,25 +15,25 @@
  */
 
 /**
- * 数据库能力适配器实现包
+ * Database capability adapter implementation package.
  * 
- * <p>本包提供基于 HikariCP 的 {@link io.runtime.sdk.capability.DatabaseCapability} 实现，
- * 是基础设施适配器层（Layer 2.5: Adapter 层）的组件之一。</p>
+ * <p>This package provides HikariCP-based {@link io.runtime.sdk.capability.DatabaseCapability} implementation,
+ * part of the infrastructure adapter layer (Layer 2.5: Adapter Layer).</p>
  * 
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.database.HikariDatabaseCapability} - 基于 HikariCP 的数据库能力实现</li>
+ *   <li>{@link io.infra.adapter.database.HikariDatabaseCapability} - HikariCP-based database capability implementation</li>
  * </ul>
  * 
- * <h2>设计原则</h2>
+ * <h2>Design Principles</h2>
  * <ul>
- *   <li>遵循运行壳架构约束，不暴露数据库驱动细节给插件</li>
- *   <li>支持配置驱动的多数据库厂商切换</li>
- *   <li>由 Host 层通过依赖注入组装</li>
+ *   <li>Follows Runtime Shell architecture constraints, does not expose database driver details to plugins</li>
+ *   <li>Supports configuration-driven multi-database vendor switching</li>
+ *   <li>Assembled by Host layer via dependency injection</li>
  * </ul>
  * 
- * <h2>蓝图对照</h2>
- * <p>对应蓝图 v3.0.2 第 3.3.1 节「DatabaseCapability - 数据库能力」。</p>
+ * <h2>Architecture Compliance</h2>
+ * <p>Database infrastructure adapter package.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0

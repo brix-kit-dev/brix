@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.dto;
 
 import java.io.Serializable;
@@ -7,10 +22,10 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
- * 插件路由 DTO
+ * Plugin Route DTO
  * <p>
- * 用于反序列化 Redis 中存储的路由 JSON 数据
- * 作为 Gateway 模块Plugin Engine 之间路由信息传递的数据载体
+ * Used to deserialize route JSON data stored in Redis
+ * workis Gateway modulePlugin Engine betweenrouteinformationpassofcountdatacarrier
  * </p>
  *
  * @author Brix Platform Authors
@@ -22,47 +37,47 @@ public class PluginRouteDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 路由唯一标识
+     * Route unique identifier
      */
     private String id;
 
     /**
-     * 匹配路径模式，例/api/users/**
+     * match pathpattern，example/api/users/**
      */
     private String path;
 
     /**
-     * 目标服务 URI，例http://localhost:8082
+     * targetservice URI，examplehttp://localhost:8082
      */
     private String targetUri;
 
     /**
-     * 路由过滤器配置（可选）
+     * Route filter configuration (optional)
      */
     private List<String> filters;
 
     /**
-     * 是否需要认证（可选）
+     * Whether authentication is required (optional)
      */
     private Boolean authRequired;
 
     /**
-     * 允许访问的角色列表（可选）
+     * List of allowed access roles (optional)
      */
     private List<String> roles;
 
     /**
-     * 默认构造函数
+     * Default constructor
      */
     public PluginRouteDTO() {
     }
 
     /**
-     * 全参构造函数
+     * Full parameter constructor
      *
-     * @param id        路由 ID
-     * @param path      匹配路径
-     * @param targetUri 目标 URI
+     * @param id        route ID
+     * @param path      match path
+     * @param targetUri target URI
      */
     public PluginRouteDTO(String id, String path, String targetUri) {
         this.id = id;

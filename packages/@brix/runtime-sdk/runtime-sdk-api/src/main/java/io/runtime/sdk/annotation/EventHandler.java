@@ -22,45 +22,45 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 事件处理器注解
+ * Event Handler Annotation
  * 
- * <p>用于标识一个方法为事件处理器。被此注解标注的方法将被 Runtime Shell 注册为事件监听器。</p>
+ * <p>Used to identify a method as an event handler. Methods annotated with this annotation will be registered as event listeners by the Runtime Shell.</p>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
- * @Module(id = "booking-module", name = "预约模块")
+ * @Module(id = "booking-module", name = "Booking Module")
  * public class BookingModule extends AbstractModule {
  *     
- *     // 处理用户创建事件
+ *     // Handle user created event
  *     @EventHandler
  *     public void onUserCreated(UserCreatedEvent event) {
- *         // 为新用户创建默认预约配置...
+ *         // Create default booking configuration for new users...
  *     }
  *     
- *     // 处理订单完成事件，指定事件类型
+ *     // Handle order completed event, specifying event type
  *     @EventHandler(eventType = "com.example.OrderCompletedEvent")
  *     public void handleOrderCompleted(OrderCompletedEvent event) {
- *         // 处理订单完成后的预约更新...
+ *         // Handle booking update after order completion...
  *     }
  *     
- *     // 异步处理大量事件
+ *     // Asynchronously handle bulk events
  *     @EventHandler(async = true)
  *     public void onBatchDataSync(DataSyncEvent event) {
- *         // 异步处理数据同步...
+ *         // Asynchronously process data sync...
  *     }
  * }
  * }</pre>
  * 
- * <h3>方法签名要求</h3>
+ * <h3>Method Signature Requirements</h3>
  * <ul>
- *   <li>必须是 public 方法</li>
- *   <li>必须有且仅有一个参数，参数类型为事件类</li>
- *   <li>返回值应为 void（非 void 返回值会被忽略）</li>
+ *   <li>Must be a public method</li>
+ *   <li>Must have exactly one parameter, with the parameter type being the event class</li>
+ *   <li>Return type should be void (non-void return values are ignored)</li>
  * </ul>
  * 
- * <h3>与 Manifest 的关系</h3>
- * <p>注解声明的事件处理器需要在 module-manifest.yaml 的 subscribes 中声明白名单。
- * 只有在白名单中的事件类型才会被路由到对应的处理器。</p>
+ * <h3>Relationship with Manifest</h3>
+ * <p>Event handlers declared via annotations must be whitelisted in the module-manifest.yaml subscribes section.
+ * Only event types in the whitelist will be routed to the corresponding handlers.</p>
  * 
  * <pre>{@code
  * # module-manifest.yaml
@@ -79,42 +79,42 @@ import java.lang.annotation.Target;
 public @interface EventHandler {
 
     /**
-     * 事件类型
+     * Event type
      * 
-     * <p>默认从方法参数类型推断。如果指定，则使用指定的类型名。</p>
+     * <p>Inferred from the method parameter type by default. If specified, the specified type name is used.</p>
      * 
-     * @return 事件类型全限定名
+     * @return the fully qualified event type name
      */
     String eventType() default "";
 
     /**
-     * 是否异步处理
+     * Whether to process asynchronously
      * 
-     * <p>如果为 true，事件将在独立线程中异步处理，不阻塞事件发布者</p>
+     * <p>If true, the event will be processed asynchronously in a separate thread, not blocking the event publisher</p>
      * 
-     * @return 是否异步处理，默认 false
+     * @return whether to process asynchronously, default false
      */
     boolean async() default false;
 
     /**
-     * 处理顺序
+     * Processing order
      * 
-     * <p>当多个处理器订阅同一事件时，按 order 从小到大顺序执行</p>
+     * <p>When multiple handlers subscribe to the same event, they execute in ascending order by order value</p>
      * 
-     * @return 处理顺序，默认 0
+     * @return the processing order, default 0
      */
     int order() default 0;
 
     /**
-     * 条件表达式
+     * Condition expression
      * 
-     * <p>SpEL 表达式，只有表达式计算结果为 true 时才执行处理器</p>
+     * <p>SpEL expression, the handler is only executed when the expression evaluates to true</p>
      * <pre>{@code
      * @EventHandler(condition = "#event.amount > 1000")
      * public void onLargeOrder(OrderCreatedEvent event) { }
      * }</pre>
      * 
-     * @return 条件表达式，默认为空（无条件）
+     * @return the condition expression, default empty (unconditional)
      */
     String condition() default "";
 }

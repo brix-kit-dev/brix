@@ -15,10 +15,6 @@
  */
 package io.runtime.orchestrator.autoconfigure;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.runtime.orchestrator.endpoint.PluginRegistryEndpoint;
-import io.runtime.orchestrator.manifest.UIManifestLoader;
-import io.runtime.orchestrator.registry.ModuleRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -30,24 +26,30 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.runtime.orchestrator.endpoint.PluginRegistryEndpoint;
+import io.runtime.orchestrator.manifest.UIManifestLoader;
+import io.runtime.orchestrator.registry.ModuleRegistry;
+
 /**
- * 插件注册表端点自动配置
+ * Auto-configuration for plugin registry endpoint.
  *
- * <h2>架构定位（v3.0.5 Manifest-Driven 动态发现）</h2>
+ * <h2>Architecture Position (Manifest-Driven Dynamic Discovery)</h2>
  * <p>
- * 自动配置 {@link PluginRegistryEndpoint}，提供 /api/plugins REST 端点。
- * 仅在 Web 应用且存在 {@link ModuleRegistry} Bean 时激活。
+ * Auto-configures {@link PluginRegistryEndpoint}, providing /api/plugins REST endpoint.
+ * Activates only in web applications when {@link ModuleRegistry} bean exists.
  * </p>
  *
- * <h2>激活条件</h2>
+ * <h2>Activation Conditions</h2>
  * <ul>
- *   <li>Web 应用（有 DispatcherServlet）</li>
- *   <li>存在 ModuleRegistry Bean</li>
- *   <li>存在 @RestController 注解支持</li>
- *   <li>配置 brix.plugin-registry.enabled=true（默认 true）</li>
+ *   <li>Web application (DispatcherServlet present)</li>
+ *   <li>ModuleRegistry bean exists</li>
+ *   <li>@RestController annotation support present</li>
+ *   <li>Configuration brix.plugin-registry.enabled=true (default true)</li>
  * </ul>
  *
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   plugin-registry:
@@ -72,10 +74,10 @@ public class PluginRegistryAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(PluginRegistryAutoConfiguration.class);
 
     /**
-     * 创建 UI Manifest 加载器 Bean
+     * Creates UI Manifest loader bean.
      *
-     * @param objectMapper JSON 序列化器
-     * @return UI Manifest 加载器
+     * @param objectMapper JSON serializer
+     * @return UI Manifest loader
      */
     @Bean
     @ConditionalOnMissingBean(UIManifestLoader.class)
@@ -85,11 +87,11 @@ public class PluginRegistryAutoConfiguration {
     }
 
     /**
-     * 创建插件注册表端点 Bean
+     * Creates plugin registry endpoint bean.
      *
-     * @param moduleRegistry 模块注册表
-     * @param manifestLoader UI Manifest 加载器
-     * @return 插件注册表端点
+     * @param moduleRegistry module registry
+     * @param manifestLoader UI Manifest loader
+     * @return plugin registry endpoint
      */
     @Bean
     @ConditionalOnMissingBean(PluginRegistryEndpoint.class)

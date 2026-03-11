@@ -39,37 +39,38 @@ import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * 基于内存的事件总线能力实现
+ * In-Memory Event Bus Capability Implementation
  * 
- * <p>本类是 {@link EventBusCapability} 的轻量级内存实现，适用于本地开发和测试场景。
- * 事件通过内存中的发布-订阅机制传递，无需依赖 Kafka 等外部消息中间件。</p>
+ * <p>This class is a lightweight in-memory implementation of {@link EventBusCapability},
+ * suitable for local development and testing scenarios. Events are delivered through
+ * an in-memory publish-subscribe mechanism without requiring external message middleware like Kafka.</p>
  * 
- * <h3>核心特性</h3>
+ * <h3>Key Features</h3>
  * <ul>
- *   <li><b>同步/异步发布</b>：支持同步和异步两种事件发布模式</li>
- *   <li><b>类型安全订阅</b>：基于事件类型进行精确匹配</li>
- *   <li><b>事件历史</b>：可选保留最近的事件用于调试</li>
- *   <li><b>线程安全</b>：所有操作都是线程安全的</li>
+ *   <li><b>Sync/Async Publishing</b>: Supports both synchronous and asynchronous event publishing modes</li>
+ *   <li><b>Type-Safe Subscription</b>: Precise matching based on event type</li>
+ *   <li><b>Event History</b>: Optionally retains recent events for debugging</li>
+ *   <li><b>Thread Safety</b>: All operations are thread-safe</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
  * InMemoryEventBusCapability eventBus = new InMemoryEventBusCapability();
  * 
- * // 订阅事件（测试用）
+ * // Subscribe to events (for testing)
  * eventBus.subscribe(OrderCreatedEvent.class, event -> {
- *     System.out.println("收到订单: " + event.getOrderId());
+ *     System.out.println("Received order: " + event.getOrderId());
  * });
  * 
- * // 发布事件
+ * // Publish event
  * eventBus.publish(new OrderCreatedEvent("ORDER-001"));
  * }</pre>
  * 
- * <h3>限制说明</h3>
+ * <h3>Limitations</h3>
  * <ul>
- *   <li>事件仅在当前 JVM 进程内传递，不支持跨进程通信</li>
- *   <li>进程重启后所有订阅关系和事件历史都会丢失</li>
- *   <li>不保证消息的持久化和可靠投递</li>
+ *   <li>Events are only delivered within the current JVM process, cross-process communication is not supported</li>
+ *   <li>All subscriptions and event history are lost after process restart</li>
+ *   <li>Message persistence and reliable delivery are not guaranteed</li>
  * </ul>
  * 
  * @author Brix Team
@@ -79,7 +80,7 @@ import io.runtime.sdk.event.IntegrationEvent;
 @Capability(
     type = EventBusCapability.class,
     name = "in-memory-event-bus",
-    description = "基于内存的事件总线实现，适用于开发和单机部署",
+    description = "In-memory event bus implementation, suitable for development and single-node deployment",
     level = CapabilityLevel.STANDARD,
     aliases = {"simpleEventBus", "inMemoryEventBus"}
 )
@@ -88,55 +89,55 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     private static final Logger log = LoggerFactory.getLogger(InMemoryEventBusCapability.class);
 
     /**
-     * 领域事件订阅者映射
-     * Key: 事件类型（Class）
-     * Value: 订阅者列表
+     * Domain event subscribers mapping
+     * Key: Event type (Class)
+     * Value: List of subscribers
      */
     private final Map<Class<? extends DomainEvent>, List<Consumer<DomainEvent>>> domainSubscribers 
         = new ConcurrentHashMap<>();
 
     /**
-     * 集成事件订阅者映射
-     * Key: 事件类型（Class）
-     * Value: 订阅者列表
+     * Integration event subscribers mapping
+     * Key: Event type (Class)
+     * Value: List of subscribers
      */
     private final Map<Class<? extends IntegrationEvent>, List<Consumer<IntegrationEvent>>> integrationSubscribers 
         = new ConcurrentHashMap<>();
 
     /**
-     * 事件历史记录（用于测试和调试）
+     * Event history records (for testing and debugging)
      */
     private final BlockingQueue<Object> eventHistory;
 
     /**
-     * 异步执行器
+     * Async executor
      */
     private final ExecutorService executor;
 
     /**
-     * 是否使用异步模式发布事件
+     * Whether to use async mode for event publishing
      */
     private final boolean asyncMode;
 
     /**
-     * 最大事件历史数量
+     * Maximum event history size
      */
     private final int maxHistorySize;
 
     /**
-     * 创建内存事件总线（默认配置）
+     * Creates an in-memory event bus (default configuration)
      * 
-     * <p>使用同步模式，保留最近 1000 条事件历史。</p>
+     * <p>Uses synchronous mode, retains last 1000 events in history.</p>
      */
     public InMemoryEventBusCapability() {
         this(false, 1000);
     }
 
     /**
-     * 创建内存事件总线
+     * Creates an in-memory event bus
      * 
-     * @param asyncMode      是否使用异步模式
-     * @param maxHistorySize 最大事件历史数量（0 表示不保留）
+     * @param asyncMode      Whether to use async mode
+     * @param maxHistorySize Maximum event history size (0 means no retention)
      */
     public InMemoryEventBusCapability(boolean asyncMode, int maxHistorySize) {
         this.asyncMode = asyncMode;
@@ -154,83 +155,84 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     }
 
     /**
-     * 发布领域事件
+     * Publishes a domain event
      * 
-     * <p>领域事件在模块内部传播，通知所有订阅该事件类型的消费者。</p>
+     * <p>Domain events propagate within the module, notifying all consumers subscribed to this event type.</p>
      * 
-     * @param event 要发布的领域事件，不能为 null
-     * @throws IllegalArgumentException 如果事件为 null
+     * @param event Domain event to publish, cannot be null
+     * @throws IllegalArgumentException if event is null
      */
     @Override
     public void publish(DomainEvent event) {
-        Objects.requireNonNull(event, "领域事件不能为空");
+        Objects.requireNonNull(event, "Domain event cannot be null");
 
-        log.debug("发布领域事件: type={}, eventId={}", 
+        log.debug("Publishing domain event: type={}, eventId={}", 
             event.getClass().getSimpleName(), event.getEventId());
 
-        // 记录事件历史
+        // Record event history
         recordHistory(event);
 
-        // 获取订阅者
+        // Get subscribers
         @SuppressWarnings("unchecked")
         List<Consumer<DomainEvent>> subscribers = domainSubscribers.get(event.getClass());
         
         if (subscribers == null || subscribers.isEmpty()) {
-            log.debug("领域事件无订阅者: {}", event.getClass().getSimpleName());
+            log.debug("No subscribers for domain event: {}", event.getClass().getSimpleName());
             return;
         }
 
-        // 分发事件
+        // Dispatch event
         dispatchToSubscribers(event, subscribers);
     }
 
     /**
-     * 发布集成事件
+     * Publishes an integration event
      * 
-     * <p>集成事件用于跨模块/跨系统通信，通知所有订阅该事件类型的消费者。</p>
+     * <p>Integration events are used for cross-module/cross-system communication,
+     * notifying all consumers subscribed to this event type.</p>
      * 
-     * @param event 要发布的集成事件，不能为 null
-     * @throws IllegalArgumentException 如果事件为 null
+     * @param event Integration event to publish, cannot be null
+     * @throws IllegalArgumentException if event is null
      */
     @Override
     public void publishIntegration(IntegrationEvent event) {
-        Objects.requireNonNull(event, "集成事件不能为空");
+        Objects.requireNonNull(event, "Integration event cannot be null");
 
-        log.debug("发布集成事件: type={}, eventId={}", 
+        log.debug("Publishing integration event: type={}, eventId={}", 
             event.getClass().getSimpleName(), event.getEventId());
 
-        // 记录事件历史
+        // Record event history
         recordHistory(event);
 
-        // 获取订阅者
+        // Get subscribers
         @SuppressWarnings("unchecked")
         List<Consumer<IntegrationEvent>> subscribers = integrationSubscribers.get(event.getClass());
         
         if (subscribers == null || subscribers.isEmpty()) {
-            log.debug("集成事件无订阅者: {}", event.getClass().getSimpleName());
+            log.debug("No subscribers for integration event: {}", event.getClass().getSimpleName());
             return;
         }
 
-        // 分发事件
+        // Dispatch event
         dispatchToSubscribers(event, subscribers);
     }
 
     /**
-     * 订阅领域事件（测试用）
+     * Subscribes to domain events (for testing)
      * 
-     * <p>注意：这是内存实现特有的方法，用于测试场景。
-     * 正式环境中应通过 module-manifest.yaml 声明订阅关系。</p>
+     * <p>Note: This is a method specific to the in-memory implementation, used for testing scenarios.
+     * In production environments, subscriptions should be declared via module-manifest.yaml.</p>
      * 
-     * @param eventType 事件类型
-     * @param handler   事件处理器
-     * @param <T>       事件类型
-     * @return 取消订阅的 Runnable
+     * @param eventType Event type
+     * @param handler   Event handler
+     * @param <T>       Event type
+     * @return Runnable to unsubscribe
      */
     public <T extends DomainEvent> Runnable subscribeDomain(
             Class<T> eventType, 
             Consumer<T> handler) {
-        Objects.requireNonNull(eventType, "事件类型不能为空");
-        Objects.requireNonNull(handler, "处理器不能为空");
+        Objects.requireNonNull(eventType, "Event type cannot be null");
+        Objects.requireNonNull(handler, "Handler cannot be null");
 
         @SuppressWarnings("unchecked")
         Consumer<DomainEvent> wrappedHandler = (Consumer<DomainEvent>) handler;
@@ -239,9 +241,9 @@ public class InMemoryEventBusCapability implements EventBusCapability {
             .computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>())
             .add(wrappedHandler);
 
-        log.info("注册领域事件订阅: {}", eventType.getSimpleName());
+        log.info("Registered domain event subscription: {}", eventType.getSimpleName());
 
-        // 返回取消订阅的 Runnable
+        // Return Runnable to unsubscribe
         return () -> {
             List<Consumer<DomainEvent>> list = domainSubscribers.get(eventType);
             if (list != null) {
@@ -251,21 +253,21 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     }
 
     /**
-     * 订阅集成事件（测试用）
+     * Subscribes to integration events (for testing)
      * 
-     * <p>注意：这是内存实现特有的方法，用于测试场景。
-     * 正式环境中应通过 module-manifest.yaml 声明订阅关系。</p>
+     * <p>Note: This is a method specific to the in-memory implementation, used for testing scenarios.
+     * In production environments, subscriptions should be declared via module-manifest.yaml.</p>
      * 
-     * @param eventType 事件类型
-     * @param handler   事件处理器
-     * @param <T>       事件类型
-     * @return 取消订阅的 Runnable
+     * @param eventType Event type
+     * @param handler   Event handler
+     * @param <T>       Event type
+     * @return Runnable to unsubscribe
      */
     public <T extends IntegrationEvent> Runnable subscribeIntegration(
             Class<T> eventType, 
             Consumer<T> handler) {
-        Objects.requireNonNull(eventType, "事件类型不能为空");
-        Objects.requireNonNull(handler, "处理器不能为空");
+        Objects.requireNonNull(eventType, "Event type cannot be null");
+        Objects.requireNonNull(handler, "Handler cannot be null");
 
         @SuppressWarnings("unchecked")
         Consumer<IntegrationEvent> wrappedHandler = (Consumer<IntegrationEvent>) handler;
@@ -274,9 +276,9 @@ public class InMemoryEventBusCapability implements EventBusCapability {
             .computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>())
             .add(wrappedHandler);
 
-        log.info("注册集成事件订阅: {}", eventType.getSimpleName());
+        log.info("Registered integration event subscription: {}", eventType.getSimpleName());
 
-        // 返回取消订阅的 Runnable
+        // Return Runnable to unsubscribe
         return () -> {
             List<Consumer<IntegrationEvent>> list = integrationSubscribers.get(eventType);
             if (list != null) {
@@ -286,9 +288,9 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     }
 
     /**
-     * 获取事件历史记录（测试用）
+     * Gets event history records (for testing)
      * 
-     * @return 事件历史列表（不可变）
+     * @return Immutable list of event history
      */
     public List<Object> getEventHistory() {
         if (eventHistory == null) {
@@ -298,7 +300,7 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     }
 
     /**
-     * 清空事件历史
+     * Clears event history
      */
     public void clearHistory() {
         if (eventHistory != null) {
@@ -307,18 +309,18 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     }
 
     /**
-     * 清空所有订阅
+     * Clears all subscriptions
      */
     public void clearSubscribers() {
         domainSubscribers.clear();
         integrationSubscribers.clear();
-        log.info("已清空所有事件订阅");
+        log.info("All event subscriptions cleared");
     }
 
     /**
-     * 关闭事件总线
+     * Shuts down the event bus
      * 
-     * <p>释放异步执行器资源。</p>
+     * <p>Releases async executor resources.</p>
      */
     public void shutdown() {
         if (executor != null) {
@@ -332,17 +334,17 @@ public class InMemoryEventBusCapability implements EventBusCapability {
                 Thread.currentThread().interrupt();
             }
         }
-        log.info("内存事件总线已关闭");
+        log.info("In-memory event bus closed");
     }
 
-    // ==================== 私有方法 ====================
+    // ==================== Private Methods ====================
 
     /**
-     * 记录事件到历史
+     * Records event to history
      */
     private void recordHistory(Object event) {
         if (eventHistory != null) {
-            // 如果队列满了，移除最旧的
+            // If queue is full, remove the oldest
             while (!eventHistory.offer(event)) {
                 eventHistory.poll();
             }
@@ -350,7 +352,7 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     }
 
     /**
-     * 分发事件到订阅者
+     * Dispatches event to subscribers
      */
     private <T> void dispatchToSubscribers(T event, List<Consumer<T>> subscribers) {
         for (Consumer<T> subscriber : subscribers) {
@@ -363,13 +365,13 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     }
 
     /**
-     * 调用事件处理器
+     * Invokes event handler
      */
     private <T> void invokeHandler(T event, Consumer<T> handler) {
         try {
             handler.accept(event);
         } catch (Exception e) {
-            log.error("事件处理器执行失败: eventType={}, error={}", 
+            log.error("Event handler execution failed: eventType={}, error={}", 
                 event.getClass().getSimpleName(), e.getMessage(), e);
         }
     }

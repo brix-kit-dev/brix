@@ -1,117 +1,110 @@
-# Platform Commons
+﻿# Platform Commons
 
-> **版本**: 3.0.0-SNAPSHOT  
-> **许可**: Apache License 2.0  
-> **品牌**: Brix（开源框架）
+> Version: 3.0.0-SNAPSHOT  
+> License: Apache License 2.0
 
 ---
 
-## 架构定位
+## Architecture Position
 
-**Layer 2.5: 平台通用能力层（Platform Commons）**
-
-本仓库实现平台级通用能力，包括鉴权、网关、可观测性、国际化等。
+Platform Commons is part of Layer 2C in the Brix Runtime Shell architecture. It provides platform-level shared capability implementations such as authentication, gateway support, observability, configuration, navigation, and internationalization.
 
 ```text
-Layer 3: Host 层（组装层）        ← 引用本层
+Layer 3: Host Assembly Layer                 <- imports these modules for composition
     ↓
-Layer 2.5: 平台通用能力层 ★ 本仓库 ★  ← 实现平台能力
-    ↓
-Layer 2: 能力契约层              ← 依赖（仅接口）
-    ↑
-Layer 1: Plugin 层               ← 可选依赖本层（如 auth）
+Layer 2C: Capability Implementation Layer    <- this repository
+    ↓ implements
+Layer 2A: Capability Contract Layer          <- runtime-sdk API packages
+    ↑ only dependency allowed for plugins
+Layer 1: Plugin Layer                        <- must not depend directly on platform implementations
 ```
 
-### 架构红线
+### Architectural Guardrails
 
-| 规则 | 说明 |
-|------|------|
-| ❌ 禁止依赖 shinwa-solutions | 不依赖业务层 |
-| ✅ 依赖 runtime-sdk-api | 实现能力契约接口 |
-| ✅ 可依赖 infra-adapters | 可选，用于基础设施集成 |
-| ✅ 实现平台级通用能力 | 鉴权、网关、可观测性等 |
+| Rule | Description |
+|------|-------------|
+| Plugins depend on contracts, not implementations | Plugin code must remain infrastructure-agnostic |
+| Platform Commons must not depend on business solutions | Platform code stays reusable and neutral |
+| Platform Commons may integrate with infra-adapters | Infrastructure integration belongs in Layer 2C |
+| Hosts assemble capabilities declaratively | Host projects remain ultra-thin and configuration-driven |
 
 ---
 
-## 📦 模块结构
+## Package Layout
 
+```text
+packages/
+├── client/
+│   ├── platform-auth-service-web/
+│   ├── platform-auth-ui-web/
+│   ├── platform-auth-web/
+│   ├── platform-config-web/
+│   ├── platform-eventbus-web/
+│   ├── platform-i18n-web/
+│   ├── platform-navigation-web/
+│   ├── platform-router-web/
+│   ├── platform-shared/
+│   └── platform-state-web/
+└── server/
+    ├── platform-auth/
+    ├── platform-common/
+    ├── platform-common-starter/
+    ├── platform-config/
+    ├── platform-gateway/
+    ├── platform-observability/
+    └── platform-parent/
 ```
-platform-commons/
-├── packages/
-│   ├── client/                    # 前端能力实现
-│   │   ├── platform-auth-web/     # 认证能力
-│   │   ├── platform-eventbus-web/ # 事件总线
-│   │   ├── platform-i18n-web/     # 国际化
-│   │   ├── platform-navigation-web/ # 导航
-│   │   ├── platform-router-web/   # 路由封装
-│   │   ├── platform-shared/       # 共享代码
-│   │   └── platform-state-web/    # 状态管理
-│   │
-│   └── server/                    # 后端能力实现
-│       ├── platform-parent/       # 依赖管理 BOM
-│       ├── platform-common/       # 公共 Entity/DTO
-│       ├── platform-common-starter/ # 自动配置
-│       ├── platform-gateway/      # API 网关
-│       ├── platform-auth/         # JWT 认证
-│       ├── platform-observability/ # 可观测性
-│       └── platform-config/       # 配置中心
-```
+
+## Representative Capability Areas
+
+### Client Modules
+
+| Module | Package | Primary Responsibility |
+|--------|---------|------------------------|
+| Authentication | `@brix/platform-auth-web`, `@brix/platform-auth-service-web`, `@brix/platform-auth-ui-web` | identity integration and user-facing auth flows |
+| Eventing | `@brix/platform-eventbus-web` | governed event transport for web plugins |
+| Configuration | `@brix/platform-config-web` | runtime configuration access |
+| Navigation | `@brix/platform-navigation-web`, `@brix/platform-router-web` | routing and navigation orchestration |
+| Shared runtime helpers | `@brix/platform-shared`, `@brix/platform-state-web`, `@brix/platform-i18n-web` | shared client-side platform capabilities |
+
+### Server Modules
+
+| Module | Coordinates | Primary Responsibility |
+|--------|-------------|------------------------|
+| Starter | `io.brix.platform:platform-common-starter` | Spring Boot auto-configuration entry point |
+| Auth | `io.brix.platform:platform-auth` | authentication and authorization support |
+| Gateway | `io.brix.platform:platform-gateway` | API gateway, routing, resilience, and policy integration |
+| Observability | `io.brix.platform:platform-observability` | tracing, metrics, and logging support |
+| Config | `io.brix.platform:platform-config` | configuration loading and related platform concerns |
 
 ---
 
-## 前端能力
+## Getting Started
 
-| 模块 | 包名 | 实现的能力契约 |
-|------|------|---------------|
-| platform-auth-web | `@brix/platform-auth-web` | `AuthCapability` |
-| platform-eventbus-web | `@brix/platform-eventbus-web` | `GovernedEventBusCapability` |
-| platform-i18n-web | `@brix/platform-i18n-web` | `I18nCapability` |
-| platform-navigation-web | `@brix/platform-navigation-web` | `NavigationCapability` |
-| platform-state-web | `@brix/platform-state-web` | `PluginStateCapability` |
-
----
-
-## 后端能力
-
-| 模块 | GroupId:ArtifactId | 功能 |
-|------|-------------------|------|
-| platform-gateway | `io.platform:platform-gateway` | API 网关、路由、限流、熔断 |
-| platform-auth | `io.platform:platform-auth` | JWT 验证、权限注解 |
-| platform-observability | `io.platform:platform-observability` | 链路追踪、日志、指标 |
-| platform-config | `io.platform:platform-config` | 配置加载、动态刷新 |
-
----
-
-## 快速开始
-
-### 后端依赖
+### Backend Dependency
 
 ```xml
 <dependency>
-    <groupId>shinwa.platform</groupId>
+    <groupId>io.brix.platform</groupId>
     <artifactId>platform-common-starter</artifactId>
     <version>3.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
-### 前端依赖
+### Frontend Dependency
 
 ```bash
 pnpm add @brix/platform-auth-web
 ```
 
----
+## Naming Conventions
 
-## 📖 命名规范
+| Item | Convention | Notes |
+|------|------------|-------|
+| npm scope | `@brix` | Open-source frontend package namespace |
+| Maven GroupId | `io.brix.platform` | Open-source Java package namespace |
+| License | Apache License 2.0 | See the repository license file |
 
-| 项目 | 规范 | 说明 |
-|-----|------|------|
-| npm Scope | `@brix` | 开源框架品牌 |
-| Maven GroupId | `io.platform` / `shinwa.platform` | 待统一 |
-| 许可证 | Apache 2.0 | 开源 |
+## License
 
----
-
-## 📄 License
-
-Apache License 2.0 - 详见 [LICENSE](LICENSE)
+Apache License 2.0. See [LICENSE](LICENSE) for details.

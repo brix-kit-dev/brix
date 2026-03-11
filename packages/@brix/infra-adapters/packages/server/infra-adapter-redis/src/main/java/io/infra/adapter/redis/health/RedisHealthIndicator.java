@@ -38,9 +38,6 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
  *   <li><b>usedMemory</b>: Memory usage of Redis server</li>
  * </ul>
  *
- * <p>健康指示器用于检查 Redis 服务器的连通性。当 Redis 响应 PING 命令时报告 UP，
- * 否则报告 DOWN。</p>
- *
  * @author Brix Platform Team
  * @since 3.0.0
  * @see HealthIndicator
@@ -67,15 +64,12 @@ public class RedisHealthIndicator implements HealthIndicator {
      * <p>The health check connects to Redis and verifies connectivity via PING command.
      * Additional server information is retrieved via INFO command for diagnostic purposes.</p>
      *
-     * <p>通过执行 PING 和 INFO 命令来执行健康检查。PING 命令验证连通性，
-     * INFO 命令获取服务器诊断信息。</p>
-     *
      * @return Health status with server details
      */
     @Override
     public Health health() {
         try (RedisConnection connection = connectionFactory.getConnection()) {
-            // 执行 PING 命令验证连通性 - Execute PING command to verify connectivity
+            // Execute PING command to verify connectivity
             String pingResponse = connection.ping();
             
             if (!"PONG".equals(pingResponse)) {
@@ -85,7 +79,7 @@ public class RedisHealthIndicator implements HealthIndicator {
                         .build();
             }
 
-            // 获取服务器信息 - Get server info
+            // Get server info
             Properties serverInfo = connection.serverCommands().info("server");
             Properties clientInfo = connection.serverCommands().info("clients");
             Properties memoryInfo = connection.serverCommands().info("memory");
@@ -105,7 +99,7 @@ public class RedisHealthIndicator implements HealthIndicator {
                     .build();
 
         } catch (Exception e) {
-            // 连接失败 - Connection failed
+            // Connection failed
             log.warn("Redis health check failed: {}", e.getMessage());
             return Health.down(e)
                     .withDetail("error", e.getMessage())

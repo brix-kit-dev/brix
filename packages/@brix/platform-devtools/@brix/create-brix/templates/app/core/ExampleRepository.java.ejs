@@ -1,4 +1,4 @@
-package <%= packageName %>.core.repository;
+﻿package <%= packageName %>.core.repository;
 
 import <%= packageName %>.core.entity.<%= classPrefix %>Entity;
 import org.springframework.data.domain.Page;
@@ -16,7 +16,7 @@ import java.util.Optional;
  * 
  * <p>提供<%= displayName %>实体的数据访问操作。</p>
  * 
- * <p>【v3.0 架构说明】</p>
+ * <p>[v3.0 Architecture]</p>
  * <ul>
  *   <li>继承 JpaRepository 获得标准 CRUD 操作</li>
  *   <li>自定义查询方法遵循 Spring Data 命名规范</li>
@@ -31,47 +31,47 @@ import java.util.Optional;
 public interface <%= classPrefix %>Repository extends JpaRepository<<%= classPrefix %>Entity, String> {
 
     /**
-     * 根据租户 ID 和名称查找
+     * 根据Tenant ID 和Name查找
      * 
-     * @param tenantId 租户 ID
-     * @param name 名称
-     * @return 实体（可选）
+     * @param tenantId Tenant ID
+     * @param name Name
+     * @return 实体（Optional）
      */
     Optional<<%= classPrefix %>Entity> findByTenantIdAndName(String tenantId, String name);
 
     /**
-     * 根据租户 ID 查找所有记录
+     * 根据Tenant ID 查找所有记录
      * 
-     * @param tenantId 租户 ID
+     * @param tenantId Tenant ID
      * @return 实体列表
      */
     List<<%= classPrefix %>Entity> findByTenantId(String tenantId);
 
     /**
-     * 根据租户 ID 分页查找
+     * 根据Tenant ID 分pages查找
      * 
-     * @param tenantId 租户 ID
-     * @param pageable 分页参数
-     * @return 分页结果
+     * @param tenantId Tenant ID
+     * @param pageable 分pages参数
+     * @return 分pages结果
      */
     Page<<%= classPrefix %>Entity> findByTenantId(String tenantId, Pageable pageable);
 
     /**
-     * 根据租户 ID 和状态查找
+     * 根据Tenant ID 和Status查找
      * 
-     * @param tenantId 租户 ID
-     * @param status 状态
+     * @param tenantId Tenant ID
+     * @param status Status
      * @return 实体列表
      */
     List<<%= classPrefix %>Entity> findByTenantIdAndStatus(String tenantId, String status);
 
     /**
-     * 根据租户 ID 和名称模糊搜索
+     * 根据Tenant ID 和Name模糊Search
      * 
-     * @param tenantId 租户 ID
-     * @param keyword 搜索关键词
-     * @param pageable 分页参数
-     * @return 分页结果
+     * @param tenantId Tenant ID
+     * @param keyword Search关键词
+     * @param pageable 分pages参数
+     * @return 分pages结果
      */
     @Query("SELECT e FROM <%= classPrefix %>Entity e WHERE e.tenantId = :tenantId AND e.name LIKE %:keyword%")
     Page<<%= classPrefix %>Entity> searchByName(
@@ -81,10 +81,10 @@ public interface <%= classPrefix %>Repository extends JpaRepository<<%= classPre
     );
 
     /**
-     * 检查名称是否已存在（同一租户内）
+     * 检查Name是否已存在（同一租户内）
      * 
-     * @param tenantId 租户 ID
-     * @param name 名称
+     * @param tenantId Tenant ID
+     * @param name Name
      * @return 是否存在
      */
     boolean existsByTenantIdAndName(String tenantId, String name);

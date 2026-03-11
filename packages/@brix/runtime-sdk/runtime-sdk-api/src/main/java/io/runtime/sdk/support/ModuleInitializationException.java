@@ -16,9 +16,9 @@
 package io.runtime.sdk.support;
 
 /**
- * 模块初始化异常
+ * Module Initialization Exception
  * 
- * <p>当模块在初始化阶段（onInit）发生错误时抛出。</p>
+ * <p>Thrown when a module encounters an error during initialization phase (onInit).</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -28,15 +28,15 @@ public class ModuleInitializationException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 模块 ID
+     * Module ID
      */
     private final String moduleId;
 
     /**
-     * 创建模块初始化异常
+     * Create module initialization exception
      * 
-     * @param moduleId 模块 ID
-     * @param cause    原因异常
+     * @param moduleId module ID
+     * @param cause    cause exception
      */
     public ModuleInitializationException(String moduleId, Throwable cause) {
         super("Failed to initialize module: " + moduleId, cause);
@@ -44,10 +44,10 @@ public class ModuleInitializationException extends RuntimeException {
     }
 
     /**
-     * 创建模块初始化异常
+     * Create module initialization exception
      * 
-     * @param moduleId 模块 ID
-     * @param message  异常消息
+     * @param moduleId module ID
+     * @param message  exception message
      */
     public ModuleInitializationException(String moduleId, String message) {
         super("Failed to initialize module [" + moduleId + "]: " + message);
@@ -55,9 +55,9 @@ public class ModuleInitializationException extends RuntimeException {
     }
 
     /**
-     * 获取模块 ID
+     * Get module ID
      * 
-     * @return 模块 ID
+     * @return module ID
      */
     public String getModuleId() {
         return moduleId;

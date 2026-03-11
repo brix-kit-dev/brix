@@ -1,10 +1,10 @@
-/**
- * <%= displayName %> UI 模块 - Rspack 配置
+﻿/**
+ * <%= displayName %> UI module - Rspack 配置
  * 
  * 【v3.0 Module Federation 架构】
- * - 作为远程模块供宿主应用动态加载
- * - 暴露页面组件和 hooks
- * - 共享 React 和 runtime 依赖
+ * - 作为远程module供宿主应用动态加载
+ * - 暴露pages面组件和 hooks
+ * - Total享 React 和 runtime 依赖
  * 
  * @author <%= author %>
  * @date <%= date %>
@@ -67,11 +67,11 @@ module.exports = {
     /**
      * Module Federation 配置
      * 
-     * 【远程模块说明】
-     * - name: 模块名称，宿主通过此名称引用
+     * 【远程module说明】
+     * - name: moduleName，宿主通过此Name引用
      * - filename: 远程入口文件名
-     * - exposes: 暴露的组件/模块
-     * - shared: 共享依赖（避免重复加载）
+     * - exposes: 暴露的组件/module
+     * - shared: Total享依赖（避免重复加载）
      */
     new ModuleFederationPlugin({
       name: '<%= name.replace(/-/g, '_') %>',
@@ -84,7 +84,7 @@ module.exports = {
         './hooks': './src/hooks/use<%= classPrefix %>.ts',
       },
       
-      // 共享依赖
+      // Total享依赖
       shared: {
         react: {
           singleton: true,

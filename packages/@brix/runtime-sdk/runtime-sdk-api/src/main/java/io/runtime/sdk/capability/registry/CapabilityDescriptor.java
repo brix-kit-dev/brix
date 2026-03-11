@@ -19,9 +19,9 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 能力描述符
+ * Capability Descriptor
  * 
- * <p>包含能力的元数据信息，用于运行时查询和可观测性。</p>
+ * <p>Contains capability metadata information for runtime querying and observability.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -39,7 +39,7 @@ public final class CapabilityDescriptor {
     private final String providerModule;
 
     private CapabilityDescriptor(Builder builder) {
-        this.type = Objects.requireNonNull(builder.type, "type 不能为空");
+        this.type = Objects.requireNonNull(builder.type, "type cannot be null");
         this.name = builder.name != null ? builder.name : type.getSimpleName();
         this.description = builder.description != null ? builder.description : "";
         this.level = builder.level != null ? builder.level : CapabilityLevel.STANDARD;
@@ -53,81 +53,81 @@ public final class CapabilityDescriptor {
     // ==================== Getters ====================
 
     /**
-     * 获取能力接口类型
+     * Get capability interface type
      * 
-     * @return 能力接口类型
+     * @return capability interface type
      */
     public Class<?> getType() {
         return type;
     }
 
     /**
-     * 获取能力名称
+     * Get capability name
      * 
-     * @return 能力名称
+     * @return capability name
      */
     public String getName() {
         return name;
     }
 
     /**
-     * 获取能力描述
+     * Get capability description
      * 
-     * @return 能力描述
+     * @return capability description
      */
     public String getDescription() {
         return description;
     }
 
     /**
-     * 获取能力级别
+     * Get capability level
      * 
-     * @return 能力级别
+     * @return capability level
      */
     public CapabilityLevel getLevel() {
         return level;
     }
 
     /**
-     * 获取优先级
+     * Get priority
      * 
-     * @return 优先级
+     * @return priority
      */
     public int getPriority() {
         return priority;
     }
 
     /**
-     * 是否为必需能力
+     * Whether capability is required
      * 
-     * @return 是否必需
+     * @return whether required
      */
     public boolean isRequired() {
         return required;
     }
 
     /**
-     * 获取别名集合
+     * Get aliases
      * 
-     * @return 别名集合
+     * @return alias set
      */
     public Set<String> getAliases() {
         return aliases;
     }
 
     /**
-     * 获取实现类名
+     * Get implementation class name
      * 
-     * @return 实现类全限定名
+     * @return fully qualified implementation class name
      */
     public String getImplementationClass() {
         return implementationClass;
     }
 
     /**
-     * 获取提供者模块
+     * Get provider module
      * 
-     * @return 提供者模块名称
+     * @return provider module name
      */
     public String getProviderModule() {
         return providerModule;
@@ -136,21 +136,21 @@ public final class CapabilityDescriptor {
     // ==================== Builder ====================
 
     /**
-     * 创建构建器
+     * Create builder
      * 
-     * @param type 能力接口类型
-     * @return 构建器实例
+     * @param type capability interface type
+     * @return builder instance
      */
     public static Builder builder(Class<?> type) {
         return new Builder(type);
     }
 
     /**
-     * 从 @Capability 注解创建描述符
+     * Create descriptor from @Capability annotation
      * 
-     * @param annotation 注解实例
-     * @param implementationClass 实现类
-     * @return 描述符实例
+     * @param annotation          the annotation instance
+     * @param implementationClass the implementation class
+     * @return the descriptor instance
      */
     public static CapabilityDescriptor fromAnnotation(Capability annotation, Class<?> implementationClass) {
         Class<?> type = annotation.type() != Void.class ? annotation.type() : inferCapabilityType(implementationClass);
@@ -167,7 +167,7 @@ public final class CapabilityDescriptor {
     }
 
     /**
-     * 推断能力类型
+     * Infer capability type
      */
     private static Class<?> inferCapabilityType(Class<?> implementationClass) {
         for (Class<?> iface : implementationClass.getInterfaces()) {
@@ -175,7 +175,7 @@ public final class CapabilityDescriptor {
                 return iface;
             }
         }
-        // 检查父类接口
+        // Check parent class interfaces
         Class<?> superclass = implementationClass.getSuperclass();
         while (superclass != null && superclass != Object.class) {
             for (Class<?> iface : superclass.getInterfaces()) {
@@ -185,11 +185,11 @@ public final class CapabilityDescriptor {
             }
             superclass = superclass.getSuperclass();
         }
-        throw new IllegalArgumentException("无法推断能力类型，请在 @Capability 注解中明确指定 type: " + implementationClass.getName());
+        throw new IllegalArgumentException("Cannot infer capability type, please specify type in @Capability annotation: " + implementationClass.getName());
     }
 
     /**
-     * 描述符构建器
+     * Descriptor builder
      */
     public static class Builder {
         private final Class<?> type;

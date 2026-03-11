@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config;
 
 import org.slf4j.Logger;
@@ -13,24 +28,24 @@ import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 
 /**
- * Redis 路由刷新事件订阅器
+ * Redis Route Refresh Event Subscriber
  * <p>
- * 监听 Redis 发布的路由刷新事件，触发 Spring Cloud Gateway 重新加载路由定义。
- * 这解决了动态路由注册后网关不自动刷新的问题。
+ * Listens to route refresh events published by Redis, triggering Spring Cloud Gateway to reload route definitions.
+ * This solves the problem of gateway not automatically refreshing after dynamic route registration.
  * </p>
  * 
- * <p><b>工作流程：</b></p>
+ * <p><b>Workflow:</b></p>
  * <ol>
- *   <li>插件引擎注册/更新路由后，发布消息到 Redis 频道</li>
- *   <li>本监听器接收消息，发布 Spring Cloud Gateway RefreshRoutesEvent</li>
- *   <li>Gateway CachingRouteLocator 收到事件后重新读取 RouteDefinitionRepository</li>
- *   <li>从 Redis 加载最新的路由定义</li>
+ *   <li>After Plugin Engine registers/updates routes, it publishes a message to Redis channel</li>
+ *   <li>This listener receives the message, publishes Spring Cloud Gateway RefreshRoutesEvent</li>
+ *   <li>Gateway CachingRouteLocator receives the event and re-reads RouteDefinitionRepository</li>
+ *   <li>Loads the latest route definitions from Redis</li>
  * </ol>
  * 
- * <p><b>【v3.1 品牌名隔离】</b></p>
+ * <p><b>[v3.1 Brand Name Isolation]</b></p>
  * <p>
- * Redis 频道名现在支持通过配置文件自定义，默认为 &quot;brix:gateway:routes:event&quot;。
- * 配置项：{@code brix.gateway.routes.event-channel}
+ * Redis channel name now supports customization via configuration file, defaults to &quot;brix:gateway:routes:event&quot;.
+ * Configuration: {@code brix.gateway.routes.event-channel}
  * </p>
  * 
  * @author Brix Team
@@ -46,10 +61,10 @@ public class RedisRouteRefreshSubscriber {
     private final GatewayRoutesProperties properties;
 
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param eventPublisher Spring 事件发布器
-     * @param properties 网关路由配置属性
+     * @param eventPublisher Spring event publisher
+     * @param properties gateway route configuration properties
      */
     public RedisRouteRefreshSubscriber(
             ApplicationEventPublisher eventPublisher,
@@ -59,10 +74,10 @@ public class RedisRouteRefreshSubscriber {
     }
 
     /**
-     * 配置 Redis 消息监听容器
+     * Configure Redis message listener container
      * 
-     * @param connectionFactory Redis 连接工厂
-     * @return Redis 消息监听容器
+     * @param connectionFactory Redis connection factory
+     * @return Redis message listener container
      */
     @Bean("brixRouteRefreshListenerContainer")
     public RedisMessageListenerContainer brixRouteRefreshListenerContainer(
@@ -74,7 +89,7 @@ public class RedisRouteRefreshSubscriber {
         String eventChannel = properties.getEventChannel();
         String logPrefix = properties.getLogPrefix();
         
-        // 订阅路由刷新频道
+        // Subscribe to route refresh channel
         container.addMessageListener(brixRouteRefreshMessageListener(), new ChannelTopic(eventChannel));
         
         logger.info("{} Redis route refresh listener registered on channel: {}", logPrefix, eventChannel);
@@ -82,9 +97,9 @@ public class RedisRouteRefreshSubscriber {
     }
 
     /**
-     * 路由刷新消息处理器
+     * Route refresh message handler
      * 
-     * @return 消息监听器
+     * @return message listener
      */
     @Bean("brixRouteRefreshMessageListener")
     public MessageListener brixRouteRefreshMessageListener() {
@@ -96,14 +111,14 @@ public class RedisRouteRefreshSubscriber {
                 String messageBody = new String(message.getBody());
                 logger.info("{} Received route refresh event: {}", logPrefix, messageBody);
                 
-                // 处理 JSON 序列化可能带来的引号 (例如 "refresh" -> refresh)
+                // Handle quotes that may come from JSON serialization (e.g. "refresh" -> refresh)
                 String normalizedMessage = messageBody.trim();
                 if (normalizedMessage.startsWith("\"") && normalizedMessage.endsWith("\"")) {
                     normalizedMessage = normalizedMessage.substring(1, normalizedMessage.length() - 1);
                 }
                 
                 if ("refresh".equals(normalizedMessage)) {
-                    // 发布 Spring Cloud Gateway 的刷新事件
+                    // Publish Spring Cloud Gateway refresh event
                     eventPublisher.publishEvent(new RefreshRoutesEvent(this));
                     logger.info("{} Triggered route refresh via RefreshRoutesEvent", logPrefix);
                 }

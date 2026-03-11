@@ -40,17 +40,17 @@ import org.springframework.data.redis.core.ValueOperations;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * {@link RedisStateStoreCapability} 单元测试
+ * Unit tests for {@link RedisStateStoreCapability}
  *
- * <p>使用 Mockito 模拟 RedisTemplate，验证状态存储的
- * 序列化/反序列化、TTL 处理、异常传播行为。</p>
+ * <p>Uses Mockito to mock RedisTemplate, validating state store
+ * serialization/deserialization, TTL handling, and exception propagation behavior.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("RedisStateStoreCapability 测试")
+@DisplayName("RedisStateStoreCapability Tests")
 class RedisStateStoreCapabilityTest {
 
     @Mock
@@ -62,7 +62,7 @@ class RedisStateStoreCapabilityTest {
     private ObjectMapper objectMapper;
     private RedisStateStoreCapability stateStore;
 
-    private static final String PREFIX = "shinwa:state:";
+    private static final String PREFIX = "brix:state:";
 
     @BeforeEach
     void setUp() {
@@ -74,11 +74,11 @@ class RedisStateStoreCapabilityTest {
     // ==================== get ====================
 
     @Nested
-    @DisplayName("get 操作")
+    @DisplayName("get Operations")
     class GetTests {
 
         @Test
-        @DisplayName("键存在时应返回反序列化后的值")
+        @DisplayName("Should return deserialized value when key exists")
         void get_shouldReturnValue_whenKeyExists() {
             when(valueOperations.get(PREFIX + "user:1")).thenReturn("{\"name\":\"Alice\",\"age\":30}");
 
@@ -90,7 +90,7 @@ class RedisStateStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("键不存在时应返回 empty")
+        @DisplayName("Should return empty when key does not exist")
         void get_shouldReturnEmpty_whenKeyMissing() {
             when(valueOperations.get(PREFIX + "missing")).thenReturn(null);
 
@@ -100,7 +100,7 @@ class RedisStateStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("反序列化失败时应抛出 StateStoreException")
+        @DisplayName("Should throw StateStoreException on deserialization failure")
         void get_shouldThrow_onDeserializationFailure() {
             when(valueOperations.get(PREFIX + "bad")).thenReturn("not-json");
 
@@ -109,7 +109,7 @@ class RedisStateStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("key 为 null 时应抛出 NullPointerException")
+        @DisplayName("Should throw NullPointerException when key is null")
         void get_shouldRejectNullKey() {
             assertThatThrownBy(() -> stateStore.get(null, TestUser.class))
                 .isInstanceOf(NullPointerException.class);
@@ -119,11 +119,11 @@ class RedisStateStoreCapabilityTest {
     // ==================== put ====================
 
     @Nested
-    @DisplayName("put 操作")
+    @DisplayName("put Operations")
     class PutTests {
 
         @Test
-        @DisplayName("应序列化并存储值")
+        @DisplayName("Should serialize and store value")
         void put_shouldSerializeAndStore() {
             TestUser user = new TestUser("Bob", 25);
 
@@ -133,7 +133,7 @@ class RedisStateStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("带 TTL 时应设置过期时间")
+        @DisplayName("Should set expiry when TTL is provided")
         void put_withTtl_shouldSetExpiry() {
             TestUser user = new TestUser("Charlie", 35);
 
@@ -143,14 +143,14 @@ class RedisStateStoreCapabilityTest {
         }
 
         @Test
-        @DisplayName("负 TTL 应抛出 IllegalArgumentException")
+        @DisplayName("Should throw IllegalArgumentException for negative TTL")
         void put_shouldRejectNegativeTtl() {
             assertThatThrownBy(() -> stateStore.put("key", "value", Duration.ofMillis(-1)))
                 .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
-        @DisplayName("key 为 null 时应抛出 NullPointerException")
+        @DisplayName("Should throw NullPointerException when key is null")
         void put_shouldRejectNullKey() {
             assertThatThrownBy(() -> stateStore.put(null, "value"))
                 .isInstanceOf(NullPointerException.class);
@@ -160,7 +160,7 @@ class RedisStateStoreCapabilityTest {
     // ==================== remove ====================
 
     @Test
-    @DisplayName("remove - 应删除指定键")
+    @DisplayName("remove - should delete the specified key")
     void remove_shouldDeleteKey() {
         stateStore.remove("user:1");
 
@@ -170,7 +170,7 @@ class RedisStateStoreCapabilityTest {
     // ==================== exists ====================
 
     @Test
-    @DisplayName("exists - 键存在时应返回 true")
+    @DisplayName("exists - should return true when key exists")
     void exists_shouldReturnTrue_whenKeyExists() {
         when(redisTemplate.hasKey(PREFIX + "user:1")).thenReturn(true);
 
@@ -178,17 +178,17 @@ class RedisStateStoreCapabilityTest {
     }
 
     @Test
-    @DisplayName("exists - 键不存在时应返回 false")
+    @DisplayName("exists - should return false when key does not exist")
     void exists_shouldReturnFalse_whenKeyMissing() {
         when(redisTemplate.hasKey(PREFIX + "missing")).thenReturn(false);
 
         assertThat(stateStore.exists("missing")).isFalse();
     }
 
-    // ==================== 构造函数 ====================
+    // ==================== Constructor ====================
 
     @Test
-    @DisplayName("自定义前缀应正确应用")
+    @DisplayName("Custom prefix should be applied correctly")
     void constructor_shouldUseCustomPrefix() {
         RedisStateStoreCapability custom = new RedisStateStoreCapability(
             redisTemplate, objectMapper, "custom:");
@@ -200,7 +200,7 @@ class RedisStateStoreCapabilityTest {
     }
 
     @Test
-    @DisplayName("null 前缀应回退到默认前缀")
+    @DisplayName("Null prefix should fallback to default prefix")
     void constructor_shouldFallbackToDefaultPrefix_whenNull() {
         RedisStateStoreCapability custom = new RedisStateStoreCapability(
             redisTemplate, objectMapper, null);
@@ -211,7 +211,7 @@ class RedisStateStoreCapabilityTest {
         verify(valueOperations).get(PREFIX + "key");
     }
 
-    // ==================== 测试辅助类 ====================
+    // ==================== Test Helper Class ====================
 
     static class TestUser {
         public String name;

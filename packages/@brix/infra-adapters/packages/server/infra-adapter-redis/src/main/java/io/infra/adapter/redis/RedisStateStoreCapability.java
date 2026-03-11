@@ -32,26 +32,26 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 基于 Redis 的状态存储能力实现
+ * Redis-based state store capability implementation.
  * 
- * <p>本类实现{@link StateStoreCapability} Full Product Host 实现
- * 提供基于 Redis 的键值存储能力。模块通过此实现存取状态数据，
- * 无需感知 Redis 的存在。</p>
+ * <p>This class implements {@link StateStoreCapability} Full Product Host implementation,
+ * providing Redis-based key-value storage capability. Modules use this implementation
+ * to store and retrieve state data without being aware of Redis.</p>
  * 
- * <h3>核心特性</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li><b>JSON 序列化。</b>：使用 Jackson 进行值的序列反序列化</li>
- *   <li><b>TTL 支持</b>：支持自动过期</li>
- *   <li><b>命名空间隔离</b>：自动添加前缀，避免键冲突</li>
- *   <li><b>类型安全</b>：泛型方法保证类型安全</li>
+ *   <li><b>JSON Serialization</b>: Uses Jackson for value serialization/deserialization</li>
+ *   <li><b>TTL Support</b>: Supports automatic expiration</li>
+ *   <li><b>Namespace Isolation</b>: Automatically adds prefix to avoid key conflicts</li>
+ *   <li><b>Type Safety</b>: Generic methods ensure type safety</li>
  * </ul>
  * 
- * <h3>键命名规。</h3>
- * <p>最终存储键格式：{prefix}:{userKey}</p>
- * <p>例如：shinwa:state:booking:session:user123</p>
+ * <h3>Key Naming Convention</h3>
+ * <p>Final storage key format: {prefix}:{userKey}</p>
+ * <p>Example: brix:state:booking:session:user123</p>
  * 
- * <h3>线程安全</h3>
- * <p>本类是线程安全的，可以被多个线程并发使用。</p>
+ * <h3>Thread Safety</h3>
+ * <p>This class is thread-safe and can be used concurrently by multiple threads.</p>
  * 
  * @author Brix Platform Authors Platform Team
  * @since 3.0.0
@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit;
 @Capability(
     type = StateStoreCapability.class,
     name = "redis-state-store",
-    description = "基于 Redis 的状态存储能力实现",
+    description = "Redis-based state store capability implementation",
     level = CapabilityLevel.CORE,
     aliases = {"stateStore", "redisStateStore"}
 )
@@ -69,189 +69,189 @@ public class RedisStateStoreCapability implements StateStoreCapability {
     private static final Logger log = LoggerFactory.getLogger(RedisStateStoreCapability.class);
 
     /**
-     * 默认键前缀
+     * Default key prefix.
      */
-    private static final String DEFAULT_PREFIX = "shinwa:state:";
+    private static final String DEFAULT_PREFIX = "brix:state:";
 
     /**
-     * Redis 字符串模板
+     * Redis string template.
      * 
-     * <p>使用 StringRedisTemplate 确保序列化一致。</p>
+     * <p>Uses StringRedisTemplate to ensure serialization consistency.</p>
      */
     private final StringRedisTemplate redisTemplate;
 
     /**
-     * JSON 序列化器
+     * JSON serializer.
      */
     private final ObjectMapper objectMapper;
 
     /**
-     * 键前缀
+     * Key prefix.
      */
     private final String keyPrefix;
 
     /**
-     * 构造函数（使用默认前缀
+     * Constructor (uses default prefix).
      * 
-     * @param redisTemplate Redis 模板
-     * @param objectMapper  JSON 序列化器
+     * @param redisTemplate Redis template
+     * @param objectMapper  JSON serializer
      */
     public RedisStateStoreCapability(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this(redisTemplate, objectMapper, DEFAULT_PREFIX);
     }
 
     /**
-     * 构造函数（指定前缀
+     * Constructor (with specified prefix).
      * 
-     * @param redisTemplate Redis 模板
-     * @param objectMapper  JSON 序列化器
-     * @param keyPrefix     键前缀
+     * @param redisTemplate Redis template
+     * @param objectMapper  JSON serializer
+     * @param keyPrefix     key prefix
      */
     public RedisStateStoreCapability(
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
             String keyPrefix) {
-        this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate 不能为空");
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper 不能为空");
+        this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate cannot be null");
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
         this.keyPrefix = keyPrefix != null ? keyPrefix : DEFAULT_PREFIX;
     }
 
     /**
-     * 获取存储的
+     * Gets the stored value.
      * 
-     * <p>Redis 读取 JSON 字符串并反序列化为指定类型</p>
+     * <p>Reads JSON string from Redis and deserializes to the specified type.</p>
      * 
-     * @param key  存储键，不能为空
-     * @param type 值的类型，用于反序列
-     * @param <T>  值类名
-     * @return 存储的值，如果不存在返回{@link Optional#empty()}
-     * @throws IllegalArgumentException 如果 key type null
+     * @param key  storage key, cannot be null
+     * @param type value type, used for deserialization
+     * @param <T>  value class name
+     * @return stored value, returns {@link Optional#empty()} if not exists
+     * @throws IllegalArgumentException if key or type is null
      */
     @Override
     public <T> Optional<T> get(String key, Class<T> type) {
-        // 参数校验
-        Objects.requireNonNull(key, "key 不能为空");
-        Objects.requireNonNull(type, "type 不能为空");
+        // Parameter validation
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(type, "type cannot be null");
 
-        // 构建完整
+        // Build full key
         String fullKey = buildKey(key);
 
         try {
-            // Redis 读取
+            // Read from Redis
             String json = redisTemplate.opsForValue().get(fullKey);
             
             if (json == null) {
-                log.debug("状态存储读取: key={}, 结果=不存在", key);
+                log.debug("State store read: key={}, result=not exists", key);
                 return Optional.empty();
             }
 
-            // 反序列化
+            // Deserialize
             T value = objectMapper.readValue(json, type);
-            log.debug("状态存储读 key={}, 类型={}", key, type.getSimpleName());
+            log.debug("State store read: key={}, type={}", key, type.getSimpleName());
             
             return Optional.of(value);
             
         } catch (IOException e) {
             throw new StateDeserializationException(key, type.getName(),
-                    "状态存储反序列化失败: key=" + key + ", type=" + type.getName(), e);
+                    "State store deserialization failed: key=" + key + ", type=" + type.getName(), e);
         }
     }
 
     /**
-     * 存储值（无过期时间）
+     * Stores value (without expiration time).
      * 
-     * <p>注意：无过期时间的数据会一直存在，请谨慎使用。</p>
+     * <p>Note: Data without expiration time will persist forever, use with caution.</p>
      * 
-     * @param key   存储键，不能为空
-     * @param value 要存储的值，不能为 null
-     * @throws IllegalArgumentException 如果 key value null
+     * @param key   storage key, cannot be null
+     * @param value value to store, cannot be null
+     * @throws IllegalArgumentException if key or value is null
      */
     @Override
     public void put(String key, Object value) {
-        // 参数校验
-        Objects.requireNonNull(key, "key 不能为空");
-        Objects.requireNonNull(value, "value 不能为空");
+        // Parameter validation
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(value, "value cannot be null");
 
-        // 构建完整
+        // Build full key
         String fullKey = buildKey(key);
 
         try {
-            // 序列
+            // Serialize
             String json = objectMapper.writeValueAsString(value);
             
-            // 写入 Redis（无过期时间
+            // Write to Redis (without expiration time)
             redisTemplate.opsForValue().set(fullKey, json);
             
-            log.debug("状态存储写 key={}, 类型={}", key, value.getClass().getSimpleName());
+            log.debug("State store write: key={}, type={}", key, value.getClass().getSimpleName());
             
         } catch (JsonProcessingException e) {
-            throw new StateStoreException("状态存储序列化失败: " + key, e);
+            throw new StateStoreException("State store serialization failed: " + key, e);
         }
     }
 
     /**
-     * 存储值（带过期时间）
+     * Stores value (with expiration time).
      * 
-     * @param key   存储键，不能为空
-     * @param value 要存储的值，不能为 null
-     * @param ttl   过期时间，不能为 null 或负
-     * @throws IllegalArgumentException 如果参数无效
+     * @param key   storage key, cannot be null
+     * @param value value to store, cannot be null
+     * @param ttl   expiration time, cannot be null or negative
+     * @throws IllegalArgumentException if parameters are invalid
      */
     @Override
     public void put(String key, Object value, Duration ttl) {
-        // 参数校验
-        Objects.requireNonNull(key, "key 不能为空");
-        Objects.requireNonNull(value, "value 不能为空");
-        Objects.requireNonNull(ttl, "ttl 不能为空");
+        // Parameter validation
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(value, "value cannot be null");
+        Objects.requireNonNull(ttl, "ttl cannot be null");
         
         if (ttl.isNegative()) {
-            throw new IllegalArgumentException("ttl 不能为负数");
+            throw new IllegalArgumentException("ttl cannot be negative");
         }
 
-        // 构建完整
+        // Build full key
         String fullKey = buildKey(key);
 
         try {
-            // 序列
+            // Serialize
             String json = objectMapper.writeValueAsString(value);
             
-            // 写入 Redis（带过期时间
+            // Write to Redis (with expiration time)
             redisTemplate.opsForValue().set(fullKey, json, ttl.toMillis(), TimeUnit.MILLISECONDS);
             
-            log.debug("状态存储写入: key={}, 类型={}, ttl={}秒", 
+            log.debug("State store write: key={}, type={}, ttl={}s", 
                     key, value.getClass().getSimpleName(), ttl.toSeconds());
             
         } catch (JsonProcessingException e) {
-            throw new StateStoreException("状态存储序列化失败: " + key, e);
+            throw new StateStoreException("State store serialization failed: " + key, e);
         }
     }
 
     /**
-     * 删除存储的
+     * Deletes stored value.
      * 
-     * @param key 存储键，不能为空
-     * @throws IllegalArgumentException 如果 key null
+     * @param key storage key, cannot be null
+     * @throws IllegalArgumentException if key is null
      */
     @Override
     public void remove(String key) {
-        Objects.requireNonNull(key, "key 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
 
         String fullKey = buildKey(key);
         Boolean deleted = redisTemplate.delete(fullKey);
         
-        log.debug("状态存储删 key={}, 结果={}", key, deleted);
+        log.debug("State store delete: key={}, result={}", key, deleted);
     }
 
     /**
-     * 检查键是否存在
+     * Checks if key exists.
      * 
-     * @param key 存储键，不能为空
-     * @return 如果键存在返回 true
-     * @throws IllegalArgumentException 如果 key null
+     * @param key storage key, cannot be null
+     * @return true if key exists
+     * @throws IllegalArgumentException if key is null
      */
     @Override
     public boolean exists(String key) {
-        Objects.requireNonNull(key, "key 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
 
         String fullKey = buildKey(key);
         Boolean exists = redisTemplate.hasKey(fullKey);
@@ -260,24 +260,24 @@ public class RedisStateStoreCapability implements StateStoreCapability {
     }
 
     /**
-     * 获取并删除值（原子操作
+     * Gets and removes value (atomic operation).
      * 
-     * <p>使用 Redis GETDEL 命令实现原子。</p>
+     * <p>Uses Redis GETDEL command for atomicity.</p>
      * 
-     * @param key  存储键，不能为空
-     * @param type 值的类型
-     * @param <T>  值类名
-     * @return 存储的值，如果不存在返回{@link Optional#empty()}
+     * @param key  storage key, cannot be null
+     * @param type value type
+     * @param <T>  value class name
+     * @return stored value, returns {@link Optional#empty()} if not exists
      */
     @Override
     public <T> Optional<T> getAndRemove(String key, Class<T> type) {
-        Objects.requireNonNull(key, "key 不能为空");
-        Objects.requireNonNull(type, "type 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(type, "type cannot be null");
 
         String fullKey = buildKey(key);
 
         try {
-            // 使用 execute 执行原子操作
+            // Execute atomic operation
             String json = redisTemplate.opsForValue().getAndDelete(fullKey);
             
             if (json == null) {
@@ -285,26 +285,26 @@ public class RedisStateStoreCapability implements StateStoreCapability {
             }
 
             T value = objectMapper.readValue(json, type);
-            log.debug("状态存储获取并删除: key={}", key);
+            log.debug("State store get and delete: key={}", key);
             
             return Optional.of(value);
             
         } catch (IOException e) {
             throw new StateDeserializationException(key, type.getName(),
-                    "状态存储反序列化失败: key=" + key + ", type=" + type.getName(), e);
+                    "State store deserialization failed: key=" + key + ", type=" + type.getName(), e);
         }
     }
 
     /**
-     * 设置过期时间
+     * Sets expiration time.
      * 
-     * @param key 存储
-     * @param ttl 过期时间
-     * @return 如果设置成功返回 true
+     * @param key storage key
+     * @param ttl expiration time
+     * @return true if set successfully
      */
     public boolean expire(String key, Duration ttl) {
-        Objects.requireNonNull(key, "key 不能为空");
-        Objects.requireNonNull(ttl, "ttl 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(ttl, "ttl cannot be null");
 
         String fullKey = buildKey(key);
         Boolean result = redisTemplate.expire(fullKey, ttl);
@@ -313,13 +313,13 @@ public class RedisStateStoreCapability implements StateStoreCapability {
     }
 
     /**
-     * 获取剩余过期时间
+     * Gets remaining expiration time.
      * 
-     * @param key 存储
-     * @return 剩余时间，如果键不存在或没有设置过期时间返回 null
+     * @param key storage key
+     * @return remaining time, returns null if key doesn't exist or no expiration set
      */
     public Duration getExpire(String key) {
-        Objects.requireNonNull(key, "key 不能为空");
+        Objects.requireNonNull(key, "key cannot be null");
 
         String fullKey = buildKey(key);
         Long seconds = redisTemplate.getExpire(fullKey, TimeUnit.SECONDS);
@@ -332,10 +332,10 @@ public class RedisStateStoreCapability implements StateStoreCapability {
     }
 
     /**
-     * 构建完整Redis 
+     * Builds full Redis key.
      * 
-     * @param key 用户提供的键
-     * @return 完整
+     * @param key user-provided key
+     * @return full key
      */
     private String buildKey(String key) {
         return keyPrefix + key;

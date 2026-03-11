@@ -1,17 +1,17 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!--
-  <%= fullName %>-core 模块
+  <%= fullName %>-core module
   
-  Core 模块包含：
+  Core module包含：
   - Entity（实体）
   - Repository（仓储）
   - Service（服务）
   - Handler（事件处理器）
-  - Controller（REST 控制器）
+  - Controller（REST Controller）
   
-  【v3.0 核心约束】
+  【v3.0 核心Constraints】
   ★ 仅通过 RuntimeContext 访问能力，禁止直接依赖 Kafka/Redis 等基础设施
-  ★ 所有跨模块通信通过 EventBusCapability 完成
+  ★ 所有跨module通信通过 EventBusCapability 完成
   ★ 配置通过 ConfigStoreCapability 获取
   
   @author <%= author %>
@@ -33,12 +33,12 @@
     <packaging>jar</packaging>
 
     <name><%= displayName %> - Core</name>
-    <description><%= displayName %> 业务逻辑模块</description>
+    <description><%= displayName %> 业务逻辑module</description>
 
     <dependencies>
         <!-- ===== 内部依赖 ===== -->
 <% if (withApi) { -%>
-        <!-- API 模块（DTO、Event） -->
+        <!-- API module（DTO、Event） -->
         <dependency>
             <groupId>com.shinwa.app</groupId>
             <artifactId><%= name %>-api</artifactId>
@@ -93,10 +93,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- ===== 架构守护（ArchUnit 红线约束）===== -->
+        <!-- ===== 架构守护（ArchUnit 红线Constraints）===== -->
         <!--
-            【自动生成】由 create-brix 脚手架内置
-            配合 ArchitectureTest.java 自动启用全部 8 条架构红线
+            【Auto-generated】由 create-brix 脚手架内置
+            配合 ArchitectureTest.java 自动Enabled全部 8 items架构红线
         -->
         <dependency>
             <groupId>io.brix</groupId>

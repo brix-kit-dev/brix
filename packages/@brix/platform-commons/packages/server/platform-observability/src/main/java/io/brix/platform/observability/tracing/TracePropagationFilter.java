@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability.tracing;
 
 import java.io.IOException;
@@ -16,9 +31,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import io.brix.platform.observability.ObservabilityProperties.TracingProperties;
 
 /**
- * 链路追踪传播过滤
+ * Trace propagation filter.
  * <p>
- * 从请求头提取或生TraceId，注入到 MDC 和响应头
+ * Extracts or generates TraceId from request headers and injects it into MDC and response headers.
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -51,19 +66,19 @@ public class TracePropagationFilter implements Filter {
         }
 
         try {
-            // 1. 提取或生TraceId
+            // 1. Extract or generate TraceId
             String traceId = extractOrGenerateTraceId(httpRequest);
             
-            // 2. 设置到上下文
+            // 2. Set to context
             traceContextHolder.setTraceId(traceId);
             
-            // 3. 注入 MDC（用于日志）
+            // 3. Inject into MDC (for logging)
             MDC.put(MdcConstants.TRACE_ID, traceId);
             
-            // 4. 提取并传播其他追踪头
+            // 4. Extract and propagate other trace headers
             propagateHeaders(httpRequest);
             
-            // 5. 设置响应
+            // 5. Set response header
             httpResponse.setHeader(properties.getTraceIdHeader(), traceId);
             
             logger.debug("Trace propagation: traceId={}", traceId);
@@ -71,40 +86,40 @@ public class TracePropagationFilter implements Filter {
             chain.doFilter(request, response);
             
         } finally {
-            // 清理上下
+            // Clear context
             traceContextHolder.clear();
             MDC.clear();
         }
     }
 
     private String extractOrGenerateTraceId(HttpServletRequest request) {
-        // 优先从请求头提取
+        // First try to extract from request headers
         for (String header : properties.getPropagationHeaders()) {
             String value = request.getHeader(header);
             if (value != null && !value.isBlank()) {
                 return value;
             }
         }
-        // 没有则生成新
+        // Generate new if not found
         return traceIdGenerator.generate();
     }
 
     private void propagateHeaders(HttpServletRequest request) {
-        // 提取租户ID
+        // Extract tenant ID
         String tenantId = request.getHeader("X-Tenant-Id");
         if (tenantId != null && !tenantId.isBlank()) {
             traceContextHolder.setTenantId(tenantId);
             MDC.put(MdcConstants.TENANT_ID, tenantId);
         }
         
-        // 提取用户ID
+        // Extract user ID
         String userId = request.getHeader("X-User-Id");
         if (userId != null && !userId.isBlank()) {
             traceContextHolder.setUserId(userId);
             MDC.put(MdcConstants.USER_ID, userId);
         }
         
-        // 提取关联ID
+        // Extract correlation ID
         String correlationId = request.getHeader("X-Correlation-Id");
         if (correlationId != null && !correlationId.isBlank()) {
             MDC.put(MdcConstants.CORRELATION_ID, correlationId);

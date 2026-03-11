@@ -1,246 +1,261 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.common.tenant;
 
 import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * 租户上下文（统一版本
+ * Tenant Context (Unified Version).
  * 
- * <p>v2.1 多租户支持的核心组件，使用 ThreadLocal 存储当前请求的租户信息
+ * <p>Core component for multi-tenancy support, uses ThreadLocal to store current request's tenant information.</p>
  * 
- * <p>设计说明
+ * <h3>Design Notes</h3>
  * <ul>
- *   <li>租户 ID TenantFilter HTTP Header 中提取并设置</li>
- *   <li>所有数据库操作自动应用租户过滤条件</li>
- *   <li>请求结束时必须调用 clear() 方法清理上下</li>
+ *   <li>Tenant ID is extracted and set from HTTP Header via TenantFilter</li>
+ *   <li>All database operations automatically apply tenant filter conditions</li>
+ *   <li>Must call clear() method at request end to clean up context</li>
  * </ul>
  * 
- * <p>使用示例
+ * <h3>Usage Example</h3>
  * <pre>{@code
- * // 获取当前租户 ID
+ * // Get current tenant ID
  * String tenantId = TenantContext.getTenantId()
- *     .orElseThrow(() -> new TenantNotFoundException("租户信息缺失"));
+ *     .orElseThrow(() -> new TenantNotFoundException("Tenant info missing"));
  * 
- * // 在新实体中设置租户ID
+ * // Set tenant ID for new entity
  * entity.setTenantId(TenantContext.requireTenantId());
  * }</pre>
  * 
- * <p>注意事项
+ * <h3>Important Notes</h3>
  * <ul>
- *   <li>异步线程需要手动传递租户ID</li>
- *   <li>定时任务需要明确指定租户或使用系统租户</li>
- *   <li>跨服务调用需要在 Header 中传递租户ID</li>
+ *   <li>Async threads require manual tenant ID propagation</li>
+ *   <li>Scheduled tasks need explicit tenant specification or use system tenant</li>
+ *   <li>Cross-service calls need to pass tenant ID in Header</li>
  * </ul>
  * 
- * @author Brix Platform Authors Platform Team
+ * @author Brix Platform Team
  * @since 1.0.0
  */
 public final class TenantContext {
 
     /**
-     * 默认租户 ID
-     * 用于未指定租户的场景（如系统初始化、定时任务等
+     * Default Tenant ID
+     * Used for scenarios where no tenant is specified (e.g., system initialization, scheduled tasks)
      */
     public static final String DEFAULT_TENANT_ID = "default";
 
     /**
-     * 系统租户 ID
-     * 用于平台级操作，不受租户隔离约束
+     * System Tenant ID
+     * Used for platform-level operations, not subject to tenant isolation constraints
      */
     public static final String SYSTEM_TENANT_ID = "system";
 
     /**
-     * 租户 ID HTTP Header 名称
+     * Tenant ID HTTP Header name
      */
     public static final String TENANT_HEADER = "X-Tenant-ID";
 
     /**
-     * 用户 ID HTTP Header 名称
+     * User ID HTTP Header name
      */
     public static final String USER_HEADER = "X-User-ID";
 
     /**
-     * ThreadLocal 存储租户 ID
+     * ThreadLocal storage for Tenant ID
      */
     private static final ThreadLocal<String> TENANT_ID_HOLDER = new ThreadLocal<>();
 
     /**
-     * ThreadLocal 存储用户 ID
+     * ThreadLocal storage for User ID
      */
     private static final ThreadLocal<String> USER_ID_HOLDER = new ThreadLocal<>();
 
     /**
-     * ThreadLocal 存储租户附加信息（可选）
+     * ThreadLocal storage for tenant additional info (optional)
      */
     private static final ThreadLocal<TenantInfo> TENANT_INFO_HOLDER = new ThreadLocal<>();
 
     /**
-     * 私有构造函数，防止实例
+     * Private constructor to prevent instantiation
      */
     private TenantContext() {
-        throw new UnsupportedOperationException("TenantContext 是工具类，不可实例化");
+        throw new UnsupportedOperationException("TenantContext is a utility class and cannot be instantiated");
     }
 
     // =====================================================
-    // 租户 ID 操作
+    // Tenant ID Operations
     // =====================================================
 
     /**
-     * 设置当前租户 ID
+     * Sets the current tenant ID.
      * 
-     * @param tenantId 租户 ID，不能为
-     * @throws IllegalArgumentException 如果 tenantId 为空
+     * @param tenantId tenant ID, cannot be null or blank
+     * @throws IllegalArgumentException if tenantId is null or blank
      */
     public static void setTenantId(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) {
-            throw new IllegalArgumentException("租户 ID 不能为空");
+            throw new IllegalArgumentException("Tenant ID cannot be null or blank");
         }
         TENANT_ID_HOLDER.set(tenantId);
     }
 
     /**
-     * 获取当前租户 ID
+     * Gets the current tenant ID.
      * 
-     * @return 当前租户 ID，如果未设置则返Optional.empty()
+     * @return current tenant ID, or {@link Optional#empty()} if not set
      */
     public static Optional<String> getTenantId() {
         return Optional.ofNullable(TENANT_ID_HOLDER.get());
     }
 
     /**
-     * 获取当前租户 ID（必须存在）
+     * Gets the current tenant ID (required).
      * 
-     * @return 当前租户 ID
-     * @throws IllegalStateException 如果租户 ID 未设
+     * @return current tenant ID
+     * @throws IllegalStateException if tenant ID is not set
      */
     public static String requireTenantId() {
         return getTenantId()
-            .orElseThrow(() -> new IllegalStateException("租户上下文未初始化，请确保请求通过 TenantFilter"));
+            .orElseThrow(() -> new IllegalStateException("Tenant context not initialized, ensure request passes through TenantFilter"));
     }
 
     /**
-     * 获取当前租户 ID，如果未设置则返回默认
+     * Gets the current tenant ID, returns default if not set.
      * 
-     * @return 当前租户 ID 或默认租户ID
+     * @return current tenant ID or default tenant ID
      */
     public static String getTenantIdOrDefault() {
         return getTenantId().orElse(DEFAULT_TENANT_ID);
     }
 
     /**
-     * 检查当前是否有租户上下
+     * Checks if tenant context is present.
      * 
-     * @return 如果已设置租户ID 则返回 true
+     * @return true if tenant ID is set
      */
     public static boolean hasTenant() {
         return TENANT_ID_HOLDER.get() != null;
     }
 
     /**
-     * 检查当前是否为系统租户
+     * Checks if current tenant is system tenant.
      * 
-     * @return 如果当前租户是系统租户则返回 true
+     * @return true if current tenant is system tenant
      */
     public static boolean isSystemTenant() {
         return SYSTEM_TENANT_ID.equals(TENANT_ID_HOLDER.get());
     }
 
     /**
-     * 获取当前租户 ID（便捷方法）
+     * Gets the current tenant ID (convenience method).
      * 
-     * @return 当前租户 ID
-     * @throws IllegalStateException 如果租户 ID 未设
+     * @return current tenant ID
+     * @throws IllegalStateException if tenant ID is not set
      */
     public static String getCurrentTenantId() {
         return requireTenantId();
     }
 
     // =====================================================
-    // 用户 ID 操作
+    // User ID Operations
     // =====================================================
 
     /**
-     * 设置当前用户 ID
+     * Sets the current user ID.
      * 
-     * @param userId 用户 ID，不能为
-     * @throws IllegalArgumentException 如果 userId 为空
+     * @param userId user ID, cannot be null or blank
+     * @throws IllegalArgumentException if userId is null or blank
      */
     public static void setUserId(String userId) {
         if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("用户 ID 不能为空");
+            throw new IllegalArgumentException("User ID cannot be null or blank");
         }
         USER_ID_HOLDER.set(userId);
     }
 
     /**
-     * 获取当前用户 ID
+     * Gets the current user ID.
      * 
-     * @return 当前用户 ID，如果未设置则返Optional.empty()
+     * @return current user ID, or {@link Optional#empty()} if not set
      */
     public static Optional<String> getUserId() {
         return Optional.ofNullable(USER_ID_HOLDER.get());
     }
 
     /**
-     * 获取当前用户 ID（必须存在）
+     * Gets the current user ID (required).
      * 
-     * @return 当前用户 ID
-     * @throws IllegalStateException 如果用户 ID 未设
+     * @return current user ID
+     * @throws IllegalStateException if user ID is not set
      */
     public static String requireUserId() {
         return getUserId()
-            .orElseThrow(() -> new IllegalStateException("用户上下文未初始化，请确保请求通过认证过滤"));
+            .orElseThrow(() -> new IllegalStateException("User context not initialized, ensure request passes through auth filter"));
     }
 
     /**
-     * 获取当前用户 ID（便捷方法）
+     * Gets the current user ID (convenience method).
      * 
-     * @return 当前用户 ID
-     * @throws IllegalStateException 如果用户 ID 未设
+     * @return current user ID
+     * @throws IllegalStateException if user ID is not set
      */
     public static String getCurrentUserId() {
         return requireUserId();
     }
 
     /**
-     * 检查当前是否有用户上下
+     * Checks if user context is present.
      * 
-     * @return 如果已设置用户ID 则返回 true
+     * @return true if user ID is set
      */
     public static boolean hasUser() {
         return USER_ID_HOLDER.get() != null;
     }
 
     // =====================================================
-    // 租户信息操作
+    // Tenant Info Operations
     // =====================================================
 
     /**
-     * 设置租户附加信息
+     * Sets tenant additional information.
      * 
-     * @param info 租户附加信息
+     * @param info tenant additional information
      */
     public static void setTenantInfo(TenantInfo info) {
         TENANT_INFO_HOLDER.set(info);
     }
 
     /**
-     * 获取租户附加信息
+     * Gets tenant additional information.
      * 
-     * @return 租户附加信息
+     * @return tenant additional information
      */
     public static Optional<TenantInfo> getTenantInfo() {
         return Optional.ofNullable(TENANT_INFO_HOLDER.get());
     }
 
     // =====================================================
-    // 清理操作
+    // Cleanup Operations
     // =====================================================
 
     /**
-     * 清除当前线程的租户上下文
+     * Clears tenant context for current thread.
      * 
-     * <p>必须在请求结束时调用，避免线程复用时的租户信息泄漏
+     * <p>Must be called at request end to prevent tenant info leakage during thread reuse.</p>
      */
     public static void clear() {
         TENANT_ID_HOLDER.remove();
@@ -249,14 +264,14 @@ public final class TenantContext {
     }
 
     // =====================================================
-    // 执行上下文切
+    // Context Switching Operations
     // =====================================================
 
     /**
-     * 在指定租户上下文中执行操
+     * Executes operation in specified tenant context.
      * 
-     * @param tenantId 目标租户 ID
-     * @param runnable 要执行的操作
+     * @param tenantId target tenant ID
+     * @param runnable operation to execute
      */
     public static void runWithTenant(String tenantId, Runnable runnable) {
         String previousTenantId = TENANT_ID_HOLDER.get();
@@ -273,12 +288,12 @@ public final class TenantContext {
     }
 
     /**
-     * 在指定租户上下文中执行操作并返回结果
+     * Execute operation in specified tenant context and return result
      * 
-     * @param tenantId 目标租户 ID
-     * @param supplier 要执行的操作
-     * @param <T> 返回值类
-     * @return 操作返回
+     * @param tenantId Target tenant ID
+     * @param supplier Operation to execute
+     * @param <T> Return value type
+     * @return Operation result
      */
     public static <T> T runWithTenant(String tenantId, Supplier<T> supplier) {
         String previousTenantId = TENANT_ID_HOLDER.get();
@@ -295,20 +310,20 @@ public final class TenantContext {
     }
 
     /**
-     * 在系统租户上下文中执行操
+     * Execute operation in system tenant context
      * 
-     * @param runnable 要执行的操作
+     * @param runnable Operation to execute
      */
     public static void runAsSystem(Runnable runnable) {
         runWithTenant(SYSTEM_TENANT_ID, runnable);
     }
 
     /**
-     * 在系统租户上下文中执行操作并返回结果
+     * Execute operation in system tenant context and return result
      * 
-     * @param supplier 要执行的操作
-     * @param <T> 返回值类
-     * @return 操作返回
+     * @param supplier Operation to execute
+     * @param <T> Return value type
+     * @return Operation result
      */
     public static <T> T runAsSystem(Supplier<T> supplier) {
         return runWithTenant(SYSTEM_TENANT_ID, supplier);

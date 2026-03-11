@@ -1,9 +1,24 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.auth.jwt;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * JWT 配置属
+ * JWT Configuration Properties
  *
  * @author Brix Platform Authors Platform Team
  * @version 1.0.0
@@ -11,19 +26,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "platform.security.jwt")
 public class JwtProperties {
 
-    /** 是否启用 JWT 验证 */
+    /** Whether to enable JWT validation */
     private boolean enabled = true;
 
-    /** RS256 公钥路径 */
+    /** RS256 public key path */
     private String publicKeyPath = "classpath:keys/public.pem";
 
-    /** JWT 签发*/
-    private String issuer = "shinwa-auth-center";
+    /** JWT issuer */
+    private String issuer = "brix-auth-center";
 
-    /** JWT 鍙椾紬 */
-    private String audience = "shinwa-platform-api";
+    /** JWT audience */
+    private String audience = "brix-platform-api";
 
-    /** 时钟偏差容忍时间（秒*/
+    /** Clock skew tolerance time (seconds) */
     private int clockSkewSeconds = 60;
 
     // ========== Getters and Setters ==========

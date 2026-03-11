@@ -16,32 +16,33 @@
 package io.runtime.sdk.capability;
 
 /**
- * 能力契约包
+ * Capability Contract Package
  * 
- * <p>本包定义了运行壳的所有能力契约接口，是模块与 Runtime Shell 交互的标准协议。</p>
+ * <p>This package defines all capability contract interfaces for the Runtime Shell,
+ * serving as the standard protocol for module-Runtime Shell interaction.</p>
  * 
- * <h3>核心能力（必须实现）</h3>
+ * <h3>Core Capabilities (Required)</h3>
  * <ul>
- *   <li>{@link EventBusCapability} - 事件总线能力</li>
- *   <li>{@link StateStoreCapability} - 状态存储能力</li>
- *   <li>{@link AuthContextCapability} - 认证上下文能力</li>
- *   <li>{@link ObservabilityCapability} - 可观测性能力</li>
- *   <li>{@link ConfigStoreCapability} - 配置存储能力</li>
- *   <li>{@link LifecycleCapability} - 生命周期能力</li>
+ *   <li>{@link EventBusCapability} - EventBus Capability</li>
+ *   <li>{@link StateStoreCapability} - State Store Capability</li>
+ *   <li>{@link AuthContextCapability} - Auth Context Capability</li>
+ *   <li>{@link ObservabilityCapability} - Observability Capability</li>
+ *   <li>{@link ConfigStoreCapability} - Config Store Capability</li>
+ *   <li>{@link LifecycleCapability} - Lifecycle Capability</li>
  * </ul>
  * 
- * <h3>可选能力</h3>
+ * <h3>Optional Capabilities</h3>
  * <ul>
- *   <li>{@link SchedulingCapability} - 定时任务能力</li>
- *   <li>{@link LockCapability} - 分布式锁能力</li>
- *   <li>{@link ResilienceCapability} - 韧性能力（熔断/限流）</li>
+ *   <li>{@link SchedulingCapability} - Scheduling Capability</li>
+ *   <li>{@link LockCapability} - Distributed Lock Capability</li>
+ *   <li>{@link ResilienceCapability} - Resilience Capability (Circuit Breaker/Rate Limiting)</li>
  * </ul>
  * 
- * <h3>设计原则</h3>
+ * <h3>Design Principles</h3>
  * <ol>
- *   <li>模块只依赖此包中的接口，不依赖具体实现</li>
- *   <li>接口设计保持稳定，实现可以替换</li>
- *   <li>可选能力通过 Optional 返回，避免空指针</li>
+ *   <li>Modules only depend on interfaces in this package, not concrete implementations</li>
+ *   <li>Interface design remains stable; implementations can be substituted</li>
+ *   <li>Optional capabilities return Optional to avoid null pointers</li>
  * </ol>
  * 
  * @since 3.0.0

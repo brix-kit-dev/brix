@@ -27,13 +27,14 @@ import io.runtime.sdk.capability.DataScope;
  * <p>Represents the authenticated user in delegated authentication mode.
  * Contains user identity, permissions, roles, and data scopes.</p>
  * 
- * <h3>Architecture Note (架构说明)</h3>
+ * <h3>Architecture Note</h3>
  * <p>Extracted from DelegatedAuthContextCapability as a standalone class
  * following the Single Responsibility Principle.</p>
  * 
- * <p>【中文技术要点】
- * 委托认证模式的用户身份对象，包含用户ID、用户名、租户ID、权限、角色等信息。
- * 从 DelegatedAuthContextCapability 内部类提取为独立类。</p>
+ * <p><b>Technical Notes:</b>
+ * User identity object for delegated authentication mode, containing user ID,
+ * username, tenant ID, permissions, roles, and other information.
+ * Extracted from DelegatedAuthContextCapability inner class to standalone class.</p>
  *
  * @author Brix Platform Authors
  * @since 3.0.0

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.net.ConnectException;
@@ -31,15 +46,15 @@ import io.brix.platform.gateway.config.resilience.HttpTimeoutProperties;
 import io.brix.platform.gateway.config.resilience.RetryProperties;
 
 /**
- * 超时重试过滤器单元测试
+ * Timeout Retry Filter Unit Tests
  * <p>
- * MVP 红线 M014：核心路径单元测试覆盖
+ * MVP Guideline M014: Core path unit test coverage
  * </p>
  * <p>
- * MVP 红线要求
+ * MVP Guideline Requirements:
  * <ul>
- *   <li>显式超时配置</li>
- *   <li>有限重试（最多3次）</li>
+ *   <li>Explicit timeout configuration</li>
+ *   <li>Limited retries (max 3 times)</li>
  * </ul>
  * </p>
  *
@@ -48,7 +63,7 @@ import io.brix.platform.gateway.config.resilience.RetryProperties;
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("TimeoutRetryFilter 超时重试过滤器测试")
+@DisplayName("TimeoutRetryFilter Timeout Retry Filter Test")
 @SuppressWarnings("unused") // JUnit nested classes, setUp used by JUnit
 class TimeoutRetryFilterTest {
 
@@ -62,7 +77,7 @@ class TimeoutRetryFilterTest {
     @BeforeEach
     void setUp() {
         httpTimeoutProperties = new HttpTimeoutProperties();
-        httpTimeoutProperties.setGlobalTimeoutMs(5000); // 5秒超时
+        httpTimeoutProperties.setGlobalTimeoutMs(5000); // 5 second timeout
         httpTimeoutProperties.setConnectTimeoutMs(3000);
         httpTimeoutProperties.setResponseTimeoutMs(10000);
 
@@ -81,14 +96,14 @@ class TimeoutRetryFilterTest {
         filter = new TimeoutRetryFilter(httpTimeoutProperties, retryProperties);
     }
 
-    // ========== 正常请求测试 ==========
+    // ========== Normal Request Tests ==========
 
     @Nested
-    @DisplayName("正常请求处理")
+    @DisplayName("Normal Request Handling")
     class NormalRequestTests {
 
         @Test
-        @DisplayName("正常请求应成功完成")
+        @DisplayName("Normal request should complete successfully")
         void shouldCompleteNormalRequest() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -102,7 +117,7 @@ class TimeoutRetryFilterTest {
         }
 
         @Test
-        @DisplayName("POST 请求应正常处理但不重试")
+        @DisplayName("POST request should be processed normally without retry")
         void shouldProcessPostRequestWithoutRetry() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .post("/api/users")
@@ -116,40 +131,40 @@ class TimeoutRetryFilterTest {
         }
     }
 
-    // ========== 超时测试 ==========
+    // ========== Timeout Tests ==========
 
     @Nested
-    @DisplayName("超时处理")
+    @DisplayName("Timeout Handling")
     class TimeoutTests {
 
         @Test
-        @DisplayName("请求超时应返回504 Gateway Timeout")
+        @DisplayName("Request timeout should return 504 Gateway Timeout")
         void shouldReturn504OnTimeout() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/slow")
                     .build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-            // 模拟超时：返回一个延迟超过全局超时的Mono
-            when(chain.filter(any(ServerWebExchange.class)))
+            // Simulate timeout: return a Mono with delay exceeding global timeout
+                    when(chain.filter(any(ServerWebExchange.class)))
                     .thenReturn(Mono.delay(Duration.ofSeconds(10)).then());
 
             StepVerifier.create(filter.filter(exchange, chain))
                     .verifyComplete();
 
-            // 验证返回 504
+            // Verify return 504
             assertEquals(HttpStatus.GATEWAY_TIMEOUT, exchange.getResponse().getStatusCode());
         }
 
         @Test
-        @DisplayName("快速响应应在超时前完成")
+        @DisplayName("Fast response should complete before timeout")
         void shouldCompleteBeforeTimeout() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/fast")
                     .build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-            // 模拟快速响应
+            // Simulate fast response
             when(chain.filter(any(ServerWebExchange.class)))
                     .thenReturn(Mono.delay(Duration.ofMillis(100)).then());
 
@@ -159,37 +174,37 @@ class TimeoutRetryFilterTest {
         }
     }
 
-    // ========== 重试测试 ==========
+    // ========== Retry Tests ==========
 
     @Nested
-    @DisplayName("重试机制")
+    @DisplayName("Retry Mechanism")
     class RetryTests {
 
         @Test
-        @DisplayName("GET 请求连接失败应触发重试（重试耗尽后失败）")
+        @DisplayName("GET request connection failure should trigger retry (fails after retries exhausted)")
         void shouldRetryOnConnectionFailure() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/flaky")
                     .build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-            // 持续失败测试重试机制
+            // Continuously fail to test retry mechanism
             when(chain.filter(any(ServerWebExchange.class)))
                     .thenReturn(Mono.error(new ConnectException("Connection refused")));
 
-            // 重试耗尽后应返回错误
+            // Should return error after retries exhausted
             StepVerifier.create(filter.filter(exchange, chain))
                     .expectError(ConnectException.class)
                     .verify(Duration.ofSeconds(10));
 
-            // 验证重试次数属性已设置
+            // Verify retry count property is set
             Integer retryCount = exchange.getAttribute("retryCount");
             assertNotNull(retryCount);
-            assertTrue(retryCount > 0, "重试次数应大于0");
+            assertTrue(retryCount > 0, "Retry count should be greater than 0");
         }
 
         @Test
-        @DisplayName("POST 请求不应重试")
+        @DisplayName("POST request should not be retried")
         void shouldNotRetryPostRequest() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .post("/api/create")
@@ -204,7 +219,7 @@ class TimeoutRetryFilterTest {
         }
 
         @Test
-        @DisplayName("重试禁用时不应重试")
+        @DisplayName("Should not retry when retry is disabled")
         void shouldNotRetryWhenDisabled() {
             retryProperties.setEnabled(false);
             filter = new TimeoutRetryFilter(httpTimeoutProperties, retryProperties);
@@ -222,7 +237,7 @@ class TimeoutRetryFilterTest {
         }
 
         @Test
-        @DisplayName("达到最大重试次数后应失败")
+        @DisplayName("Should fail after max retries reached")
         void shouldFailAfterMaxRetries() {
             retryProperties.setMaxAttempts(2);
             filter = new TimeoutRetryFilter(httpTimeoutProperties, retryProperties);
@@ -232,7 +247,7 @@ class TimeoutRetryFilterTest {
                     .build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-            // 始终失败
+            // Always fail
             when(chain.filter(any(ServerWebExchange.class)))
                     .thenReturn(Mono.error(new ConnectException("Connection refused")));
 
@@ -241,30 +256,30 @@ class TimeoutRetryFilterTest {
         }
     }
 
-    // ========== 过滤器顺序测试 ==========
+    // ========== Filter Order Tests ==========
 
     @Nested
-    @DisplayName("过滤器顺序")
+    @DisplayName("Filter Order")
     class FilterOrderTests {
 
         @Test
-        @DisplayName("应在路由之前但在日志之后执行")
+        @DisplayName("Should execute before routing but after logging")
         void shouldHaveCorrectOrder() {
             int order = filter.getOrder();
             
-            // 预期顺序：LOWEST_PRECEDENCE - 100
+            // Expected order: LOWEST_PRECEDENCE - 100
             assertEquals(org.springframework.core.Ordered.LOWEST_PRECEDENCE - 100, order);
         }
     }
 
-    // ========== HTTP 方法可重试性测试 ==========
+    // ========== HTTP Method Retryability Tests ==========
 
     @Nested
-    @DisplayName("HTTP 方法可重试性")
+    @DisplayName("HTTP Method Retryability")
     class RetryableMethodTests {
 
         @Test
-        @DisplayName("GET 方法应可重试（持续失败时最终返回错误）")
+        @DisplayName("GET method should be retryable (eventually returns error on continuous failure)")
         void getShouldBeRetryable() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -274,19 +289,19 @@ class TimeoutRetryFilterTest {
             when(chain.filter(any(ServerWebExchange.class)))
                     .thenReturn(Mono.error(new ConnectException("Connection refused")));
 
-            // GET 方法会重试，但持续失败最终返回错误
+            // GET method will retry, but eventually returns error on continuous failure
             StepVerifier.create(filter.filter(exchange, chain))
                     .expectError(ConnectException.class)
                     .verify(Duration.ofSeconds(10));
             
-            // 验证确实进行了重试
+            // Verify retry was actually performed
             Integer retryCount = exchange.getAttribute("retryCount");
             assertNotNull(retryCount);
-            assertTrue(retryCount > 0, "GET 请求应触发重试");
+            assertTrue(retryCount > 0, "GET request should trigger retry");
         }
 
         @Test
-        @DisplayName("HEAD 方法应可重试（持续失败时最终返回错误）")
+        @DisplayName("HEAD method should be retryable (eventually returns error on continuous failure)")
         void headShouldBeRetryable() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .head("/api/test")
@@ -296,19 +311,19 @@ class TimeoutRetryFilterTest {
             when(chain.filter(any(ServerWebExchange.class)))
                     .thenReturn(Mono.error(new ConnectException("Connection refused")));
 
-            // HEAD 方法会重试，但持续失败最终返回错误
+            // HEAD method will retry, but eventually returns error on continuous failure
             StepVerifier.create(filter.filter(exchange, chain))
                     .expectError(ConnectException.class)
                     .verify(Duration.ofSeconds(10));
             
-            // 验证确实进行了重试
+            // Verify retry was actually performed
             Integer retryCount = exchange.getAttribute("retryCount");
             assertNotNull(retryCount);
-            assertTrue(retryCount > 0, "HEAD 请求应触发重试");
+            assertTrue(retryCount > 0, "HEAD request should trigger retry");
         }
 
         @Test
-        @DisplayName("OPTIONS 方法应可重试（持续失败时最终返回错误）")
+        @DisplayName("OPTIONS method should be retryable (eventually returns error on continuous failure)")
         void optionsShouldBeRetryable() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .options("/api/test")
@@ -318,19 +333,19 @@ class TimeoutRetryFilterTest {
             when(chain.filter(any(ServerWebExchange.class)))
                     .thenReturn(Mono.error(new ConnectException("Connection refused")));
 
-            // OPTIONS 方法会重试，但持续失败最终返回错误
+            // OPTIONS method will retry, but eventually returns error on continuous failure
             StepVerifier.create(filter.filter(exchange, chain))
                     .expectError(ConnectException.class)
                     .verify(Duration.ofSeconds(10));
             
-            // 验证确实进行了重试
+            // Verify retry was actually performed
             Integer retryCount = exchange.getAttribute("retryCount");
             assertNotNull(retryCount);
-            assertTrue(retryCount > 0, "OPTIONS 请求应触发重试");
+            assertTrue(retryCount > 0, "OPTIONS request should trigger retry");
         }
 
         @Test
-        @DisplayName("PUT 方法默认不可重试")
+        @DisplayName("PUT method should not be retryable by default")
         void putShouldNotBeRetryableByDefault() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .put("/api/test")
@@ -345,7 +360,7 @@ class TimeoutRetryFilterTest {
         }
 
         @Test
-        @DisplayName("DELETE 方法默认不可重试")
+        @DisplayName("DELETE method should not be retryable by default")
         void deleteShouldNotBeRetryableByDefault() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .delete("/api/test")

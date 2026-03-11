@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/create-brix",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix Platform CLI - Create plugins and services",
   "author": "Brix Platform Authors",
   "license": "Apache-2.0",
@@ -25,8 +25,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/cli.ts src/index.ts --format cjs,esm --dts --clean",
-    "dev": "tsup src/cli.ts src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "lint": "eslint src --ext .ts",
     "clean": "rimraf dist"
   },

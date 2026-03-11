@@ -1,122 +1,151 @@
+﻿/**
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /**
  * @file Module Federation Shared Dependency Configuration
  * @description Defines Module Federation shared dependency configuration strategy
  * @module @brix/infra-adapter-mf-web/MFSharedConfig
- * @version 3.0.0
- * 
- * 【Design Notes】
- * MFSharedConfig manages Module Federation runtime shared dependency configuration.
- * Shared dependencies ensure Host and all remote plugins use the same version of core libraries,
- * avoiding redundant loading and version conflicts.
- * 
- * 【Sharing Strategy】
- * 1. Singleton sharing (singleton: true): React, ReactDOM, Router, etc.
- * 2. Version constraints (requiredVersion): Ensure version compatibility
- * 3. On-demand sharing: Non-core libraries can optionally share
- * 
- * 【Architectural Constraint - v3.0 Version Consistency Red Line】
- * - Host and all plugins must use the same React version
- * - Shared configuration is managed uniformly by Host, plugins cannot modify
- * - Version mismatch should throw explicit error
+ * @version 3.1.0
+ *
+ * ## DEPRECATION NOTICE
+ *
+ * This module is deprecated in favor of @brix/shared-runtime-web/mf-config.
+ * All MF shared configuration should be obtained from the Shared Runtime Layer.
+ *
+ * Migration Guide:
+ * ```typescript
+ * // Before (DEPRECATED)
+ * import { DEFAULT_SHARED_CONFIG } from '@brix/infra-adapter-mf-web';
+ *
+ * // After (RECOMMENDED)
+ * import { getHostSharedConfig, getRemoteSharedConfig } from '@brix/shared-runtime-web/mf-config';
+ * ```
+ *
+ * @deprecated Use @brix/shared-runtime-web/mf-config instead.
+ *             This module will be removed in the next major version.
+ *
+ * @see {@link @brix/shared-runtime-web/mf-config} - New canonical location
  */
+
+// ============================================================================
+// Type Re-exports (compatible with new module)
+// ============================================================================
 
 /**
  * Shared dependency configuration item
+ * @deprecated Use SharedConfig from @brix/shared-runtime-web/mf-config
  */
 export interface SharedDependencyConfig {
-  /** 
+  /**
    * Whether to use singleton mode
-   * 
+   *
    * When set to true, only one copy of this dependency is loaded for the entire application.
    * React, ReactDOM, etc. must be set as singletons.
    */
   readonly singleton: boolean;
-  
-  /** 
+
+  /**
    * Required version range
-   * 
+   *
    * Follows semver specification, e.g. "^18.3.0", ">=18.0.0"
    */
   readonly requiredVersion?: string;
-  
-  /** 
+
+  /**
    * Whether to strictly require version
-   * 
+   *
    * When set to true, version mismatch will prevent loading
    */
   readonly strictVersion?: boolean;
 
   /**
-   * Whether to lazy load
-   * 
-   * When set to true, dependency is loaded on first use
+   * Whether to eager load
+   *
+   * When set to true, dependency is bundled with the initial chunk.
+   * Host should set eager: true; Remotes should NOT set eager: true.
    */
   readonly eager?: boolean;
 }
 
 /**
  * Shared dependency configuration mapping
+ * @deprecated Use SharedConfig from @brix/shared-runtime-web/mf-config
+ */
 export type SharedDependencies = Record<string, SharedDependencyConfig>;
+
+// ============================================================================
+// DEPRECATED: Legacy Shared Configuration
+// ============================================================================
 
 /**
  * Default shared dependency configuration
- * 
- * 【Core Shared Libraries - Must be Singleton】
- * - react: React core library, must be singleton to ensure Hooks work correctly
- * - react-dom: DOM rendering library, must match React version
- * 
- * 【UI Libraries - Recommended Singleton】
- * - @mui/material: Material UI component library
- * - @emotion/react, @emotion/styled: Styling libraries
- * 
- * 【State Management - Recommended Singleton】
- * - zustand: Lightweight state management library
- * 
- * 【Version Specification - v3.0 Red Line Eight】
- * React 18.3.x is the currently supported version range,
- * all plugins must be within this range.
+ *
+ * @deprecated This constant is deprecated. Use the following instead:
+ *   - For Host: `getHostSharedConfig()` from @brix/shared-runtime-web/mf-config
+ *   - For Remote: `getRemoteSharedConfig()` from @brix/shared-runtime-web/mf-config
+ *
+ * NOTE: This static config does NOT distinguish Host vs Remote eager settings.
+ * The new shared-runtime-web functions properly set eager: true for Host
+ * and eager: false (default) for Remote.
  */
 export const DEFAULT_SHARED_CONFIG: SharedDependencies = {
   // ========== Core React Libraries (must be singleton) ==========
   'react': {
     singleton: true,
-    requiredVersion: '^18.3.0',
-    strictVersion: true,
+    requiredVersion: '^18.2.0',
+    strictVersion: false,
   },
   'react-dom': {
     singleton: true,
-    requiredVersion: '^18.3.0',
-    strictVersion: true,
+    requiredVersion: '^18.2.0',
+    strictVersion: false,
   },
   'react/jsx-runtime': {
     singleton: true,
-    requiredVersion: '^18.3.0',
+    requiredVersion: '^18.2.0',
   },
-  
+  'react/jsx-dev-runtime': {
+    singleton: true,
+    requiredVersion: '^18.2.0',
+  },
+
   // ========== UI Component Libraries (recommended singleton) ==========
   '@mui/material': {
     singleton: true,
-    requiredVersion: '^5.15.0',
+    requiredVersion: '^7.0.0',
   },
   '@mui/icons-material': {
     singleton: true,
-    requiredVersion: '^5.15.0',
+    requiredVersion: '^7.0.0',
   },
   '@emotion/react': {
     singleton: true,
-    requiredVersion: '^11.11.0',
+    requiredVersion: '^11.14.0',
   },
   '@emotion/styled': {
     singleton: true,
-    requiredVersion: '^11.11.0',
+    requiredVersion: '^11.14.0',
   },
-  
+
   // ========== State Management (recommended singleton) ==========
   'zustand': {
     singleton: true,
     requiredVersion: '^4.5.0',
   },
-  
+
   // ========== Utility Libraries (recommended shared) ==========
   'dayjs': {
     singleton: false,
@@ -130,52 +159,50 @@ export const DEFAULT_SHARED_CONFIG: SharedDependencies = {
 
 /**
  * Create shared dependency configuration
- * 
- * Merge default config and custom config to generate final shared dependency configuration.
- * 
- * 【Priority】
- * Custom config > Default config
- * 
+ *
+ * @deprecated Use functions from @brix/shared-runtime-web/mf-config:
+ *   - `getHostSharedConfig()` for Host applications
+ *   - `getRemoteSharedConfig()` for Remote plugins
+ *   - `mergeSharedConfig()` for extending default config
+ *
  * @param customConfig - Custom shared configuration
  * @returns Merged shared configuration
- * 
- * @example
- * ```typescript
- * const sharedConfig = createSharedConfig({
- *   'my-design-system': {
- *     singleton: true,
- *     requiredVersion: '^1.0.0',
- *   },
- * });
- * ```
  */
 export function createSharedConfig(
   customConfig?: Partial<SharedDependencies>
 ): SharedDependencies {
+  // Emit deprecation warning at build time (rspack config execution)
+  console.warn(
+    '[DEPRECATED] createSharedConfig() is deprecated.\n' +
+    'Use @brix/shared-runtime-web/mf-config instead:\n' +
+    '  - Host: getHostSharedConfig()\n' +
+    '  - Remote: getRemoteSharedConfig()'
+  );
+
   // If no custom config, return default config directly
   if (!customConfig) {
     return { ...DEFAULT_SHARED_CONFIG };
   }
-  
+
   // Merge default config and custom config
   // Custom config will override same-named dependencies in default config
   const merged: SharedDependencies = { ...DEFAULT_SHARED_CONFIG };
-  
+
   for (const [key, value] of Object.entries(customConfig)) {
     if (value !== undefined) {
       merged[key] = value;
     }
   }
-  
+
   return merged;
 }
 
 /**
  * Validate shared dependency version
- * 
+ *
  * Check if runtime environment dependency versions meet configuration requirements.
  * Used for version compatibility check before loading plugins.
- * 
+ *
  * @param dependencyName - Dependency name
  * @param actualVersion - Actual version
  * @param config - Shared configuration
@@ -190,7 +217,7 @@ export function validateSharedVersion(
   if (!depConfig || !depConfig.requiredVersion) {
     return true;
   }
-  
+
   // Simplified version check (production should use semver library)
   const required = depConfig.requiredVersion;
   if (required.startsWith('^')) {
@@ -198,10 +225,10 @@ export function validateSharedVersion(
     const actualMajor = parseInt(actualVersion.split('.')[0] ?? '0', 10);
     return actualMajor === requiredMajor;
   }
-  
+
   if (required.startsWith('>=')) {
     return actualVersion >= required.slice(2);
   }
-  
+
   return actualVersion === required;
 }

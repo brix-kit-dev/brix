@@ -15,13 +15,13 @@
  */
 
 /**
- * 插件注册表 REST 端点包
+ * Plugin Registry REST Endpoint Package.
  *
- * <p>提供 /api/plugins REST API，使前端 Host 能够动态获取已注册的插件列表。</p>
+ * <p>Provides /api/plugins REST API, enabling front-end Host to dynamically retrieve the list of registered plugins.</p>
  *
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.runtime.orchestrator.endpoint.PluginRegistryEndpoint} - 插件注册表端点</li>
+ *   <li>{@link io.runtime.orchestrator.endpoint.PluginRegistryEndpoint} - Plugin registry endpoint</li>
  * </ul>
  *
  * @since 3.0.5

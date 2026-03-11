@@ -21,15 +21,16 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 能力扫描与组装配置属性
+ * Configuration properties for capability scanning and assembly.
  *
- * <h2>架构定位（v3.0.4 架构红线修复）</h2>
+ * <h2>Architecture Position</h2>
  * <p>
- * 本类定义能力扫描的配置属性，从原 Host 层的 {@code StandaloneShellProperties.CapabilitiesConfig}
- * 提取并增强。所有 Host 模式（Standalone/Embedded）共享此配置结构。
+ * This class defines capability scanning configuration properties, extracted from
+ * the original Host layer's {@code StandaloneShellProperties.CapabilitiesConfig}
+ * and enhanced. All Host modes (Standalone/Embedded) share this configuration structure.
  * </p>
  *
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   capability:
@@ -47,10 +48,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       - io.runtime.sdk.capability.ResilienceCapability
  * }</pre>
  *
- * <h2>配置优先级</h2>
+ * <h2>Configuration Priority</h2>
  * <p>
- * Host 层的特定配置（如 {@code brix.shell.standalone.capabilities}）
- * 可以通过 Spring Boot 的配置绑定覆盖此默认配置。
+ * Host layer specific configurations (e.g., {@code brix.shell.standalone.capabilities})
+ * can override this default configuration through Spring Boot's configuration binding.
  * </p>
  *
  * @author Brix Platform Authors
@@ -61,51 +62,52 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class CapabilityProperties {
 
     /**
-     * 是否启用能力自动配置
+     * Whether to enable capability auto-configuration.
      *
-     * <p>设置为 false 将完全禁用 {@link CapabilityAutoConfiguration}。</p>
+     * <p>Set to false to completely disable {@link CapabilityAutoConfiguration}.</p>
      */
     private boolean enabled = true;
 
     /**
-     * 模块 ID
+     * Module ID.
      *
-     * <p>用于标识当前运行模块，在 {@link io.runtime.sdk.context.RuntimeContext} 中使用。
-     * 建议与 Maven artifactId 保持一致。</p>
+     * <p>Used to identify the current running module in {@link io.runtime.sdk.context.RuntimeContext}.
+     * Recommended to keep consistent with Maven artifactId.</p>
      */
     private String moduleId = "default-module";
 
     /**
-     * 租户 ID
+     * Tenant ID.
      *
-     * <p>多租户场景下的默认租户标识。
-     * 运行时可通过 TenantContext 动态切换。</p>
+     * <p>Default tenant identifier for multi-tenant scenarios.
+     * Can be dynamically switched via TenantContext at runtime.</p>
      */
     private String tenantId = "default";
 
     /**
-     * 是否启用能力自动发现
+     * Whether to enable capability auto-discovery.
      *
-     * <p>启用时，自动扫描所有带有 {@link io.runtime.sdk.capability.registry.Capability @Capability}
-     * 注解的 Bean 并注册到 {@link io.runtime.sdk.capability.registry.CapabilityRegistry}。</p>
+     * <p>When enabled, automatically scans all beans annotated with
+     * {@link io.runtime.sdk.capability.registry.Capability @Capability}
+     * and registers them to {@link io.runtime.sdk.capability.registry.CapabilityRegistry}.</p>
      */
     private boolean autoDiscovery = true;
 
     /**
-     * 是否在启动时验证必需能力
+     * Whether to validate required capabilities on startup.
      *
-     * <p>启用时，启动过程会检查 {@link #required} 列表中的所有能力是否已注册。
-     * 如果有必需能力未注册，将抛出异常阻止启动。</p>
+     * <p>When enabled, startup process checks if all capabilities in {@link #required} list are registered.
+     * If any required capability is not registered, an exception will be thrown to prevent startup.</p>
      */
     private boolean validateOnStartup = true;
 
     /**
-     * 必需能力类型列表
+     * List of required capability types.
      *
-     * <p>列出应用启动所必需的能力类型全限定名。
-     * 如果这些能力未注册，且 {@link #validateOnStartup} 为 true，启动将失败。</p>
+     * <p>Lists fully qualified names of capability types required for application startup.
+     * If these capabilities are not registered and {@link #validateOnStartup} is true, startup will fail.</p>
      *
-     * <p>示例：</p>
+     * <p>Example:</p>
      * <pre>{@code
      * required:
      *   - io.runtime.sdk.capability.EventBusCapability
@@ -115,12 +117,12 @@ public class CapabilityProperties {
     private List<String> required = new ArrayList<>();
 
     /**
-     * 可选能力类型列表
+     * List of optional capability types.
      *
-     * <p>列出应用可选使用的能力类型全限定名。
-     * 如果这些能力未注册，不会影响启动。</p>
+     * <p>Lists fully qualified names of capability types that are optionally used.
+     * If these capabilities are not registered, it will not affect startup.</p>
      *
-     * <p>示例：</p>
+     * <p>Example:</p>
      * <pre>{@code
      * optional:
      *   - io.runtime.sdk.capability.LockCapability
@@ -130,19 +132,19 @@ public class CapabilityProperties {
     private List<String> optional = new ArrayList<>();
 
     /**
-     * 禁用能力类型列表
+     * List of disabled capability types.
      *
-     * <p>列出需要禁用的能力类型全限定名。
-     * 即使存在对应的适配器 Bean，这些能力也不会被注册。</p>
+     * <p>Lists fully qualified names of capability types to disable.
+     * Even if corresponding adapter beans exist, these capabilities will not be registered.</p>
      *
-     * <p>使用场景：</p>
+     * <p>Use cases:</p>
      * <ul>
-     *   <li>测试环境中禁用某些能力</li>
-     *   <li>特定部署场景不需要某些能力</li>
-     *   <li>临时禁用有问题的能力实现</li>
+     *   <li>Disable certain capabilities in test environments</li>
+     *   <li>Specific deployment scenarios don't need certain capabilities</li>
+     *   <li>Temporarily disable problematic capability implementations</li>
      * </ul>
      *
-     * <p>示例：</p>
+     * <p>Example:</p>
      * <pre>{@code
      * disabled:
      *   - io.runtime.sdk.capability.ResilienceCapability

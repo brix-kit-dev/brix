@@ -4,7 +4,6 @@
 package io.brix.architecture.guard.rules;
 
 import com.tngtech.archunit.lang.ArchRule;
-
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -13,11 +12,11 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * <p>Enforces that plugin core modules can ONLY depend on {@code runtime-sdk-api},
  * not on {@code runtime-sdk} (implementation package).</p>
  *
- * <h2>Architecture Principle (Blueprint Constraint 2)</h2>
+ * <h2>Architecture Principle</h2>
  * <blockquote>
- * 插件代码中禁止出现 Kafka / Redis / HTTP Client 等基础设施依赖。
- * 插件不得绕过 Runtime Shell 直接访问基础设施。
- * Runtime Shell 是唯一允许接触基础设施的层。
+ * Plugin code must not contain infrastructure dependencies such as Kafka / Redis / HTTP Client.
+ * Plugins must not bypass Runtime Shell to directly access infrastructure.
+ * Runtime Shell is the only layer allowed to access infrastructure.
  * </blockquote>
  *
  * <h2>Violation Example</h2>
@@ -41,7 +40,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * @author Brix Architecture Team
  * @since 3.1.0
- * @see <a href="docs/v3.0.4-运行壳架构设计蓝图.md">Blueprint Constraint 2</a>
+ * @see <a href="docs/v3.0-architecture-blueprint.md">Architecture Constraint 2</a>
  */
 public final class OnlyRuntimeSdkApiRule {
 
@@ -76,7 +75,7 @@ public final class OnlyRuntimeSdkApiRule {
                 .should().dependOnClassesThat()
                 .resideInAPackage(RUNTIME_SDK_IMPL)
                 .because("Plugin core modules must only depend on runtime-sdk-api, " +
-                        "not runtime-sdk implementation classes (Blueprint Constraint 2)")
+                        "not runtime-sdk implementation classes (Constraint: Plugins must only depend on runtime-sdk-api)")
                 .allowEmptyShould(true);
     }
 

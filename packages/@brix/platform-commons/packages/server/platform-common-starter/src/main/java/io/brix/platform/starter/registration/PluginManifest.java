@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.registration;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -6,30 +21,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 插件 Manifest 模型
+ * Plugin Manifest Model
  * 
- * <p>对应插件 JAR 中的 META-INF/plugin-manifest.json 文件</p>
+ * <p>Corresponds to META-INF/plugin-manifest.json file in plugin JAR</p>
  * 
- * <p>每个插件可以在自己的 JAR 包中定义 manifest 文件，声明：</p>
+ * <p>Each plugin can define a manifest file in its own JAR package, declaring:</p>
  * <ul>
- *   <li>插件基本信息（名称、版本、描述）</li>
- *   <li>UI 契约（路由、菜单配置）</li>
- *   <li>事件契约（发订阅的事件）</li>
+ *   <li>Plugin basic info (name, version, description)</li>
+ *   <li>UI contracts (routes, menu configuration)</li>
+ *   <li>Event contracts (events published and subscribed)</li>
  * </ul>
  * 
- * <p>示例 manifest 文件</p>
+ * <p>Example manifest file:</p>
  * <pre>
  * {
  *   "name": "plugin-user",
  *   "version": "1.0.0",
- *   "displayName": "用户管理",
+ *   "displayName": "User Management",
  *   "ui": {
  *     "web": {
  *       "routes": [
  *         {
  *           "path": "/users",
  *           "menu": {
- *             "title": "用户列表",
+ *             "title": "User List",
  *             "icon": "user",
  *             "order": 100
  *           }
@@ -46,25 +61,25 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PluginManifest {
     
-    /** 插件名称（唯一标识*/
+    /** Plugin name (unique identifier) */
     private String name;
     
-    /** 插件版本 */
+    /** Plugin version */
     private String version;
     
-    /** 插件显示名称 */
+    /** Plugin display name */
     private String displayName;
     
-    /** 插件描述 */
+    /** Plugin description */
     private String description;
     
-    /** UI 濂戠害 */
+    /** UI Contract */
     private UiContract ui;
     
-    /** 事件契约 */
+    /** Event contract */
     private EventContract events;
     
-    /** 扩展元数*/
+    /** Extended metadata */
     private Map<String, Object> metadata;
     
     // ===== Getters and Setters =====
@@ -125,10 +140,10 @@ public class PluginManifest {
         this.metadata = metadata;
     }
     
-    // ===== 嵌套=====
+    // ===== Nested Classes =====
     
     /**
-     * UI 濂戠害
+     * UI Contract
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class UiContract {
@@ -154,18 +169,18 @@ public class PluginManifest {
     }
     
     /**
-     * Web UI 配置
+     * Web UI Configuration
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class WebUi {
         
-        /** 远程入口地址（微前端 remoteEntry.js*/
+        /** Remote entry URL (micro-frontend remoteEntry.js) */
         private String remoteEntry;
         
-        /** 模块联邦 scope 名称 */
+        /** Module Federation scope name */
         private String scope;
         
-        /** 路由列表 */
+        /** Route list */
         private List<WebRoute> routes;
         
         public String getRemoteEntry() {
@@ -194,15 +209,15 @@ public class PluginManifest {
     }
     
     /**
-     * Mobile UI 配置
+     * Mobile UI Configuration
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MobileUi {
         
-        /** 移动端页URL */
+        /** Mobile page base URL */
         private String baseUrl;
         
-        /** 路由列表 */
+        /** Route list */
         private List<WebRoute> routes;
         
         public String getBaseUrl() {
@@ -223,21 +238,21 @@ public class PluginManifest {
     }
     
     /**
-     * Web 路由配置
+     * Web Route Configuration
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class WebRoute {
         
-        /** 路由路径 */
+        /** Route path */
         private String path;
         
-        /** 组件名称（微前端远程组件*/
+        /** Component name (micro-frontend remote component) */
         private String component;
         
-        /** 是否精确匹配 */
+        /** Whether to match exactly */
         private Boolean exact;
         
-        /** 菜单配置 */
+        /** Menu configuration */
         private Menu menu;
         
         public String getPath() {
@@ -274,24 +289,24 @@ public class PluginManifest {
     }
     
     /**
-     * 菜单配置
+     * Menu Configuration
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Menu {
         
-        /** 菜单标题 */
+        /** Menu title */
         private String title;
         
-        /** 菜单图标 */
+        /** Menu icon */
         private String icon;
         
-        /** 菜单排序（数字越小越靠前*/
+        /** Menu order (smaller numbers appear first) */
         private Integer order;
         
-        /** 父菜ID（用于嵌套菜单） */
+        /** Parent menu ID (for nested menus) */
         private String parentId;
         
-        /** 是否隐藏（不在菜单中显示，但路由可访问） */
+        /** Whether hidden (not displayed in menu but route is accessible) */
         private Boolean hidden;
         
         public String getTitle() {
@@ -336,15 +351,15 @@ public class PluginManifest {
     }
     
     /**
-     * 事件契约
+     * Event Contract
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class EventContract {
         
-        /** 发布的事件列*/
+        /** List of published events */
         private List<String> publish;
         
-        /** 订阅的事件列*/
+        /** List of subscribed events */
         private List<String> subscribe;
         
         public List<String> getPublish() {

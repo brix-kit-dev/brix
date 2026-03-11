@@ -15,40 +15,43 @@
  */
 package io.infra.adapter.database;
 
+import java.util.Objects;
+
+import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.zaxxer.hikari.HikariDataSource;
+
 import io.runtime.sdk.capability.DatabaseCapability;
 import io.runtime.sdk.capability.DatabaseDialect;
 import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
-import com.zaxxer.hikari.HikariDataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
-
-import javax.sql.DataSource;
-import java.util.Objects;
-
 /**
- * 基于 HikariCP 的数据库能力实现
+ * HikariCP-based database capability implementation.
  * 
- * <p>本类是 {@link DatabaseCapability} 的标准实现，提供基于 HikariCP 连接池的数据库访问能力。
- * 插件通过此实现获取数据源、查询方言、执行原生 SQL，无需感知具体数据库驱动。</p>
+ * <p>This class is the standard implementation of {@link DatabaseCapability}, providing database access
+ * capability based on HikariCP connection pool. Plugins use this implementation to obtain data sources,
+ * query dialects, and execute native SQL without needing to know specific database drivers.</p>
  * 
- * <h3>核心特性</h3>
+ * <h3>Core Features</h3>
  * <ul>
- *   <li><b>配置驱动</b>：数据库类型、URL、凭证由外部配置提供</li>
- *   <li><b>多厂商支持</b>：通过 {@link DatabaseDialect} 切换 PostgreSQL / Kingbase / MySQL</li>
- *   <li><b>连接池管理</b>：HikariCP 高性能连接池，支持连接验证、超时、池大小配置</li>
- *   <li><b>Schema 隔离</b>：支持多租户场景下的 Schema 隔离</li>
+ *   <li><b>Configuration-driven</b>: Database type, URL, credentials provided by external configuration</li>
+ *   <li><b>Multi-vendor support</b>: Switch between PostgreSQL / Kingbase / MySQL via {@link DatabaseDialect}</li>
+ *   <li><b>Connection pool management</b>: HikariCP high-performance pool with validation, timeout, and size config</li>
+ *   <li><b>Schema isolation</b>: Supports Schema isolation for multi-tenancy scenarios</li>
  * </ul>
  * 
- * <h3>蓝图对照</h3>
- * <p>对应蓝图 v3.0.2 第 3.3.1 节，能力级别为 STANDARD。
- * 参考现有模式：{@code infra-adapter-kafka} 实现 EventBusCapability、
- * {@code infra-adapter-redis} 实现 StateStoreCapability。</p>
+ * <h3>Architecture Compliance</h3>
+ * <p>HikariCP-based DatabaseCapability implementation. Capability level: STANDARD.
+ * Follows existing adapter patterns: {@code infra-adapter-kafka} for EventBusCapability,
+ * {@code infra-adapter-redis} for StateStoreCapability.</p>
  * 
- * <h3>线程安全</h3>
- * <p>本类是线程安全的。HikariDataSource 和 JdbcTemplate 均支持并发访问。</p>
+ * <h3>Thread Safety</h3>
+ * <p>This class is thread-safe. HikariDataSource and JdbcTemplate both support concurrent access.</p>
  * 
  * @author Brix Platform Authors
  * @since 3.0.0
@@ -58,7 +61,7 @@ import java.util.Objects;
 @Capability(
     type = DatabaseCapability.class,
     name = "hikari-database",
-    description = "基于 HikariCP 的数据库能力实现，支持 PostgreSQL / Kingbase 多厂商切换",
+    description = "HikariCP-based database capability implementation with PostgreSQL/Kingbase multi-vendor support",
     level = CapabilityLevel.STANDARD,
     aliases = {"database", "databaseCapability"}
 )
@@ -67,63 +70,64 @@ public class HikariDatabaseCapability implements DatabaseCapability {
     private static final Logger log = LoggerFactory.getLogger(HikariDatabaseCapability.class);
 
     /**
-     * HikariCP 数据源
+     * HikariCP DataSource.
      * 
-     * <p>由自动配置类根据外部配置创建，封装了连接池管理逻辑。</p>
+     * <p>Created by auto-configuration based on external configuration,
+     * encapsulates connection pool management logic.</p>
      */
     private final HikariDataSource dataSource;
 
     /**
-     * Spring JDBC 模板
+     * Spring JDBC Template.
      * 
-     * <p>用于执行原生 SQL 查询，封装了 JDBC 操作的模板方法。</p>
+     * <p>Used to execute native SQL queries, encapsulates JDBC operation template methods.</p>
      */
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * 当前数据库方言
+     * Current database dialect.
      * 
-     * <p>由配置驱动决定，用于插件判断当前数据库类型。</p>
+     * <p>Determined by configuration, used by plugins to determine current database type.</p>
      */
     private final DatabaseDialect dialect;
 
     /**
-     * 数据库名称
+     * Database name.
      */
     private final String databaseName;
 
     /**
-     * Schema 名称
+     * Schema name.
      */
     private final String schemaName;
 
     /**
-     * 构造函数
+     * Constructor.
      * 
-     * @param dataSource   HikariCP 数据源（由自动配置创建）
-     * @param dialect      数据库方言
-     * @param databaseName 数据库名称
-     * @param schemaName   Schema 名称
+     * @param dataSource   HikariCP data source (created by auto-configuration)
+     * @param dialect      Database dialect
+     * @param databaseName Database name
+     * @param schemaName   Schema name
      */
     public HikariDatabaseCapability(
             HikariDataSource dataSource,
             DatabaseDialect dialect,
             String databaseName,
             String schemaName) {
-        this.dataSource = Objects.requireNonNull(dataSource, "dataSource 不能为空");
-        this.dialect = Objects.requireNonNull(dialect, "dialect 不能为空");
-        this.databaseName = Objects.requireNonNull(databaseName, "databaseName 不能为空");
+        this.dataSource = Objects.requireNonNull(dataSource, "dataSource cannot be null");
+        this.dialect = Objects.requireNonNull(dialect, "dialect cannot be null");
+        this.databaseName = Objects.requireNonNull(databaseName, "databaseName cannot be null");
         this.schemaName = schemaName != null ? schemaName : "public";
         this.jdbcTemplate = new JdbcTemplate(dataSource);
 
-        log.info("[Database] 数据库能力初始化完成: dialect={}, database={}, schema={}",
+        log.info("[Database] Database capability initialized: dialect={}, database={}, schema={}",
                 dialect.getDisplayName(), databaseName, this.schemaName);
     }
 
     /**
      * {@inheritDoc}
      * 
-     * <p>返回 HikariCP 管理的数据源实例。</p>
+     * <p>Returns the data source instance managed by HikariCP.</p>
      */
     @Override
     public DataSource getDataSource() {
@@ -157,20 +161,20 @@ public class HikariDatabaseCapability implements DatabaseCapability {
     /**
      * {@inheritDoc}
      * 
-     * <p>使用 Spring JdbcTemplate 执行原生 SQL。参数通过占位符传入，防止 SQL 注入。</p>
+     * <p>Executes native SQL using Spring JdbcTemplate. Parameters are passed via placeholders to prevent SQL injection.</p>
      * 
-     * @param sql        原生 SQL 语句
-     * @param resultType 结果类型
-     * @param params     SQL 参数
-     * @param <T>        结果类型
-     * @return 查询结果
+     * @param sql        Native SQL statement
+     * @param resultType Result type
+     * @param params     SQL parameters
+     * @param <T>        Result type
+     * @return Query result
      */
     @Override
     public <T> T executeNative(String sql, Class<T> resultType, Object... params) {
-        Objects.requireNonNull(sql, "sql 不能为空");
-        Objects.requireNonNull(resultType, "resultType 不能为空");
+        Objects.requireNonNull(sql, "sql cannot be null");
+        Objects.requireNonNull(resultType, "resultType cannot be null");
 
-        log.debug("[Database] 执行原生 SQL: sql={}, dialect={}", sql, dialect.getDisplayName());
+        log.debug("[Database] Executing native SQL: sql={}, dialect={}", sql, dialect.getDisplayName());
         return jdbcTemplate.queryForObject(sql, resultType, params);
     }
 }

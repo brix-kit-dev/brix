@@ -28,18 +28,18 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 
 /**
- * Webhook 适配器自动配置
+ * Webhook Adapter Auto-Configuration
  * 
- * <p>Spring Boot 自动配置类，根据配置属性自动装配 Webhook 事件总线。</p>
+ * <p>Spring Boot auto-configuration class that automatically configures Webhook event bus based on properties.</p>
  * 
- * <h2>激活条件</h2>
+ * <h2>Activation Conditions</h2>
  * <ul>
- *   <li>配置 brix.infra.webhook.enabled=true</li>
- *   <li>classpath 中存在 HttpWebhookEventBus</li>
- *   <li>没有其他 EventBusCapability Bean</li>
+ *   <li>Configure brix.infra.webhook.enabled=true</li>
+ *   <li>HttpWebhookEventBus exists in classpath</li>
+ *   <li>No other EventBusCapability Bean exists</li>
  * </ul>
  * 
- * <h2>配置示例</h2>
+ * <h2>Configuration Example</h2>
  * <pre>{@code
  * brix:
  *   infra:
@@ -59,10 +59,10 @@ import org.springframework.context.annotation.Bean;
 public class WebhookAdapterAutoConfiguration {
     
     /**
-     * 创建 WebhookConfig Bean
+     * Creates WebhookConfig Bean
      *
-     * @param properties 配置属性
-     * @return WebhookConfig 实例
+     * @param properties Configuration properties
+     * @return WebhookConfig instance
      */
     @Bean
     @ConditionalOnMissingBean
@@ -85,10 +85,10 @@ public class WebhookAdapterAutoConfiguration {
     }
     
     /**
-     * 创建 WebhookSignatureVerifier Bean
+     * Creates WebhookSignatureVerifier Bean
      *
-     * @param properties 配置属性
-     * @return WebhookSignatureVerifier 实例，如果未配置密钥则返回 null
+     * @param properties Configuration properties
+     * @return WebhookSignatureVerifier instance, or null if secret is not configured
      */
     @Bean
     @ConditionalOnMissingBean
@@ -98,13 +98,13 @@ public class WebhookAdapterAutoConfiguration {
     }
     
     /**
-     * 创建 HttpWebhookEventBus Bean
+     * Creates HttpWebhookEventBus Bean
      * 
-     * <p>作为 EventBusCapability 的实现，用于嵌入模式部署。</p>
+     * <p>Serves as the EventBusCapability implementation for embedded deployment.</p>
      *
-     * @param config Webhook 配置
-     * @param objectMapper Jackson ObjectMapper（可选）
-     * @return HttpWebhookEventBus 实例
+     * @param config Webhook configuration
+     * @param objectMapper Jackson ObjectMapper (optional)
+     * @return HttpWebhookEventBus instance
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)

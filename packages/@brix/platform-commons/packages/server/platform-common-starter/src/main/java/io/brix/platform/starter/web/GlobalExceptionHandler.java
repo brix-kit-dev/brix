@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.web;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,21 +41,21 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * v2.1 全局异常处理
+ * v2.1 Global Exception Handler
  * 
- * <p>统一处理所有控制器抛出的异常，返回标准 ApiResponse 格式</p>
+ * <p>Uniformly handles all exceptions thrown from controllers, returns standard ApiResponse format</p>
  * 
- * <p>处理的异常类型：</p>
+ * <p>Exception types handled:</p>
  * <ul>
- *   <li>PlatformException - 平台业务异常</li>
- *   <li>MethodArgumentNotValidException - 参数校验异常</li>
- *   <li>BindException - 参数绑定异常</li>
- *   <li>MissingServletRequestParameterException - 缺少请求参数</li>
- *   <li>MethodArgumentTypeMismatchException - 参数类型不匹</li>
- *   <li>HttpRequestMethodNotSupportedException - HTTP 方法不支</li>
- *   <li>HttpMediaTypeNotSupportedException - 媒体类型不支</li>
- *   <li>NoHandlerFoundException - 资源未找</li>
- *   <li>Exception - 兜底处理未知异常</li>
+ *   <li>PlatformException - Platform business exception</li>
+ *   <li>MethodArgumentNotValidException - Parameter validation exception</li>
+ *   <li>BindException - Parameter binding exception</li>
+ *   <li>MissingServletRequestParameterException - Missing request parameter</li>
+ *   <li>MethodArgumentTypeMismatchException - Parameter type mismatch</li>
+ *   <li>HttpRequestMethodNotSupportedException - HTTP method not supported</li>
+ *   <li>HttpMediaTypeNotSupportedException - Media type not supported</li>
+ *   <li>NoHandlerFoundException - Resource not found</li>
+ *   <li>Exception - Fallback handling for unknown exceptions</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -54,20 +69,20 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
     /**
-     * 处理平台业务异常
+     * Handle platform business exception
      * 
-     * @param ex 平台异常
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Platform exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(PlatformException.class)
     public ResponseEntity<ApiResponse<Void>> handlePlatformException(
             PlatformException ex, HttpServletRequest request) {
         
-        log.warn("[GlobalExceptionHandler] 业务异常: {} - {}, path: {}", 
+        log.warn("[GlobalExceptionHandler] Business exception: {} - {}, path: {}", 
             ex.getErrorCode().getCode(), ex.getMessage(), request.getRequestURI());
         
-        // 根据错误码确HTTP 状态码
+        // Determine HTTP status code based on error code
         HttpStatus status = HttpStatus.valueOf(ex.getErrorCode().getHttpStatus());
         
         ApiResponse<Void> response = ApiResponse.failure(
@@ -79,30 +94,30 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 处理参数校验异常（@Valid 注解触发
+     * Handle parameter validation exception (triggered by @Valid annotation)
      * 
-     * @param ex 参数校验异常
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Parameter validation exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
         
-        // 收集所有校验错
+        // Collect all validation errors
         Map<String, String> errors = ex.getBindingResult().getFieldErrors()
             .stream()
             .collect(Collectors.toMap(
                 FieldError::getField,
-                error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "校验失败",
+                error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "Validation failed",
                 (existing, replacement) -> existing
             ));
         
-        log.warn("[GlobalExceptionHandler] 参数校验失败: {}, path: {}", 
+        log.warn("[GlobalExceptionHandler] Parameter validation failed: {}, path: {}", 
             errors, request.getRequestURI());
         
-        // 将错误信息拼接为消息
-        String errorMessage = "参数校验失败: " + errors.entrySet().stream()
+        // Concatenate error info into message
+        String errorMessage = "Parameter validation failed: " + errors.entrySet().stream()
             .map(e -> e.getKey() + " - " + e.getValue())
             .collect(Collectors.joining("; "));
         
@@ -115,11 +130,11 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 处理参数绑定异常（表单提交）
+     * Handle parameter binding exception (form submission)
      * 
-     * @param ex 绑定异常
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Binding exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(BindException.class)
     public ResponseEntity<ApiResponse<Void>> handleBindException(
@@ -129,15 +144,15 @@ public class GlobalExceptionHandler {
             .stream()
             .collect(Collectors.toMap(
                 FieldError::getField,
-                error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "绑定失败",
+                error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "Binding failed",
                 (existing, replacement) -> existing
             ));
         
-        log.warn("[GlobalExceptionHandler] 参数绑定失败: {}, path: {}", 
+        log.warn("[GlobalExceptionHandler] Parameter binding failed: {}, path: {}", 
             errors, request.getRequestURI());
         
-        // 将错误信息拼接为消息
-        String errorMessage = "参数绑定失败: " + errors.entrySet().stream()
+        // Concatenate error info into message
+        String errorMessage = "Parameter binding failed: " + errors.entrySet().stream()
             .map(e -> e.getKey() + " - " + e.getValue())
             .collect(Collectors.joining("; "));
         
@@ -150,17 +165,17 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 处理缺少请求参数异常
+     * Handle missing request parameter exception
      * 
-     * @param ex 缺少参数异常
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Missing parameter exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingParameterException(
             MissingServletRequestParameterException ex, HttpServletRequest request) {
         
-        String message = String.format("缺少必需参数: %s (类型: %s)", 
+        String message = String.format("Missing required parameter: %s (type: %s)", 
             ex.getParameterName(), ex.getParameterType());
         
         log.warn("[GlobalExceptionHandler] {}, path: {}", message, request.getRequestURI());
@@ -174,17 +189,17 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 处理参数类型不匹配异
+     * Handle parameter type mismatch exception
      * 
-     * @param ex 类型不匹配异
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Type mismatch exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatchException(
             MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
         
-        String message = String.format("参数类型不匹 %s (期望类型: %s)", 
+        String message = String.format("Parameter type mismatch: %s (expected type: %s)", 
             ex.getName(), 
             ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown");
         
@@ -199,17 +214,17 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 处理 HTTP 方法不支持异
+     * Handle HTTP method not supported exception
      * 
-     * @param ex 方法不支持异
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Method not supported exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse<Void>> handleMethodNotSupportedException(
             HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
         
-        String message = String.format("HTTP 方法不支 %s", ex.getMethod());
+        String message = String.format("HTTP method not supported: %s", ex.getMethod());
         
         log.warn("[GlobalExceptionHandler] {}, path: {}", message, request.getRequestURI());
         
@@ -222,17 +237,17 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 处理媒体类型不支持异
+     * Handle media type not supported exception
      * 
-     * @param ex 媒体类型不支持异
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Media type not supported exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiResponse<Void>> handleMediaTypeNotSupportedException(
             HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
         
-        String message = String.format("媒体类型不支 %s", ex.getContentType());
+        String message = String.format("Media type not supported: %s", ex.getContentType());
         
         log.warn("[GlobalExceptionHandler] {}, path: {}", message, request.getRequestURI());
         
@@ -245,17 +260,17 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 处理资源未找到异
+     * Handle resource not found exception
      * 
-     * @param ex 未找到异
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Not found exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFoundException(
             NoHandlerFoundException ex, HttpServletRequest request) {
         
-        String message = String.format("资源未找 %s %s", 
+        String message = String.format("Resource not found: %s %s", 
             ex.getHttpMethod(), ex.getRequestURL());
         
         log.warn("[GlobalExceptionHandler] {}", message);
@@ -269,22 +284,22 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * 兜底处理未知异常
+     * Fallback handler for unknown exceptions
      * 
-     * @param ex 异常
-     * @param request HTTP 请求
-     * @return 错误响应
+     * @param ex Exception
+     * @param request HTTP request
+     * @return Error response
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(
             Exception ex, HttpServletRequest request) {
         
-        log.error("[GlobalExceptionHandler] 未知异常, path: {}", 
+        log.error("[GlobalExceptionHandler] Unknown exception, path: {}", 
             request.getRequestURI(), ex);
         
         ApiResponse<Void> response = ApiResponse.failure(
             PlatformErrorCode.INTERNAL_ERROR,
-            "系统内部错误，请稍后重试"
+            "Internal server error, please try again later"
         );
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);

@@ -1,4 +1,4 @@
-# 插件前端开发环境 Dockerfile
+﻿# 插件前端Development Dockerfile
 # 支持热更新和 Module Federation
 
 FROM node:20-alpine
@@ -9,9 +9,9 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # 先复制 platform-packages 中的本地依赖
-COPY platform-packages/@shinwa/platform-headers ./platform-packages/@shinwa/platform-headers
-COPY platform-packages/@shinwa/types ./platform-packages/@shinwa/types
-COPY platform-packages/@shinwa/utils ./platform-packages/@shinwa/utils
+COPY platform-packages/@brix/platform-headers ./platform-packages/@brix/platform-headers
+COPY platform-packages/@brix/types ./platform-packages/@brix/types
+COPY platform-packages/@brix/utils ./platform-packages/@brix/utils
 
 # 复制插件前端项目
 WORKDIR /app/plugin
@@ -19,16 +19,16 @@ COPY plugins/<%= name %>/<%= name %>-web/package.json plugins/<%= name %>/<%= na
 
 # 修改依赖路径为 Docker 内路径并安装
 # 支持 workspace:* 和 file:../../../platform-packages 两种格式
-RUN sed -i 's|"workspace:\*"|"file:/app/platform-packages/@shinwa/platform-headers"|g; \
-    s|"@shinwa/types": "workspace:\*"|"@shinwa/types": "file:/app/platform-packages/@shinwa/types"|g; \
-    s|"@shinwa/utils": "workspace:\*"|"@shinwa/utils": "file:/app/platform-packages/@shinwa/utils"|g; \
+RUN sed -i 's|"workspace:\*"|"file:/app/platform-packages/@brix/platform-headers"|g; \
+    s|"@brix/types": "workspace:\*"|"@brix/types": "file:/app/platform-packages/@brix/types"|g; \
+    s|"@brix/utils": "workspace:\*"|"@brix/utils": "file:/app/platform-packages/@brix/utils"|g; \
     s|file:../../../platform-packages|file:/app/platform-packages|g' package.json && \
     pnpm install --no-frozen-lockfile
 
 # 复制源码
 COPY plugins/<%= name %>/<%= name %>-web/ ./
 
-# 暴露端口（由环境变量 PORT 控制）
+# 暴露Port（由环境变量 PORT 控制）
 EXPOSE ${PORT:-3001}
 
 # 启动开发服务器

@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/runtime-orchestrator-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Brix Runtime Orchestrator Web - Web runtime orchestration",
   "type": "module",
   "main": "dist/index.cjs",

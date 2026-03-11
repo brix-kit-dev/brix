@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
@@ -31,28 +46,28 @@ import reactor.core.publisher.Mono;
 import io.brix.platform.gateway.config.security.SignatureProperties;
 
 /**
- * 请求签名校验过滤器。
+ * requestsignatureverifyfilter。
  *
- * <p>使用 HMAC-SHA256 算法校验请求签名，防止请求篡改和重放攻击。
+ * <p>use HMAC-SHA256 algorithmverifyrequestsignature，Prevent request tamperingandre-release attack。
  *
- * <p>签名要素：
+ * <p>signaturemustelement：
  * <ul>
- *   <li>X-Timestamp - Unix 时间戳（秒级）</li>
- *   <li>X-Nonce - 随机字符串</li>
- *   <li>X-Signature - HMAC-SHA256 签名</li>
+ *   <li>X-Timestamp - Unix timestamp（secondslevel）</li>
+ *   <li>X-Nonce - randomcharacterstring</li>
+ *   <li>X-Signature - HMAC-SHA256 signature</li>
  * </ul>
  *
- * <p>签名算法：
+ * <p>signaturealgorithm：
  * <pre>
  * stringToSign = timestamp + "\n" + nonce + "\n" + sha256(requestBody)
  * signature = Base64(HMAC-SHA256(secretKey, stringToSign))
  * </pre>
  *
- * <p>防护措施：
+ * <p>preventprotection measure：
  * <ul>
- *   <li>时间戳防重放：超过 5 分钟的请求拒绝</li>
- *   <li>Nonce 防重放：可结合 Redis 实现（当前版本未实现）</li>
- *   <li>Body Hash：防止请求体被篡改</li>
+ *   <li>timestamppreventre-release：exceed 5 minuteofrequestrejected</li>
+ *   <li>Nonce preventre-release：canresultcombine Redis implementation（whenbeforeversionnot yetimplementation）</li>
+ *   <li>Body Hash：preventrequestbodybetamper</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -65,7 +80,7 @@ public class SignatureFilter implements GlobalFilter, Ordered {
     private static final Logger log = LoggerFactory.getLogger(SignatureFilter.class);
 
     /**
-     * 过滤器顺序：在 IP 白名单之后执行。
+     * filterorder：on IP whitelistofafterexecute。
      */
     private static final int FILTER_ORDER = -195;
 
@@ -85,7 +100,7 @@ public class SignatureFilter implements GlobalFilter, Ordered {
     @Override
     @SuppressWarnings("null")
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 检查是否启用
+        // checkwhetherenable
         if (!properties.isEnabled()) {
             return chain.filter(exchange);
         }
@@ -93,14 +108,14 @@ public class SignatureFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        // 检查路径是否需要签名校验
+        // checkpathwhetherneedsignatureverify
         if (!isProtectedPath(path)) {
             return chain.filter(exchange);
         }
 
-        log.debug("[SignatureFilter] 校验请求签名: {} {}", request.getMethod(), path);
+        log.debug("[SignatureFilter] verifyrequestsignature: {} {}", request.getMethod(), path);
 
-        // 获取签名相关请求头
+        // obtainsignaturerelatedrequestheader
         String signatureHeader = request.getHeaders().getFirst(properties.getSignatureHeader());
         String signature = signatureHeader != null ? signatureHeader : "";
         String timestampHeader = request.getHeaders().getFirst(properties.getTimestampHeader());
@@ -108,29 +123,29 @@ public class SignatureFilter implements GlobalFilter, Ordered {
         String nonceHeader = request.getHeaders().getFirst(properties.getNonceHeader());
         String nonce = nonceHeader != null ? nonceHeader : "";
 
-        // 校验必要参数
+        // verifymustmustparameter
         if (!StringUtils.hasText(signature)) {
-            log.warn("[SignatureFilter] 请求缺少签名头: {}", path);
-            return rejectRequest(exchange, "MISSING_SIGNATURE", "缺少请求签名");
+            log.warn("[SignatureFilter] requestmissingsignatureheader: {}", path);
+            return rejectRequest(exchange, "MISSING_SIGNATURE", "missingrequestsignature");
         }
 
         if (!StringUtils.hasText(timestamp)) {
-            log.warn("[SignatureFilter] 请求缺少时间戳头: {}", path);
-            return rejectRequest(exchange, "MISSING_TIMESTAMP", "缺少时间戳");
+            log.warn("[SignatureFilter] requestmissingtimestampheader: {}", path);
+            return rejectRequest(exchange, "MISSING_TIMESTAMP", "missingtimestamp");
         }
 
         if (!StringUtils.hasText(nonce)) {
-            log.warn("[SignatureFilter] 请求缺少 Nonce 头: {}", path);
-            return rejectRequest(exchange, "MISSING_NONCE", "缺少随机数");
+            log.warn("[SignatureFilter] requestmissing Nonce header: {}", path);
+            return rejectRequest(exchange, "MISSING_NONCE", "missingrandomcount");
         }
 
-        // 校验时间戳
+        // verifytimestamp
         if (!isTimestampValid(timestamp)) {
-            log.warn("[SignatureFilter] 时间戳无效或已过期: {}", timestamp);
-            return rejectRequest(exchange, "INVALID_TIMESTAMP", "时间戳无效或已过期");
+            log.warn("[SignatureFilter] timestampnoeffectoralreadyexpire: {}", timestamp);
+            return rejectRequest(exchange, "INVALID_TIMESTAMP", "timestampnoeffectoralreadyexpire");
         }
 
-        // 读取请求体并校验签名
+        // readrequestbodyandverifysignature
         return DataBufferUtils.join(request.getBody())
                 .defaultIfEmpty(exchange.getResponse().bufferFactory().wrap(new byte[0]))
                 .flatMap(dataBuffer -> {
@@ -138,17 +153,17 @@ public class SignatureFilter implements GlobalFilter, Ordered {
                     dataBuffer.read(bodyBytes);
                     DataBufferUtils.release(dataBuffer);
 
-                    // 计算并校验签名
+                    // calculateandverifysignature
                     String expectedSignature = calculateSignature(timestamp, nonce, bodyBytes);
                     if (expectedSignature == null || !expectedSignature.equals(signature)) {
-                        log.warn("[SignatureFilter] 签名校验失败: path={}, expected={}, actual={}", 
+                        log.warn("[SignatureFilter] signatureverifyfailed: path={}, expected={}, actual={}", 
                                 path, expectedSignature, signature);
-                        return rejectRequest(exchange, "INVALID_SIGNATURE", "签名校验失败");
+                        return rejectRequest(exchange, "INVALID_SIGNATURE", "signatureverifyfailed");
                     }
 
-                    log.debug("[SignatureFilter] 签名校验通过: {}", path);
+                    log.debug("[SignatureFilter] signatureverifyvia: {}", path);
 
-                    // 重建请求体
+                    // re-buildrequestbody
                     ServerHttpRequest mutatedRequest = request.mutate().build();
                     ServerWebExchange mutatedExchange = exchange.mutate()
                             .request(mutatedRequest)
@@ -159,10 +174,10 @@ public class SignatureFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 检查路径是否需要签名校验。
+     * checkpathwhetherneedsignatureverify。
      *
-     * @param path 请求路径
-     * @return 如果需要校验返回 true
+     * @param path requestpath
+     * @return ifneedverifyreturn true
      */
     private boolean isProtectedPath(String path) {
         for (String pattern : properties.getProtectedPaths()) {
@@ -174,10 +189,10 @@ public class SignatureFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 校验时间戳是否在有效范围内。
+     * verifytimestampwhetheronvalidrangein。
      *
-     * @param timestampStr 时间戳字符串（秒级）
-     * @return 如果有效返回 true
+     * @param timestampStr timestampcharacterstring（secondslevel）
+     * @return ifvalidreturn true
      */
     private boolean isTimestampValid(String timestampStr) {
         try {
@@ -191,22 +206,22 @@ public class SignatureFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 计算请求签名。
+     * calculaterequestsignature。
      *
-     * @param timestamp 时间戳
-     * @param nonce 随机数
-     * @param body 请求体
-     * @return Base64 编码的签名
+     * @param timestamp timestamp
+     * @param nonce randomcount
+     * @param body requestbody
+     * @return Base64 compilecodeofsignature
      */
     private String calculateSignature(String timestamp, String nonce, byte[] body) {
         try {
-            // 计算请求体的 SHA256 哈希
+            // calculaterequestbodyof SHA256 hash
             String bodyHash = sha256Hex(body);
 
-            // 构建待签名字符串
+            // buildwaitsignaturecharacterstring
             String stringToSign = timestamp + "\n" + nonce + "\n" + bodyHash;
 
-            // 使用 HMAC-SHA256 计算签名
+            // use HMAC-SHA256 calculatesignature
             Mac mac = Mac.getInstance(properties.getAlgorithm());
             SecretKeySpec secretKeySpec = new SecretKeySpec(
                     properties.getSecretKey().getBytes(StandardCharsets.UTF_8),
@@ -217,16 +232,16 @@ public class SignatureFilter implements GlobalFilter, Ordered {
 
             return Base64.getEncoder().encodeToString(signatureBytes);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            log.error("[SignatureFilter] 计算签名失败", e);
+            log.error("[SignatureFilter] calculatesignaturefailed", e);
             return null;
         }
     }
 
     /**
-     * 计算 SHA256 哈希（十六进制）。
+     * calculate SHA256 hash（hexadecimal）。
      *
-     * @param data 数据
-     * @return 十六进制哈希值
+     * @param data countdata
+     * @return hexadecimalhashvalue
      */
     private String sha256Hex(byte[] data) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -243,11 +258,11 @@ public class SignatureFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 拒绝请求，返回 401 错误。
+     * rejectedrequest，return 401 error。
      *
      * @param exchange ServerWebExchange
-     * @param errorCode 错误代码
-     * @param message 错误消息
+     * @param errorCode errorgenerationcode
+     * @param message errormessage
      * @return Mono&lt;Void&gt;
      */
     private Mono<Void> rejectRequest(ServerWebExchange exchange, String errorCode, String message) {

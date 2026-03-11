@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,9 +38,9 @@ import reactor.test.StepVerifier;
 import io.brix.platform.gateway.security.LogSanitizer;
 
 /**
- * 请求日志过滤器单元测试
+ * Request Logging Filter Unit Tests
  * <p>
- * MVP 红线 M014：核心路径单元测试覆盖
+ * MVP Guideline M014: Core path unit test coverage
  * </p>
  *
  * @author Brix Platform Authors
@@ -33,7 +48,7 @@ import io.brix.platform.gateway.security.LogSanitizer;
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("RequestLoggingFilter 请求日志过滤器测试")
+@DisplayName("RequestLoggingFilter Request Logging Filter Test")
 @SuppressWarnings("unused")
 class RequestLoggingFilterTest {
 
@@ -51,11 +66,11 @@ class RequestLoggingFilterTest {
     }
 
     @Nested
-    @DisplayName("请求日志记录")
+    @DisplayName("Request Logging")
     class RequestLoggingTests {
 
         @Test
-        @DisplayName("应记录 GET 请求并继续过滤链")
+        @DisplayName("Should log GET request and continue filter chain")
         void shouldLogGetRequest() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -70,7 +85,7 @@ class RequestLoggingFilterTest {
         }
 
         @Test
-        @DisplayName("应记录 POST 请求并继续过滤链")
+        @DisplayName("Should log POST request and continue filter chain")
         void shouldLogPostRequest() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .post("/api/users")
@@ -85,7 +100,7 @@ class RequestLoggingFilterTest {
         }
 
         @Test
-        @DisplayName("应从 X-Forwarded-For 提取客户端 IP")
+        @DisplayName("Should extract client IP from X-Forwarded-For")
         void shouldExtractClientIpFromXForwardedFor() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -98,11 +113,11 @@ class RequestLoggingFilterTest {
             StepVerifier.create(filter.filter(exchange, chain))
                     .verifyComplete();
             
-            // 日志中应使用第一个 IP
+            // The first IP should be used in logs
         }
 
         @Test
-        @DisplayName("应从 X-Real-IP 提取客户端 IP")
+        @DisplayName("Should extract client IP from X-Real-IP")
         void shouldExtractClientIpFromXRealIp() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -118,11 +133,11 @@ class RequestLoggingFilterTest {
     }
 
     @Nested
-    @DisplayName("敏感信息脱敏")
+    @DisplayName("Sensitive Information Sanitization")
     class SanitizationTests {
 
         @Test
-        @DisplayName("应脱敏 Authorization 头")
+        @DisplayName("Should sanitize Authorization header")
         void shouldSanitizeAuthorizationHeader() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -139,7 +154,7 @@ class RequestLoggingFilterTest {
         }
 
         @Test
-        @DisplayName("应脱敏 Cookie 头")
+        @DisplayName("Should sanitize Cookie header")
         void shouldSanitizeCookieHeader() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -155,7 +170,7 @@ class RequestLoggingFilterTest {
         }
 
         @Test
-        @DisplayName("应脱敏查询参数中的敏感信息")
+        @DisplayName("Should sanitize sensitive info in query params")
         void shouldSanitizeQueryParams() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test?token=secret&password=123456")
@@ -172,26 +187,26 @@ class RequestLoggingFilterTest {
     }
 
     @Nested
-    @DisplayName("过滤器顺序")
+    @DisplayName("Filter Order")
     class FilterOrderTests {
 
         @Test
-        @DisplayName("应在安全过滤器之后执行")
+        @DisplayName("Should execute after security filter")
         void shouldHaveCorrectOrder() {
-            // 日志过滤器应在安全过滤器之后，以便获取认证信息
+            // Logging filter should execute after security filter to capture authentication info
             int order = filter.getOrder();
             
-            // 预期顺序：HIGHEST_PRECEDENCE + 100
+            // Expected order: HIGHEST_PRECEDENCE + 100
             assertEquals(org.springframework.core.Ordered.HIGHEST_PRECEDENCE + 100, order);
         }
     }
 
     @Nested
-    @DisplayName("响应日志")
+    @DisplayName("Response Logging")
     class ResponseLoggingTests {
 
         @Test
-        @DisplayName("成功响应应记录 INFO 级别日志")
+        @DisplayName("Successful response should log at INFO level")
         void shouldLogSuccessfulResponse() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/test")
@@ -203,11 +218,11 @@ class RequestLoggingFilterTest {
             StepVerifier.create(filter.filter(exchange, chain))
                     .verifyComplete();
             
-            // 默认状态码应为 200
+            // Default status code should be 200
         }
 
         @Test
-        @DisplayName("客户端错误响应应记录 WARN 级别日志")
+        @DisplayName("Client error response should log at WARN level")
         void shouldLogClientErrorAsWarn() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/not-found")
@@ -223,7 +238,7 @@ class RequestLoggingFilterTest {
         }
 
         @Test
-        @DisplayName("服务器错误响应应记录 ERROR 级别日志")
+        @DisplayName("Server error response should log at ERROR level")
         void shouldLogServerErrorAsError() {
             MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/error")

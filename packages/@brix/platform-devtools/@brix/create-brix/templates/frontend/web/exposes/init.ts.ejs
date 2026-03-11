@@ -1,12 +1,12 @@
-/**
- * 插件初始化模块
+﻿/**
+ * 插件初始化module
  * 
- * 该模块确保在任何暴露的组件被加载时，插件的翻译资源已添加到基座的 i18n 实例
+ * 该module确保在任何暴露的组件被加载时，插件的翻译资源已添加到基座的 i18n 实例
  * 
- * @module @shinwa/<%= name %>-web
+ * @module @brix/<%= name %>-web
  * @generated <%= date %>
  * 
- * 使用方式：在每个 exposes 包装器文件中导入此模块
+ * 使用方式：在每个 exposes 包装器文件中Import此module
  * 
  * @example
  * ```tsx
@@ -20,5 +20,5 @@ import { addPluginTranslations } from '../i18n';
 // 立即执行初始化
 addPluginTranslations();
 
-// 导出空对象，便于确认模块已加载
+// Export空对象，便于Confirmmodule已加载
 export const initialized = true;

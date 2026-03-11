@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/infra-adapter-biometric-mobile",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Biometric authentication adapter for Brix Runtime SDK Mobile",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,10 +1,10 @@
-/**
- * <%= displayName %> Mobile - 详情组件
+﻿/**
+ * <%= displayName %> Mobile - Detail Component
  * 
- * @module @shinwa/<%= name %>-mobile
+ * @module @brix/<%= name %>-mobile
  * @generated <%= date %>
  * 
- * React Native 详情组件
+ * React Native Detail Component
  */
 
 import React, { useEffect, useState } from 'react';
@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 
 /**
- * 详情数据接口
+ * Detail data interface
  */
 interface DetailData {
   id: number;
@@ -30,31 +30,31 @@ interface DetailData {
 }
 
 /**
- * 详情组件属性
+ * Detail component props
  */
 interface <%= classPrefix %>DetailProps {
   /**
-   * 数据 ID
+   * Data ID
    */
   id: number;
   
   /**
-   * 返回按钮回调
+   * Back button callback
    */
   onBack?: () => void;
   
   /**
-   * 自定义样式
+   * Custom styles
    */
   style?: object;
 }
 
 /**
- * <%= displayName %>详情组件
+ * <%= displayName %> Detail Component
  * 
- * 使用示例：
+ * Usage:
  * ```tsx
- * import { <%= classPrefix %>Detail } from '@shinwa/<%= name %>-mobile';
+ * import { <%= classPrefix %>Detail } from '@brix/<%= name %>-mobile';
  * 
  * <{@classPrefix}Detail 
  *   id={123} 
@@ -72,25 +72,25 @@ export const <%= classPrefix %>Detail: React.FC<<%= classPrefix %>DetailProps> =
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * 加载详情数据
+   * Load detail data
    */
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // TODO: 替换为实际的 API 调用
+      // TODO: Replace with actual API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       setData({
         id,
-        title: `示例项目 ${id}`,
-        description: '这是一段详细的描述文字，用于展示详情页面的内容布局。',
+        title: `Sample Item ${id}`,
+        description: 'This is a detailed description text for demonstrating the detail page layout.',
         createdAt: new Date().toISOString(),
         status: 'active',
       });
     } catch (err) {
-      setError('加载数据失败，请重试');
-      console.error('加载详情失败:', err);
+      setError('Failed to load data, please retry');
+      console.error('Failed to load details:', err);
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ export const <%= classPrefix %>Detail: React.FC<<%= classPrefix %>DetailProps> =
     return (
       <View style={[styles.container, styles.center, style]}>
         <ActivityIndicator size="large" color="#1976d2" />
-        <Text style={styles.loadingText}>加载中...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -126,7 +126,7 @@ export const <%= classPrefix %>Detail: React.FC<<%= classPrefix %>DetailProps> =
         <Text style={styles.emptyText}>数据不存在</Text>
         {onBack && (
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backText}>返回</Text>
+            <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -149,14 +149,14 @@ export const <%= classPrefix %>Detail: React.FC<<%= classPrefix %>DetailProps> =
       <View style={styles.content}>
         {data.description && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>描述</Text>
+            <Text style={styles.sectionTitle}>Description</Text>
             <Text style={styles.sectionContent}>{data.description}</Text>
           </View>
         )}
 
         {data.createdAt && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>创建时间</Text>
+            <Text style={styles.sectionTitle}>Created at</Text>
             <Text style={styles.sectionContent}>
               {new Date(data.createdAt).toLocaleString('zh-CN')}
             </Text>
@@ -168,7 +168,7 @@ export const <%= classPrefix %>Detail: React.FC<<%= classPrefix %>DetailProps> =
       <View style={styles.actions}>
         {onBack && (
           <TouchableOpacity style={styles.actionButton} onPress={onBack}>
-            <Text style={styles.actionText}>返回</Text>
+            <Text style={styles.actionText}>Back</Text>
           </TouchableOpacity>
         )}
       </View>

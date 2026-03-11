@@ -1,37 +1,52 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.header;
 
 /**
- * 平台统一 HTTP 请求头常
+ * Platform Unified HTTP Request Header Constants
  * 
- * <p>@shinwa/platform-headers (TypeScript) 保持完全一致，
- * 确保 Java 后端和 TypeScript 前端使用相同的 Header 定义</p>
+ * <p>Maintains complete consistency with @brix/platform-headers (TypeScript),
+ * ensuring Java backend and TypeScript frontend use the same Header definitions.</p>
  * 
- * <p>设计目的</p>
+ * <p>Design Purpose:</p>
  * <ul>
- *   <li>解决问题3：HTTP Headers 定义分散，Java/TS 不统一</li>
- *   <li>集中管理所有平台级别的 HTTP 请求</li>
- *   <li>避免 Header 名称拼写错误</li>
+ *   <li>Resolve Issue 3: HTTP Headers definitions scattered, Java/TS inconsistent</li>
+ *   <li>Centralized management of all platform-level HTTP request headers</li>
+ *   <li>Avoid Header name spelling errors</li>
  * </ul>
  * 
- * <p>使用示例</p>
+ * <p>Usage Example:</p>
  * <pre>
- * // Controller 中获取请求头
+ * // Get request header in Controller
  * &#64;RequestHeader(PlatformHeaders.TENANT_ID) String tenantId
  * 
- * // RestTemplate 中设置请求头
+ * // Set request header in RestTemplate
  * headers.add(PlatformHeaders.TENANT_ID, tenantId);
  * headers.add(PlatformHeaders.API_KEY, apiKey);
  * </pre>
  * 
- * <p>Header 分类</p>
+ * <p>Header Categories:</p>
  * <ul>
- *   <li>客户端标识：CLIENT, CLIENT_VERSION</li>
- *   <li>平台信息：PLATFORM_VERSION, PLATFORM_ENV, PLATFORM_TYPE</li>
- *   <li>租户与认证：TENANT_ID, API_KEY, API_SECRET</li>
- *   <li>用户身份：USER_ID, USER_ROLE, AUTHORIZATION</li>
- *   <li>追踪与调试：TRACE_ID, REQUEST_ID, SPAN_ID</li>
- *   <li>鍥介檯鍖栵細LANGUAGE, TIMEZONE</li>
- *   <li>设备信息：DEVICE_ID, DEVICE_MODEL, OS_VERSION</li>
+ *   <li>Client Identification: CLIENT, CLIENT_VERSION</li>
+ *   <li>Platform Info: PLATFORM_VERSION, PLATFORM_ENV, PLATFORM_TYPE</li>
+ *   <li>Tenant & Auth: TENANT_ID, API_KEY, API_SECRET</li>
+ *   <li>User Identity: USER_ID, USER_ROLE, AUTHORIZATION</li>
+ *   <li>Tracing & Debug: TRACE_ID, REQUEST_ID, SPAN_ID</li>
+ *   <li>Internationalization: LANGUAGE, TIMEZONE</li>
+ *   <li>Device Info: DEVICE_ID, DEVICE_MODEL, OS_VERSION</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -42,188 +57,188 @@ package io.brix.platform.starter.header;
 public final class PlatformHeaders {
     
     /**
-     * 私有构造函数，防止实例
+     * Private constructor to prevent instantiation
      */
     private PlatformHeaders() {
-        throw new UnsupportedOperationException("常量类不允许实例");
+        throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
     
-    // ==================== 客户端标====================
+    // ==================== Client Identification ====================
     
     /**
-     * 客户端标
+     * Client Identifier
      * 
-     * <p>标识请求来源的客户端类型</p>
-     * <p>可选值：web, mobile-ios, mobile-android, admin, service</p>
+     * <p>Identifies the client type from which the request originated</p>
+     * <p>Possible values: web, mobile-ios, mobile-android, admin, service</p>
      */
-    public static final String CLIENT = "X-Shinwa-Client";
+    public static final String CLIENT = "X-Brix-Client";
     
     /**
-     * 客户端版
+     * Client Version
      * 
-     * <p>客户端应用的版本</p>
-     * <p>格式：x.y.z (1.0.0)</p>
+     * <p>Version of the client application</p>
+     * <p>Format: x.y.z (e.g., 1.0.0)</p>
      */
-    public static final String CLIENT_VERSION = "X-Shinwa-Client-Version";
+    public static final String CLIENT_VERSION = "X-Brix-Client-Version";
     
-    // ==================== 平台信息 ====================
+    // ==================== Platform Info ====================
     
     /**
-     * 平台版本
+     * Platform Version
      * 
-     * <p>Shinwa 平台的版本号</p>
+     * <p>Version number of Brix Platform</p>
      */
     public static final String PLATFORM_VERSION = "X-Platform-Version";
     
     /**
-     * 骞冲彴鐜
+     * Platform Environment
      * 
-     * <p>当前运行环境</p>
-     * <p>可选值：dev, test, staging, prod</p>
+     * <p>Current runtime environment</p>
+     * <p>Possible values: dev, test, staging, prod</p>
      */
     public static final String PLATFORM_ENV = "X-Platform-Env";
     
     /**
-     * 平台类型
+     * Platform Type
      * 
-     * <p>平台类型标识</p>
-     * <p>可选值：saas, private</p>
+     * <p>Platform type identifier</p>
+     * <p>Possible values: saas, private</p>
      */
     public static final String PLATFORM_TYPE = "X-Platform-Type";
     
-    // ==================== 租户与认====================
+    // ==================== Tenant & Authentication ====================
     
     /**
-     * 绉熸埛 ID
+     * Tenant ID
      * 
-     * <p>多租户必须的请求头，用于数据隔离</p>
-     * <p>所API 请求必须携带Header</p>
-     * <p>默认租户：default</p>
+     * <p>Required request header for multi-tenancy, used for data isolation</p>
+     * <p>All API requests must carry this header</p>
+     * <p>Default tenant: default</p>
      */
     public static final String TENANT_ID = "X-Tenant-Id";
     
     /**
      * API Key
      * 
-     * <p>服务间调用的认证凭证</p>
-     * <p>用于Plugin Engine 注册时的认证</p>
+     * <p>Authentication credential for inter-service calls</p>
+     * <p>Used for authentication during Plugin Engine registration</p>
      */
     public static final String API_KEY = "X-API-Key";
     
     /**
      * API Secret
      * 
-     * <p>服务间调用的认证密钥</p>
-     * <p>API_KEY 配合使用</p>
+     * <p>Authentication secret for inter-service calls</p>
+     * <p>Used in conjunction with API_KEY</p>
      */
     public static final String API_SECRET = "X-API-Secret";
     
-    // ==================== 用户身份 ====================
+    // ==================== User Identity ====================
     
     /**
-     * 用户 ID
+     * User ID
      * 
-     * <p>当前登录用户的唯一标识</p>
+     * <p>Unique identifier of the currently logged-in user</p>
      */
     public static final String USER_ID = "X-User-Id";
     
     /**
-     * 用户角色
+     * User Role
      * 
-     * <p>当前用户的角色编</p>
-     * <p>多个角色用逗号分隔</p>
+     * <p>Role code of the current user</p>
+     * <p>Multiple roles are separated by commas</p>
      */
     public static final String USER_ROLE = "X-User-Role";
     
     /**
-     * 鎺堟潈浠ょ墝
+     * Authorization Token
      * 
-     * <p>标准Authorization 请求</p>
-     * <p>格式：Bearer {token}</p>
+     * <p>Standard Authorization request header</p>
+     * <p>Format: Bearer {token}</p>
      */
     public static final String AUTHORIZATION = "Authorization";
     
-    // ==================== 追踪与调====================
+    // ==================== Tracing & Debugging ====================
     
     /**
-     * 杩借釜 ID
+     * Trace ID
      * 
-     * <p>分布式追踪的唯一标识</p>
-     * <p>用于串联整个请求链路的日</p>
+     * <p>Unique identifier for distributed tracing</p>
+     * <p>Used to correlate logs across the entire request chain</p>
      */
     public static final String TRACE_ID = "X-Trace-Id";
     
     /**
-     * 请求 ID
+     * Request ID
      * 
-     * <p>单次请求的唯一标识</p>
-     * <p>用于日志关联和问题排</p>
+     * <p>Unique identifier for a single request</p>
+     * <p>Used for log correlation and troubleshooting</p>
      */
     public static final String REQUEST_ID = "X-Request-Id";
     
     /**
-     * 璺ㄥ害 ID
+     * Span ID
      * 
-     * <p>分布式追踪的 Span 标识</p>
-     * <p>用于标识请求链路中的具体节点</p>
+     * <p>Span identifier for distributed tracing</p>
+     * <p>Used to identify specific nodes in the request chain</p>
      */
     public static final String SPAN_ID = "X-Span-Id";
     
-    // ==================== 国际====================
+    // ==================== Internationalization ====================
     
     /**
-     * 璇█鍋忓ソ
+     * Language Preference
      * 
-     * <p>标准Accept-Language 请求</p>
-     * <p>格式：zh-CN, en-US </p>
+     * <p>Standard Accept-Language request header</p>
+     * <p>Format: zh-CN, en-US, etc.</p>
      */
     public static final String LANGUAGE = "Accept-Language";
     
     /**
-     * 时区
+     * Timezone
      * 
-     * <p>客户端时区标</p>
-     * <p>格式：Asia/Tokyo, UTC+8 </p>
+     * <p>Client timezone identifier</p>
+     * <p>Format: Asia/Tokyo, UTC+8, etc.</p>
      */
     public static final String TIMEZONE = "X-Timezone";
     
-    // ==================== 设备信息 ====================
+    // ==================== Device Info ====================
     
     /**
-     * 设备 ID
+     * Device ID
      * 
-     * <p>设备的唯一标识</p>
-     * <p>用于设备绑定和安全审</p>
+     * <p>Unique identifier of the device</p>
+     * <p>Used for device binding and security auditing</p>
      */
     public static final String DEVICE_ID = "X-Device-Id";
     
     /**
-     * 设备型号
+     * Device Model
      * 
-     * <p>设备的型号信</p>
-     * <p>如：iPhone 14 Pro, Pixel 7</p>
+     * <p>Device model information</p>
+     * <p>e.g., iPhone 14 Pro, Pixel 7</p>
      */
     public static final String DEVICE_MODEL = "X-Device-Model";
     
     /**
-     * 操作系统版本
+     * Operating System Version
      * 
-     * <p>设备操作系统版本</p>
-     * <p>如：iOS 17.0, Android 14</p>
+     * <p>Device operating system version</p>
+     * <p>e.g., iOS 17.0, Android 14</p>
      */
     public static final String OS_VERSION = "X-OS-Version";
     
-    // ==================== 默认值常====================
+    // ==================== Default Value Constants ====================
     
     /**
-     * 默认租户 ID
+     * Default Tenant ID
      * 
-     * <p>当请求未携带租户 ID 时使用的默认</p>
+     * <p>Default value used when request does not carry a tenant ID</p>
      */
     public static final String DEFAULT_TENANT_ID = "default";
     
     /**
-     * 默认客户端类
+     * Default client type
      */
     public static final String DEFAULT_CLIENT = "service";
 }

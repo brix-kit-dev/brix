@@ -47,9 +47,6 @@ import org.springframework.kafka.core.KafkaAdmin;
  * brix.infra.kafka.health.timeout-seconds=5
  * </pre>
  *
- * <p>健康指示器用于检查 Kafka Broker 的连通性。当至少一个 Broker 可达时报告 UP，
- * 否则报告 DOWN。</p>
- *
  * @author Brix Platform Team
  * @since 3.0.0
  * @see HealthIndicator
@@ -61,7 +58,6 @@ public class KafkaHealthIndicator implements HealthIndicator {
 
     /**
      * Default timeout for health check operations in seconds.
-     * 健康检查操作的默认超时时间（秒）
      */
     private static final int DEFAULT_TIMEOUT_SECONDS = 5;
 
@@ -95,9 +91,6 @@ public class KafkaHealthIndicator implements HealthIndicator {
      * cluster information. If at least one broker responds within the timeout period,
      * the health status is UP.</p>
      *
-     * <p>通过查询 Kafka 集群元数据来执行健康检查。如果至少有一个 Broker 在超时时间内响应，
-     * 则健康状态为 UP。</p>
-     *
      * @return Health status with cluster details
      */
     @Override
@@ -105,16 +98,16 @@ public class KafkaHealthIndicator implements HealthIndicator {
         try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
             DescribeClusterResult clusterResult = adminClient.describeCluster();
 
-            // 获取集群 ID - Get cluster ID
+            // Get cluster ID
             String clusterId = clusterResult.clusterId()
                     .get(timeoutSeconds, TimeUnit.SECONDS);
 
-            // 获取 Broker 列表 - Get broker list
+            // Get broker list
             Collection<Node> nodes = clusterResult.nodes()
                     .get(timeoutSeconds, TimeUnit.SECONDS);
 
             if (nodes.isEmpty()) {
-                // 无可用 Broker - No available brokers
+                // No available brokers
                 log.warn("Kafka health check: no brokers available in cluster {}", clusterId);
                 return Health.down()
                         .withDetail("clusterId", clusterId)
@@ -123,7 +116,7 @@ public class KafkaHealthIndicator implements HealthIndicator {
                         .build();
             }
 
-            // 构建 Broker 地址列表 - Build broker address list
+            // Build broker address list
             String brokerList = nodes.stream()
                     .map(node -> node.host() + ":" + node.port())
                     .collect(Collectors.joining(", "));
@@ -137,7 +130,7 @@ public class KafkaHealthIndicator implements HealthIndicator {
                     .build();
 
         } catch (Exception e) {
-            // 连接失败 - Connection failed
+            // Connection failed
             log.warn("Kafka health check failed: {}", e.getMessage());
             return Health.down(e)
                     .withDetail("error", e.getMessage())

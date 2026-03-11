@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@brix/platform-i18n-web",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "description": "Web 端国际化能力实现 - 实现 I18nCapability 接口",
   "type": "module",
   "main": "./dist/index.js",
@@ -26,7 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web"
+    "@brix/runtime-sdk-api-web": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

@@ -26,7 +26,6 @@ import io.runtime.manifest.model.ModuleManifest.ModuleInfo;
 
 /**
  * Default Manifest Validator Implementation.
- * 默认 Manifest 验证器实现
  *
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -37,13 +36,11 @@ public class DefaultManifestValidator implements ManifestValidator {
 
     /**
      * Module ID format: letters, numbers, hyphens, underscores, length 3-64.
-     * 模块 ID 格式：字母、数字、连字符、下划线，长度 3-64
      */
     private static final Pattern MODULE_ID_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_-]{2,63}$");
 
     /**
      * Semantic versioning format.
-     * 语义化版本格式
      */
     private static final Pattern VERSION_PATTERN = Pattern.compile(
         "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?(\\+[a-zA-Z0-9]+)?$"
@@ -51,7 +48,6 @@ public class DefaultManifestValidator implements ManifestValidator {
 
     /**
      * Permission format: capability:action.
-     * 权限格式：capability:action
      */
     private static final Pattern PERMISSION_PATTERN = Pattern.compile("^[a-zA-Z]+:[a-zA-Z]+$");
 
@@ -68,15 +64,12 @@ public class DefaultManifestValidator implements ManifestValidator {
         }
 
         // Validate module basic info
-        // 验证模块基本信息
         validateModuleInfo(manifest.getModule(), result);
 
         // Validate dependencies
-        // 验证依赖
         validateDependencies(manifest, result);
 
         // Validate permissions
-        // 验证权限
         validatePermissions(manifest, result);
 
         logger.debug("Manifest validation completed: {}", result);
@@ -92,7 +85,6 @@ public class DefaultManifestValidator implements ManifestValidator {
 
         if (manifest != null) {
             // Strict mode: check recommended fields
-            // 严格模式：检查推荐字段
             ModuleInfo module = manifest.getModule();
             if (module != null) {
                 if (isBlank(module.getDescription())) {
@@ -107,7 +99,6 @@ public class DefaultManifestValidator implements ManifestValidator {
             }
 
             // Check runtime configuration
-            // 检查运行时配置
             if (manifest.getRuntime() == null) {
                 result.addWarning("runtime", "Runtime configuration is recommended");
             }
@@ -129,7 +120,6 @@ public class DefaultManifestValidator implements ManifestValidator {
 
     /**
      * Validates module basic info.
-     * 验证模块基本信息
      */
     private void validateModuleInfo(ModuleInfo module, ValidationResult result) {
         if (module == null) {
@@ -138,7 +128,6 @@ public class DefaultManifestValidator implements ManifestValidator {
         }
 
         // Validate module ID
-        // 验证模块 ID
         if (isBlank(module.getId())) {
             result.addError("module.id", "Module ID is required");
         } else if (!MODULE_ID_PATTERN.matcher(module.getId()).matches()) {
@@ -148,13 +137,11 @@ public class DefaultManifestValidator implements ManifestValidator {
         }
 
         // Validate module name
-        // 验证模块名称
         if (isBlank(module.getName())) {
             result.addError("module.name", "Module name is required");
         }
 
         // Validate version
-        // 验证版本号
         if (isBlank(module.getVersion())) {
             result.addError("module.version", "Module version is required");
         } else if (!VERSION_PATTERN.matcher(module.getVersion()).matches()) {
@@ -165,7 +152,6 @@ public class DefaultManifestValidator implements ManifestValidator {
 
     /**
      * Validates dependencies.
-     * 验证依赖
      */
     private void validateDependencies(ModuleManifest manifest, ValidationResult result) {
         if (manifest.getDependencies() == null) {
@@ -183,7 +169,6 @@ public class DefaultManifestValidator implements ManifestValidator {
             }
 
             // Check self-reference
-            // 检查自引用
             if (manifest.getModuleId() != null && 
                 manifest.getModuleId().equals(dep.getModuleId())) {
                 result.addError(prefix + ".moduleId", "Module cannot depend on itself");
@@ -193,7 +178,6 @@ public class DefaultManifestValidator implements ManifestValidator {
 
     /**
      * Validates permissions.
-     * 验证权限
      */
     private void validatePermissions(ModuleManifest manifest, ValidationResult result) {
         if (manifest.getPermissions() == null) {
@@ -215,7 +199,6 @@ public class DefaultManifestValidator implements ManifestValidator {
 
     /**
      * Checks if string is blank.
-     * 检查字符串是否为空
      */
     private boolean isBlank(String str) {
         return str == null || str.trim().isEmpty();

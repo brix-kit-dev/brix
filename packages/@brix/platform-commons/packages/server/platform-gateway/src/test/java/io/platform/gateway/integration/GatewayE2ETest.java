@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.integration;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -16,18 +31,18 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 /**
- * Gateway 端到端集成测试
+ * Gateway End-to-End Integration Tests
  * <p>
- * MVP 红线 M014：至1 e2e 冒烟测试
+ * MVP Guideline M014: At least 1 e2e smoke test
  * </p>
  * <p>
- * 测试 Gateway 核心功能
+ * Tests Gateway core functionality:
  * <ol>
- *   <li>健康检查端点</li>
- *   <li>Healthz 端点</li>
- *   <li>CORS 预检请求</li>
- *   <li>API Key 认证（需配置时）</li>
- *   <li>敏感头剥离</li>
+ *   <li>Health check endpoint</li>
+ *   <li>Healthz endpoint</li>
+ *   <li>CORS preflight request</li>
+ *   <li>API Key authentication (when configured)</li>
+ *   <li>Sensitive header stripping</li>
  * </ol>
  * </p>
  *
@@ -38,9 +53,9 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@DisplayName("E2E Gateway 冒烟测试")
+@DisplayName("E2E Gateway Smoke Test")
 @Tag("integration")
-@Disabled("需要 Redis 等外部服务，请使用 docker-compose 启动后手动运行 mvn test -Dtest=GatewayE2ETest")
+@Disabled("Requires external services like Redis, please run manually with docker-compose: mvn test -Dtest=GatewayE2ETest")
 @SuppressWarnings("unused") // setUp and baseUrl are used by JUnit and for test setup
 class GatewayE2ETest {
 
@@ -58,11 +73,11 @@ class GatewayE2ETest {
         baseUrl = "http://localhost:" + port;
     }
 
-    // ========== 1. 健康检查 ==========
+    // ========== 1. Health Check ==========
 
     @Test
     @Order(1)
-    @DisplayName("1. 健康检查 - /actuator/health 应返回 UP")
+    @DisplayName("1. Health Check - /actuator/health should return UP")
     void step1_actuatorHealthShouldReturnUp() {
         webTestClient
             .get()
@@ -75,7 +90,7 @@ class GatewayE2ETest {
 
     @Test
     @Order(2)
-    @DisplayName("1.1 Healthz 端点应返200")
+    @DisplayName("1.1 Healthz endpoint should return 200")
     void step1_healthzShouldReturnOk() {
         webTestClient
             .get()
@@ -86,7 +101,7 @@ class GatewayE2ETest {
 
     @Test
     @Order(3)
-    @DisplayName("1.2 Liveness 探针应返200")
+    @DisplayName("1.2 Liveness probe should return 200")
     void step1_livenesssShouldReturnOk() {
         webTestClient
             .get()
@@ -99,7 +114,7 @@ class GatewayE2ETest {
 
     @Test
     @Order(4)
-    @DisplayName("1.3 Readiness 探针应返200")
+    @DisplayName("1.3 Readiness probe should return 200")
     void step1_readinessShouldReturnOk() {
         webTestClient
             .get()
@@ -110,11 +125,11 @@ class GatewayE2ETest {
             .jsonPath("$.status").isEqualTo("UP");
     }
 
-    // ========== 2. CORS 测试 ==========
+    // ========== 2. CORS Tests ==========
 
     @Test
     @Order(10)
-    @DisplayName("2. CORS 预检请求应返回正确的头")
+    @DisplayName("2. CORS preflight request should return correct headers")
     void step2_corsPreflight() {
         webTestClient
             .options()
@@ -129,7 +144,7 @@ class GatewayE2ETest {
 
     @Test
     @Order(11)
-    @DisplayName("2.1 跨域请求应包含 CORS 头")
+    @DisplayName("2.1 Cross-origin request should include CORS headers")
     void step2_corsHeadersOnRequest() {
         webTestClient
             .get()
@@ -140,11 +155,11 @@ class GatewayE2ETest {
             .expectHeader().exists("Access-Control-Allow-Origin");
     }
 
-    // ========== 3. API 认证测试（当禁用时） ==========
+    // ========== 3. API Authentication Tests (when disabled) ==========
 
     @Test
     @Order(20)
-    @DisplayName("3. 未配置认证时应允许访问公开端点")
+    @DisplayName("3. Public endpoints should be accessible when auth is not configured")
     void step3_publicEndpointsShouldBeAccessible() {
         webTestClient
             .get()
@@ -153,13 +168,13 @@ class GatewayE2ETest {
             .expectStatus().isOk();
     }
 
-    // ========== 4. 敏感头剥离测试 ==========
+    // ========== 4. Sensitive Header Stripping Tests ==========
 
     @Test
     @Order(30)
-    @DisplayName("4. 敏感头应被剥离")
+    @DisplayName("4. Sensitive headers should be stripped")
     void step4_sensitiveHeadersShouldBeStripped() {
-        // 发送带有敏感头的请求，Gateway 应剥离这些头
+        // Send request with sensitive headers, Gateway should strip these headers
         webTestClient
             .get()
             .uri("/actuator/health")
@@ -169,15 +184,15 @@ class GatewayE2ETest {
             .exchange()
             .expectStatus().isOk();
         
-        // 由于 actuator/health 不会返回这些头，我们只验证请求成功
-        // 实际的头剥离逻辑会在转发到下游服务时生效
+        // Since actuator/health does not return these headers, we only verify the request succeeds
+        // The actual header stripping logic takes effect when forwarding to downstream services
     }
 
-    // ========== 5. 错误处理测试 ==========
+// ========== 5. Error Handling Tests ==========
 
     @Test
     @Order(40)
-    @DisplayName("5. 不存在的路由应返404")
+    @DisplayName("5. Non-existent route should return 404")
     void step5_nonExistentRouteShouldReturn404() {
         webTestClient
             .get()
@@ -186,11 +201,11 @@ class GatewayE2ETest {
             .expectStatus().isNotFound();
     }
 
-    // ========== 6. 日志脱敏验证（通过请求测试） ==========
+    // ========== 6. Log Sanitization Verification (via request test) ==========
 
     @Test
     @Order(50)
-    @DisplayName("6. 带 Authorization 头的请求应正常处理")
+    @DisplayName("6. Request with Authorization header should be processed normally")
     void step6_authorizationHeaderShouldBeLogged() {
         webTestClient
             .get()
@@ -199,14 +214,14 @@ class GatewayE2ETest {
             .exchange()
             .expectStatus().isOk();
         
-        // 日志脱敏会在后台处理，这里只验证请求不会因 Auth 头而失败
+        // Log sanitization is handled in the background, here we only verify the request doesn't fail due to Auth header
     }
 
-    // ========== 7. 超时配置验证 ==========
+    // ========== 7. Timeout Configuration Verification ==========
 
     @Test
     @Order(60)
-    @DisplayName("7. 快速响应应在超时前完成")
+    @DisplayName("7. Fast response should complete before timeout")
     void step7_fastResponseShouldCompleteBeforeTimeout() {
         webTestClient
             .get()
@@ -214,6 +229,6 @@ class GatewayE2ETest {
             .exchange()
             .expectStatus().isOk();
         
-        // 健康检查应在 5 秒超时内快速完成
+        // Health check should complete quickly within the 5 second timeout
     }
 }

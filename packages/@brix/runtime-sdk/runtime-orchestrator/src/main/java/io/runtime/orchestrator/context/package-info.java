@@ -15,22 +15,22 @@
  */
 
 /**
- * 运行时上下文管理包
+ * Runtime Context Management Package.
  * 
- * <p>提供运行时上下文实现和多租户上下文管理能力，包括：</p>
+ * <p>Provides runtime context implementation and multi-tenant context management capabilities, including:</p>
  * <ul>
  *   <li>{@link io.runtime.orchestrator.context.RegistryDrivenRuntimeContext}
- *       — 基于注册表驱动的 RuntimeContext 统一实现，Standalone/Embedded 共享</li>
+ *       - Registry-driven RuntimeContext unified implementation, shared by Standalone/Embedded</li>
  *   <li>{@link io.runtime.orchestrator.context.TenantContext}
- *       — 基于 ThreadLocal 的租户上下文持有器</li>
+ *       - ThreadLocal-based tenant context holder</li>
  *   <li>{@link io.runtime.orchestrator.context.TenantIsolatedStateStore}
- *       — 租户隔离的状态存储装饰器</li>
+ *       - Tenant-isolated state store decorator</li>
  * </ul>
  * 
- * <h2>架构说明</h2>
- * <p>这些类属于编排层（Orchestrator），RuntimeContext 实现从 runtime-sdk-api 迁移至此。
- * 原因是 RuntimeContext 实现和租户上下文管理属于运行时编排职责，
- * 而 runtime-sdk-api（契约层）仅包含纯接口定义（零依赖）。</p>
+ * <h2>Architecture Notes</h2>
+ * <p>These classes belong to the orchestration layer (Orchestrator), RuntimeContext implementation migrated here from runtime-sdk-api.
+ * The reason is that RuntimeContext implementation and tenant context management are runtime orchestration responsibilities,
+ * while runtime-sdk-api (contract layer) contains only pure interface definitions (zero dependencies).</p>
  * 
  * @since 3.0.0
  */

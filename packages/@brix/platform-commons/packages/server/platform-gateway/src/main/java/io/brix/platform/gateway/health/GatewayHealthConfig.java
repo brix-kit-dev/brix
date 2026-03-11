@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.health;
 
 import org.slf4j.Logger;
@@ -8,21 +23,21 @@ import org.springframework.context.annotation.Configuration;
 import jakarta.annotation.PostConstruct;
 
 /**
- * Gateway 健康探针配置
+ * Gateway Health Probe Configuration
  * <p>
- * 配置 Spring Boot Actuator 健康端点，支K8s liveness/readiness 探针
- * MVP 红线要求
+ * configuration Spring Boot Actuator healthendpoint，supportK8s liveness/readiness probe
+ * MVP Red Line Requirements
  * <ul>
  *   <li>Gateway: /actuator/health + liveness/readiness</li>
- *   <li>就绪探针需依赖 Engine 健康状</li>
+ *   <li>readinessprobeneeddepend on Engine healthstatus</li>
  * </ul>
  * </p>
  * 
- * <h3>端点说明</h3>
+ * <h3>Endpoint Description</h3>
  * <ul>
- *   <li>/actuator/health - 综合健康状</li>
- *   <li>/actuator/health/liveness - 存活探针（仅检查应用本身）</li>
- *   <li>/actuator/health/readiness - 就绪探针（检查依赖服务）</li>
+ *   <li>/actuator/health - comprehensivehealthstatus</li>
+ *   <li>/actuator/health/liveness - Liveness probe (checks application only)</li>
+ *   <li>/actuator/health/readiness - Readiness probe (checks dependent services)</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -43,7 +58,7 @@ public class GatewayHealthConfig {
 
     @PostConstruct
     public void init() {
-        logger.info("[shinwa] Gateway Health Probe Configuration:");
+        logger.info("[brix] Gateway Health Probe Configuration:");
         logger.info("  - Health check enabled: {}", healthProperties.isEnabled());
         logger.info("  - Engine check enabled: {}", healthProperties.isEngineCheckEnabled());
         if (healthProperties.isEngineCheckEnabled()) {
@@ -54,7 +69,7 @@ public class GatewayHealthConfig {
         logger.info("  - Redis check enabled: {}", healthProperties.isRedisCheckEnabled());
         logger.info("  - Cache TTL: {}s", healthProperties.getCacheTtlSeconds());
         logger.info("  - Show details: {}", healthProperties.isShowDetails());
-        logger.info("[shinwa] Available health endpoints:");
+        logger.info("[brix] Available health endpoints:");
         logger.info("  - /actuator/health          - Comprehensive health status");
         logger.info("  - /actuator/health/liveness - Liveness probe (application only)");
         logger.info("  - /actuator/health/readiness - Readiness probe (with dependencies)");

@@ -15,21 +15,21 @@
  */
 
 /**
- * MinIO 文件存储能力实现包
+ * MinIO file storage capability implementation package.
  * 
- * <p>本包提供基于 MinIO（S3 兼容）的 {@link io.runtime.sdk.capability.FileStorageCapability} 实现，
- * 是基础设施适配器层（Layer 2.5: Adapter 层）的组件之一。</p>
+ * <p>This package provides the MinIO (S3-compatible) {@link io.runtime.sdk.capability.FileStorageCapability} implementation,
+ * part of the infrastructure adapter layer (Layer 2.5: Adapter Layer).</p>
  * 
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.minio.MinioFileStorageCapability} - 基于 MinIO 的文件存储能力实现</li>
+ *   <li>{@link io.infra.adapter.minio.MinioFileStorageCapability} - MinIO-based file storage capability implementation</li>
  * </ul>
  * 
- * <h2>设计原则</h2>
+ * <h2>Design Principles</h2>
  * <ul>
- *   <li>遵循运行壳架构约束，不暴露 MinIO SDK 细节给插件</li>
- *   <li>插件通过 FileStorageCapability 契约访问文件存储</li>
- *   <li>支持 S3 兼容的对象存储服务</li>
+ *   <li>Follows Runtime Shell architecture constraints, does not expose MinIO SDK details to plugins</li>
+ *   <li>Plugins access file storage through FileStorageCapability contract</li>
+ *   <li>Supports S3-compatible object storage services</li>
  * </ul>
  * 
  * @author Brix Platform Authors

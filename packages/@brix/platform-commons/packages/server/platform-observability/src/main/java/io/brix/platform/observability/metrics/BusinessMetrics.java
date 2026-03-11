@@ -1,45 +1,61 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.observability.metrics;
-
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+
 /**
- * 业务指标收集
+ * Business metrics collector.
  * 
- * <p>v2.1 阶段4 可观测性增强</p>
+ * <p>v2.1 Phase 4 Observability Enhancement</p>
  * 
- * <p>功能说明</p>
- * <p>提供统一的业务指标收集接口，支持以下指标类型</p>
+ * <p>Features</p>
+ * <p>Provides a unified business metrics collection interface, supporting the following metric types:</p>
  * <ul>
- *   <li><b>Counter</b>：计数器，用于记录事件发生次</li>
- *   <li><b>Timer</b>：计时器，用于记录操作耗时</li>
- *   <li><b>Gauge</b>：仪表盘，用于记录瞬时</li>
+ *   <li><b>Counter</b>: Counter for recording event occurrences</li>
+ *   <li><b>Timer</b>: Timer for recording operation duration</li>
+ *   <li><b>Gauge</b>: Gauge for recording instantaneous values</li>
  * </ul>
  * 
- * <p>指标命名规范</p>
+ * <p>Metric Naming Convention</p>
  * <pre>
- * shinwa.{domain}.{metric_name}
+ * brix.{domain}.{metric_name}
  * 
- * 示例
- * - shinwa.file.upload.count    文件上传次数
- * - shinwa.file.upload.duration 文件上传耗时
- * - shinwa.case.active.count    活跃案件
- * - shinwa.outbox.pending.count 待发送事件数
+ * Examples:
+ * - brix.file.upload.count    File upload count
+ * - brix.file.upload.duration File upload duration
+ * - brix.case.active.count    Active case count
+ * - brix.outbox.pending.count Pending outbox events count
  * </pre>
  * 
- * <p>使用示例</p>
+ * <p>Usage Example</p>
  * <pre>{@code
  * @Autowired
  * private BusinessMetrics metrics;
@@ -47,7 +63,7 @@ import java.util.function.Supplier;
  * public void uploadFile(File file) {
  *     Timer.Sample sample = metrics.startTimer();
  *     try {
- *         // 上传逻辑
+ *         // Upload logic
  *         metrics.incrementCounter("file.upload.success", "type", file.getType());
  *     } catch (Exception e) {
  *         metrics.incrementCounter("file.upload.failure", "type", file.getType());
@@ -73,33 +89,33 @@ public class BusinessMetrics {
     
     private static final Logger log = LoggerFactory.getLogger(BusinessMetrics.class);
     
-    /** 指标前缀 */
-    private static final String METRIC_PREFIX = "shinwa.";
+    /** Metric prefix for all business metrics */
+    private static final String METRIC_PREFIX = "brix.";
     
-    /** Micrometer 注册*/
+    /** Micrometer registry */
     private final MeterRegistry meterRegistry;
     
-    /** 计数器缓存 */
+    /** Counter cache */
     private final Map<String, Counter> counters = new ConcurrentHashMap<>();
     
-    /** 计时器缓存 */
+    /** Timer cache */
     private final Map<String, Timer> timers = new ConcurrentHashMap<>();
     
     /**
-     * 构造函数
+     * Constructor.
      */
     public BusinessMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
-        log.info("[BusinessMetrics] 业务指标收集器已初始");
+        log.info("[BusinessMetrics] Business metrics collector initialized");
     }
     
-    // ==================== Counter 操作 ====================
+    // ==================== Counter Operations ====================
     
     /**
-     * 增加计数
+     * Increment counter.
      * 
-     * @param name 指标名称（不含前缀
-     * @param tags 标签（键值对
+     * @param name  metric name (without prefix)
+     * @param tags  tags (key-value pairs)
      */
     public void incrementCounter(String name, String... tags) {
         String fullName = METRIC_PREFIX + name;
@@ -108,7 +124,7 @@ public class BusinessMetrics {
         Counter counter = counters.computeIfAbsent(key, k -> 
             Counter.builder(fullName)
                 .tags(tags)
-                .description("业务计数 " + name)
+                .description("Business counter: " + name)
                 .register(meterRegistry)
         );
         
@@ -116,11 +132,11 @@ public class BusinessMetrics {
     }
     
     /**
-     * 增加计数器指定
+     * Increment counter by specified amount.
      * 
-     * @param name 指标名称
-     * @param amount 增加
-     * @param tags 标签
+     * @param name   metric name
+     * @param amount increment amount
+     * @param tags   tags
      */
     public void incrementCounter(String name, double amount, String... tags) {
         String fullName = METRIC_PREFIX + name;
@@ -129,31 +145,31 @@ public class BusinessMetrics {
         Counter counter = counters.computeIfAbsent(key, k -> 
             Counter.builder(fullName)
                 .tags(tags)
-                .description("业务计数 " + name)
+                .description("Business counter: " + name)
                 .register(meterRegistry)
         );
         
         counter.increment(amount);
     }
     
-    // ==================== Timer 操作 ====================
+    // ==================== Timer Operations ====================
     
     /**
-     * 开始计
+     * Start timing.
      * 
-     * @return 计时采样
+     * @return timer sample
      */
     public Timer.Sample startTimer() {
         return Timer.start(meterRegistry);
     }
     
     /**
-     * 停止计时并记
+     * Stop timing and record.
      * 
-     * @param sample 计时采样
-     * @param name 指标名称
-     * @param tags 标签
-     * @return 耗时（毫秒）
+     * @param sample timer sample
+     * @param name   metric name
+     * @param tags   tags
+     * @return duration in milliseconds
      */
     public long stopTimer(Timer.Sample sample, String name, String... tags) {
         String fullName = METRIC_PREFIX + name;
@@ -162,7 +178,7 @@ public class BusinessMetrics {
         Timer timer = timers.computeIfAbsent(key, k -> 
             Timer.builder(fullName)
                 .tags(tags)
-                .description("业务计时 " + name)
+                .description("Business timer: " + name)
                 .register(meterRegistry)
         );
         
@@ -170,11 +186,11 @@ public class BusinessMetrics {
     }
     
     /**
-     * 记录耗时
+     * Record duration.
      * 
-     * @param name 指标名称
-     * @param durationMs 耗时（毫秒）
-     * @param tags 标签
+     * @param name       metric name
+     * @param durationMs duration in milliseconds
+     * @param tags       tags
      */
     public void recordDuration(String name, long durationMs, String... tags) {
         String fullName = METRIC_PREFIX + name;
@@ -183,7 +199,7 @@ public class BusinessMetrics {
         Timer timer = timers.computeIfAbsent(key, k -> 
             Timer.builder(fullName)
                 .tags(tags)
-                .description("业务计时 " + name)
+                .description("Business timer: " + name)
                 .register(meterRegistry)
         );
         
@@ -191,13 +207,13 @@ public class BusinessMetrics {
     }
     
     /**
-     * 执行操作并记录耗时
+     * Execute operation and record duration.
      * 
-     * @param name 指标名称
-     * @param operation 操作
-     * @param tags 标签
-     * @param <T> 返回类型
-     * @return 操作结果
+     * @param name      metric name
+     * @param operation operation
+     * @param tags      tags
+     * @param <T>       return type
+     * @return operation result
      */
     public <T> T timed(String name, Supplier<T> operation, String... tags) {
         Timer.Sample sample = startTimer();
@@ -209,11 +225,11 @@ public class BusinessMetrics {
     }
     
     /**
-     * 执行操作并记录耗时（无返回值）
+     * Execute operation and record duration (no return value).
      * 
-     * @param name 指标名称
-     * @param operation 操作
-     * @param tags 标签
+     * @param name      metric name
+     * @param operation operation
+     * @param tags      tags
      */
     public void timed(String name, Runnable operation, String... tags) {
         Timer.Sample sample = startTimer();
@@ -224,30 +240,30 @@ public class BusinessMetrics {
         }
     }
     
-    // ==================== Gauge 操作 ====================
+    // ==================== Gauge Operations ====================
     
     /**
-     * 注册仪表
+     * Register gauge.
      * 
-     * @param name 指标名称
-     * @param valueSupplier 值提供
-     * @param tags 标签
+     * @param name          metric name
+     * @param valueSupplier value supplier
+     * @param tags          tags
      */
     public void registerGauge(String name, Supplier<Number> valueSupplier, String... tags) {
         String fullName = METRIC_PREFIX + name;
         
         Gauge.builder(fullName, valueSupplier)
             .tags(tags)
-            .description("业务仪表 " + name)
+            .description("Business gauge: " + name)
             .register(meterRegistry);
         
-        log.debug("[BusinessMetrics] 注册 Gauge: {}", fullName);
+        log.debug("[BusinessMetrics] Registered Gauge: {}", fullName);
     }
     
-    // ==================== 辅助方法 ====================
+    // ==================== Helper Methods ====================
     
     /**
-     * 构建缓存 key
+     * Build cache key.
      */
     private String buildKey(String name, String... tags) {
         if (tags == null || tags.length == 0) {
@@ -261,7 +277,7 @@ public class BusinessMetrics {
     }
     
     /**
-     * 获取 MeterRegistry（用于高级用法）
+     * Get MeterRegistry (for advanced usage).
      */
     public MeterRegistry getMeterRegistry() {
         return meterRegistry;

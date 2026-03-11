@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.security;
 
 import java.util.List;
@@ -10,7 +25,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 敏感头剥离配置属性单元测试
+ * Sensitive Header Strip Configuration Properties Unit Tests
  *
  * @author Brix Platform Authors
  * @version 1.0.0
@@ -25,7 +40,7 @@ class SensitiveHeaderStripPropertiesTest {
     }
 
     @Test
-    @DisplayName("默认应该包含 MVP 红线要求的敏感头")
+    @DisplayName("Default should contain MVP guideline required sensitive headers")
     void shouldContainMvpRequiredHeaders() {
         properties.init();
         
@@ -36,7 +51,7 @@ class SensitiveHeaderStripPropertiesTest {
     }
 
     @Test
-    @DisplayName("头名称匹配应该不区分大小写")
+    @DisplayName("Header name matching should be case-insensitive")
     void shouldMatchHeadersCaseInsensitively() {
         properties.init();
         
@@ -47,7 +62,7 @@ class SensitiveHeaderStripPropertiesTest {
     }
 
     @Test
-    @DisplayName("非敏感头不应该被剥离")
+    @DisplayName("Non-sensitive headers should not be stripped")
     void shouldNotStripNonSensitiveHeaders() {
         properties.init();
         
@@ -57,7 +72,7 @@ class SensitiveHeaderStripPropertiesTest {
     }
 
     @Test
-    @DisplayName("禁用时不应该剥离任何头")
+    @DisplayName("Should not strip any headers when disabled")
     void shouldNotStripWhenDisabled() {
         properties.setEnabled(false);
         properties.init();
@@ -67,18 +82,18 @@ class SensitiveHeaderStripPropertiesTest {
     }
 
     @Test
-    @DisplayName("应该能够自定义敏感头列表")
+    @DisplayName("Should allow custom sensitive headers list")
     void shouldAllowCustomHeaders() {
         properties.setHeaders(List.of("x-custom-header", "x-another-header"));
         properties.init();
         
         assertTrue(properties.shouldStrip("x-custom-header"));
         assertTrue(properties.shouldStrip("x-another-header"));
-        assertFalse(properties.shouldStrip("x-user-id")); // 默认的不再生效
+        assertFalse(properties.shouldStrip("x-user-id")); // Default no longer takes effect
     }
 
     @Test
-    @DisplayName("处理 null 头名称应该返回 false")
+    @DisplayName("Handling null header name should return false")
     void shouldHandleNullHeaderName() {
         properties.init();
         
@@ -86,7 +101,7 @@ class SensitiveHeaderStripPropertiesTest {
     }
 
     @Test
-    @DisplayName("getHeadersAsSet 应该返回不可变集合")
+    @DisplayName("getHeadersAsSet should return immutable set")
     void shouldReturnImmutableSet() {
         properties.init();
         

@@ -64,9 +64,6 @@ import java.util.Optional;
  *   <li>Embedded Host: Environment variables + local YAML files</li>
  * </ul>
  *
- * <p>【配置存储能力契约】</p>
- * <p>提供模块配置读取的统一接口，支持多种配置源。</p>
- *
  * @author Runtime SDK Team
  * @since 3.0.0
  */

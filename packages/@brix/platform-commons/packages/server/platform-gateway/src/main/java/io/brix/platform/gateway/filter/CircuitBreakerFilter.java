@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
@@ -28,33 +43,33 @@ import reactor.core.publisher.Mono;
 import io.brix.platform.gateway.config.resilience.circuitbreaker.CircuitBreakerConfiguration;
 
 /**
- * 熔断过滤
+ * circuit breakerfilter
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 task：Gatewayrate limitcircuit breaker（Resilience4j
  * </p>
  * <p>
- * 基于 Resilience4j CircuitBreaker 实现熔断保护
- * 当下游服务故障时自动熔断，返HTTP 503 Service Unavailable
+ * based on Resilience4j CircuitBreaker implementationcircuit breakerprotect
+ * whendownstreamservicefaulttimeautomaticcircuit breaker，returnHTTP 503 Service Unavailable
  * </p>
  * 
- * <h3>熔断触发条件</h3>
+ * <h3>Circuit breaker triggeredcondition</h3>
  * <ul>
- *   <li>失败率超过阈值（50%</li>
- *   <li>慢调用率超过阈</li>
- *   <li>需要达到最小调用次数后才开始计</li>
+ *   <li>failedrateexceedthreshold（50%</li>
+ *   <li>slowcallrateexceedthreshold</li>
+ *   <li>needreachtominimumcallcountafterthenstartcount</li>
  * </ul>
  * 
- * <h3>熔断状态说</h3>
+ * <h3>circuit breakerstatussay</h3>
  * <pre>
- * CLOSED  ──(失败率超阈──OPEN ──(等待时间结束)──HALF_OPEN
+ * CLOSED  ──(failedrateexceedthreshold──OPEN ──(waittimeend)──HALF_OPEN
  *                                                      
  *                                                      
- *    └─────────(试探成功)─────────────────────────────────
+ *    └─────────(probesuccessful)─────────────────────────────────
  *                              
- *                              └─────(试探失败)──OPEN
+ *                              └─────(probefailed)──OPEN
  * </pre>
  * 
- * <h3>响应格式</h3>
+ * <h3>responseformat</h3>
  * <pre>{@code
  * HTTP/1.1 503 Service Unavailable
  * Content-Type: application/json
@@ -80,25 +95,25 @@ public class CircuitBreakerFilter implements GlobalFilter, Ordered {
     private static final Logger logger = LoggerFactory.getLogger(CircuitBreakerFilter.class);
 
     /**
-     * 过滤器优先级
+     * filterpriority
      * <p>
-     * 在限流和隔离过滤器之后执
+     * onrate limitandisolationfilterofafterexecute
      * </p>
      */
     private static final int ORDER = -198;
 
     /**
-     * 熔断器被打开时的错误消息
+     * circuit breakererbeopentimeoferrormessage
      */
     private static final String CIRCUIT_BREAKER_OPEN_MSG = "Service Unavailable - Circuit breaker is open";
 
     /**
-     * 下游服务错误消息
+     * downstreamserviceerrormessage
      */
     private static final String DOWNSTREAM_ERROR_MSG = "Service Unavailable - Downstream service error";
 
     /**
-     * 熔断配置
+     * circuit breakerconfiguration
      */
     private final CircuitBreakerConfiguration circuitBreakerConfig;
 
@@ -109,53 +124,53 @@ public class CircuitBreakerFilter implements GlobalFilter, Ordered {
     @Override
     @SuppressWarnings("null")
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 检查熔断是否启
+        // checkcircuit breakerwhetherstart
         if (!circuitBreakerConfig.isEnabled()) {
             return chain.filter(exchange);
         }
 
         ServerHttpRequest request = exchange.getRequest();
         String path = Objects.requireNonNullElse(Objects.requireNonNull(request.getPath()).value(), "");
-        // 获取路由信息
+        // obtainrouteinformation
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
         String routeId = (route != null && route.getId() != null) ? route.getId() : "default";
 
-        // 获取对应的熔断器
+        // obtainforshouldofcircuit breakerer
         CircuitBreaker circuitBreaker = circuitBreakerConfig.getCircuitBreakerForRoute(routeId);
         if (circuitBreaker == null) {
             return chain.filter(exchange);
         }
 
-        // 记录当前熔断器状
+        // recordwhenbeforecircuit breakererstatus
         if (logger.isDebugEnabled()) {
             var metrics = circuitBreaker.getMetrics();
-            logger.debug("[shinwa] CircuitBreaker[{}] state={}, failureRate={}%, slowCallRate={}%",
+            logger.debug("[brix] CircuitBreaker[{}] state={}, failureRate={}%, slowCallRate={}%",
                     routeId, circuitBreaker.getState(),
                     metrics.getFailureRate(), metrics.getSlowCallRate());
         }
 
-        // 技术点：使CircuitBreakerOperator 包装响应式流
-        // 这样可以自动统计成功/失败/慢调用，并在熔断时拒绝请
+        // technical point：useCircuitBreakerOperator packageloadresponsetypeflow
+        // this waycantoautomaticstatisticssuccessful/failed/slowcall，andoncircuit breakertimerejectedplease
         return chain.filter(exchange)
             .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
             .onErrorResume(throwable -> handleError(exchange, routeId, circuitBreaker, throwable, path));
     }
 
     /**
-     * 处理熔断器相关错
+     * processcircuit breakererrelatederror
      * <p>
-     * 技术点：区分不同类型的错误，返回不同的响应
+     * technical point：distinguishnotsametypeoferror，returnnotsameofresponse
      * <ul>
-     *   <li>CallNotPermittedException - 熔断器打开，拒绝请</li>
-     *   <li>TimeoutException - 请求超时（被记为失败</li>
-     *   <li>其他异常 - 下游服务错误</li>
+     *   <li>CallNotPermittedException - circuit breakereropen，rejectedplease</li>
+     *   <li>TimeoutException - requesttimeout（berecordisfailed</li>
+     *   <li>otherexception - downstreamserviceerror</li>
      * </ul>
      * </p>
      * 
-     * @param exchange        请求上下
-     * @param routeId         路由ID
-     * @param circuitBreaker  熔断
-     * @param throwable       异常
+     * @param exchange        requestup and down
+     * @param routeId         routeID
+     * @param circuitBreaker  circuit breaker
+     * @param throwable       exception
      * @return Mono<Void>
      */
     @SuppressWarnings("null")
@@ -165,31 +180,31 @@ public class CircuitBreakerFilter implements GlobalFilter, Ordered {
         String state = circuitBreaker.getState().name();
         
         if (throwable instanceof CallNotPermittedException) {
-            // 熔断器打开，拒绝请
-                logger.warn("[shinwa] CircuitBreaker[{}] call rejected - circuit is OPEN, path={}",
+            // Circuit breaker open, reject request
+                logger.warn("[brix] CircuitBreaker[{}] call rejected - circuit is OPEN, path={}",
                     routeId, Objects.requireNonNull(path));
             return rejectRequest(exchange, routeId, state, CIRCUIT_BREAKER_OPEN_MSG, 10);
         } else if (throwable instanceof TimeoutException) {
-            // 请求超时
-                logger.warn("[shinwa] CircuitBreaker[{}] request timeout, path={}",
+            // Request timeout
+                logger.warn("[brix] CircuitBreaker[{}] request timeout, path={}",
                     routeId, Objects.requireNonNull(path));
             return rejectRequest(exchange, routeId, state, "Service Unavailable - Request timeout", 5);
         } else {
-            // 下游服务错误
-                logger.error("[shinwa] CircuitBreaker[{}] downstream error, path={}, error={}",
+            // Downstream service error
+                logger.error("[brix] CircuitBreaker[{}] downstream error, path={}, error={}",
                     routeId, Objects.requireNonNull(path), throwable.getMessage());
             return rejectRequest(exchange, routeId, state, DOWNSTREAM_ERROR_MSG, 5);
         }
     }
 
     /**
-     * 拒绝请求并返503 响应
+     * rejectedrequestandreturn503 response
      * 
-     * @param exchange     请求上下
-     * @param routeId      路由ID
-     * @param state        熔断器状
-     * @param message      错误消息
-     * @param retryAfter   建议重试等待时间（秒
+     * @param exchange     requestup and down
+     * @param routeId      routeID
+     * @param state        circuit breakererstatus
+     * @param message      errormessage
+     * @param retryAfter   recommendedretrywaittime（seconds
      * @return Mono<Void>
      */
     @SuppressWarnings("null")
@@ -197,14 +212,14 @@ public class CircuitBreakerFilter implements GlobalFilter, Ordered {
                                      String state, String message, int retryAfter) {
         ServerHttpResponse response = exchange.getResponse();
         
-        // 设置响应状态码
+        // setresponsestatuscode
         response.setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
         
-        // 设置响应
+        // setresponse
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
         response.getHeaders().set("Retry-After", String.valueOf(retryAfter));
         
-        // 构建响应
+        // buildresponse
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         String responseBody = String.format(
                 "{\"code\":503,\"message\":\"%s\"," +

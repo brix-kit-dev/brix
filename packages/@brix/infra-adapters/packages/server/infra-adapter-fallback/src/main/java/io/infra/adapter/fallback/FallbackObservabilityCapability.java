@@ -27,11 +27,12 @@ import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 /**
- * Fallback 可观测性能力实现
+ * Fallback Observability Capability Implementation.
  * 
- * <p>基于 SLF4J 的简单日志实现。指标和追踪仅输出到日志。</p>
+ * <p>Simple logging implementation based on SLF4J. Metrics and tracing are only output to logs.</p>
  * 
- * <p>生产环境建议使用 infra-adapter-otel 提供的 OpenTelemetry 实现。</p>
+ * <p>For production environments, consider using the OpenTelemetry implementation
+ * provided by infra-adapter-otel.</p>
  * 
  * @author Brix Team
  * @version 3.0.0
@@ -39,7 +40,7 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 @Capability(
     type = ObservabilityCapability.class,
     name = "fallback-observability",
-    description = "基于 SLF4J 的 Fallback 可观测性实现",
+    description = "SLF4J-based fallback observability implementation",
     level = CapabilityLevel.EXPERIMENTAL,
     aliases = {"fallbackObservability"}
 )

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.security;
 
 import java.util.ArrayList;
@@ -7,13 +22,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * IP 白名单配置属
+ * IP whitelistconfigurationproperty
  * 
- * <p>P105 任务：请求签+ IP 白名
+ * <p>P105 task：requestsign+ IP whitename
  * 
- * <p>配置 IP 白名单校验的相关参数
+ * <p>configuration IP whitelistverifyofrelatedparameter
  * 
- * <p>配置示例
+ * <p>configurationexample
  * <pre>
  * gateway:
  *   ip-whitelist:
@@ -26,11 +41,11 @@ import org.springframework.stereotype.Component;
  *       - /open-api/**
  * </pre>
  * 
- * <p>支持IP 格式
+ * <p>supportIP format
  * <ul>
- *   <li>单个 IP92.168.1.100</li>
- *   <li>CIDR 格式92.168.1.0/24</li>
- *   <li>IP 范围92.168.1.1-192.168.1.255</li>
+ *   <li>single IP92.168.1.100</li>
+ *   <li>CIDR format92.168.1.0/24</li>
+ *   <li>IP range92.168.1.1-192.168.1.255</li>
  * </ul>
  *
  * @author Brix Platform Authors Platform
@@ -42,13 +57,13 @@ import org.springframework.stereotype.Component;
 public class IpWhitelistProperties {
 
     /**
-     * 是否启用 IP 白名
+     * whetherenable IP whitename
      */
     private boolean enabled = true;
 
     /**
-     * 允许IP 地址列表
-     * 支持单个 IP、CIDR、IP 范围
+     * allowIP addresslist
+     * supportsingle IP、CIDR、IP range
      */
     private List<String> allowedIps = new ArrayList<>(List.of(
             "127.0.0.1",
@@ -59,19 +74,19 @@ public class IpWhitelistProperties {
     ));
 
     /**
-     * 需IP 白名单校验的路径
+     * needIP whitelistverifyofpath
      */
     private List<String> protectedPaths = new ArrayList<>(List.of("/open-api/**"));
 
     /**
-     * 是否信任 X-Forwarded-For 请求
-     * 在使用反向代理时设为 true
+     * whethertrust X-Forwarded-For request
+     * onusereversetogenerationmanagetimesetis true
      */
     private boolean trustXForwardedFor = true;
 
     /**
-     * 刷新间隔（秒
-     * 配置变更后生效的延迟时间
+     * refreshinterval（seconds
+     * configurationchangemoreaftergenerateeffectofdelaytime
      */
     private int refreshIntervalSeconds = 30;
 

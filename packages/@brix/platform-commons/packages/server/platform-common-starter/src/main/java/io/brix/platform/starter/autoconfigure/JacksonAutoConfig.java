@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.autoconfigure;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -13,14 +28,14 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 /**
- * v2.1 Jackson 自动配置
+ * v2.1 Jackson Auto-Configuration
  * 
- * <p>提供统一JSON 序列化配置：</p>
+ * <p>Provides unified JSON serialization configuration:</p>
  * <ul>
- *   <li>Java 8 日期时间支持（JSR-310</li>
- *   <li>日期时间格式化为 ISO-8601</li>
- *   <li>蹇界暐鏈煡灞炴€э紙鍏煎鎬э級</li>
- *   <li>空对象不报错</li>
+ *   <li>Java 8 date/time support (JSR-310)</li>
+ *   <li>Date/time formatted as ISO-8601</li>
+ *   <li>Ignore unknown properties (compatibility)</li>
+ *   <li>No error on empty objects</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
@@ -31,12 +46,12 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 public class JacksonAutoConfig {
     
     /**
-     * 配置 ObjectMapper
+     * Configure ObjectMapper
      * 
-     * <p>统一 JSON 序列化配置，确保所有服务行为一</p>
+     * <p>Unified JSON serialization configuration ensuring consistent behavior across all services.</p>
      * 
-     * @param builder Jackson 构建
-     * @return 配置好的 ObjectMapper
+     * @param builder Jackson builder
+     * @return Configured ObjectMapper
      */
     @Bean
     @Primary
@@ -44,16 +59,16 @@ public class JacksonAutoConfig {
     public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
         ObjectMapper objectMapper = builder.createXmlMapper(false).build();
         
-        // 注册 Java 8 日期时间模块
+        // Register Java 8 date/time module
         objectMapper.registerModule(new JavaTimeModule());
         
-        // 日期时间序列化为 ISO-8601 格式而非时间
+        // Serialize date/time as ISO-8601 format instead of timestamps
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         
-        // 忽略未知属性，提高兼容
+        // Ignore unknown properties for better compatibility
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         
-        // 空对象不报错
+        // No error on empty objects
         objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
         
         return objectMapper;

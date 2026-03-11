@@ -1,8 +1,8 @@
-{
+﻿{
   "name": "@brix/runtime-sdk-workspace",
-  "version": "3.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "Brix Runtime SDK - 运行壳能力契约与编排引擎（前后端统一仓库）",
+  "description": "Brix Runtime SDK - Runtime Shell capability contracts and orchestration engine (unified frontend/backend repository)",
   "keywords": [
     "brix",
     "runtime",

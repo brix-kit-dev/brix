@@ -17,7 +17,6 @@ package io.runtime.manifest.validation;
 
 /**
  * Validation Error.
- * 验证错误
  *
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -26,19 +25,16 @@ public class ValidationError {
 
     /**
      * Field name.
-     * 字段名
      */
     private final String field;
 
     /**
      * Error message.
-     * 错误消息
      */
     private final String message;
 
     /**
      * Severity level.
-     * 严重级别
      */
     private final ValidationSeverity severity;
 

@@ -15,24 +15,24 @@
  */
 
 /**
- * Kafka 事件总线能力实现
+ * Kafka Event Bus Capability Implementation.
  * 
- * <p>本包提供基于 Apache Kafka {@link io.runtime.sdk.capability.EventBusCapability} 实现
- * 是运行壳商业实现层（Layer 3: Host 层）的核心组件之一。</p>
+ * <p>This package provides the Apache Kafka-based {@link io.runtime.sdk.capability.EventBusCapability} implementation,
+ * which is one of the core components in the Runtime Shell commercial implementation layer (Layer 3: Host Layer).</p>
  * 
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link com.shinwa.runtime.kafka.KafkaEventBusCapability} - EventBus 能力实现</li>
- *   <li>{@link com.shinwa.runtime.kafka.EventTopicResolver} - Topic 解析。</li>
- *   <li>{@link com.shinwa.runtime.kafka.OutboxEventPublisher} - Outbox 模式发布。</li>
- *   <li>{@link com.shinwa.runtime.kafka.EventConsumerRegistry} - 消费者注册中。</li>
+ *   <li>{@link io.brix.runtime.kafka.KafkaEventBusCapability} - EventBus capability implementation</li>
+ *   <li>{@link io.brix.runtime.kafka.EventTopicResolver} - Topic resolution</li>
+ *   <li>{@link io.brix.runtime.kafka.OutboxEventPublisher} - Outbox pattern publishing</li>
+ *   <li>{@link io.brix.runtime.kafka.EventConsumerRegistry} - Consumer registry</li>
  * </ul>
  * 
- * <h2>设计原则</h2>
+ * <h2>Design Principles</h2>
  * <ul>
- *   <li>遵循运行壳架构约束，不暴Kafka 细节给模。</li>
- *   <li>支持 Outbox 模式保证事务一致。</li>
- *   <li>基于 Manifest 声明式事件路。</li>
+ *   <li>Follows Runtime Shell architecture constraints, does not expose Kafka details to modules</li>
+ *   <li>Supports Outbox pattern to ensure transactional consistency</li>
+ *   <li>Declarative event routing based on Manifest</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team

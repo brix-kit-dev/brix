@@ -35,55 +35,59 @@ import io.runtime.sdk.capability.registry.CapabilityNotFoundException;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 
 /**
- * 默认能力注册表实现
+ * Default Capability Registry Implementation.
  *
- * <p>实现 {@link CapabilityRegistry} 接口，提供多 Host 模式共享的通用能力注册与查找逻辑。</p>
+ * <p>Implements the {@link CapabilityRegistry} interface, providing common capability
+ * registration and lookup logic shared across multiple Host modes.</p>
  *
- * <h2>架构定位（v3.0 运行壳架构蓝图）</h2>
+ * <h2>Architecture Position (Runtime Shell Architecture)</h2>
  * <p>
- * 本类属于 <b>runtime-orchestrator</b>（编排层），实现 runtime-sdk-api（契约层）定义的
- * {@link CapabilityRegistry} 接口。蓝图明确要求契约层（Layer 2）仅包含纯接口定义，
- * 而实现类应位于编排层或能力实现层。
+ * This class belongs to <b>runtime-orchestrator</b> (orchestration layer), implementing
+ * the {@link CapabilityRegistry} interface defined in runtime-sdk-api (contract layer).
+ * The architecture requires the contract layer (Layer 2) to contain only pure interface
+ * definitions, while implementations should reside in the orchestration or capability
+ * implementation layers.
  * </p>
  * <p>
- * 本类从原 host-shell-standalone 的 {@code StandaloneCapabilityRegistry} 演化而来，
- * 作为通用默认实现由各 Host（Standalone/Embedded）复用或扩展，
- * 消除了两种 Host 模式之间的重复代码。
+ * This class evolved from the original {@code StandaloneCapabilityRegistry} in
+ * host-shell-standalone, serving as a common default implementation reused or extended
+ * by various Hosts (Standalone/Embedded), eliminating duplicate code between Host modes.
  * </p>
  *
- * <h2>核心功能</h2>
+ * <h2>Core Features</h2>
  * <ul>
- *   <li><b>类型安全注册</b>：基于 {@code Class<T>} 作为 key 的泛型注册与获取</li>
- *   <li><b>能力描述符</b>：通过 {@link CapabilityDescriptor} 管理能力元数据</li>
- *   <li><b>别名支持</b>：一个能力可以通过多个别名查找</li>
- *   <li><b>冻结机制</b>：启动完成后冻结注册表，防止运行时篡改</li>
- *   <li><b>必需能力验证</b>：启动时校验所有必需能力是否已注册</li>
- *   <li><b>注解驱动注册</b>：支持从 {@link Capability @Capability} 注解自动注册</li>
+ *   <li><b>Type-safe Registration</b>: Generic registration and retrieval based on {@code Class<T>} as key</li>
+ *   <li><b>Capability Descriptors</b>: Manages capability metadata via {@link CapabilityDescriptor}</li>
+ *   <li><b>Alias Support</b>: A capability can be looked up through multiple aliases</li>
+ *   <li><b>Freeze Mechanism</b>: Freezes registry after startup to prevent runtime tampering</li>
+ *   <li><b>Required Capability Validation</b>: Validates all required capabilities are registered at startup</li>
+ *   <li><b>Annotation-driven Registration</b>: Supports auto-registration from {@link Capability @Capability} annotation</li>
  * </ul>
  *
- * <h2>线程安全</h2>
+ * <h2>Thread Safety</h2>
  * <p>
- * 所有内部存储基于 {@link ConcurrentHashMap}，注册阶段支持并发写入。
- * 冻结后进入只读模式，所有写操作抛出 {@link IllegalStateException}。
+ * All internal storage is based on {@link ConcurrentHashMap}, supporting concurrent writes during
+ * registration phase. After freezing, enters read-only mode and all write operations throw
+ * {@link IllegalStateException}.
  * </p>
  *
- * <h2>使用方式</h2>
+ * <h2>Usage</h2>
  * <pre>{@code
- * // 由 Host 层的 AutoConfiguration 创建并管理
+ * // Created and managed by Host layer AutoConfiguration
  * DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
  *
- * // 注册能力
+ * // Register capabilities
  * registry.register(EventBusCapability.class, kafkaEventBus);
  * registry.register(StateStoreCapability.class, redisStateStore);
  *
- * // 从注解注册
+ * // Register from annotation
  * registry.registerFromAnnotation(fallbackAuthContext);
  *
- * // 验证并冻结
+ * // Validate and freeze
  * registry.validateRequired(EventBusCapability.class, StateStoreCapability.class);
  * registry.freeze();
  *
- * // 获取能力
+ * // Get capability
  * EventBusCapability eventBus = registry.getRequired(EventBusCapability.class);
  * }</pre>
  *
@@ -96,65 +100,65 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultCapabilityRegistry.class);
 
-    /** 能力实例存储：接口类型 -> 实现实例 */
+    /** Capability instance storage: interface type -> implementation instance */
     private final Map<Class<?>, Object> capabilities = new ConcurrentHashMap<>();
 
-    /** 能力描述符存储：接口类型 -> 描述符（包含名称、级别、别名等元数据） */
+    /** Capability descriptor storage: interface type -> descriptor (containing name, level, aliases metadata) */
     private final Map<Class<?>, CapabilityDescriptor> descriptors = new ConcurrentHashMap<>();
 
-    /** 能力别名映射：别名字符串 -> 主接口类型（允许通过别名查找能力） */
+    /** Capability alias mapping: alias string -> primary interface type (allows lookup by alias) */
     private final Map<String, Class<?>> aliases = new ConcurrentHashMap<>();
 
-    /** 注册表冻结标志，冻结后禁止任何写操作 */
+    /** Registry frozen flag, all write operations are prohibited after freezing */
     private volatile boolean frozen = false;
 
     public DefaultCapabilityRegistry() {
-        log.debug("创建 DefaultCapabilityRegistry 实例");
+        log.debug("Creating DefaultCapabilityRegistry instance");
     }
 
-    // ==================== CapabilityRegistry 接口实现 ====================
+    // ==================== CapabilityRegistry Interface Implementation ====================
 
     /**
-     * 获取指定类型的能力实例（可选）
+     * Gets capability instance by type (optional).
      *
-     * @param capabilityType 能力接口类型
-     * @param <T> 能力类型参数
-     * @return 能力实例的 Optional 包装，未注册时返回 empty
+     * @param capabilityType capability interface type
+     * @param <T> capability type parameter
+     * @return Optional wrapper of capability instance, returns empty if not registered
      */
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<T> get(Class<T> capabilityType) {
-        Objects.requireNonNull(capabilityType, "能力类型不能为空");
+        Objects.requireNonNull(capabilityType, "Capability type cannot be null");
         return Optional.ofNullable((T) capabilities.get(capabilityType));
     }
 
     /**
-     * 获取必需的能力实例
+     * Gets required capability instance.
      *
-     * <p>当能力未注册时抛出 {@link CapabilityNotFoundException}，
-     * 错误信息包含已注册的能力列表，便于排查配置问题。</p>
+     * <p>Throws {@link CapabilityNotFoundException} when capability is not registered,
+     * error message includes list of registered capabilities for troubleshooting.</p>
      *
-     * @param capabilityType 能力接口类型
-     * @param <T> 能力类型参数
-     * @return 能力实例
-     * @throws CapabilityNotFoundException 当能力未注册时
+     * @param capabilityType capability interface type
+     * @param <T> capability type parameter
+     * @return capability instance
+     * @throws CapabilityNotFoundException when capability is not registered
      */
     @Override
     public <T> T getRequired(Class<T> capabilityType) {
         return get(capabilityType).orElseThrow(() ->
             new CapabilityNotFoundException(capabilityType,
-                "必需的能力未注册: " + capabilityType.getSimpleName()
-                + "。已注册的能力: " + getRegisteredTypes().stream()
+                "Required capability not registered: " + capabilityType.getSimpleName()
+                + ". Registered capabilities: " + getRegisteredTypes().stream()
                     .map(Class::getSimpleName)
                     .collect(Collectors.joining(", ")))
         );
     }
 
     /**
-     * 检查指定能力是否已注册
+     * Checks if specified capability is registered.
      *
-     * @param capabilityType 能力接口类型
-     * @return 已注册返回 true
+     * @param capabilityType capability interface type
+     * @return true if registered
      */
     @Override
     public boolean isAvailable(Class<?> capabilityType) {
@@ -162,9 +166,9 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 获取所有已注册的能力类型集合
+     * Gets all registered capability types.
      *
-     * @return 不可变的类型集合
+     * @return immutable set of types
      */
     @Override
     public Set<Class<?>> getRegisteredTypes() {
@@ -172,10 +176,10 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 获取指定能力的描述符
+     * Gets descriptor for specified capability.
      *
-     * @param capabilityType 能力接口类型
-     * @return 描述符的 Optional 包装
+     * @param capabilityType capability interface type
+     * @return Optional wrapper of descriptor
      */
     @Override
     public Optional<CapabilityDescriptor> getDescriptor(Class<?> capabilityType) {
@@ -183,9 +187,9 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 获取所有能力描述符集合
+     * Gets all capability descriptors.
      *
-     * @return 不可变的描述符集合
+     * @return immutable set of descriptors
      */
     @Override
     public Set<CapabilityDescriptor> getAllDescriptors() {
@@ -193,15 +197,15 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 注册能力实例（自动创建默认描述符）
+     * Registers capability instance (auto-creates default descriptor).
      *
-     * <p>如果实例带有 {@link Capability @Capability} 注解，描述符从注解推断；
-     * 否则创建默认描述符。</p>
+     * <p>If instance has {@link Capability @Capability} annotation, descriptor is inferred from annotation;
+     * otherwise creates default descriptor.</p>
      *
-     * @param capabilityType 能力接口类型
-     * @param instance 能力实现实例
-     * @param <T> 能力类型参数
-     * @throws IllegalStateException 注册表已冻结时
+     * @param capabilityType capability interface type
+     * @param instance capability implementation instance
+     * @param <T> capability type parameter
+     * @throws IllegalStateException when registry is frozen
      */
     @Override
     public <T> void register(Class<T> capabilityType, T instance) {
@@ -209,26 +213,26 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 注册能力实例（带描述符）
+     * Registers capability instance (with descriptor).
      *
-     * <p>如果相同类型已注册，新实例会覆盖旧实例并输出警告日志。
-     * 描述符中的别名会自动注册到别名映射表。</p>
+     * <p>If same type is already registered, new instance overwrites old one with warning log.
+     * Aliases in descriptor are automatically registered to alias mapping table.</p>
      *
-     * @param capabilityType 能力接口类型
-     * @param instance 能力实现实例
-     * @param descriptor 能力描述符
-     * @param <T> 能力类型参数
-     * @throws IllegalStateException 注册表已冻结时
+     * @param capabilityType capability interface type
+     * @param instance capability implementation instance
+     * @param descriptor capability descriptor
+     * @param <T> capability type parameter
+     * @throws IllegalStateException when registry is frozen
      */
     @Override
     public <T> void register(Class<T> capabilityType, T instance, CapabilityDescriptor descriptor) {
-        Objects.requireNonNull(capabilityType, "能力类型不能为空");
-        Objects.requireNonNull(instance, "能力实例不能为空");
+        Objects.requireNonNull(capabilityType, "Capability type cannot be null");
+        Objects.requireNonNull(instance, "Capability instance cannot be null");
 
         checkNotFrozen();
 
         if (capabilities.containsKey(capabilityType)) {
-            log.warn("覆盖已注册的能力: {} -> {}", capabilityType.getSimpleName(),
+            log.warn("Overwriting registered capability: {} -> {}", capabilityType.getSimpleName(),
                     instance.getClass().getSimpleName());
         }
 
@@ -236,33 +240,33 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
 
         if (descriptor != null) {
             descriptors.put(capabilityType, descriptor);
-            // 注册别名映射，允许通过别名查找能力
+            // Register alias mappings, allowing capability lookup by alias
             for (String alias : descriptor.getAliases()) {
                 aliases.put(alias, capabilityType);
-                log.debug("注册能力别名: {} -> {}", alias, capabilityType.getSimpleName());
+                log.debug("Registered capability alias: {} -> {}", alias, capabilityType.getSimpleName());
             }
         }
 
-        log.info("注册能力: {} -> {} ({})",
+        log.info("Registered capability: {} -> {} ({})",
                 capabilityType.getSimpleName(),
                 instance.getClass().getSimpleName(),
                 descriptor != null ? descriptor.getLevel() : "DEFAULT");
     }
 
     /**
-     * 仅在能力未注册时注册
+     * Registers only when capability is not registered.
      *
-     * <p>用于注册兜底实现，避免覆盖已有的正式实现。</p>
+     * <p>Used for registering fallback implementations, avoiding overwriting existing formal implementations.</p>
      *
-     * @param capabilityType 能力接口类型
-     * @param instance 能力实现实例
-     * @param <T> 能力类型参数
-     * @return 注册成功返回 true，已存在则返回 false
+     * @param capabilityType capability interface type
+     * @param instance capability implementation instance
+     * @param <T> capability type parameter
+     * @return true if registered successfully, false if already exists
      */
     @Override
     public <T> boolean registerIfAbsent(Class<T> capabilityType, T instance) {
         if (capabilities.containsKey(capabilityType)) {
-            log.debug("跳过注册（已存在）: {}", capabilityType.getSimpleName());
+            log.debug("Skipping registration (already exists): {}", capabilityType.getSimpleName());
             return false;
         }
         register(capabilityType, instance);
@@ -270,15 +274,15 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 冻结注册表
+     * Freezes the registry.
      *
-     * <p>冻结后所有写操作（register、clear）将抛出 {@link IllegalStateException}。
-     * 通常在 Spring 容器启动完成后调用，防止运行时意外修改能力映射。</p>
+     * <p>After freezing, all write operations (register, clear) will throw {@link IllegalStateException}.
+     * Typically called after Spring container startup completes, preventing runtime capability mapping modifications.</p>
      */
     @Override
     public void freeze() {
         this.frozen = true;
-        log.info("能力注册表已冻结，共注册 {} 个能力: {}",
+        log.info("Capability registry frozen, registered {} capabilities: {}",
                 capabilities.size(),
                 capabilities.keySet().stream()
                     .map(Class::getSimpleName)
@@ -286,9 +290,9 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 检查注册表是否已冻结
+     * Checks if registry is frozen.
      *
-     * @return 已冻结返回 true
+     * @return true if frozen
      */
     @Override
     public boolean isFrozen() {
@@ -296,13 +300,13 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 验证必需能力是否全部已注册
+     * Validates that all required capabilities are registered.
      *
-     * <p>在冻结前调用，确保所有核心能力都已就位。
-     * 任何缺失的能力会导致 {@link CapabilityNotFoundException}。</p>
+     * <p>Called before freezing to ensure all core capabilities are in place.
+     * Any missing capability will cause {@link CapabilityNotFoundException}.</p>
      *
-     * @param requiredTypes 必需的能力类型列表
-     * @throws CapabilityNotFoundException 当有必需能力缺失时
+     * @param requiredTypes list of required capability types
+     * @throws CapabilityNotFoundException when required capability is missing
      */
     @Override
     public void validateRequired(Class<?>... requiredTypes) {
@@ -316,33 +320,33 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
 
         if (!missing.isEmpty()) {
             throw new CapabilityNotFoundException(requiredTypes[0],
-                "以下必需能力未注册: " + String.join(", ", missing));
+                "Following required capabilities are not registered: " + String.join(", ", missing));
         }
 
-        log.debug("必需能力验证通过: {} 个", requiredTypes.length);
+        log.debug("Required capability validation passed: {} capabilities", requiredTypes.length);
     }
 
     /**
-     * 获取已注册能力数量
+     * Gets the count of registered capabilities.
      *
-     * @return 能力数量
+     * @return capability count
      */
     @Override
     public int size() {
         return capabilities.size();
     }
 
-    // ==================== 扩展方法 ====================
+    // ==================== Extension Methods ====================
 
     /**
-     * 通过别名获取能力实例
+     * Gets capability instance by alias.
      *
-     * <p>别名在注册时通过 {@link CapabilityDescriptor#getAliases()} 自动建立映射。
-     * 适用于需要通过字符串标识符查找能力的场景。</p>
+     * <p>Alias mappings are automatically established during registration via {@link CapabilityDescriptor#getAliases()}.
+     * Useful for scenarios requiring lookup by string identifier.</p>
      *
-     * @param alias 能力别名
-     * @param <T> 能力类型参数
-     * @return 能力实例的 Optional 包装
+     * @param alias capability alias
+     * @param <T> capability type parameter
+     * @return Optional wrapper of capability instance
      */
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getByAlias(String alias) {
@@ -354,20 +358,20 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 从带有 {@link Capability @Capability} 注解的实例自动注册
+     * Auto-registers from instance with {@link Capability @Capability} annotation.
      *
-     * <p>从注解中推断能力类型和描述符信息，简化注册过程。
-     * 与 Spring 的自动发现机制配合使用。</p>
+     * <p>Infers capability type and descriptor info from annotation, simplifying registration.
+     * Works with Spring's auto-discovery mechanism.</p>
      *
-     * @param instance 带有 @Capability 注解的实例
-     * @throws IllegalArgumentException 实例没有 @Capability 注解时
+     * @param instance instance with @Capability annotation
+     * @throws IllegalArgumentException when instance has no @Capability annotation
      */
     public void registerFromAnnotation(Object instance) {
         Class<?> clazz = instance.getClass();
         Capability annotation = clazz.getAnnotation(Capability.class);
 
         if (annotation == null) {
-            throw new IllegalArgumentException("实例没有 @Capability 注解: " + clazz.getName());
+            throw new IllegalArgumentException("Instance has no @Capability annotation: " + clazz.getName());
         }
 
         CapabilityDescriptor descriptor = CapabilityDescriptor.fromAnnotation(annotation, clazz);
@@ -378,24 +382,24 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 清理所有注册的能力（仅用于测试）
+     * Clears all registered capabilities (for testing only).
      *
-     * @throws IllegalStateException 注册表已冻结时
+     * @throws IllegalStateException when registry is frozen
      */
     public void clear() {
         checkNotFrozen();
         capabilities.clear();
         descriptors.clear();
         aliases.clear();
-        log.debug("能力注册表已清空");
+        log.debug("Capability registry cleared");
     }
 
-    // ==================== 内部方法 ====================
+    // ==================== Internal Methods ====================
 
     /**
-     * 为能力实例创建默认描述符
+     * Creates default descriptor for capability instance.
      *
-     * <p>优先从 @Capability 注解推断，无注解时创建最小描述符。</p>
+     * <p>Prefers inferring from @Capability annotation, creates minimal descriptor if no annotation.</p>
      */
     private <T> CapabilityDescriptor createDefaultDescriptor(Class<T> type, T instance) {
         Capability annotation = instance.getClass().getAnnotation(Capability.class);
@@ -410,13 +414,13 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     /**
-     * 检查注册表是否已冻结，冻结后禁止写操作
+     * Checks if registry is frozen, write operations prohibited after freezing.
      *
-     * @throws IllegalStateException 注册表已冻结时
+     * @throws IllegalStateException when registry is frozen
      */
     private void checkNotFrozen() {
         if (frozen) {
-            throw new IllegalStateException("能力注册表已冻结，不允许修改");
+            throw new IllegalStateException("Capability registry is frozen, modifications not allowed");
         }
     }
 

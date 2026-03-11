@@ -1,4 +1,4 @@
-package <%= packageName %>.api.dto;
+﻿package <%= packageName %>.api.dto;
 
 import lombok.Data;
 import lombok.Builder;
@@ -9,15 +9,15 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * <%= displayName %> 数据传输对象
+ * <%= displayName %> Data Transfer Object
  * 
- * <p>用于模块间数据传输的标准 DTO，包含基本业务字段。</p>
+ * <p>Standard DTO for inter-module data transfer with basic business fields。</p>
  * 
- * <p>【v3.0 架构说明】</p>
+ * <p>[v3.0 Architecture]</p>
  * <ul>
- *   <li>DTO 放置在 api 模块，供其他模块依赖</li>
- *   <li>仅包含数据字段，不包含业务逻辑</li>
- *   <li>使用 Lombok 简化代码</li>
+ *   <li>DTOs are placed in the api module for other modules to depend on</li>
+ *   <li>Contains only data fields, no business logic</li>
+ *   <li>Uses Lombok to simplify code</li>
  * </ul>
  * 
  * @author <%= author %>
@@ -33,49 +33,49 @@ public class <%= classPrefix %>DTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 唯一标识
+     * Unique identifier
      */
     private String id;
 
     /**
-     * 名称
+     * Name
      */
     private String name;
 
     /**
-     * 描述
+     * Description
      */
     private String description;
 
     /**
-     * 状态
-     * <p>可选值：DRAFT, ACTIVE, COMPLETED, CANCELLED</p>
+     * Status
+     * <p>Possible values：DRAFT, ACTIVE, COMPLETED, CANCELLED</p>
      */
     private String status;
 
     /**
-     * 租户 ID
-     * <p>多租户架构下的租户标识</p>
+     * Tenant ID
+     * <p>Tenant identifier in multi-tenant architecture</p>
      */
     private String tenantId;
 
     /**
-     * 创建者 ID
+     * Creator ID
      */
     private String createdBy;
 
     /**
-     * 创建时间
+     * Created at
      */
     private LocalDateTime createdAt;
 
     /**
-     * 更新者 ID
+     * Updater ID
      */
     private String updatedBy;
 
     /**
-     * 更新时间
+     * Updated at
      */
     private LocalDateTime updatedAt;
 }

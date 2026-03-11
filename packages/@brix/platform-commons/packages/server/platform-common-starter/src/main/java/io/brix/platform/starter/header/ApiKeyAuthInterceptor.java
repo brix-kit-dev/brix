@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.header;
 
 import java.io.IOException;
@@ -14,37 +29,37 @@ import org.springframework.util.StringUtils;
 import io.brix.platform.starter.config.ServiceProperties;
 
 /**
- * API Key 认证拦截器（出站请求
+ * API Key Authentication Interceptor (Outbound Requests)
  * 
- * <p>自动为向基座的请求添API Key API Secret 认证头，
- * 确保服务间调用的安全认证</p>
+ * <p>Automatically adds API Key and API Secret authentication headers to requests to the host,
+ * ensuring secure authentication for inter-service calls.</p>
  * 
- * <p>设计目的</p>
+ * <p>Design Purpose:</p>
  * <ul>
- *   <li>解决问题5：API_KEY/API_SECRET 参数经常缺失</li>
- *   <li>自动为符合条件的请求添加认证</li>
- *   <li>避免每次请求都手动设置认证信</li>
+ *   <li>Resolve Issue 5: API_KEY/API_SECRET parameters are often missing</li>
+ *   <li>Automatically add authentication to qualifying requests</li>
+ *   <li>Avoid manually setting authentication info for each request</li>
  * </ul>
  * 
- * <p>认证头：</p>
+ * <p>Authentication Headers:</p>
  * <ul>
- *   <li>X-API-Key：服务的 API Key</li>
- *   <li>X-API-Secret：服务的 API Secret</li>
+ *   <li>X-API-Key: Service's API Key</li>
+ *   <li>X-API-Secret: Service's API Secret</li>
  * </ul>
  * 
- * <p>工作原理</p>
+ * <p>How It Works:</p>
  * <ol>
- *   <li>检查请求 URI 是否指向基座（根据 baseUrl 判断</li>
- *   <li>如果是基座请求，添加认证</li>
- *   <li>如果配置了认证信息，则添</li>
+ *   <li>Check if request URI points to the host (based on baseUrl)</li>
+ *   <li>If it's a host request, add authentication headers</li>
+ *   <li>If authentication is configured, add headers</li>
  * </ol>
  * 
- * <p>配置示例</p>
+ * <p>Configuration Example:</p>
  * <pre>
- * shinwa:
+ * brix:
  *   service:
- *     api-key: ${SHINWA_SERVICE_API_KEY:platform-service-key}
- *     api-secret: ${SHINWA_SERVICE_API_SECRET:platform-service-secret}
+ *     api-key: ${BRIX_SERVICE_API_KEY:platform-service-key}
+ *     api-secret: ${BRIX_SERVICE_API_SECRET:platform-service-secret}
  *     base-url: http://platform-host-web:8080
  * </pre>
  * 
@@ -58,23 +73,23 @@ public class ApiKeyAuthInterceptor implements ClientHttpRequestInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ApiKeyAuthInterceptor.class);
     
     /**
-     * 服务配置
+     * Service configuration
      */
     private final ServiceProperties serviceProperties;
     
     /**
-     * 是否仅对基座请求添加认证
+     * Whether to add authentication only for host requests
      * 
-     * <p>true 时，只对指向 baseUrl 的请求添加认证头</p>
-     * <p>false 时，对所有请求添加认证头</p>
+     * <p>When true, only adds authentication headers for requests to baseUrl</p>
+     * <p>When false, adds authentication headers for all requests</p>
      */
     private final boolean hostOnly;
     
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param serviceProperties 服务配置
-     * @param hostOnly          是否仅对基座请求添加认证
+     * @param serviceProperties Service configuration
+     * @param hostOnly          Whether to add authentication only for host requests
      */
     public ApiKeyAuthInterceptor(ServiceProperties serviceProperties, boolean hostOnly) {
         this.serviceProperties = serviceProperties;
@@ -82,28 +97,28 @@ public class ApiKeyAuthInterceptor implements ClientHttpRequestInterceptor {
     }
     
     /**
-     * 构造函数（默认仅对基座请求添加认证
+     * Constructor (default: add authentication only for host requests)
      * 
-     * @param serviceProperties 服务配置
+     * @param serviceProperties Service configuration
      */
     public ApiKeyAuthInterceptor(ServiceProperties serviceProperties) {
         this(serviceProperties, true);
     }
     
     /**
-     * 拦截出站请求并添加认Headers
+     * Intercept outbound requests and add authentication headers
      * 
-     * @param request   HTTP 请求
-     * @param body      请求
-     * @param execution 执行
-     * @return HTTP 响应
-     * @throws IOException 如果请求执行失败
+     * @param request   HTTP request
+     * @param body      Request body
+     * @param execution Execution chain
+     * @return HTTP response
+     * @throws IOException if request execution fails
      */
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, 
                                         ClientHttpRequestExecution execution) throws IOException {
         
-        // 判断是否需要添加认证头
+        // Determine whether to add authentication headers
         if (shouldAddAuthHeaders(request.getURI())) {
             addAuthHeaders(request);
         }
@@ -112,30 +127,30 @@ public class ApiKeyAuthInterceptor implements ClientHttpRequestInterceptor {
     }
     
     /**
-     * 判断是否应该为该请求添加认证
+     * Determine whether to add authentication headers for this request
      * 
-     * @param uri 请求 URI
-     * @return 是否需要添加认证头
+     * @param uri Request URI
+     * @return Whether to add authentication headers
      */
     private boolean shouldAddAuthHeaders(URI uri) {
-        // 检查是否配置了认证信息
+        // Check if authentication is configured
         if (!hasAuthConfig()) {
             return false;
         }
         
-        // 如果不限制仅基座请求，则对所有请求添
+        // If not limited to host requests only, add to all requests
         if (!hostOnly) {
             return true;
         }
         
-        // 检查是否是基座请求
+        // Check if this is a host request
         return isHostRequest(uri);
     }
     
     /**
-     * 检查是否配置了认证信息
+     * Check if authentication is configured
      * 
-     * @return 是否配置API Key API Secret
+     * @return Whether API Key and API Secret are configured
      */
     private boolean hasAuthConfig() {
         return serviceProperties != null
@@ -144,10 +159,10 @@ public class ApiKeyAuthInterceptor implements ClientHttpRequestInterceptor {
     }
     
     /**
-     * 判断请求是否指向基座
+     * Determine if the request is targeting the host
      * 
-     * @param uri 请求 URI
-     * @return 是否是基座请
+     * @param uri Request URI
+     * @return Whether this is a host request
      */
     private boolean isHostRequest(URI uri) {
         if (serviceProperties == null || !StringUtils.hasText(serviceProperties.getBaseUrl())) {
@@ -161,23 +176,23 @@ public class ApiKeyAuthInterceptor implements ClientHttpRequestInterceptor {
     }
     
     /**
-     * 添加认证 Headers
+     * Add authentication headers
      * 
-     * @param request HTTP 请求
+     * @param request HTTP request
      */
     private void addAuthHeaders(HttpRequest request) {
         var headers = request.getHeaders();
         
-        // 添加 API Key
+        // Add API Key
         if (!headers.containsKey(PlatformHeaders.API_KEY)) {
             headers.add(PlatformHeaders.API_KEY, serviceProperties.getApiKey());
         }
         
-        // 添加 API Secret
+        // Add API Secret
         if (!headers.containsKey(PlatformHeaders.API_SECRET)) {
             headers.add(PlatformHeaders.API_SECRET, serviceProperties.getApiSecret());
         }
         
-        log.debug("[ApiKeyAuthInterceptor] 添加认证头到请求: {}", request.getURI());
+        log.debug("[ApiKeyAuthInterceptor] Adding authentication headers to request: {}", request.getURI());
     }
 }

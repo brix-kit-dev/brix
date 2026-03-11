@@ -1,16 +1,31 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.audit;
 
 import java.lang.annotation.*;
 
 /**
- * 审计注解
+ * Audit Annotation
  * 
- * <p>v2.1 阶段4 审计日志增强</p>
+ * <p>v2.1 Phase 4 - Audit Logging Enhancement</p>
  * 
- * <p>功能说明</p>
- * <p>标记需要进行详细审计记录的方法，支持自定义审计配置</p>
+ * <p>Functionality</p>
+ * <p>Marks methods that require detailed audit logging with customizable audit configuration.</p>
  * 
- * <p>使用示例</p>
+ * <p>Usage Example</p>
  * <pre>{@code
  * @Auditable(
  *     action = "FILE_DOWNLOAD",
@@ -23,7 +38,7 @@ import java.lang.annotation.*;
  * }
  * }</pre>
  * 
- * <p>审计日志输出格式</p>
+ * <p>Audit Log Output Format</p>
  * <pre>
  * [AUDIT] action=FILE_DOWNLOAD, resource=FileCenter, userId=xxx, 
  *         params={fileId=123}, ip=127.0.0.1, status=SUCCESS, duration=50ms
@@ -38,57 +53,57 @@ import java.lang.annotation.*;
 public @interface Auditable {
     
     /**
-     * 操作类型
+     * Action Type
      * 
-     * <p>描述方法执行的操作，如：CREATE、READ、UPDATE、DELETE
-     * FILE_UPLOAD、FILE_DOWNLOAD、LOGIN 等</p>
+     * <p>Describes the operation performed by the method, e.g.: CREATE, READ, UPDATE, DELETE,
+     * FILE_UPLOAD, FILE_DOWNLOAD, LOGIN, etc.</p>
      * 
-     * @return 操作类型
+     * @return Action type
      */
     String action();
     
     /**
-     * 资源类型
+     * Resource Type
      * 
-     * <p>描述操作的资源对象，如：User、File、Case、Contract 等</p>
+     * <p>Describes the resource being operated on, e.g.: User, File, Case, Contract, etc.</p>
      * 
-     * @return 资源类型
+     * @return Resource type
      */
     String resource();
     
     /**
-     * 是否记录请求参数
+     * Whether to record request parameters
      * 
-     * <p>默认 true。注意：敏感信息请设置为 false 或使用 @SensitiveParam 注解</p>
+     * <p>Default is true. Note: For sensitive information, set to false or use @SensitiveParam annotation.</p>
      * 
-     * @return 是否记录参数
+     * @return Whether to record parameters
      */
     boolean recordParams() default true;
     
     /**
-     * 是否记录返回结果
+     * Whether to record return result
      * 
-     * <p>默认 false。对于大对象或流式返回，建议保持 false</p>
+     * <p>Default is false. For large objects or streaming responses, keep this as false.</p>
      * 
-     * @return 是否记录结果
+     * @return Whether to record result
      */
     boolean recordResult() default false;
     
     /**
-     * 敏感参数名列
+     * Sensitive parameter names
      * 
-     * <p>这些参数将被脱敏（显示为 ****）</p>
+     * <p>These parameters will be masked (displayed as ****)</p>
      * 
-     * @return 敏感参数名数
+     * @return Array of sensitive parameter names
      */
     String[] sensitiveParams() default {"password", "token", "secret"};
     
     /**
-     * 操作描述模板
+     * Operation description template
      * 
-     * <p>支持 SpEL 表达式，如："用户 #{#userId} 下载了文#{#fileId}"</p>
+     * <p>Supports SpEL expressions, e.g.: "User #{#userId} downloaded file #{#fileId}"</p>
      * 
-     * @return 描述模板
+     * @return Description template
      */
     String description() default "";
 }

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config;
 
 import org.slf4j.Logger;
@@ -13,16 +28,16 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import jakarta.annotation.PostConstruct;
 
 /**
- * 跨域配置。
+ * CORS Configuration.
  *
- * <p>配置全局 CORS（Cross-Origin Resource Sharing）策略，
- * 允许前端应用跨域访问网关接口。
- * 所有配置项均可通过 application.yml 外部化管理。
+ * <p>Configures global CORS (Cross-Origin Resource Sharing) policies,
+ * allowing frontend applications to access gateway APIs across origins.
+ * All configuration options can be externalized via application.yml.
  *
  * @author Brix Platform Authors
  * @version 1.0.1
- * @see CorsProperties CORS 配置属性类
- * @see CorsWebFilter Spring WebFlux 响应式跨域过滤器
+ * @see CorsProperties CORS configuration properties
+ * @see CorsWebFilter Spring WebFlux reactive CORS filter
  */
 @Configuration
 @EnableConfigurationProperties(CorsProperties.class)
@@ -31,17 +46,17 @@ public class CorsConfig {
     private static final Logger log = LoggerFactory.getLogger(CorsConfig.class);
 
     /**
-     * 安全警告消息模板
+     * Security warning message template
      */
     private static final String SECURITY_WARNING = """
 
         ╔══════════════════════════════════════════════════════════╗
-        ║                  ⚠️  CORS 安全警告  ⚠️                   ║
+        ║                  ⚠️  CORS Security Warning  ⚠️            ║
         ╠══════════════════════════════════════════════════════════╣
-        ║ 当前 CORS 配置允许所有来源访问 (allowed-origin-patterns: *)  ║
-        ║ 此配置仅适用于开发环境，生产环境存在严重安全风险！               ║
+        ║ Current CORS config allows all origins (allowed-origin-patterns: *)  ║
+        ║ This should only be used in development - serious security risk in production!  ║
         ╠══════════════════════════════════════════════════════════╣
-        ║ 生产环境请在 application.yml 中配置具体的域名白名单：          ║
+        ║ For production, configure specific domain whitelist in application.yml:  ║
         ║                                                          ║
         ║   gateway:                                                ║
         ║     cors:                                                 ║
@@ -53,11 +68,11 @@ public class CorsConfig {
         """;
 
     /**
-     * 凭证冲突警告消息
+     * Credentials conflict warning message
      */
     private static final String CREDENTIALS_WARNING = """
-        [CORS] 配置警告：allowCredentials=true 时不应使用通配符来源 "*"
-        浏览器会拒绝携带凭证的跨域请求，请配置具体的域名白名单。
+        [CORS] Configuration warning: wildcard origin "*" should not be used with allowCredentials=true
+        Browsers will reject cross-origin requests with credentials. Please configure specific domain whitelist.
         """;
 
     private final CorsProperties corsProperties;
@@ -69,46 +84,47 @@ public class CorsConfig {
     }
 
     /**
-     * 启动时安全检查。
+     * Security check at startup.
      *
-     * <p>检查 CORS 配置是否符合安全要求，输出相应的警告或阻止应用启动。
+     * <p>Validates CORS configuration for security compliance,
+     * outputs warnings or prevents application startup as appropriate.
      */
     @PostConstruct
     public void validateCorsConfiguration() {
-        log.info("[CORS] 配置加载完成: {}", corsProperties);
+        log.info("[CORS] Configuration loaded: {}", corsProperties);
 
-        // 检查是否包含通配符来源
+        // checkwhethercontainpassconfigurationsymbolorigin
         if (corsProperties.hasWildcardOrigin()) {
-            // 检查是否为生产环境
+            // checkwhetherisproductionenvironment
             boolean isProduction = isProductionEnvironment();
 
-            // 生产环境阻断检查
+            // Production environment block check
             if (isProduction && corsProperties.isBlockWildcardInProduction()) {
-                log.error("[CORS] 生产环境禁止使用通配符 CORS 配置！请配置具体的域名白名单。");
+                log.error("[CORS] Wildcard CORS configuration is forbidden in production! Please configure specific domain whitelist.");
                 throw new IllegalStateException(
-                    "CORS 安全检查失败：生产环境不允许使用通配符来源配置。" +
-                    "请在 application.yml 中配置具体的 allowed-origin-patterns 域名白名单。"
+                    "CORS security check failed: Wildcard origin configuration is not allowed in production. " +
+                    "Please configure specific allowed-origin-patterns domain whitelist in application.yml."
                 );
             }
 
-            // 输出安全警告
+            // Output security warning
             if (corsProperties.isWarnOnWildcard()) {
                 log.warn(SECURITY_WARNING);
             }
 
-            // 凭证冲突检查
+            // Credentials conflict check
             if (corsProperties.isAllowCredentials()) {
                 log.warn(CREDENTIALS_WARNING);
             }
         } else {
-            log.info("[CORS] 配置检查通过，允许的来源: {}", corsProperties.getAllowedOriginPatterns());
+            log.info("[CORS] Configuration check passed, allowed origins: {}", corsProperties.getAllowedOriginPatterns());
         }
     }
 
     /**
-     * 检查当前是否为生产环境。
+     * Check if current environment is production.
      *
-     * @return 如果当前激活的 profile 包含 "prod" 则返回 true
+     * @return true if any active profile contains "prod"
      */
     private boolean isProductionEnvironment() {
         String[] activeProfiles = environment.getActiveProfiles();
@@ -121,44 +137,44 @@ public class CorsConfig {
     }
 
     /**
-     * 创建跨域过滤器 Bean。
+     * Create CORS filter bean.
      *
-     * <p>根据 {@link CorsProperties} 配置创建 CORS 过滤器，
-     * 应用于所有经过网关的请求。
+     * <p>Creates a CORS filter based on {@link CorsProperties} configuration,
+     * applied to all requests passing through the gateway.
      *
-     * @return CorsWebFilter 响应式跨域过滤器实例
+     * @return CorsWebFilter reactive CORS filter instance
      */
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // 配置允许的来源模式
+        // Configure allowed origin patterns
         config.setAllowedOriginPatterns(corsProperties.getAllowedOriginPatterns());
 
-        // 配置允许的 HTTP 方法
+        // Configure allowed HTTP methods
         config.setAllowedMethods(corsProperties.getAllowedMethods());
 
-        // 配置允许的请求头
+        // Configure allowed request headers
         config.setAllowedHeaders(corsProperties.getAllowedHeaders());
 
-        // 配置暴露给客户端的响应头
+        // Configure response headers exposed to clients
         if (corsProperties.getExposedHeaders() != null && !corsProperties.getExposedHeaders().isEmpty()) {
             config.setExposedHeaders(corsProperties.getExposedHeaders());
         }
 
-        // 配置是否允许携带凭证
+        // Configure whether credentials are allowed
         config.setAllowCredentials(corsProperties.isAllowCredentials());
 
-        // 配置预检请求缓存时间
+        // Configure preflight request cache duration
         config.setMaxAge(corsProperties.getMaxAge());
 
-        // 创建基于 URL 的 CORS 配置源
+        // Create URL-based CORS configuration source
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        // 对所有路径应用 CORS 配置
+        // Apply CORS configuration to all paths
         source.registerCorsConfiguration("/**", config);
 
-        log.debug("[CORS] 过滤器已创建，配置: allowedOriginPatterns={}, allowedMethods={}, allowCredentials={}",
+        log.debug("[CORS] Filter created, configuration: allowedOriginPatterns={}, allowedMethods={}, allowCredentials={}",
             corsProperties.getAllowedOriginPatterns(),
             corsProperties.getAllowedMethods(),
             corsProperties.isAllowCredentials()

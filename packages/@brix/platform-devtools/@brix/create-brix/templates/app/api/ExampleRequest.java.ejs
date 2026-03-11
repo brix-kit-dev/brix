@@ -1,4 +1,4 @@
-package <%= packageName %>.api.request;
+﻿package <%= packageName %>.api.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,15 +10,15 @@ import lombok.Builder;
 import java.io.Serializable;
 
 /**
- * 创建<%= displayName %>请求对象
+ * 创建<%= displayName %>Request Object
  * 
- * <p>用于接收创建<%= displayName %>的 API 请求参数。</p>
+ * <p>Used to receive创建<%= displayName %>API request parameters。</p>
  * 
- * <p>【v3.0 架构说明】</p>
+ * <p>[v3.0 Architecture]</p>
  * <ul>
- *   <li>Request 对象放置在 api 模块</li>
- *   <li>使用 Jakarta Validation 进行参数校验</li>
- *   <li>与 DTO 分离，Request 用于输入，DTO 用于输出</li>
+ *   <li>Request objects are placed in the api module</li>
+ *   <li>Uses Jakarta Validation for parameter validation</li>
+ *   <li>Separated from DTO: Request for input, DTO for output</li>
  * </ul>
  * 
  * @author <%= author %>
@@ -34,23 +34,23 @@ public class Create<%= classPrefix %>Request implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 名称
-     * <p>必填，长度 1-100 字符</p>
+     * Name
+     * <p>Required，length 1-100 characters</p>
      */
-    @NotBlank(message = "名称不能为空")
-    @Size(min = 1, max = 100, message = "名称长度必须在 1-100 字符之间")
+    @NotBlank(message = "Namecannot be empty")
+    @Size(min = 1, max = 100, message = "Namelength必须在 1-100 characters")
     private String name;
 
     /**
-     * 描述
-     * <p>可选，最大 500 字符</p>
+     * Description
+     * <p>Optional，maximum 500 characters</p>
      */
-    @Size(max = 500, message = "描述长度不能超过 500 字符")
+    @Size(max = 500, message = "Descriptionlength不能超过 500 characters")
     private String description;
 
     /**
      * 扩展属性（JSON 格式）
-     * <p>可选，用于存储额外的业务数据</p>
+     * <p>Optional，用于存储额外的业务数据</p>
      */
     private String extendedData;
 }

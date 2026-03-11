@@ -16,7 +16,7 @@
 package io.runtime.orchestrator.lifecycle;
 
 /**
- * 生命周期管理器状态
+ * Lifecycle Manager State.
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -24,44 +24,44 @@ package io.runtime.orchestrator.lifecycle;
 public enum LifecycleManagerState {
 
     /**
-     * 已创建，尚未初始化
+     * Created, not yet initialized.
      */
-    CREATED("已创建"),
+    CREATED("Created"),
 
     /**
-     * 正在初始化模块
+     * Initializing modules.
      */
-    INITIALIZING("初始化中"),
+    INITIALIZING("Initializing"),
 
     /**
-     * 所有模块已初始化
+     * All modules initialized.
      */
-    INITIALIZED("已初始化"),
+    INITIALIZED("Initialized"),
 
     /**
-     * 正在启动模块
+     * Starting modules.
      */
-    STARTING("启动中"),
+    STARTING("Starting"),
 
     /**
-     * 所有模块已启动运行
+     * All modules started and running.
      */
-    RUNNING("运行中"),
+    RUNNING("Running"),
 
     /**
-     * 正在停止模块
+     * Stopping modules.
      */
-    STOPPING("停止中"),
+    STOPPING("Stopping"),
 
     /**
-     * 所有模块已停止
+     * All modules stopped.
      */
-    STOPPED("已停止"),
+    STOPPED("Stopped"),
 
     /**
-     * 发生错误
+     * Error occurred.
      */
-    ERROR("错误");
+    ERROR("Error");
 
     private final String description;
 
@@ -70,9 +70,9 @@ public enum LifecycleManagerState {
     }
 
     /**
-     * 获取状态描述
+     * Gets state description.
      * 
-     * @return 状态描述
+     * @return state description
      */
     public String getDescription() {
         return description;

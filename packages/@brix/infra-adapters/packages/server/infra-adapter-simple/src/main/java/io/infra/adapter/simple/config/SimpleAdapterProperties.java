@@ -20,9 +20,9 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Simple 适配器配置属性
+ * Simple Adapter Configuration Properties
  * 
- * <p>配置内存适配器的各项参数。</p>
+ * <p>Configures various parameters for in-memory adapters.</p>
  * 
  * @author Brix Team
  * @since 3.0.0
@@ -31,35 +31,35 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SimpleAdapterProperties {
 
     /**
-     * 是否启用 Simple 内存适配器
+     * Whether to enable Simple in-memory adapter
      * 
-     * <p>设置为 {@code true} 时激活内存实现的能力适配器，
-     * 适用于本地开发和测试场景。默认关闭。</p>
+     * <p>When set to {@code true}, activates the in-memory capability adapters,
+     * suitable for local development and testing scenarios. Disabled by default.</p>
      */
     private boolean enabled = false;
 
     /**
-     * 状态存储配置
+     * State store configuration
      */
     private StateStoreConfig stateStore = new StateStoreConfig();
 
     /**
-     * 事件总线配置
+     * Event bus configuration
      */
     private EventBusConfig eventBus = new EventBusConfig();
 
     /**
-     * 分布式锁配置
+     * Distributed lock configuration
      */
     private LockConfig lock = new LockConfig();
 
     /**
-     * 定时任务配置
+     * Scheduled task configuration
      */
     private SchedulingConfig scheduling = new SchedulingConfig();
 
     /**
-     * 委托认证配置
+     * Delegated authentication configuration
      */
     private DelegatedAuthConfig delegatedAuth = new DelegatedAuthConfig();
 
@@ -113,19 +113,19 @@ public class SimpleAdapterProperties {
         this.delegatedAuth = delegatedAuth;
     }
 
-    // ==================== 内部配置类 ====================
+    // ==================== Inner Configuration Classes ====================
 
     /**
-     * 状态存储配置
+     * State store configuration
      */
     public static class StateStoreConfig {
         /**
-         * 最大缓存条目数
+         * Maximum cache entries
          */
         private int maxSize = 10_000;
 
         /**
-         * 默认过期时间
+         * Default expiration time
          */
         private Duration defaultTtl = Duration.ofHours(1);
 
@@ -147,16 +147,16 @@ public class SimpleAdapterProperties {
     }
 
     /**
-     * 事件总线配置
+     * Event bus configuration
      */
     public static class EventBusConfig {
         /**
-         * 是否使用异步模式
+         * Whether to use async mode
          */
         private boolean asyncMode = false;
 
         /**
-         * 最大事件历史数量
+         * Maximum event history count
          */
         private int maxHistorySize = 1000;
 
@@ -178,11 +178,11 @@ public class SimpleAdapterProperties {
     }
 
     /**
-     * 分布式锁配置
+     * Distributed lock configuration
      */
     public static class LockConfig {
         /**
-         * 是否使用公平锁
+         * Whether to use fair lock
          */
         private boolean fair = false;
 
@@ -196,11 +196,11 @@ public class SimpleAdapterProperties {
     }
 
     /**
-     * 定时任务配置
+     * Scheduled task configuration
      */
     public static class SchedulingConfig {
         /**
-         * 线程池大小
+         * Thread pool size
          */
         private int poolSize = 4;
 
@@ -214,34 +214,34 @@ public class SimpleAdapterProperties {
     }
 
     /**
-     * 委托认证配置
+     * Delegated authentication configuration
      * 
-     * <p>用于嵌入模式对接客户 SSO 系统。</p>
+     * <p>Used for embedded mode integration with customer SSO systems.</p>
      */
     public static class DelegatedAuthConfig {
         
         /**
-         * 是否启用委托认证
+         * Whether to enable delegated authentication
          */
         private boolean enabled = false;
 
         /**
-         * Token 验证 URL（OAuth 2.0 Introspection 端点）
+         * Token validation URL (OAuth 2.0 Introspection endpoint)
          */
         private String tokenValidationUrl;
 
         /**
-         * OAuth 客户端 ID
+         * OAuth client ID
          */
         private String clientId;
 
         /**
-         * OAuth 客户端密钥
+         * OAuth client secret
          */
         private String clientSecret;
 
         /**
-         * 验证结果缓存有效期
+         * Validation result cache TTL
          */
         private Duration cacheTtl = Duration.ofMinutes(5);
 

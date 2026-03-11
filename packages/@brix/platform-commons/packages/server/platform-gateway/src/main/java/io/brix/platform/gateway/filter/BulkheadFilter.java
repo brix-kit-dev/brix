@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
@@ -25,25 +40,25 @@ import reactor.core.publisher.Mono;
 import io.brix.platform.gateway.config.resilience.bulkhead.BulkheadConfiguration;
 
 /**
- * 并发隔离过滤
+ * Bulkhead (Concurrency Isolation) Filter
  * <p>
- * P101 任务：网关限流熔断（Resilience4j
+ * P101 Task: Gateway Rate Limiting and Circuit Breaking (Resilience4j)
  * </p>
  * <p>
- * 基于 Resilience4j Bulkhead 实现并发数限制
- * 当并发请求数超过阈值时，返HTTP 503 Service Unavailable
+ * Implements concurrency limiting based on Resilience4j Bulkhead.
+ * Returns HTTP 503 Service Unavailable when concurrent requests exceed threshold.
  * </p>
  * 
- * <h3>与限流器的协</h3>
+ * <h3>withrate limiterofcooperate</h3>
  * <pre>
- * 请求 ──RateLimitFilter ──BulkheadFilter ──CircuitBreakerFilter ──下游服务
+ * request ──RateLimitFilter ──BulkheadFilter ──CircuitBreakerFilter ──downstreamservice
  *                                                    
  *                                                    
- *          QPS 控制            并发数控          故障熔断
- *         (429 响应)          (503 响应)          (503 响应)
+ *          QPS control            concurrentcountcontrol          faultcircuit breaker
+ *         (429 response)          (503 response)          (503 response)
  * </pre>
  * 
- * <h3>响应格式</h3>
+ * <h3>responseformat</h3>
  * <pre>{@code
  * HTTP/1.1 503 Service Unavailable
  * Content-Type: application/json
@@ -68,15 +83,15 @@ public class BulkheadFilter implements GlobalFilter, Ordered {
     private static final Logger logger = LoggerFactory.getLogger(BulkheadFilter.class);
 
     /**
-     * 过滤器优先级
+     * Filter priority
      * <p>
-     * 在限流过滤器之后执行
+     * Executes after rate limit filter.
      * </p>
      */
     private static final int ORDER = -199;
 
     /**
-     * 隔离配置
+     * Bulkhead configuration
      */
     private final BulkheadConfiguration bulkheadConfig;
 
@@ -87,23 +102,23 @@ public class BulkheadFilter implements GlobalFilter, Ordered {
     @Override
     @SuppressWarnings("null")
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 检查隔离是否启
+        // checkisolationwhetherstart
         if (!bulkheadConfig.isEnabled()) {
             return chain.filter(exchange);
         }
 
-        // 获取路由信息
+        // obtainrouteinformation
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
         String routeId = (route != null && route.getId() != null) ? route.getId() : "default";
 
-        // 获取对应的隔离器
+        // obtainforshouldofisolationer
         Bulkhead bulkhead = bulkheadConfig.getBulkheadForRoute(routeId);
         if (bulkhead == null) {
             return chain.filter(exchange);
         }
 
-        // 尝试获取许可
-        // 技术点：tryAcquirePermission() 是非阻塞方法，立即返回结
+        // attemptAcquire permit
+        // technical point：tryAcquirePermission() isnon-blockmethod，establishthat isreturnresult
         boolean permitted;
         try {
             permitted = bulkhead.tryAcquirePermission();
@@ -112,51 +127,51 @@ public class BulkheadFilter implements GlobalFilter, Ordered {
         }
 
         if (permitted) {
-            // 许可获取成功，继续执行过滤器
+            // permitobtainsuccessful，continueexecutefilter
             if (logger.isDebugEnabled()) {
                 var metrics = bulkhead.getMetrics();
-                logger.debug("[shinwa] Bulkhead[{}] permitted, concurrent={}/{}", 
+                logger.debug("[brix] Bulkhead[{}] permitted, concurrent={}/{}", 
                         routeId, 
                         metrics.getMaxAllowedConcurrentCalls() - metrics.getAvailableConcurrentCalls(),
                         metrics.getMaxAllowedConcurrentCalls());
             }
             
-            // 技术点：请求完成后必须释放许可
-            // 使用 doFinally 确保无论成功还是失败都会释放
+            // technical point：requestcompleteaftermustRelease permit
+            // use doFinally ensurenotheorysuccessfulstillisfailedallwillrelease
             return chain.filter(exchange)
                     .doFinally(signalType -> {
                         bulkhead.releasePermission();
                         if (logger.isDebugEnabled()) {
-                            logger.debug("[shinwa] Bulkhead[{}] permission released", routeId);
+                            logger.debug("[brix] Bulkhead[{}] permission released", routeId);
                         }
                     });
         } else {
-            // 许可获取失败，返503 响应
-                logger.warn("[shinwa] Bulkhead[{}] rejected - concurrent limit exceeded, path={}", 
+            // permitobtainfailed，return503 response
+                logger.warn("[brix] Bulkhead[{}] rejected - concurrent limit exceeded, path={}", 
                     routeId, exchange.getRequest().getPath());
                 return rejectRequest(exchange, Objects.requireNonNull(routeId));
         }
     }
 
     /**
-     * 拒绝请求并返503 响应
+     * rejectedrequestandreturn503 response
      * 
-     * @param exchange 请求上下
-     * @param routeId  路由ID
+     * @param exchange requestup and down
+     * @param routeId  routeID
      * @return Mono<Void>
      */
     private Mono<Void> rejectRequest(ServerWebExchange exchange, String routeId) {
         ServerHttpResponse response = exchange.getResponse();
         
-        // 设置响应状态码
+        // setresponsestatuscode
         response.setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
         
-        // 设置响应
+        // setresponse
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        // Retry-After 头告知客户端等待时间（秒
+        // Retry-After headerinformclientwaittime（seconds
         response.getHeaders().set("Retry-After", "5");
         
-        // 构建响应
+        // buildresponse
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         String responseBody = String.format(
                 "{\"code\":503,\"message\":\"Service Unavailable - Concurrent limit exceeded\"," +

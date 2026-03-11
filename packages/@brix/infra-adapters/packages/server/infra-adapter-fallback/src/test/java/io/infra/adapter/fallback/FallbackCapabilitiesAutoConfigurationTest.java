@@ -28,24 +28,30 @@ import io.runtime.sdk.capability.ObservabilityCapability;
 import io.runtime.sdk.capability.ResilienceCapability;
 
 /**
- * {@link FallbackCapabilitiesAutoConfiguration} 自动配置测试
+ * Auto-configuration tests for {@link FallbackCapabilitiesAutoConfiguration}
  *
- * <p>验证 {@code @ConditionalOnMissingBean} 条件注册逻辑：
- * 无竞争 bean 时注册 fallback 实现，有自定义 bean 时跳过。</p>
+ * <p>Validates the {@code @ConditionalOnMissingBean} conditional registration logic:
+ * registers fallback implementations when no competing beans exist, skips when custom beans are present.</p>
+ *
+ * <h3>AuthContextCapability Special Handling</h3>
+ * <p>The fallback AuthContextCapability requires explicit opt-in via {@code brix.fallback.auth.enabled=true}
+ * as a security measure. Test cases that expect AuthContextCapability must set this property.</p>
  *
  * @author Brix Team
  * @since 3.0.0
  */
-@DisplayName("FallbackCapabilitiesAutoConfiguration 测试")
+@DisplayName("FallbackCapabilitiesAutoConfiguration Tests")
 class FallbackCapabilitiesAutoConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(FallbackCapabilitiesAutoConfiguration.class));
 
     @Test
-    @DisplayName("无其他 bean 时应注册全部 5 个 fallback 能力")
+    @DisplayName("Should register all 5 fallback capabilities when no other beans are provided and auth is enabled")
     void shouldRegisterAllFallbackBeans_whenNoneProvided() {
-        contextRunner.run(context -> {
+        contextRunner
+            .withPropertyValues("brix.fallback.auth.enabled=true")
+            .run(context -> {
             assertThat(context).hasSingleBean(AuthContextCapability.class);
             assertThat(context).hasSingleBean(ObservabilityCapability.class);
             assertThat(context).hasSingleBean(ConfigStoreCapability.class);
@@ -66,7 +72,7 @@ class FallbackCapabilitiesAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("有自定义 AuthContextCapability 时应跳过 fallback")
+    @DisplayName("Should skip fallback AuthContextCapability when custom is provided")
     void shouldSkipFallbackAuth_whenCustomProvided() {
         contextRunner
             .withBean(AuthContextCapability.class, CustomAuthContext::new)
@@ -74,7 +80,7 @@ class FallbackCapabilitiesAutoConfigurationTest {
                 assertThat(context).hasSingleBean(AuthContextCapability.class);
                 assertThat(context.getBean(AuthContextCapability.class))
                     .isInstanceOf(CustomAuthContext.class);
-                // 其他 fallback 仍应注册
+                // Other fallback beans should still be registered
                 assertThat(context).hasSingleBean(ObservabilityCapability.class);
                 assertThat(context.getBean(ObservabilityCapability.class))
                     .isInstanceOf(FallbackObservabilityCapability.class);
@@ -82,7 +88,7 @@ class FallbackCapabilitiesAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("有自定义 ResilienceCapability 时应跳过 fallback")
+    @DisplayName("Should skip fallback ResilienceCapability when custom is provided")
     void shouldSkipFallbackResilience_whenCustomProvided() {
         contextRunner
             .withBean(ResilienceCapability.class, CustomResilience::new)
@@ -90,17 +96,17 @@ class FallbackCapabilitiesAutoConfigurationTest {
                 assertThat(context).hasSingleBean(ResilienceCapability.class);
                 assertThat(context.getBean(ResilienceCapability.class))
                     .isInstanceOf(CustomResilience.class);
-                // 其他 fallback 仍应注册
+                // Other fallback beans should still be registered
                 assertThat(context).hasSingleBean(ConfigStoreCapability.class);
                 assertThat(context.getBean(ConfigStoreCapability.class))
                     .isInstanceOf(FallbackConfigStoreCapability.class);
             });
     }
 
-    // ==================== 自定义测试替身 ====================
+    // ==================== Custom Test Doubles ====================
 
     /**
-     * 自定义认证上下文（用于测试 @ConditionalOnMissingBean 跳过逻辑）
+     * Custom authentication context (used to test @ConditionalOnMissingBean skip logic)
      */
     static class CustomAuthContext implements AuthContextCapability {
         @Override public java.security.Principal getCurrentPrincipal() { return () -> "custom"; }
@@ -112,7 +118,7 @@ class FallbackCapabilitiesAutoConfigurationTest {
     }
 
     /**
-     * 自定义韧性能力（用于测试 @ConditionalOnMissingBean 跳过逻辑）
+     * Custom resilience capability (used to test @ConditionalOnMissingBean skip logic)
      */
     static class CustomResilience implements ResilienceCapability {
         @Override

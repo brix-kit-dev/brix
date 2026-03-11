@@ -24,34 +24,35 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * 模块生命周期管理器
+ * Module Lifecycle Manager.
  * 
- * <p>负责管理所有模块的生命周期，包括初始化、启动、健康检查和停止。
- * 支持有序启动（按依赖和 startupOrder）和优雅停止。</p>
+ * <p>Responsible for managing the lifecycle of all modules, including initialization, startup,
+ * health check and shutdown. Supports ordered startup (by dependency and startupOrder)
+ * and graceful shutdown.</p>
  * 
- * <h3>核心职责</h3>
+ * <h3>Core Responsibilities</h3>
  * <ul>
- *   <li>按依赖顺序初始化和启动模块</li>
- *   <li>执行定期健康检查</li>
- *   <li>按逆序停止模块（优雅关闭）</li>
- *   <li>处理模块生命周期事件</li>
+ *   <li>Initialize and start modules in dependency order</li>
+ *   <li>Execute periodic health checks</li>
+ *   <li>Stop modules in reverse order (graceful shutdown)</li>
+ *   <li>Handle module lifecycle events</li>
  * </ul>
  * 
- * <h3>使用示例</h3>
+ * <h3>Usage Example</h3>
  * <pre>{@code
- * // 创建管理器
+ * // Create manager
  * ModuleLifecycleManager manager = new DefaultModuleLifecycleManager(registry, contextFactory);
  * 
- * // 初始化所有模块
+ * // Initialize all modules
  * manager.initializeAll().join();
  * 
- * // 启动所有模块
+ * // Start all modules
  * manager.startAll().join();
  * 
- * // 获取健康状态
+ * // Get health status
  * Map<String, HealthStatus> health = manager.checkHealth();
  * 
- * // 优雅停止
+ * // Graceful shutdown
  * manager.stopAll().join();
  * }</pre>
  * 
@@ -61,171 +62,171 @@ import java.util.concurrent.CompletableFuture;
 public interface ModuleLifecycleManager {
 
     /**
-     * 初始化所有已注册模块
+     * Initializes all registered modules.
      * 
-     * <p>按 startupOrder 和依赖顺序初始化模块</p>
+     * <p>Initializes modules in startupOrder and dependency order</p>
      * 
-     * @return CompletableFuture 表示初始化完成
+     * @return CompletableFuture indicating initialization completion
      */
     CompletableFuture<Void> initializeAll();
 
     /**
-     * 初始化指定模块
+     * Initializes specified module.
      * 
-     * @param moduleId 模块 ID
-     * @return CompletableFuture 表示初始化完成
+     * @param moduleId module ID
+     * @return CompletableFuture indicating initialization completion
      */
     CompletableFuture<Void> initialize(String moduleId);
 
     /**
-     * 启动所有已初始化模块
+     * Starts all initialized modules.
      * 
-     * <p>按 startupOrder 和依赖顺序启动模块</p>
+     * <p>Starts modules in startupOrder and dependency order</p>
      * 
-     * @return CompletableFuture 表示启动完成
+     * @return CompletableFuture indicating startup completion
      */
     CompletableFuture<Void> startAll();
 
     /**
-     * 启动指定模块
+     * Starts specified module.
      * 
-     * @param moduleId 模块 ID
-     * @return CompletableFuture 表示启动完成
+     * @param moduleId module ID
+     * @return CompletableFuture indicating startup completion
      */
     CompletableFuture<Void> start(String moduleId);
 
     /**
-     * 停止所有运行中模块
+     * Stops all running modules.
      * 
-     * <p>按 startupOrder 逆序停止模块，确保依赖先停止</p>
+     * <p>Stops modules in reverse startupOrder, ensuring dependencies stop first</p>
      * 
-     * @return CompletableFuture 表示停止完成
+     * @return CompletableFuture indicating stop completion
      */
     CompletableFuture<Void> stopAll();
 
     /**
-     * 停止指定模块
+     * Stops specified module.
      * 
-     * @param moduleId 模块 ID
-     * @return CompletableFuture 表示停止完成
+     * @param moduleId module ID
+     * @return CompletableFuture indicating stop completion
      */
     CompletableFuture<Void> stop(String moduleId);
 
     /**
-     * 销毁所有模块
+     * Destroys all modules.
      * 
-     * <p>释放所有模块资源</p>
+     * <p>Releases all module resources</p>
      * 
-     * @return CompletableFuture 表示销毁完成
+     * @return CompletableFuture indicating destroy completion
      */
     CompletableFuture<Void> destroyAll();
 
     /**
-     * 检查所有模块健康状态
+     * Checks health status of all modules.
      * 
-     * @return 模块ID -> 健康状态 的映射
+     * @return Map of moduleId -> health status
      */
     Map<String, HealthStatus> checkHealth();
 
     /**
-     * 检查指定模块健康状态
+     * Checks health status of specified module.
      * 
-     * @param moduleId 模块 ID
-     * @return 健康状态
+     * @param moduleId module ID
+     * @return health status
      */
     HealthStatus checkHealth(String moduleId);
 
     /**
-     * 重启指定模块
+     * Restarts specified module.
      * 
-     * @param moduleId 模块 ID
-     * @return CompletableFuture 表示重启完成
+     * @param moduleId module ID
+     * @return CompletableFuture indicating restart completion
      */
     CompletableFuture<Void> restart(String moduleId);
 
     /**
-     * 设置运行时上下文工厂
+     * Sets runtime context factory.
      * 
-     * @param contextFactory 上下文工厂
+     * @param contextFactory context factory
      */
     void setContextFactory(RuntimeContextFactory contextFactory);
 
     /**
-     * 添加生命周期监听器
+     * Adds lifecycle listener.
      * 
-     * @param listener 生命周期监听器
+     * @param listener lifecycle listener
      */
     void addListener(LifecycleListener listener);
 
     /**
-     * 移除生命周期监听器
+     * Removes lifecycle listener.
      * 
-     * @param listener 生命周期监听器
+     * @param listener lifecycle listener
      */
     void removeListener(LifecycleListener listener);
 
     /**
-     * 获取管理器状态
+     * Gets manager state.
      * 
-     * @return 管理器当前状态
+     * @return manager current state
      */
     LifecycleManagerState getState();
 
     /**
-     * 设置能力提供者
+     * Sets capability provider.
      * 
-     * <p>能力提供者用于验证模块所需的能力是否可用</p>
+     * <p>Capability provider is used to verify whether required capabilities are available for modules</p>
      * 
-     * @param capabilityProvider 能力提供者
+     * @param capabilityProvider capability provider
      */
     void setCapabilityProvider(CapabilityProvider capabilityProvider);
 
     /**
-     * 验证模块的能力依赖
+     * Validates module's capability dependencies.
      * 
-     * <p>检查模块 manifest 中声明的必需能力是否都被 Host 提供。
-     * 如果存在缺失的必需能力，将抛出 {@link CapabilityMissingException}。</p>
+     * <p>Checks whether all required capabilities declared in module manifest are provided by Host.
+     * If there are missing required capabilities, throws {@link CapabilityMissingException}.</p>
      * 
-     * @param manifest 模块清单
-     * @throws CapabilityMissingException 如果必需能力缺失
+     * @param manifest module manifest
+     * @throws CapabilityMissingException if required capability is missing
      */
     void validateCapabilities(ModuleManifest manifest);
 
     /**
-     * 运行时上下文工厂
+     * Runtime context factory.
      * 
-     * <p>用于为每个模块创建运行时上下文</p>
+     * <p>Used to create runtime context for each module</p>
      */
     @FunctionalInterface
     interface RuntimeContextFactory {
         /**
-         * 为指定模块创建运行时上下文
+         * Creates runtime context for specified module.
          * 
-         * @param moduleId 模块 ID
-         * @return 运行时上下文
+         * @param moduleId module ID
+         * @return runtime context
          */
         RuntimeContext createContext(String moduleId);
     }
 
     /**
-     * 能力提供者接口
+     * Capability provider interface.
      * 
-     * <p>用于查询 Host 提供的能力</p>
+     * <p>Used to query capabilities provided by Host</p>
      */
     interface CapabilityProvider {
         
         /**
-         * 检查是否提供指定能力
+         * Checks if specified capability is provided.
          * 
-         * @param capability 能力标识（如 "event-bus", "state-store"）
-         * @return 如果提供该能力返回 true
+         * @param capability capability identifier (e.g., "event-bus", "state-store")
+         * @return true if that capability is provided
          */
         boolean hasCapability(String capability);
         
         /**
-         * 获取所有提供的能力
+         * Gets all provided capabilities.
          * 
-         * @return 能力标识集合
+         * @return set of capability identifiers
          */
         Set<String> getCapabilities();
     }

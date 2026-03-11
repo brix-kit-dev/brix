@@ -19,7 +19,6 @@ package io.runtime.manifest.validation;
  * Manifest Validation Exception.
  *
  * <p>Thrown when manifest validation fails.</p>
- * <p>当 Manifest 验证失败时抛出。</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -30,7 +29,6 @@ public class ManifestValidationException extends RuntimeException {
 
     /**
      * Validation result.
-     * 验证结果
      */
     private final ValidationResult validationResult;
 

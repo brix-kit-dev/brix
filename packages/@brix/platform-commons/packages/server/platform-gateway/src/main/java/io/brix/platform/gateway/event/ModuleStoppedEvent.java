@@ -20,25 +20,25 @@ import org.springframework.context.ApplicationEvent;
 import java.time.Instant;
 
 /**
- * 模块停止事件
+ * Module Stopped Event
  * 
- * <p>当模块停止时，Runtime Orchestrator 发布此事件。
- * 网关监听此事件以移除模块注册的路由。</p>
+ * <p>Published by Runtime Orchestrator when a module stops.
+ * Gateway listens to this event to remove routes registered by the module.</p>
  * 
- * <h3>事件来源</h3>
- * <p>由 Runtime Orchestrator 在模块 STOPPED 状态时发布，
- * 通过 EventBusCapability 传递到网关。</p>
+ * <h3>Event Source</h3>
+ * <p>Published by Runtime Orchestrator when module enters STOPPED state,
+ * transmitted to gateway via EventBusCapability.</p>
  * 
- * <h3>事件数据</h3>
+ * <h3>Event Data</h3>
  * <ul>
- *   <li>moduleId - 模块唯一标识</li>
- *   <li>reason - 停止原因</li>
- *   <li>graceful - 是否优雅停止</li>
- *   <li>timestamp - 事件发生时间</li>
+ *   <li>moduleId - Module unique identifier</li>
+ *   <li>reason - Stop reason</li>
+ *   <li>graceful - Whether graceful shutdown</li>
+ *   <li>timestamp - Event occurrence time</li>
  * </ul>
  * 
- * <h3>与 Manifest 的关系</h3>
- * <p>对应 module-manifest.yaml 中 events.subscriptions 配置：</p>
+ * <h3>Relationship with Manifest</h3>
+ * <p>Corresponds to events.subscriptions configuration in module-manifest.yaml:</p>
  * <pre>{@code
  * events:
  *   subscriptions:
@@ -54,54 +54,54 @@ public class ModuleStoppedEvent extends ApplicationEvent {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 停止原因枚举
+     * Stop reason enumeration
      */
     public enum StopReason {
-        /** 正常停止 */
+        /** Normal stop */
         NORMAL,
-        /** 被卸载 */
+        /** Unloaded */
         UNLOAD,
-        /** 错误导致 */
+        /** Caused by error */
         ERROR,
-        /** 超时 */
+        /** Timeout */
         TIMEOUT,
-        /** 系统关闭 */
+        /** System shutdown */
         SHUTDOWN
     }
 
     /**
-     * 模块唯一标识
+     * Module unique identifier
      */
     private final String moduleId;
 
     /**
-     * 停止原因
+     * Stop reason
      */
     private final StopReason reason;
 
     /**
-     * 停止原因描述
+     * Stop reason description
      */
     private final String reasonMessage;
 
     /**
-     * 是否优雅停止
+     * Whether graceful shutdown
      */
     private final boolean graceful;
 
     /**
-     * 事件发生时间
+     * Event occurrence time
      */
     private final Instant timestamp;
 
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param source        事件源
-     * @param moduleId      模块唯一标识
-     * @param reason        停止原因
-     * @param reasonMessage 停止原因描述
-     * @param graceful      是否优雅停止
+     * @param source        event source
+     * @param moduleId      module unique identifier
+     * @param reason        stop reason
+     * @param reasonMessage stop reason description
+     * @param graceful      whether graceful shutdown
      */
     public ModuleStoppedEvent(Object source,
                               String moduleId,
@@ -117,55 +117,55 @@ public class ModuleStoppedEvent extends ApplicationEvent {
     }
 
     /**
-     * 简化构造函数（正常停止）
+     * Simplified constructor (normal stop)
      * 
-     * @param source   事件源
-     * @param moduleId 模块唯一标识
+     * @param source   event source
+     * @param moduleId module unique identifier
      */
     public ModuleStoppedEvent(Object source, String moduleId) {
         this(source, moduleId, StopReason.NORMAL, null, true);
     }
 
     /**
-     * 获取模块唯一标识
+     * Get module unique identifier
      * 
-     * @return 模块 ID
+     * @return module ID
      */
     public String getModuleId() {
         return moduleId;
     }
 
     /**
-     * 获取停止原因
+     * Get stop reason
      * 
-     * @return 停止原因枚举
+     * @return stop reason enumeration
      */
     public StopReason getReason() {
         return reason;
     }
 
     /**
-     * 获取停止原因描述
+     * Get stop reason description
      * 
-     * @return 原因描述
+     * @return reason description
      */
     public String getReasonMessage() {
         return reasonMessage;
     }
 
     /**
-     * 是否优雅停止
+     * Whether graceful shutdown
      * 
-     * @return true 表示优雅停止
+     * @return true indicates graceful shutdown
      */
     public boolean isGraceful() {
         return graceful;
     }
 
     /**
-     * 获取事件发生时间
+     * Get event occurrence time
      * 
-     * @return 时间戳
+     * @return timestamp
      */
     public Instant getEventTimestamp() {
         return timestamp;

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.header;
 
 import java.io.IOException;
@@ -13,34 +28,34 @@ import org.springframework.util.StringUtils;
 import io.brix.platform.starter.config.ServiceProperties;
 
 /**
- * 平台 Headers 拦截器（出站请求
+ * Platform Headers Interceptor (Outbound Requests)
  * 
- * <p>自动为所有出HTTP 请求添加平台标准 Headers
- * 确保服务间调用时上下文信息能够正确传递</p>
+ * <p>Automatically adds platform standard Headers to all outbound HTTP requests,
+ * ensuring context information is correctly propagated during inter-service calls.</p>
  * 
- * <p>设计目的</p>
+ * <p>Design Purpose:</p>
  * <ul>
- *   <li>解决问题3：HTTP Headers 定义分散</li>
- *   <li>解决问题6：X-Tenant-Id 请求头经常遗</li>
- *   <li>自动传递租户、追踪等上下文信</li>
+ *   <li>Resolve Issue 3: HTTP Headers definitions scattered</li>
+ *   <li>Resolve Issue 6: X-Tenant-Id request header is often missing</li>
+ *   <li>Automatically propagate tenant, tracing and other context information</li>
  * </ul>
  * 
- * <p>添加Headers</p>
+ * <p>Added Headers:</p>
  * <ul>
- *   <li>X-Tenant-Id：从 TenantContextHolder 获取</li>
- *   <li>X-Trace-Id：从 TenantContextHolder 获取</li>
- *   <li>X-User-Id：从 TenantContextHolder 获取（如果存在）</li>
- *   <li>X-Shinwa-Client：标识为服务调用</li>
- *   <li>X-Shinwa-Client-Version：服务版本（如果配置了）</li>
+ *   <li>X-Tenant-Id: Retrieved from TenantContextHolder</li>
+ *   <li>X-Trace-Id: Retrieved from TenantContextHolder</li>
+ *   <li>X-User-Id: Retrieved from TenantContextHolder (if present)</li>
+ *   <li>X-Brix-Client: Identifies as service call</li>
+ *   <li>X-Brix-Client-Version: Service version (if configured)</li>
  * </ul>
  * 
- * <p>使用方式</p>
+ * <p>Usage:</p>
  * <pre>
- * // 配置 RestTemplate
+ * // Configure RestTemplate
  * RestTemplate restTemplate = new RestTemplate();
  * restTemplate.getInterceptors().add(new PlatformHeadersInterceptor(serviceProperties));
  * 
- * // 配置 WebClient（参WebClientAutoConfiguration
+ * // Configure WebClient (see WebClientAutoConfiguration)
  * </pre>
  * 
  * @author Brix Platform Authors Team
@@ -53,68 +68,68 @@ public class PlatformHeadersInterceptor implements ClientHttpRequestInterceptor 
     private static final Logger log = LoggerFactory.getLogger(PlatformHeadersInterceptor.class);
     
     /**
-     * 服务配置
+     * Service configuration
      */
     private final ServiceProperties serviceProperties;
     
     /**
-     * 构造函数
+     * Constructor
      * 
-     * @param serviceProperties 服务配置，用于获取服务名和版
+     * @param serviceProperties Service configuration, used to get service name and version
      */
     public PlatformHeadersInterceptor(ServiceProperties serviceProperties) {
         this.serviceProperties = serviceProperties;
     }
     
     /**
-     * 拦截出站请求并添加平Headers
+     * Intercept outbound requests and add platform Headers
      * 
-     * @param request   HTTP 请求
-     * @param body      请求
-     * @param execution 执行
-     * @return HTTP 响应
-     * @throws IOException 如果请求执行失败
+     * @param request   HTTP request
+     * @param body      Request body
+     * @param execution Execution chain
+     * @return HTTP response
+     * @throws IOException if request execution fails
      */
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, 
                                         ClientHttpRequestExecution execution) throws IOException {
         
-        // 添加平台标准 Headers
+        // Add platform standard Headers
         addPlatformHeaders(request);
         
-        log.debug("[PlatformHeadersInterceptor] 出站请求: {} {}, Headers: {}",
+        log.debug("[PlatformHeadersInterceptor] Outbound request: {} {}, Headers: {}",
             request.getMethod(), request.getURI(), request.getHeaders().keySet());
         
         return execution.execute(request, body);
     }
     
     /**
-     * 添加平台标准 Headers
+     * Add platform standard Headers
      * 
-     * @param request HTTP 请求
+     * @param request HTTP request
      */
     private void addPlatformHeaders(HttpRequest request) {
         var headers = request.getHeaders();
         
-        // 1. 添加租户 ID（必须）
+        // 1. Add tenant ID (required)
         if (!headers.containsKey(PlatformHeaders.TENANT_ID)) {
             String tenantId = TenantContextHolder.getTenantId();
             headers.add(PlatformHeaders.TENANT_ID, tenantId);
         }
         
-        // 2. 添加追踪 ID
+        // 2. Add trace ID
         String traceId = TenantContextHolder.getTraceId();
         if (StringUtils.hasText(traceId) && !headers.containsKey(PlatformHeaders.TRACE_ID)) {
             headers.add(PlatformHeaders.TRACE_ID, traceId);
         }
         
-        // 3. 添加用户 ID（如果存在）
+        // 3. Add user ID (if present)
         String userId = TenantContextHolder.getUserId();
         if (StringUtils.hasText(userId) && !headers.containsKey(PlatformHeaders.USER_ID)) {
             headers.add(PlatformHeaders.USER_ID, userId);
         }
         
-        // 4. 添加客户端标
+        // 4. Add client identifier
         if (!headers.containsKey(PlatformHeaders.CLIENT)) {
             String clientName = serviceProperties != null && StringUtils.hasText(serviceProperties.getName())
                 ? serviceProperties.getName()
@@ -122,7 +137,7 @@ public class PlatformHeadersInterceptor implements ClientHttpRequestInterceptor 
             headers.add(PlatformHeaders.CLIENT, clientName);
         }
         
-        // 5. 添加平台环境（如果配置了
-        // 可以从配置中读取当前环境
+        // 5. Add platform environment (if configured)
+        // Can be read from configuration for current environment
     }
 }

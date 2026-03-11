@@ -16,9 +16,9 @@
 package io.runtime.orchestrator.registry;
 
 /**
- * 模块未找到异常
+ * Module Not Found Exception.
  * 
- * <p>当请求的模块在注册表中不存在时抛出。</p>
+ * <p>Thrown when the requested module does not exist in the registry.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -28,14 +28,14 @@ public class ModuleNotFoundException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 模块 ID
+     * Module ID.
      */
     private final String moduleId;
 
     /**
-     * 创建模块未找到异常
+     * Creates module not found exception.
      * 
-     * @param moduleId 模块 ID
+     * @param moduleId module ID
      */
     public ModuleNotFoundException(String moduleId) {
         super("Module not found: " + moduleId);
@@ -43,9 +43,9 @@ public class ModuleNotFoundException extends RuntimeException {
     }
 
     /**
-     * 获取模块 ID
+     * Gets module ID.
      * 
-     * @return 模块 ID
+     * @return module ID
      */
     public String getModuleId() {
         return moduleId;

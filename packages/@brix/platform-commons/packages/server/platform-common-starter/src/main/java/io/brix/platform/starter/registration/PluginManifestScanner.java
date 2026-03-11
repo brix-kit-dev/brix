@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.starter.registration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,33 +27,33 @@ import java.io.InputStream;
 import java.util.*;
 
 /**
- * 插件 Manifest 扫描
+ * Plugin Manifest Scanner
  * 
- * <p>扫描 classpath 下所JAR 包中META-INF/plugin-manifest.json 文件
- * 聚合所有插件的 UI 契约和事件契约</p>
+ * <p>Scans META-INF/plugin-manifest.json files in all JAR packages under classpath
+ * and aggregates UI contracts and event contracts from all plugins</p>
  * 
- * <p>这是方案B（插件自描述）的核心实现</p>
+ * <p>This is the core implementation of Solution B (plugin self-description)</p>
  * <ul>
- *   <li>插件自治：每个插件在自己JAR 中定manifest</li>
- *   <li>服务聚合：服务启动时自动扫描所有依赖插件的 manifest</li>
- *   <li>动态组合：服务更换插件组合时，菜单自动跟着</li>
+ *   <li>Plugin autonomy: Each plugin defines its manifest in its own JAR</li>
+ *   <li>Service aggregation: Automatically scans manifests of all dependent plugins at service startup</li>
+ *   <li>Dynamic composition: When service changes plugin combinations, menus follow automatically</li>
  * </ul>
  * 
- * <p>扫描路径</p>
+ * <p>Scan path</p>
  * <pre>
  * classpath*:META-INF/plugin-manifest.json
  * </pre>
  * 
- * <p>使用示例</p>
+ * <p>Usage example</p>
  * <pre>
  * {@code
  * @Autowired
  * private PluginManifestScanner scanner;
  * 
- * // 获取所有插manifest
+ * // Get all plugin manifests
  * List<PluginManifest> manifests = scanner.scanManifests();
  * 
- * // 聚合 UI 契约
+ * // Aggregate UI contracts
  * Map<String, Object> aggregatedUi = scanner.aggregateUiContracts();
  * }
  * </pre>
@@ -51,13 +66,13 @@ public class PluginManifestScanner {
     
     private static final Logger log = LoggerFactory.getLogger(PluginManifestScanner.class);
     
-    /** Manifest 文件路径模式 */
+    /** Manifest file path pattern */
     private static final String MANIFEST_PATTERN = "classpath*:META-INF/plugin-manifest.json";
     
     private final ObjectMapper objectMapper;
     private final PathMatchingResourcePatternResolver resolver;
     
-    /** 缓存扫描结果 */
+    /** Cached scan results */
     private List<PluginManifest> cachedManifests;
     
     public PluginManifestScanner(ObjectMapper objectMapper) {
@@ -66,11 +81,11 @@ public class PluginManifestScanner {
     }
     
     /**
-     * 扫描所有插manifest
+     * Scan all plugin manifests
      * 
-     * <p>扫描 classpath 下所有 META-INF/plugin-manifest.json 文件并解析</p>
+     * <p>Scans and parses all META-INF/plugin-manifest.json files under classpath</p>
      * 
-     * @return 插件 manifest 列表
+     * @return List of plugin manifests
      */
     public List<PluginManifest> scanManifests() {
         if (cachedManifests != null) {
@@ -81,51 +96,51 @@ public class PluginManifestScanner {
         
         try {
             Resource[] resources = resolver.getResources(MANIFEST_PATTERN);
-            log.info("[PluginManifestScanner] 发现 {} plugin-manifest.json 文件", resources.length);
+            log.info("[PluginManifestScanner] Found {} plugin-manifest.json files", resources.length);
             
             for (Resource resource : resources) {
                 try (InputStream is = resource.getInputStream()) {
                     PluginManifest manifest = objectMapper.readValue(is, PluginManifest.class);
                     if (manifest.getName() != null) {
                         manifests.add(manifest);
-                        log.info("[PluginManifestScanner] 加载插件 manifest: {} v{}", 
+                        log.info("[PluginManifestScanner] Loaded plugin manifest: {} v{}", 
                             manifest.getName(), manifest.getVersion());
                     }
                 } catch (IOException e) {
-                    log.warn("[PluginManifestScanner] 解析 manifest 失败: {}, 错误: {}", 
+                    log.warn("[PluginManifestScanner] Failed to parse manifest: {}, error: {}", 
                         resource.getDescription(), e.getMessage());
                 }
             }
         } catch (IOException e) {
-            log.error("[PluginManifestScanner] 扫描 manifest 文件失败: {}", e.getMessage());
+            log.error("[PluginManifestScanner] Failed to scan manifest files: {}", e.getMessage());
         }
         
-        log.info("[PluginManifestScanner] 共加{} 个插manifest", manifests.size());
+        log.info("[PluginManifestScanner] Loaded {} plugin manifests in total", manifests.size());
         cachedManifests = manifests;
         return manifests;
     }
     
     /**
-     * 聚合所有插件的 UI 契约
+     * Aggregate UI contracts from all plugins
      * 
-     * <p>将所有插件的 UI 配置合并为 Plugin Engine 期望的格式</p>
+     * <p>Merges UI configurations from all plugins into the format expected by Plugin Engine</p>
      * 
-     * <p><b>重要更新 (v2.1.1):</b> 每个路由现在包含自己remoteEntry scope
-     * 支持多插件聚合场景下每个插件有独立的前端入口</p>
+     * <p><b>Important update (v2.1.1):</b> Each route now contains its own remoteEntry and scope,
+     * supporting multi-plugin aggregation scenarios where each plugin has an independent frontend entry</p>
      * 
-     * @return 聚合后的 UI 契约 Map，如果没有任UI 配置则返回 null
+     * @return Aggregated UI contract Map, returns null if no UI configurations exist
      */
     public Map<String, Object> aggregateUiContracts() {
         List<PluginManifest> manifests = scanManifests();
         
         if (manifests.isEmpty()) {
-            log.debug("[PluginManifestScanner] 没有发现插件 manifest，UI 契约为空");
+            log.debug("[PluginManifestScanner] No plugin manifests found, UI contract is empty");
             return null;
         }
         
-        // 聚合所有路由（每个路由包含自己remoteEntry scope
+        // Aggregate all routes (each route contains its own remoteEntry and scope)
         List<Map<String, Object>> allRoutes = new ArrayList<>();
-        // 使用第一个有效的 remoteEntry/scope 作为默认值（向后兼容
+        // Use the first valid remoteEntry/scope as defaults (backward compatible)
         String defaultRemoteEntry = null;
         String defaultScope = null;
         
@@ -136,11 +151,11 @@ public class PluginManifestScanner {
             
             PluginManifest.WebUi webUi = manifest.getUi().getWeb();
             
-            // 获取当前插件remoteEntry scope
+            // Get current plugin's remoteEntry and scope
             String pluginRemoteEntry = webUi.getRemoteEntry();
             String pluginScope = webUi.getScope();
             
-            // 记录第一个有效值作为默认值（用于 web 对象的顶层字段，向后兼容
+            // Record the first valid values as defaults (for web object top-level fields, backward compatible)
             if (defaultRemoteEntry == null && pluginRemoteEntry != null) {
                 defaultRemoteEntry = pluginRemoteEntry;
             }
@@ -148,13 +163,13 @@ public class PluginManifestScanner {
                 defaultScope = pluginScope;
             }
             
-            // 转换路由，并remoteEntry scope 附加到每个路
+            // Convert routes and attach remoteEntry and scope to each route
             if (webUi.getRoutes() != null) {
                 for (PluginManifest.WebRoute route : webUi.getRoutes()) {
                     Map<String, Object> routeMap = convertRoute(manifest.getName(), route);
                     
-                    // v2.1.1: 每个路由携带自己remoteEntry scope
-                    // 这是关键修复 - 支持多插件聚
+                    // v2.1.1: Each route carries its own remoteEntry and scope
+                    // This is the key fix - supports multi-plugin aggregation
                     if (pluginRemoteEntry != null) {
                         routeMap.put("remoteEntry", pluginRemoteEntry);
                     }
@@ -164,26 +179,26 @@ public class PluginManifestScanner {
                     
                     allRoutes.add(routeMap);
                     
-                    log.debug("[PluginManifestScanner] 鑱氬悎璺敱: {} -> {} (scope: {}, entry: {})", 
+                    log.debug("[PluginManifestScanner] Aggregated route: {} -> {} (scope: {}, entry: {})", 
                         manifest.getName(), route.getPath(), pluginScope, pluginRemoteEntry);
                 }
             }
         }
         
         if (allRoutes.isEmpty()) {
-            log.debug("[PluginManifestScanner] 没有有效UI 路由配置");
+            log.debug("[PluginManifestScanner] No valid UI route configurations found");
             return null;
         }
         
-        // 如果没有 remoteEntry scope，则无法构成有效UI 契约
-        // Plugin Engine 要求这些字段必填
+        // If no remoteEntry or scope, valid UI contract cannot be formed
+        // Plugin Engine requires these fields
         if (defaultRemoteEntry == null || defaultScope == null) {
-            log.info("[PluginManifestScanner] UI 契约缺少必要字段 (remoteEntry/scope)，跳UI 注册");
-            log.debug("[PluginManifestScanner] 如需注册 UI，请plugin-manifest.json 中配ui.web.remoteEntry ui.web.scope");
+            log.info("[PluginManifestScanner] UI contract missing required fields (remoteEntry/scope), skipping UI registration");
+            log.debug("[PluginManifestScanner] To register UI, configure ui.web.remoteEntry and ui.web.scope in plugin-manifest.json");
             return null;
         }
         
-        // 过滤掉没有有menu.title 的路由（hidden 路由除外
+        // Filter out routes without valid menu.title (except hidden routes)
         List<Map<String, Object>> validRoutes = new ArrayList<>();
         for (Map<String, Object> route : allRoutes) {
             @SuppressWarnings("unchecked")
@@ -191,29 +206,29 @@ public class PluginManifestScanner {
             if (menu == null) {
                 validRoutes.add(route);
             } else if (Boolean.TRUE.equals(menu.get("hidden"))) {
-                // 隐藏菜单不需title
+                // Hidden menus don't need title
                 validRoutes.add(route);
             } else if (menu.get("title") != null) {
                 validRoutes.add(route);
             } else {
-                log.warn("[PluginManifestScanner] 路由 {} menu.title 为空，已跳过", route.get("path"));
+                log.warn("[PluginManifestScanner] Route {} has empty menu.title, skipped", route.get("path"));
             }
         }
         
         if (validRoutes.isEmpty()) {
-            log.debug("[PluginManifestScanner] 没有有效UI 路由配置");
+            log.debug("[PluginManifestScanner] No valid UI route configurations found");
             return null;
         }
         
-        // order 排序路由
+        // Sort routes by order
         validRoutes.sort((a, b) -> {
             Integer orderA = getMenuOrder(a);
             Integer orderB = getMenuOrder(b);
             return orderA.compareTo(orderB);
         });
         
-        // 构建最终的 UI 契约
-        // 顶层 remoteEntry/scope 是默认值（向后兼容），每个路由也携带自己的
+        // Build final UI contract
+        // Top-level remoteEntry/scope are defaults (backward compatible), each route also carries its own
         Map<String, Object> web = new HashMap<>();
         web.put("remoteEntry", defaultRemoteEntry);
         web.put("scope", defaultScope);
@@ -222,16 +237,16 @@ public class PluginManifestScanner {
         Map<String, Object> ui = new HashMap<>();
         ui.put("web", web);
         
-        log.info("[PluginManifestScanner] UI 契约聚合完成, {} 个路(来自 {} 个插", 
+        log.info("[PluginManifestScanner] UI contract aggregation complete, {} routes (from {} plugins)", 
             validRoutes.size(), manifests.stream().filter(m -> m.getUi() != null && m.getUi().getWeb() != null).count());
         
         return ui;
     }
     
     /**
-     * 获取所有插件名
+     * Get all plugin names
      * 
-     * @return 插件名称列表
+     * @return List of plugin names
      */
     public List<String> getPluginNames() {
         return scanManifests().stream()
@@ -241,10 +256,10 @@ public class PluginManifestScanner {
     }
     
     /**
-     * 获取指定插件manifest
+     * Get manifest for specified plugin
      * 
-     * @param pluginName 插件名称
-     * @return 插件 manifest，如果未找到返回 null
+     * @param pluginName Plugin name
+     * @return Plugin manifest, returns null if not found
      */
     public PluginManifest getManifest(String pluginName) {
         return scanManifests().stream()
@@ -254,15 +269,15 @@ public class PluginManifestScanner {
     }
     
     /**
-     * 清除缓存（用于热重载场景
+     * Clear cache (for hot reload scenarios)
      */
     public void clearCache() {
         cachedManifests = null;
-        log.debug("[PluginManifestScanner] 缓存已清");
+        log.debug("[PluginManifestScanner] Cache cleared");
     }
     
     /**
-     * 转换路由配置Map
+     * Convert route configuration to Map
      */
     private Map<String, Object> convertRoute(String pluginName, PluginManifest.WebRoute route) {
         Map<String, Object> routeMap = new HashMap<>();
@@ -275,10 +290,10 @@ public class PluginManifestScanner {
             routeMap.put("exact", route.getExact());
         }
         
-        // 添加插件标识
+        // Add plugin identifier
         routeMap.put("plugin", pluginName);
         
-        // 转换菜单配置
+        // Convert menu configuration
         if (route.getMenu() != null) {
             Map<String, Object> menuMap = new HashMap<>();
             PluginManifest.Menu menu = route.getMenu();
@@ -306,7 +321,7 @@ public class PluginManifestScanner {
     }
     
     /**
-     * 获取菜单排序
+     * Get menu sort order
      */
     @SuppressWarnings("unchecked")
     private Integer getMenuOrder(Map<String, Object> routeMap) {
@@ -316,6 +331,6 @@ public class PluginManifestScanner {
                 return (Integer) menu.get("order");
             }
         }
-        return 999; // 默认排序
+        return 999; // Default sort order
     }
 }

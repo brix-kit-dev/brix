@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.brix.platform.gateway.config.resilience;
 
 import java.util.Set;
@@ -11,18 +26,18 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * 重试配置属
+ * retryconfigurationproperty
  * <p>
- * MVP 红线要求：有限重试（最3 次）
- * 配置网关对下游服务调用的重试策略，确保可靠性的同时避免雪崩
+ * MVP Red Line Requirements：haslimitretry（most3 times）
+ * Configures retry strategy for gateway downstream service calls, ensuring reliability while avoiding avalanche
  * </p>
  *
- * <h3>重试策略说明</h3>
+ * <h3>Retry Strategy Description</h3>
  * <ul>
- *   <li>仅对幂等请求（GET/HEAD/OPTIONS/PUT/DELETE）进行重</li>
- *   <li>仅对可重试的错误码（502/503/504）进行重</li>
- *   <li>采用指数退避策略避免瞬间大量请</li>
- *   <li>最多重3 次（MVP 红线要求</li>
+ *   <li>onlyforidempotentrequest（GET/HEAD/OPTIONS/PUT/DELETE）performre-</li>
+ *   <li>onlyforcanretryoferrorcode（502/503/504）performre-</li>
+ *   <li>useexponentialbackoffstrategyavoidburstlarge number ofplease</li>
+ *   <li>at mostre-3 times（MVP Red Line Requirements</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -33,13 +48,13 @@ import jakarta.validation.constraints.NotNull;
 public class RetryProperties {
 
     /**
-     * 是否启用重试
+     * Whether to enable retry
      */
     private boolean enabled = true;
 
     /**
-     * 最大重试次
-     * MVP 红线：最3 
+     * maximumretrytimes
+     * MVP redline：most3 
      */
     @NotNull
     @Min(1)
@@ -47,8 +62,8 @@ public class RetryProperties {
     private Integer maxAttempts = 3;
 
     /**
-     * 初始退避时间（毫秒
-     * 第一次重试前的等待时
+     * initialbackofftime（ms
+     * firstretrybeforeofwaittime
      */
     @NotNull
     @Min(100)
@@ -56,8 +71,8 @@ public class RetryProperties {
     private Integer initialBackoffMs = 500;
 
     /**
-     * 最大退避时间（毫秒
-     * 指数退避的上限
+     * maximumbackofftime（ms
+     * Upper limit of exponential backoff
      */
     @NotNull
     @Min(1000)
@@ -65,8 +80,8 @@ public class RetryProperties {
     private Integer maxBackoffMs = 5000;
 
     /**
-     * 退避乘
-     * 每次重试等待时间 = 上次等待时间 * multiplier
+     * backoffmultiply
+     * Each retry wait time = previous wait time * multiplier
      */
     @NotNull
     @Min(1)
@@ -74,28 +89,28 @@ public class RetryProperties {
     private Double multiplier = 2.0;
 
     /**
-     * 是否添加随机抖动
-     * 避免多个请求同时重试造成惊群效应
+     * Whether to add random jitter
+     * Avoid thundering herd effect from multiple concurrent retries
      */
     private boolean jitterEnabled = true;
 
     /**
-     * 抖动因子.0-1.0
-     * 在退避时间基础上增0-jitterFactor 比例的随机时
+     * jitterfactor.0-1.0
+     * onbackofftimebasisincrease0-jitterFactor ratioofrandomtime
      */
     @Min(0)
     @Max(1)
     private Double jitterFactor = 0.5;
 
     /**
-     * 可重试的 HTTP 状态码
-     * 仅当响应状态码在此列表中时才进行重
+     * Retryable HTTP status codes
+     * onlywhenresponsestatuscodeonthislistintimethenperformre-
      */
     private Set<Integer> retryableStatusCodes = Set.of(502, 503, 504);
 
     /**
-     * 可重试的 HTTP 方法
-     * 仅对幂等方法进行重试，避免重复提
+     * Retryable HTTP methods
+     * onlyforidempotentmethodperformretry，avoidre-re-submit
      */
     private Set<HttpMethod> retryableMethods = Set.of(
         HttpMethod.GET,
@@ -106,12 +121,12 @@ public class RetryProperties {
     );
 
     /**
-     * 是否对连接失败进行重
+     * whetherforconnectionfailedperformre-
      */
     private boolean retryOnConnectionFailure = true;
 
     /**
-     * 是否对超时进行重
+     * whetherfortimeoutperformre-
      */
     private boolean retryOnTimeout = true;
 

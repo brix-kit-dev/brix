@@ -15,31 +15,32 @@
  */
 
 /**
- * Outbox 模式事件发布适配器
+ * Outbox Pattern Event Publishing Adapter.
  *
- * <p>本包提供基于 Outbox 模式的事务性事件发布机制，保证
- * 业务操作与事件发布的数据一致性（AtLeastOnce 语义）。</p>
+ * <p>This package provides a transactional event publishing mechanism based on the Outbox pattern,
+ * ensuring data consistency between business operations and event publishing (AtLeastOnce semantics).</p>
  *
- * <h2>架构定位（v3.0 运行壳架构蓝图）</h2>
+ * <h2>Architecture Position (v3.0 Runtime Shell Architecture Blueprint)</h2>
  * <p>
- * 本模块属于 Layer 2.5（能力实现层 / Adapter 层），从 {@code infra-adapter-kafka}
- * 中独立出来。原因是 Outbox 是跨基础设施的模式（需要数据库 + 消息队列协同），
- * 将其放在 Kafka 适配器中会引入不必要的 JPA 依赖。
+ * This module belongs to Layer 2.5 (Capability Implementation Layer / Adapter Layer), separated from
+ * {@code infra-adapter-kafka}. The reason is that Outbox is a cross-infrastructure pattern (requires
+ * database + message queue coordination), placing it in the Kafka adapter would introduce unnecessary
+ * JPA dependencies.
  * </p>
  *
- * <h2>核心组件</h2>
+ * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.outbox.OutboxEvent} - Outbox 事件 JPA 实体</li>
- *   <li>{@link io.infra.adapter.outbox.OutboxEventPublisher} - 定时发布器</li>
- *   <li>{@link io.infra.adapter.outbox.OutboxEventRepository} - Spring Data JPA 仓储</li>
- *   <li>{@link io.infra.adapter.outbox.config.OutboxAutoConfiguration} - 自动配置入口</li>
+ *   <li>{@link io.infra.adapter.outbox.OutboxEvent} - Outbox event JPA entity</li>
+ *   <li>{@link io.infra.adapter.outbox.OutboxEventPublisher} - Scheduled publisher</li>
+ *   <li>{@link io.infra.adapter.outbox.OutboxEventRepository} - Spring Data JPA repository</li>
+ *   <li>{@link io.infra.adapter.outbox.config.OutboxAutoConfiguration} - Auto-configuration entry point</li>
  * </ul>
  *
- * <h2>依赖关系</h2>
+ * <h2>Dependencies</h2>
  * <p>
- * 本模块依赖 {@code infra-adapter-kafka} 以复用
- * {@link io.infra.adapter.kafka.EventTopicResolver} 和
- * {@link io.infra.adapter.kafka.config.KafkaEventBusProperties.OutboxProperties}。
+ * This module depends on {@code infra-adapter-kafka} to reuse
+ * {@link io.infra.adapter.kafka.EventTopicResolver} and
+ * {@link io.infra.adapter.kafka.config.KafkaEventBusProperties.OutboxProperties}.
  * </p>
  *
  * @since 3.0.0
