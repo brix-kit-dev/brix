@@ -10,8 +10,9 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://github.com/brix-kit-dev/brix/stargazers"><img src="https://img.shields.io/github/stars/brix-kit-dev/brix?style=flat-square" alt="GitHub Stars"></a>
-  <a href="https://github.com/brix-kit-dev/brix/issues"><img src="https://img.shields.io/github/issues/brix-kit-dev/brix?style=flat-square" alt="GitHub Issues"></a>
+  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Java-17+-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java">
+  <img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js">
 </p>
 
 <p align="center">
