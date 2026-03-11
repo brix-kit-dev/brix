@@ -5,11 +5,11 @@ import type * as Preset from '@docusaurus/preset-classic';
 /**
  * Brix Framework Documentation Site Configuration
  * 
- * This configuration follows the v3.0.7 Runtime Shell Architecture Blueprint,
+ * This configuration follows the v1.0.0 Runtime Shell Architecture Blueprint,
  * documenting the Layer 0-4 architecture model, Capability Contract patterns,
  * and Plugin development guidelines.
  * 
- * @see https://docs.brix.dev
+ * @see https://github.com/brix-kit-dev/brix
  */
 const config: Config = {
   title: 'Brix Framework',

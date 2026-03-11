@@ -31,7 +31,7 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We expect all 
 
 1. Check [existing issues](https://github.com/brix-kit-dev/brix/issues) to avoid duplicates
 2. For major changes, open an issue first to discuss the approach
-3. Read the [Architecture Blueprint](docs/v3.0.7-运行壳架构设计蓝图.md) to understand the design
+3. Read the [Architecture Blueprint](docs/architecture-blueprint.md) to understand the design
 
 ## Development Setup
 
@@ -82,7 +82,7 @@ git push origin feature/your-feature-name
 
 ## Architecture Guidelines
 
-Brix follows the **Runtime Shell Architecture v3.0.7**. All contributions must adhere to these principles:
+Brix follows the **Runtime Shell Architecture v1.0.0**. All contributions must adhere to these principles:
 
 ### Core Constraints
 

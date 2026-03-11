@@ -18,7 +18,7 @@ A clear and concise description of what you want to happen.
 
 ## Architecture Alignment
 
-How does this feature align with the Runtime Shell Architecture (v3.0.7)?
+How does this feature align with the Runtime Shell Architecture (v1.0.0)?
 
 | Aspect | Impact |
 |--------|--------|

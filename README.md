@@ -9,11 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/brix-kit-dev/brix/actions"><img src="https://img.shields.io/github/actions/workflow/status/brix-kit-dev/brix/ci.yml?branch=main&style=flat-square&label=CI" alt="Build Status"></a>
-  <a href="https://www.npmjs.com/package/@brix/runtime-sdk-api-web"><img src="https://img.shields.io/npm/v/@brix/runtime-sdk-api-web?style=flat-square&label=npm" alt="npm version"></a>
-  <a href="https://search.maven.org/artifact/io.brix/runtime-sdk-api"><img src="https://img.shields.io/maven-central/v/io.brix/runtime-sdk-api?style=flat-square&label=maven" alt="Maven Central"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://discord.gg/brix-kit-dev"><img src="https://img.shields.io/discord/1234567890?style=flat-square&logo=discord&logoColor=white&label=Discord&color=5865F2" alt="Discord"></a>
+  <a href="https://github.com/brix-kit-dev/brix/stargazers"><img src="https://img.shields.io/github/stars/brix-kit-dev/brix?style=flat-square" alt="GitHub Stars"></a>
+  <a href="https://github.com/brix-kit-dev/brix/issues"><img src="https://img.shields.io/github/issues/brix-kit-dev/brix?style=flat-square" alt="GitHub Issues"></a>
 </p>
 
 <p align="center">
@@ -27,7 +25,7 @@
 
 ## ✨ Why Brix?
 
-Brix implements the **Runtime Shell Architecture** (v3.0.7), enabling you to build enterprise applications with:
+Brix implements the **Runtime Shell Architecture** (v1.0.0), enabling you to build enterprise applications with:
 
 | Feature | Description |
 |---------|-------------|
@@ -139,7 +137,7 @@ mvn clean install
 
 | Document | Description |
 |----------|-------------|
-| [Architecture Blueprint](docs/architecture-blueprint.md) | Complete v3.0.7 Runtime Shell design |
+| [Architecture Blueprint](docs/architecture-blueprint.md) | Complete v1.0.0 Runtime Shell design |
 | [Plugin Development Guide](docs/plugin-development.md) | Step-by-step plugin creation tutorial |
 | [Capability Reference](docs/capability-contracts.md) | All available capability interfaces |
 | [Architecture Guard](packages/@brix/platform-devtools/architecture-guard/README.md) | 13 red-line rules and ArchUnit tests |
@@ -156,10 +154,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 Join our community to get help, share ideas, and contribute:
 
-- 💬 **[Discord](https://discord.gg/brix-kit-dev)** - Chat with the team and community
-- 🗣️ **[Discussions](https://github.com/brix-kit-dev/brix/discussions)** - Ask questions and share ideas
-- 🐦 **[Twitter](https://twitter.com/brix_framework)** - Follow for updates and announcements
-- 📧 **[security@brix.io](mailto:security@brix.io)** - Report security vulnerabilities
+- �️ **[Discussions](https://github.com/brix-kit-dev/brix/discussions)** - Ask questions and share ideas
+- 📧 **[brix.kit.dev@gmail.com](mailto:brix.kit.dev@gmail.com)** - Contact & report security vulnerabilities
 
 ## 📖 Further Reading
 
