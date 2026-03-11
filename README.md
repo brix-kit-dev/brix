@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://www.npmjs.com/package/@brix/runtime-sdk-api-web"><img src="https://img.shields.io/npm/v/@brix/runtime-sdk-api-web?style=flat-square&logo=npm&label=npm" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/brix-runtime-sdk-api-web"><img src="https://img.shields.io/npm/v/brix-runtime-sdk-api-web?style=flat-square&logo=npm&label=npm" alt="npm"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Java-17+-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java">
   <img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js">

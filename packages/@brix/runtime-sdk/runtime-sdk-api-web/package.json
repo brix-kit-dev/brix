@@ -1,5 +1,5 @@
 ﻿{
-  "name": "@brix/runtime-sdk-api-web",
+  "name": "brix-runtime-sdk-api-web",
   "version": "1.0.0",
   "description": "Brix Runtime SDK Web API - UI capability contracts and shared types (merged from runtime-sdk-shared)",
   "type": "module",
