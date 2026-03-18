@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="./assets/brix-logo.png" alt="Brix Logo" width="280">
 </p>
 
@@ -10,53 +10,53 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://www.npmjs.com/package/@brix-sdk/brix"><img src="https://img.shields.io/npm/v/@brix-sdk/brix?style=flat-square&logo=npm&label=npm" alt="npm"></a>
-  <a href="https://www.npmjs.com/package/@brix-sdk/runtime-sdk-api-web"><img src="https://img.shields.io/npm/v/@brix-sdk/runtime-sdk-api-web?style=flat-square&logo=npm&label=runtime-sdk" alt="runtime-sdk"></a>
+  <a href="https://www.npmjs.com/package/@brix-sdk/runtime-sdk-api-web"><img src="https://img.shields.io/npm/v/@brix-sdk/runtime-sdk-api-web?style=flat-square&logo=npm&label=npm" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@brix-sdk/platform-shared"><img src="https://img.shields.io/npm/v/@brix-sdk/platform-shared?style=flat-square&logo=npm&label=platform" alt="platform"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Java-17+-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java">
   <img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js">
 </p>
 
 <p align="center">
-  <a href="https://github.com/brix-kit-dev/brix">Documentation</a> ?
-  <a href="https://github.com/brix-kit-dev/brix/getting-started">Getting Started</a> ?
-  <a href="#-quick-start">Quick Start</a> ?
+  <a href="https://github.com/brix-kit-dev/brix">Documentation</a> |
+  <a href="https://github.com/brix-kit-dev/brix/getting-started">Getting Started</a> |
+  <a href="#-quick-start">Quick Start</a> |
   <a href="https://github.com/brix-kit-dev/brix/discussions">Community</a>
 </p>
 
 ---
 
-## ? Why Brix?
+## Why Brix?
 
 Brix implements the **Runtime Shell Architecture** (v1.0.0), enabling you to build enterprise applications with:
 
 | Feature | Description |
 |---------|-------------|
-| ?? **Plugin Architecture** | Build self-contained business modules that work anywhere |
-| ?? **Capability Contract** | Zero infrastructure dependencies in your plugins |
-| ?? **Module Federation** | First-class micro-frontend support with shared runtime |
-| ?? **Ultra-Thin Host** | Pure configuration-driven assembly, zero business logic |
-| ?? **Event-Driven** | Loose coupling through governed event bus |
-| ?? **Multi-Platform** | Web, Mobile (React Native), and Backend (Java/Spring) |
+| **Plugin Architecture** | Build self-contained business modules that work anywhere |
+| **Capability Contract** | Zero infrastructure dependencies in your plugins |
+| **Module Federation** | First-class micro-frontend support with shared runtime |
+| **Ultra-Thin Host** | Pure configuration-driven assembly, zero business logic |
+| **Event-Driven** | Loose coupling through governed event bus |
+| **Multi-Platform** | Web, Mobile (React Native), and Backend (Java/Spring) |
 
-## ??? Architecture
+## Architecture
 
-```text
-����������������������������������������������������������������������������������������������������������������������������������������������
-��  Layer 3: Host (Ultra-Thin Assembly Shell)                          ��
-��  ������ Pure configuration: pom.xml + YAML + Boot class (< 30 lines)  ��
-����������������������������������������������������������������������������������������������������������������������������������������������
-��  Layer 2: Capability Layer                                          ��
-��  ������ 2A: Contracts (runtime-sdk-api) �� Pure interfaces             ��
-��  ������ 2B: Shared Runtime (@brix-sdk/shared-runtime-web)                  ��
-��  ������ 2C: Implementations (infra-adapters, platform-commons)         ��
-����������������������������������������������������������������������������������������������������������������������������������������������
-��  Layer 1: Plugins (Business Modules)                                ��
-��  ������ Only depends on Layer 2A Capability Contracts                  ��
-����������������������������������������������������������������������������������������������������������������������������������������������
-��  Layer 0: Infrastructure (Hidden from plugins)                      ��
-��  ������ Kafka, Redis, PostgreSQL, MinIO, etc.                          ��
-����������������������������������������������������������������������������������������������������������������������������������������������
+```
++----------------------------------------------------------------------+
+|  Layer 3: Host (Ultra-Thin Assembly Shell)                           |
+|  -> Pure configuration: pom.xml + YAML + Boot class (< 30 lines)     |
++----------------------------------------------------------------------+
+|  Layer 2: Capability Layer                                           |
+|  -> 2A: Contracts (runtime-sdk-api) - Pure interfaces                |
+|  -> 2B: Shared Runtime (@brix-sdk/shared-runtime-web)                |
+|  -> 2C: Implementations (infra-adapters, platform-commons)           |
++----------------------------------------------------------------------+
+|  Layer 1: Plugins (Business Modules)                                 |
+|  -> Only depends on Layer 2A Capability Contracts                    |
++----------------------------------------------------------------------+
+|  Layer 0: Infrastructure (Hidden from plugins)                       |
+|  -> Kafka, Redis, PostgreSQL, MinIO, etc.                            |
++----------------------------------------------------------------------+
 ```
 
 **Key Constraints:**
@@ -65,16 +65,16 @@ Brix implements the **Runtime Shell Architecture** (v1.0.0), enabling you to bui
 - Cross-plugin communication via events only
 - Host contains zero implementation code
 
-## ?? Packages
+## Packages
 
 | Package | Description | Layer |
 |---------|-------------|-------|
-| `@brix-sdk/runtime-sdk` | Runtime capability contracts and orchestration | 2A/2B |
+| `@brix-sdk/runtime-sdk-api-web` | Runtime capability contracts and orchestration | 2A/2B |
 | `@brix-sdk/infra-adapters` | Infrastructure adapter implementations (Kafka, Redis, etc.) | 2C |
 | `@brix-sdk/platform-commons` | Platform capabilities (Auth, Gateway, Observability) | 2C |
 | `@brix-sdk/platform-devtools` | Architecture guard, scaffolding, and build tools | Tools |
 
-## ?? Quick Start
+## Quick Start
 
 ### Prerequisites
 
