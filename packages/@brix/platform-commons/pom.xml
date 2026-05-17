@@ -81,7 +81,7 @@
         <flyway.version>11.8.0</flyway.version>
         
         <!-- 工具 -->
-        <lombok.version>1.18.38</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
         
         <!-- 测试 -->
         <testcontainers.version>1.20.4</testcontainers.version>
