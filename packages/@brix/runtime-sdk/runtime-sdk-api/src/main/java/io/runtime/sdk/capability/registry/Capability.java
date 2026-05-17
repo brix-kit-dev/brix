@@ -21,6 +21,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Capability Annotation
  * 
@@ -54,6 +56,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@Since("3.0.0")
 public @interface Capability {
 
     /**

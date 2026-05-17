@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
  */
 /**
  * @file Type Definition Exports
- * @module @brix/runtime-manifest-web/types
+ * @module @brix-sdk/runtime-manifest-web/types
  */
 
 export type {

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file generator.ts
  * @description Code Generator
- * @module @brix/create-brix
+ * @module @brix-sdk/create-brix
  * @version 3.0
  * 
  * v3.0 Changes:
@@ -41,11 +41,19 @@ import type {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
+const SDK_VERSION = '3.2.0';
 
 /**
  * Generate Plugin Skeleton
  */
 export async function generatePlugin(config: PluginConfig): Promise<void> {
+  if (config.withWeb || config.withMobile) {
+    throw new Error(
+      'Legacy plugin frontend generation is disabled by the Runtime Shell architecture. ' +
+      'Use create-brix app to generate ui-web/ui-mobile modules with View -> Hook -> Repository layering.'
+    );
+  }
+
   const context = buildPluginContext(config);
   const outputDir = join(config.outputDir, config.name);
   
@@ -95,9 +103,10 @@ function buildPluginContext(config: PluginConfig): PluginTemplateContext {
   return {
     ...config,
     date: new Date().toISOString().split('T')[0],
-    // [v3.2.0 Fix] groupId changed from shinwa.plugin to io.brix.plugin
+    // [v3.2.0 Fix] groupId changed from brix.plugin to io.brix.plugin
     packageName: `io.brix.plugin.${nameWithoutPrefix.replace(/-/g, '.')}`,
     classPrefix,
+    sdkVersion: SDK_VERSION,
   };
 }
 
@@ -113,10 +122,11 @@ function buildServiceContext(config: ServiceConfig): ServiceTemplateContext {
   return {
     ...config,
     date: new Date().toISOString().split('T')[0],
-    // [v3.2.0 Fix] packageName changed from shinwa.service to io.brix.service
+    // [v3.2.0 Fix] packageName changed from brix.service to io.brix.service
     packageName: `io.brix.service.${javaName.replace(/-/g, '.')}`,
     classPrefix,
     springServiceName: config.fullName,
+    sdkVersion: SDK_VERSION,
   };
 }
 
@@ -229,6 +239,10 @@ async function generateFrontendModule(
   if (type === 'web') {
     await renderTemplate(`frontend/${type}/rspack.config.ts.ejs`,
       join(moduleDir, 'rspack.config.ts'), context);
+    await renderTemplate(`frontend/${type}/ui-manifest.yaml.ejs`,
+      join(moduleDir, 'ui-manifest.yaml'), context);
+    await renderTemplate(`frontend/${type}/eslint.config.js.ejs`,
+      join(moduleDir, 'eslint.config.js'), context);
   }
   
   // Generate Dockerfile.dev (for Docker dev environment)
@@ -242,6 +256,12 @@ async function generateFrontendModule(
   // Generate entry file
   await renderTemplate(`frontend/${type}/index.tsx.ejs`,
     join(srcDir, 'index.tsx'), context);
+  if (type === 'web' && 'withShared' in context) {
+    await renderTemplate(`frontend/${type}/bootstrap.tsx.ejs`,
+      join(srcDir, 'bootstrap.tsx'), context);
+    await renderTemplate(`frontend/${type}/App.tsx.ejs`,
+      join(srcDir, 'App.tsx'), context);
+  }
   
   // Generate exposes directory (Web: Module Federation exposed component wrappers / Mobile: component exports)
   const exposesDir = join(srcDir, 'exposes');
@@ -260,6 +280,19 @@ async function generateFrontendModule(
     join(pagesDir, `${context.classPrefix}List.tsx`), context);
   await renderTemplate(`frontend/${type}/pages/Detail.tsx.ejs`,
     join(pagesDir, `${context.classPrefix}Detail.tsx`), context);
+
+  if (type === 'web' && 'withShared' in context) {
+    const hooksDir = join(srcDir, 'hooks');
+    const repositoriesDir = join(srcDir, 'repositories');
+    await mkdir(hooksDir, { recursive: true });
+    await mkdir(repositoriesDir, { recursive: true });
+    await renderTemplate(`frontend/${type}/hooks/useModule.ts.ejs`,
+      join(hooksDir, `use${context.classPrefix}.ts`), context);
+    await renderTemplate(`frontend/${type}/repositories/Repository.ts.ejs`,
+      join(repositoriesDir, `${context.classPrefix}Repository.ts`), context);
+    await renderTemplate(`frontend/${type}/repositories/index.ts.ejs`,
+      join(repositoriesDir, 'index.ts'), context);
+  }
   
   // Generate i18n directory (internationalization config)
   const i18nDir = join(srcDir, 'i18n');
@@ -352,9 +385,7 @@ async function renderTemplate(
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, content, 'utf-8');
   } catch (error) {
-    // Create placeholder file when template does not exist
-    await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, `# TODO: Create template ${templatePath}\n`, 'utf-8');
+    throw new Error(`Template rendering failed for ${templatePath}: ${(error as Error).message}`);
   }
 }
 
@@ -369,16 +400,16 @@ async function renderTemplate(
  * conforming to Runtime Shell capability contracts:
  * 
  * ```
- * shinwa-app-{name}/
- * ├── pom.xml                    # Parent POM
- * ├── module-manifest.yaml       # Module declaration file (v3.0 core)
- * ├── {name}-api/                # API module (DTO, Event, Request)
- * ├── {name}-core/               # Core module (business logic)
- * ├── {name}-server/             # Server module (v3.0.4 new: REST Controller + AutoConfiguration)
- * ├── {name}-shared/             # Shared module (v3.0.4 new: frontend-backend shared types + orval code generation)
- * ├── {name}-ui-web/             # UI Web module (frontend interface, renamed from ui module)
- * ├── {name}-ui-mobile/          # UI Mobile module (v3.0.4 new: React Native mobile)
- * └── {name}-app/                # App module (standalone runnable)
+ * app-{name}/
+ * ������ pom.xml                    # Parent POM
+ * ������ module-manifest.yaml       # Module declaration file (v3.0 core)
+ * ������ {name}-api/                # API module (DTO, Event, Request)
+ * ������ {name}-core/               # Core module (business logic)
+ * ������ {name}-server/             # Server module (v3.0.4 new: REST Controller + AutoConfiguration)
+ * ������ {name}-shared/             # Shared module (v3.0.4 new: frontend-backend shared types + orval code generation)
+ * ������ {name}-ui-web/             # UI Web module (frontend interface, renamed from ui module)
+ * ������ {name}-ui-mobile/          # UI Mobile module (v3.0.4 new: React Native mobile)
+ * ������ {name}-app/                # App module (standalone runnable)
  * ```
  * 
  * @param config Application configuration
@@ -391,10 +422,10 @@ export async function generateApp(config: AppConfig): Promise<void> {
   await mkdir(outputDir, { recursive: true });
   
   // Generate parent POM
-  await renderTemplate('app/pom.xml.ejs', join(outputDir, 'pom.xml'), context);
+  await renderTemplate('backend/parent-pom.xml.ejs', join(outputDir, 'pom.xml'), context);
   
   // Generate module-manifest.yaml (v3.0 core configuration file)
-  await renderTemplate('app/module-manifest.yaml.ejs', 
+  await renderTemplate('backend/module-manifest.yaml.ejs', 
     join(outputDir, 'module-manifest.yaml'), context);
   
   // Generate API module (if needed)
@@ -452,16 +483,16 @@ function buildAppContext(config: AppConfig): AppTemplateContext {
   const parts = config.name.split('-');
   const classPrefix = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
   
-  // Build Java package name: com.shinwa.app.{name} (hyphens replaced with dots)
-  const packageName = `com.shinwa.app.${config.name.replace(/-/g, '.')}`;
+  // Build Java package name: io.brix.app.{name} (hyphens replaced with dots)
+  const packageName = `io.brix.app.${config.name.replace(/-/g, '.')}`;
   
   // Build package path (for directory structure)
   const packagePath = packageName.replace(/\./g, '/');
   
   // NPM package names (three frontend modules)
-  const npmPackageName = `@shinwa/${config.name}-ui`;
-  const npmPackageNameMobile = `@shinwa/${config.name}-ui-mobile`;
-  const npmPackageNameShared = `@shinwa/${config.name}-shared`;
+  const npmPackageName = `@brix-sdk/${config.name}-ui-web`;
+  const npmPackageNameMobile = `@brix-sdk/${config.name}-ui-mobile`;
+  const npmPackageNameShared = `@brix-sdk/${config.name}-shared`;
   
   return {
     ...config,
@@ -472,6 +503,7 @@ function buildAppContext(config: AppConfig): AppTemplateContext {
     npmPackageName,
     npmPackageNameMobile,
     npmPackageNameShared,
+    sdkVersion: SDK_VERSION,
   };
 }
 
@@ -496,7 +528,7 @@ async function generateAppApiModule(
   await mkdir(srcDir, { recursive: true });
   
   // Generate pom.xml
-  await renderTemplate('app/api/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
+  await renderTemplate('backend/api/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
   
   // Create subdirectory structure
   const dtoDir = join(srcDir, 'dto');
@@ -508,15 +540,15 @@ async function generateAppApiModule(
   await mkdir(requestDir, { recursive: true });
   
   // Generate example DTO
-  await renderTemplate('app/api/ExampleDTO.java.ejs', 
+  await renderTemplate('backend/api/ExampleDTO.java.ejs', 
     join(dtoDir, `${context.classPrefix}DTO.java`), context);
   
   // Generate example Event (domain event)
-  await renderTemplate('app/api/ExampleEvent.java.ejs', 
+  await renderTemplate('backend/api/ExampleEvent.java.ejs', 
     join(eventDir, `${context.classPrefix}CreatedEvent.java`), context);
   
   // Generate example Request
-  await renderTemplate('app/api/ExampleRequest.java.ejs', 
+  await renderTemplate('backend/api/ExampleRequest.java.ejs', 
     join(requestDir, `Create${context.classPrefix}Request.java`), context);
 }
 
@@ -528,7 +560,6 @@ async function generateAppApiModule(
  * - Repository (Repositories)
  * - Service (Services)
  * - Handler (Event handlers)
- * - Controller (REST controllers)
  * 
  * [IMPORTANT] Core module only depends on RuntimeContext, not directly on infrastructure like Kafka/Redis
  * 
@@ -547,57 +578,51 @@ async function generateAppCoreModule(
   await mkdir(resourcesDir, { recursive: true });
   
   // Generate pom.xml
-  await renderTemplate('app/core/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
+  await renderTemplate('backend/core/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
   
   // Create subdirectory structure
   const entityDir = join(srcDir, 'entity');
   const repositoryDir = join(srcDir, 'repository');
   const serviceDir = join(srcDir, 'service');
   const handlerDir = join(srcDir, 'handler');
-  const controllerDir = join(srcDir, 'controller');
   const configDir = join(srcDir, 'config');
   
   await mkdir(entityDir, { recursive: true });
   await mkdir(repositoryDir, { recursive: true });
   await mkdir(serviceDir, { recursive: true });
   await mkdir(handlerDir, { recursive: true });
-  await mkdir(controllerDir, { recursive: true });
   await mkdir(configDir, { recursive: true });
   
   // Generate configuration class
-  await renderTemplate('app/core/ModuleConfiguration.java.ejs',
+  await renderTemplate('backend/core/ModuleConfiguration.java.ejs',
     join(configDir, `${context.classPrefix}ModuleConfiguration.java`), context);
   
   // Generate example Entity
-  await renderTemplate('app/core/ExampleEntity.java.ejs',
+  await renderTemplate('backend/core/ExampleEntity.java.ejs',
     join(entityDir, `${context.classPrefix}Entity.java`), context);
   
   // Generate example Repository
-  await renderTemplate('app/core/ExampleRepository.java.ejs',
+  await renderTemplate('backend/core/ExampleRepository.java.ejs',
     join(repositoryDir, `${context.classPrefix}Repository.java`), context);
   
   // Generate example Service (core: uses RuntimeContext)
-  await renderTemplate('app/core/ExampleService.java.ejs',
+  await renderTemplate('backend/core/ExampleService.java.ejs',
     join(serviceDir, `${context.classPrefix}Service.java`), context);
   
   // Generate example EventHandler
-  await renderTemplate('app/core/ExampleEventHandler.java.ejs',
+  await renderTemplate('backend/core/ExampleEventHandler.java.ejs',
     join(handlerDir, `${context.classPrefix}EventHandler.java`), context);
-  
-  // Generate example Controller
-  await renderTemplate('app/core/ExampleController.java.ejs',
-    join(controllerDir, `${context.classPrefix}Controller.java`), context);
   
   // Generate Flyway migration script directory
   const migrationDir = join(resourcesDir, 'db', 'migration', context.fullName);
   await mkdir(migrationDir, { recursive: true });
-  await renderTemplate('app/core/V001__init.sql.ejs',
+  await renderTemplate('backend/core/V001__init.sql.ejs',
     join(migrationDir, `V001__${context.name}_init.sql`), context);
 
   // Generate architecture guard test (ArchUnit red line constraint)
   const testDir = join(moduleDir, 'src', 'test', 'java', ...context.packageName.split('.'));
   await mkdir(testDir, { recursive: true });
-  await renderTemplate('app/core/ArchitectureTest.java.ejs',
+  await renderTemplate('backend/core/ArchitectureTest.java.ejs',
     join(testDir, 'ArchitectureTest.java'), context);
 }
 
@@ -625,26 +650,27 @@ async function generateAppUiWebModule(
   await mkdir(publicDir, { recursive: true });
   
   // Generate package.json
-  await renderTemplate('app/ui/package.json.ejs', join(moduleDir, 'package.json'), context);
+  await renderTemplate('frontend/web/package.json.ejs', join(moduleDir, 'package.json'), context);
   
   // Generate tsconfig.json
-  await renderTemplate('app/ui/tsconfig.json.ejs', join(moduleDir, 'tsconfig.json'), context);
+  await renderTemplate('frontend/web/tsconfig.json.ejs', join(moduleDir, 'tsconfig.json'), context);
   
-  // Generate rspack.config.cjs (Module Federation config)
-  await renderTemplate('app/ui/rspack.config.cjs.ejs', join(moduleDir, 'rspack.config.cjs'), context);
+  // Generate rspack.config.ts (Module Federation config)
+  await renderTemplate('frontend/web/rspack.config.ts.ejs', join(moduleDir, 'rspack.config.ts'), context);
   
   // Generate ui-manifest.yaml (UI module declaration)
-  await renderTemplate('app/ui/ui-manifest.yaml.ejs', join(moduleDir, 'ui-manifest.yaml'), context);
+  await renderTemplate('frontend/web/ui-manifest.yaml.ejs', join(moduleDir, 'ui-manifest.yaml'), context);
 
   // Generate eslint.config.js (architecture guard rules)
-  await renderTemplate('app/ui/eslint.config.js.ejs', join(moduleDir, 'eslint.config.js'), context);
+  await renderTemplate('frontend/web/eslint.config.js.ejs', join(moduleDir, 'eslint.config.js'), context);
   
   // Generate public/index.html
-  await renderTemplate('app/ui/index.html.ejs', join(publicDir, 'index.html'), context);
+  await renderTemplate('frontend/web/index.html.ejs', join(publicDir, 'index.html'), context);
   
   // Generate entry files
-  await renderTemplate('app/ui/bootstrap.tsx.ejs', join(srcDir, 'bootstrap.tsx'), context);
-  await renderTemplate('app/ui/App.tsx.ejs', join(srcDir, 'App.tsx'), context);
+  await renderTemplate('frontend/web/index.tsx.ejs', join(srcDir, 'index.tsx'), context);
+  await renderTemplate('frontend/web/bootstrap.tsx.ejs', join(srcDir, 'bootstrap.tsx'), context);
+  await renderTemplate('frontend/web/App.tsx.ejs', join(srcDir, 'App.tsx'), context);
   
   // Create component directories
   const componentsDir = join(srcDir, 'components');
@@ -658,19 +684,19 @@ async function generateAppUiWebModule(
   await mkdir(repositoriesDir, { recursive: true });
   
   // Generate example pages
-  await renderTemplate('app/ui/pages/List.tsx.ejs',
+  await renderTemplate('frontend/web/pages/List.tsx.ejs',
     join(pagesDir, `${context.classPrefix}List.tsx`), context);
-  await renderTemplate('app/ui/pages/Detail.tsx.ejs',
+  await renderTemplate('frontend/web/pages/Detail.tsx.ejs',
     join(pagesDir, `${context.classPrefix}Detail.tsx`), context);
   
   // Generate example Hook (uses UIRuntimeContext)
-  await renderTemplate('app/ui/hooks/useModule.ts.ejs',
+  await renderTemplate('frontend/web/hooks/useModule.ts.ejs',
     join(hooksDir, `use${context.classPrefix}.ts`), context);
     
   // Generate Repository (v3.0.4 new: MVVM data access layer)
-  await renderTemplate('app/ui/repositories/Repository.ts.ejs',
+  await renderTemplate('frontend/web/repositories/Repository.ts.ejs',
     join(repositoriesDir, `${context.classPrefix}Repository.ts`), context);
-  await renderTemplate('app/ui/repositories/index.ts.ejs',
+  await renderTemplate('frontend/web/repositories/index.ts.ejs',
     join(repositoriesDir, 'index.ts'), context);
 }
 
@@ -700,35 +726,29 @@ async function generateAppServerModule(
   // Create subdirectory structure
   const controllerDir = join(srcDir, 'controller');
   const configDir = join(srcDir, 'config');
+  const importsDir = join(moduleDir, 'src', 'main', 'resources', 'META-INF', 'spring');
   
   await mkdir(controllerDir, { recursive: true });
   await mkdir(configDir, { recursive: true });
+  await mkdir(importsDir, { recursive: true });
   
   // Generate pom.xml (includes springdoc-openapi dependency)
-  await renderTemplate('app/server/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
+  await renderTemplate('backend/server/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
   
   // Generate REST Controller (OpenAPI annotations)
-  await renderTemplate('app/server/ExampleController.java.ejs',
+  await renderTemplate('backend/server/ExampleController.java.ejs',
     join(controllerDir, `${context.classPrefix}Controller.java`), context);
   
   // Generate AutoConfiguration (Spring Boot auto-configuration)
-  await renderTemplate('app/server/AutoConfiguration.java.ejs',
+  await renderTemplate('backend/server/AutoConfiguration.java.ejs',
     join(configDir, `${context.classPrefix}ServerAutoConfiguration.java`), context);
   
   // Generate Properties (configuration properties)
-  await renderTemplate('app/server/Properties.java.ejs',
+  await renderTemplate('backend/server/Properties.java.ejs',
     join(configDir, `${context.classPrefix}ServerProperties.java`), context);
-    
-  // Generate META-INF/spring auto-configuration registration file
-  const metaInfDir = join(resourcesDir, 'META-INF', 'spring');
-  await mkdir(metaInfDir, { recursive: true });
-  
-  const autoConfigContent = `${context.packageName}.server.config.${context.classPrefix}ServerAutoConfiguration`;
-  await writeFile(
-    join(metaInfDir, 'org.springframework.boot.autoconfigure.AutoConfiguration.imports'),
-    autoConfigContent,
-    'utf-8'
-  );
+
+  await renderTemplate('backend/server/AutoConfiguration.imports.ejs',
+    join(importsDir, 'org.springframework.boot.autoconfigure.AutoConfiguration.imports'), context);
 }
 
 /**
@@ -757,27 +777,27 @@ async function generateAppSharedModule(
   await mkdir(generatedDir, { recursive: true });
   
   // Generate package.json
-  await renderTemplate('app/shared/package.json.ejs', join(moduleDir, 'package.json'), context);
+  await renderTemplate('backend/shared/package.json.ejs', join(moduleDir, 'package.json'), context);
   
   // Generate tsconfig.json
-  await renderTemplate('app/shared/tsconfig.json.ejs', join(moduleDir, 'tsconfig.json'), context);
+  await renderTemplate('backend/shared/tsconfig.json.ejs', join(moduleDir, 'tsconfig.json'), context);
   
   // Generate tsup.config.ts (build config)
-  await renderTemplate('app/shared/tsup.config.ts.ejs', join(moduleDir, 'tsup.config.ts'), context);
+  await renderTemplate('backend/shared/tsup.config.ts.ejs', join(moduleDir, 'tsup.config.ts'), context);
   
   // Generate orval.config.ts (OpenAPI code generation config)
-  await renderTemplate('app/shared/orval.config.ts.ejs', join(moduleDir, 'orval.config.ts'), context);
+  await renderTemplate('backend/shared/orval.config.ts.ejs', join(moduleDir, 'orval.config.ts'), context);
   
   // Generate http-client.ts (HttpCapability adapter)
-  await renderTemplate('app/shared/http-client.ts.ejs', join(srcDir, 'http-client.ts'), context);
+  await renderTemplate('backend/shared/src/http-client.ts.ejs', join(srcDir, 'http-client.ts'), context);
   
   // Generate business type definition files
-  await renderTemplate('app/shared/types.ts.ejs', join(srcDir, 'types.ts'), context);
-  await renderTemplate('app/shared/events.ts.ejs', join(srcDir, 'events.ts'), context);
-  await renderTemplate('app/shared/constants.ts.ejs', join(srcDir, 'constants.ts'), context);
+  await renderTemplate('backend/shared/src/types.ts.ejs', join(srcDir, 'types.ts'), context);
+  await renderTemplate('backend/shared/src/events.ts.ejs', join(srcDir, 'events.ts'), context);
+  await renderTemplate('backend/shared/src/constants.ts.ejs', join(srcDir, 'constants.ts'), context);
   
   // Generate entry file
-  await renderTemplate('app/shared/index.ts.ejs', join(srcDir, 'index.ts'), context);
+  await renderTemplate('backend/shared/src/index.ts.ejs', join(srcDir, 'index.ts'), context);
   
   // Create .gitkeep to keep generated directory
   await writeFile(join(generatedDir, '.gitkeep'), '', 'utf-8');
@@ -889,20 +909,20 @@ async function generateAppAppModule(
   await mkdir(resourcesDir, { recursive: true });
   
   // Generate pom.xml
-  await renderTemplate('app/app/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
+  await renderTemplate('backend/app/pom.xml.ejs', join(moduleDir, 'pom.xml'), context);
   
   // Generate Application.java
-  await renderTemplate('app/app/Application.java.ejs',
+  await renderTemplate('backend/app/Application.java.ejs',
     join(srcDir, `${context.classPrefix}Application.java`), context);
   
   // Generate application.yml
-  await renderTemplate('app/app/application.yml.ejs',
+  await renderTemplate('backend/app/application.yml.ejs',
     join(resourcesDir, 'application.yml'), context);
   
   // Generate Docker config (if needed)
   if (context.withDocker) {
-    await renderTemplate('app/app/Dockerfile.ejs', join(moduleDir, 'Dockerfile'), context);
-    await renderTemplate('app/app/docker-compose.yml.ejs', 
+    await renderTemplate('backend/app/Dockerfile.ejs', join(moduleDir, 'Dockerfile'), context);
+    await renderTemplate('backend/app/docker-compose.yml.ejs', 
       join(moduleDir, 'docker-compose.yml'), context);
   }
 }

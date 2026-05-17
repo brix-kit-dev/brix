@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,22 +16,22 @@
 /**
  * @file Plugin Instance and Manifest Type Definitions
  * @description Core types for Module Federation plugin loading
- * @module @brix/infra-adapter-mf-web/types
+ * @module @brix-sdk/infra-adapter-mf-web/types
  * @version 3.2.0
  * 
- * 【v3.2 Architecture Notes】
+ * v3.2 Architecture Notes:
  * Common contracts (PluginManifest base class, PluginInstance base class, PluginLoader, PluginLoadError)
  * have been promoted to runtime-sdk-api-web. This file extends MF-specific fields and re-exports.
  * 
- * 【Architectural Position】
+ * Architectural Position:
  * ```text
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ runtime-sdk-api-web (Contract Layer)                                   │
- * │ └── PluginManifest, PluginInstance, PluginLoader base interfaces      │
- * ├─────────────────────────────────────────────────────────────────────────┤
- * │ infra-adapter-mf-web (This Module) ⭐                                   │
- * │ └── Extends MF-specific fields (entry, expose, scope, etc.)           │
- * └─────────────────────────────────────────────────────────────────────────┘
+ * +-------------------------------------------------------------------+
+ * | runtime-sdk-api-web (Contract Layer)                              |
+ * |   - PluginManifest, PluginInstance, PluginLoader base interfaces  |
+ * +-------------------------------------------------------------------+
+ * | infra-adapter-mf-web (This Module)                                |
+ * |   - Extends MF-specific fields (entry, expose, scope, etc.)      |
+ * +-------------------------------------------------------------------+
  * ```
  */
 
@@ -42,7 +42,7 @@ import {
   type PluginInstance as BasePluginInstance,
   type PluginLoader as BasePluginLoader,
   PluginLoadError,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 // Re-export base types for backward compatibility
 export { PluginLoadError };
@@ -73,7 +73,7 @@ export type PluginStatus =
  * 
  * Extends base PluginManifest with MF-specific fields.
  * 
- * 【Design Notes】
+ * Design Notes:
  * - entry: Remote entry URL, pointing to remoteEntry.js
  * - expose: Exposed module path, e.g. "./App"
  * - scope: MF container scope name

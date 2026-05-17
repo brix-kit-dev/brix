@@ -13,11 +13,11 @@
  * - 所有 HTTP 请求必须通过 HttpCapability 发起
  * - HttpCapability 由 Host 层注入，插件层通过 RuntimeContext 获取
  *
- * 【使用方式】
- * 本文件被 orval.config.ts 引用，生成的 Repository 会自动使用此适配器
+ * [Usage]
+ * This file is referenced by orval.config.ts, generated Repository will use this adapter automatically
  */
 
-import type { HttpCapability, HttpRequestConfig, HttpResponse } from '@brix/runtime-sdk-api-web';
+import type { HttpCapability, HttpRequestConfig, HttpResponse } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * HttpCapability 实例（由 Host 注入）
@@ -33,9 +33,9 @@ let httpCapability: HttpCapability | null = null;
  *
  * @example
  * ```typescript
- * // 在 bootstrap.tsx 中设置
+ * // In bootstrap.tsx
  * import { setHttpCapability } from '@brix/<%= name %>-shared/generated';
- * import { useRuntimeContext } from '@brix/runtime-sdk-api-web';
+ * import { useRuntimeContext } from '@brix-sdk/runtime-sdk-react';
  * 
  * const runtimeContext = useRuntimeContext();
  * setHttpCapability(runtimeContext.getCapability('HttpCapability'));

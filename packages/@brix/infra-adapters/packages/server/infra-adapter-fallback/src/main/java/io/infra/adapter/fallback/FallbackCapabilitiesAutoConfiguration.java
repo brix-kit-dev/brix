@@ -40,7 +40,7 @@ import io.runtime.sdk.capability.ResilienceCapability;
  * <p>
  * According to the v3.0 Runtime Shell Architecture Blueprint:
  * <ul>
- *   <li>Host layer (shinwa-host-assembly) only performs assembly, contains no implementation code</li>
+ *   <li>Host layer (enterprise-host) only performs assembly, contains no implementation code</li>
  *   <li>All capability implementations must be in infra-adapters or platform-commons</li>
  *   <li>This module provides fallback implementations to ensure basic functionality</li>
  * </ul>
@@ -74,17 +74,18 @@ public class FallbackCapabilitiesAutoConfiguration {
      * <strong>MUST NOT</strong> be enabled in production environments.
      * </p>
      *
-     * <h3>Production Protection</h3>
+     * <h3>Production Protection (triple-gate, dev-on-by-default per Spring Boot convention)</h3>
      * <ul>
-     *   <li>{@code @Profile("!production")} - Excluded when production profile is active</li>
-     *   <li>{@code @ConditionalOnProperty} - Requires explicit opt-in via configuration</li>
-     *   <li>{@code @ConditionalOnMissingBean} - Skipped if a real auth capability exists</li>
+     *   <li>{@code @Profile("!production")} - Excluded when production profile is active (HARD gate)</li>
+     *   <li>{@code @ConditionalOnProperty(matchIfMissing=true)} - Enabled by default in dev,
+     *       can be disabled via {@code brix.fallback.auth.enabled=false} (opt-out)</li>
+     *   <li>{@code @ConditionalOnMissingBean} - Skipped if a real {@link AuthContextCapability} exists
+     *       (e.g. infra-adapter-simple {@code DelegatedAuthContextCapability} backed by OAuth)</li>
      * </ul>
      *
-     * <!-- Production environment triple protection mechanism -->
-     * <!-- 1. Profile exclusion: Not registered when spring.profiles.active contains production -->
-     * <!-- 2. Config gate: Must explicitly set brix.fallback.auth.enabled=true -->
-     * <!-- 3. Bean priority: Automatically skipped when real auth implementation exists -->
+     * <p>This dev-on-by-default pattern matches Spring Boot's own auto-configurations
+     * (e.g. devtools, h2-console). Production safety is guaranteed by the {@code @Profile}
+     * exclusion, which cannot be bypassed by property configuration.</p>
      *
      * @return the fallback authentication context capability
      */
@@ -94,10 +95,10 @@ public class FallbackCapabilitiesAutoConfiguration {
         prefix = "brix.fallback.auth",
         name = "enabled",
         havingValue = "true",
-        matchIfMissing = false
+        matchIfMissing = true
     )
     @ConditionalOnMissingBean(AuthContextCapability.class)
-    public AuthContextCapability fallbackAuthContextCapability() {
+    public FallbackAuthContextCapability fallbackAuthContextCapability() {
         log.warn("[Fallback] Creating Fallback AuthContextCapability (allows all access) - FOR DEVELOPMENT ONLY");
         return new FallbackAuthContextCapability();
     }
@@ -107,7 +108,7 @@ public class FallbackCapabilitiesAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(ObservabilityCapability.class)
-    public ObservabilityCapability fallbackObservabilityCapability() {
+    public FallbackObservabilityCapability fallbackObservabilityCapability() {
         log.info("[Fallback] Creating Fallback ObservabilityCapability (SLF4J-based)");
         return new FallbackObservabilityCapability();
     }
@@ -117,7 +118,7 @@ public class FallbackCapabilitiesAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(ConfigStoreCapability.class)
-    public ConfigStoreCapability fallbackConfigStoreCapability() {
+    public FallbackConfigStoreCapability fallbackConfigStoreCapability() {
         log.info("[Fallback] Creating Fallback ConfigStoreCapability (environment variables and system properties)");
         return new FallbackConfigStoreCapability();
     }
@@ -127,7 +128,7 @@ public class FallbackCapabilitiesAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(LifecycleCapability.class)
-    public LifecycleCapability fallbackLifecycleCapability() {
+    public FallbackLifecycleCapability fallbackLifecycleCapability() {
         log.info("[Fallback] Creating Fallback LifecycleCapability (no-op)");
         return new FallbackLifecycleCapability();
     }
@@ -141,7 +142,7 @@ public class FallbackCapabilitiesAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(ResilienceCapability.class)
-    public ResilienceCapability fallbackResilienceCapability() {
+    public FallbackResilienceCapability fallbackResilienceCapability() {
         log.warn("[Fallback] Creating Fallback ResilienceCapability (pass-through, no real resilience protection) - Production should use Resilience4j adapter");
         return new FallbackResilienceCapability();
     }
@@ -164,7 +165,7 @@ public class FallbackCapabilitiesAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(HttpCapability.class)
-    public HttpCapability fallbackHttpCapability() {
+    public FallbackHttpCapability fallbackHttpCapability() {
         log.info("[Fallback] Creating Fallback HttpCapability (JDK HttpClient-based)");
         return new FallbackHttpCapability();
     }

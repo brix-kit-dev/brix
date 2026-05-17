@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Authors
   ~
@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>infra-adapters</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -31,19 +31,20 @@
 
     <name>Brix Infra Adapter - Kafka (Aggregator)</name>
     <description>
-        Kafka 事件总线适配器聚合模块（开源）
+        Kafka EventBus Adapter Aggregator Module (Open Source)
         
-        本聚合模块包含两个子模块：
-        - infra-adapter-kafka-core: Kafka EventBusCapability 核心实现
-        - infra-adapter-kafka-outbox: Outbox 事务性事件发布扩展（需要 JPA）
+        This aggregator module contains two sub-modules:
+        - infra-adapter-kafka-core: Core Kafka EventBusCapability implementation
+        - infra-adapter-kafka-outbox: Outbox transactional event publishing extension (requires JPA)
         
-        架构说明：
-        Outbox 模式天然需要依赖 Kafka 发送能力，将其作为 Kafka 的子模块
-        符合"组合优于隔离"的务实设计原则。使用方可按需引入：
-        - 只需 Kafka: 引入 infra-adapter-kafka-core
-        - 需要 Outbox: 引入 infra-adapter-kafka-outbox（自动传递 core）
+        Architecture Notes:
+        The Outbox pattern naturally depends on Kafka publishing capability, so it is placed
+        as a sub-module of Kafka, following the "composition over isolation" pragmatic design
+        principle. Consumers can include as needed:
+        - Kafka only: include infra-adapter-kafka-core
+        - With Outbox: include infra-adapter-kafka-outbox (transitively includes core)
         
-        属于开源平台层（Layer 2.5: Adapter 层）
+        Architecture Layer: Layer 2.5 - Adapter Layer (Open Source)
     </description>
 
     <licenses>

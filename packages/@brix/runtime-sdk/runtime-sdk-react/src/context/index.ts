@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
  */
 /**
  * @file Context Module Unified Exports
- * @module @brix/runtime-sdk-react/context
+ * @module @brix-sdk/runtime-sdk-react/context
  * @version 3.2.0
  */
 

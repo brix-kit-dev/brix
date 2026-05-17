@@ -108,7 +108,7 @@ public class SdkProfile {
     static final ArchRule sdkNotDependOnHost = noClasses()
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
-            .resideInAPackage("io.host.shell..")
+            .resideInAPackage("io.brix.enterprise.host..")
             .because("Red Line 11: runtime-sdk must not depend on host layer")
             .allowEmptyShould(true);
 
@@ -147,5 +147,16 @@ public class SdkProfile {
             .should().dependOnClassesThat()
             .resideInAnyPackage("redis.clients..", "org.springframework.data.redis..")
             .because("Red Line 1: runtime-sdk must not depend on Redis directly")
+            .allowEmptyShould(true);
+
+    /**
+     * SDK contracts must not expose direct database APIs.
+     */
+    @ArchTest
+    static final ArchRule noDirectDatabaseDependency = noClasses()
+            .that().resideInAPackage("io.runtime.sdk..")
+            .should().dependOnClassesThat()
+            .resideInAnyPackage("java.sql..", "javax.sql..", "org.springframework.jdbc..", "org.hibernate..")
+            .because("Red Line 1: runtime-sdk contracts must not expose direct database APIs")
             .allowEmptyShould(true);
 }

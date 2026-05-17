@@ -15,11 +15,16 @@
  */
 package io.infra.adapter.outbox.config;
 
+import java.util.Optional;
+import java.util.function.Supplier;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -31,8 +36,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.infra.adapter.kafka.EventTopicResolver;
 import io.infra.adapter.kafka.config.KafkaEventBusProperties;
+import io.infra.adapter.outbox.CriticalEventOutboxAspect;
 import io.infra.adapter.outbox.OutboxEventPublisher;
 import io.infra.adapter.outbox.OutboxEventRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 
 /**
  * Outbox Pattern Auto-Configuration.
@@ -74,6 +81,7 @@ import io.infra.adapter.outbox.OutboxEventRepository;
 @AutoConfiguration
 @ConditionalOnClass({KafkaTemplate.class})
 @ConditionalOnProperty(name = "brix.infra.kafka.enabled", havingValue = "true", matchIfMissing = true)
+@EntityScan(basePackages = "io.infra.adapter.outbox")
 @EnableJpaRepositories(basePackages = "io.infra.adapter.outbox")
 @EnableScheduling
 public class OutboxAutoConfiguration {
@@ -118,9 +126,32 @@ public class OutboxAutoConfiguration {
             OutboxEventRepository outboxRepository,
             KafkaTemplate<String, String> kafkaTemplate,
             EventTopicResolver topicResolver,
-            KafkaEventBusProperties properties) {
+            KafkaEventBusProperties properties,
+            @Autowired(required = false) Supplier<Optional<String>> tenantIdProvider,
+            @Autowired(required = false) MeterRegistry meterRegistry) {
         return new OutboxEventPublisher(
                 outboxRepository, kafkaTemplate, topicResolver,
-                createOutboxObjectMapper(), properties.getOutbox());
+                createOutboxObjectMapper(), properties.getOutbox(),
+                tenantIdProvider, meterRegistry);
+    }
+
+    /**
+     * Configures the AOP aspect that routes {@code @CriticalEvent}-annotated
+     * integration events through the Outbox publisher for guaranteed delivery.
+     *
+     * <p>Activates only when the {@link OutboxEventPublisher} bean is available,
+     * ensuring a graceful no-op when the Outbox module's prerequisites
+     * (JPA + Kafka) are not met.</p>
+     *
+     * @param outboxEventPublisher the Outbox publisher to delegate to
+     * @return CriticalEventOutboxAspect instance
+     * @since 3.2.0
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(OutboxEventPublisher.class)
+    public CriticalEventOutboxAspect criticalEventOutboxAspect(
+            OutboxEventPublisher outboxEventPublisher) {
+        return new CriticalEventOutboxAspect(outboxEventPublisher);
     }
 }

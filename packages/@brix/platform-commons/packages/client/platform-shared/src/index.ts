@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file platform-shared module entry
  * @description Platform common layer shared module - Cross-platform types, constants and utility functions
- * @module @brix/platform-shared
+ * @module @brix-sdk/platform-shared
  * @version 3.0.0
  * 
  * Module Description:
@@ -162,11 +162,11 @@ export {
 } from './utils';
 
 // ============================================================================
-// HTTP Utilities (merged from @brix/http-client)
+// HTTP Utilities (merged from @brix-sdk/http-client)
 // ============================================================================
 
 export {
-  // Êé•Âè£ÂÆö‰πâ
+  // Ω”ø⁄∂®“Â
   type HttpMethod,
   type RequestConfig,
   type RequestInterceptor,
@@ -177,7 +177,7 @@ export {
   type HttpErrorCodeType,
   RETRYABLE_STATUS_CODES,
   RETRYABLE_NETWORK_ERRORS,
-  // ÈáçËØïÈÄªËæë
+  // ÷ÿ ‘¬ﬂº≠
   type RetryOptions,
   DEFAULT_RETRY_OPTIONS,
   calculateBackoffDelay,
@@ -185,7 +185,7 @@ export {
   delay as httpDelay,
   withRetry,
   createRetryable,
-  // ÁºìÂ≠òÈÄªËæë
+  // ª∫¥Ê¬ﬂº≠
   type CacheOptions,
   DEFAULT_CACHE_OPTIONS,
   SimpleCache,

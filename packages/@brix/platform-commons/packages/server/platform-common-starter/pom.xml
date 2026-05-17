@@ -32,15 +32,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!--
-    【4.5 修复】统一继承根 platform-commons POM，
-    替代此前的 platform-parent:1.0.0-SNAPSHOT 独立树。
-    版本从 1.0.0-SNAPSHOT 升级至 3.0.0-SNAPSHOT，与全平台统一。
-    -->
     <parent>
         <groupId>io.brix.platform</groupId>
         <artifactId>platform-commons</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -71,6 +66,19 @@
         </dependency>
 
         <!-- =====================================================
+             Runtime SDK API — Capability Contracts
+             
+             Optional dependency for bridging Spring Cache to
+             StateStoreCapability. Only activated when a
+             StateStoreCapability bean is present in the context.
+             ===================================================== -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- =====================================================
              Spring Boot 核心依赖
              ===================================================== -->
         <dependency>
@@ -88,6 +96,23 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- =====================================================
+             Spring Cache Abstraction
+             
+             Provides @EnableCaching, CacheManager, @Cacheable etc.
+             The actual cache implementation is bridged to the
+             Runtime Shell's StateStoreCapability via
+             StateStoreCacheManager, so plugins never touch Redis
+             or any cache middleware directly.
+             
+             @see PlatformCacheAutoConfiguration
+             @see StateStoreCacheManager
+             ===================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
 
         <!-- =====================================================
@@ -150,6 +175,24 @@
         </dependency>
 
         <!-- =====================================================
+             datasource-proxy — Slow Query Logging (Phase 5.4)
+             
+             Wraps JDBC DataSource to intercept and log all SQL
+             queries, flagging slow queries above a configurable
+             threshold. Activated ONLY in dev profile via
+             SlowQueryLoggingAutoConfiguration.
+             
+             Library: net.ttddyy:datasource-proxy
+             Architecture Layer: platform-common-starter (Layer 2C)
+             ===================================================== -->
+        <dependency>
+            <groupId>net.ttddyy</groupId>
+            <artifactId>datasource-proxy</artifactId>
+            <version>1.10</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- =====================================================
              HTTP 客户端（用于向基座注册）
              ===================================================== -->
         <dependency>
@@ -177,7 +220,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
         

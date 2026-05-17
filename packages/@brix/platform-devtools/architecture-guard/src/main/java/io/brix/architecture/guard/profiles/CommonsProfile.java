@@ -88,7 +88,7 @@ public class CommonsProfile {
     static final ArchRule commonsNotDependOnHost = noClasses()
             .that().resideInAPackage("io.brix.commons..")
             .should().dependOnClassesThat()
-            .resideInAPackage("io.host.shell..")
+            .resideInAPackage("io.brix.enterprise.host..")
             .because("platform-commons must not depend on host layer")
             .allowEmptyShould(true);
 

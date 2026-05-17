@@ -1,10 +1,10 @@
-﻿# =====================================================
+# =====================================================
 # v2.1 服务 docker-compose.yml - <%= fullName %>
 # 
 # <%= description %>
 # 
 # 数据库模式（通过环境变量控制）：
-# - Total享模式（Default）：连接 platform-postgres，数据库名 shinwa_<%= name %>
+# - Total享模式（Default）：连接 platform-postgres，数据库名 brix_<%= name %>
 # - 独立模式：设置 DB_HOST, DB_PORT, DB_NAME 等环境变量
 # 
 # 前置items件：platform-host-web 的 docker-compose 已启动
@@ -32,7 +32,7 @@ services:
       - SERVER_PORT=<%= port %>
       - SPRING_PROFILES_ACTIVE=docker
       # 数据库配置（支持环境变量覆盖，便于切换独立数据库）
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST:-platform-postgres}:${DB_PORT:-5432}/${DB_NAME:-shinwa_<%= name %>}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST:-platform-postgres}:${DB_PORT:-5432}/${DB_NAME:-brix_<%= name %>}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-platform}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-platform123}
       # Redis 配置（支持环境变量覆盖）
@@ -43,8 +43,8 @@ services:
       # 基座网关地址（用于服务注册）
       - PLATFORM_HOST_URL=${PLATFORM_URL:-http://platform-gateway:8080}
       # API Key 认证（用于向 Plugin Engine 注册）
-      - SHINWA_SERVICE_API_KEY=${API_KEY:-shinwa-plugin-service-api-key-v1}
-      - SHINWA_SERVICE_API_SECRET=${API_SECRET:-shinwa-plugin-service-api-secret-v1-32chars}
+      - BRIX_SERVICE_API_KEY=${API_KEY:-brix-plugin-service-api-key-v1}
+      - BRIX_SERVICE_API_SECRET=${API_SECRET:-brix-plugin-service-api-secret-v1-32chars}
       # OpenTelemetry 链路追踪
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_ENDPOINT:-http://platform-jaeger:4317}
     restart: unless-stopped
@@ -65,7 +65,7 @@ services:
       # 构建上下文设置为工作区根目录（D:\1.Sources）
       context: ../..
       dockerfile: plugins/<%= plugin.name %>/<%= plugin.name %>-web/Dockerfile.dev
-    container_name: shinwa-<%= plugin.name %>-web
+    container_name: brix-<%= plugin.name %>-web
     ports:
       - "<%= webPort %>:<%= webPort %>"
     environment:

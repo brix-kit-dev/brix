@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file HTTP Capability Implementation
  * @description Implements HttpCapability Interface with retry and cache support
- * @module @brix/infra-adapter-http-web/HttpCapabilityImpl
+ * @module @brix-sdk/infra-adapter-http-web/HttpCapabilityImpl
  * @version 3.1.0
  *
  * Architecture Overview:
@@ -35,20 +35,22 @@
  * - Plugins MUST NOT call fetch directly, use this capability instead
  * - Interceptors are processed in registration order
  *
- * 【架构要点】
- * - 这是唯一调用 fetch 的地方，插件禁止直接调用 fetch
- * - 拦截器链支持请求/响应拦截，用于注入认证、日志等
- * - 支持指数退避重试和响应缓存
+ * ���ܹ�Ҫ�㡿
+ * - ����Ψһ���� fetch �ĵط��������ֱֹ�ӵ��� fetch
+ * - ��������֧������/��Ӧ���أ�����ע����֤����־��
+ * - ֧��ָ���˱����Ժ���Ӧ����
  */
 
 import type {
   HttpCapability,
   HttpRequestConfig,
   HttpResponse,
-} from '@brix/runtime-sdk-api-web';
+  EventBusCapability,
+} from '@brix-sdk/runtime-sdk-api-web';
 import { withRetry, type RetryOptions, DEFAULT_RETRY_OPTIONS } from './retry';
 import { SimpleCache, generateCacheKey, type CacheOptions, DEFAULT_CACHE_OPTIONS } from './cache';
-import { HttpError, HttpErrorCode } from './interface';
+import { HttpError, HttpErrorCode, type RequestConfig } from './interface';
+import { createErrorEventInterceptor } from './interceptors/error';
 
 /**
  * Request Interceptor
@@ -89,70 +91,80 @@ export interface HttpResponseInterceptor {
    * @param error - Error object
    * @returns Rethrow error or return modified response for recovery
    */
-  onResponseError?(error: unknown): HttpResponse<unknown> | Promise<never>;
+  onResponseError?(error: unknown): HttpResponse<unknown> | Promise<HttpResponse<unknown>>;
 }
 
 /**
  * HTTP Capability Implementation Options
  *
- * 【配置项说明】
- * - baseURL: API 基础路径
- * - defaultTimeout: 默认请求超时时间
- * - retry: 重试配置
- * - cache: 缓存配置
- * - defaultHeaders: 默认请求头
+ * ��������˵����
+ * - baseURL: API ����·��
+ * - defaultTimeout: Ĭ������ʱʱ��
+ * - retry: ��������
+ * - cache: ��������
+ * - defaultHeaders: Ĭ������ͷ
  */
 export interface HttpCapabilityImplOptions {
   /**
    * Base URL for all requests
-   * API 基础路径
+   * API ����·��
    * @default ''
    */
   baseURL?: string;
 
   /**
    * Default request timeout in milliseconds
-   * 默认请求超时时间（毫秒）
+   * Ĭ������ʱʱ�䣨���룩
    * @default 30000
    */
   defaultTimeout?: number;
 
   /**
    * Retry configuration
-   * 重试配置
+   * ��������
    */
   retry?: Partial<RetryOptions>;
 
   /**
    * Cache configuration
-   * 缓存配置
+   * ��������
    */
   cache?: Partial<CacheOptions>;
 
   /**
    * Default headers for all requests
-   * 默认请求头
+   * Ĭ������ͷ
    */
   defaultHeaders?: Record<string, string>;
 
   /**
    * Enable request/response logging
-   * 启用请求/响应日志
+   * ��������/��Ӧ��־
    * @default false
    */
   enableLogging?: boolean;
 
   /**
    * Auth token provider
-   * 认证令牌提供者
+   * ��֤�����ṩ��
    */
   authTokenProvider?: () => string | null | Promise<string | null>;
 
   /**
    * Tenant ID provider
-   * 租户 ID 提供者
+   * �⻧ ID �ṩ��
    */
   tenantIdProvider?: () => string | null;
+
+  /**
+   * Optional EventBus capability for emitting `system.http.error` events on
+   * failed responses (Frontend Stability Reform Plan v1.0 — C-2).
+   *
+   * <p>When supplied, the constructor automatically registers a built-in
+   * response interceptor that classifies errors and publishes structured
+   * payloads to subscribers (e.g. `HttpErrorToaster`). Omit to opt out.</p>
+   */
+  eventBus?: EventBusCapability;
 }
 
 /**
@@ -165,11 +177,11 @@ export interface HttpCapabilityImplOptions {
  * - Auth token injection
  * - Tenant context propagation
  *
- * 【核心实现说明】
- * 1. 基于原生 fetch API 实现，不依赖第三方 HTTP 库
- * 2. 拦截器链按注册顺序执行，支持异步拦截器
- * 3. 重试使用指数退避算法，避免雪崩效应
- * 4. 缓存仅对 GET 请求生效，支持 TTL 过期
+ * ������ʵ��˵����
+ * 1. ����ԭ�� fetch API ʵ�֣������������� HTTP ��
+ * 2. ����������ע��˳��ִ�У�֧���첽������
+ * 3. ����ʹ��ָ���˱��㷨������ѩ��ЧӦ
+ * 4. ������� GET ������Ч��֧�� TTL ����
  *
  * Usage Example:
  * ```typescript
@@ -263,6 +275,13 @@ export class HttpCapabilityImpl implements HttpCapability {
     this.enableLogging = options.enableLogging ?? false;
     this.authTokenProvider = options.authTokenProvider;
     this.tenantIdProvider = options.tenantIdProvider;
+
+    // Auto-register error-event interceptor when an EventBus is provided.
+    // Layer 2C wiring: keeps subscribers (e.g. HttpErrorToaster) decoupled
+    // from individual call sites. See C-2 in the stability reform plan.
+    if (options.eventBus) {
+      this.addResponseInterceptor(createErrorEventInterceptor(options.eventBus));
+    }
   }
 
   /**
@@ -491,12 +510,12 @@ export class HttpCapabilityImpl implements HttpCapability {
   /**
    * Execute HTTP request using fetch API
    *
-   * 【fetch 调用封装】
-   * 这是唯一直接调用 fetch 的地方，包括：
-   * 1. 构建完整 URL
-   * 2. 注入认证头和租户上下文
-   * 3. 处理超时
-   * 4. 统一错误处理
+   * ��fetch ���÷�װ��
+   * ����Ψһֱ�ӵ��� fetch �ĵط���������
+   * 1. �������� URL
+   * 2. ע����֤ͷ���⻧������
+   * 3. ������ʱ
+   * 4. ͳһ������
    *
    * @param config - Request configuration
    * @returns HTTP response
@@ -546,7 +565,7 @@ export class HttpCapabilityImpl implements HttpCapability {
 
       // Convert headers to object
       const responseHeaders: Record<string, string> = {};
-      response.headers.forEach((value, key) => {
+      response.headers.forEach((value: string, key: string) => {
         responseHeaders[key] = value;
       });
 
@@ -567,7 +586,7 @@ export class HttpCapabilityImpl implements HttpCapability {
         throw new HttpError(
           `HTTP ${response.status}: ${response.statusText}`,
           HttpErrorCode.SERVER_ERROR,
-          { status: response.status, response: data },
+          { status: response.status, response: data, config: config as unknown as RequestConfig },
         );
       }
 
@@ -578,7 +597,7 @@ export class HttpCapabilityImpl implements HttpCapability {
         throw new HttpError(
           `Request timeout after ${timeout}ms`,
           HttpErrorCode.TIMEOUT,
-          { retryable: true },
+          { config: config as unknown as RequestConfig, retryable: true },
         );
       }
 
@@ -587,7 +606,7 @@ export class HttpCapabilityImpl implements HttpCapability {
         throw new HttpError(
           'Network error: Unable to connect',
           HttpErrorCode.NETWORK_ERROR,
-          { retryable: true },
+          { config: config as unknown as RequestConfig, retryable: true },
         );
       }
 
@@ -600,6 +619,7 @@ export class HttpCapabilityImpl implements HttpCapability {
       throw new HttpError(
         error instanceof Error ? error.message : 'Unknown error',
         HttpErrorCode.UNKNOWN,
+        { config: config as unknown as RequestConfig },
       );
     } finally {
       clearTimeout(timeoutId);
@@ -642,10 +662,10 @@ export class HttpCapabilityImpl implements HttpCapability {
   /**
    * Build request headers with auth and tenant context
    *
-   * 【请求头构建】
-   * 1. 合并默认头和自定义头
-   * 2. 注入 Authorization 头（如果有 token provider）
-   * 3. 注入 X-Tenant-ID 头（如果有 tenant provider）
+   * ������ͷ������
+   * 1. �ϲ�Ĭ��ͷ���Զ���ͷ
+   * 2. ע�� Authorization ͷ������� token provider��
+   * 3. ע�� X-Tenant-ID ͷ������� tenant provider��
    *
    * @param customHeaders - Custom headers
    * @returns Merged headers
@@ -681,8 +701,8 @@ export class HttpCapabilityImpl implements HttpCapability {
 /**
  * Factory Function: Create HTTP Capability
  *
- * 【工厂函数说明】
- * 提供便捷的 HTTP 能力创建方式
+ * ����������˵����
+ * �ṩ��ݵ� HTTP ����������ʽ
  *
  * @param options - Configuration options
  * @returns HttpCapabilityImpl instance

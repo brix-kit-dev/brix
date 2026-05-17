@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file infra-adapter-router-web module entry
  * @description Brix UI Router Adapter - react-router based routing implementation
- * @module @brix/infra-adapter-router-web
+ * @module @brix-sdk/infra-adapter-router-web
  * @version 3.1.0
  * 
  * [Module Description]
@@ -29,11 +29,11 @@
  * - Plugins navigate through NavigationCapability
  * 
  * [v3.0 Architectural Constraints (Red Lines)]
- * ❌ Plugins MUST NOT use react-router directly
- * ❌ Plugins MUST NOT register routes
- * ❌ Plugins MUST NOT navigate using URL paths
- * ✅ Plugins request navigation using PageId
- * ✅ Host decides whether to allow navigation
+ * ? Plugins MUST NOT use react-router directly
+ * ? Plugins MUST NOT register routes
+ * ? Plugins MUST NOT navigate using URL paths
+ * ? Plugins request navigation using PageId
+ * ? Host decides whether to allow navigation
  * 
  * [v3.1 Architecture Compliance Updates]
  * - Removed direct re-export of third-party types (Router, Location, RouterProvider)
@@ -42,7 +42,7 @@
  * 
  * [Usage] (Host layer only)
  * ```typescript
- * import { ReactRouterAdapter, BrixRouterProvider } from '@brix/infra-adapter-router-web';
+ * import { ReactRouterAdapter, BrixRouterProvider } from '@brix-sdk/infra-adapter-router-web';
  * 
  * const adapter = new ReactRouterAdapter({ basename: '/app' });
  * adapter.registerPages(pages);
@@ -122,7 +122,7 @@ export type RouteChangeListener = (
  * 
  * @example
  * ```typescript
- * import { ReactRouterAdapter, BrixRouterProvider } from '@brix/infra-adapter-router-web';
+ * import { ReactRouterAdapter, BrixRouterProvider } from '@brix-sdk/infra-adapter-router-web';
  * 
  * const adapter = new ReactRouterAdapter();
  * adapter.registerPages(pages);

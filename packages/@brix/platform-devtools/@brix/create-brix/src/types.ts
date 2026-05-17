@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,11 +16,11 @@
 /**
  * @file types.ts
  * @description Type Definitions
- * @module @brix/create-brix
+ * @module @brix-sdk/create-brix
  * @version 3.0
  * 
  * v3.0 Changes:
- * - Added 'app' generation type for creating business application modules (shinwa-app-*)
+ * - Added 'app' generation type for creating business application modules (app-*)
  * - Added AppConfig configuration interface following v3.0 Runtime Shell architecture
  * - Added AppTemplateContext template context
  */
@@ -126,7 +126,7 @@ export interface PluginConfig {
  * Service Configuration
  */
 export interface ServiceConfig {
-  /** Service name (kebab-case, without shinwa-service- prefix) */
+  /** Service name (kebab-case, without brix-service- prefix) */
   name: string;
   /** Java package name (for generating Java code, handling reserved words) */
   javaPackageName?: string;
@@ -196,6 +196,8 @@ export interface PluginTemplateContext extends PluginConfig {
   packageName: string;
   /** Class name prefix */
   classPrefix: string;
+  /** Brix SDK version used by generated manifests and packages */
+  sdkVersion: string;
   /** Index signature for template rendering */
   [key: string]: unknown;
 }
@@ -212,6 +214,8 @@ export interface ServiceTemplateContext extends ServiceConfig {
   classPrefix: string;
   /** Service name (for Spring) */
   springServiceName: string;
+  /** Brix SDK version used by generated manifests and packages */
+  sdkVersion: string;
   /** Index signature for template rendering */
   [key: string]: unknown;
 }
@@ -241,7 +245,7 @@ export type ModuleType = 'business' | 'infrastructure';
  * ```typescript
  * const config: AppConfig = {
  *   name: 'booking',
- *   fullName: 'shinwa-app-booking',
+ *   fullName: 'app-booking',
  *   displayName: 'Booking Management',
  *   moduleType: 'business',
  *   // ...
@@ -249,9 +253,9 @@ export type ModuleType = 'business' | 'infrastructure';
  * ```
  */
 export interface AppConfig {
-  /** Application name (kebab-case, without shinwa-app- prefix) */
+  /** Application name (kebab-case, without app- prefix) */
   name: string;
-  /** Full application name (auto-generated: shinwa-app-{name}) */
+  /** Full application name (auto-generated: app-{name}) */
   fullName: string;
   /** Display name (English or Chinese) */
   displayName: string;
@@ -359,15 +363,15 @@ export interface AppTemplateContext extends AppConfig {
   /** 
    * Java package name
    * 
-   * Format: com.shinwa.app.{name}
-   * Example: com.shinwa.app.booking
+   * Format: io.brix.app.{name}
+   * Example: io.brix.app.booking
    */
   packageName: string;
   /**
    * Java package path
    * 
    * Used for generating directory structure
-   * Example: com/shinwa/app/booking
+   * Example: io/brix/app/booking
    */
   packagePath: string;
   /** 
@@ -380,24 +384,26 @@ export interface AppTemplateContext extends AppConfig {
   /**
    * NPM package name (UI Web)
    * 
-   * Format: @shinwa/{name}-ui-web
-   * Example: @shinwa/booking-ui-web
+   * Format: @brix/{name}-ui-web
+   * Example: @brix/booking-ui-web
    */
   npmPackageName: string;
   /**
    * NPM package name (UI Mobile)
    * 
-   * Format: @shinwa/{name}-ui-mobile
-   * Example: @shinwa/booking-ui-mobile
+   * Format: @brix/{name}-ui-mobile
+   * Example: @brix/booking-ui-mobile
    */
   npmPackageNameMobile: string;
   /**
    * NPM package name (Shared)
    * 
-   * Format: @shinwa/{name}-shared
-   * Example: @shinwa/booking-shared
+   * Format: @brix/{name}-shared
+   * Example: @brix/booking-shared
    */
   npmPackageNameShared: string;
+  /** Brix SDK version used by generated manifests and packages */
+  sdkVersion: string;
   /** Index signature for template rendering */
   [key: string]: unknown;
 }

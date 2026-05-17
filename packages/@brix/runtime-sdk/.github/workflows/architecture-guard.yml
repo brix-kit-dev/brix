@@ -3,10 +3,10 @@
 # ============================================================================
 #
 # This CI pipeline enforces architectural rules from the Architecture Review
-# Checklist (附录C). Applicable checks for runtime-sdk are implemented here.
+# Checklist (Appendix C). Applicable checks for runtime-sdk are implemented here.
 #
 # ============================================================================
-# 附录C 可 CI 化检查项对照表
+# Appendix C CI-compatible Check Item Reference
 # ============================================================================
 #
 # | ID        | Check                              | Implementation      |
@@ -114,7 +114,7 @@ jobs:
             echo "✅ No .class files found in source directories"
           fi
   # ========================================
-  # Java 契约层检查
+  # Java Contract Layer Check
   # ========================================
   java-contract-purity:
     name: Java Contract Layer Purity
@@ -132,44 +132,44 @@ jobs:
 
       - name: Contract Layer Zero-Dependency Check
         run: |
-          echo "🔍 检查 runtime-sdk-api 模块编译时依赖..."
+          echo "Checking runtime-sdk-api compile-time dependencies..."
           
-          # runtime-sdk-api 只允许 SLF4J API 作为唯一编译时依赖
+          # runtime-sdk-api only allows SLF4J API as the sole compile-time dependency
           cd runtime-sdk-api
           
-          # 使用 Maven 列出编译时依赖
+          # List compile-time dependencies using Maven
           DEPS=$(mvn dependency:list -DincludeScope=compile -DexcludeArtifactIds=slf4j-api 2>/dev/null | grep ':compile' | grep -v 'slf4j-api' || true)
           
           if [ -n "$DEPS" ]; then
-            echo "❌ runtime-sdk-api 存在非法编译时依赖:"
+            echo "FAIL: runtime-sdk-api has illegal compile-time dependencies:"
             echo "$DEPS"
             echo ""
-            echo "⚠️  契约层（runtime-sdk-api）应该是零依赖的纯 POJO 接口"
-            echo "    唯一允许的依赖是 SLF4J API（用于定义日志接口）"
+            echo "WARNING: The contract layer (runtime-sdk-api) should be zero-dependency pure POJO interfaces"
+            echo "    The only allowed dependency is SLF4J API (for defining the logging interface)"
             exit 1
           else
-            echo "✅ runtime-sdk-api 契约层依赖检查通过"
+            echo "PASS: runtime-sdk-api contract layer dependency check passed"
           fi
 
       - name: Contract Layer No Business Logic Check
         run: |
-          echo "🔍 检查 runtime-sdk-api 模块是否包含业务逻辑..."
+          echo "Checking runtime-sdk-api for business logic..."
           
-          # 检查是否有 @Service, @Repository, @Controller 等注解
+          # Check for @Service, @Repository, @Controller annotations
           VIOLATIONS=$(grep -r -l "@Service\|@Repository\|@Controller\|@Component" runtime-sdk-api/src/main/java 2>/dev/null || true)
           
           if [ -n "$VIOLATIONS" ]; then
-            echo "❌ runtime-sdk-api 包含 Spring 组件注解:"
+            echo "FAIL: runtime-sdk-api contains Spring component annotations:"
             echo "$VIOLATIONS"
             echo ""
-            echo "⚠️  契约层不应包含任何 Spring 组件注解"
+            echo "WARNING: The contract layer should not contain any Spring component annotations"
             exit 1
           else
-            echo "✅ runtime-sdk-api 无业务组件注解"
+            echo "PASS: runtime-sdk-api has no business component annotations"
           fi
 
   # ========================================
-  # TypeScript 契约层检查
+  # TypeScript Contract Layer Check
   # ========================================
   ts-contract-purity:
     name: TypeScript Contract Layer Purity
@@ -191,61 +191,61 @@ jobs:
 
       - name: Contract Layer No-Framework Check
         run: |
-          echo "🔍 检查 runtime-sdk-api-web 是否导入框架特定代码..."
+          echo "Checking runtime-sdk-api-web for framework-specific imports..."
           
-          # 检查是否导入 React
+          # Check for React imports
           REACT_IMPORTS=$(grep -rn "from 'react'\|from \"react\"\|from 'react-dom'\|from \"react-dom\"" runtime-sdk-api-web/src/ 2>/dev/null || true)
           
           if [ -n "$REACT_IMPORTS" ]; then
-            echo "❌ runtime-sdk-api-web 导入了 React:"
+            echo "FAIL: runtime-sdk-api-web imports React:"
             echo "$REACT_IMPORTS"
             echo ""
-            echo "⚠️  契约层不应导入任何框架特定代码"
-            echo "    React 相关代码应该在 runtime-sdk-react 中"
+            echo "WARNING: The contract layer should not import any framework-specific code"
+            echo "    React-related code should be in runtime-sdk-react"
             exit 1
           fi
           
-          # 检查是否导入 Vue
+          # Check for Vue imports
           VUE_IMPORTS=$(grep -rn "from 'vue'\|from \"vue\"" runtime-sdk-api-web/src/ 2>/dev/null || true)
           
           if [ -n "$VUE_IMPORTS" ]; then
-            echo "❌ runtime-sdk-api-web 导入了 Vue:"
+            echo "FAIL: runtime-sdk-api-web imports Vue:"
             echo "$VUE_IMPORTS"
             exit 1
           fi
           
-          # 检查是否导入 Angular
+          # Check for Angular imports
           ANGULAR_IMPORTS=$(grep -rn "from '@angular" runtime-sdk-api-web/src/ 2>/dev/null || true)
           
           if [ -n "$ANGULAR_IMPORTS" ]; then
-            echo "❌ runtime-sdk-api-web 导入了 Angular:"
+            echo "FAIL: runtime-sdk-api-web imports Angular:"
             echo "$ANGULAR_IMPORTS"
             exit 1
           fi
           
-          echo "✅ runtime-sdk-api-web 契约层无框架特定导入"
+          echo "PASS: runtime-sdk-api-web contract layer has no framework-specific imports"
 
       - name: Contract Layer No Runtime Dependency Check
         run: |
-          echo "🔍 检查 runtime-sdk-api-web 的运行时依赖..."
+          echo "Checking runtime-sdk-api-web runtime dependencies..."
           
           cd runtime-sdk-api-web
           
-          # 检查 package.json 中的 dependencies（不包括 devDependencies）
+          # Check dependencies field in package.json (excluding devDependencies)
           DEPS=$(cat package.json | grep -A 100 '"dependencies"' | grep -B 100 '}' | head -n -1 | grep -v '"dependencies"' | grep -v '^$' || true)
           
-          # dependencies 字段应该为空或只有类型定义
+          # dependencies field should be empty or contain only type definitions
           if echo "$DEPS" | grep -v "@types/" | grep -v "^$" | grep -v "^{$" | grep -v "^}$" > /dev/null 2>&1; then
-            echo "⚠️  runtime-sdk-api-web 可能存在运行时依赖:"
+            echo "WARNING: runtime-sdk-api-web may have runtime dependencies:"
             echo "$DEPS"
             echo ""
-            echo "    契约层应该是零运行时依赖的纯类型定义"
+            echo "    The contract layer should have zero runtime dependencies (pure type definitions only)"
           fi
           
-          echo "✅ runtime-sdk-api-web 依赖检查完成"
+          echo "PASS: runtime-sdk-api-web dependency check complete"
 
   # ========================================
-  # 文件复杂度门控
+  # File Complexity Gate
   # ========================================
   file-complexity-gate:
     name: File Complexity Gate
@@ -256,51 +256,51 @@ jobs:
 
       - name: Java File Size Check
         run: |
-          echo "🔍 检查 Java 文件行数（阈值: 300 行）..."
+          echo "Checking Java file line counts (threshold: 300 lines)..."
           
           failed=false
           
           find . -name '*.java' -path '*/src/main/*' | while read f; do
-            # 统计有效代码行数（排除空行和纯注释行）
+            # Count effective code lines (excluding empty lines and comment-only lines)
             LINES=$(cat "$f" | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*\*' | grep -v '^\s*/\*' | wc -l)
             
             if [ "$LINES" -gt 300 ]; then
-              echo "❌ $f: $LINES 行 (超过 300 行限制)"
+              echo "FAIL: $f: $LINES lines (exceeds 300 line limit)"
               echo "FAILED=true" >> $GITHUB_ENV
             fi
           done
           
           if [ "${FAILED:-}" = "true" ]; then
             echo ""
-            echo "⚠️  存在超过 300 行的 Java 文件，请考虑重构"
+            echo "WARNING: Java files exceeding 300 lines detected; consider refactoring"
             exit 1
           else
-            echo "✅ Java 文件行数检查通过"
+            echo "PASS: Java file line count check passed"
           fi
 
       - name: TypeScript File Size Check
         run: |
-          echo "🔍 检查 TypeScript 文件行数（阈值: 500 行）..."
+          echo "Checking TypeScript file line counts (threshold: 500 lines)..."
           
           find . -name '*.ts' -path '*/src/*' ! -name '*.d.ts' ! -name '*.spec.ts' ! -name '*.test.ts' | while read f; do
             LINES=$(wc -l < "$f")
             
             if [ "$LINES" -gt 500 ]; then
-              echo "❌ $f: $LINES 行 (超过 500 行限制)"
+              echo "FAIL: $f: $LINES lines (exceeds 500 line limit)"
               echo "FAILED=true" >> $GITHUB_ENV
             fi
           done
           
           if [ "${FAILED:-}" = "true" ]; then
             echo ""
-            echo "⚠️  存在超过 500 行的 TypeScript 文件，请考虑重构"
+            echo "WARNING: TypeScript files exceeding 500 lines detected; consider refactoring"
             exit 1
           else
-            echo "✅ TypeScript 文件行数检查通过"
+            echo "PASS: TypeScript file line count check passed"
           fi
 
   # ========================================
-  # 循环依赖检测
+  # Circular Dependency Detection
   # ========================================
   circular-dependency-check:
     name: Circular Dependency Check
@@ -328,32 +328,32 @@ jobs:
 
       - name: Check TypeScript Circular Dependencies
         run: |
-          echo "🔍 检查 TypeScript 循环依赖..."
+          echo "Checking TypeScript circular dependencies..."
           
-          # 检查每个包的循环依赖
+          # Check each package for circular dependencies
           for pkg in runtime-sdk-api-web runtime-sdk-react runtime-orchestrator-web runtime-manifest-web; do
             if [ -d "$pkg/src" ]; then
-              echo "检查 $pkg..."
+              echo "Checking $pkg..."
               CYCLES=$(madge --circular --extensions ts,tsx "$pkg/src" 2>/dev/null || true)
               
               if [ -n "$CYCLES" ] && [ "$CYCLES" != "No circular dependency found!" ]; then
-                echo "❌ $pkg 存在循环依赖:"
+                echo "FAIL: $pkg has circular dependencies:"
                 echo "$CYCLES"
                 echo "FAILED=true" >> $GITHUB_ENV
               else
-                echo "✅ $pkg 无循环依赖"
+                echo "PASS: $pkg has no circular dependencies"
               fi
             fi
           done
           
           if [ "${FAILED:-}" = "true" ]; then
             echo ""
-            echo "⚠️  发现循环依赖，请重构代码消除循环引用"
+            echo "WARNING: Circular dependencies detected; please refactor to eliminate circular references"
             exit 1
           fi
 
   # ========================================
-  # ESLint 架构规则检查
+  # ESLint Architecture Rules Check
   # ========================================
   eslint-check:
     name: ESLint Architecture Rules
@@ -391,7 +391,7 @@ jobs:
       - name: Check all jobs
         run: |
           echo "============================================"
-          echo "Architecture Guard - 附录C 检查结果汇总"
+          echo "Architecture Guard - Appendix C Check Results Summary"
           echo "============================================"
           echo ""
           echo "| Check ID   | Job                     | Status |"

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file infra-adapter-push-mobile Module Entry
  * @description Brix UI Mobile Push Adapter - FCM/APNs push notification capability wrapper
- * @module @brix/infra-adapter-push-mobile
+ * @module @brix-sdk/infra-adapter-push-mobile
  * @version 3.0.0
  * 
  * Module Description:
@@ -29,15 +29,15 @@
  * - Plugins subscribe to messages through the PushCapability contract
  * 
  * v3.0 Boundary Constraints:
- * ❌ Plugins must NOT directly access FCM/APNs SDK
- * ❌ Plugins must NOT listen to other plugins' push messages
- * ❌ Plugins must NOT modify global push configuration
- * ✅ Plugins subscribe to messages through PushCapability
- * ✅ Token is managed by Host
+ * ? Plugins must NOT directly access FCM/APNs SDK
+ * ? Plugins must NOT listen to other plugins' push messages
+ * ? Plugins must NOT modify global push configuration
+ * ? Plugins subscribe to messages through PushCapability
+ * ? Token is managed by Host
  * 
  * Usage (Host layer only):
  * ```typescript
- * import { PushNotificationAdapter } from '@brix/infra-adapter-push-mobile';
+ * import { PushNotificationAdapter } from '@brix-sdk/infra-adapter-push-mobile';
  * 
  * const adapter = new PushNotificationAdapter({
  *   onTokenRefresh: (token) => api.registerToken(token),

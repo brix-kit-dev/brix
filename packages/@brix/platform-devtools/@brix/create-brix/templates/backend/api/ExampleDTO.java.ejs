@@ -1,0 +1,11 @@
+package <%= packageName %>.api.dto;
+
+import java.time.LocalDateTime;
+
+public record <%= classPrefix %>DTO(
+        String id,
+        String tenantId,
+        String name,
+        LocalDateTime createdAt
+) {
+}

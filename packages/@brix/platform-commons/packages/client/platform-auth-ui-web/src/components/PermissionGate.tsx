@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Permission Gate Component
  * @description Controls content display based on permissions
- * @module @brix/platform-auth-web/components/PermissionGate
+ * @module @brix-sdk/platform-auth-web/components/PermissionGate
  * @version 3.0.0
  * 
  * Usage Scenario:
@@ -24,7 +24,7 @@
  */
 
 import { type ReactNode } from 'react';
-import type { AuthCapability } from '@brix/runtime-sdk-api-web';
+import type { AuthCapability } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Permission Gate Props

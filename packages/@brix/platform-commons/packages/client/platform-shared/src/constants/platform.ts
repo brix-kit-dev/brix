@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Platform constants definitions
  * @description Cross-platform shared platform constants
- * @module @brix/platform-shared/constants/platform
+ * @module @brix-sdk/platform-shared/constants/platform
  * @version 3.0.0
  */
 
@@ -53,7 +53,7 @@ export const MAX_EVENT_HISTORY = 100;
 /**
  * Storage key prefix
  */
-export const STORAGE_KEY_PREFIX = 'shinwa:';
+export const STORAGE_KEY_PREFIX = 'brix:';
 
 /**
  * Storage keys

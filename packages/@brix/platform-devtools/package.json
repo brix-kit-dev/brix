@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "platform-devtools",
-  "version": "1.0.0",
+  "version": "3.2.0",
   "description": "Brix Platform DevTools - Development-time tooling only",
   "private": true,
   "author": "Brix Platform Authors",

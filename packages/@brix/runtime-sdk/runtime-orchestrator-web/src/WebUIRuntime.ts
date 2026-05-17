@@ -16,7 +16,7 @@
 /**
  * @file Web UI Runtime
  * @description Unified Web UI runtime environment integrating capability registration, plugin management, and lifecycle
- * @module @brix/runtime-orchestrator-web/WebUIRuntime
+ * @module @brix-sdk/runtime-orchestrator-web/WebUIRuntime
  * @version 3.0.0
  *
  * Design Notes:
@@ -56,13 +56,13 @@ import type {
   AuthCapability,
   EventBusCapability,
   PluginStateCapability,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 import {
   RouterCapabilityType,
   AuthCapabilityType,
   EventBusCapabilityType,
   PluginStateCapabilityType,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 import { CapabilityRegistryImpl } from './CapabilityRegistryImpl';
 import { PluginManager, type PluginManagerConfig } from './PluginManager';
 import { CapabilityAssembler, type CapabilityAssemblerConfig } from './CapabilityAssembler';
@@ -182,7 +182,6 @@ export class WebUIRuntime {
 
     // Output log in debug mode
     if (this.config.debug) {
-      console.log(`[WebUIRuntime] Creating runtime: ${this.config.appName} v${this.config.appVersion}`);
     }
   }
 
@@ -286,7 +285,6 @@ export class WebUIRuntime {
 
     if (this.config.debug) {
       const id = typeof capabilityType === 'symbol' ? capabilityType.toString() : capabilityType.id;
-      console.log(`[WebUIRuntime] Registered capability: ${id}`);
     }
   }
 
@@ -299,7 +297,6 @@ export class WebUIRuntime {
 
     if (this.config.debug && result) {
       const id = typeof capabilityType === 'symbol' ? capabilityType.toString() : capabilityType.id;
-      console.log(`[WebUIRuntime] Unregistered capability: ${id}`);
     }
 
     return result;
@@ -314,7 +311,6 @@ export class WebUIRuntime {
     this._pluginManager.registerAll(entries);
 
     if (this.config.debug) {
-      console.log(`[WebUIRuntime] Registered ${entries.length} plugins`);
     }
   }
   
@@ -344,7 +340,6 @@ export class WebUIRuntime {
       const validation = this._assembler.validate();
 
       if (!validation.success) {
-        console.warn('[WebUIRuntime] Capability assembly validation warnings:', validation.errors);
 
         if (this.config.strictMode) {
           throw new Error(`Capability assembly validation failed: ${validation.errors.join(', ')}`);
@@ -356,7 +351,6 @@ export class WebUIRuntime {
       this.emit('runtime:ready', {});
 
       if (this.config.debug) {
-        console.log('[WebUIRuntime] Initialization complete');
       }
     } catch (error) {
       this.setStatus('error');
@@ -394,7 +388,6 @@ export class WebUIRuntime {
       this.emit('runtime:start', {});
 
       if (this.config.debug) {
-        console.log('[WebUIRuntime] Start complete');
       }
     } catch (error) {
       this.setStatus('error');
@@ -428,7 +421,6 @@ export class WebUIRuntime {
       this.emit('runtime:stop', {});
 
       if (this.config.debug) {
-        console.log('[WebUIRuntime] Stopped');
       }
     } catch (error) {
       this.setStatus('error');
@@ -492,7 +484,6 @@ export class WebUIRuntime {
     this.emit('runtime:statusChange', { from, to: status });
 
     if (this.config.debug) {
-      console.log(`[WebUIRuntime] Status change: ${from} -> ${status}`);
     }
   }
 
@@ -510,7 +501,6 @@ export class WebUIRuntime {
         try {
           handler(data);
         } catch (error) {
-          console.error(`[WebUIRuntime] Event handler error (${event}):`, error);
         }
       }
     }

@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file platform-navigation-web module entry
  * @description Web navigation capability implementation module - Implements NavigationCapability interface
- * @module @brix/platform-navigation-web
+ * @module @brix-sdk/platform-navigation-web
  * @version 3.0.0
  * 
  * [Module Description]
@@ -25,19 +25,19 @@
  * 
  * [Architectural Position]
  * ```text
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚ Capability Contract Layer (runtime-sdk-api-web)                        â”‚
- * â”‚ â””â”€â”€ NavigationCapability interface definition                          â”‚
- * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- * â”‚ Capability Implementation Layer (platform-commons)                     â”‚
- * â”‚ â””â”€â”€ platform-navigation-web (this module) â­                           â”‚
- * â”‚      â”œâ”€â”€ NavigationCapabilityImpl (interface implementation)           â”‚
- * â”‚      â”œâ”€â”€ PageRegistry (PageId â†’ URL mapping)                           â”‚
- * â”‚      â””â”€â”€ GovernancePolicyImpl (navigation governance policy)           â”‚
- * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- * â”‚ Router Service Layer (platform-router-web)                             â”‚
- * â”‚ â””â”€â”€ RouterService + ReactRouterAdapter                                 â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦ Capability Contract Layer (runtime-sdk-api-web)                        ©¦
+ * ©¦ ©¸©¤©¤ NavigationCapability interface definition                          ©¦
+ * ©À©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©È
+ * ©¦ Capability Implementation Layer (platform-commons)                     ©¦
+ * ©¦ ©¸©¤©¤ platform-navigation-web (this module) ?                           ©¦
+ * ©¦      ©À©¤©¤ NavigationCapabilityImpl (interface implementation)           ©¦
+ * ©¦      ©À©¤©¤ PageRegistry (PageId ¡ú URL mapping)                           ©¦
+ * ©¦      ©¸©¤©¤ GovernancePolicyImpl (navigation governance policy)           ©¦
+ * ©À©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©È
+ * ©¦ Router Service Layer (platform-router-web)                             ©¦
+ * ©¦ ©¸©¤©¤ RouterService + ReactRouterAdapter                                 ©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  * 
  * [Key Design]
@@ -46,9 +46,9 @@
  * 3. Governance policies support permission checking, plugin isolation, Feature Flag
  * 
  * [Architectural Constraints]
- * âŒ Plugins are forbidden from directly using react-router-dom
- * âŒ Plugins are forbidden from manipulating window.history
- * âœ… Plugins can only request navigation through NavigationCapability
+ * ? Plugins are forbidden from directly using react-router-dom
+ * ? Plugins are forbidden from manipulating window.history
+ * ? Plugins can only request navigation through NavigationCapability
  */
 
 // ============================================================================

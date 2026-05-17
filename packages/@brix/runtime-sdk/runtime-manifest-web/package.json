@@ -1,7 +1,7 @@
-﻿{
-  "name": "@brix/runtime-manifest-web",
-  "version": "1.0.0",
-  "description": "UI 运行时清单解析和验证模块",
+{
+  "name": "@brix-sdk/runtime-manifest-web",
+  "version": "3.2.0",
+  "description": "UI runtime manifest parsing and validation module",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "workspace:*"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.1",
@@ -40,5 +40,14 @@
     "plugin",
     "ui"
   ],
-  "license": "Apache-2.0"
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/runtime-sdk.git",
+    "directory": "runtime-manifest-web"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

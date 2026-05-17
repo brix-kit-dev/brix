@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Native Tooltip Component
  * @description Pure CSS tooltip component implementing TooltipProps from UIAdapter contract.
- * @module @brix/infra-adapter-ui-native/components/NativeTooltip
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeTooltip
  * @version 3.1.0
  */
 
@@ -31,7 +31,7 @@ import {
   type CSSProperties,
   type ReactElement,
 } from 'react';
-import type { TooltipProps, TooltipPlacement } from '@brix/runtime-sdk-api-web';
+import type { TooltipProps, TooltipPlacement } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Style Constants

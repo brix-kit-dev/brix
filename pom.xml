@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Platform Authors
   ~
@@ -33,7 +33,7 @@ License: Apache 2.0
 
     <groupId>io.brix</groupId>
     <artifactId>brix-parent</artifactId>
-    <version>1.0.0</version>
+    <version>3.2.0</version>
     <packaging>pom</packaging>
 
     <name>Brix Framework</name>
@@ -110,6 +110,7 @@ License: Apache 2.0
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
         <maven-enforcer-plugin.version>3.4.1</maven-enforcer-plugin.version>
+        <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -205,6 +206,26 @@ License: Apache 2.0
                         </execution>
                     </executions>
                 </plugin>
+
+                <!--
+                ============================================================================
+                JaCoCo Code Coverage Plugin (Phase 5.3)
+                
+                Configured in pluginManagement so child modules inherit the setup.
+                Activated by the 'coverage' Maven profile to avoid slowing down
+                regular builds. CI triggers: mvn verify -Pcoverage
+                
+                Coverage rules:
+                  - Line coverage minimum: 80%
+                  - Branch coverage minimum: 70%
+                  - Excludes: auto-config classes, DTOs, Application entry points
+                ============================================================================
+                -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -250,6 +271,98 @@ License: Apache 2.0
                                 <goals>
                                     <goal>jar</goal>
                                 </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+        ================================================================
+        Coverage Profile (Phase 5.3)
+        
+        Activates JaCoCo agent and enforces minimum coverage thresholds.
+        
+        Usage:
+          mvn verify -Pcoverage
+        
+        CI Integration:
+          The code-coverage.yml workflow activates this profile and
+          fails the build if line coverage < 80% or branch coverage < 70%.
+        
+        Exclusions:
+          - *AutoConfiguration classes (Spring Boot boilerplate)
+          - *Properties classes (configuration POJOs)
+          - *Application classes (entry points)
+          - **/dto/** (data transfer objects)
+          - **/config/** (pure configuration)
+        ================================================================
+        -->
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <executions>
+                            <!-- Prepare JaCoCo agent for test execution -->
+                            <execution>
+                                <id>prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <!-- Generate coverage report after tests -->
+                            <execution>
+                                <id>report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                            <!-- Enforce coverage minimums -->
+                            <execution>
+                                <id>check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <rule>
+                                            <element>BUNDLE</element>
+                                            <limits>
+                                                <limit>
+                                                    <counter>LINE</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>0.80</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>BRANCH</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>0.70</minimum>
+                                                </limit>
+                                            </limits>
+                                        </rule>
+                                    </rules>
+                                    <excludes>
+                                        <!-- Auto-configuration classes (Spring Boot boilerplate) -->
+                                        <exclude>**/*AutoConfiguration.*</exclude>
+                                        <exclude>**/*AutoConfig.*</exclude>
+                                        <!-- Configuration properties (POJOs) -->
+                                        <exclude>**/*Properties.*</exclude>
+                                        <!-- Application entry points -->
+                                        <exclude>**/*Application.*</exclude>
+                                        <!-- Data transfer objects -->
+                                        <exclude>**/dto/**</exclude>
+                                        <!-- Pure configuration classes -->
+                                        <exclude>**/config/**</exclude>
+                                        <!-- Package info files -->
+                                        <exclude>**/package-info.*</exclude>
+                                    </excludes>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>

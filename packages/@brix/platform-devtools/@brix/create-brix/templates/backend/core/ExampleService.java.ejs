@@ -1,0 +1,58 @@
+package <%= packageName %>.core.service;
+
+import <%= packageName %>.api.dto.<%= classPrefix %>DTO;
+import <%= packageName %>.api.event.<%= classPrefix %>CreatedEvent;
+import <%= packageName %>.api.request.Create<%= classPrefix %>Request;
+import <%= packageName %>.core.entity.<%= classPrefix %>Entity;
+import <%= packageName %>.core.repository.<%= classPrefix %>Repository;
+import io.runtime.sdk.context.RuntimeContext;
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class <%= classPrefix %>Service {
+
+    private final <%= classPrefix %>Repository repository;
+    private final RuntimeContext runtimeContext;
+
+    public <%= classPrefix %>Service(<%= classPrefix %>Repository repository, RuntimeContext runtimeContext) {
+        this.repository = repository;
+        this.runtimeContext = runtimeContext;
+    }
+
+    @Transactional
+    public <%= classPrefix %>DTO create(Create<%= classPrefix %>Request request) {
+        String tenantId = requireTenantId();
+        <%= classPrefix %>Entity entity = new <%= classPrefix %>Entity();
+        entity.setTenantId(tenantId);
+        entity.setName(request.name());
+
+        <%= classPrefix %>Entity saved = repository.save(entity);
+        runtimeContext.getEventBus().publish(new <%= classPrefix %>CreatedEvent(saved.getId(), saved.getTenantId()));
+        return toDto(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<<%= classPrefix %>DTO> listCurrentTenant() {
+        return repository.findByTenantId(requireTenantId()).stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    private <%= classPrefix %>DTO toDto(<%= classPrefix %>Entity entity) {
+        return new <%= classPrefix %>DTO(
+                entity.getId(),
+                entity.getTenantId(),
+                entity.getName(),
+                entity.getCreatedAt());
+    }
+
+    private String requireTenantId() {
+        String tenantId = runtimeContext.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalStateException("Tenant id is required for <%= fullName %>");
+        }
+        return tenantId;
+    }
+}

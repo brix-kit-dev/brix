@@ -16,7 +16,7 @@
 /**
  * @file Plugin Discovery Service
  * @description Dynamically discover registered plugins from backend API
- * @module @brix/runtime-orchestrator-web/services/plugin-discovery
+ * @module @brix-sdk/runtime-orchestrator-web/services/plugin-discovery
  * @version 3.1.0
  *
  * Design Principles: Following Manifest-Driven architecture
@@ -80,7 +80,7 @@ export interface PluginsResponse {
 export interface PluginDiscoveryOptions {
   /** API endpoint URL, default /api/plugins */
   apiUrl?: string;
-  /** Request timeout (milliseconds), default 10000 */
+  /** Request timeout (milliseconds), default 5000 */
   timeout?: number;
   /** Enable caching, default true */
   enableCache?: boolean;
@@ -110,18 +110,15 @@ export async function discoverPlugins(
 ): Promise<DiscoveredPlugin[]> {
   const {
     apiUrl = '/api/plugins',
-    timeout = 10000,
+    timeout = 5000,
     enableCache = true,
     cacheTtl = 60000,
   } = options;
 
   // Check cache
   if (enableCache && pluginsCache && Date.now() - cacheTimestamp < cacheTtl) {
-    console.log('[PluginDiscovery] Returning cached plugins');
     return pluginsCache;
   }
-
-  console.log('[PluginDiscovery] Fetching plugins from:', apiUrl);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -149,10 +146,6 @@ export async function discoverPlugins(
       .filter(p => p.enabled)
       .sort((a, b) => a.priority - b.priority);
 
-    console.log(
-      `[PluginDiscovery] Discovered ${enabledPlugins.length} enabled plugins, mode=${data.mode}`
-    );
-
     // Update cache
     if (enableCache) {
       pluginsCache = enabledPlugins;
@@ -177,7 +170,6 @@ export async function discoverPlugins(
 export function clearPluginCache(): void {
   pluginsCache = null;
   cacheTimestamp = 0;
-  console.log('[PluginDiscovery] Cache cleared');
 }
 
 /**

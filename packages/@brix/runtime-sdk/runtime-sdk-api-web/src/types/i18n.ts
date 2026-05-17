@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Internationalization Capability Type Definitions
  * @description Defines core types for the internationalization system, including language switching, translation, date/number formatting, etc.
- * @module @brix/runtime-sdk-api-web/types/i18n
+ * @module @brix-sdk/runtime-sdk-api-web/types/i18n
  * @version 3.2.0
  *
  * [v3.2.0 Added]
@@ -29,9 +29,9 @@
  * - Supports localized formatting for dates, numbers, relative time, etc.
  *
  * [Architectural Constraints]
- * ❌ Hardcoding text in components is prohibited
- * ❌ Direct use of libraries like i18next is prohibited
- * ✅ Obtain translations through I18nCapability or useI18n hook
+ * ? Hardcoding text in components is prohibited
+ * ? Direct use of libraries like i18next is prohibited
+ * ? Obtain translations through I18nCapability or useI18n hook
  */
 
 import type { Unsubscribe } from './event';

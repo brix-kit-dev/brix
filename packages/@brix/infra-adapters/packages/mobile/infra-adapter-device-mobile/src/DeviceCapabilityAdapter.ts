@@ -16,7 +16,7 @@
 /**
  * @file Device Capability Adapter
  * @description Brix UI Mobile native device capability wrapper - Camera, Location, Permissions, etc.
- * @module @brix/infra-adapter-device-mobile
+ * @module @brix-sdk/infra-adapter-device-mobile
  * @version 3.0.0
  * 
  * Design Notes:
@@ -25,35 +25,32 @@
  * 
  * v3.0 Architecture Position:
  * ```
- * ┌─────────────────────────────────────────────────────────────┐
- * │                    Mobile Plugin Layer                      │
- * │    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
- * │    │  Booking    │  │  Products   │  │  Partners   │       │
- * │    │  Plugin     │  │  Plugin     │  │  Plugin     │       │
- * │    └──────┬──────┘  └──────┬──────┘  └──────┬──────┘       │
- * │           │                │                │              │
- * │           ▼                ▼                ▼              │
- * │    ┌─────────────────────────────────────────────────┐     │
- * │    │        DeviceCapability Contract Interface       │     │
- * │    │  - camera.takePhoto()                           │     │
- * │    │  - location.getCurrentPosition()                │     │
- * │    │  - permissions.request('camera')                │     │
- * │    └─────────────────────────────────────────────────┘     │
- * │                           │                                │
- * │                           ▼                                │
- * │    ┌─────────────────────────────────────────────────┐     │
- * │    │      DeviceCapabilityAdapter (this adapter)      │     │
- * │    │  - Permission management and checking            │     │
- * │    │  - Device capability wrapping                    │     │
- * │    │  - Capability availability detection             │     │
- * │    └─────────────────────────────────────────────────┘     │
- * │                           │                                │
- * │                           ▼                                │
- * │    ┌─────────────────────────────────────────────────┐     │
- * │    │           React Native Native Modules            │     │
- * │    │   (Camera, Geolocation, PermissionsAndroid...)   │     │
- * │    └─────────────────────────────────────────────────┘     │
- * └─────────────────────────────────────────────────────────────┘
+ * +----------------------------------------------------------+
+ * |                    Mobile Plugin Layer                    |
+ * |    +-----------+  +-----------+  +-----------+           |
+ * |    |  Booking  |  |  Products |  |  Partners |           |
+ * |    |  Plugin   |  |  Plugin   |  |  Plugin   |           |
+ * |    +-----+-----+  +-----+-----+  +-----+-----+          |
+ * |          |              |              |                  |
+ * |    +-----v-----------------------------------------+     |
+ * |    |    DeviceCapability Contract Interface         |     |
+ * |    |  - camera.takePhoto()                         |     |
+ * |    |  - location.getCurrentPosition()              |     |
+ * |    |  - permissions.request('camera')              |     |
+ * |    +-----+-----------------------------------------+     |
+ * |          |                                               |
+ * |    +-----v-----------------------------------------+     |
+ * |    |    DeviceCapabilityAdapter (this adapter)      |     |
+ * |    |  - Permission management and checking          |     |
+ * |    |  - Device capability wrapping                  |     |
+ * |    |  - Capability availability detection           |     |
+ * |    +-----+-----------------------------------------+     |
+ * |          |                                               |
+ * |    +-----v-----------------------------------------+     |
+ * |    |       React Native Native Modules              |     |
+ * |    |  (Camera, Geolocation, PermissionsAndroid...)  |     |
+ * |    +-----------------------------------------------+     |
+ * +----------------------------------------------------------+
  * ```
  * 
  * Device Capability Categories:
@@ -64,15 +61,15 @@
  * - Biometrics: Biometric authentication
  * 
  * v3.0 Boundary Constraints:
- * ❌ Plugins must NOT directly use Native Modules
- * ❌ Plugins must NOT bypass permission checks
- * ❌ Plugins must NOT continuously track location in background (unless declared)
- * ✅ Plugins declare required capabilities through DeviceCapability
- * ✅ Permission requests are managed by Host
+ * ? Plugins must NOT directly use Native Modules
+ * ? Plugins must NOT bypass permission checks
+ * ? Plugins must NOT continuously track location in background (unless declared)
+ * ? Plugins declare required capabilities through DeviceCapability
+ * ? Permission requests are managed by Host
  * 
  * Usage Example (Host layer only):
  * ```typescript
- * import { DeviceCapabilityAdapter } from '@brix/infra-adapter-device-mobile';
+ * import { DeviceCapabilityAdapter } from '@brix-sdk/infra-adapter-device-mobile';
  * 
  * const adapter = new DeviceCapabilityAdapter();
  * 
@@ -549,7 +546,7 @@ export class DeviceCapabilityAdapter {
   async isCapabilitySupported(
     capability: 'camera' | 'location' | 'biometrics' | 'nfc'
   ): Promise<boolean> {
-    // 在实际实现中，会检查设备硬件支持
+    // In actual implementation, check device hardware support
     throw new Error(
       `[DeviceCapabilityAdapter] Capability check requires Native integration. ` +
       `Capability: ${capability}`

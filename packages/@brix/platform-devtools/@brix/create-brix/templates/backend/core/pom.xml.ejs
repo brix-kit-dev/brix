@@ -1,82 +1,83 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  =========================================================
-  <%= name %>-core 核心module
-  生成时间: <%= date %>
-  =========================================================
--->
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>shinwa.plugin</groupId>
-        <artifactId><%= name %></artifactId>
+        <groupId><%= typeof moduleType !== 'undefined' ? 'io.brix.app' : 'io.brix.plugin' %></groupId>
+        <artifactId><%= fullName || name %></artifactId>
         <version><%= version %></version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId><%= name %>-core</artifactId>
     <packaging>jar</packaging>
 
     <name><%= displayName %> Core</name>
-    <description><%= name %> 核心module</description>
+    <description><%= displayName %> domain and application logic</description>
 
     <dependencies>
-        <!-- Platform Common（仅依赖公Total类，不依赖 Starter） -->
+<% if (withApi) { -%>
         <dependency>
-            <groupId>shinwa.platform</groupId>
-            <artifactId>platform-common</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
-        </dependency>
-
-<% if (withApi) { %>
-        <!-- API module -->
-        <dependency>
-            <groupId>shinwa.plugin</groupId>
+            <groupId><%= typeof moduleType !== 'undefined' ? 'io.brix.app' : 'io.brix.plugin' %></groupId>
             <artifactId><%= name %>-api</artifactId>
-            <version>${project.version}</version>
         </dependency>
-<% } %>
-
-        <!-- Spring Data JPA -->
+<% } -%>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
-
-        <!-- Spring Web -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-
-        <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-
-        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-
-        <!-- Test -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>1.5.5.Final</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-
-        <!-- 架构守护（ArchUnit 红线Constraints） -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>1.5.5.Final</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

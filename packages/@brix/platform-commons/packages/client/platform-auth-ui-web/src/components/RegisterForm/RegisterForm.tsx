@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file Register Form Component
  * @description iOS 26 style user registration form with UIAdapter support
- * @module @brix/platform-auth-web/components/RegisterForm
+ * @module @brix-sdk/platform-auth-web/components/RegisterForm
  * @version 3.1.0
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { useUIOptional } from '@brix/runtime-sdk-react';
+import { useUIOptional } from '@brix-sdk/runtime-sdk-react';
 import { generateLoginStyles, DEFAULT_PRIMARY_COLOR, DEFAULT_GRADIENT } from '../LoginForm/styles';
 import type { LoginFormBranding } from '../LoginForm/types';
 
@@ -198,8 +198,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   }, [formData.password, mergedFeatures.showTermsCheckbox]);
 
   // Handle input change
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    const checked = 'checked' in e.target ? e.target.checked : false;
+    const type = 'type' in e.target ? e.target.type : 'text';
     const fieldValue = type === 'checkbox' ? checked : value;
     
     setFormData(prev => ({
@@ -216,8 +218,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   }, []);
 
   // Handle field blur validation
-  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    const checked = 'checked' in e.target ? e.target.checked : false;
+    const type = 'type' in e.target ? e.target.type : 'text';
     const fieldValue = type === 'checkbox' ? checked : value;
     const fieldError = validateField(name as keyof RegisterFormData, fieldValue);
     
@@ -282,29 +286,29 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   }, [formData, validateForm, onRegister, onRegisterSuccess]);
 
   return (
-    <div className="shinwa-login-page">
+    <div className="brix-login-page">
       <style>{styles}</style>
-      <div className="shinwa-login-container shinwa-register-container">
+      <div className="brix-login-container brix-register-container">
         {/* Title area */}
-        <div className="shinwa-login-header">
-          <h1 className="shinwa-login-title">{mergedLabels.title}</h1>
-          <p className="shinwa-login-subtitle">{mergedLabels.subtitle}</p>
+        <div className="brix-login-header">
+          <h1 className="brix-login-title">{mergedLabels.title}</h1>
+          <p className="brix-login-subtitle">{mergedLabels.subtitle}</p>
         </div>
 
         {/* Register form */}
-        <form className="shinwa-login-form" onSubmit={handleSubmit} noValidate>
+        <form className="brix-login-form" onSubmit={handleSubmit} noValidate>
           {/* Global error hint */}
           {error && (
-            <div className="shinwa-login-error">
+            <div className="brix-login-error">
               <span>!</span>
               <span>{error}</span>
             </div>
           )}
 
           {/* Responsive two-column layout */}
-          <div className="shinwa-form-row-responsive">
+          <div className="brix-form-row-responsive">
             {/* Username */}
-            <div className="shinwa-form-group">
+            <div className="brix-form-group">
               {ui ? (
                 <ui.Input
                   label={mergedLabels.usernameLabel}
@@ -323,14 +327,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 />
               ) : (
                 <>
-                  <label htmlFor="username" className="shinwa-form-label">
+                  <label htmlFor="username" className="brix-form-label">
                     {mergedLabels.usernameLabel}
                   </label>
                   <input
                     type="text"
                     id="username"
                     name="username"
-                    className={`shinwa-form-input ${fieldErrors.username ? 'shinwa-input-error' : ''}`}
+                    className={`brix-form-input ${fieldErrors.username ? 'brix-input-error' : ''}`}
                     placeholder={mergedLabels.usernamePlaceholder}
                     value={formData.username}
                     onChange={handleInputChange}
@@ -340,14 +344,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     autoFocus
                   />
                   {fieldErrors.username && (
-                    <span className="shinwa-field-error">{fieldErrors.username}</span>
+                    <span className="brix-field-error">{fieldErrors.username}</span>
                   )}
                 </>
               )}
             </div>
 
             {/* Phone */}
-            <div className="shinwa-form-group">
+            <div className="brix-form-group">
               {ui ? (
                 <ui.Input
                   label={mergedLabels.phoneLabel}
@@ -365,14 +369,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 />
               ) : (
                 <>
-                  <label htmlFor="phone" className="shinwa-form-label">
+                  <label htmlFor="phone" className="brix-form-label">
                     {mergedLabels.phoneLabel}
                   </label>
                   <input
                     type="tel"
                     id="phone"
                     name="phone"
-                    className={`shinwa-form-input ${fieldErrors.phone ? 'shinwa-input-error' : ''}`}
+                    className={`brix-form-input ${fieldErrors.phone ? 'brix-input-error' : ''}`}
                     placeholder={mergedLabels.phonePlaceholder}
                     value={formData.phone}
                     onChange={handleInputChange}
@@ -381,7 +385,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     autoComplete="tel"
                   />
                   {fieldErrors.phone && (
-                    <span className="shinwa-field-error">{fieldErrors.phone}</span>
+                    <span className="brix-field-error">{fieldErrors.phone}</span>
                   )}
                 </>
               )}
@@ -389,7 +393,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           </div>
 
           {/* Email */}
-          <div className="shinwa-form-group">
+          <div className="brix-form-group">
             {ui ? (
               <ui.Input
                 label={mergedLabels.emailLabel}
@@ -407,14 +411,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
               />
             ) : (
               <>
-                <label htmlFor="email" className="shinwa-form-label">
+                <label htmlFor="email" className="brix-form-label">
                   {mergedLabels.emailLabel}
                 </label>
                 <input
                   type="email"
                   id="email"
                   name="email"
-                  className={`shinwa-form-input ${fieldErrors.email ? 'shinwa-input-error' : ''}`}
+                  className={`brix-form-input ${fieldErrors.email ? 'brix-input-error' : ''}`}
                   placeholder={mergedLabels.emailPlaceholder}
                   value={formData.email}
                   onChange={handleInputChange}
@@ -423,16 +427,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                   autoComplete="email"
                 />
                 {fieldErrors.email && (
-                  <span className="shinwa-field-error">{fieldErrors.email}</span>
+                  <span className="brix-field-error">{fieldErrors.email}</span>
                 )}
               </>
             )}
           </div>
 
           {/* Responsive two-column layout - Password */}
-          <div className="shinwa-form-row-responsive">
+          <div className="brix-form-row-responsive">
             {/* Password */}
-            <div className="shinwa-form-group">
+            <div className="brix-form-group">
               {ui ? (
                 <ui.Input
                   label={mergedLabels.passwordLabel}
@@ -450,14 +454,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 />
               ) : (
                 <>
-                  <label htmlFor="password" className="shinwa-form-label">
+                  <label htmlFor="password" className="brix-form-label">
                     {mergedLabels.passwordLabel}
                   </label>
                   <input
                     type="password"
                     id="password"
                     name="password"
-                    className={`shinwa-form-input ${fieldErrors.password ? 'shinwa-input-error' : ''}`}
+                    className={`brix-form-input ${fieldErrors.password ? 'brix-input-error' : ''}`}
                     placeholder={mergedLabels.passwordPlaceholder}
                     value={formData.password}
                     onChange={handleInputChange}
@@ -466,14 +470,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     autoComplete="new-password"
                   />
                   {fieldErrors.password && (
-                    <span className="shinwa-field-error">{fieldErrors.password}</span>
+                    <span className="brix-field-error">{fieldErrors.password}</span>
                   )}
                 </>
               )}
             </div>
 
             {/* Confirm Password */}
-            <div className="shinwa-form-group">
+            <div className="brix-form-group">
               {ui ? (
                 <ui.Input
                   label={mergedLabels.confirmPasswordLabel}
@@ -491,14 +495,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 />
               ) : (
                 <>
-                  <label htmlFor="confirmPassword" className="shinwa-form-label">
+                  <label htmlFor="confirmPassword" className="brix-form-label">
                     {mergedLabels.confirmPasswordLabel}
                   </label>
                   <input
                     type="password"
                     id="confirmPassword"
                     name="confirmPassword"
-                    className={`shinwa-form-input ${fieldErrors.confirmPassword ? 'shinwa-input-error' : ''}`}
+                    className={`brix-form-input ${fieldErrors.confirmPassword ? 'brix-input-error' : ''}`}
                     placeholder={mergedLabels.confirmPasswordPlaceholder}
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
@@ -507,7 +511,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                     autoComplete="new-password"
                   />
                   {fieldErrors.confirmPassword && (
-                    <span className="shinwa-field-error">{fieldErrors.confirmPassword}</span>
+                    <span className="brix-field-error">{fieldErrors.confirmPassword}</span>
                   )}
                 </>
               )}
@@ -516,15 +520,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
           {/* Terms of Service checkbox */}
           {mergedFeatures.showTermsCheckbox && (
-            <div className="shinwa-form-group">
-              <label className="shinwa-checkbox-label">
+            <div className="brix-form-group">
+              <label className="brix-checkbox-label">
                 <input
                   type="checkbox"
                   name="agreeToTerms"
                   checked={formData.agreeToTerms}
                   onChange={handleInputChange}
                   disabled={loading}
-                  className="shinwa-checkbox"
+                  className="brix-checkbox"
                 />
                 <span>
                   {mergedLabels.termsLabel}
@@ -538,7 +542,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 </span>
               </label>
               {fieldErrors.agreeToTerms && (
-                <span className="shinwa-field-error">{fieldErrors.agreeToTerms}</span>
+                <span className="brix-field-error">{fieldErrors.agreeToTerms}</span>
               )}
             </div>
           )}
@@ -558,12 +562,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           ) : (
             <button
               type="submit"
-              className="shinwa-submit-button"
+              className="brix-submit-button"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <span className="shinwa-loading-spinner" />
+                  <span className="brix-loading-spinner" />
                   Registering...
                 </>
               ) : (
@@ -574,7 +578,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
           {/* Back to login link */}
           {onBackToLogin && (
-            <div className="shinwa-register-link">
+            <div className="brix-register-link">
               {ui ? (
                 <ui.Button variant="text" onClick={onBackToLogin} style={{ textTransform: 'none' }}>
                   {mergedLabels.backToLoginLabel}

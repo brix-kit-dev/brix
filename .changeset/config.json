@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
+  "changelog": "@changesets/changelog-github",
+  "commit": false,
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "fixed": [
+    ["@brix-sdk/runtime-sdk-api-web", "@brix-sdk/runtime-sdk-api-mobile", "@brix-sdk/runtime-sdk-react", "@brix-sdk/runtime-orchestrator-web", "@brix-sdk/runtime-manifest-web"]
+  ],
+  "linked": [
+    ["@brix-sdk/infra-adapter-*"],
+    ["@brix-sdk/platform-*"]
+  ],
+  "ignore": [
+    "@brix-sdk/infra-adapters-workspace",
+    "@brix-sdk/platform-commons-workspace",
+    "@brix-sdk/runtime-sdk-workspace",
+    "@brix-sdk/shared-runtime-workspace",
+    "@brix-sdk/platform-devtools-workspace"
+  ],
+  "___dependentVersionsForMajor___": "This ensures dependent packages get major bumps when their dependencies have major updates",
+  "snapshot": {
+    "useCalculatedVersion": true,
+    "prereleaseTemplate": "{tag}-{datetime}"
+  }
+}

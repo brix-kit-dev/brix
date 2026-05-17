@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,29 +16,29 @@
 /**
  * @file iframe Communication Type Definitions
  * @description Message formats and interfaces for iframe cross-origin communication
- * @module @brix/infra-adapter-iframe-web/types
+ * @module @brix-sdk/infra-adapter-iframe-web/types
  * @version 3.2.0
  *
- * ã€v3.2 Architecture Notesã€‘
+ * ¡¾v3.2 Architecture Notes¡¿
  * Common manifest/instance base contracts have been promoted to runtime-sdk-api-web.
  * This file defines iframe-specific extension types and communication protocols.
  * 
- * ã€Architectural Positionã€‘
+ * ¡¾Architectural Position¡¿
  * ```text
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚ runtime-sdk-api-web (Contract Layer)                                   â”‚
- * â”‚ â””â”€â”€ PluginManifest, PluginInstance base interfaces                     â”‚
- * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- * â”‚ infra-adapter-iframe-web (This Module) â­                              â”‚
- * â”‚ â””â”€â”€ Extends iframe-specific fields (url, sandbox, bridge protocol, etc)â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦ runtime-sdk-api-web (Contract Layer)                                   ©¦
+ * ©¦ ©¸©¤©¤ PluginManifest, PluginInstance base interfaces                     ©¦
+ * ©À©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©È
+ * ©¦ infra-adapter-iframe-web (This Module) ?                              ©¦
+ * ©¦ ©¸©¤©¤ Extends iframe-specific fields (url, sandbox, bridge protocol, etc)©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  */
 
 import type {
   PluginManifest as BasePluginManifest,
   PluginInstance as BasePluginInstance,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Iframe Plugin Status

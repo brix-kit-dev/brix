@@ -88,6 +88,33 @@ public class RateLimitProperties {
      */
     private Map<String, RateLimitConfig> routes = new HashMap<>();
 
+    // ==================== Per-Tenant Rate Limiting (Phase 4.6) ====================
+
+    /**
+     * Whether per-tenant rate limiting is enabled.
+     * When true, each tenant gets its own rate limiter per route.
+     */
+    private boolean tenantEnabled = false;
+
+    /**
+     * JWT claim name that contains the tenant ID.
+     * The filter Base64-decodes the JWT payload and reads this claim.
+     */
+    private String tenantJwtClaim = "tenant_id";
+
+    /**
+     * Maximum number of per-tenant rate limiter instances to prevent memory exhaustion.
+     * Once this limit is reached, new tenants fall back to the default route-level limiter.
+     */
+    private int maxTenantLimiters = 10000;
+
+    /**
+     * Per-tenant rate limit overrides.
+     * Key: tenant ID; Value: rate limit configuration for that tenant.
+     * Tenants not listed here use the route-level (or default) configuration.
+     */
+    private Map<String, RateLimitConfig> tenants = new HashMap<>();
+
     // ========== Getters and Setters ==========
 
     public boolean isEnabled() {
@@ -114,6 +141,38 @@ public class RateLimitProperties {
         this.routes = routes;
     }
 
+    public boolean isTenantEnabled() {
+        return tenantEnabled;
+    }
+
+    public void setTenantEnabled(boolean tenantEnabled) {
+        this.tenantEnabled = tenantEnabled;
+    }
+
+    public String getTenantJwtClaim() {
+        return tenantJwtClaim;
+    }
+
+    public void setTenantJwtClaim(String tenantJwtClaim) {
+        this.tenantJwtClaim = tenantJwtClaim;
+    }
+
+    public int getMaxTenantLimiters() {
+        return maxTenantLimiters;
+    }
+
+    public void setMaxTenantLimiters(int maxTenantLimiters) {
+        this.maxTenantLimiters = maxTenantLimiters;
+    }
+
+    public Map<String, RateLimitConfig> getTenants() {
+        return tenants;
+    }
+
+    public void setTenants(Map<String, RateLimitConfig> tenants) {
+        this.tenants = tenants;
+    }
+
     /**
      * obtainspecifyrouteofrate limitconfiguration
      * <p>
@@ -125,6 +184,22 @@ public class RateLimitProperties {
      */
     public RateLimitConfig getConfigForRoute(String routeId) {
         return routes.getOrDefault(routeId, defaultConfig);
+    }
+
+    /**
+     * Returns the rate limit config for a specific tenant.
+     * Falls back to the route config (or default) if the tenant has no override.
+     *
+     * @param tenantId the tenant identifier
+     * @param routeId  the route identifier
+     * @return resolved rate limit configuration
+     */
+    public RateLimitConfig getConfigForTenant(String tenantId, String routeId) {
+        RateLimitConfig tenantConfig = tenants.get(tenantId);
+        if (tenantConfig != null) {
+            return tenantConfig;
+        }
+        return getConfigForRoute(routeId);
     }
 
     /**

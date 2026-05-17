@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file @brix/infra-adapter-biometric-mobile Package Entry
+ * @file @brix-sdk/infra-adapter-biometric-mobile Package Entry
  * @description Biometric Authentication Adapter for Mobile
- * @module @brix/infra-adapter-biometric-mobile
+ * @module @brix-sdk/infra-adapter-biometric-mobile
  * @version 3.1.0
  *
  * [Architecture Positioning]
@@ -27,8 +27,8 @@
  * - Extracted from infra-adapter-device-mobile as standalone package
  * - Follows Single Responsibility Principle
  *
- * ã€ç”Ÿç‰©è¯†åˆ«è®¤è¯é€‚é…å™¨åŒ…ã€‘
- * æä¾›ç§»åŠ¨ç«¯ç”Ÿç‰©è¯†åˆ«è®¤è¯èƒ½åŠ›ï¼Œå±äºè¿è¡Œå£³æ¶æ„ä¸­çš„åŸºç¡€è®¾æ–½é€‚é…å™¨å±‚ã€‚
+ * ¡¾ÉúÎïÊ¶±ğÈÏÖ¤ÊÊÅäÆ÷°ü¡¿
+ * Ìá¹©ÒÆ¶¯¶ËÉúÎïÊ¶±ğÈÏÖ¤ÄÜÁ¦£¬ÊôÓÚÔËĞĞ¿Ç¼Ü¹¹ÖĞµÄ»ù´¡ÉèÊ©ÊÊÅäÆ÷²ã¡£
  *
  * @packageDocumentation
  */

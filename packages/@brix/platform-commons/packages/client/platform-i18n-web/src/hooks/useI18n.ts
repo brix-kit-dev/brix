@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Internationalization Hook
  * @description Provides internationalization-related React Hooks
- * @module @brix/platform-i18n-web/hooks/useI18n
+ * @module @brix-sdk/platform-i18n-web/hooks/useI18n
  * @version 3.0.0
  */
 
@@ -26,7 +26,7 @@ import type {
   LocaleCode,
   TranslateOptions,
   LocaleChangeEvent,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Internationalization Hook return value

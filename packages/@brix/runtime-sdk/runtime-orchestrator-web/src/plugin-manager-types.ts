@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,28 +16,28 @@
 /**
  * @file Plugin Manager Types
  * @description Type definitions for PluginManager
- * @module @brix/runtime-orchestrator-web/plugin-manager-types
+ * @module @brix-sdk/runtime-orchestrator-web/plugin-manager-types
  * @version 3.0.0
  * 
  * Extracted from PluginManager.ts as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.
  * 
- * 【中文技术要点】
- * 插件管理器的类型定义，包括插件运行时状态、贡献项和配置。
+ * [Key Points]
+ * Defines plugin-related type definitions, including plugin runtime state, loading state, and configuration.
  */
 
 import type {
   PluginEntry,
   PluginLifecycle,
   PluginStatus,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Plugin runtime information
  * 
  * Stores plugin registration information and runtime state.
  * 
- * 【插件运行时信息】存储插件注册信息和运行时状态。
+ * Stores plugin registration information and runtime state.
  */
 export interface PluginRuntime {
   /** Plugin entry configuration */
@@ -67,7 +67,7 @@ export interface PluginRuntime {
  * 
  * Records resources contributed by plugin to the system (routes, menus, capabilities, etc.)
  * 
- * 【插件贡献项】记录插件向系统贡献的资源（路由、菜单、能力等）。
+ * ������������¼�����ϵͳ���׵���Դ��·�ɡ��˵��������ȣ���
  */
 export interface PluginContribution {
   /** Contribution type */
@@ -83,7 +83,7 @@ export interface PluginContribution {
 /**
  * Plugin manager configuration
  * 
- * 【插件管理器配置】控制插件加载和激活行为。
+ * ��������������á����Ʋ�����غͼ�����Ϊ��
  */
 export interface PluginManagerConfig {
   /** Enable strict mode (stop immediately on error) */

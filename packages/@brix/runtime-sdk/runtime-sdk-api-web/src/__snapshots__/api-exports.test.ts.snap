@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`API Export Stability Tests (Golden File) > Capability Type Identifiers > capability type identifier structure should remain stable > capability-types 1`] = `{}`;
+
+exports[`API Export Stability Tests (Golden File) > should export all expected modules > api-exports 1`] = `
+[
+  "AuthCapabilityType",
+  "BackpressureError",
+  "CapabilityPriority",
+  "ConfigCapabilityType",
+  "ConfigStoreCapabilityType",
+  "EventBusCapabilityType",
+  "GovernedEventBusCapabilityType",
+  "HTTP_ERROR_TOAST_DEDUP_WINDOW_MS",
+  "HttpCapabilityType",
+  "I18nCapabilityType",
+  "LayoutCapabilityType",
+  "ModuleLifecycleEvent",
+  "ModuleState",
+  "NavigationCapabilityType",
+  "PluginLoadError",
+  "PluginLoaderCapabilityType",
+  "PluginStateCapabilityType",
+  "SYSTEM_HTTP_ERROR_EVENT",
+  "StateStoreCapabilityType",
+  "TenantCapabilityType",
+  "TenantConfigCapabilityType",
+  "ThemeCapabilityType",
+  "UICapabilityType",
+  "createCapabilityType",
+]
+`;

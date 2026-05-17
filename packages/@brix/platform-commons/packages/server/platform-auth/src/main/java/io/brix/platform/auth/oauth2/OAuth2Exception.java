@@ -16,16 +16,24 @@
 package io.brix.platform.auth.oauth2;
 
 /**
- * OAuth2 Authentication Exception
- * <p>
- * Used for various exception scenarios in OAuth2 login flow:
+ * OAuth2 Authentication Exception.
+ *
+ * <p>Domain-specific exception for all OAuth2 login flow error scenarios:
  * <ul>
- *   <li>Invalid state parameter</li>
- *   <li>Token exchange failure</li>
+ *   <li>Invalid or expired state parameter (CSRF protection)</li>
+ *   <li>Token exchange failure with the Identity Provider</li>
  *   <li>User info retrieval failure</li>
- *   <li>User binding failure</li>
+ *   <li>Unsupported or disabled provider</li>
  * </ul>
- * </p>
+ *
+ * <p>Each instance carries an {@code errorCode} for structured error responses
+ * and observability integration (logging, monitoring dashboards).
+ *
+ * <h3>Architecture Note</h3>
+ * <p>This class lives in the platform-auth core module because it is referenced
+ * by both the reactive OAuth2 controllers (platform-auth-reactive) and the shared
+ * domain model. Following the Fault Isolation principle, all OAuth2 errors are
+ * wrapped in this domain-specific exception rather than generic RuntimeException.
  *
  * @author Brix Platform Authors
  * @version 1.0.0
@@ -33,15 +41,17 @@ package io.brix.platform.auth.oauth2;
  */
 public class OAuth2Exception extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     /**
-     * Error code
+     * Structured error code for categorization (e.g., "OAUTH2_ERROR", "INVALID_STATE").
      */
     private final String errorCode;
 
     /**
-     * Create OAuth2 exception
+     * Creates an OAuth2Exception with a default error code.
      *
-     * @param message Error message
+     * @param message human-readable error description
      */
     public OAuth2Exception(String message) {
         super(message);
@@ -49,10 +59,10 @@ public class OAuth2Exception extends RuntimeException {
     }
 
     /**
-     * Create OAuth2 exception
+     * Creates an OAuth2Exception with a specific error code.
      *
-     * @param message   Error message
-     * @param errorCode Error code
+     * @param message   human-readable error description
+     * @param errorCode structured error code for API responses
      */
     public OAuth2Exception(String message, String errorCode) {
         super(message);
@@ -60,10 +70,10 @@ public class OAuth2Exception extends RuntimeException {
     }
 
     /**
-     * Create OAuth2 exception
+     * Creates an OAuth2Exception wrapping an underlying cause.
      *
-     * @param message Error message
-     * @param cause   Original exception
+     * @param message human-readable error description
+     * @param cause   the root cause of the OAuth2 failure
      */
     public OAuth2Exception(String message, Throwable cause) {
         super(message, cause);
@@ -71,46 +81,11 @@ public class OAuth2Exception extends RuntimeException {
     }
 
     /**
-     * Get error code
+     * Returns the structured error code.
      *
-     * @return Error code
+     * @return the error code, e.g., "OAUTH2_ERROR"
      */
     public String getErrorCode() {
         return errorCode;
-    }
-
-    /**
-     * Invalid state parameter
-     */
-    public static OAuth2Exception invalidState() {
-        return new OAuth2Exception("Invalid state parameter, possible CSRF attack", "INVALID_STATE");
-    }
-
-    /**
-     * Token exchange failed
-     */
-    public static OAuth2Exception tokenExchangeFailed(String reason) {
-        return new OAuth2Exception("Token exchange failed: " + reason, "TOKEN_EXCHANGE_FAILED");
-    }
-
-    /**
-     * User info retrieval failed
-     */
-    public static OAuth2Exception userInfoFailed(String reason) {
-        return new OAuth2Exception("Failed to get user info: " + reason, "USER_INFO_FAILED");
-    }
-
-    /**
-     * Provider not enabled
-     */
-    public static OAuth2Exception providerNotEnabled(String provider) {
-        return new OAuth2Exception("Unsupported login method: " + provider, "PROVIDER_NOT_ENABLED");
-    }
-
-    /**
-     * User binding failed
-     */
-    public static OAuth2Exception bindingFailed(String reason) {
-        return new OAuth2Exception("User binding failed: " + reason, "BINDING_FAILED");
     }
 }

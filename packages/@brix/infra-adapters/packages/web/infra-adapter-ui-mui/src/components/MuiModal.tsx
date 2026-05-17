@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Modal Component
  * @description Material UI implementation of ModalProps from UIAdapter contract.
  *              Dialog/overlay component for displaying content in a modal.
- * @module @brix/infra-adapter-ui-mui/components/MuiModal
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiModal
  * @version 3.1.0
  *
  * [Design Principles]
@@ -33,7 +33,7 @@
 
 import type { FC } from 'react';
 import { useCallback, useEffect } from 'react';
-import type { ModalProps, ModalSize } from '@brix/runtime-sdk-api-web';
+import type { ModalProps, ModalSize } from '@brix-sdk/runtime-sdk-api-web';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -141,6 +141,7 @@ export const MuiModal: FC<ModalProps> = ({
   afterClose,
   style,
   className,
+  'data-testid': dataTestId,
   children,
 }) => {
   // Determine if fullscreen mode
@@ -192,7 +193,11 @@ export const MuiModal: FC<ModalProps> = ({
   // Build default footer if not custom provided
   const defaultFooter = (
     <>
-      <Button onClick={handleCancel} color="inherit">
+      <Button
+        onClick={handleCancel}
+        color="inherit"
+        data-testid={dataTestId ? `${dataTestId}-cancel` : undefined}
+      >
         {cancelText}
       </Button>
       {onConfirm && (
@@ -200,6 +205,7 @@ export const MuiModal: FC<ModalProps> = ({
           onClick={onConfirm}
           variant="contained"
           disabled={confirmLoading}
+          data-testid={dataTestId ? `${dataTestId}-submit` : undefined}
         >
           {confirmLoading ? 'Loading...' : confirmText}
         </Button>
@@ -227,6 +233,7 @@ export const MuiModal: FC<ModalProps> = ({
         }),
       }}
       className={className}
+      data-testid={dataTestId}
     >
       {/* Dialog title with optional close button */}
       {(title || showCloseButton) && (
@@ -244,6 +251,7 @@ export const MuiModal: FC<ModalProps> = ({
             <IconButton
               aria-label="close"
               onClick={onClose}
+              data-testid={dataTestId ? `${dataTestId}-close` : undefined}
               sx={{
                 color: (theme) => theme.palette.grey[500],
               }}

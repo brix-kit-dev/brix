@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Google OAuth Service
  * @description Google OAuth login service with PKCE, state, and nonce security
- * @module @brix/platform-auth-web/services/google-oauth
+ * @module @brix-sdk/platform-auth-web/services/google-oauth
  * @version 3.2.0
  * 
  * [v3.2 Refactoring] Split from 720 lines to keep under 500:
@@ -27,7 +27,6 @@
  * [Platform Layer Exemption] fetch() calls Google OAuth2 API directly (not HttpCapability);
  * sessionStorage for OAuth security parameters is browser-tab-scoped best practice.
  * 
- * 【中文技术要点】位于 platform-commons 层，PKCE+State+Nonce 三重安全保护。
  */
 
 import type { 
@@ -126,9 +125,8 @@ export class GoogleOAuthService {
    * 3. Store security parameters to sessionStorage
    * 4. Redirect to Google authorization page (or open popup)
    * 
-   * 【中文技术要点】
-   * State 参数用于防止 CSRF 攻击，Nonce 防止重放攻击。
-   * PKCE 为公共客户端提供额外安全保护（无需 client_secret）。
+ * State CSRF Nonce
+ * PKCE client_secret
    * 
    * @param options - Optional config overrides
    * @returns If using popup mode, returns login result; otherwise redirects
@@ -290,8 +288,7 @@ export class GoogleOAuthService {
    * 5. Get user info
    * 6. Clean up temporary storage
    * 
-   * 【中文技术要点】
-   * State 验证是防止 CSRF 攻击的关键步骤，必须严格检查。
+ * State CSRF
    * 
    * @returns Login result
    * @throws OAuthError when validation fails or token exchange fails

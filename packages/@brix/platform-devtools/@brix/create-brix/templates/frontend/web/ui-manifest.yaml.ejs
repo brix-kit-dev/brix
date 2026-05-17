@@ -1,0 +1,17 @@
+ui:
+  id: "<%= fullName %>-ui-web"
+  module: "<%= fullName %>"
+  version: "<%= sdkVersion %>"
+  type: "web"
+  remote-entry: "remoteEntry.js"
+  exposes:
+    list: "./List"
+    detail: "./Detail"
+  permissions:
+    - "<%= name %>:read"
+    - "<%= name %>:write"
+  capabilities:
+    required:
+      - "ui"
+      - "http"
+      - "navigation"

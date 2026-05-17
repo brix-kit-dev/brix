@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://brix.io/schemas/plugin-manifest.schema.json",
+  "title": "Brix Plugin Manifest",
+  "description": "JSON Schema for META-INF/plugin-manifest.json — the server-side plugin declaration used by the Runtime Shell to discover and register plugins.",
+  "type": "object",
+  "required": ["name", "pluginId", "version"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Short plugin name (lowercase, used as namespace prefix).",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "pluginId": {
+      "type": "string",
+      "description": "Globally unique plugin identifier (e.g. 'brix-app-partners').",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "string",
+      "description": "SemVer version string (e.g. '3.0.0-SNAPSHOT')."
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Human-readable display name."
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the plugin's purpose."
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI platform configuration.",
+      "properties": {
+        "web": {
+          "$ref": "#/$defs/uiPlatformConfig"
+        },
+        "mobile": {
+          "$ref": "#/$defs/uiPlatformConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Runtime capabilities required/optional by this plugin.",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Capabilities that MUST be available for the plugin to function."
+        },
+        "optional": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Capabilities the plugin can use if available."
+        }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "object",
+      "description": "Integration events this plugin publishes and subscribes to.",
+      "properties": {
+        "publish": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Event types this plugin may emit."
+        },
+        "subscribe": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Event types this plugin listens to."
+        }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Extensible metadata (category, vendor, license, etc.).",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": ["business", "platform", "infrastructure"]
+        },
+        "vendor": { "type": "string" },
+        "license": { "type": "string" },
+        "minRuntimeVersion": {
+          "type": "string",
+          "description": "Minimum Runtime SDK version this plugin is compatible with."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "uiPlatformConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "manifestUrl": {
+          "type": "string",
+          "description": "URL to the ui-manifest file."
+        },
+        "scope": {
+          "type": "string",
+          "description": "Module Federation scope name."
+        },
+        "routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/routeConfig" }
+        },
+        "menus": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/menuConfig" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "routeConfig": {
+      "type": "object",
+      "required": ["path", "component"],
+      "properties": {
+        "path": { "type": "string" },
+        "component": { "type": "string" },
+        "exact": { "type": "boolean" },
+        "menu": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "icon": { "type": "string" },
+            "order": { "type": "integer" },
+            "parentId": { "type": "string" },
+            "hidden": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "menuConfig": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "icon": { "type": "string" },
+        "order": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

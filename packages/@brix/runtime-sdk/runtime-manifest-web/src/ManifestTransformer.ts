@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Manifest Transformer
  * @description Transforms contribution points in manifests to runtime objects
- * @module @brix/runtime-manifest-web/ManifestTransformer
+ * @module @brix-sdk/runtime-manifest-web/ManifestTransformer
  * @version 3.0.0
  * 
  * [Design Notes]
@@ -26,7 +26,7 @@
  * - Plugin entries -> PluginEntry objects
  */
 
-import type { PluginEntry } from '@brix/runtime-sdk-api-web';
+import type { PluginEntry } from '@brix-sdk/runtime-sdk-api-web';
 import type {
   AppManifest,
   PluginManifest,

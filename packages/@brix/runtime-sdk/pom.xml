@@ -21,20 +21,20 @@
 
     <groupId>io.brix</groupId>
     <artifactId>runtime-sdk-parent</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.2.0</version>
     <packaging>pom</packaging>
 
     <name>Brix Runtime SDK Parent</name>
     <description>
-        Brix Runtime SDK - 运行壳能力契约与编排引擎
+        Brix Runtime SDK - Runtime Shell Capability Contracts and Orchestration Engine
         
-        本项目提供模块化应用的运行时抽象层，包含：
-        - 能力契约接口（Capability Contract）
-        - 模块生命周期管理
-        - 声明式事件分发
-        - Manifest 解析与校验
+        Provides the runtime abstraction layer for modular applications, including:
+        - Capability Contract interfaces
+        - Module lifecycle management
+        - Declarative event dispatching
+        - Manifest parsing and validation
         
-        模块仅依赖此 SDK，不依赖任何具体基础设施实现。
+        Modules depend only on this SDK, not on any specific infrastructure implementation.
     </description>
     <url>https://github.com/aspect-brix/runtime-sdk</url>
 
@@ -48,21 +48,21 @@
 
     <modules>
         <module>runtime-sdk-api</module>
-        <!-- runtime-sdk 已合并到 runtime-sdk-api，保留目录但标记为废弃 -->
+        <!-- runtime-sdk has been merged into runtime-sdk-api; directory retained but marked as deprecated -->
         <!-- <module>runtime-sdk</module> -->
         <module>runtime-manifest</module>
         <module>runtime-orchestrator</module>
     </modules>
 
     <properties>
-        <!-- 编译配置 -->
+        <!-- Compiler Configuration -->
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <!-- 依赖版本管理 -->
+        <!-- Dependency Version Management -->
         <slf4j.version>2.0.9</slf4j.version>
         <jackson.version>2.16.1</jackson.version>
         <snakeyaml.version>2.2</snakeyaml.version>
@@ -70,10 +70,10 @@
         <junit.version>5.10.1</junit.version>
         <mockito.version>5.8.0</mockito.version>
         <assertj.version>3.27.7</assertj.version>
-        <!-- Spring Boot 版本（用于可选的自动配置支持） -->
+        <!-- Spring Boot version (for optional auto-configuration support) -->
         <spring-boot.version>3.2.2</spring-boot.version>
 
-        <!-- Maven 插件版本 -->
+        <!-- Maven Plugin Versions -->
         <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.2.3</maven-surefire-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
@@ -82,16 +82,16 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- 内部模块依赖 -->
+            <!-- Internal Module Dependencies -->
             <dependency>
                 <groupId>io.brix</groupId>
                 <artifactId>runtime-sdk-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <!--
-            【9.4 修复】移除 runtime-sdk 幽灵依赖
-            runtime-sdk 模块已废弃并合并到 runtime-sdk-api，
-            该 artifactId 对应的模块目录已不存在，属于无效声明。
+            [Fix 9.4] Remove phantom runtime-sdk dependency.
+            The runtime-sdk module has been deprecated and merged into runtime-sdk-api.
+            The corresponding module directory no longer exists; this was an invalid declaration.
             -->
             <dependency>
                 <groupId>io.brix</groupId>
@@ -104,14 +104,14 @@
                 <version>${project.version}</version>
             </dependency>
 
-            <!-- 日志门面 -->
+            <!-- Logging Facade -->
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
             </dependency>
 
-            <!-- JSON 序列化 -->
+            <!-- JSON Serialization -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
@@ -128,35 +128,35 @@
                 <version>${jackson.version}</version>
             </dependency>
 
-            <!-- YAML 解析 -->
+            <!-- YAML Parsing -->
             <dependency>
                 <groupId>org.yaml</groupId>
                 <artifactId>snakeyaml</artifactId>
                 <version>${snakeyaml.version}</version>
             </dependency>
 
-            <!-- Jakarta 验证 API -->
+            <!-- Jakarta Validation API -->
             <dependency>
                 <groupId>jakarta.validation</groupId>
                 <artifactId>jakarta.validation-api</artifactId>
                 <version>${jakarta-validation.version}</version>
             </dependency>
 
-            <!-- Spring Boot AutoConfigure（可选，用于能力自动配置） -->
+            <!-- Spring Boot AutoConfigure (optional, for capability auto-configuration) -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-autoconfigure</artifactId>
                 <version>${spring-boot.version}</version>
             </dependency>
 
-            <!-- Spring Web（可选，用于插件注册表 REST 端点） -->
+            <!-- Spring Web (optional, for plugin registry REST endpoint) -->
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-web</artifactId>
                 <version>6.1.3</version>
             </dependency>
 
-            <!-- 测试依赖 -->
+            <!-- Test Dependencies -->
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter</artifactId>

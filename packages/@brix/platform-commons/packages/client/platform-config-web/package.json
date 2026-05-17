@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/platform-config-web",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/platform-config-web",
+  "version": "3.2.0",
   "description": "Web Configuration Capability Implementation - Implements ConfigCapability Interface",
   "type": "module",
   "main": "dist/index.js",
@@ -26,10 +26,10 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "workspace:*"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "peerDependencies": {
-    "@brix/runtime-sdk-api-web": "^3.1.0"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^1.2.0",
@@ -47,5 +47,13 @@
   ],
   "author": "Brix Platform Authors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-commons.git",
+    "directory": "packages/client/platform-config-web"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false
 }

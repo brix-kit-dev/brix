@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file Runtime context abstract definition
  * @description Define core interfaces for runtime context (no React Native dependency)
- * @module @brix/runtime-sdk-api-mobile/context/RuntimeContext
+ * @module @brix-sdk/runtime-sdk-api-mobile/context/RuntimeContext
  * @version 3.2.0
  *
  * [v3.2.0 Notes]
  * Maintains consistent runtime context abstraction with runtime-sdk-api-web.
- * React Native related Context and Hooks are migrated to @brix/runtime-sdk-react-native package (Phase 2).
+ * React Native related Context and Hooks are migrated to @brix-sdk/runtime-sdk-react-native package (Phase 2).
  *
  * [Design Notes]
  * - Pure abstract interface, does not depend on any UI framework

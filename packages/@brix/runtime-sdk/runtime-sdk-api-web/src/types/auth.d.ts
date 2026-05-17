@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Authentication Capability Type Definitions
  * @description Defines core types for the authentication system, including user info, auth info, permission verification, etc.
- * @module @brix/runtime-sdk-api-web/types/auth
+ * @module @brix-sdk/runtime-sdk-api-web/types/auth
  * @version 3.2.0
  *
  * [v3.2 Changes]

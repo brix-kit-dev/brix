@@ -59,6 +59,10 @@ import jakarta.persistence.Table;
  *     payload TEXT NOT NULL,
  *     topic VARCHAR(255) NOT NULL,
  *     routing_key VARCHAR(255),
+ *     tenant_id VARCHAR(128) NOT NULL,
+ *     trace_id VARCHAR(128) NOT NULL,
+ *     schema_version INT NOT NULL,
+ *     correlation_id VARCHAR(128),
  *     status VARCHAR(32) NOT NULL,
  *     created_at TIMESTAMP NOT NULL,
  *     processed_at TIMESTAMP,
@@ -74,6 +78,7 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "event_outbox", indexes = {
         @Index(name = "idx_outbox_status", columnList = "status"),
+        @Index(name = "idx_outbox_tenant_status", columnList = "tenant_id,status"),
         @Index(name = "idx_outbox_created", columnList = "created_at"),
         @Index(name = "idx_outbox_event_id", columnList = "event_id", unique = true)
 })
@@ -96,8 +101,11 @@ public class OutboxEvent {
         /** Completed - successfully sent to Kafka */
         COMPLETED,
 
-        /** Failed - send failed and exceeded maximum retry count */
-        FAILED
+        /** Failed - send failed and could not be routed to DLQ */
+        FAILED,
+
+        /** Dead-lettered - exceeded maximum retry count and was routed to DLQ */
+        DEAD_LETTERED
     }
 
     /** Primary key ID (database auto-generated UUID) */
@@ -132,6 +140,22 @@ public class OutboxEvent {
     /** Routing key (used for Kafka Partition Key, ensures events with same routing key are ordered) */
     @Column(name = "routing_key", length = 255)
     private String routingKey;
+
+    /** Tenant identifier required for cross-plugin tenant isolation. */
+    @Column(name = "tenant_id", nullable = false, length = 128)
+    private String tenantId;
+
+    /** Distributed trace identifier for observability correlation. */
+    @Column(name = "trace_id", nullable = false, length = 128)
+    private String traceId;
+
+    /** Event schema version used by consumers for compatibility checks. */
+    @Column(name = "schema_version", nullable = false)
+    private int schemaVersion;
+
+    /** Optional correlation ID linking a workflow of integration events. */
+    @Column(name = "correlation_id", length = 128)
+    private String correlationId;
 
     /** Current event status */
     @Enumerated(EnumType.STRING)
@@ -187,6 +211,10 @@ public class OutboxEvent {
         outbox.topic = topic;
         outbox.routingKey = event.getRoutingKey();
         outbox.sourceModule = event.getSourceModule();
+        outbox.tenantId = event.getTenantId();
+        outbox.traceId = event.getTraceId();
+        outbox.schemaVersion = event.getSchemaVersion();
+        outbox.correlationId = event.getCorrelationId();
         outbox.status = Status.PENDING;
         outbox.createdAt = Instant.now();
         return outbox;
@@ -222,6 +250,17 @@ public class OutboxEvent {
      */
     public void markFailed(String errorMessage) {
         this.status = Status.FAILED;
+        this.errorMessage = errorMessage;
+        this.processedAt = Instant.now();
+    }
+
+    /**
+     * Mark as dead-lettered after successful DLQ routing.
+     *
+     * @param errorMessage failure reason description
+     */
+    public void markDeadLettered(String errorMessage) {
+        this.status = Status.DEAD_LETTERED;
         this.errorMessage = errorMessage;
         this.processedAt = Instant.now();
     }
@@ -270,6 +309,22 @@ public class OutboxEvent {
         return routingKey;
     }
 
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public int getSchemaVersion() {
+        return schemaVersion;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
     public Status getStatus() {
         return status;
     }
@@ -301,6 +356,7 @@ public class OutboxEvent {
                 ", eventId='" + eventId + '\'' +
                 ", eventType='" + eventType + '\'' +
                 ", topic='" + topic + '\'' +
+                ", tenantId='" + tenantId + '\'' +
                 ", status=" + status +
                 ", retryCount=" + retryCount +
                 '}';

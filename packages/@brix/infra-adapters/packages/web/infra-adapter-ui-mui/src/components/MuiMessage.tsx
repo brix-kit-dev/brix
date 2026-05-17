@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Message API
  * @description Material UI implementation of MessageAPI from UIAdapter contract.
  *              Imperative toast/snackbar notification system using MUI Snackbar.
- * @module @brix/infra-adapter-ui-mui/components/MuiMessage
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiMessage
  * @version 3.1.0
  *
  * [Design Principles]
@@ -42,7 +42,7 @@ import type {
   MessageOptions,
   MessageType,
   MessageDestroy,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 import { createElement, type ReactNode } from 'react';
 
 // ============================================================================

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
  */
 /**
  * @file Authentication Service Module Export
- * @module @brix/platform-auth-web/services
+ * @module @brix-sdk/platform-auth-web/services
  */
 
 export {

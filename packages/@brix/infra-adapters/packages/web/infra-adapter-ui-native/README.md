@@ -1,24 +1,24 @@
-# @brix/infra-adapter-ui-native
+# @brix-sdk/infra-adapter-ui-native
 
 > Native UI Adapter - Pure CSS atomic components implementing UIAdapter contract
 
 ## Overview
 
-This package provides a complete UIAdapter implementation using pure CSS components with **zero external UI library dependencies**. It implements the UIAdapter contract from `@brix/runtime-sdk-api-web`.
+This package provides a complete UIAdapter implementation using pure CSS components with **zero external UI library dependencies**. It implements the UIAdapter contract from `@brix-sdk/runtime-sdk-api-web`.
 
 ## Features
 
-- ✅ **Zero Dependencies** - No MUI, Ant Design, or other UI libraries required
-- ✅ **Full UIAdapter Contract** - Implements all required components and APIs
-- ✅ **Pure CSS Styling** - All components use inline styles and CSS custom properties
-- ✅ **SVG Icons** - Inline SVG icons with Material Design icon set
-- ✅ **Theme Support** - Light and dark themes via CSS variables
-- ✅ **Accessibility** - Full keyboard navigation and ARIA support
+- �?**Zero Dependencies** - No MUI, Ant Design, or other UI libraries required
+- �?**Full UIAdapter Contract** - Implements all required components and APIs
+- �?**Pure CSS Styling** - All components use inline styles and CSS custom properties
+- �?**SVG Icons** - Inline SVG icons with Material Design icon set
+- �?**Theme Support** - Light and dark themes via CSS variables
+- �?**Accessibility** - Full keyboard navigation and ARIA support
 
 ## Installation
 
 ```bash
-pnpm add @brix/infra-adapter-ui-native
+pnpm add @brix-sdk/infra-adapter-ui-native
 ```
 
 ## Usage
@@ -26,7 +26,7 @@ pnpm add @brix/infra-adapter-ui-native
 ### Host Layer Registration
 
 ```typescript
-import { nativeUIAdapter } from '@brix/infra-adapter-ui-native';
+import { nativeUIAdapter } from '@brix-sdk/infra-adapter-ui-native';
 
 const hostConfig = {
   uiAdapter: nativeUIAdapter,
@@ -36,7 +36,7 @@ const hostConfig = {
 ### Shell Layer Component Usage
 
 ```tsx
-import { useUI } from '@brix/runtime-sdk-web';
+import { useUI } from '@brix-sdk/runtime-sdk-web';
 
 function AppSidebar() {
   const { Menu, Icon } = useUI();
@@ -94,13 +94,13 @@ This adapter follows the v3.0.4 Runtime Shell Architecture:
 
 ```
 Host Layer (Configuration)
-    │
+    �?
     ├── Selects: nativeUIAdapter
-    │
+    �?
 Shell Layer (Layout Assembly)
-    │
-    ├── Uses: useUI() → { Button, Menu, Icon, ... }
-    │
+    �?
+    ├── Uses: useUI() �?{ Button, Menu, Icon, ... }
+    �?
     └── Assembles: AppSidebar, AppHeader, AppLayout
 ```
 

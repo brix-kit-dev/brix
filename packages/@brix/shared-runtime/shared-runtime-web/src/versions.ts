@@ -145,15 +145,20 @@ export const RUNTIME_VERSIONS = {
    * Runtime SDK React version.
    * Contains RuntimeContextProvider and hooks (useAuth, useUI, etc.).
    * MUST be singleton to ensure plugins access Host's RuntimeContext.
+   * 
+   * NOTE: Actual package name is @brix-sdk/* (npm registered).
+   * Code imports use @brix/* alias, resolved via rspack alias.
    */
-  '@brix/runtime-sdk-react': '^3.2.0',
+  '@brix-sdk/runtime-sdk-react': '^3.2.0',
 
   /**
    * Runtime SDK API Web version.
    * Contains capability type symbols (AuthCapabilityType, etc.).
    * MUST be singleton to ensure Symbol.for() returns same symbol.
+   *
+   * NOTE: Actual package name is @brix-sdk/* (npm registered).
    */
-  '@brix/runtime-sdk-api-web': '^3.1.0',
+  '@brix-sdk/runtime-sdk-api-web': '^3.1.0',
 } as const;
 
 // =============================================================================

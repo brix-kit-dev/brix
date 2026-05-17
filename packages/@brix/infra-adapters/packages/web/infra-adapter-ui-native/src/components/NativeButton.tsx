@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file Native Button Component
  * @description Pure CSS button component implementing ButtonProps from UIAdapter contract.
  *              No external UI library dependencies.
- * @module @brix/infra-adapter-ui-native/components/NativeButton
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeButton
  * @version 3.1.0
  *
  * [Design Principles]
@@ -28,7 +28,7 @@
  */
 
 import type { FC, CSSProperties } from 'react';
-import type { ButtonProps, ComponentSize, ButtonVariant } from '@brix/runtime-sdk-api-web';
+import type { ButtonProps, ComponentSize, ButtonVariant } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 
 // ============================================================================
@@ -115,6 +115,7 @@ export const NativeButton: FC<ButtonProps> = ({
   type = 'button',
   style,
   className,
+  'data-testid': dataTestId,
   children,
 }) => {
   // Determine if button is interactive
@@ -144,6 +145,7 @@ export const NativeButton: FC<ButtonProps> = ({
       onClick={onClick}
       style={buttonStyle}
       className={className}
+      data-testid={dataTestId}
     >
       {/* Loading spinner */}
       {loading && (
@@ -223,12 +225,12 @@ function getVariantStyles(variant: ButtonVariant, _disabled: boolean): CSSProper
     },
   };
 
-  const colorSet = colors[variant as keyof typeof colors] ?? colors.primary;
+  const colorSet = colors[variant] ?? colors.primary;
 
   return {
-    backgroundColor: colorSet.bg,
-    color: colorSet.text,
-    border: colorSet.border ?? 'none',
+    backgroundColor: colorSet!.bg,
+    color: colorSet!.text,
+    border: colorSet!.border ?? 'none',
     // Note: hover effects would need to be handled via CSS-in-JS or CSS modules
     // For pure inline styles, hover is not supported
   };

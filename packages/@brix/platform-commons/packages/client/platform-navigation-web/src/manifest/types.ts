@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,10 @@
 /**
  * @file Manifest Types
  * @description UI Manifest Type Definitions - Unified frontend plugin manifest data structure
- * @module @brix/platform-navigation-web/manifest/types
+ * @module @brix-sdk/platform-navigation-web/manifest/types
  * @version 3.0.0
  *
- * 【Design Notes】
+ * ��Design Notes��
  * Following v3.0.4 blueprint Manifest-Driven architecture:
  * - Plugins declare pages, menus, permissions via ui-manifest.yaml
  * - Host reads and aggregates manifests from all composed plugins
@@ -276,9 +276,9 @@ export interface HostPluginConfig {
  * with explicit cross-references.
  * 
  * [Phase 3.7 Type Deduplication]
- * - Consumers: platform-router-web, shinwa-platform-shell-web/LazyComponentFactory
+ * - Consumers: platform-router-web, brix-platform-shell-web/LazyComponentFactory
  * - Variants: runtime-orchestrator-web (uses nested plugin: DiscoveredPlugin)
- *             shinwa-platform-shell-web/DynamicPluginRoutes (uses nested plugin: {id,remoteEntry})
+ *             brix-platform-shell-web/DynamicPluginRoutes (uses nested plugin: {id,remoteEntry})
  * 
  * @since 3.0.0
  */
@@ -300,6 +300,19 @@ export interface AggregatedRoute {
 
   /** Required permission */
   permission?: string;
+
+  /**
+   * Phase 2 / C-4 \u2014 view-mode gate.
+   *
+   * If present, the route is only matchable when the active session's
+   * view mode (resolved from {@code ViewModeCapability}) is one of the
+   * listed values. Wire format mirrors {@code ViewMode} in
+   * {@code runtime-sdk-api-web}:
+   * `'PLATFORM_ADMIN' | 'TENANT_ACTOR' | 'TENANT_SUBJECT'`.
+   *
+   * @since 3.3.0
+   */
+  requiredViewMode?: readonly string[];
 
   /** Page configuration */
   config?: PageConfig;

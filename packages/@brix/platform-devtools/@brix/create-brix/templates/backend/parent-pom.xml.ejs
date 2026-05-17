@@ -1,24 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  =========================================================
-  <%= name %> 插件父 POM
-  生成时间: <%= date %>
-  =========================================================
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.brix.platform</groupId>
-        <artifactId>platform-parent</artifactId>
-        <version>3.2.0-SNAPSHOT</version>
-        <relativePath/>
+        <groupId>io.brix</groupId>
+        <artifactId>brix-parent</artifactId>
+        <version><%= sdkVersion %></version>
+        <relativePath>../../../../pom.xml</relativePath>
     </parent>
 
-    <groupId>io.brix.plugin</groupId>
-    <artifactId><%= name %></artifactId>
+    <groupId><%= typeof moduleType !== 'undefined' ? 'io.brix.app' : 'io.brix.plugin' %></groupId>
+    <artifactId><%= fullName || name %></artifactId>
     <version><%= version %></version>
     <packaging>pom</packaging>
 
@@ -26,14 +20,52 @@
     <description><%= description %></description>
 
     <modules>
-<% if (withApi) { %>
+<% if (withApi) { -%>
         <module><%= name %>-api</module>
-<% } %>
+<% } -%>
+<% if (withCore !== false) { -%>
         <module><%= name %>-core</module>
+<% } -%>
+<% if (withServer) { -%>
+        <module><%= name %>-server</module>
+<% } -%>
+<% if (withApp) { -%>
+        <module><%= name %>-app</module>
+<% } -%>
     </modules>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>17</java.version>
+        <brix.version><%= sdkVersion %></brix.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>runtime-sdk-api</artifactId>
+                <version>${brix.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>architecture-guard</artifactId>
+                <version>${brix.version}</version>
+            </dependency>
+<% if (withApi) { -%>
+            <dependency>
+                <groupId><%= typeof moduleType !== 'undefined' ? 'io.brix.app' : 'io.brix.plugin' %></groupId>
+                <artifactId><%= name %>-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+<% } -%>
+<% if (withCore !== false) { -%>
+            <dependency>
+                <groupId><%= typeof moduleType !== 'undefined' ? 'io.brix.app' : 'io.brix.plugin' %></groupId>
+                <artifactId><%= name %>-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+<% } -%>
+        </dependencies>
+    </dependencyManagement>
 </project>

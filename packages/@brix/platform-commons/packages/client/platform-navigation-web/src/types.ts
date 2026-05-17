@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Page Information Definitions
  * @description Defines page information structure in the page registry
- * @module @brix/platform-navigation-web/types
+ * @module @brix-sdk/platform-navigation-web/types
  * @version 3.0.0
  */
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Internationalization Capability Implementation
  * @description Implements I18nCapability interface
- * @module @brix/platform-i18n-web/I18nCapabilityImpl
+ * @module @brix-sdk/platform-i18n-web/I18nCapabilityImpl
  * @version 3.0.0
  * 
  * Architecture Overview:
@@ -41,18 +41,12 @@ import type {
   RelativeTimeFormatOptions,
   LocaleChangeEvent,
   Unsubscribe,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
+import type { I18nCapabilityConfig } from '@brix-sdk/runtime-sdk-api-web';
 import { I18nStore, type I18nStoreConfig } from './I18nStore';
 
-/**
- * Internationalization capability configuration
- */
-export interface I18nCapabilityConfig extends I18nStoreConfig {
-  /**
-   * Shared i18n store (optional)
-   */
-  i18nStore?: I18nStore;
-}
+// Re-export contract-layer type for backward compatibility
+export type { I18nCapabilityConfig };
 
 /**
  * Internationalization Capability Implementation

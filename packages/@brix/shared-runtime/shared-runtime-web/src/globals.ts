@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -151,10 +151,6 @@ export function injectGlobals(): void {
 
   // Development logging
   if (process.env.NODE_ENV === 'development') {
-    console.log('[shared-runtime] Globals injected successfully:', {
-      React: `v${React.version}`,
-      ReactDOM: 'available',
-    });
   }
 }
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,24 +16,24 @@
 /**
  * @file platform-auth-service-web Module Entry
  * @description Web Authentication Service Factory - Provides OAuth, Token Management, and other authentication services
- * @module @brix/platform-auth-service-web
+ * @module @brix-sdk/platform-auth-service-web
  * @version 3.1.0
  * 
  * Module Description:
- * This module was split from @brix/platform-auth-web v3.0,
+ * This module was split from @brix-sdk/platform-auth-web v3.0,
  * containing only the authentication service factory, not capability implementations or UI components.
  * 
  * Architectural Position:
  * ```text
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ Capability Contract Layer (runtime-sdk-api-web)                        │
- * │ └── AuthCapability Interface Definition                                │
- * ├─────────────────────────────────────────────────────────────────────────┤
- * │ Capability Implementation Layer (platform-commons)                     │
- * │ ├── platform-auth-web (Capability Implementation)                      │
- * │ ├── platform-auth-ui-web - UI Components and Pages                     │
- * │ └── platform-auth-service-web (This Module) ⭐ - Service Factory       │
- * └─────────────────────────────────────────────────────────────────────────┘
+ * ������������������������������������������������������������������������������������������������������������������������������������������������������
+ * �� Capability Contract Layer (runtime-sdk-api-web)                        ��
+ * �� ������ AuthCapability Interface Definition                                ��
+ * ������������������������������������������������������������������������������������������������������������������������������������������������������
+ * �� Capability Implementation Layer (platform-commons)                     ��
+ * �� ������ platform-auth-web (Capability Implementation)                      ��
+ * �� ������ platform-auth-ui-web - UI Components and Pages                     ��
+ * �� ������ platform-auth-service-web (This Module) ? - Service Factory       ��
+ * ������������������������������������������������������������������������������������������������������������������������������������������������������
  * ```
  * 
  * Service Description:
@@ -42,7 +42,7 @@
  * 
  * Usage Example:
  * ```typescript
- * import { createPlatformAuthService, GoogleOAuthService } from '@brix/platform-auth-service-web';
+ * import { createPlatformAuthService, GoogleOAuthService } from '@brix-sdk/platform-auth-service-web';
  * 
  * // Create authentication service
  * const authService = createPlatformAuthService({
@@ -92,3 +92,22 @@ export {
   type TokenRefreshRequest,
   type BackendAuthResponse,
 } from './services/google-oauth';
+
+// ============================================================================
+// Social Provider Types & Configuration (Phase 2.7 — migrated from enterprise-frame-web)
+// ============================================================================
+
+export type {
+  OAuthCredentials,
+  SocialProvider,
+  RegionalSocialProviders,
+} from './types/social-provider';
+
+export {
+  CHINA_SOCIAL_PROVIDERS,
+  INTERNATIONAL_SOCIAL_PROVIDERS,
+  REGIONAL_SOCIAL_PROVIDERS,
+  getSocialProviders,
+  getEnabledSocialProviders,
+  configureSocialOAuth,
+} from './config/social-providers';

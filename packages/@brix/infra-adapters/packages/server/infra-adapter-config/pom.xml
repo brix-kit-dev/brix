@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix</groupId>
+        <artifactId>infra-adapters</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>infra-adapter-config</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Brix Infra Adapter - Config</name>
+    <description>
+        Configuration Store Capability Adapter (Open Source)
+
+        Provides a production-grade ConfigStoreCapability implementation backed by
+        Spring Environment, supporting multiple configuration sources:
+        - Environment variables (highest priority)
+        - System properties
+        - application.yml / application.properties (per Spring profile)
+        - External configuration files (spring.config.additional-location)
+
+        Key Features:
+        - Unified key resolution with dot-notation and UPPER_SNAKE_CASE env var mapping
+        - Type-safe configuration retrieval with automatic conversion
+        - Hierarchical configuration merging from multiple PropertySource instances
+        - Actuator health indicator for configuration source monitoring
+        - Configuration change event support via Spring ApplicationEventPublisher
+
+        Naming Convention:
+        - Maven GroupId: io.brix (brand)
+        - Java Package: io.infra.adapter.config (neutral)
+
+        Architecture Layer: Layer 2C - Capability Implementation (infra-adapters)
+
+        Blueprint Reference: v3.0.9 Section 3 "Runtime Shell Capability Contract"
+    </description>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <properties>
+        <runtime-sdk.version>3.2.0</runtime-sdk.version>
+    </properties>
+
+    <dependencies>
+        <!-- ========== Brix Runtime SDK API (Capability Contract) ========== -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <version>${runtime-sdk.version}</version>
+        </dependency>
+
+        <!-- ========== Spring Boot ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ========== Logging ========== -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- ========== Test Dependencies ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

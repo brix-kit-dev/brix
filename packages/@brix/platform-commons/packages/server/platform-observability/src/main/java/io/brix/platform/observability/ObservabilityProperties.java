@@ -169,7 +169,11 @@ public class ObservabilityProperties {
     }
 
     /**
-     * Health check configuration
+     * Health check configuration.
+     *
+     * <p>Controls individual component health indicators and the composite plugin
+     * health aggregator. The composite aggregator collects all plugin health
+     * statuses into a single endpoint at {@code /actuator/health/plugins}.</p>
      */
     public static class HealthProperties {
         /** Redis health check */
@@ -177,6 +181,9 @@ public class ObservabilityProperties {
 
         /** Kafka health check */
         private ComponentHealthProperties kafka = new ComponentHealthProperties();
+
+        /** Composite plugin health aggregator */
+        private CompositeHealthProperties composite = new CompositeHealthProperties();
 
         public ComponentHealthProperties getRedis() {
             return redis;
@@ -192,6 +199,30 @@ public class ObservabilityProperties {
 
         public void setKafka(ComponentHealthProperties kafka) {
             this.kafka = kafka;
+        }
+
+        public CompositeHealthProperties getComposite() {
+            return composite;
+        }
+
+        public void setComposite(CompositeHealthProperties composite) {
+            this.composite = composite;
+        }
+    }
+
+    /**
+     * Composite plugin health aggregator configuration.
+     */
+    public static class CompositeHealthProperties {
+        /** Whether to enable the composite plugin health aggregator */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 

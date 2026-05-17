@@ -17,14 +17,17 @@ package io.infra.adapter.database.config;
 
 import io.infra.adapter.database.HikariDatabaseCapability;
 import io.infra.adapter.database.health.DatabaseHealthIndicator;
+import io.infra.adapter.database.metrics.HikariPoolMetricsExporter;
 import io.runtime.sdk.capability.DatabaseCapability;
 import io.runtime.sdk.capability.DatabaseDialect;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -52,7 +55,7 @@ import java.util.Map;
  *   infra:
  *     database:
  *       dialect: postgresql
- *       url: jdbc:postgresql://localhost:5432/shinwa
+ *       url: jdbc:postgresql://localhost:5432/brix
  *       username: postgres
  *       password: secret
  * }</pre>
@@ -168,5 +171,36 @@ public class DatabaseAutoConfiguration {
     @ConditionalOnMissingBean(DatabaseHealthIndicator.class)
     public DatabaseHealthIndicator databaseHealthIndicator(HikariDataSource dataSource) {
         return new DatabaseHealthIndicator(dataSource);
+    }
+
+    /**
+     * Registers HikariCP connection pool metrics with Micrometer for Prometheus export.
+     *
+     * <p>Phase 5.2: Exports detailed HikariCP metrics under the {@code brix.hikari.connections.*}
+     * namespace. These metrics are automatically available at {@code /actuator/prometheus}
+     * when the Prometheus endpoint is enabled.</p>
+     *
+     * <p>Activates only when Micrometer's {@link MeterRegistry} is on the classpath,
+     * ensuring this adapter remains usable without the observability stack.</p>
+     *
+     * <h4>Exported Metric Examples</h4>
+     * <pre>
+     * brix_hikari_connections_active{pool="brix-database-pool"}  5
+     * brix_hikari_connections_idle{pool="brix-database-pool"}    15
+     * brix_hikari_connections_usage_ratio{pool="brix-database-pool"}  0.25
+     * </pre>
+     *
+     * @param dataSource    the HikariCP data source to monitor
+     * @param meterRegistry the Micrometer meter registry
+     * @return HikariCP metrics exporter bean
+     */
+    @Bean
+    @ConditionalOnClass(MeterRegistry.class)
+    @ConditionalOnBean(MeterRegistry.class)
+    @ConditionalOnMissingBean(HikariPoolMetricsExporter.class)
+    public HikariPoolMetricsExporter hikariPoolMetricsExporter(
+            HikariDataSource dataSource,
+            MeterRegistry meterRegistry) {
+        return new HikariPoolMetricsExporter(dataSource, meterRegistry);
     }
 }

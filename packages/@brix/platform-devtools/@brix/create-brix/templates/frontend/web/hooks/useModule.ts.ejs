@@ -1,0 +1,44 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useHttp } from '@brix-sdk/runtime-sdk-react';
+import type { <%= classPrefix %>Record, Create<%= classPrefix %>Request } from '@brix-sdk/<%= name %>-shared';
+import { <%= classPrefix %>Repository } from '../repositories';
+
+export interface Use<%= classPrefix %>Result {
+  readonly records: <%= classPrefix %>Record[];
+  readonly isLoading: boolean;
+  readonly error: Error | null;
+  readonly reload: () => Promise<void>;
+  readonly create: (request: Create<%= classPrefix %>Request) => Promise<<%= classPrefix %>Record>;
+}
+
+export function use<%= classPrefix %>(): Use<%= classPrefix %>Result {
+  const http = useHttp();
+  const repository = useMemo(() => new <%= classPrefix %>Repository(http), [http]);
+  const [records, setRecords] = useState<<%= classPrefix %>Record[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setRecords(await repository.list());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause : new Error(String(cause)));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [repository]);
+
+  const create = useCallback(async (request: Create<%= classPrefix %>Request) => {
+    const created = await repository.create(request);
+    await reload();
+    return created;
+  }, [repository, reload]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { records, isLoading, error, reload, create };
+}

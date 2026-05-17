@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Capability Related Type Definitions
  * @description Defines core types for the capability system, including capability metadata, status, registry, etc.
- * @module @brix/runtime-sdk-api-web/types/capability
+ * @module @brix-sdk/runtime-sdk-api-web/types/capability
  * @version 3.2.0
  *
  * [v3.2 Changes]

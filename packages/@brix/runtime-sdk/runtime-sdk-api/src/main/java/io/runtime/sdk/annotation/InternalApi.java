@@ -31,7 +31,7 @@ import java.lang.annotation.Target;
  * 
  * <h3>Use Cases</h3>
  * <ul>
- *   <li><b>Infrastructure Exposure</b>: such as {@code DataSource}, {@code Connection} and other low-level objects</li>
+ *   <li><b>Infrastructure Exposure</b>: such as connection-pool handles, driver connections and other low-level objects</li>
  *   <li><b>Framework Extension Points</b>: for Host adapter implementations, not for business plugins</li>
  *   <li><b>Performance Hot Paths</b>: low-level APIs for high-performance scenarios</li>
  * </ul>
@@ -47,14 +47,11 @@ import java.lang.annotation.Target;
  * 
  * <h3>Usage Example</h3>
  * <pre>{@code
- * public interface DatabaseCapability {
- *     
- *     // Recommended: plugins use this method to execute SQL
- *     <T> T executeNative(String sql, Class<T> resultType, Object... params);
- *     
- *     // Internal API: only for adapter layer use
- *     @InternalApi("Exposes infrastructure type, plugins should use executeNative()")
- *     DataSource getDataSource();
+ * public final class AdapterInternalAccess {
+ *
+ *     // Internal API: only for adapter layer use.
+ *     @InternalApi("Exposes infrastructure type, plugins must use capability contracts")
+ *     Object getInfrastructureHandle();
  * }
  * }</pre>
  * 
@@ -66,7 +63,6 @@ import java.lang.annotation.Target;
  * 
  * @author Runtime SDK Team
  * @since 3.2.0
- * @see io.runtime.sdk.capability.DatabaseCapability#getDataSource()
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

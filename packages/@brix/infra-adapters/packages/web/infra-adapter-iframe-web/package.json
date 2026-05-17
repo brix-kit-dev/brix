@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/infra-adapter-iframe-web",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/infra-adapter-iframe-web",
+  "version": "3.2.0",
   "description": "Brix UI iframe adapter - Plugin isolation via iframe (fallback mode)",
   "type": "module",
   "main": "dist/index.js",
@@ -42,15 +42,15 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@brix/runtime-sdk-api-web": ">=3.0.0"
+    "@brix-sdk/runtime-sdk-api-web": ">=3.0.0"
   },
   "peerDependenciesMeta": {
-    "@brix/runtime-sdk-api-web": {
+    "@brix-sdk/runtime-sdk-api-web": {
       "optional": false
     }
   },
   "devDependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web",
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
     "rimraf": "^5.0.5",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",

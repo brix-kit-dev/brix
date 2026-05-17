@@ -1,4 +1,4 @@
-# @brix/infra-adapter-ui-mui
+# @brix-sdk/infra-adapter-ui-mui
 
 > MUI (Material UI) implementation of UIAdapter contract for Brix Platform
 
@@ -11,13 +11,13 @@ This package provides a production-grade implementation of the UIAdapter interfa
 According to the Runtime Shell Architecture Blueprint v3.0.4:
 
 - **Layer**: Layer 2.5 (Capability Implementation Layer)
-- **Role**: Implements UIAdapter contract from `@brix/runtime-sdk-api-web`
+- **Role**: Implements UIAdapter contract from `@brix-sdk/runtime-sdk-api-web`
 - **Consumer**: Shell layer obtains components via `useUI()` hook
 - **Selection**: Host layer configures which UI adapter to use
 
 ## Design Constraints
 
-### ‚úÖ Included (Atomic Components)
+### ‚ú?Included (Atomic Components)
 - Form Components: Button, Input, Select
 - Display Components: Card, Avatar, Badge, Tooltip
 - Navigation Components: Menu, MenuItem (atomic level)
@@ -25,7 +25,7 @@ According to the Runtime Shell Architecture Blueprint v3.0.4:
 - Theme System: ThemeProvider, getThemeTokens
 - Icon System: Icon (wraps @mui/icons-material)
 
-### ‚ùå Forbidden (Layout Components)
+### ‚ù?Forbidden (Layout Components)
 - Sidebar - Assembled in Shell layer
 - Header - Assembled in Shell layer
 - Layout - Assembled in Shell layer
@@ -33,7 +33,7 @@ According to the Runtime Shell Architecture Blueprint v3.0.4:
 ## Installation
 
 ```bash
-pnpm add @brix/infra-adapter-ui-mui
+pnpm add @brix-sdk/infra-adapter-ui-mui
 ```
 
 ## Usage
@@ -41,7 +41,7 @@ pnpm add @brix/infra-adapter-ui-mui
 ### In Host Layer Configuration
 
 ```typescript
-import { muiUIAdapter } from '@brix/infra-adapter-ui-mui';
+import { muiUIAdapter } from '@brix-sdk/infra-adapter-ui-mui';
 
 // Register as UI capability
 context.registerCapability(UICapabilityType, muiUIAdapter);
@@ -50,7 +50,7 @@ context.registerCapability(UICapabilityType, muiUIAdapter);
 ### In Shell Layer Components
 
 ```typescript
-import { useUI } from '@brix/runtime-sdk-react';
+import { useUI } from '@brix-sdk/runtime-sdk-react';
 
 function AppSidebar({ menuItems, currentPath }) {
   const { Menu, Icon } = useUI();
@@ -70,7 +70,7 @@ function AppSidebar({ menuItems, currentPath }) {
 The adapter respects MUI theme tokens. You can customize appearance via UIAdapterConfig:
 
 ```typescript
-import { createMuiUIAdapter } from '@brix/infra-adapter-ui-mui';
+import { createMuiUIAdapter } from '@brix-sdk/infra-adapter-ui-mui';
 
 const customAdapter = createMuiUIAdapter({
   primaryColor: '#7c3aed',

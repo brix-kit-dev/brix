@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    ============================================================================
+    Platform Auth Servlet — Servlet-based Security Filter and AutoConfiguration
+    ============================================================================
+
+    [D7 Refactoring — Solution B: Multi-runtime Support]
+    Provides the Servlet runtime binding for platform-auth core:
+      - SecurityContextFilter: Extracts JWT from requests, validates, and sets SecurityContext
+      - SecurityAutoConfiguration: Spring Boot auto-configuration for Servlet web applications
+
+    [Architecture Layer]
+    Layer 2C: Capability Implementation (Servlet runtime binding).
+    Depends on platform-auth (core) for JWT validation, permission aspects,
+    and SecurityContextHolder. This module adds the Servlet-specific wiring.
+
+    [When to use]
+    Include this dependency in any Spring MVC (Servlet-based) host application
+    that needs JWT authentication and permission enforcement.
+
+    [Open-source License]
+    Apache License 2.0
+    ============================================================================
+    -->
+
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-auth-servlet</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Platform Auth Servlet</name>
+    <description>Servlet runtime binding for platform-auth — SecurityContextFilter + AutoConfiguration for Spring MVC hosts.</description>
+
+    <dependencies>
+        <!-- platform-auth core (JWT, annotations, SecurityContext) -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-auth</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- runtime-sdk-api (Layer 2A capability contracts) -->
+        <!-- Required for SimpleAuthContextCapability adapter bridging SecurityContextHolder → AuthContextCapability -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <version>3.2.0</version>
+        </dependency>
+
+        <!-- Spring Boot Web (Servlet stack) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Spring Boot AutoConfiguration support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Configuration Processor -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Jakarta Servlet (provided by the host container) -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

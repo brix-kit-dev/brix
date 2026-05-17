@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Internationalization Hooks Export
  * @description Exports all internationalization-related Hooks
- * @module @brix/platform-i18n-web/hooks
+ * @module @brix-sdk/platform-i18n-web/hooks
  * @version 3.0.0
  */
 

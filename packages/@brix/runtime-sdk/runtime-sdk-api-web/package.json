@@ -1,6 +1,6 @@
-﻿{
-  "name": "brix-runtime-sdk-api-web",
-  "version": "1.0.1",
+{
+  "name": "@brix-sdk/runtime-sdk-api-web",
+  "version": "3.2.0",
   "description": "Brix Runtime SDK Web API - UI capability contracts and shared types for the Brix Framework",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,5 +30,15 @@
     "tsup": "^8.0.0",
     "typescript": "^5.7.3",
     "vitest": "^1.2.0"
+  },
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/runtime-sdk.git",
+    "directory": "runtime-sdk-api-web"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

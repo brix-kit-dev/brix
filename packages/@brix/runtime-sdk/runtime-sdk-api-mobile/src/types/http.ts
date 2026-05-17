@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file HTTP client capability type definitions
  * @description Define HTTP client capability contract, replacing direct use of fetch/axios
- * @module @brix/runtime-sdk-api-mobile/types/http
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/http
  * @version 3.2.0
  *
  * [v3.2.0 Notes]

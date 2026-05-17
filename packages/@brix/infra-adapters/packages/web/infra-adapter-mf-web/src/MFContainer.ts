@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,24 +16,24 @@
 /**
  * @file Module Federation Container Management
  * @description Manages Module Federation remote container initialization and module retrieval
- * @module @brix/infra-adapter-mf-web/MFContainer
+ * @module @brix-sdk/infra-adapter-mf-web/MFContainer
  * @version 3.0.0
  * 
- * ã€Design Notesã€‘
+ * ¡¾Design Notes¡¿
  * MFContainer is an encapsulation layer for Module Federation remote containers.
  * Responsible for:
  * 1. Dynamically loading remote entry scripts (remoteEntry.js)
  * 2. Initializing container's shared dependency scope
  * 3. Retrieving specified modules from the container
  * 
- * ã€Module Federation Working Principleã€‘
+ * ¡¾Module Federation Working Principle¡¿
  * 1. Remote application generates remoteEntry.js when building
  * 2. remoteEntry.js registers a container object on window
  * 3. Container provides init() and get() methods
  * 4. init() is used to initialize shared dependencies
  * 5. get() is used to retrieve exposed modules
  * 
- * ã€Architectural Constraintsã€‘
+ * ¡¾Architectural Constraints¡¿
  * - Container management is only used in Host Layer
  * - Plugin code should not directly manipulate containers
  * - All script loading is done in a controlled manner
@@ -45,7 +45,7 @@ export type { SharedDependencies } from './MFSharedConfig';
 /**
  * Declare webpack shared scope global variable
  * 
- * ã€Technical Notesã€‘
+ * ¡¾Technical Notes¡¿
  * __webpack_share_scopes__ is the global object used by webpack/rspack Module Federation runtime
  * for managing shared dependencies. All modules participating in sharing register here.
  */
@@ -129,7 +129,7 @@ interface ContainerRecord {
  * Manages loading, initialization, and module retrieval for all remote containers.
  * Uses singleton pattern to ensure unified global management.
  * 
- * ã€Caching Strategyã€‘
+ * ¡¾Caching Strategy¡¿
  * - Containers are cached after loading to avoid redundant loading
  * - Concurrent requests with same URL are merged
  * - Failed script loads mark container as error state
@@ -163,7 +163,7 @@ export class MFContainerManager {
    * 
    * Dynamically load remote entry script and get container instance.
    * 
-   * ã€Loading Flowã€‘
+   * ¡¾Loading Flow¡¿
    * 1. Check cache, return directly if already loaded
    * 2. Create script tag to load remoteEntry.js
    * 3. Wait for script load to complete
@@ -265,7 +265,7 @@ export class MFContainerManager {
   /**
    * Initialize container's shared scope
    * 
-   * ã€Technical Notesã€‘
+   * ¡¾Technical Notes¡¿
    * Shared scope initialization ensures remote modules can use shared dependencies provided by Host.
    * This is the core step of Module Federation's sharing mechanism.
    * 

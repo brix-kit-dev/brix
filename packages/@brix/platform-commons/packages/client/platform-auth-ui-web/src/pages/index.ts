@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file pages 模块导出
- * @description 预装配页面的统一导出
- * @module @brix/platform-auth-web/pages
+ * @file pages
+ * @description ?
+ * @module @brix-sdk/platform-auth-web/pages
  * @version 3.0.0
  */
 
@@ -39,3 +39,8 @@ export {
   OAuthCallbackPage,
   type OAuthCallbackPageProps,
 } from './OAuthCallbackPage';
+export {
+  createGoogleCallbackPage,
+  type GoogleCallbackPageConfig,
+  type GoogleCallbackPageProps,
+} from './GoogleCallbackPage';

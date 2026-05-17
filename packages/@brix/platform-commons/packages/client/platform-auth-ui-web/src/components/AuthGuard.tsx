@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Authentication Guard Component
  * @description Protects routes that require authentication
- * @module @brix/platform-auth-web/components/AuthGuard
+ * @module @brix-sdk/platform-auth-web/components/AuthGuard
  * @version 3.0.0
  * 
  * Usage Scenario:
@@ -24,7 +24,7 @@
  */
 
 import { type ReactNode } from 'react';
-import type { AuthCapability } from '@brix/runtime-sdk-api-web';
+import type { AuthCapability } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Authentication Guard Props

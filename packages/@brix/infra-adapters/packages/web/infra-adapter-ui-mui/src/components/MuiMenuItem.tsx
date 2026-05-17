@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI MenuItem Component
  * @description Material UI implementation of MenuItemProps from UIAdapter contract.
  *              Individual menu item for custom rendering scenarios.
- * @module @brix/infra-adapter-ui-mui/components/MuiMenuItem
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiMenuItem
  * @version 3.1.0
  *
  * [Design Principles]
@@ -31,7 +31,7 @@
  */
 
 import type { FC } from 'react';
-import type { MenuItemProps } from '@brix/runtime-sdk-api-web';
+import type { MenuItemProps } from '@brix-sdk/runtime-sdk-api-web';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';

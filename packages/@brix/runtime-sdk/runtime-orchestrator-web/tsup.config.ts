@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,12 +20,12 @@ export default defineConfig({
     index: 'src/index.ts',
   },
   format: ['cjs', 'esm'],
-  // æ³¨æ„: æš‚æ—¶ç¦ç”¨ DTS ç”Ÿæˆï¼Œå› ä¸º tsup çš„ DTS ç”Ÿæˆåœ¨è·¨åŒ…ç±»å‹è§£ææ—¶å­˜åœ¨é—®é¢˜
-  // åç»­å¯ä»¥è€ƒè™‘ä½¿ç”¨å•ç‹¬çš„ tsc --emitDeclarationOnly å‘½ä»¤ç”Ÿæˆç±»å‹å®šä¹‰
+  // ×¢Òâ: ÔİÊ±½ûÓÃ DTS Éú³É£¬ÒòÎª tsup µÄ DTS Éú³ÉÔÚ¿ç°üÀàĞÍ½âÎöÊ±´æÔÚÎÊÌâ
+  // ºóĞø¿ÉÒÔ¿¼ÂÇÊ¹ÓÃµ¥¶ÀµÄ tsc --emitDeclarationOnly ÃüÁîÉú³ÉÀàĞÍ¶¨Òå
   dts: false,
   clean: true,
   sourcemap: true,
   splitting: false,
   treeshake: true,
-  external: ['react', '@brix/runtime-sdk-api-web'],
+  external: ['react', '@brix-sdk/runtime-sdk-api-web'],
 });

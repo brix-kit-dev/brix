@@ -16,19 +16,19 @@
 /**
  * @file Plugin Dependency Utilities
  * @description Utilities for resolving plugin dependencies and load order
- * @module @brix/runtime-orchestrator-web/plugin-dependency-utils
+ * @module @brix-sdk/runtime-orchestrator-web/plugin-dependency-utils
  * @version 3.0.0
  * 
  * [v3.2 Extracted Module]
  * Extracted from PluginManager.ts to reduce file size.
  * Implements topological sort for dependency resolution.
  * 
- * 【中文技术要点】
- * 插件依赖解析工具，使用拓扑排序算法计算正确的加载顺序。
- * 检测循环依赖并抛出清晰的错误信息。
+ * �����ļ���Ҫ�㡿
+ * ��������������ߣ�ʹ�����������㷨������ȷ�ļ���˳��
+ * ���ѭ���������׳������Ĵ�����Ϣ��
  */
 
-import type { PluginEntry } from '@brix/runtime-sdk-api-web';
+import type { PluginEntry } from '@brix-sdk/runtime-sdk-api-web';
 import type { PluginRuntime } from './plugin-manager-types';
 
 /**
@@ -133,10 +133,6 @@ export function checkDependencies(
 
     // Check version compatibility (simplified implementation)
     if (dep.version && depRuntime.entry.version !== dep.version) {
-      console.warn(
-        `Plugin "${entry.id}" depends on plugin "${dep.pluginId}" version mismatch: ` +
-        `expected ${dep.version}, actual ${depRuntime.entry.version}`
-      );
     }
   }
 }

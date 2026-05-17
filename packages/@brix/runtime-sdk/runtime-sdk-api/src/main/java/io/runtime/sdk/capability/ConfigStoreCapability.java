@@ -17,6 +17,8 @@ package io.runtime.sdk.capability;
 
 import java.util.Optional;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Configuration Store Capability Contract
  *
@@ -67,6 +69,7 @@ import java.util.Optional;
  * @author Runtime SDK Team
  * @since 3.0.0
  */
+@Since("3.0.0")
 public interface ConfigStoreCapability {
 
     /**
@@ -166,5 +169,34 @@ public interface ConfigStoreCapability {
     default <T> T getRequired(String key, Class<T> type) {
         return get(key, type).orElseThrow(() ->
             new ConfigNotFoundException("Required config not found: " + key));
+    }
+
+    /**
+     * Get required string configuration (throws exception if not exists)
+     *
+     * <p>This is a convenience method for retrieving mandatory string configuration.
+     * It is particularly useful for security-sensitive configurations like OAuth URLs,
+     * API endpoints, and other values that should never have default localhost fallbacks.</p>
+     *
+     * <h4>Usage Example</h4>
+     * <pre>{@code
+     * // Instead of:
+     * String url = configStore.getString("oauth.redirect-uri", "http://localhost:8080");
+     *
+     * // Use:
+     * String url = configStore.getRequiredString("oauth.redirect-uri");
+     * // Throws ConfigNotFoundException if not configured
+     * }</pre>
+     *
+     * @param key Configuration key
+     * @return Configuration value (never null)
+     * @throws ConfigNotFoundException if configuration not found or empty
+     */
+    default String getRequiredString(String key) {
+        String value = getRequired(key, String.class);
+        if (value == null || value.isBlank()) {
+            throw new ConfigNotFoundException("Required config is empty: " + key);
+        }
+        return value;
     }
 }

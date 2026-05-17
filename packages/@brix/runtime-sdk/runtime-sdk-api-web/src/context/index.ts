@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Context Module Unified Export
  * @description Exports runtime context related types
- * @module @brix/runtime-sdk-api-web/context
+ * @module @brix-sdk/runtime-sdk-api-web/context
  * @version 3.2.0
  */
 

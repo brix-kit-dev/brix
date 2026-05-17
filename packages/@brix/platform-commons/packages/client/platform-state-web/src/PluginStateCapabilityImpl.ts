@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Plugin State Capability Implementation
  * @description Implements PluginStateCapability interface
- * @module @brix/platform-state-web/PluginStateCapabilityImpl
+ * @module @brix-sdk/platform-state-web/PluginStateCapabilityImpl
  * @version 3.0.0
  * 
  * [Architecture Notes]
@@ -48,29 +48,11 @@
  * - Plugins can only operate state through PluginStateCapability
  */
 
-import type { PluginStateCapability, StatePersistenceOptions, PluginStateChangeEvent, PluginStateSubscribeOptions, Unsubscribe } from '@brix/runtime-sdk-api-web';
-import type { StateStore, StateChangeListener } from './StateStore';
-import type { NamespaceManager } from './NamespaceManager';
+import type { PluginStateCapability, StatePersistenceOptions, PluginStateChangeEvent, PluginStateSubscribeOptions, Unsubscribe, PluginStateCapabilityConfig, StateStoreLike, NamespaceManagerLike } from '@brix-sdk/runtime-sdk-api-web';
+import type { StateChangeListener } from './StateStore';
 
-/**
- * Plugin state capability configuration
- */
-export interface PluginStateCapabilityConfig {
-  /**
-   * State store instance
-   */
-  stateStore: StateStore;
-  
-  /**
-   * Namespace manager
-   */
-  namespaceManager: NamespaceManager;
-  
-  /**
-   * Current plugin ID (namespace)
-   */
-  pluginId: string;
-}
+// Re-export contract-layer type for backward compatibility
+export type { PluginStateCapabilityConfig };
 
 /**
  * Plugin State Capability Implementation
@@ -97,12 +79,12 @@ export class PluginStateCapabilityImpl implements PluginStateCapability {
   /**
    * State store
    */
-  private stateStore: StateStore;
+  private stateStore: StateStoreLike;
   
   /**
    * Namespace manager
    */
-  private namespaceManager: NamespaceManager;
+  private namespaceManager: NamespaceManagerLike;
   
   /**
    * Current plugin ID (namespace)
@@ -380,15 +362,7 @@ export class PluginStateCapabilityImpl implements PluginStateCapability {
       }
     });
   }
-  
-  /**
-   * Clear all state for current plugin
-   * @deprecated Use reset() method
-   */
-  clear(): void {
-    this.reset();
-  }
-  
+
   /**
    * Build full state key
    * 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,18 +16,18 @@
 /**
  * @file useEventBus Hook
  * @description Event Bus Capability React Hook
- * @module @brix/runtime-sdk-react/hooks/useEventBus
+ * @module @brix-sdk/runtime-sdk-react/hooks/useEventBus
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
- * Migrated from @brix/runtime-sdk-api-web to a standalone React binding package.
+ * Migrated from @brix-sdk/runtime-sdk-api-web to a standalone React binding package.
  */
 
 import { useMemo, useEffect, useCallback, useRef } from 'react';
 import type { 
   EventBusCapability,
   EventHandler 
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 import { useRuntimeContext } from './useRuntimeContext';
 
 /**
@@ -93,33 +93,37 @@ export function useEventBus(): UseEventBusResult {
     return capability;
   }, [context]);
 
+  // Stabilize capability ref to prevent dependency chain cascading
+  const capabilityRef = useRef(eventBusCapability);
+  capabilityRef.current = eventBusCapability;
+
   // Automatically cleanup all subscriptions on component unmount
   useEffect(() => {
     return () => {
       subscriptionsRef.current.forEach(({ eventType, handler }) => {
-        eventBusCapability.off(eventType, handler);
+        capabilityRef.current.off(eventType, handler);
       });
       subscriptionsRef.current = [];
     };
-  }, [eventBusCapability]);
+  }, []);
 
   const emit = useCallback(<T = unknown>(eventType: string, payload?: T) => {
-    eventBusCapability.emit(eventType, payload);
-  }, [eventBusCapability]);
+    capabilityRef.current.emit(eventType, payload);
+  }, []);
 
   const on = useCallback(<T = unknown>(eventType: string, handler: EventHandler<T>) => {
     const typedHandler = handler as EventHandler<unknown>;
-    eventBusCapability.on(eventType, typedHandler);
+    capabilityRef.current.on(eventType, typedHandler);
     subscriptionsRef.current.push({ eventType, handler: typedHandler });
-  }, [eventBusCapability]);
+  }, []);
 
   const off = useCallback(<T = unknown>(eventType: string, handler: EventHandler<T>) => {
     const typedHandler = handler as EventHandler<unknown>;
-    eventBusCapability.off(eventType, typedHandler);
+    capabilityRef.current.off(eventType, typedHandler);
     subscriptionsRef.current = subscriptionsRef.current.filter(
       (sub) => !(sub.eventType === eventType && sub.handler === typedHandler)
     );
-  }, [eventBusCapability]);
+  }, []);
 
   const once = useCallback(<T = unknown>(eventType: string, handler: EventHandler<T>) => {
     const wrappedHandler: EventHandler<T> = (payload) => {
@@ -129,10 +133,12 @@ export function useEventBus(): UseEventBusResult {
     on(eventType, wrappedHandler);
   }, [on, off]);
 
-  return {
+  // Memoize return value for referential stability, same pattern as useHttp.
+  // Prevents consumers' useEffect([eventBus]) from re-triggering on every render.
+  return useMemo(() => ({
     emit,
     on,
     off,
     once,
-  };
+  }), [emit, on, off, once]);
 }

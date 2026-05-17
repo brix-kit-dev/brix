@@ -79,6 +79,28 @@
 import { RUNTIME_VERSIONS } from './versions';
 
 // =============================================================================
+// Build-time Resolved Versions
+// =============================================================================
+
+/**
+ * Exact installed versions of packages whose ESM entry directory lacks a
+ * package.json, preventing Module Federation from auto-detecting versions.
+ *
+ * These constants are statically replaced at build time by tsup's `define`
+ * feature (see tsup.config.ts). The resolution logic runs ONLY in Node.js
+ * during `pnpm run build`, keeping the compiled dist browser-safe.
+ *
+ * In the compiled output, these become literal strings:
+ *   __RESOLVED_MUI_MATERIAL_VERSION__  →  "7.3.8"
+ *   __RESOLVED_MUI_ICONS_VERSION__     →  "7.3.9"
+ *
+ * If a package is not installed, the constant resolves to `undefined`,
+ * and Module Federation falls back to its standard version negotiation.
+ */
+declare const __RESOLVED_MUI_MATERIAL_VERSION__: string | undefined;
+declare const __RESOLVED_MUI_ICONS_VERSION__: string | undefined;
+
+// =============================================================================
 // Type Definitions
 // =============================================================================
 
@@ -115,6 +137,18 @@ export interface SharedDependencyConfig {
    * Useful for ensuring Host always provides certain dependencies.
    */
   strictVersion?: boolean;
+
+  /**
+   * Explicit version string for this module.
+   *
+   * When specified, Module Federation uses this version instead of trying
+   * to auto-detect from package.json. This is required for packages whose
+   * ESM entry point directory lacks a package.json (e.g., @mui/material/esm).
+   *
+   * @remarks
+   * Use exact version (e.g., "7.3.8") not semver range (e.g., "^7.0.0").
+   */
+  version?: string;
 }
 
 /**
@@ -209,15 +243,23 @@ export function getHostSharedConfig(): SharedConfig {
 
     // =========================================================================
     // UI Library - Theme context must be shared
+    //
+    // IMPORTANT: @mui/* packages use ESM exports that resolve to esm/index.js.
+    // In pnpm environments, this subdirectory has no package.json, preventing
+    // MF from auto-detecting the version. The explicit `version` field fixes:
+    // - "No version specified" warnings
+    // - "factory is undefined" errors during HMR
     // =========================================================================
     '@mui/material': {
       singleton: true,
       requiredVersion: RUNTIME_VERSIONS['@mui/material'],
+      version: __RESOLVED_MUI_MATERIAL_VERSION__,
       eager: true,
     },
     '@mui/icons-material': {
       singleton: true,
       requiredVersion: RUNTIME_VERSIONS['@mui/icons-material'],
+      version: __RESOLVED_MUI_ICONS_VERSION__,
       eager: true,
     },
     '@emotion/react': {
@@ -238,22 +280,25 @@ export function getHostSharedConfig(): SharedConfig {
     /**
      * Runtime SDK React - Contains RuntimeContextProvider and hooks.
      * CRITICAL: Must be singleton so plugins access Host's RuntimeContext.
+     * All source code MUST import via @brix-sdk/* (unified naming convention).
      */
-    '@brix/runtime-sdk-react': {
+    '@brix-sdk/runtime-sdk-react': {
       singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix/runtime-sdk-react'],
+      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-react'],
       eager: true,
     },
 
     /**
      * Runtime SDK API Web - Contains capability type symbols.
      * CRITICAL: Must be singleton to ensure Symbol.for() consistency.
+     * All source code MUST import via @brix-sdk/* (unified naming convention).
      */
-    '@brix/runtime-sdk-api-web': {
+    '@brix-sdk/runtime-sdk-api-web': {
       singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix/runtime-sdk-api-web'],
+      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-api-web'],
       eager: true,
     },
+
   };
 }
 
@@ -361,21 +406,24 @@ export function getRemoteSharedConfig(): SharedConfig {
 
     /**
      * Runtime SDK React - Obtained from Host for RuntimeContext access.
+     * All source code MUST import via @brix-sdk/* (unified naming convention).
      */
-    '@brix/runtime-sdk-react': {
+    '@brix-sdk/runtime-sdk-react': {
       singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix/runtime-sdk-react'],
+      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-react'],
       eager: false,
     },
 
     /**
      * Runtime SDK API Web - Obtained from Host for capability types.
+     * All source code MUST import via @brix-sdk/* (unified naming convention).
      */
-    '@brix/runtime-sdk-api-web': {
+    '@brix-sdk/runtime-sdk-api-web': {
       singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix/runtime-sdk-api-web'],
+      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-api-web'],
       eager: false,
     },
+
   };
 }
 

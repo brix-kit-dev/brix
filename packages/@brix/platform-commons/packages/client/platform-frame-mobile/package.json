@@ -1,0 +1,78 @@
+{
+  "name": "@brix-sdk/platform-frame-mobile",
+  "version": "3.2.0",
+  "description": "Brix Platform Frame Mobile - Mobile shell framework with navigation, plugin loading, and layout capabilities (Layer 2C)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./screens": {
+      "import": "./dist/screens/index.js",
+      "types": "./dist/screens/index.d.ts"
+    },
+    "./navigation": {
+      "import": "./dist/navigation/index.js",
+      "types": "./dist/navigation/index.d.ts"
+    },
+    "./plugins": {
+      "import": "./dist/plugins/index.js",
+      "types": "./dist/plugins/index.d.ts"
+    },
+    "./layouts": {
+      "import": "./dist/layouts/index.js",
+      "types": "./dist/layouts/index.d.ts"
+    },
+    "./hooks": {
+      "import": "./dist/hooks/index.js",
+      "types": "./dist/hooks/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-native": ">=0.72.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.45",
+    "@types/react-native": "^0.72.8",
+    "react": "^18.2.0",
+    "react-native": "^0.72.0",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicx-next/brix.git",
+    "directory": "packages/@brix/platform-commons/packages/client/platform-frame-mobile"
+  },
+  "keywords": [
+    "brix",
+    "platform",
+    "frame",
+    "mobile",
+    "shell",
+    "react-native"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "sideEffects": false
+}

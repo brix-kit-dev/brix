@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file infra-adapter-module-mobile Module Entry
  * @description Brix UI Mobile Module Loading Adapter - React Native dynamic module loading implementation
- * @module @brix/infra-adapter-module-mobile
+ * @module @brix-sdk/infra-adapter-module-mobile
  * @version 3.0.0
  * 
  * Module Description:
@@ -29,15 +29,15 @@
  * - Plugins declare module dependencies through PluginModuleCapability
  * 
  * v3.0 Boundary Constraints:
- * ❌ Plugins must NOT directly use require()
- * ❌ Plugins must NOT access Native Module registry
- * ❌ Plugins must NOT access other modules bypassing the loader
- * ✅ Plugins declare module dependencies through capability contract
- * ✅ Module loading is managed by Host
+ * ? Plugins must NOT directly use require()
+ * ? Plugins must NOT access Native Module registry
+ * ? Plugins must NOT access other modules bypassing the loader
+ * ? Plugins declare module dependencies through capability contract
+ * ? Module loading is managed by Host
  * 
  * Usage (Host layer only):
  * ```typescript
- * import { RNModuleLoader } from '@brix/infra-adapter-module-mobile';
+ * import { RNModuleLoader } from '@brix-sdk/infra-adapter-module-mobile';
  * 
  * const loader = new RNModuleLoader({
  *   registry: moduleRegistry,

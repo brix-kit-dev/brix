@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Theme Provider
  * @description Material UI theme provider and token utilities.
  *              Bridges UIAdapter ThemeTokens to MUI Theme system.
- * @module @brix/infra-adapter-ui-mui/theme/MuiThemeProvider
+ * @module @brix-sdk/infra-adapter-ui-mui/theme/MuiThemeProvider
  * @version 3.1.0
  *
  * [Design Principles]
@@ -42,11 +42,11 @@ import CssBaseline from '@mui/material/CssBaseline';
 import type {
   ThemeTokens,
   ThemeProviderProps,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 import {
-  MUI_THEME_TOKENS,
-  MUI_DARK_THEME_TOKENS,
-} from '@brix/runtime-sdk-api-web';
+  BRIX_LIGHT_THEME_TOKENS,
+  BRIX_DARK_THEME_TOKENS,
+} from '@brix-sdk/platform-design-tokens';
 
 // ============================================================================
 // Theme Context
@@ -133,7 +133,17 @@ export function createMuiTheme(tokens: ThemeTokens, mode: 'light' | 'dark'): The
       borderRadius: tokens.borderRadiusMedium,
     },
     typography: {
-      fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+      fontFamily: tokens.fontFamily,
+      fontSize: tokens.fontSizeMedium,
+      button: {
+        fontSize: tokens.fontSizeMedium,
+      },
+      body1: {
+        fontSize: tokens.fontSizeMedium,
+      },
+      body2: {
+        fontSize: tokens.fontSizeSmall,
+      },
     },
     components: {
       // Customize default MUI components for consistency
@@ -143,12 +153,49 @@ export function createMuiTheme(tokens: ThemeTokens, mode: 'light' | 'dark'): The
             textTransform: 'none', // Disable uppercase transform
             borderRadius: tokens.borderRadiusMedium,
           },
+          sizeSmall: {
+            minHeight: tokens.controlHeightSmall,
+          },
+          sizeMedium: {
+            minHeight: tokens.controlHeightMedium,
+          },
+          sizeLarge: {
+            minHeight: tokens.controlHeightLarge,
+          },
         },
       },
       MuiTextField: {
         defaultProps: {
           variant: 'outlined',
           size: 'medium',
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: tokens.borderRadiusMedium,
+            // Default (medium) density
+            minHeight: tokens.controlHeightMedium,
+            fontSize: tokens.fontSizeMedium,
+            '&.MuiInputBase-sizeSmall': {
+              minHeight: tokens.controlHeightSmall,
+              fontSize: tokens.fontSizeSmall,
+            },
+          },
+          input: {
+            // Vertical padding so the input visually fills minHeight
+            paddingTop: 0,
+            paddingBottom: 0,
+            height: '100%',
+            boxSizing: 'border-box',
+          },
+        },
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            fontSize: tokens.fontSizeMedium,
+          },
         },
       },
       MuiCard: {
@@ -179,7 +226,7 @@ export function createMuiTheme(tokens: ThemeTokens, mode: 'light' | 'dark'): The
  * <p>Used by getMuiThemeTokens() to return the active tokens.
  * Updated when MuiThemeProvider renders with different props.</p>
  */
-let currentThemeTokens: ThemeTokens = MUI_THEME_TOKENS;
+let currentThemeTokens: ThemeTokens = BRIX_LIGHT_THEME_TOKENS;
 let currentThemeMode: 'light' | 'dark' = 'light';
 
 /**
@@ -284,7 +331,7 @@ export const MuiThemeProvider: FC<MuiThemeProviderPropsExtended> = ({
 
   // Build final tokens based on mode and custom overrides
   const tokens = useMemo(() => {
-    const baseTokens = mode === 'light' ? MUI_THEME_TOKENS : MUI_DARK_THEME_TOKENS;
+    const baseTokens = mode === 'light' ? BRIX_LIGHT_THEME_TOKENS : BRIX_DARK_THEME_TOKENS;
     const merged = customTokens ? { ...baseTokens, ...customTokens } : baseTokens;
     
     // Update global state for getMuiThemeTokens()

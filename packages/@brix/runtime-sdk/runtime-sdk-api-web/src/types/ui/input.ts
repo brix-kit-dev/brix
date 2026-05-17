@@ -16,7 +16,7 @@
 /**
  * @file Input Component Type Definitions
  * @description Defines types for the Input component in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/input
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/input
  * @version 3.2.0
  */
 
@@ -186,11 +186,29 @@ export interface InputProps {
   autoComplete?: string;
 
   /**
+   * Multiline Mode
+   *
+   * When true, renders a textarea instead of a single-line input.
+   * Combine with `rows` to control the visible height.
+   * @default false
+   */
+  multiline?: boolean;
+
+  /**
+   * Visible Rows
+   *
+   * Number of visible text rows when `multiline` is true.
+   * Ignored when `multiline` is false.
+   * @default 3
+   */
+  rows?: number;
+
+  /**
    * Change Event Handler
    *
    * Callback fired when the input value changes.
    */
-  onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 
   /**
    * Focus Event Handler
@@ -222,4 +240,11 @@ export interface InputProps {
    * Custom CSS Class Name
    */
   className?: string;
+
+  /**
+   * Test ID
+   *
+   * Data attribute for testing frameworks.
+   */
+  'data-testid'?: string;
 }

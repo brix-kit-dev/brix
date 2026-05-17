@@ -15,23 +15,18 @@
  */
 package io.runtime.sdk.capability;
 
-import javax.sql.DataSource;
-
-import io.runtime.sdk.annotation.InternalApi;
+import io.runtime.sdk.annotation.Since;
 
 /**
  * Database Capability Contract
  * 
- * <p>Provides an abstract interface for database access, allowing plugins to operate without
- * knowledge of the underlying database type (PostgreSQL / Kingbase / MySQL / Oracle),
- * and switch database vendors through configuration.</p>
+ * <p>Provides database environment metadata without exposing JDBC or connection-pool
+ * implementation types to plugins.</p>
  * 
  * <h3>Core Responsibilities</h3>
  * <ul>
- *   <li>Provide DataSource: Plugins obtain the data source through this interface without managing connection pool configuration</li>
  *   <li>Database dialect abstraction: Plugins can get the current dialect to handle SQL syntax differences</li>
  *   <li>Database/Schema management: Supports Schema isolation in multi-tenant scenarios</li>
- *   <li>Native SQL execution: Provides controlled native query capability</li>
  * </ul>
  * 
  * <h3>Design Constraints</h3>
@@ -42,22 +37,16 @@ import io.runtime.sdk.annotation.InternalApi;
  * </ul>
  * 
  * <h3>Architecture Compliance</h3>
- * <p>Provides database access abstraction for plugins.
- * Capability level: STANDARD, recommended for all Host implementations.</p>
+ * <p>The contract deliberately does not expose connection-pool handles, JDBC, JPA
+ * infrastructure, or raw SQL execution APIs. Data access must be performed through
+ * plugin-owned repositories or typed query capabilities that enforce tenant and
+ * plugin ownership boundaries.</p>
  * 
  * <h3>Usage Example</h3>
  * <pre>{@code
  * // Plugin obtains database capability through RuntimeContext
- * DatabaseCapability db = context.getDatabase();
- * 
- * // Get data source for JPA/JDBC
- * DataSource dataSource = db.getDataSource();
- * 
- * // Get current dialect (for SQL differences)
+ * // Get current dialect/profile metadata.
  * DatabaseDialect dialect = db.getDialect();
- * 
- * // Execute native SQL
- * Long count = db.executeNative("SELECT COUNT(*) FROM users", Long.class);
  * }</pre>
  * 
  * <h3>Implementation Notes</h3>
@@ -70,29 +59,8 @@ import io.runtime.sdk.annotation.InternalApi;
  * @since 3.0.0
  * @see DatabaseDialect
  */
+@Since("3.0.0")
 public interface DatabaseCapability {
-
-    /**
-     * Gets the data source
-     * 
-     * <p>Returns the currently configured data source instance. Connection pool management
-     * is handled by the adapter. Plugins can inject this data source into JPA EntityManagerFactory
-     * or use it directly for JDBC operations.</p>
-     * 
-     * <h4>Internal API Notice</h4>
-     * <p>This method is marked as {@code @InternalApi} as it exposes the infrastructure type {@link DataSource}.
-     * Business plugins should prefer the following approaches:</p>
-     * <ul>
-     *   <li><b>JPA approach</b>: Perform data operations through dependency-injected EntityManager</li>
-     *   <li><b>Native SQL</b>: Use the {@link #executeNative(String, Class, Object...)} method</li>
-     * </ul>
-     * <p>This method is retained for Host adapter layer and framework extensions.</p>
-     * 
-     * @return the data source instance, never returns null
-     */
-    @InternalApi(value = "Exposes infrastructure type DataSource, business plugins should use JPA or executeNative()", 
-                 instead = "executeNative")
-    DataSource getDataSource();
 
     /**
      * Gets the current database dialect
@@ -123,22 +91,4 @@ public interface DatabaseCapability {
      * @return the Schema name
      */
     String getSchemaName();
-
-    /**
-     * Executes a native SQL query
-     * 
-     * <p>Provides controlled native SQL execution capability for complex queries or
-     * database-specific operations. Prefer JPA and use this method only when JPA cannot meet requirements.</p>
-     * 
-     * <h4>Security Notice</h4>
-     * <p>SQL parameters are passed through placeholders. Concatenating SQL strings is prohibited to prevent SQL injection.</p>
-     * 
-     * @param sql        the native SQL statement, using {@code ?} as parameter placeholders
-     * @param resultType the result type
-     * @param params     SQL parameters (matched to placeholders in order)
-     * @param <T>        the result type
-     * @return the query result
-     * @throws IllegalArgumentException if SQL is null or resultType is null
-     */
-    <T> T executeNative(String sql, Class<T> resultType, Object... params);
 }

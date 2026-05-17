@@ -1,13 +1,13 @@
-# @brix/shared-runtime-web
+# @brix-sdk/shared-runtime-web
 
 > Brix Platform Web Runtime Dependencies - Single Source of Truth for Module Federation
 
-[![npm version](https://img.shields.io/npm/v/@brix/shared-runtime-web.svg)](https://www.npmjs.com/package/@brix/shared-runtime-web)
+[![npm version](https://img.shields.io/npm/v/@brix-sdk/shared-runtime-web.svg)](https://www.npmjs.com/package/@brix-sdk/shared-runtime-web)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Overview
 
-`@brix/shared-runtime-web` is the **Single Source of Truth** for frontend runtime dependencies in the Brix Platform. It implements **Layer 2B (Shared Runtime Layer)** of the v3.0.7 Architecture Blueprint.
+`@brix-sdk/shared-runtime-web` is the **Single Source of Truth** for frontend runtime dependencies in the Brix Platform. It implements **Layer 2B (Shared Runtime Layer)** of the v3.0.7 Architecture Blueprint.
 
 ### Why This Package Exists
 
@@ -22,29 +22,29 @@ In Module Federation environments, multiple remotes (plugins) can each bundle th
 
 This package solves these by:
 
-1. ‚úÖ Providing canonical versions for all runtime dependencies
-2. ‚úÖ Exporting pre-configured Module Federation shared configurations  
-3. ‚úÖ Re-exporting runtime APIs for consistent imports
-4. ‚úÖ Offering utilities for global injection and version checking
+1. ‚ú?Providing canonical versions for all runtime dependencies
+2. ‚ú?Exporting pre-configured Module Federation shared configurations  
+3. ‚ú?Re-exporting runtime APIs for consistent imports
+4. ‚ú?Offering utilities for global injection and version checking
 
 ## Installation
 
 ```bash
-pnpm add @brix/shared-runtime-web
+pnpm add @brix-sdk/shared-runtime-web
 ```
 
 ## Package Exports
 
 | Export Path | Description |
 |-------------|-------------|
-| `@brix/shared-runtime-web` | Version constants, MF config, global injection |
-| `@brix/shared-runtime-web/react` | React and ReactDOM re-exports |
-| `@brix/shared-runtime-web/router` | React Router re-exports |
-| `@brix/shared-runtime-web/state` | Zustand state management re-exports |
-| `@brix/shared-runtime-web/ui` | MUI and Emotion re-exports |
-| `@brix/shared-runtime-web/mf-config` | Module Federation shared configuration |
-| `@brix/shared-runtime-web/versions` | Version constants and utilities |
-| `@brix/shared-runtime-web/globals` | Global window injection utilities |
+| `@brix-sdk/shared-runtime-web` | Version constants, MF config, global injection |
+| `@brix-sdk/shared-runtime-web/react` | React and ReactDOM re-exports |
+| `@brix-sdk/shared-runtime-web/router` | React Router re-exports |
+| `@brix-sdk/shared-runtime-web/state` | Zustand state management re-exports |
+| `@brix-sdk/shared-runtime-web/ui` | MUI and Emotion re-exports |
+| `@brix-sdk/shared-runtime-web/mf-config` | Module Federation shared configuration |
+| `@brix-sdk/shared-runtime-web/versions` | Version constants and utilities |
+| `@brix-sdk/shared-runtime-web/globals` | Global window injection utilities |
 
 ## Usage
 
@@ -52,7 +52,7 @@ pnpm add @brix/shared-runtime-web
 
 ```typescript
 // rspack.config.mjs
-import { getHostSharedConfig } from '@brix/shared-runtime-web/mf-config';
+import { getHostSharedConfig } from '@brix-sdk/shared-runtime-web/mf-config';
 
 export default {
   plugins: [
@@ -69,8 +69,8 @@ export default {
 
 ```typescript
 // bootstrap.ts
-import { injectGlobals } from '@brix/shared-runtime-web';
-import { createRoot } from '@brix/shared-runtime-web/react';
+import { injectGlobals } from '@brix-sdk/shared-runtime-web';
+import { createRoot } from '@brix-sdk/shared-runtime-web/react';
 
 // Inject globals for legacy compatibility (optional)
 injectGlobals();
@@ -84,7 +84,7 @@ root.render(<App />);
 
 ```typescript
 // rspack.config.mjs
-import { getRemoteSharedConfig } from '@brix/shared-runtime-web/mf-config';
+import { getRemoteSharedConfig } from '@brix-sdk/shared-runtime-web/mf-config';
 
 export default {
   plugins: [
@@ -102,10 +102,10 @@ export default {
 
 ```typescript
 // PartnersApp.tsx
-import { useState, useEffect } from '@brix/shared-runtime-web/react';
-import { useNavigate, Link } from '@brix/shared-runtime-web/router';
-import { create } from '@brix/shared-runtime-web/state';
-import { Button, TextField, Box } from '@brix/shared-runtime-web/ui';
+import { useState, useEffect } from '@brix-sdk/shared-runtime-web/react';
+import { useNavigate, Link } from '@brix-sdk/shared-runtime-web/router';
+import { create } from '@brix-sdk/shared-runtime-web/state';
+import { Button, TextField, Box } from '@brix-sdk/shared-runtime-web/ui';
 
 // Plugin component using shared runtime
 export function PartnersApp() {
@@ -130,7 +130,7 @@ export function PartnersApp() {
 
 ```typescript
 // infra-adapters/ui-adapter-web/rspack.config.mjs
-import { getAdapterSharedConfig } from '@brix/shared-runtime-web/mf-config';
+import { getAdapterSharedConfig } from '@brix-sdk/shared-runtime-web/mf-config';
 
 export default {
   plugins: [
@@ -166,7 +166,7 @@ import {
   getRuntimeVersion,
   getAllRuntimeDependencies,
   isRuntimeDependency 
-} from '@brix/shared-runtime-web/versions';
+} from '@brix-sdk/shared-runtime-web/versions';
 
 // Get all versions
 console.log(RUNTIME_VERSIONS);
@@ -189,7 +189,7 @@ import {
   getAdapterSharedConfig,
   mergeSharedConfig,
   getSharedPackageNames,
-} from '@brix/shared-runtime-web/mf-config';
+} from '@brix-sdk/shared-runtime-web/mf-config';
 
 // Get shared config for Host (eager: true)
 const hostConfig = getHostSharedConfig();
@@ -220,7 +220,7 @@ import {
   getGlobalReact,
   getGlobalReactDOM,
   clearGlobals,
-} from '@brix/shared-runtime-web/globals';
+} from '@brix-sdk/shared-runtime-web/globals';
 
 // Inject React into window (Host only)
 injectGlobals();
@@ -239,7 +239,7 @@ console.log('React version:', react?.version);
 
 According to v3.0.7 Architecture Blueprint Constraint 8:
 
-> "All frontend runtime dependencies (React, Router, State, UI) MUST be obtained from @brix/shared-runtime-web."
+> "All frontend runtime dependencies (React, Router, State, UI) MUST be obtained from @brix-sdk/shared-runtime-web."
 
 This package sits at **Layer 2B** and is consumed by:
 
@@ -251,9 +251,9 @@ This package sits at **Layer 2B** and is consumed by:
 
 ```
 Layer 3 (Host)
-    ‚Üì provides runtime via eager: true
-Layer 2B (shared-runtime-web) ‚Üê Single Source of Truth
-    ‚Üë consumes via peerDependencies
+    ‚Ü?provides runtime via eager: true
+Layer 2B (shared-runtime-web) ‚Ü?Single Source of Truth
+    ‚Ü?consumes via peerDependencies
 Layer 2C (infra-adapters) + Layer 1 (plugins)
 ```
 

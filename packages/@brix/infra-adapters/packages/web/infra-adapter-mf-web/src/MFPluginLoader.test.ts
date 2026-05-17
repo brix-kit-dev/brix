@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,10 @@
 /**
  * @file MFPluginLoader Unit Tests
  * @description Tests core functionality of Module Federation plugin loader
- * @module @brix/infra-adapter-mf-web/test
+ * @module @brix-sdk/infra-adapter-mf-web/test
  * @version 3.2.0
  * 
- * „ÄêTest Coverage„Äë
+ * °æTest Coverage°ø
  * - load(): Plugin loading, caching, retry
  * - unload(): Plugin unloading
  * - isLoaded(): Load status check

@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file platform-eventbus-web Module Entry
  * @description Web Event Bus Capability Implementation Module - Implements GovernedEventBusCapability Interface
- * @module @brix/platform-eventbus-web
+ * @module @brix-sdk/platform-eventbus-web
  * @version 3.0.0
  * 
  * Module Description:
@@ -30,7 +30,7 @@
  * | +-- GovernedEventBusCapability Interface Definition                    |
  * +-------------------------------------------------------------------------+
  * | Capability Implementation Layer (platform-commons)                     |
- * | +-- platform-eventbus-web (this module) â­                             |
+ * | +-- platform-eventbus-web (this module) ?                             |
  * |      +-- EventBusCapabilityImpl (interface implementation)             |
  * |      +-- EventRouter (event routing)                                   |
  * |      +-- EventLogger (event logging)                                   |
@@ -43,9 +43,9 @@
  * 3. Support event logging and tracing
  * 
  * Architectural Constraints:
- * âŒ Do not use window.dispatchEvent
- * âŒ Do not send events without metadata
- * âŒ All events must be sent through GovernedEventBusCapability
+ * ? Do not use window.dispatchEvent
+ * ? Do not send events without metadata
+ * ? All events must be sent through GovernedEventBusCapability
  */
 
 // ============================================================================
@@ -75,13 +75,13 @@ export {
 export { BackpressureManager } from './BackpressureManager';
 
 // Re-export backpressure types from API for convenience
-// ä¸ºæ–¹ä¾¿èµ·è§ï¼Œä» API é‡æ–°å¯¼å‡ºèƒŒå‹ç±»å‹
+// Îª·½±ãÆğ¼û£¬´Ó API ÖØĞÂµ¼³ö±³Ñ¹ÀàĞÍ
 export type {
   BackpressureConfig,
   BackpressureMetrics,
   BackpressureOverflowStrategy,
-} from '@brix/runtime-sdk-api-web';
-export { BackpressureError } from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
+export { BackpressureError } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Common Types

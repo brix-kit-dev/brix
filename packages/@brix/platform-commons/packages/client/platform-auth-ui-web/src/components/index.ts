@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Authentication Components Export
  * @description Export all authentication-related components
- * @module @brix/platform-auth-web/components
+ * @module @brix-sdk/platform-auth-web/components
  * @version 3.0.0
  */
 
@@ -38,3 +38,11 @@ export {
   type RegisterFormData,
   type RegisterFormResult,
 } from './RegisterForm';
+export {
+  GoogleSignInButton,
+  type GoogleSignInButtonProps,
+  type GoogleButtonTheme,
+  type GoogleButtonSize,
+  type GoogleButtonShape,
+  type GoogleButtonText,
+} from './GoogleSignInButton';

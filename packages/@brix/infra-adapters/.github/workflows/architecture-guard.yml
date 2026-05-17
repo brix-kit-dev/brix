@@ -3,10 +3,10 @@
 # ============================================================================
 #
 # This CI pipeline enforces architectural rules from the Architecture Review
-# Checklist (附录C). Applicable checks for infra-adapters are implemented here.
+# Checklist (Appendix C). Applicable checks for infra-adapters are implemented here.
 #
 # ============================================================================
-# 附录C 可 CI 化检查项对照表
+# Appendix C CI-compatible Check Item Reference
 # ============================================================================
 #
 # | ID        | Check                              | Implementation      |
@@ -109,7 +109,7 @@ jobs:
           fi
 
   # ========================================
-  # Java 架构测试
+  # Java Architecture Tests
   # ========================================
   java-architecture:
     name: Java Architecture Tests
@@ -130,38 +130,38 @@ jobs:
       
       - name: Check Adapter Implementation Standards
         run: |
-          echo "🔍 检查适配器实现规范..."
+          echo "Checking adapter implementation standards..."
           
-          # 检查每个适配器模块是否有 AutoConfiguration
+          # Check whether each adapter module has an AutoConfiguration
           for dir in packages/server/infra-adapter-*; do
             if [ -d "$dir/src/main/java" ]; then
               adapter_name=$(basename "$dir")
               
-              # 检查是否有 AutoConfiguration 类
+              # Check for AutoConfiguration class
               has_autoconfig=$(find "$dir/src/main/java" -name "*AutoConfiguration.java" | head -1)
               
               if [ -z "$has_autoconfig" ]; then
-                echo "⚠️  $adapter_name 缺少 AutoConfiguration 类"
+                echo "WARNING: $adapter_name is missing an AutoConfiguration class"
               else
-                echo "✅ $adapter_name 有 AutoConfiguration"
+                echo "PASS: $adapter_name has AutoConfiguration"
               fi
               
-              # 检查是否有 spring.factories 或 imports 文件
+              # Check for spring.factories or imports file
               has_spring_config=$(find "$dir/src/main/resources/META-INF/spring" -type f 2>/dev/null | head -1)
               
               if [ -z "$has_spring_config" ]; then
-                echo "⚠️  $adapter_name 缺少 Spring Boot 自动配置注册"
+                echo "WARNING: $adapter_name is missing Spring Boot auto-configuration registration"
               else
-                echo "✅ $adapter_name 已注册 Spring Boot 自动配置"
+                echo "PASS: $adapter_name has registered Spring Boot auto-configuration"
               fi
             fi
           done
       
       - name: Check No Business Dependencies
         run: |
-          echo "🔍 检查适配器是否依赖业务模块..."
+          echo "Checking adapter business module dependencies..."
           
-          # 检查 pom.xml 中是否有业务模块依赖
+          # Check pom.xml for business module dependencies
           forbidden_deps=(
             "brix-app-"
             "identity-"
@@ -178,7 +178,7 @@ jobs:
               
               for dep in "${forbidden_deps[@]}"; do
                 if grep -q "$dep" "$dir/pom.xml"; then
-                  echo "❌ $adapter_name 包含禁止的业务依赖: $dep"
+                  echo "FAIL: $adapter_name contains forbidden business dependency: $dep"
                   found_violations=true
                 fi
               done
@@ -186,14 +186,14 @@ jobs:
           done
           
           if [ "$found_violations" = true ]; then
-            echo "⚠️  适配器层不应依赖业务模块"
+            echo "WARNING: Adapter layer should not depend on business modules"
             exit 1
           else
-            echo "✅ 适配器未发现业务模块依赖"
+            echo "PASS: No business module dependencies found in adapters"
           fi
 
   # ========================================
-  # TypeScript 架构检查（Web 适配器）
+  # TypeScript Architecture Check (Web Adapters)
   # ========================================
   ts-architecture:
     name: TypeScript Architecture Lint
@@ -221,29 +221,29 @@ jobs:
       
       - name: Check Direct Fetch Usage
         run: |
-          echo "🔍 检查适配器是否存在架构红线违规..."
+          echo "Checking adapters for architecture guardrail violations..."
           
-          # Web 适配器检查：不应在非 OAuth 代码中直接使用 fetch
-          # 注意：OAuth 相关代码豁免（需要直接调用 IdP）
+          # Web adapter check: should not use fetch directly in non-OAuth code
+          # Note: OAuth-related code is exempt (needs to call IdP directly)
           
           for dir in packages/web/infra-adapter-*; do
             if [ -d "$dir/src" ]; then
               adapter_name=$(basename "$dir")
               
-              # 排除 OAuth 相关文件后检查 fetch 使用
+              # Check fetch usage excluding OAuth-related files
               fetch_count=$(find "$dir/src" -name "*.ts" -o -name "*.tsx" | \
                             xargs grep -l "fetch(" 2>/dev/null | \
                             grep -v -i "oauth" | \
                             wc -l || echo 0)
               
               if [ "$fetch_count" -gt 0 ]; then
-                echo "⚠️  $adapter_name 中发现直接 fetch() 调用（非 OAuth 代码）"
-                echo "    请检查是否应该使用 HttpCapability"
+                echo "WARNING: $adapter_name has direct fetch() calls (non-OAuth code)"
+                echo "    Please check whether HttpCapability should be used instead"
               fi
             fi
           done
           
-          echo "✅ 架构红线检查完成"
+          echo "PASS: Architecture guardrail check complete"
 
   # ========================================
   # 📋 Architecture Guard Summary
@@ -257,7 +257,7 @@ jobs:
       - name: Check all jobs
         run: |
           echo "============================================"
-          echo "Architecture Guard - 附录C 检查结果汇总"
+          echo "Architecture Guard - Appendix C Check Results Summary"
           echo "============================================"
           echo ""
           echo "| Check ID   | Job                     | Status |"

@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file React Navigation Adapter
  * @description Brix UI Mobile navigation routing implementation - based on React Navigation 6.x
- * @module @brix/infra-adapter-navigation-mobile
+ * @module @brix-sdk/infra-adapter-navigation-mobile
  * @version 3.0.0
  * 
  * Design Notes:
@@ -25,34 +25,34 @@
  * 
  * v3.0 Architecture Position:
  * ```
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚                    Mobile Plugin Layer                      â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”       â”‚
- * â”‚    â”‚  Booking    â”‚  â”‚  Products   â”‚  â”‚  Partners   â”‚       â”‚
- * â”‚    â”‚  Plugin     â”‚  â”‚  Plugin     â”‚  â”‚  Plugin     â”‚       â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜       â”‚
- * â”‚           â”‚                â”‚                â”‚              â”‚
- * â”‚           â–¼                â–¼                â–¼              â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”‚
- * â”‚    â”‚        NavigationCapability Contract Interface   â”‚     â”‚
- * â”‚    â”‚  - navigateTo(screenId, params)                 â”‚     â”‚
- * â”‚    â”‚  - goBack()                                      â”‚     â”‚
- * â”‚    â”‚  - getCurrentRoute()                             â”‚     â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â”‚
- * â”‚                           â”‚                                â”‚
- * â”‚                           â–¼                                â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”‚
- * â”‚    â”‚      RNNavigationAdapter (this adapter)          â”‚     â”‚
- * â”‚    â”‚  - Screen registration and management            â”‚     â”‚
- * â”‚    â”‚  - Navigation state tracking                     â”‚     â”‚
- * â”‚    â”‚  - Deep Link handling                            â”‚     â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â”‚
- * â”‚                           â”‚                                â”‚
- * â”‚                           â–¼                                â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”‚
- * â”‚    â”‚         React Navigation Native Stack            â”‚     â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦                    Mobile Plugin Layer                      ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´  ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´  ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´       ©¦
+ * ©¦    ©¦  Booking    ©¦  ©¦  Products   ©¦  ©¦  Partners   ©¦       ©¦
+ * ©¦    ©¦  Plugin     ©¦  ©¦  Plugin     ©¦  ©¦  Plugin     ©¦       ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼  ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼  ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼       ©¦
+ * ©¦           ©¦                ©¦                ©¦              ©¦
+ * ©¦           ¨‹                ¨‹                ¨‹              ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´     ©¦
+ * ©¦    ©¦        NavigationCapability Contract Interface   ©¦     ©¦
+ * ©¦    ©¦  - navigateTo(screenId, params)                 ©¦     ©¦
+ * ©¦    ©¦  - goBack()                                      ©¦     ©¦
+ * ©¦    ©¦  - getCurrentRoute()                             ©¦     ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼     ©¦
+ * ©¦                           ©¦                                ©¦
+ * ©¦                           ¨‹                                ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´     ©¦
+ * ©¦    ©¦      RNNavigationAdapter (this adapter)          ©¦     ©¦
+ * ©¦    ©¦  - Screen registration and management            ©¦     ©¦
+ * ©¦    ©¦  - Navigation state tracking                     ©¦     ©¦
+ * ©¦    ©¦  - Deep Link handling                            ©¦     ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼     ©¦
+ * ©¦                           ©¦                                ©¦
+ * ©¦                           ¨‹                                ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´     ©¦
+ * ©¦    ©¦         React Navigation Native Stack            ©¦     ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼     ©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  * 
  * Mobile Navigation Strategies:
@@ -62,15 +62,15 @@
  * - Cross-plugin navigation goes through Host
  * 
  * v3.0 Boundary Constraints:
- * âŒ Plugins must NOT directly operate Navigation Container
- * âŒ Plugins must NOT access other plugins' navigation state
- * âŒ Plugins must NOT register global Deep Link handlers
- * âœ… Plugins declare navigation intent through NavigationCapability
- * âœ… Navigation permissions are controlled by Host
+ * ? Plugins must NOT directly operate Navigation Container
+ * ? Plugins must NOT access other plugins' navigation state
+ * ? Plugins must NOT register global Deep Link handlers
+ * ? Plugins declare navigation intent through NavigationCapability
+ * ? Navigation permissions are controlled by Host
  * 
  * Usage Example (Host layer only):
  * ```typescript
- * import { RNNavigationAdapter } from '@brix/infra-adapter-navigation-mobile';
+ * import { RNNavigationAdapter } from '@brix-sdk/infra-adapter-navigation-mobile';
  * 
  * const adapter = new RNNavigationAdapter({
  *   screenRegistry: registry,

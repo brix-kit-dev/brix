@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Select Component
  * @description Material UI implementation of SelectProps from UIAdapter contract.
  *              Dropdown selection with single/multiple mode and search support.
- * @module @brix/infra-adapter-ui-mui/components/MuiSelect
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiSelect
  * @version 3.1.0
  *
  * [Design Principles]
@@ -33,7 +33,7 @@
 
 import type { FC } from 'react';
 import { useCallback } from 'react';
-import type { SelectProps, ComponentSize, SelectOption } from '@brix/runtime-sdk-api-web';
+import type { SelectProps, ComponentSize, SelectOption } from '@brix-sdk/runtime-sdk-api-web';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import MuiSelect from '@mui/material/Select';
@@ -129,6 +129,7 @@ export const MuiSelectComponent: FC<SelectProps> = ({
   onSearch,
   style,
   className,
+  'data-testid': dataTestId,
 }) => {
   // Generate unique ID for label association
   const labelId = label ? `select-label-${label.replace(/\s+/g, '-')}` : undefined;
@@ -206,6 +207,10 @@ export const MuiSelectComponent: FC<SelectProps> = ({
               required={required}
               helperText={helperText}
               name={name}
+              inputProps={{
+                ...params.inputProps,
+                'data-testid': dataTestId,
+              }}
             />
           )}
           renderTags={(tagValue, getTagProps) =>
@@ -258,6 +263,10 @@ export const MuiSelectComponent: FC<SelectProps> = ({
             required={required}
             helperText={helperText}
             name={name}
+            inputProps={{
+              ...params.inputProps,
+              'data-testid': dataTestId,
+            }}
           />
         )}
       />
@@ -286,6 +295,7 @@ export const MuiSelectComponent: FC<SelectProps> = ({
         label={label}
         name={name}
         onChange={handleSelectChange}
+        data-testid={dataTestId}
         displayEmpty={!!placeholder}
         renderValue={(selected) => {
           // Handle placeholder when nothing selected
@@ -313,6 +323,7 @@ export const MuiSelectComponent: FC<SelectProps> = ({
             key={option.value}
             value={option.value}
             disabled={option.disabled}
+            data-testid={option['data-testid']}
           >
             {option.label}
           </MenuItem>

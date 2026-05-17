@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/platform-shared",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/platform-shared",
+  "version": "3.2.0",
   "description": "Platform Shared Module - Cross-platform shared types, constants and utility functions",
   "type": "module",
   "main": "./dist/index.js",
@@ -42,8 +42,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@brix/infra-adapter-http-web": "link:../../../../infra-adapters/packages/web/infra-adapter-http-web",
-    "@brix/runtime-sdk-api-web": "workspace:*"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",
@@ -52,6 +51,11 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-commons.git",
+    "directory": "packages/client/platform-shared"
   },
   "keywords": [
     "brix",

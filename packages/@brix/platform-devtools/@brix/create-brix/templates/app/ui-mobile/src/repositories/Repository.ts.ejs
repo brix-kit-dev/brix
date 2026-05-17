@@ -12,14 +12,15 @@
  * 2. 数据格式转换
  * 3. 错误处理
  *
- * 【架构红线 R3 合规】
- * - 所有 HTTP 请求通过 HttpCapability 发起
- * - 禁止直接使用 fetch/axios
+ * [Architecture Red Line R3 Compliance]
+ * - All HTTP requests via HttpCapability
+ * - Direct use of fetch/axios is prohibited
  */
 
-import type { RuntimeContext, HttpCapability } from '@brix/runtime-sdk-api-mobile';
-import type { <%= classPrefix %>, PagedResponse } from '@brix/<%= name %>-shared';
-import { API_ENDPOINTS } from '@brix/<%= name %>-shared/constants';
+import type { RuntimeContext, HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
+import { HttpCapabilityType } from '@brix-sdk/runtime-sdk-api-web';
+import type { <%= classPrefix %>, PagedResponse } from '@brix-sdk/<%= name %>-shared';
+import { API_ENDPOINTS } from '@brix-sdk/<%= name %>-shared/constants';
 
 /**
  * <%= displayName %> Repository
@@ -43,7 +44,7 @@ export interface <%= classPrefix %>Repository {
  * @returns Repository 实例
  */
 export function create<%= classPrefix %>Repository(runtimeContext: RuntimeContext): <%= classPrefix %>Repository {
-  const http = runtimeContext.getCapability<HttpCapability>('HttpCapability');
+  const http = runtimeContext.getCapability<HttpCapability>(HttpCapabilityType);
 
   if (!http) {
     throw new Error('[<%= name %>-ui-mobile] HttpCapability 不可用');

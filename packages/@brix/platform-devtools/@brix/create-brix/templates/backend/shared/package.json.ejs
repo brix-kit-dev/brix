@@ -1,0 +1,38 @@
+{
+  "name": "@brix-sdk/<%= name %>-shared",
+  "version": "<%= sdkVersion %>",
+  "private": true,
+  "description": "<%= displayName %> shared frontend contracts",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist src/generated"
+  },
+  "peerDependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "^<%= sdkVersion %>"
+  },
+  "devDependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "^<%= sdkVersion %>",
+    "@types/node": "^22.10.1",
+    "orval": "^7.0.0",
+    "rimraf": "^5.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
+  },
+  "author": "<%= author %>",
+  "license": "UNLICENSED"
+}

@@ -19,6 +19,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * HTTP Communication Capability Contract
  * 
@@ -66,6 +68,7 @@ import java.util.Map;
  * @since 3.1.0
  * @see HttpResult
  */
+@Since("3.1.0")
 public interface HttpCapability {
 
     /**

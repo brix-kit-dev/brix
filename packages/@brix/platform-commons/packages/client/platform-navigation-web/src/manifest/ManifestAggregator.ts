@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,33 +16,33 @@
 /**
  * @file ManifestAggregator
  * @description Aggregates UI Manifests from multiple plugins, generating unified routing and menu configuration
- * @module @brix/platform-navigation-web/manifest/ManifestAggregator
+ * @module @brix-sdk/platform-navigation-web/manifest/ManifestAggregator
  * @version 3.0.0
  *
- * ã€Design Notesã€‘
+ * ¡¾Design Notes¡¿
  * Following v3.0.4 blueprint Manifest-Driven architecture:
  * - Reads plugin list from Host configuration
  * - Aggregates manifests from all enabled plugins
  * - Generates unified route table and menu tree
  * - Supports Host layer overrides (route prefix, menu order, etc.)
  *
- * ã€Architecture Positionã€‘
+ * ¡¾Architecture Position¡¿
  * ```text
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚  Host Layer                                                             â”‚
- * â”‚  â””â”€â”€ Provides plugin config list (HostPluginConfig[])                   â”‚
- * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- * â”‚  platform-navigation-web                                                â”‚
- * â”‚  â””â”€â”€ ManifestAggregator â­                                              â”‚
- * â”‚       â”œâ”€â”€ Aggregate routes â†’ AggregatedRoute[]                          â”‚
- * â”‚       â”œâ”€â”€ Aggregate menus â†’ AggregatedMenu[]                            â”‚
- * â”‚       â””â”€â”€ Build mapping â†’ pageIdToPath                                  â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦  Host Layer                                                             ©¦
+ * ©¦  ©¸©¤©¤ Provides plugin config list (HostPluginConfig[])                   ©¦
+ * ©À©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©È
+ * ©¦  platform-navigation-web                                                ©¦
+ * ©¦  ©¸©¤©¤ ManifestAggregator ?                                              ©¦
+ * ©¦       ©À©¤©¤ Aggregate routes ¡ú AggregatedRoute[]                          ©¦
+ * ©¦       ©À©¤©¤ Aggregate menus ¡ú AggregatedMenu[]                            ©¦
+ * ©¦       ©¸©¤©¤ Build mapping ¡ú pageIdToPath                                  ©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  *
- * ã€Usage Exampleã€‘
+ * ¡¾Usage Example¡¿
  * ```typescript
- * import { ManifestAggregator } from '@brix/platform-navigation-web';
+ * import { ManifestAggregator } from '@brix-sdk/platform-navigation-web';
  *
  * const aggregator = new ManifestAggregator();
  * const result = aggregator.aggregate(pluginConfigs);
@@ -96,9 +96,9 @@ export interface ManifestAggregatorConfig {
  *
  * Aggregates UI Manifests from multiple plugins, generating unified routing and menu configuration.
  *
- * ã€Core Responsibilitiesã€‘
+ * ¡¾Core Responsibilities¡¿
  * 1. Parse pages and menus declarations from each plugin
- * 2. Establish page â†’ route path mapping based on pageId
+ * 2. Establish page ¡ú route path mapping based on pageId
  * 3. Resolve pageId references in manifest to actual route paths
  * 4. Sort by order, build menu tree
  * 5. Support Host layer override configuration
@@ -132,7 +132,7 @@ export class ManifestAggregator {
     // Filter enabled plugins
     const enabledPlugins = pluginConfigs.filter(p => p.enabled && p.manifest);
 
-    // First pass: Collect all pages, establish pageId â†’ path mapping
+    // First pass: Collect all pages, establish pageId ¡ú path mapping
     for (const pluginConfig of enabledPlugins) {
       try {
         const manifest = pluginConfig.manifest!;

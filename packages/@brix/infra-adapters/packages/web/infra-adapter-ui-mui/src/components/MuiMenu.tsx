@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Menu Component
  * @description Material UI implementation of MenuProps from UIAdapter contract.
  *              Hierarchical navigation menu for Shell layer layout assembly.
- * @module @brix/infra-adapter-ui-mui/components/MuiMenu
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiMenu
  * @version 3.1.0
  *
  * [Design Principles]
@@ -39,7 +39,7 @@
 
 import type { FC, CSSProperties } from 'react';
 import { useState, useCallback, useMemo } from 'react';
-import type { MenuProps, MenuItem as MenuItemType } from '@brix/runtime-sdk-api-web';
+import type { MenuProps, MenuItem as MenuItemType } from '@brix-sdk/runtime-sdk-api-web';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';

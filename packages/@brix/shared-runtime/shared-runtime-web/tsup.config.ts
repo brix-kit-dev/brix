@@ -23,6 +23,60 @@
  * imports for different use cases (react, router, state, ui, mf-config).
  */
 import { defineConfig } from 'tsup';
+import { readFileSync, readdirSync } from 'fs';
+import { dirname, join, resolve } from 'path';
+
+// =============================================================================
+// Build-time Package Version Resolution
+// =============================================================================
+
+/**
+ * Resolve the exact installed version of an npm package at build time.
+ *
+ * This runs ONLY during `pnpm run build` (Node.js context), NOT in the browser.
+ * The resolved versions are injected into the compiled output via tsup's `define`
+ * feature, replacing placeholder constants with static string literals.
+ *
+ * This is needed for packages like @mui/material whose ESM entry directory
+ * (e.g., esm/index.js) lacks a package.json. Module Federation cannot
+ * auto-detect the version from such paths, causing:
+ * - Warning: "No version specified and unable to automatically determine one"
+ * - Error:  "factory is undefined" during HMR
+ *
+ * Two resolution strategies:
+ * 1. Direct require(`pkg/package.json`) — for packages that expose it
+ * 2. Resolve entry → walk up directory tree — for packages with restrictive
+ *    `exports` (e.g., @mui/icons-material only exposes `.` and `./*`)
+ */
+function resolveInstalledVersion(packageName: string): string | undefined {
+  const nodeModulesDir = resolve(__dirname, 'node_modules');
+  const pkgDir = join(nodeModulesDir, ...packageName.split('/'));
+  try {
+    const pkg = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf-8'));
+    if (pkg.version) return pkg.version;
+  } catch { /* package.json not directly accessible */ }
+
+  // Fallback: walk up from the resolved symlink target (pnpm stores)
+  try {
+    const realDir = require.resolve(packageName, { paths: [__dirname] });
+    let dir = dirname(realDir);
+    for (let i = 0; i < 5; i++) {
+      try {
+        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8'));
+        if (pkg.name === packageName) return pkg.version;
+      } catch { /* not at this level */ }
+      dir = dirname(dir);
+    }
+  } catch { /* package not installed */ }
+  return undefined;
+}
+
+const muiMaterialVersion = resolveInstalledVersion('@mui/material');
+const muiIconsVersion = resolveInstalledVersion('@mui/icons-material');
+
+console.log(`[shared-runtime-web] Build-time version resolution:`);
+console.log(`  @mui/material: ${muiMaterialVersion ?? 'not found'}`);
+console.log(`  @mui/icons-material: ${muiIconsVersion ?? 'not found'}`);
 
 export default defineConfig({
   /**
@@ -110,4 +164,19 @@ export default defineConfig({
    * Split chunks for better code sharing between entry points.
    */
   splitting: true,
+
+  /**
+   * Build-time constants injected into the compiled output.
+   *
+   * These replace placeholder identifiers in mf-shared-config.ts with
+   * static version strings resolved from this package's node_modules.
+   * This ensures the dist is browser-safe (no Node.js built-in imports)
+   * while still providing exact version information to Module Federation.
+   *
+   * @see mf-shared-config.ts — uses __RESOLVED_MUI_MATERIAL_VERSION__ etc.
+   */
+  define: {
+    '__RESOLVED_MUI_MATERIAL_VERSION__': muiMaterialVersion ? JSON.stringify(muiMaterialVersion) : 'undefined',
+    '__RESOLVED_MUI_ICONS_VERSION__': muiIconsVersion ? JSON.stringify(muiIconsVersion) : 'undefined',
+  },
 });

@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>infra-adapters</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -31,23 +31,24 @@
 
     <name>Brix Fallback Capability Adapter</name>
     <description>
-        Brix Fallback 能力适配器 - 提供最小化的默认能力实现
+        Brix Fallback Capability Adapter - Provides minimal default capability implementations
         
-        【用途】
-        当没有其他具体适配器提供能力实现时，使用此模块作为 fallback：
-        - AuthContextCapability: 匿名访问，允许所有权限
-        - ObservabilityCapability: 基于 SLF4J 的日志实现
-        - ConfigStoreCapability: 基于环境变量和系统属性
-        - LifecycleCapability: 空操作实现
-        - ResilienceCapability: 透传式实现，无真实弹性保护
+        [Purpose]
+        When no other concrete adapter provides a capability implementation,
+        this module serves as the fallback:
+        - AuthContextCapability: Anonymous access, allows all permissions
+        - ObservabilityCapability: SLF4J-based logging implementation
+        - ConfigStoreCapability: Based on environment variables and system properties
+        - LifecycleCapability: No-op implementation
+        - ResilienceCapability: Pass-through implementation, no real resilience protection
         
-        【架构说明】
-        此模块属于 Layer 2.5 - 适配器层，遵循架构蓝图设计：
-        - Host 层（brix-host-assembly）只做组装，不含实现代码
-        - 默认能力实现必须在此模块，由 Host 层引用
+        [Architecture]
+        This module belongs to Layer 2.5 - Adapter Layer, following the architecture blueprint:
+        - Host layer (brix-host-assembly) only performs assembly, contains no implementation code
+        - Default capability implementations reside in this module, referenced by the Host layer
         
-        【使用方式】
-        Host 层通过 @ConditionalOnMissingBean 方式引入默认实现：
+        [Usage]
+        Host layer includes default implementations via @ConditionalOnMissingBean:
         &lt;dependency&gt;
             &lt;groupId&gt;io.brix&lt;/groupId&gt;
             &lt;artifactId&gt;infra-adapter-fallback&lt;/artifactId&gt;
@@ -93,7 +94,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

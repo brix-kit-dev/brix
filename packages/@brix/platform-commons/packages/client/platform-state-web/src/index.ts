@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,37 +16,37 @@
 /**
  * @file platform-state-web Module Entry
  * @description Web Plugin State Capability Implementation Module - Implements PluginStateCapability interface
- * @module @brix/platform-state-web
+ * @module @brix-sdk/platform-state-web
  * @version 3.0.0
  * 
- * ã€Module Descriptionã€‘
+ * ¡¾Module Description¡¿
  * platform-state-web is the implementation module for PluginStateCapability interface.
  * Provides namespace-isolated state management capability based on zustand.
  * 
- * ã€Architecture Positionã€‘
+ * ¡¾Architecture Position¡¿
  * ```text
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚  Capability Contract Layer (runtime-sdk-api-web)                       â”‚
- * â”‚  â””â”€â”€ PluginStateCapability interface definition                        â”‚
- * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- * â”‚  Capability Implementation Layer (platform-commons)                    â”‚
- * â”‚  â””â”€â”€ platform-state-web (this module) â­                               â”‚
- * â”‚       â”œâ”€â”€ PluginStateCapabilityImpl (interface implementation)         â”‚
- * â”‚       â”œâ”€â”€ StateStore (global state storage)                            â”‚
- * â”‚       â””â”€â”€ NamespaceManager (namespace management)                      â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦  Capability Contract Layer (runtime-sdk-api-web)                       ©¦
+ * ©¦  ©¸©¤©¤ PluginStateCapability interface definition                        ©¦
+ * ©À©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©È
+ * ©¦  Capability Implementation Layer (platform-commons)                    ©¦
+ * ©¦  ©¸©¤©¤ platform-state-web (this module) ?                               ©¦
+ * ©¦       ©À©¤©¤ PluginStateCapabilityImpl (interface implementation)         ©¦
+ * ©¦       ©À©¤©¤ StateStore (global state storage)                            ©¦
+ * ©¦       ©¸©¤©¤ NamespaceManager (namespace management)                      ©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  * 
- * ã€Key Design Pointsã€‘
+ * ¡¾Key Design Points¡¿
  * 1. Automatic namespace isolation: Plugins can only access their own state
  * 2. Single state tree: Easy to debug and persist
  * 3. Supports state persistence to localStorage
  * 
- * ã€Architectural Constraintsã€‘
- * âœ– Plugins are forbidden from creating global Stores
- * âœ– Plugins are forbidden from directly manipulating localStorage
- * âœ– Plugins are forbidden from modifying window object
- * âœ– Plugins can only operate state through PluginStateCapability
+ * ¡¾Architectural Constraints¡¿
+ * ? Plugins are forbidden from creating global Stores
+ * ? Plugins are forbidden from directly manipulating localStorage
+ * ? Plugins are forbidden from modifying window object
+ * ? Plugins can only operate state through PluginStateCapability
  */
 
 // ============================================================================

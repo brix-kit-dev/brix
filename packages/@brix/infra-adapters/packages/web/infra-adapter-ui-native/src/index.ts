@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,15 +15,15 @@
  */
 /**
  * @file Native UI Adapter - Package Entry Point
- * @description Entry point for @brix/infra-adapter-ui-native package.
+ * @description Entry point for @brix-sdk/infra-adapter-ui-native package.
  *              Exports the UIAdapter implementation and all component building blocks.
- * @module @brix/infra-adapter-ui-native
+ * @module @brix-sdk/infra-adapter-ui-native
  * @version 3.1.0
  *
  * [Package Overview]
  * This package provides a complete UIAdapter implementation using pure CSS components
  * with zero external UI library dependencies. It implements the UIAdapter contract
- * from @brix/runtime-sdk-api-web.
+ * from @brix-sdk/runtime-sdk-api-web.
  *
  * [Primary Export]
  * - nativeUIAdapter: Complete UIAdapter implementation for Host layer registration
@@ -41,14 +41,14 @@
  * @example
  * ```typescript
  * // Primary usage - Register adapter in Host layer
- * import { nativeUIAdapter } from '@brix/infra-adapter-ui-native';
+ * import { nativeUIAdapter } from '@brix-sdk/infra-adapter-ui-native';
  *
  * const hostConfig = {
  *   uiAdapter: nativeUIAdapter,
  * };
  *
  * // Advanced usage - Use individual components
- * import { NativeButton, NativeIcon } from '@brix/infra-adapter-ui-native';
+ * import { NativeButton, NativeIcon } from '@brix-sdk/infra-adapter-ui-native';
  * ```
  */
 
@@ -92,6 +92,8 @@ export {
   getNativeThemeTokens,
 } from './theme';
 
+export { NativeDesignTokenResolver } from './theme';
+
 // ============================================================================
 // Icon Exports
 // ============================================================================
@@ -104,3 +106,9 @@ export {
   hasIconDef,
   getAvailableIconNames,
 } from './icons';
+
+// ============================================================================
+// Cross-cutting Components (v3.3.0 — C-1)
+// ============================================================================
+
+export { NativeErrorBoundary } from './components/NativeErrorBoundary';

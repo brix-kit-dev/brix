@@ -22,15 +22,15 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>runtime-sdk-parent</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     
     <artifactId>runtime-manifest</artifactId>
     <name>Brix Runtime Manifest</name>
     <description>
-        Manifest 解析器，负责模块清单文件的加载、验证和解析�?
-        支持 YAML �?JSON 格式�?module.manifest 文件�?
+        Manifest parser responsible for loading, validating, and parsing module manifest files.
+        Supports YAML and JSON format module.manifest files.
     </description>
     
     <dependencies>
@@ -40,13 +40,13 @@
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
         
-        <!-- YAML 解析 -->
+        <!-- YAML Parsing -->
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
         </dependency>
         
-        <!-- JSON 解析 -->
+        <!-- JSON Parsing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

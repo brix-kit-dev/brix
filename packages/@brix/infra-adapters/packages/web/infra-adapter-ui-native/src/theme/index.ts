@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Theme Module Exports
  * @description Exports for the theme system including ThemeProvider and token definitions.
- * @module @brix/infra-adapter-ui-native/theme
+ * @module @brix-sdk/infra-adapter-ui-native/theme
  * @version 3.1.0
  */
 
@@ -27,3 +27,5 @@ export {
   NATIVE_DARK_THEME_TOKENS,
   getNativeThemeTokens,
 } from './NativeThemeProvider';
+
+export { NativeDesignTokenResolver } from './NativeDesignTokenResolver';

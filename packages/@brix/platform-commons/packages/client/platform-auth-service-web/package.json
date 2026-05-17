@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/platform-auth-service-web",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/platform-auth-service-web",
+  "version": "3.2.0",
   "description": "Web Auth Service Utilities - Provides OAuth, token management and other auth services",
   "type": "module",
   "main": "dist/index.js",
@@ -31,7 +31,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "workspace:*"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.2.0"
@@ -52,5 +52,13 @@
   ],
   "author": "Brix Platform Authors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-commons.git",
+    "directory": "packages/client/platform-auth-service-web"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false
 }

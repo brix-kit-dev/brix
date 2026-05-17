@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/platform-state-web",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/platform-state-web",
+  "version": "3.2.0",
   "description": "Web Plugin State Capability Implementation - Implements PluginStateCapability interface",
   "type": "module",
   "main": "dist/index.js",
@@ -26,10 +26,10 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "workspace:*"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "peerDependencies": {
-    "@brix/shared-runtime-web": "^1.0.0",
+    "@brix-sdk/shared-runtime-web": "workspace:*",
     "react": "^18.2.0",
     "zustand": "^4.5.0"
   },
@@ -50,5 +50,13 @@
   ],
   "author": "Brix Platform Authors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-commons.git",
+    "directory": "packages/client/platform-state-web"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false
 }

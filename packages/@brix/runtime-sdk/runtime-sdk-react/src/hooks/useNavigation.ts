@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +16,15 @@
 /**
  * @file useNavigation Hook
  * @description Navigation Capability React Hook
- * @module @brix/runtime-sdk-react/hooks/useNavigation
+ * @module @brix-sdk/runtime-sdk-react/hooks/useNavigation
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
- * Migrated from @brix/runtime-sdk-api-web to a standalone React binding package.
+ * Migrated from @brix-sdk/runtime-sdk-api-web to a standalone React binding package.
  */
 
 import { useMemo } from 'react';
-import type { NavigationCapability } from '@brix/runtime-sdk-api-web';
+import type { NavigationCapability } from '@brix-sdk/runtime-sdk-api-web';
 import { useRuntimeContext } from './useRuntimeContext';
 
 /**

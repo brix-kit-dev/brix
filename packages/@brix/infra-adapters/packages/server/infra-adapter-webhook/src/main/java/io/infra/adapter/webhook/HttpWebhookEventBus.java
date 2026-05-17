@@ -32,11 +32,16 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.slf4j.MDC;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
@@ -93,7 +98,12 @@ import io.runtime.sdk.event.IntegrationEvent;
     aliases = {"webhookEventBus"}
 )
 public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
-    
+
+    // ── Metric name constants (R3.3 / R3.7 compliance) ──
+    private static final String METRIC_PUBLISHED_TOTAL = "eventbus.webhook.published.total";
+    private static final String METRIC_PUBLISH_ERROR   = "eventbus.webhook.publish.errors";
+    private static final String METRIC_PUBLISH_DURATION = "eventbus.webhook.publish.duration";
+
     /**
      * HTTP client
      */
@@ -140,6 +150,12 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
     private final AtomicLong failedCount = new AtomicLong(0);
     
     /**
+     * Micrometer meter registry for structured metrics (optional, nullable).
+     * @since 3.2.0
+     */
+    private final MeterRegistry meterRegistry;
+
+    /**
      * Event listeners (for testing and debugging)
      */
     private final Map<String, EventListener> eventListeners = new ConcurrentHashMap<>();
@@ -150,7 +166,7 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
      * @param config Webhook configuration
      */
     public HttpWebhookEventBus(WebhookConfig config) {
-        this(config, null, null);
+        this(config, null, null, null);
     }
     
     /**
@@ -170,7 +186,21 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
      * @param executor Executor (optional, null uses built-in bounded thread pool)
      */
     public HttpWebhookEventBus(WebhookConfig config, ObjectMapper objectMapper, ExecutorService executor) {
+        this(config, objectMapper, executor, null);
+    }
+
+    /**
+     * Creates an HttpWebhookEventBus instance (full parameters with optional MeterRegistry)
+     *
+     * @param config         Webhook configuration
+     * @param objectMapper   JSON serializer (optional, null uses default)
+     * @param executor       Executor (optional, null uses built-in bounded thread pool)
+     * @param meterRegistry  Micrometer meter registry (optional, null disables structured metrics)
+     * @since 3.2.0
+     */
+    public HttpWebhookEventBus(WebhookConfig config, ObjectMapper objectMapper, ExecutorService executor, MeterRegistry meterRegistry) {
         this.config = Objects.requireNonNull(config, "WebhookConfig cannot be null");
+        this.meterRegistry = meterRegistry;
         
         // Initialize ObjectMapper
         this.objectMapper = objectMapper != null ? objectMapper : createDefaultObjectMapper();
@@ -269,6 +299,7 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
         
         String eventType = event.getClass().getSimpleName();
         String eventId = event.getEventId() != null ? event.getEventId() : UUID.randomUUID().toString();
+        Timer.Sample sample = startTimerSample();
         
         try {
             WebhookPayload payload = new WebhookPayload(
@@ -281,12 +312,14 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
             
             sendWebhook(eventType, payload);
             sentCount.incrementAndGet();
+            recordPublishSuccess(eventType, sample);
             
             // Notify listeners
             notifyListeners(eventType, event);
             
         } catch (Exception e) {
             failedCount.incrementAndGet();
+            recordPublishError(eventType);
             throw new RuntimeException("Failed to publish domain event: " + eventType, e);
         }
     }
@@ -304,9 +337,11 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
     @Override
     public void publishIntegration(IntegrationEvent event) {
         Objects.requireNonNull(event, "IntegrationEvent cannot be null");
+        ensureTraceId(event);
         
         String eventType = event.getEventType() != null ? event.getEventType() : event.getClass().getSimpleName();
         String eventId = event.getEventId() != null ? event.getEventId() : UUID.randomUUID().toString();
+        Timer.Sample sample = startTimerSample();
         
         try {
             WebhookPayload payload = new WebhookPayload(
@@ -319,12 +354,14 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
             
             sendWebhook(eventType, payload);
             sentCount.incrementAndGet();
+            recordPublishSuccess(eventType, sample);
             
             // Notify listeners
             notifyListeners(eventType, event);
             
         } catch (Exception e) {
             failedCount.incrementAndGet();
+            recordPublishError(eventType);
             throw new RuntimeException("Failed to publish integration event: " + eventType, e);
         }
     }
@@ -473,6 +510,50 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
         failedCount.set(0);
     }
     
+    // ── TraceId injection (P0-1 compliance) ──
+
+    /**
+     * Ensures the integration event carries a traceId.
+     * Resolution order: existing value → MDC traceId → random UUID.
+     */
+    private void ensureTraceId(IntegrationEvent event) {
+        if (event.getTraceId() != null && !event.getTraceId().isEmpty()) {
+            return;
+        }
+        String mdcTraceId = MDC.get("traceId");
+        event.setTraceId(mdcTraceId != null ? mdcTraceId : UUID.randomUUID().toString());
+    }
+
+    // ── Micrometer helpers (R3.3 / R3.7 compliance) ──
+
+    private Timer.Sample startTimerSample() {
+        return meterRegistry != null ? Timer.start(meterRegistry) : null;
+    }
+
+    private void recordPublishSuccess(String eventType, Timer.Sample sample) {
+        if (meterRegistry == null) return;
+        Counter.builder(METRIC_PUBLISHED_TOTAL)
+                .tag("eventType", eventType)
+                .tag("transport", "webhook")
+                .register(meterRegistry)
+                .increment();
+        if (sample != null) {
+            sample.stop(Timer.builder(METRIC_PUBLISH_DURATION)
+                    .tag("eventType", eventType)
+                    .tag("transport", "webhook")
+                    .register(meterRegistry));
+        }
+    }
+
+    private void recordPublishError(String eventType) {
+        if (meterRegistry == null) return;
+        Counter.builder(METRIC_PUBLISH_ERROR)
+                .tag("eventType", eventType)
+                .tag("transport", "webhook")
+                .register(meterRegistry)
+                .increment();
+    }
+
     @Override
     public void close() {
         retryHandler.shutdown();

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file runtime-manifest-web Module Entry
  * @description UI runtime manifest parsing and validation module exports
- * @module @brix/runtime-manifest-web
+ * @module @brix-sdk/runtime-manifest-web
  * @version 3.0.0
  * 
  * [Module Description]
@@ -32,7 +32,7 @@
  *   createManifestLoader,
  *   createManifestValidator,
  *   createManifestTransformer,
- * } from '@brix/runtime-manifest-web';
+ * } from '@brix-sdk/runtime-manifest-web';
  * 
  * // Load manifest
  * const loader = createManifestLoader();

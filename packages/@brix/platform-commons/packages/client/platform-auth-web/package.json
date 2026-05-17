@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/platform-auth-web",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/platform-auth-web",
+  "version": "3.2.0",
   "description": "Web Auth Capability Implementation - Implements AuthCapability interface and auth components",
   "type": "module",
   "main": "dist/index.js",
@@ -41,12 +41,12 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "workspace:*",
-    "@brix/platform-auth-service-web": "^3.1.0",
-    "@brix/platform-auth-ui-web": "^3.1.0"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/platform-auth-service-web": "workspace:*",
+    "@brix-sdk/platform-auth-ui-web": "workspace:*"
   },
   "peerDependencies": {
-    "@brix/shared-runtime-web": "^1.0.0",
+    "@brix-sdk/shared-runtime-web": "workspace:*",
     "react": "^18.2.0",
     "react-router-dom": "^6.22.0"
   },
@@ -65,5 +65,13 @@
   ],
   "author": "Brix Platform Authors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-commons.git",
+    "directory": "packages/client/platform-auth-web"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false
 }

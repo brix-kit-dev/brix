@@ -1,34 +1,34 @@
 /**
- * @file ID 生成器模块入口
- * @description 独立的 ID 生成器子包 - 提供各种 ID 生成策略
- * @module @brix/platform-shared/id
+ * @file ID Generator Module Entry
+ * @description Standalone ID generator sub-module - provides various ID generation strategies
+ * @module @brix-sdk/platform-shared/id
  * @version 3.1.0
  * 
- * 【模块说明】
- * 本模块从 @brix/platform-shared/utils 拆分而来，
- * 提供独立的 ID 生成器子包，支持更好的 tree-shaking。
+ * ## Module Overview
+ * This module was extracted from @brix-sdk/platform-shared/utils,
+ * providing a standalone ID generator sub-package with better tree-shaking support.
  * 
- * 【选择建议】
- * - UUID：需要全球唯一且标准格式时使用
- * - ShortId：用于 URL、临时标识等需要短 ID 的场景
- * - NanoId：URL 安全的短 ID，比 ShortId 更随机
- * - TimestampId：需要按时间排序的场景
- * - SnowflakeId：高并发分布式系统（需配合节点 ID）
+ * ## Selection Guide
+ * - UUID: Use when globally unique standard-format IDs are required
+ * - ShortId: For URLs, temporary identifiers, and other scenarios requiring short IDs
+ * - NanoId: URL-safe short ID, more random than ShortId
+ * - TimestampId: For scenarios requiring time-based sorting
+ * - SnowflakeId: For high-concurrency distributed systems (requires node ID)
  * 
- * 【使用方式】
+ * ## Usage
  * ```typescript
- * // 推荐：直接从子包导入（更好的 tree-shaking）
- * import { generateUUID, SnowflakeIdGenerator } from '@brix/platform-shared/id';
+ * // Recommended: Import directly from sub-package (better tree-shaking)
+ * import { generateUUID, SnowflakeIdGenerator } from '@brix-sdk/platform-shared/id';
  * 
- * // 兼容：从主包导入（会加载所有工具）
- * import { generateUUID } from '@brix/platform-shared';
+ * // Compatible: Import from main package (loads all utilities)
+ * import { generateUUID } from '@brix-sdk/platform-shared';
  * ```
  * 
  * @license Apache-2.0
  */
 
 // ============================================================================
-// 从 utils/id.ts 重新导出所有 ID 生成相关功能
+// Re-export all ID generation functions from utils/id.ts
 // ============================================================================
 
 export {
@@ -36,62 +36,61 @@ export {
   generateUUID,
   isValidUUID,
   
-  // 短 ID
+  // Short ID
   generateShortId,
   generateNanoId,
   
-  // 时间戳 ID
+  // Timestamp ID
   generateTimestampId,
   extractTimestampFromId,
   
-  // 雪花 ID
+  // Snowflake ID
   SimpleSnowflake,
   generateSnowflakeId,
   
-  // 序列 ID 生成器
+  // Sequence ID Generator
   createSequenceIdGenerator,
   createDailySequenceIdGenerator,
 } from '../utils/id';
 
 // ============================================================================
-// 类型导出
+// Type Exports
 // ============================================================================
 
 /**
- * ID 生成策略类型
+ * ID generation strategy type
  */
 export type IdStrategy = 'uuid' | 'short' | 'nano' | 'timestamp' | 'snowflake';
 
 /**
- * ID 生成器配置
+ * ID generator configuration
  */
 export interface IdGeneratorConfig {
-  /** ID 生成策略 */
+  /** ID generation strategy */
   strategy: IdStrategy;
-  /** ID 前缀（可选） */
+  /** ID prefix (optional) */
   prefix?: string;
-  /** 短 ID 长度（默认 8） */
+  /** Short ID length (default: 8) */
   shortIdLength?: number;
-  /** NanoID 长度（默认 21） */
+  /** NanoID length (default: 21) */
   nanoIdLength?: number;
 }
 
 /**
- * 创建配置化的 ID 生成器
+ * Create a configurable ID generator
  * 
- * 【功能说明】
- * 根据配置创建 ID 生成器函数，支持多种 ID 策略。
+ * Creates an ID generator function based on configuration, supporting multiple ID strategies.
  * 
- * @param config ID 生成器配置
- * @returns ID 生成函数
+ * @param config ID generator configuration
+ * @returns ID generator function
  * 
  * @example
  * ```typescript
- * // 创建 UUID 生成器
+ * // Create a UUID generator
  * const genUUID = createIdGenerator({ strategy: 'uuid' });
  * genUUID(); // 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
  * 
- * // 创建带前缀的短 ID 生成器
+ * // Create a prefixed short ID generator
  * const genOrderId = createIdGenerator({ 
  *   strategy: 'short', 
  *   prefix: 'ORD-',
@@ -103,7 +102,7 @@ export interface IdGeneratorConfig {
 export function createIdGenerator(config: IdGeneratorConfig): () => string {
   const { strategy, prefix = '', shortIdLength = 8, nanoIdLength = 21 } = config;
   
-  // 动态导入避免循环依赖
+  // Dynamic import to avoid circular dependency
   const {
     generateUUID,
     generateShortId,

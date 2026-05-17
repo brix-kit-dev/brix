@@ -1,4 +1,4 @@
-﻿# <%= name %>
+# <%= name %>
 
 > 生成时间: <%= date %>
 
@@ -55,7 +55,7 @@ cd <%= name %>-mobile && pnpm install && pnpm build
 
 ```xml
 <dependency>
-    <groupId>shinwa.plugin</groupId>
+    <groupId>io.brix.plugin</groupId>
     <artifactId><%= name %>-core</artifactId>
     <version><%= version %></version>
 </dependency>
@@ -75,7 +75,7 @@ cd <%= name %>-mobile && pnpm install && pnpm build
 
 | 配置项 | 说明 | Default值 |
 |---|---|---|
-| `shinwa.plugin.<%= name.replace('plugin-', '').replace(/-/g, '.') %>.enabled` | 是否Enabled插件 | `true` |
+| `brix.plugin.<%= name.replace('plugin-', '').replace(/-/g, '.') %>.enabled` | 是否Enabled插件 | `true` |
 
 ## License
 

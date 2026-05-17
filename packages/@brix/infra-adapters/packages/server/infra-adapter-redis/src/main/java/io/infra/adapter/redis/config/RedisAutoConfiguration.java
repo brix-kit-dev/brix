@@ -15,15 +15,6 @@
  */
 package io.infra.adapter.redis.config;
 
-import io.infra.adapter.redis.RedisLockCapability;
-import io.infra.adapter.redis.RedisStateStoreCapability;
-import io.infra.adapter.redis.health.RedisHealthIndicator;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import io.runtime.sdk.capability.LockCapability;
-import io.runtime.sdk.capability.StateStoreCapability;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -32,6 +23,16 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import io.infra.adapter.redis.RedisLockCapability;
+import io.infra.adapter.redis.RedisStateStoreCapability;
+import io.infra.adapter.redis.health.RedisHealthIndicator;
+import io.runtime.sdk.capability.LockCapability;
+import io.runtime.sdk.capability.StateStoreCapability;
 
 /**
  * Redis capability auto-configuration.
@@ -42,8 +43,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * <h3>Configuration.</h3>
  * <table border="1">
  *   <tr><th>Configuration</th><th>Description</th><th>Default</th></tr>
- *   <tr><td>shinwa.runtime.redis.enabled</td><td>Whether to enable</td><td>true</td></tr>
- *   <tr><td>shinwa.runtime.redis.key-prefix</td><td>Key prefix</td><td>brix:state:</td></tr>
+ *   <tr><td>brix.runtime.redis.enabled</td><td>Whether to enable</td><td>true</td></tr>
+ *   <tr><td>brix.runtime.redis.key-prefix</td><td>Key prefix</td><td>brix:state:</td></tr>
  * </table>
  * 
  * <h3>Provided Capabilities</h3>
@@ -106,7 +107,7 @@ public class RedisAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(StateStoreCapability.class)
-    public StateStoreCapability redisStateStoreCapability(
+    public RedisStateStoreCapability redisStateStoreCapability(
             StringRedisTemplate redisTemplate,
             RedisCapabilityProperties properties) {
         return new RedisStateStoreCapability(redisTemplate, createStateStoreObjectMapper(), properties.getKeyPrefix());

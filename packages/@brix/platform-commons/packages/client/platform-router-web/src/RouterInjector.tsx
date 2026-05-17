@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,14 @@
 /**
  * @file Router Injector Component
  * @description Provides a component to inject navigate function within RouterProvider
- * @module @brix/platform-router-web/RouterInjector
+ * @module @brix-sdk/platform-router-web/RouterInjector
  * @version 3.0.0
  * 
- * „ÄêArchitecture Notes„Äë
+ * °æArchitecture Notes°ø
  * RouterInjector is a helper component that obtains the navigate function inside
  * react-router's RouterProvider and injects it into ReactRouterAdapter.
  * 
- * „ÄêUsage„Äë
+ * °æUsage°ø
  * This component should be placed inside RouterProvider as a child component.
  * It renders no UI, only handles the injection functionality.
  */
@@ -56,7 +56,7 @@ export interface RouterInjectorProps {
  * 
  * Obtains navigate function inside RouterProvider and injects it into ReactRouterAdapter.
  * 
- * „ÄêUsage Example„Äë
+ * °æUsage Example°ø
  * ```tsx
  * const routerAdapter = new ReactRouterAdapter();
  * 

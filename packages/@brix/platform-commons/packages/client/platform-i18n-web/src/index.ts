@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file platform-i18n-web Module Entry
  * @description Web internationalization capability implementation module - implements I18nCapability interface
- * @module @brix/platform-i18n-web
+ * @module @brix-sdk/platform-i18n-web
  * @version 3.0.0
  * 
  * Module Description:

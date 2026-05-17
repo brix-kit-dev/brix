@@ -1,12 +1,37 @@
-﻿{
-  "name": "@brix/eslint-config-architecture",
-  "version": "1.0.0",
-  "description": "Brix 架构守护 ESLint 共享规则 �?对应 v3.0 运行壳架构蓝图中�?8 条红线（TypeScript 侧）",
+{
+  "name": "@brix-sdk/eslint-config-architecture",
+  "version": "3.2.0",
+  "description": "Brix Architecture Guard ESLint Shared Rules - 9 red lines + Design Token Governance from v3.0.9 Runtime Shell Architecture Blueprint (TypeScript)",
   "main": "index.js",
   "license": "Apache-2.0",
   "author": "Brix Platform Authors",
-  "keywords": ["eslint", "brix", "architecture", "guard"],
+  "keywords": ["eslint", "brix", "architecture", "guard", "design-tokens"],
+  "files": [
+    "index.js",
+    "rules/",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./index.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "peerDependencies": {
-    "eslint": ">=8.0.0"
+    "eslint": ">=8.0.0",
+    "eslint-plugin-jsx-a11y": ">=6.8.0"
+  },
+  "devDependencies": {
+    "vitest": "^1.2.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-devtools.git",
+    "directory": "eslint-config-architecture"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

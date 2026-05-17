@@ -16,7 +16,7 @@
 /**
  * @file useWebUIRuntime Hook
  * @description Web UI runtime lifecycle management React Hook - SDK layer implementation
- * @module @brix/runtime-orchestrator-web/hooks
+ * @module @brix-sdk/runtime-orchestrator-web/hooks
  * @version 3.1.0
  *
  * Design Principles:
@@ -44,7 +44,7 @@
  * Host Layer only needs to pass configuration, call this Hook to get runtime state and control methods:
  * ```tsx
  * // Host Layer thin wrapper
- * import { useWebUIRuntime } from '@brix/runtime-orchestrator-web';
+ * import { useWebUIRuntime } from '@brix-sdk/runtime-orchestrator-web';
  * import { hostConfig } from '../config';
  *
  * export function useRuntimeLifecycle() {
@@ -69,7 +69,7 @@ import {
   type DiscoveredPlugin,
   type LoadedPluginConfig,
 } from '../services';
-import type { PluginEntry, PluginStatus, PluginLifecycle } from '@brix/runtime-sdk-api-web';
+import type { PluginEntry, PluginStatus, PluginLifecycle } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Type Definitions
@@ -331,7 +331,6 @@ export function useWebUIRuntime(
     (message: string, ...args: unknown[]) => {
       if (debug) {
         // Use warn to avoid ESLint console.log rule
-        console.warn(`[WebUIRuntime] ${message}`, ...args);
       }
     },
     [debug]
@@ -493,7 +492,6 @@ export function useWebUIRuntime(
       callbacks.onRuntimeReady?.();
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      console.error('[WebUIRuntime] Startup failed:', err);
 
       updateState({
         phase: 'error',
@@ -548,7 +546,6 @@ export function useWebUIRuntime(
       log('Runtime stopped');
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      console.error('[WebUIRuntime] Stop failed:', err);
 
       updateState({
         phase: 'error',
@@ -706,10 +703,8 @@ function createPluginEntry(config: LoadedPluginConfig): PluginEntry {
     // Return empty lifecycle object, actual component loading handled by DynamicPluginRoutes
     return {
       activate: () => {
-        console.warn(`[PluginLifecycle] Plugin ${plugin.id} activated`);
       },
       deactivate: () => {
-        console.warn(`[PluginLifecycle] Plugin ${plugin.id} deactivated`);
       },
     };
   };

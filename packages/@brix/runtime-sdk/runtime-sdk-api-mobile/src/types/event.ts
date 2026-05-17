@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Event related type definitions
  * @description Define core types for the event system, including event messages, handlers, subscription options, etc.
- * @module @brix/runtime-sdk-api-mobile/types/event
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/event
  * @version 3.2.0
  *
  * [v3.2.0 Notes]
@@ -207,17 +207,17 @@ export interface GovernedSubscriptionOptions extends SubscriptionOptions {
 export type BackpressureOverflowStrategy =
   /**
    * Drop oldest events to make room for new ones
-   * ä¸¢å¼ƒæœ€æ—§çš„äº‹ä»¶ä»¥ä¸ºæ–°äº‹ä»¶è…¾å‡ºç©ºé—´
+   * ¶ªÆú×î¾ÉµÄÊÂ¼şÒÔÎªĞÂÊÂ¼şÌÚ³ö¿Õ¼ä
    */
   | 'drop-oldest'
   /**
    * Reject new events when queue is full
-   * é˜Ÿåˆ—æ»¡æ—¶æ‹’ç»æ–°äº‹ä»¶
+   * ¶ÓÁĞÂúÊ±¾Ü¾øĞÂÊÂ¼ş
    */
   | 'reject'
   /**
    * Block the emit call until space is available
-   * é˜»å¡ emit è°ƒç”¨ç›´åˆ°æœ‰ç©ºé—´å¯ç”¨
+   * ×èÈû emit µ÷ÓÃÖ±µ½ÓĞ¿Õ¼ä¿ÉÓÃ
    */
   | 'block';
 

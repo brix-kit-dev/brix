@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>runtime-sdk-parent</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -31,31 +31,38 @@
 
     <name>Brix Runtime SDK API</name>
     <description>
-        运行壳能力契约接口定义与开发支持
+        Runtime Shell Capability Contract Interface Definitions and Development Support
         
-        本模块定义了模块与 Runtime Shell 之间的所有契约接口，包括：
-        - 核心能力接口（EventBus、StateStore、AuthContext 等）
-        - 事件基类（DomainEvent、IntegrationEvent）
-        - 运行时上下文（RuntimeContext）
-        - Host 抽象接口
-        - 模块注解（@Module、@EventHandler）
-        - 便利包装类（AbstractModule、ModuleState）
+        This module defines all contract interfaces between modules and the Runtime Shell, including:
+        - Core capability interfaces (EventBus, StateStore, AuthContext, etc.)
+        - Event base classes (DomainEvent, IntegrationEvent)
+        - Runtime context (RuntimeContext)
+        - Host abstract interface
+        - Module annotations (@Module, @EventHandler)
+        - Convenience wrappers (AbstractModule, ModuleState)
         
-        【设计原则】
-        - 本模块为契约定义层，不包含任何基础设施实现
-        - 模块（Plugin）只需依赖此模块
-        - 便利包装类（support 包）仅封装 RuntimeContext 调用，不是能力实现
-        - 禁止引入 Kafka/Redis/MySQL 等基础设施依赖
+        [Design Principles]
+        - This module is the contract definition layer; it contains no infrastructure implementations
+        - Modules (Plugins) only need to depend on this module
+        - Convenience wrappers (support package) only wrap RuntimeContext calls, not capability implementations
+        - Importing Kafka/Redis/MySQL or other infrastructure dependencies is prohibited
     </description>
 
     <dependencies>
-        <!-- 日志门面：仅用于 ObservabilityCapability 的日志级别枚举 -->
+        <!-- Jakarta Annotation API: @Nonnull for contract field non-null guarantees (R3.6) -->
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
+        </dependency>
+
+        <!-- Logging facade: only used for ObservabilityCapability log level enum -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- 测试依赖 -->
+        <!-- Test Dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -64,7 +71,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

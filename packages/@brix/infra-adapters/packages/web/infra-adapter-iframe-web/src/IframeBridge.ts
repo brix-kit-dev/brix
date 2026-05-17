@@ -16,27 +16,27 @@
 /**
  * @file iframe Cross-Window Communication Bridge
  * @description Manages postMessage communication between Host and iframe plugins
- * @module @brix/infra-adapter-iframe-web/IframeBridge
+ * @module @brix-sdk/infra-adapter-iframe-web/IframeBridge
  * @version 3.0.0
  * 
- * 【Design Notes】
+ * ��Design Notes��
  * IframeBridge is the communication bridge between Host and iframe plugins.
  * Implements secure cross-window communication based on postMessage API.
  * 
- * 【Communication Flow】
+ * ��Communication Flow��
  * ```
- * ┌───────────────┐    postMessage    ┌───────────────┐
- * │    Host       │ ←───────────────→ │   iframe      │
- * │  IframeBridge │                   │   (Plugin)    │
- * └───────────────┘                   └───────────────┘
+ * ����������������������������������    postMessage    ����������������������������������
+ * ��    Host       �� ���������������������������������� ��   iframe      ��
+ * ��  IframeBridge ��                   ��   (Plugin)    ��
+ * ����������������������������������                   ����������������������������������
  * ```
  * 
- * 【Security Mechanisms】
+ * ��Security Mechanisms��
  * 1. Origin validation: Only accept messages from whitelisted domains
  * 2. Message signature: Prevent message replay via messageId
  * 3. Timeout handling: Auto-fail requests on timeout
  * 
- * 【Architectural Constraint - v3.0 Runtime Shell】
+ * ��Architectural Constraint - v3.0 Runtime Shell��
  * - All iframe communication must go through IframeBridge
  * - Sensitive operations (navigation, state modification) require Host confirmation
  * - All messages must be traceable (for governance)
@@ -115,7 +115,7 @@ export interface IframeBridgeOptions {
  * 
  * Manages bidirectional communication between Host and iframe plugins.
  * 
- * 【Features】
+ * ��Features��
  * - Message sending and receiving
  * - Request-response pattern
  * - Event broadcasting
@@ -348,7 +348,6 @@ export class IframeBridge {
   private handleMessage = (event: MessageEvent): void => {
     // Origin validation
     if (!this.isOriginAllowed(event.origin)) {
-      console.warn(`[IframeBridge] Rejecting message from unauthorized origin: ${event.origin}`);
       return;
     }
     

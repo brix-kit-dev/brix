@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Configuration Capability Type Definitions
  * @description Defines core types for the configuration management system
- * @module @brix/runtime-sdk-api-web/types/config
+ * @module @brix-sdk/runtime-sdk-api-web/types/config
  * @version 3.2.0
  *
  * [v3.2 Changes]
@@ -86,11 +86,3 @@ export interface ConfigStoreCapability {
    */
   getAll<T = Record<string, unknown>>(): T | Promise<T>;
 }
-
-/**
- * Configuration Capability Contract
- *
- * @deprecated Use ConfigStoreCapability instead for Java/TS naming alignment.
- * Will be removed in v4.0.0.
- */
-export interface ConfigCapability extends ConfigStoreCapability {}

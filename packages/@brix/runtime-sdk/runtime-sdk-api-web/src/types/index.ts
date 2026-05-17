@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Type Definitions Unified Export
  * @description Re-export all type definitions from categorized files
- * @module @brix/runtime-sdk-api-web/types
+ * @module @brix-sdk/runtime-sdk-api-web/types
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
@@ -115,6 +115,39 @@ export * from './layout';
 export * from './ui';
 
 // =========================================
+// Tenant Capability Types (v3.1.0 Phase 1.8)
+// =========================================
+export * from './tenant';
+
+// =========================================
+// Tenant Config Capability Types (v3.1.0 Phase 3)
+// =========================================
+export * from './tenantConfig';
+
+// =========================================
 // Plugin Loader Capability Types (v3.2.0 D6 Fix)
 // =========================================
 export * from './plugin-loader-capability';
+
+// =========================================
+// Capability Configuration Types (v3.2.0 Phase 2 Contract Layer Fix)
+// =========================================
+export * from './capability-config';
+
+// =========================================
+// System Event Contracts
+// (v3.3.0 Frontend Stability Reform Plan v1.0 — C-2)
+// =========================================
+export * from './events';
+
+// =========================================
+// View Mode Capability Types
+// (v3.3.0 Frontend Stability Reform Plan v1.0 — C-4 Phase 2)
+// =========================================
+export * from './view-mode';
+
+// =========================================
+// Module Federation Capability Contracts
+// (v3.3.0 Frontend Stability Reform Plan v1.0 — C-1 Phase 1)
+// =========================================
+export * from './mf';

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Device capability type definitions
  * @description Define mobile device info and secure storage capability contracts
- * @module @brix/runtime-sdk-api-mobile/types/device
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/device
  * @version 3.2.0
  *
  * [v3.2.0 Notes]

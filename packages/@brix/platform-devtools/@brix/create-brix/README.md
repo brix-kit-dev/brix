@@ -1,100 +1,100 @@
-# @brix/create-brix
+# @brix-sdk/create-brix
 
-> Brix Platform 脚手架 CLI - 创建插件和服务
+> Brix Platform Scaffold CLI - Create plugins and services
 
-## 安装
+## Installation
 
 ```bash
-# 全局安装
-pnpm add -g @brix/create-brix
+# Global install
+npm install -g @brix-sdk/create-brix
 
-# 或使用 pnpm create
-pnpm create @brix/brix
+# Or use npm create
+npm create @brix-sdk/brix
 ```
 
-## 使用
+## Usage
 
-### 创建插件
+### Create Plugin
 
 ```bash
-# 交互式创建插件
-pnpm create @brix/brix plugin
+# Interactive plugin creation
+npm create @brix-sdk/brix plugin
 
-# 快速创建插件（指定所有参数）
-pnpm create @brix/brix plugin user \
+# Quick creation with parameters
+npm create @brix-sdk/brix plugin user \
   --flyway-prefix 001 \
   --with-web \
   --with-mobile \
   --output-dir ./plugins
 ```
 
-#### 插件参数
+#### Plugin Parameters
 
-| 参数 | 缩写 | 说明 | 默认值 |
-|---|---|---|---|
-| `--flyway-prefix` | `-f` | Flyway 版本前缀（3位数字） | 交互输入 |
-| `--with-web` | | 包含 Web 前端模块 | `true` |
-| `--with-mobile` | | 包含 Mobile 前端模块 | `false` |
-| `--with-api` | | 包含 API 模块 | `true` |
-| `--output-dir` | `-o` | 输出目录 | 当前目录 |
+| Parameter | Short | Description | Default |
+|-----------|-------|-------------|---------|
+| `--flyway-prefix` | `-f` | Flyway version prefix (3 digits) | Interactive |
+| `--with-web` | | Include web frontend module | `true` |
+| `--with-mobile` | | Include mobile frontend module | `false` |
+| `--with-api` | | Include API module | `true` |
+| `--output-dir` | `-o` | Output directory | Current dir |
 
-### 创建服务
+### Create Service
 
 ```bash
-# 交互式创建服务
-pnpm create @brix/brix service
+# Interactive service creation
+npm create @brix-sdk/brix service
 
-# 快速创建服务（指定所有参数）
-pnpm create @brix/brix service platform \
+# Quick creation with parameters
+npm create @brix-sdk/brix service platform \
   --port 8080 \
   --plugins user,contract,file-center \
   --output-dir ./services
 ```
 
-#### 服务参数
+#### Service Parameters
 
-| 参数 | 缩写 | 说明 | 默认值 |
-|---|---|---|---|
-| `--port` | `-p` | 服务端口号 | 交互输入 |
-| `--plugins` | | 依赖的插件列表（逗号分隔） | 交互选择 |
-| `--with-docker` | | 生成 Docker 配置 | `true` |
-| `--with-k8s` | | 生成 Kubernetes 配置 | `false` |
-| `--output-dir` | `-o` | 输出目录 | 当前目录 |
+| Parameter | Short | Description | Default |
+|-----------|-------|-------------|---------|
+| `--port` | `-p` | Service port | Interactive |
+| `--plugins` | | Plugin list (comma-separated) | Interactive |
+| `--with-docker` | | Generate Docker config | `true` |
+| `--with-k8s` | | Generate Kubernetes config | `false` |
+| `--output-dir` | `-o` | Output directory | Current dir |
 
-### 通用参数
+### Common Parameters
 
-| 参数 | 说明 | 默认值 |
-|---|---|---|
-| `--skip-install` | 跳过依赖安装 | `false` |
-| `--skip-git` | 跳过 git 初始化 | `false` |
-| `--dry-run` | 仅预览，不实际创建 | `false` |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--skip-install` | Skip dependency installation | `false` |
+| `--skip-git` | Skip git initialization | `false` |
+| `--dry-run` | Preview only, no actual creation | `false` |
 
-## 生成结构
+## Generated Structure
 
-### 插件结构
+### Plugin Structure
 
 ```text
 plugin-<name>/
 ├── pom.xml
 ├── README.md
-├── plugin-<name>-api/           # API 模块（可选）
+├── plugin-<name>-api/           # API module (optional)
 │   ├── pom.xml
 │   └── src/
-├── plugin-<name>-core/          # Core 模块
+├── plugin-<name>-core/          # Core module
 │   ├── pom.xml
 │   └── src/
-├── plugin-<name>-web/           # Web 前端（可选）
+├── plugin-<name>-web/           # Web frontend (optional)
 │   ├── package.json
 │   └── src/
-└── plugin-<name>-mobile/        # Mobile 前端（可选）
+└── plugin-<name>-mobile/        # Mobile frontend (optional)
     ├── package.json
     └── src/
 ```
 
-### 服务结构
+### Service Structure
 
 ```text
-shinwa-service-<name>/
+brix-service-<name>/
 ├── pom.xml
 ├── README.md
 ├── Dockerfile
@@ -102,7 +102,7 @@ shinwa-service-<name>/
 └── src/
     └── main/
         ├── java/
-        │   └── shinwa/service/<name>/
+        │   └── brix/service/<name>/
         │       ├── Application.java
         │       └── config/
         └── resources/
@@ -110,10 +110,10 @@ shinwa-service-<name>/
             └── db/migration/
 ```
 
-## Flyway 前缀分配
+## Flyway Prefix Allocation
 
-| 插件 | 前缀 |
-|---|---|
+| Plugin | Prefix |
+|--------|--------|
 | plugin-user | 001 |
 | plugin-contract | 002 |
 | plugin-file-center | 003 |
@@ -125,4 +125,4 @@ shinwa-service-<name>/
 
 ## License
 
-MIT
+Apache-2.0

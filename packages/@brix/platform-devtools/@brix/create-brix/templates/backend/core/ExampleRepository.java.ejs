@@ -1,0 +1,10 @@
+package <%= packageName %>.core.repository;
+
+import <%= packageName %>.core.entity.<%= classPrefix %>Entity;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface <%= classPrefix %>Repository extends JpaRepository<<%= classPrefix %>Entity, String> {
+
+    List<<%= classPrefix %>Entity> findByTenantId(String tenantId);
+}

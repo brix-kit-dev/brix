@@ -12,7 +12,6 @@
 
 import i18n from 'i18next';
 
-// Chinese translations
 const zhCN = {
   '<%= name.replace('plugin-', '') %>': {
     list: {
@@ -35,7 +34,6 @@ const zhCN = {
   },
 };
 
-// 英文翻译
 const enUS = {
   '<%= name.replace('plugin-', '') %>': {
     list: {
@@ -58,31 +56,21 @@ const enUS = {
   },
 };
 
-// 标记是否已添加翻译
 let translationsAdded = false;
 
-/**
- * 将插件翻译资源添加到基座的 i18n 实例
- * 
- * 该函数应该在每个暴露的组件入口处Calls，
- * 确保翻译资源在组件渲染前已添加到 i18n 实例
- */
 export function addPluginTranslations(): void {
   if (translationsAdded) {
     return;
   }
 
-  // 检查 i18n 是否已初始化
   if (!i18n.isInitialized) {
     console.warn('[<%= name %>-web] i18n not initialized yet, translations will be added later');
     return;
   }
 
-  // Add Chinese translations
   i18n.addResourceBundle('zh-CN', 'translation', zhCN, true, true);
   i18n.addResourceBundle('zh', 'translation', zhCN, true, true);
   
-  // 添加英文翻译
   i18n.addResourceBundle('en-US', 'translation', enUS, true, true);
   i18n.addResourceBundle('en', 'translation', enUS, true, true);
 

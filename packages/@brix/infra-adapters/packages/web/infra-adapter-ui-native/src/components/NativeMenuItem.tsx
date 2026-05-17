@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file Native Menu Item Component
  * @description Individual menu item component implementing MenuItemProps from UIAdapter contract.
  *              Used for custom menu item rendering scenarios.
- * @module @brix/infra-adapter-ui-native/components/NativeMenuItem
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeMenuItem
  * @version 3.1.0
  *
  * [Design Principles]
@@ -32,7 +32,7 @@
  */
 
 import type { FC, CSSProperties } from 'react';
-import type { MenuItemProps } from '@brix/runtime-sdk-api-web';
+import type { MenuItemProps } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 
 // ============================================================================

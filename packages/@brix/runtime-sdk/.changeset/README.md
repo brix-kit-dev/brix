@@ -7,34 +7,32 @@ find the full documentation for it [in our repository](https://github.com/change
 We have a quick list of common questions to get you started engaging with this project in
 [our documentation](https://github.com/changesets/changesets/blob/main/docs/common-questions.md)
 
-## 使用说明 / Usage
+## Usage
 
-### 添加变更集 / Adding a changeset
+### Adding a changeset
 
-当你完成一个功能或修复后，运行：
 When you complete a feature or fix, run:
 
 ```bash
 pnpm changeset
 ```
 
-### 版本更新 / Version bump
+### Version bump
 
-当准备发布时，运行：
 When ready to release, run:
 
 ```bash
 pnpm changeset version
 ```
 
-### 发布包 / Publishing packages
+### Publishing packages
 
 ```bash
 pnpm changeset publish
 ```
 
-## 变更类型 / Change Types
+## Change Types
 
-- **major**: 破坏性变更 / Breaking changes
-- **minor**: 新功能 / New features  
-- **patch**: Bug 修复 / Bug fixes
+- **major**: Breaking changes
+- **minor**: New features  
+- **patch**: Bug fixes

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file infra-adapter-state-web module entry
  * @description Brix UI State Management Adapter - Zustand-based plugin state isolation implementation
- * @module @brix/infra-adapter-state-web
+ * @module @brix-sdk/infra-adapter-state-web
  * @version 3.0.0
  * 
  * [Module Description]
@@ -29,15 +29,15 @@
  * - Plugins operate state through PluginStateCapability
  * 
  * [v3.0 Architectural Constraints (Red Lines)]
- * ❌ Plugins MUST NOT create global stores
- * ❌ Plugins MUST NOT access other plugins' state
- * ❌ Plugins MUST NOT use localStorage directly
- * ✅ Plugins operate isolated state through PluginStateCapability
- * ✅ Cross-plugin state sharing is done through EventBus
+ * ? Plugins MUST NOT create global stores
+ * ? Plugins MUST NOT access other plugins' state
+ * ? Plugins MUST NOT use localStorage directly
+ * ? Plugins operate isolated state through PluginStateCapability
+ * ? Cross-plugin state sharing is done through EventBus
  * 
  * [Usage] (Host layer only)
  * ```typescript
- * import { ZustandAdapter } from '@brix/infra-adapter-state-web';
+ * import { ZustandAdapter } from '@brix-sdk/infra-adapter-state-web';
  * 
  * const adapter = new ZustandAdapter({
  *   onStateChange: (event) => console.log(event),

@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +16,9 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest é…ç½®
+ * Vitest ÅäÖÃ
  * 
- * é’ˆå¯¹ @brix/platform-navigation-web çš„å•å…ƒæµ‹è¯•é…ç½®ã€‚
+ * Õë¶Ô @brix-sdk/platform-navigation-web µÄµ¥Ôª²âÊÔÅäÖÃ¡£
  */
 export default defineConfig({
   test: {

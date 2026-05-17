@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Native Modal Component
  * @description Pure CSS modal/dialog component implementing ModalProps from UIAdapter contract.
- * @module @brix/infra-adapter-ui-native/components/NativeModal
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeModal
  * @version 3.1.0
  */
 
@@ -27,7 +27,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { ModalProps, ModalSize } from '@brix/runtime-sdk-api-web';
+import type { ModalProps, ModalSize } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 import { NativeButton } from './NativeButton';
 
@@ -74,6 +74,7 @@ export const NativeModal: FC<ModalProps> = ({
   afterClose,
   style,
   className,
+  'data-testid': dataTestId,
   children,
 }) => {
   // Handle escape key press
@@ -217,7 +218,11 @@ export const NativeModal: FC<ModalProps> = ({
     if (onConfirm || onCancel) {
       return (
         <div style={footerStyle}>
-          <NativeButton variant="text" onClick={handleCancel}>
+          <NativeButton
+            variant="text"
+            onClick={handleCancel}
+            data-testid={dataTestId ? `${dataTestId}-cancel` : undefined}
+          >
             {cancelText}
           </NativeButton>
           {onConfirm && (
@@ -225,6 +230,7 @@ export const NativeModal: FC<ModalProps> = ({
               variant="primary"
               onClick={onConfirm}
               loading={confirmLoading}
+              data-testid={dataTestId ? `${dataTestId}-submit` : undefined}
             >
               {confirmText}
             </NativeButton>
@@ -244,6 +250,7 @@ export const NativeModal: FC<ModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
+      data-testid={dataTestId}
     >
       <div style={contentStyle} className={className} onClick={handleContentClick}>
         {/* Header */}
@@ -259,6 +266,7 @@ export const NativeModal: FC<ModalProps> = ({
                 style={closeButtonStyle}
                 onClick={onClose}
                 aria-label="Close modal"
+                data-testid={dataTestId ? `${dataTestId}-close` : undefined}
               >
                 <NativeIcon name="close" size="small" />
               </button>

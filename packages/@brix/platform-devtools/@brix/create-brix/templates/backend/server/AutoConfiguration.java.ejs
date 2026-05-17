@@ -1,0 +1,22 @@
+package <%= packageName %>.server.config;
+
+import <%= packageName %>.core.config.<%= classPrefix %>ModuleConfiguration;
+import <%= packageName %>.core.service.<%= classPrefix %>Service;
+import <%= packageName %>.server.controller.<%= classPrefix %>Controller;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+
+@AutoConfiguration
+@EnableConfigurationProperties(<%= classPrefix %>ServerProperties.class)
+@EnableJpaRepositories(basePackages = "<%= packageName %>.core.repository")
+@EntityScan(basePackages = "<%= packageName %>.core.entity")
+@Import({
+        <%= classPrefix %>ModuleConfiguration.class,
+        <%= classPrefix %>Service.class,
+        <%= classPrefix %>Controller.class
+})
+public class <%= classPrefix %>ServerAutoConfiguration {
+}

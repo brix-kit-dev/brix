@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +16,15 @@
 /**
  * @file useRuntimeContext Hook
  * @description React Hook for getting runtime context
- * @module @brix/runtime-sdk-react/hooks/useRuntimeContext
+ * @module @brix-sdk/runtime-sdk-react/hooks/useRuntimeContext
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
- * Migrated from @brix/runtime-sdk-api-web to a standalone React binding package.
+ * Migrated from @brix-sdk/runtime-sdk-api-web to a standalone React binding package.
  */
 
 import { useContext } from 'react';
-import type { RuntimeContext } from '@brix/runtime-sdk-api-web';
+import type { RuntimeContext } from '@brix-sdk/runtime-sdk-api-web';
 import { RuntimeContextReact } from '../context/RuntimeContextReact';
 
 /**

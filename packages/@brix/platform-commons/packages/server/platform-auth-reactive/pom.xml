@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    ============================================================================
+    Platform Auth Reactive — OAuth2 WebFlux Controllers + Reactive Infrastructure
+    ============================================================================
+
+    [D7 Refactoring — Solution B: Multi-runtime Support]
+    Provides the Reactive (WebFlux) runtime binding for platform-auth core:
+      - OAuth2LoginController: Reactive REST endpoints for OAuth2 login flow
+      - OAuth2UserService: Token exchange + user info retrieval via WebClient
+      - OAuth2Config: WebClient.Builder with Netty timeouts
+      - ReactiveStringRedisTemplate for CSRF-state and PKCE storage
+
+    [Architecture Layer]
+    Layer 2C: Capability Implementation (Reactive runtime binding).
+    Depends on platform-auth (core) for shared domain types (OAuth2Exception,
+    PkceGenerationException, OAuth2UserInfo). OAuth2Properties lives here
+    because it is purely an implementation detail of the reactive OAuth2 flow.
+
+    [When to use]
+    Include this dependency in any application that needs OAuth2 third-party
+    login with reactive HTTP I/O (WebClient). This is typical for:
+      - API Gateways (Spring Cloud Gateway — reactive by default)
+      - Standalone OAuth2 callback services
+      - Applications that benefit from non-blocking external HTTP calls
+
+    [Runtime Stack]
+    Spring WebFlux + Reactor Netty + Reactive Redis
+
+    [Open-source License]
+    Apache License 2.0
+    ============================================================================
+    -->
+
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-auth-reactive</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Platform Auth Reactive</name>
+    <description>Reactive runtime binding for platform-auth — OAuth2 WebFlux controllers, WebClient, ReactiveRedis.</description>
+
+    <dependencies>
+        <!-- platform-auth core (OAuth2Exception, PkceGenerationException, OAuth2UserInfo) -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-auth</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Spring WebFlux (reactive web stack) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <!-- Spring Boot AutoConfiguration support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Configuration Processor -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Reactive Redis (OAuth2 state + PKCE storage) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
+        <!-- Jackson JSON -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- SLF4J -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

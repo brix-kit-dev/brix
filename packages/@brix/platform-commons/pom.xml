@@ -31,7 +31,9 @@
         ├── platform-common/         # 公共 Entity/DTO/Exception
         ├── platform-common-starter/ # 服务注册/心跳/路由扫描/自动配置
         ├── platform-gateway/        # API 网关（路由、限流、熔断）
-        ├── platform-auth/           # 基础认证（JWT 验证、权限注解）
+        ├── platform-auth/           # 基础认证 Core（JWT 验证、权限注解、领域类型）
+        ├── platform-auth-servlet/   # 认证 Servlet 绑定（SecurityContextFilter）
+        ├── platform-auth-reactive/  # 认证 Reactive 绑定（OAuth2 WebFlux）
         ├── platform-observability/  # 可观测性（链路追踪、日志、指标）
         └── platform-config/         # 配置中心（基础配置下发）
     
@@ -42,7 +44,7 @@
 
     <groupId>io.brix.platform</groupId>
     <artifactId>platform-commons</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.2.0</version>
     <packaging>pom</packaging>
 
     <name>Platform Commons</name>
@@ -57,12 +59,13 @@
         
         <!--
         =============================================
-        Spring 版本（所有模块必须使用同一版本）
-        Spring Cloud 2025.0.0 对应 Spring Boot 3.5.x
+        Spring Version (all modules MUST use the same version)
+        Spring Cloud 2023.0.x corresponds to Spring Boot 3.2.x
+        Aligned with brix root POM spring-boot.version=3.2.2
         =============================================
         -->
-        <spring-boot.version>3.5.9</spring-boot.version>
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
+        <spring-boot.version>3.2.2</spring-boot.version>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
         
         <!-- 可观测性（通过 OpenTelemetry BOM 统一管理） -->
         <opentelemetry.version>1.44.1</opentelemetry.version>
@@ -83,8 +86,8 @@
         <!-- 测试 -->
         <testcontainers.version>1.20.4</testcontainers.version>
         
-        <!-- OpenAPI 文档生成（Phase 5: OpenAPI 驱动的前后端契约自动化） -->
-        <springdoc-openapi.version>2.8.5</springdoc-openapi.version>
+        <!-- OpenAPI 文档生成 — springdoc 2.3.0 for Spring Boot 3.2.x (Spring Framework 6.1.x) -->
+        <springdoc-openapi.version>2.3.0</springdoc-openapi.version>
     </properties>
 
     <!--
@@ -100,11 +103,18 @@
         <!-- 公共基础模块 -->
         <module>packages/server/platform-common</module>
         <module>packages/server/platform-common-starter</module>
+        <!-- 多租户能力模块（Phase 1 MVP - 数据库骨架） -->
+        <module>packages/server/platform-tenant</module>
         <!-- 平台能力模块 -->
         <module>packages/server/platform-gateway</module>
         <module>packages/server/platform-auth</module>
+        <module>packages/server/platform-auth-servlet</module>
+        <module>packages/server/platform-auth-reactive</module>
+        <module>packages/server/platform-auth-web</module>
         <module>packages/server/platform-observability</module>
         <module>packages/server/platform-config</module>
+        <!-- 平台超管服务模块（Phase P-2 — 超管 CRUD / 审计 / 租户视图） -->
+        <module>packages/server/platform-admin</module>
     </modules>
 
     <dependencyManagement>
@@ -155,6 +165,18 @@
                 <artifactId>platform-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            
+            <!-- ========== Runtime SDK API (Capability Contracts) ========== -->
+            <!--
+                Used by platform-common-starter to bridge Spring Cache
+                abstraction to StateStoreCapability. Declared here to
+                unify version across all platform-commons sub-modules.
+            -->
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>runtime-sdk-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.brix.platform</groupId>
                 <artifactId>platform-common-starter</artifactId>
@@ -172,12 +194,32 @@
             </dependency>
             <dependency>
                 <groupId>io.brix.platform</groupId>
+                <artifactId>platform-auth-servlet</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-auth-reactive</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-auth-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
                 <artifactId>platform-observability</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.brix.platform</groupId>
                 <artifactId>platform-config</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-admin</artifactId>
                 <version>${project.version}</version>
             </dependency>
             

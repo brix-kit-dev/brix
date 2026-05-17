@@ -109,7 +109,15 @@ public enum PlatformErrorCode {
     // ========== GATEWAY Gateway Errors (GATEWAY-*-*) ==========
     ROUTE_NOT_FOUND("GATEWAY-B-001", "Route not found", 404),
     RATE_LIMIT_EXCEEDED("GATEWAY-B-002", "Request rate limit exceeded", 429),
-    CIRCUIT_BREAKER_OPEN("GATEWAY-S-001", "Service circuit breaker open", 503);
+    CIRCUIT_BREAKER_OPEN("GATEWAY-S-001", "Service circuit breaker open", 503),
+
+    // ========== CAPABILITY Runtime Capability Errors (CAPABILITY-*-*) ==========
+    /** A required capability was not registered during startup. */
+    CAPABILITY_UNAVAILABLE("CAPABILITY-S-001", "Required capability is unavailable", 503),
+
+    // ========== TENANT Multi-Tenant Errors (TENANT-*-*) ==========
+    /** Request lacks a valid tenant context (missing or unresolvable tenant ID). */
+    TENANT_REQUIRED("TENANT-A-001", "Tenant context is required for this operation", 403);
 
     private final String code;
     private final String message;

@@ -1,0 +1,33 @@
+package <%= packageName %>.api.event;
+
+import io.runtime.sdk.event.IntegrationEvent;
+import io.runtime.sdk.event.SchemaVersion;
+
+@SchemaVersion(value = 1, minCompatible = 1)
+public class <%= classPrefix %>CreatedEvent extends IntegrationEvent {
+
+    private static final long serialVersionUID = 1L;
+    private static final String SOURCE_MODULE = "<%= fullName %>";
+
+    private final String <%= name.replace(/-/g, '') %>Id;
+    private final String tenantId;
+
+    public <%= classPrefix %>CreatedEvent(String <%= name.replace(/-/g, '') %>Id, String tenantId) {
+        super(SOURCE_MODULE, tenantId);
+        this.<%= name.replace(/-/g, '') %>Id = <%= name.replace(/-/g, '') %>Id;
+        this.tenantId = tenantId;
+    }
+
+    @Override
+    public String getRoutingKey() {
+        return "<%= name %>." + <%= name.replace(/-/g, '') %>Id;
+    }
+
+    public String get<%= classPrefix %>Id() {
+        return <%= name.replace(/-/g, '') %>Id;
+    }
+
+    public String getTenantId() {
+        return tenantId;
+    }
+}

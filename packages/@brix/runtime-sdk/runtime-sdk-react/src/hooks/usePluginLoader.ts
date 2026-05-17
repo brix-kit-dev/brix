@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file usePluginLoader Hook
  * @description Hook to access PluginLoaderCapability for remote component rendering
- * @module @brix/runtime-sdk-react/hooks/usePluginLoader
+ * @module @brix-sdk/runtime-sdk-react/hooks/usePluginLoader
  * @version 3.2.0
  *
  * [v3.2.0 Added - D6 Fix]
@@ -41,8 +41,8 @@
 
 import { useContext } from 'react';
 import { RuntimeContextReact } from '../context/RuntimeContextReact';
-import type { PluginLoaderCapability } from '@brix/runtime-sdk-api-web';
-import { PluginLoaderCapabilityType } from '@brix/runtime-sdk-api-web';
+import type { PluginLoaderCapability } from '@brix-sdk/runtime-sdk-api-web';
+import { PluginLoaderCapabilityType } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Hook Result Type - alias for PluginLoaderCapability

@@ -1,4 +1,4 @@
-﻿# <%= displayName %>
+# <%= displayName %>
 
 > 生成时间: <%= date %>
 
@@ -50,9 +50,9 @@ docker-compose logs -f <%= name %>
 |---|---|---|
 | `SERVER_PORT` | 服务Port | `<%= port %>` |
 | `PLATFORM_HOST_URL` | 基座地址 | `<%= baseUrl %>` |
-| `SHINWA_SERVICE_API_KEY` | API Key | `platform-service-key` |
-| `SHINWA_SERVICE_API_SECRET` | API Secret | `platform-service-secret` |
-| `DATABASE_URL` | 数据库连接 | `jdbc:postgresql://localhost:5432/shinwa` |
+| `BRIX_SERVICE_API_KEY` | API Key | `platform-service-key` |
+| `BRIX_SERVICE_API_SECRET` | API Secret | `platform-service-secret` |
+| `DATABASE_URL` | 数据库连接 | `jdbc:postgresql://localhost:5432/brix` |
 | `DATABASE_USERNAME` | 数据库用户 | `postgres` |
 | `DATABASE_PASSWORD` | 数据库密码 | `postgres` |
 
@@ -60,7 +60,7 @@ docker-compose logs -f <%= name %>
 
 ```yaml
 # application.yml
-shinwa:
+brix:
   service:
     name: <%= fullName %>
     base-url: ${PLATFORM_HOST_URL:<%= baseUrl %>}

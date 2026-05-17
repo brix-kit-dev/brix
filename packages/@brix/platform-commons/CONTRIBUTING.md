@@ -63,7 +63,7 @@ Platform Commons belongs to Layer 2C, the Capability Implementation Layer. It pr
 | Utility class | `XxxUtils` | `xxxUtils.ts` |
 | Constants | `XxxConstants` | `xxxConstants.ts` |
 | UI component | n/a | `PascalCase.tsx` |
-| Platform package | `platform-xxx` | `@brix/platform-xxx` |
+| Platform package | `platform-xxx` | `@brix-sdk/platform-xxx` |
 
 ### Testing Expectations
 

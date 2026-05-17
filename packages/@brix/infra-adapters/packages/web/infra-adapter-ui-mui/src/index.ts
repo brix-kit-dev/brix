@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,14 +15,14 @@
  */
 /**
  * @file MUI UI Adapter Package Entry Point
- * @description Main export file for @brix/infra-adapter-ui-mui package.
+ * @description Main export file for @brix-sdk/infra-adapter-ui-mui package.
  *              Exports the UIAdapter implementation and all component building blocks.
- * @module @brix/infra-adapter-ui-mui
+ * @module @brix-sdk/infra-adapter-ui-mui
  * @version 3.1.0
  *
  * This package provides a complete UIAdapter implementation using Material UI v5
  * with enterprise-grade components. It implements the UIAdapter contract defined
- * in @brix/runtime-sdk-api-web.
+ * in @brix-sdk/runtime-sdk-api-web.
  *
  * [Architectural Position - v3.0.4 Blueprint]
  * This package is part of the infra-adapters layer (Layer 2.5).
@@ -33,7 +33,7 @@
  * [Quick Start]
  * ```typescript
  * // Import the adapter
- * import { muiUIAdapter } from '@brix/infra-adapter-ui-mui';
+ * import { muiUIAdapter } from '@brix-sdk/infra-adapter-ui-mui';
  *
  * // Register in Host layer
  * context.registerCapability(UICapabilityType, muiUIAdapter);
@@ -60,6 +60,12 @@
 // ============================================================================
 
 export { muiUIAdapter, createMuiUIAdapter, default } from './adapter';
+
+// ============================================================================
+// Capability Impl Export (Phase 2.3)
+// ============================================================================
+
+export { UICapabilityImpl, type UICapabilityConfig } from './UICapabilityImpl';
 
 // ============================================================================
 // Component Exports (for advanced use cases)
@@ -95,8 +101,16 @@ export {
   useThemeMode,
 } from './theme/MuiThemeProvider';
 
+export { MuiDesignTokenResolver } from './theme/MuiDesignTokenResolver';
+
 // ============================================================================
 // Icon Exports
 // ============================================================================
 
 export { MuiIcon } from './icons/MuiIcon';
+
+// ============================================================================
+// Cross-cutting Components (v3.3.0 — C-1)
+// ============================================================================
+
+export { MuiErrorBoundary } from './components/MuiErrorBoundary';

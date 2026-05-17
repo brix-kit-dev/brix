@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,27 +16,27 @@
 /**
  * @file DynamicRouteRenderer
  * @description Dynamic Route Renderer Component - Dynamically renders React Router routes based on aggregated route configuration
- * @module @brix/platform-router-web/DynamicRouteRenderer
+ * @module @brix-sdk/platform-router-web/DynamicRouteRenderer
  * @version 3.0.0
  *
- * 【Design Notes】
+ * ��Design Notes��
  * Follows v3.0.4 blueprint Manifest-Driven architecture:
  * - Dynamically generates <Route> elements based on AggregatedRoute[]
  * - Integrates Module Federation lazy loading
  * - Supports permission guards
  * - Supports loading states and error handling
  *
- * 【Architecture Position】
+ * ��Architecture Position��
  * ```text
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │  Host Layer                                                             │
- * │  └── Uses <DynamicRouteRenderer routes={routes} />                      │
- * ├─────────────────────────────────────────────────────────────────────────┤
- * │  platform-router-web                                                    │
- * │  └── DynamicRouteRenderer ⭐                                            │
- * │       ├── Renders <Route> elements                                      │
- * │       └── Integrates MFPluginLoader lazy loading components             │
- * └─────────────────────────────────────────────────────────────────────────┘
+ * ������������������������������������������������������������������������������������������������������������������������������������������������������
+ * ��  Host Layer                                                             ��
+ * ��  ������ Uses <DynamicRouteRenderer routes={routes} />                      ��
+ * ������������������������������������������������������������������������������������������������������������������������������������������������������
+ * ��  platform-router-web                                                    ��
+ * ��  ������ DynamicRouteRenderer ?                                            ��
+ * ��       ������ Renders <Route> elements                                      ��
+ * ��       ������ Integrates MFPluginLoader lazy loading components             ��
+ * ������������������������������������������������������������������������������������������������������������������������������������������������������
  * ```
  */
 
@@ -57,7 +57,7 @@ import { Route } from 'react-router-dom';
  * This interface is structurally identical to AggregatedRoute in platform-navigation-web.
  * Due to circular dependency (platform-navigation-web depends on platform-router-web),
  * we cannot import from there. Keep this definition aligned with:
- * @see {@link @brix/platform-navigation-web/manifest/types.ts} AggregatedRoute
+ * @see {@link @brix-sdk/platform-navigation-web/manifest/types.ts} AggregatedRoute
  * 
  * [Phase 3.7 Architecture Review]
  * Canonical location: platform-navigation-web/src/manifest/types.ts
@@ -80,6 +80,21 @@ export interface AggregatedRoute {
 
   /** Required permission */
   permission?: string;
+
+  /**
+   * Phase 2 / C-4 — view-mode gate.
+   *
+   * If present, the route is only matchable when the active session's
+   * view mode is one of the listed values. Resolution is delegated to
+   * the {@code viewModeChecker} prop on {@link DynamicRouteRendererProps}
+   * (the router package itself does NOT couple to the ViewMode contract).
+   *
+   * Wire format mirrors {@code ViewMode} in {@code runtime-sdk-api-web}:
+   * `'PLATFORM_ADMIN' | 'TENANT_ACTOR' | 'TENANT_SUBJECT'`.
+   *
+   * @since 3.3.0
+   */
+  requiredViewMode?: readonly string[];
 
   /** Remote entry URL */
   remoteEntry: string;
@@ -110,6 +125,18 @@ export interface DynamicRouteRendererProps {
 
   /** Permission check function */
   permissionChecker?: PermissionChecker;
+
+  /**
+   * View-mode check function.
+   *
+   * Receives the {@code requiredViewMode} list declared by the route and
+   * MUST return {@code true} iff the active session's view mode is in the
+   * list. When omitted, routes that declare {@code requiredViewMode} are
+   * treated as always allowed (back-compat).
+   *
+   * @since 3.3.0
+   */
+  viewModeChecker?: (requiredViewMode: readonly string[]) => boolean;
 
   /** Loading component */
   loadingFallback?: ReactNode;
@@ -198,7 +225,7 @@ const DefaultUnauthorizedFallback: FC<{ route: AggregatedRoute }> = ({ route }) 
     padding: '48px',
     textAlign: 'center',
   }}>
-    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+    <div style={{ fontSize: '48px', marginBottom: '16px' }}>??</div>
     <h2 style={{ color: '#8c8c8c', margin: '0 0 8px 0' }}>
       Access Denied
     </h2>
@@ -252,7 +279,7 @@ function createLazyComponent(
  *
  * Dynamically renders React Router routes based on aggregated route configuration.
  *
- * 【Usage Example】
+ * ��Usage Example��
  * ```tsx
  * <DynamicRouteRenderer
  *   routes={aggregatedRoutes}
@@ -266,6 +293,7 @@ export const DynamicRouteRenderer: FC<DynamicRouteRendererProps> = ({
   routes,
   moduleLoader,
   permissionChecker,
+  viewModeChecker,
   loadingFallback = <DefaultLoadingFallback />,
   errorFallback: ErrorFallback = DefaultErrorFallback,
   unauthorizedFallback: UnauthorizedFallback = DefaultUnauthorizedFallback,
@@ -281,13 +309,24 @@ export const DynamicRouteRenderer: FC<DynamicRouteRendererProps> = ({
       const hasPermission = !route.permission || 
         (permissionChecker && permissionChecker(route.permission));
 
+      // View-mode check (Phase 2 / C-4). Routes that do not declare
+      // requiredViewMode are unrestricted; otherwise the host-supplied
+      // checker has the final say. When the checker is omitted we treat
+      // the route as allowed for backward compatibility.
+      const hasViewMode = !route.requiredViewMode
+        || route.requiredViewMode.length === 0
+        || !viewModeChecker
+        || viewModeChecker(route.requiredViewMode);
+
+      const isAllowed = hasPermission && hasViewMode;
+
       // Create lazy loading component
       const LazyComponent = createLazyComponent(route, moduleLoader, ErrorFallback);
 
       // Render content
       let content: ReactNode;
 
-      if (!hasPermission) {
+      if (!isAllowed) {
         content = <UnauthorizedFallback route={route} />;
       } else {
         content = (
@@ -298,7 +337,7 @@ export const DynamicRouteRenderer: FC<DynamicRouteRendererProps> = ({
       }
 
       // Apply wrapper
-      if (RouteWrapper && hasPermission) {
+      if (RouteWrapper && isAllowed) {
         content = (
           <RouteWrapper route={route}>
             {content}
@@ -314,7 +353,7 @@ export const DynamicRouteRenderer: FC<DynamicRouteRendererProps> = ({
         />
       );
     });
-  }, [routes, moduleLoader, permissionChecker, loadingFallback, ErrorFallback, UnauthorizedFallback, RouteWrapper]);
+  }, [routes, moduleLoader, permissionChecker, viewModeChecker, loadingFallback, ErrorFallback, UnauthorizedFallback, RouteWrapper]);
 
   return <>{routeElements}</>;
 };
@@ -331,6 +370,7 @@ export function createRouteElements(
   const {
     moduleLoader,
     permissionChecker,
+    viewModeChecker,
     loadingFallback = <DefaultLoadingFallback />,
     errorFallback: ErrorFallback = DefaultErrorFallback,
     unauthorizedFallback: UnauthorizedFallback = DefaultUnauthorizedFallback,
@@ -340,12 +380,17 @@ export function createRouteElements(
   return routes.map(route => {
     const hasPermission = !route.permission || 
       (permissionChecker && permissionChecker(route.permission));
+    const hasViewMode = !route.requiredViewMode
+      || route.requiredViewMode.length === 0
+      || !viewModeChecker
+      || viewModeChecker(route.requiredViewMode);
+    const isAllowed = hasPermission && hasViewMode;
 
     const LazyComponent = createLazyComponent(route, moduleLoader, ErrorFallback);
 
     let content: ReactNode;
 
-    if (!hasPermission) {
+    if (!isAllowed) {
       content = <UnauthorizedFallback route={route} />;
     } else {
       content = (
@@ -355,7 +400,7 @@ export function createRouteElements(
       );
     }
 
-    if (RouteWrapper && hasPermission) {
+    if (RouteWrapper && isAllowed) {
       content = (
         <RouteWrapper route={route}>
           {content}

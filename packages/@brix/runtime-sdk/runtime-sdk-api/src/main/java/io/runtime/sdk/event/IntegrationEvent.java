@@ -18,7 +18,10 @@ package io.runtime.sdk.event;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+
+import jakarta.annotation.Nonnull;
 
 /**
  * Integration Event Base Class
@@ -75,6 +78,34 @@ public abstract class IntegrationEvent implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
+     * Minimum schema version the runtime SDK accepts on the consumer side.
+     *
+     * <p><b>Schema evolution protocol (red-line R3.6):</b></p>
+     * <ul>
+     *   <li><b>MAJOR (multiples of 10)</b>: Breaking change. EventBus consumers
+     *       <b>must</b> reject events whose {@link #getSchemaVersion()} is
+     *       below the producer's declared {@link SchemaVersion#minCompatible()}.
+     *       Adapters log a WARN and skip the event &mdash; never throw, so a
+     *       single poison message cannot stop the consumer thread.</li>
+     *   <li><b>MINOR (1..9 between MAJORs)</b>: Additive only. Consumers must
+     *       remain backward-compatible: unknown fields are ignored, missing
+     *       optional fields fall back to documented defaults.</li>
+     *   <li>Event classes <b>should</b> be annotated with {@link SchemaVersion}
+     *       so the platform can enforce the protocol at build / publish /
+     *       consume time without depending on per-instance values that
+     *       producers can mutate.</li>
+     * </ul>
+     *
+     * <p>This constant defines the floor of versions the SDK will deserialize.
+     * It is intentionally {@code 1} so all historical events remain readable.
+     * Future SDK majors may raise this value once a deprecation window has
+     * elapsed.</p>
+     *
+     * @since 3.2.0
+     */
+    public static final int MIN_SUPPORTED_SCHEMA_VERSION = 1;
+
+    /**
      * Unique event identifier
      * 
      * <p>Used for idempotent consumption and event tracing, consumers should deduplicate using this ID</p>
@@ -122,6 +153,54 @@ public abstract class IntegrationEvent implements Serializable {
     private String causationId;
 
     /**
+     * Distributed trace ID for correlating events with OpenTelemetry traces.
+     *
+     * <p>When set, allows linking event processing to the originating distributed
+     * trace in observability tools (Jaeger, Zipkin, Grafana Tempo, etc.).
+     * Automatically populated from MDC / OpenTelemetry context by the EventBus
+     * adapter at publish time if not explicitly provided by the publisher.</p>
+     *
+     * <p>Format follows the W3C Trace Context specification (32-char hex string)
+     * when sourced from OpenTelemetry, or falls back to a UUID when no active
+     * trace context is available.</p>
+     *
+     * @since 3.2.0
+     */
+    @Nonnull
+    private String traceId;
+
+    /**
+     * Tenant ID this event belongs to.
+     *
+     * <p>Identifies the tenant context in which the event was produced.
+     * Automatically populated from {@code TenantContext} by the EventBus adapter
+     * if not explicitly set by the publisher.  Consumers <b>must</b> use this
+     * field to enforce tenant-level data isolation during event processing.</p>
+     *
+     * <p>When {@code tenantId} is {@code null} at publish time and
+     * {@code TenantContext} has no active tenant, the EventBus adapter will
+     * throw {@link IllegalArgumentException} to prevent cross-tenant data leaks.</p>
+     *
+     * @since 3.2.0
+     */
+    @Nonnull
+    private String tenantId;
+
+    /**
+     * Schema version for consumer-side compatibility checking.
+     *
+     * <p>Consumers should inspect this field to decide whether they can
+     * process the event.  When a breaking change is introduced to the event
+     * payload, the schema version must be incremented so that older consumers
+     * can skip or transform unsupported versions gracefully.</p>
+     *
+     * <p>Defaults to {@code 1} for all newly created events.</p>
+     *
+     * @since 3.2.0
+     */
+    private int schemaVersion = 1;
+
+    /**
      * Constructor
      * 
      * @param sourceModule source module identifier, cannot be empty
@@ -131,7 +210,7 @@ public abstract class IntegrationEvent implements Serializable {
         this.eventType = this.getClass().getName();
         this.timestamp = Instant.now();
         this.version = 1;
-        this.sourceModule = sourceModule;
+        this.sourceModule = Objects.requireNonNull(sourceModule, "sourceModule cannot be null");
     }
 
     /**
@@ -145,7 +224,45 @@ public abstract class IntegrationEvent implements Serializable {
         this.eventType = this.getClass().getName();
         this.timestamp = Instant.now();
         this.version = version;
-        this.sourceModule = sourceModule;
+        this.sourceModule = Objects.requireNonNull(sourceModule, "sourceModule cannot be null");
+    }
+
+    /**
+     * Constructor with tenant ID.
+     *
+     * <p>Preferred constructor for tenant-aware event publishing.
+     * If the caller does not know the tenant ID at construction time,
+     * use {@link #IntegrationEvent(String)} and let the EventBus adapter
+     * populate the tenant ID from {@code TenantContext} automatically.</p>
+     *
+     * @param sourceModule source module identifier, cannot be null
+     * @param tenantId     tenant identifier, may be null (auto-populated by adapter)
+     * @since 3.2.0
+     */
+    protected IntegrationEvent(String sourceModule, String tenantId) {
+        this.eventId = UUID.randomUUID().toString();
+        this.eventType = this.getClass().getName();
+        this.timestamp = Instant.now();
+        this.version = 1;
+        this.sourceModule = Objects.requireNonNull(sourceModule, "sourceModule cannot be null");
+        this.tenantId = tenantId;
+    }
+
+    /**
+     * Constructor with version number and tenant ID.
+     *
+     * @param sourceModule source module identifier, cannot be null
+     * @param version      event version number
+     * @param tenantId     tenant identifier, may be null (auto-populated by adapter)
+     * @since 3.2.0
+     */
+    protected IntegrationEvent(String sourceModule, int version, String tenantId) {
+        this.eventId = UUID.randomUUID().toString();
+        this.eventType = this.getClass().getName();
+        this.timestamp = Instant.now();
+        this.version = version;
+        this.sourceModule = Objects.requireNonNull(sourceModule, "sourceModule cannot be null");
+        this.tenantId = tenantId;
     }
 
     /**
@@ -233,9 +350,116 @@ public abstract class IntegrationEvent implements Serializable {
         return this;
     }
 
+    /**
+     * Get distributed trace ID.
+     *
+     * @return trace identifier for OpenTelemetry correlation
+     * @since 3.2.0
+     */
+    public String getTraceId() {
+        return traceId;
+    }
+
+    /**
+     * Set distributed trace ID.
+     *
+     * <p>Typically called by the EventBus adapter to auto-populate from the
+     * current OpenTelemetry span context or MDC at publish time.</p>
+     *
+     * @param traceId distributed trace identifier
+     * @since 3.2.0
+     */
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
+    }
+
+    /**
+     * Set distributed trace ID (fluent API).
+     *
+     * @param traceId distributed trace identifier
+     * @return current event instance (supports method chaining)
+     * @since 3.2.0
+     */
+    public IntegrationEvent withTraceId(String traceId) {
+        this.traceId = traceId;
+        return this;
+    }
+
+    /**
+     * Get tenant ID.
+     *
+     * @return tenant identifier, or {@code null} if not yet populated
+     * @since 3.2.0
+     */
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    /**
+     * Set tenant ID.
+     *
+     * <p>Typically called by the EventBus adapter to auto-populate
+     * from {@code TenantContext} when the publisher did not set it explicitly.</p>
+     *
+     * @param tenantId tenant identifier
+     * @since 3.2.0
+     */
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
+    }
+
+    /**
+     * Set tenant ID (fluent API).
+     *
+     * @param tenantId tenant identifier
+     * @return current event instance (supports method chaining)
+     * @since 3.2.0
+     */
+    public IntegrationEvent withTenantId(String tenantId) {
+        this.tenantId = tenantId;
+        return this;
+    }
+
+    /**
+     * Get schema version.
+     *
+     * @return schema version number (defaults to 1)
+     * @since 3.2.0
+     */
+    public int getSchemaVersion() {
+        return schemaVersion;
+    }
+
+    /**
+     * Set schema version.
+     *
+     * @param schemaVersion schema version number, must be positive
+     * @since 3.2.0
+     */
+    public void setSchemaVersion(int schemaVersion) {
+        if (schemaVersion < 1) {
+            throw new IllegalArgumentException("schemaVersion must be >= 1, got: " + schemaVersion);
+        }
+        this.schemaVersion = schemaVersion;
+    }
+
+    /**
+     * Set schema version (fluent API).
+     *
+     * @param schemaVersion schema version number, must be positive
+     * @return current event instance (supports method chaining)
+     * @since 3.2.0
+     */
+    public IntegrationEvent withSchemaVersion(int schemaVersion) {
+        setSchemaVersion(schemaVersion);
+        return this;
+    }
+
     @Override
     public String toString() {
-        return String.format("%s[eventId=%s, sourceModule=%s, routingKey=%s, timestamp=%s]",
-                getClass().getSimpleName(), eventId, sourceModule, getRoutingKey(), timestamp);
+        return String.format(
+                "%s[eventId=%s, sourceModule=%s, tenantId=%s, traceId=%s, routingKey=%s, schemaVersion=%d, timestamp=%s]",
+                getClass().getSimpleName(), eventId, sourceModule, tenantId, traceId, getRoutingKey(),
+                schemaVersion, timestamp);
     }
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file Native Menu Component
  * @description Pure CSS menu component implementing MenuProps from UIAdapter contract.
  *              Used by Shell layer to assemble Sidebar navigation.
- * @module @brix/infra-adapter-ui-native/components/NativeMenu
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeMenu
  * @version 3.1.0
  *
  * [Design Principles]
@@ -32,7 +32,7 @@
  */
 
 import { useState, useMemo, type FC, type CSSProperties } from 'react';
-import type { MenuProps, MenuItem } from '@brix/runtime-sdk-api-web';
+import type { MenuProps, MenuItem } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 
 // ============================================================================

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file @brix/runtime-sdk-api-web Unified Entry Point
+ * @file @brix-sdk/runtime-sdk-api-web Unified Entry Point
  * @description UI Capability Contract Definitions - Web Platform (Framework-agnostic)
- * @module @brix/runtime-sdk-api-web
+ * @module @brix-sdk/runtime-sdk-api-web
  * @version 3.2.1
  *
  * [Module Responsibilities]
@@ -34,7 +34,7 @@
  * - This module is a pure contract definition layer, containing no concrete implementations
  * - Framework-agnostic: No dependency on React/Vue/Angular or other UI frameworks
  * - Plugins only need to depend on this module
- * - For React bindings, use @brix/runtime-sdk-react
+ * - For React bindings, use @brix-sdk/runtime-sdk-react
  *
  * [v3.2.1 Refactoring Notes (v3.0.4 Architectural Constraint Fix)]
  * - Removed all 963 lines of inline type declarations, eliminating duplicate type export issues
@@ -44,7 +44,7 @@
  *
  * [v3.2 Refactoring Notes]
  * - Split into modular type files (types/)
- * - Removed React dependency, React Hooks migrated to @brix/runtime-sdk-react
+ * - Removed React dependency, React Hooks migrated to @brix-sdk/runtime-sdk-react
  * - RouteContribution.component type changed to framework-agnostic ComponentType
  */
 export * from './types';

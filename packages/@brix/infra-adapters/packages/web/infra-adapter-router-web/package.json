@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/infra-adapter-router-web",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/infra-adapter-router-web",
+  "version": "3.2.0",
   "description": "Brix UI router adapter - Routing via react-router",
   "type": "module",
   "main": "dist/index.js",
@@ -41,8 +41,8 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@brix/runtime-sdk-api-web": "^3.1.0",
-    "@brix/shared-runtime-web": "^1.0.0",
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/shared-runtime-web": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.0"

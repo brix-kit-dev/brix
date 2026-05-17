@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file retry.ts
  * @description HTTP request retry logic with exponential backoff
- * @module @brix/infra-adapter-http-web
+ * @module @brix-sdk/infra-adapter-http-web
  * @author Brix Platform Team
  * @version 3.1.0
  * 
@@ -31,9 +31,9 @@
  * - 3rd retry: ~4000ms
  * - Maximum delay: 30000ms
  * 
- * ã€æ¶æ„è¯´æ˜ã€‘
- * æœ¬æ¨¡å—å±äº v3.0 æ¶æ„çš„åŸºç¡€è®¾æ–½é€‚é…å±‚(Layer 2.5)ï¼Œ
- * æä¾›ä¸å…·ä½“ HTTP åº“è§£è€¦çš„é€šç”¨é‡è¯•èƒ½åŠ›ã€‚
+ * ¡¾¼Ü¹¹ËµÃ÷¡¿
+ * ±¾Ä£¿éÊôÓÚ v3.0 ¼Ü¹¹µÄ»ù´¡ÉèÊ©ÊÊÅä²ã(Layer 2.5)£¬
+ * Ìá¹©Óë¾ßÌå HTTP ¿â½âñîµÄÍ¨ÓÃÖØÊÔÄÜÁ¦¡£
  * 
  * Use Cases:
  * - Automatic retry for network instability
@@ -173,8 +173,8 @@ export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
  * delay = min(baseDelay * multiplier^(attempt-1), maxDelay) + random_jitter
  * ```
  * 
- * ã€å…³é”®ç®—æ³•ã€‘
- * æŒ‡æ•°é€€é¿ + éšæœºæŠ–åŠ¨å¯æœ‰æ•ˆé˜²æ­¢å¤šå®¢æˆ·ç«¯åŒæ—¶é‡è¯•å¯¼è‡´çš„"é›ªå´©æ•ˆåº”"
+ * ¡¾¹Ø¼üËã·¨¡¿
+ * Ö¸ÊıÍË±Ü + Ëæ»ú¶¶¶¯¿ÉÓĞĞ§·ÀÖ¹¶à¿Í»§¶ËÍ¬Ê±ÖØÊÔµ¼ÖÂµÄ"Ñ©±ÀĞ§Ó¦"
  * 
  * @param attempt - Current retry attempt number (starting from 1)
  * @param baseDelay - Base delay (milliseconds)
@@ -303,10 +303,10 @@ export function delay(ms: number): Promise<void> {
  * Wraps any async function to support automatic retry. When function execution fails,
  * it will automatically retry according to the configured retry strategy.
  * 
- * ã€å…³é”®ç‰¹æ€§ã€‘
- * - æ”¯æŒè‡ªå®šä¹‰é‡è¯•æ¡ä»¶
- * - æ”¯æŒå‰é‡è¯•å›è°ƒï¼ˆç”¨äºæ—¥å¿—/ç›‘æ§ï¼‰
- * - è¶…è¿‡æœ€å¤§é‡è¯•æ¬¡æ•°åæŠ›å‡ºæœ€åä¸€æ¬¡é”™è¯¯
+ * ¡¾¹Ø¼üÌØĞÔ¡¿
+ * - Ö§³Ö×Ô¶¨ÒåÖØÊÔÌõ¼ş
+ * - Ö§³ÖÇ°ÖØÊÔ»Øµ÷£¨ÓÃÓÚÈÕÖ¾/¼à¿Ø£©
+ * - ³¬¹ı×î´óÖØÊÔ´ÎÊıºóÅ×³ö×îºóÒ»´Î´íÎó
  * 
  * @typeParam T - Return value type
  * @param fn - Async function to execute

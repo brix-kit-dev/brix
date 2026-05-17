@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,9 +30,9 @@ export default defineConfig({
   external: [
     'react', 
     'react-router-dom', 
-    '@brix/runtime-sdk-api-web',
-    '@brix/platform-auth-ui-web',
-    '@brix/platform-auth-service-web',
+    '@brix-sdk/runtime-sdk-api-web',
+    '@brix-sdk/platform-auth-ui-web',
+    '@brix-sdk/platform-auth-service-web',
   ],
   treeshake: true,
 });

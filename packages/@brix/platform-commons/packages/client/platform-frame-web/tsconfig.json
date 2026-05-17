@@ -1,0 +1,27 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "declaration": true,
+    "declarationDir": "./dist",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@brix-sdk/runtime-sdk-api-web": ["../../runtime-sdk/runtime-sdk-api-web/src"],
+      "@brix-sdk/runtime-sdk-api-web/*": ["../../runtime-sdk/runtime-sdk-api-web/src/*"],
+      "@brix-sdk/runtime-sdk-react": ["../../runtime-sdk/runtime-sdk-react/src"],
+      "@brix-sdk/runtime-sdk-react/*": ["../../runtime-sdk/runtime-sdk-react/src/*"],
+      "@brix-sdk/runtime-sdk-shared": ["../../runtime-sdk/runtime-sdk-shared/src"],
+      "@brix-sdk/runtime-sdk-shared/*": ["../../runtime-sdk/runtime-sdk-shared/src/*"],
+      "@brix-sdk/platform-design-tokens": ["../platform-design-tokens/src"],
+      "@brix-sdk/platform-design-tokens/*": ["../platform-design-tokens/src/*"],
+      "@brix-sdk/platform-auth-web": ["../platform-auth-web/src"],
+      "@brix-sdk/platform-auth-web/*": ["../platform-auth-web/src/*"],
+      "@brix-sdk/platform-navigation-web": ["../platform-navigation-web/src"],
+      "@brix-sdk/platform-navigation-web/*": ["../platform-navigation-web/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -293,10 +293,11 @@ public class KafkaEventBusProperties {
      *   <li>{@code maxRetryCount} - Maximum retry count for failed sends</li>
      *   <li>{@code retentionDays} - Retention days for completed events</li>
      *   <li>{@code processIntervalMs} - Outbox polling interval (milliseconds)</li>
-     *   <li>{@code retryIntervalMs} - Failed event retry interval (milliseconds)</li>
-     *   <li>{@code cleanupCron} - Cron expression for completed event cleanup</li>
-     * </ul>
-     */
+         *   <li>{@code retryIntervalMs} - Failed event retry interval (milliseconds)</li>
+         *   <li>{@code cleanupCron} - Cron expression for completed event cleanup</li>
+         *   <li>{@code dlqTopicSuffix} - Dead-letter topic suffix for permanently failed events</li>
+         * </ul>
+         */
     public static class OutboxProperties {
 
         /** Maximum event batch size per processing. */
@@ -317,6 +318,9 @@ public class KafkaEventBusProperties {
         /** Cron expression for completed event cleanup (default: 3 AM daily). */
         private String cleanupCron = "0 0 3 * * ?";
 
+        /** Dead-letter topic suffix appended to original topic. */
+        private String dlqTopicSuffix = ".DLQ";
+
         // ==================== Getters & Setters ====================
 
         public int getBatchSize() { return batchSize; }
@@ -336,6 +340,9 @@ public class KafkaEventBusProperties {
 
         public String getCleanupCron() { return cleanupCron; }
         public void setCleanupCron(String cleanupCron) { this.cleanupCron = cleanupCron; }
+
+        public String getDlqTopicSuffix() { return dlqTopicSuffix; }
+        public void setDlqTopicSuffix(String dlqTopicSuffix) { this.dlqTopicSuffix = dlqTopicSuffix; }
     }
 
     /**

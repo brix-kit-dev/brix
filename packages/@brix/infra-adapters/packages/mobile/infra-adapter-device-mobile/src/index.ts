@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file infra-adapter-device-mobile Module Entry
  * @description Brix UI Mobile Device Capability Adapter - Camera, Location and other native capability wrapper
- * @module @brix/infra-adapter-device-mobile
+ * @module @brix-sdk/infra-adapter-device-mobile
  * @version 3.0.0
  * 
  * Module Description:
@@ -29,15 +29,15 @@
  * - Plugins operate device capabilities through the DeviceCapability contract
  * 
  * v3.0 Boundary Constraints:
- * ❌ Plugins must NOT directly use Native Modules
- * ❌ Plugins must NOT bypass permission checks
- * ❌ Plugins must NOT continuously track location in background (unless declared)
- * ✅ Plugins declare required capabilities through DeviceCapability
- * ✅ Permission requests are managed by Host
+ * ? Plugins must NOT directly use Native Modules
+ * ? Plugins must NOT bypass permission checks
+ * ? Plugins must NOT continuously track location in background (unless declared)
+ * ? Plugins declare required capabilities through DeviceCapability
+ * ? Permission requests are managed by Host
  * 
  * Usage (Host layer only):
  * ```typescript
- * import { DeviceCapabilityAdapter } from '@brix/infra-adapter-device-mobile';
+ * import { DeviceCapabilityAdapter } from '@brix-sdk/infra-adapter-device-mobile';
  * 
  * const adapter = new DeviceCapabilityAdapter();
  * 

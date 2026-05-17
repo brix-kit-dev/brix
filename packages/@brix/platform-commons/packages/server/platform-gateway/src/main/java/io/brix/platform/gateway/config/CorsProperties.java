@@ -22,41 +22,41 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 
 /**
- * CORS CORSconfigurationproperty
- * <p>
- * application.yml inreadCORS configuration，supportruntimeconfigurationandnoneedmodifygenerationcode
- * supportfromenvironmentchange{@code GATEWAY_ALLOWED_ORIGINS} readcomma-separatedofdomainnamewhitelist
- * </p>
- * 
- * <h3>configurationexample</h3>
- * <pre>
- * # wayone：YAML listconfiguration
+ * CORS (Cross-Origin Resource Sharing) whitelist configuration properties.
+ *
+ * <p>Reads CORS configuration from application.yml, supporting runtime
+ * configuration via environment variables without code changes.</p>
+ *
+ * <h3>Configuration Examples</h3>
+ * <pre>{@code
+ * # Option 1: YAML list configuration
  * gateway:
  *   cors:
  *     allowed-origin-patterns:
  *       - "https://www.your-domain.com"
  *       - "https://*.your-domain.com"
- * 
- * # waytwo：environmentvariableconfiguration（comma-separated
+ *
+ * # Option 2: Environment variable (comma-separated)
  * GATEWAY_ALLOWED_ORIGINS=https://www.example.com,https://*.example.com
- * 
- * # waythree：YAML inleaduseenvironmentchange
+ *
+ * # Option 3: YAML referencing environment variable
  * gateway:
  *   cors:
  *     allowed-origin-patterns: ${GATEWAY_ALLOWED_ORIGINS:*}
- * </pre>
- * 
- * <h3>securityrecommended</h3>
+ * }</pre>
+ *
+ * <h3>Production Security Requirements</h3>
  * <ul>
- *   <li>productionenvironmentmustconfigurationspecificofdomainnamewhitelist，prohibituse"*"</li>
- *   <li>enable warn-on-wildcard canonstartmovetimechecktestnotsecurityconfiguration</li>
- *   <li>set block-wildcard-in-production=true canpreventproductionenvironmentusepassconfiguration</li>
- *   <li>according toactualneedrequestlimitallowed-methods allowed-headers</li>
+ *   <li>Production MUST configure specific domain whitelist; wildcard "*" is forbidden</li>
+ *   <li>Enable {@code warn-on-wildcard} to detect insecure configuration at startup</li>
+ *   <li>Set {@code block-wildcard-in-production=true} to prevent application startup
+ *       with wildcard origins in production environment</li>
+ *   <li>Restrict {@code allowed-methods} and {@code allowed-headers} to actual needs</li>
  * </ul>
  *
- * @author Brix Platform Authors
- * @version 1.0.2
- * @see CorsConfig CORS filterconfigurationclass
+ * @author Brix Platform Team
+ * @version 2.0.0 (Phase 5.5 — Production Hardening)
+ * @see CorsConfig CORS filter configuration class
  */
 @ConfigurationProperties(prefix = "gateway.cors")
 public class CorsProperties {

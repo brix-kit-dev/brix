@@ -1,6 +1,6 @@
 {
-  "name": "@brix/shared-runtime-web",
-  "version": "1.0.0",
+  "name": "@brix-sdk/shared-runtime-web",
+  "version": "3.2.0",
   "description": "Brix Platform Web Runtime Dependencies - Single Source of Truth for Module Federation",
   "type": "module",
   "main": "./dist/index.js",
@@ -93,6 +93,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/brix-platform/brix"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=18.0.0"

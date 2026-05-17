@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Native Message API
  * @description Toast/snackbar message system implementing MessageAPI from UIAdapter contract.
- * @module @brix/infra-adapter-ui-native/components/NativeMessage
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeMessage
  * @version 3.1.0
  *
  * [Design Principles]
@@ -28,7 +28,7 @@
 
 import { createRoot, type Root } from 'react-dom/client';
 import { createElement, type FC, type CSSProperties } from 'react';
-import type { MessageAPI, MessageOptions, MessageDestroy, MessageType } from '@brix/runtime-sdk-api-web';
+import type { MessageAPI, MessageOptions, MessageDestroy, MessageType } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 
 // ============================================================================
@@ -240,7 +240,7 @@ class MessageManager {
       this.remove(opts.key);
     }
 
-    this.messages.push({ ...message, id: key });
+    this.messages = [...this.messages, { ...message, id: key }];
     this.render();
 
     // Set auto-dismiss timer (if duration > 0)
@@ -266,13 +266,11 @@ class MessageManager {
       this.timers.delete(key);
     }
 
-    // Find and remove message
-    const index = this.messages.findIndex(m => m.id === key);
-    if (index !== -1) {
-      const removed = this.messages.splice(index, 1)[0];
-      if (removed) {
-        removed.onClose?.();
-      }
+    // Find and remove message (immutable)
+    const removed = this.messages.find(m => m.id === key);
+    if (removed) {
+      this.messages = this.messages.filter(m => m.id !== key);
+      removed.onClose?.();
       this.render();
     }
   }

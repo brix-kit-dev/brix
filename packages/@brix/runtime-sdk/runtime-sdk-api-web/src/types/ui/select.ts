@@ -16,7 +16,7 @@
 /**
  * @file Select Component Type Definitions
  * @description Defines types for the Select component in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/select
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/select
  * @version 3.2.0
  */
 
@@ -63,6 +63,13 @@ export interface SelectOption {
    * If specified, indicates this item is a group header.
    */
   group?: string;
+
+  /**
+   * Test ID
+   *
+   * Data attribute for testing frameworks.
+   */
+  'data-testid'?: string;
 }
 
 /**
@@ -236,4 +243,11 @@ export interface SelectProps {
    * Custom CSS Class Name
    */
   className?: string;
+
+  /**
+   * Test ID
+   *
+   * Data attribute for testing frameworks.
+   */
+  'data-testid'?: string;
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Capability Registry Implementation
  * @description Manages UI runtime capability registration, querying and lifecycle
- * @module @brix/runtime-orchestrator-web/CapabilityRegistryImpl
+ * @module @brix-sdk/runtime-orchestrator-web/CapabilityRegistryImpl
  * @version 3.0.0
  * 
  * Design Notes:
@@ -39,7 +39,7 @@ import type {
   CapabilityStatus,
   CapabilityRuntimeInfo,
   CapabilityRegistry,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Capability registration entry

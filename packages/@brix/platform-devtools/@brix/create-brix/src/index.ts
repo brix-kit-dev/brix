@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file index.ts
  * @description Package Entry Point
- * @module @brix/create-brix
+ * @module @brix-sdk/create-brix
  * @version 3.0.4
  * 
  * v3.0.4 Changes:

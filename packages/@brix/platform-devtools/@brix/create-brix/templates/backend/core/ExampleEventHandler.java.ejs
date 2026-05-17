@@ -1,0 +1,30 @@
+package <%= packageName %>.core.handler;
+
+import io.runtime.sdk.context.RuntimeContext;
+import io.runtime.sdk.event.IntegrationEvent;
+import java.time.Duration;
+import org.springframework.stereotype.Component;
+
+@Component
+public class <%= classPrefix %>EventHandler {
+
+    private static final Duration IDEMPOTENCY_TTL = Duration.ofDays(7);
+    private static final String HANDLER_ID = "<%= fullName %>.<%= classPrefix %>EventHandler";
+
+    private final RuntimeContext runtimeContext;
+
+    public <%= classPrefix %>EventHandler(RuntimeContext runtimeContext) {
+        this.runtimeContext = runtimeContext;
+    }
+
+    protected boolean reserveEvent(IntegrationEvent event) {
+        String tenantId = event.getTenantId() == null || event.getTenantId().isBlank()
+                ? runtimeContext.getTenantId()
+                : event.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalStateException("Tenant id is required for event handling");
+        }
+        String key = tenantId + ":" + HANDLER_ID + ":" + event.getEventId();
+        return runtimeContext.getStateStore().putIfAbsent(key, HANDLER_ID, IDEMPOTENCY_TTL);
+    }
+}

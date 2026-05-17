@@ -1,0 +1,88 @@
+{
+  "name": "@brix-sdk/platform-admin-web",
+  "version": "3.2.0",
+  "description": "Platform Super-Admin Web SDK — Pages, Hooks, Repositories for the platform-admin backend (SSOT v1.0 §9).",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./module": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.js",
+      "require": "./dist/module.cjs"
+    },
+    "./pages": {
+      "types": "./dist/pages.d.ts",
+      "import": "./dist/pages.js",
+      "require": "./dist/pages.cjs"
+    },
+    "./hooks": {
+      "types": "./dist/hooks.d.ts",
+      "import": "./dist/hooks.js",
+      "require": "./dist/hooks.cjs"
+    },
+    "./repositories": {
+      "types": "./dist/repositories.d.ts",
+      "import": "./dist/repositories.js",
+      "require": "./dist/repositories.cjs"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "import": "./dist/constants.js",
+      "require": "./dist/constants.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "peerDependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/runtime-sdk-react": "workspace:*",
+    "react": "^18.2.0",
+    "react-router-dom": "^6.22.0"
+  },
+  "devDependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/runtime-sdk-react": "workspace:*",
+    "@testing-library/react": "^14.1.0",
+    "@types/react": "^18.2.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "react": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2",
+    "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "brix",
+    "platform",
+    "super-admin",
+    "rbac",
+    "audit",
+    "tenant-management"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}

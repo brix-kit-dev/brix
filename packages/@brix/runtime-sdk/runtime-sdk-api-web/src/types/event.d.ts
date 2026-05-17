@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Event-Related Type Definitions
  * @description Defines core types for the event system, including event messages, handlers, subscription options, etc.
- * @module @brix/runtime-sdk-api-web/types/event
+ * @module @brix-sdk/runtime-sdk-api-web/types/event
  * @version 3.2.0
  *
  * [v3.2 Changes]

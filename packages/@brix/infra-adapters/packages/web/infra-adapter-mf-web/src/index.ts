@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,44 +16,44 @@
 /**
  * @file infra-adapter-mf-web module entry
  * @description Brix UI Module Federation Adapter - MF-based plugin loading implementation
- * @module @brix/infra-adapter-mf-web
+ * @module @brix-sdk/infra-adapter-mf-web
  * @version 3.0.0
  * 
- * 【Module Description】
+ * ��Module Description��
  * This module is a UI adapter layer component in the v3.0 Runtime Shell architecture,
  * providing Module Federation based plugin loading capability.
  * 
- * 【Architectural Position】
+ * ��Architectural Position��
  * ```
- * ┌─────────────────────────────────────┐
- * │  Plugin Layer                       │
- * │  Business Modules (booking-web etc) │
- * └───────────────┬─────────────────────┘
- *                 │ loaded by
- * ┌───────────────▼─────────────────────┐
- * │  Host Layer (platform-host-web)    │
- * │  Plugin assembly and routing       │
- * └───────────────┬─────────────────────┘
- *                 │ uses
- * ┌───────────────▼─────────────────────┐
- * │  Adapter Layer (@brix/infra-adapter-mf-web)│  ← This module
- * │  MFPluginLoader, MFContainer        │
- * └───────────────┬─────────────────────┘
- *                 │ implements
- * ┌───────────────▼─────────────────────┐
- * │  Contract Layer (runtime-sdk-api-web)│
- * │  PluginLoader interface definition  │
- * └─────────────────────────────────────┘
+ * ������������������������������������������������������������������������������
+ * ��  Plugin Layer                       ��
+ * ��  Business Modules (booking-web etc) ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� loaded by
+ * ������������������������������������������������������������������������������
+ * ��  Host Layer (platform-host-web)    ��
+ * ��  Plugin assembly and routing       ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� uses
+ * ������������������������������������������������������������������������������
+ * ��  Adapter Layer (@brix-sdk/infra-adapter-mf-web)��  �� This module
+ * ��  MFPluginLoader, MFContainer        ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� implements
+ * ������������������������������������������������������������������������������
+ * ��  Contract Layer (runtime-sdk-api-web)��
+ * ��  PluginLoader interface definition  ��
+ * ������������������������������������������������������������������������������
  * ```
  * 
- * 【Core Components】
+ * ��Core Components��
  * - MFPluginLoader: Plugin loader implementing PluginLoader interface
  * - MFContainerManager: Remote container manager
  * - MFSharedConfig: Shared dependency configuration
  * 
- * 【Usage Example】
+ * ��Usage Example��
  * ```typescript
- * import { MFPluginLoader } from '@brix/infra-adapter-mf-web';
+ * import { MFPluginLoader } from '@brix-sdk/infra-adapter-mf-web';
  * 
  * // Create loader
  * const loader = new MFPluginLoader({
@@ -77,7 +77,7 @@
  * <plugin.component />
  * ```
  * 
- * 【v3.0 Architectural Constraints】
+ * ��v3.0 Architectural Constraints��
  * - This loader is only for Host Layer use
  * - Plugins should not directly depend on this module
  * - All loading behaviors must be observable
@@ -140,6 +140,12 @@ export {
   getRemoteComponentCacheSize,
   type RemoteComponentProps,
 } from './RemoteComponent';
+
+// ========== Capability Impl (Phase 2.4) ==========
+export {
+  PluginLoaderCapabilityImpl,
+  type PluginLoaderCapabilityConfig,
+} from './PluginLoaderCapabilityImpl';
 
 // ========== Version Info ==========
 export const VERSION = '3.2.0';

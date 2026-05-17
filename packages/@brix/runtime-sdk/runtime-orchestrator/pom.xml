@@ -22,25 +22,26 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>runtime-sdk-parent</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     
     <artifactId>runtime-orchestrator</artifactId>
     <name>Brix Runtime Orchestrator</name>
     <description>
-        运行时编排引擎，负责模块的注册、生命周期管理和事件分发�?
-        Host 层通过此模块管理和协调所有模块的运行�?
+        Runtime orchestration engine responsible for module registration, lifecycle management,
+        and event dispatching. The Host layer uses this module to manage and coordinate all
+        module operations.
     </description>
     
     <dependencies>
-        <!-- Runtime SDK API（包含契约接口和便利包装） -->
+        <!-- Runtime SDK API (contains contract interfaces and convenience wrappers) -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
         
-        <!-- Runtime Manifest（用于 ManifestDrivenEventDispatcher 和能力验证） -->
+        <!-- Runtime Manifest (used by ManifestDrivenEventDispatcher and capability validation) -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-manifest</artifactId>
@@ -53,13 +54,13 @@
         </dependency>
 
         <!--
-          Spring Boot AutoConfigure（可选依赖）
+          Spring Boot AutoConfigure (optional dependency)
           
-          用于 CapabilityAutoConfiguration 的自动配置支持。
-          设为 optional=true，不强制引入 Spring Boot。
-          如果使用方不需要自动配置，可以不引入 Spring Boot。
+          Provides auto-configuration support for CapabilityAutoConfiguration.
+          Set to optional=true so Spring Boot is not forcefully included.
+          If consumers do not need auto-configuration, they can skip Spring Boot.
           
-          v3.0.4 架构红线修复：从 Host 层提取能力扫描逻辑到编排层
+          v3.0.4 architecture guardrail fix: extracted capability scanning logic from Host layer to orchestration layer
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -68,12 +69,12 @@
         </dependency>
         
         <!--
-          Spring Web（可选依赖）
+          Spring Web (optional dependency)
           
-          用于 PluginRegistryEndpoint 暴露 /api/plugins REST 端点。
-          设为 optional=true，仅在 Host 引入 spring-boot-starter-web 时激活。
+          Used by PluginRegistryEndpoint to expose the /api/plugins REST endpoint.
+          Set to optional=true; only activated when the Host includes spring-boot-starter-web.
           
-          v3.0.5 插件动态发现：从 ModuleRegistry 读取已注册模块，暴露给前端
+          v3.0.5 plugin dynamic discovery: reads registered modules from ModuleRegistry and exposes them to the frontend
         -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -81,7 +82,7 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- Jakarta Annotation API（用于 @PostConstruct） -->
+        <!-- Jakarta Annotation API (for @PostConstruct) -->
         <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
@@ -89,14 +90,29 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- Jackson（用于 UI Manifest JSON 解析） -->
+        <!-- Jackson (for UI Manifest JSON parsing) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>2.15.3</version>
             <optional>true</optional>
         </dependency>
-        
+
+        <!--
+          JSON Schema Validator (for plugin-manifest.json fail-fast validation, P0-2 / R3.7)
+
+          Used by UIManifestLoader to validate every classpath plugin-manifest.json
+          against the bundled META-INF/schemas/plugin-manifest.schema.json at startup.
+          NOT optional: UIManifestLoader hard-depends on this validator to honour the
+          fail-fast contract; making it optional would silently degrade validation in
+          consumer Hosts that forget to pull it.
+        -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.5.6</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

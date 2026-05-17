@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI UI Adapter
  * @description Complete UIAdapter implementation using Material UI v5.
  *              Production-grade atomic components for enterprise applications.
- * @module @brix/infra-adapter-ui-mui/adapter
+ * @module @brix-sdk/infra-adapter-ui-mui/adapter
  * @version 3.1.0
  *
  * [Design Principles]
@@ -29,7 +29,7 @@
  * [Architectural Position - v3.0.4 Blueprint]
  * This adapter is selected at Host layer configuration and provides atomic components
  * for Shell layer layout assembly. It implements the UIAdapter interface defined in
- * @brix/runtime-sdk-api-web.
+ * @brix-sdk/runtime-sdk-api-web.
  *
  * [Component Summary]
  * - Form Components: MuiButton, MuiInput, MuiSelect
@@ -44,10 +44,10 @@
  * They are assembled at Shell layer using these atomic components.
  */
 
-import type { UIAdapter, ThemeTokens } from '@brix/runtime-sdk-api-web';
-import { MUI_THEME_TOKENS } from '@brix/runtime-sdk-api-web';
+import type { UIAdapter, ThemeTokens } from '@brix-sdk/runtime-sdk-api-web';
+import { BRIX_LIGHT_THEME_TOKENS } from '@brix-sdk/platform-design-tokens';
 
-// Component imports
+// Component imports - Original
 import { MuiButton } from './components/MuiButton';
 import { MuiInput } from './components/MuiInput';
 import { MuiSelect } from './components/MuiSelect';
@@ -61,6 +61,47 @@ import { MuiModal } from './components/MuiModal';
 import { muiMessageAPI } from './components/MuiMessage';
 import { MuiThemeProvider, getMuiThemeTokens } from './theme/MuiThemeProvider';
 import { MuiIcon } from './icons/MuiIcon';
+
+// Component imports - Phase 2: BrixUI Extension
+// Layout Components
+import { MuiBox } from './components/MuiBox';
+import { MuiStack } from './components/MuiStack';
+import { MuiPaper } from './components/MuiPaper';
+import { MuiDivider } from './components/MuiDivider';
+
+// Typography Components
+import { MuiTypography } from './components/MuiTypography';
+
+// Data Display Components
+import { MuiTable } from './components/MuiTable';
+import { MuiTag } from './components/MuiTag';
+import { MuiList, MuiListItem } from './components/MuiList';
+import { MuiEmpty } from './components/MuiEmpty';
+import { MuiPagination } from './components/MuiPagination';
+
+// Form Components - Extended
+import { MuiCheckbox } from './components/MuiCheckbox';
+import { MuiSwitch } from './components/MuiSwitch';
+import { MuiRadio, MuiRadioGroup } from './components/MuiRadio';
+import { MuiForm, MuiFormItem } from './components/MuiForm';
+
+// Feedback Components
+import { MuiAlert } from './components/MuiAlert';
+import { MuiSpin } from './components/MuiSpin';
+import { MuiProgress } from './components/MuiProgress';
+
+// Navigation Components - Extended
+import { MuiTabs, MuiTabPane } from './components/MuiTabs';
+import { MuiBreadcrumb } from './components/MuiBreadcrumb';
+import { MuiSteps } from './components/MuiSteps';
+
+// Container Components
+import { MuiDrawer } from './components/MuiDrawer';
+import { MuiCollapse, MuiCollapsePanel } from './components/MuiCollapse';
+import { MuiPopover } from './components/MuiPopover';
+import { MuiPopconfirm } from './components/MuiPopconfirm';
+import { MuiErrorBoundary } from './components/MuiErrorBoundary';
+import { MuiSkeleton } from './components/MuiSkeleton';
 
 // ============================================================================
 // Types
@@ -107,7 +148,7 @@ export interface UIAdapterConfig {
  * @example
  * ```typescript
  * // In Host layer configuration
- * import { muiUIAdapter } from '@brix/infra-adapter-ui-mui';
+ * import { muiUIAdapter } from '@brix-sdk/infra-adapter-ui-mui';
  *
  * // Register as UI capability
  * context.registerCapability(UICapabilityType, muiUIAdapter);
@@ -249,6 +290,175 @@ export const muiUIAdapter: UIAdapter = {
    * <p>Name-based icon lookup from @mui/icons-material.</p>
    */
   Icon: MuiIcon,
+
+  // ========================================
+  // Phase 2: BrixUI Extension Components
+  // ========================================
+
+  // Layout Components
+  /**
+   * Box Component - Universal layout container
+   */
+  Box: MuiBox,
+
+  /**
+   * Stack Component - Flexbox layout
+   */
+  Stack: MuiStack,
+
+  /**
+   * Paper Component - Elevated surface
+   */
+  Paper: MuiPaper,
+
+  /**
+   * Divider Component - Visual separator
+   */
+  Divider: MuiDivider,
+
+  // Typography Components
+  /**
+   * Typography Component - Text display
+   */
+  Typography: MuiTypography,
+
+  // Data Display Components
+  /**
+   * Table Component - Data table with sorting and selection
+   */
+  Table: MuiTable,
+
+  /**
+   * Tag Component - Label/chip display
+   */
+  Tag: MuiTag,
+
+  /**
+   * List Component - Vertical list container
+   */
+  List: MuiList,
+
+  /**
+   * ListItem Component - List item
+   */
+  ListItem: MuiListItem,
+
+  /**
+   * Empty Component - Empty state display
+   */
+  Empty: MuiEmpty,
+
+  /**
+   * Pagination Component - Page navigation
+   */
+  Pagination: MuiPagination,
+
+  // Extended Form Components
+  /**
+   * Checkbox Component - Binary selection
+   */
+  Checkbox: MuiCheckbox,
+
+  /**
+   * Switch Component - Toggle control
+   */
+  Switch: MuiSwitch,
+
+  /**
+   * Radio Component - Single selection
+   */
+  Radio: MuiRadio,
+
+  /**
+   * RadioGroup Component - Radio button group
+   */
+  RadioGroup: MuiRadioGroup,
+
+  /**
+   * Form Component - Form container
+   */
+  Form: MuiForm,
+
+  /**
+   * FormItem Component - Form field wrapper
+   */
+  FormItem: MuiFormItem,
+
+  // Extended Feedback Components
+  /**
+   * Alert Component - Static notification banner
+   */
+  Alert: MuiAlert,
+
+  /**
+   * Spin Component - Loading indicator
+   */
+  Spin: MuiSpin,
+
+  /**
+   * Progress Component - Progress indicator
+   */
+  Progress: MuiProgress,
+
+  // Extended Navigation Components
+  /**
+   * Tabs Component - Tabbed navigation
+   */
+  Tabs: MuiTabs,
+
+  /**
+   * TabPane Component - Tab panel
+   */
+  TabPane: MuiTabPane,
+
+  /**
+   * Breadcrumb Component - Navigation trail
+   */
+  Breadcrumb: MuiBreadcrumb,
+
+  /**
+   * Steps Component - Wizard/stepper navigation
+   */
+  Steps: MuiSteps,
+
+  // Container Components
+  /**
+   * Drawer Component - Slide-in panel
+   */
+  Drawer: MuiDrawer,
+
+  /**
+   * Collapse Component - Expandable sections
+   */
+  Collapse: MuiCollapse,
+
+  /**
+   * CollapsePanel Component - Collapse panel
+   */
+  CollapsePanel: MuiCollapsePanel,
+
+  /**
+   * Popover Component - Floating card
+   */
+  Popover: MuiPopover,
+
+  /**
+   * Popconfirm Component - Inline confirmation popover
+   */
+  Popconfirm: MuiPopconfirm,
+
+  // Cross-cutting Components (v3.3.0 Frontend Stability Reform Plan v1.0 — C-1)
+  /**
+   * ErrorBoundary Component - React render-time exception isolator
+   */
+  ErrorBoundary: MuiErrorBoundary,
+
+  // Cross-cutting Components (v3.3.0 Frontend Stability Reform Plan v1.0 — C-7)
+  /**
+   * Skeleton Component - CLS-stable loading placeholder consumed by
+   * `usePageState().render()` and any plugin needing structural skeletons.
+   */
+  Skeleton: MuiSkeleton,
 };
 
 // ============================================================================
@@ -288,7 +498,7 @@ export const muiUIAdapter: UIAdapter = {
 export function createMuiUIAdapter(config?: UIAdapterConfig): UIAdapter {
   // Build custom tokens based on config
   const customTokens: ThemeTokens = {
-    ...MUI_THEME_TOKENS,
+    ...BRIX_LIGHT_THEME_TOKENS,
     ...(config?.primaryColor && { primary: config.primaryColor }),
     ...(config?.borderRadius !== undefined && {
       borderRadiusSmall: Math.floor(config.borderRadius * 0.5),

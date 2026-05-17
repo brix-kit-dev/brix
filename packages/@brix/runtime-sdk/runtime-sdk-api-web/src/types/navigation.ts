@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Navigation-Related Type Definitions
  * @description Defines core types for the navigation system, including navigation options, route change listening, etc.
- * @module @brix/runtime-sdk-api-web/types/navigation
+ * @module @brix-sdk/runtime-sdk-api-web/types/navigation
  * @version 3.2.0
  *
  * [v3.2 Changes]
@@ -333,29 +333,3 @@ export type NavigationOptions = NavigateOptions;
  * <p>Used to listen for route change events.</p>
  */
 export type RouteChangeListener = (path: string) => void;
-
-// =========================================
-// Router Capability (Compatibility Alias)
-// =========================================
-
-/**
- * Router Capability Type Identifier (Compatibility Alias)
- *
- * @deprecated Please use NavigationCapabilityType.
- *             This alias will be removed in v4.0.0.
- *
- * @since 3.0.0
- * @see NavigationCapabilityType
- */
-export const RouterCapabilityType = NavigationCapabilityType;
-
-/**
- * Router Capability (Compatibility Alias)
- *
- * @deprecated Please use NavigationCapability.
- *             This alias will be removed in v4.0.0.
- *
- * @since 3.0.0
- * @see NavigationCapability
- */
-export type RouterCapability = NavigationCapability;

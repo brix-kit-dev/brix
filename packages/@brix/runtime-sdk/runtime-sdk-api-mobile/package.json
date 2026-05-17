@@ -1,15 +1,16 @@
-﻿{
-  "name": "@brix/runtime-sdk-api-mobile",
-  "version": "1.0.0",
-  "description": "Brix Runtime SDK API - React Native Mobile Platform（移动平台能力契约定义）",
+{
+  "name": "@brix-sdk/runtime-sdk-api-mobile",
+  "version": "3.2.0",
+  "description": "Brix Runtime SDK API - React Native Mobile Platform capability contracts",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "default": "./dist/index.js"
     }
   },
   "files": [
@@ -31,5 +32,15 @@
     "react-native": {
       "optional": true
     }
+  },
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/runtime-sdk.git",
+    "directory": "runtime-sdk-api-mobile"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

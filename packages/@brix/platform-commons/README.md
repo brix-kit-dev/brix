@@ -1,4 +1,4 @@
-ï»¿# Platform Commons
+# Platform Commons
 
 > Version: 3.0.0-SNAPSHOT  
 > License: Apache License 2.0
@@ -11,11 +11,11 @@ Platform Commons is part of Layer 2C in the Brix Runtime Shell architecture. It 
 
 ```text
 Layer 3: Host Assembly Layer                 <- imports these modules for composition
-    â†“
+    ¡ý
 Layer 2C: Capability Implementation Layer    <- this repository
-    â†“ implements
+    ¡ý implements
 Layer 2A: Capability Contract Layer          <- runtime-sdk API packages
-    â†‘ only dependency allowed for plugins
+    ¡ü only dependency allowed for plugins
 Layer 1: Plugin Layer                        <- must not depend directly on platform implementations
 ```
 
@@ -34,25 +34,25 @@ Layer 1: Plugin Layer                        <- must not depend directly on plat
 
 ```text
 packages/
-â”œâ”€â”€ client/
-â”‚   â”œâ”€â”€ platform-auth-service-web/
-â”‚   â”œâ”€â”€ platform-auth-ui-web/
-â”‚   â”œâ”€â”€ platform-auth-web/
-â”‚   â”œâ”€â”€ platform-config-web/
-â”‚   â”œâ”€â”€ platform-eventbus-web/
-â”‚   â”œâ”€â”€ platform-i18n-web/
-â”‚   â”œâ”€â”€ platform-navigation-web/
-â”‚   â”œâ”€â”€ platform-router-web/
-â”‚   â”œâ”€â”€ platform-shared/
-â”‚   â””â”€â”€ platform-state-web/
-â””â”€â”€ server/
-    â”œâ”€â”€ platform-auth/
-    â”œâ”€â”€ platform-common/
-    â”œâ”€â”€ platform-common-starter/
-    â”œâ”€â”€ platform-config/
-    â”œâ”€â”€ platform-gateway/
-    â”œâ”€â”€ platform-observability/
-    â””â”€â”€ platform-parent/
+©À©¤©¤ client/
+©¦   ©À©¤©¤ platform-auth-service-web/
+©¦   ©À©¤©¤ platform-auth-ui-web/
+©¦   ©À©¤©¤ platform-auth-web/
+©¦   ©À©¤©¤ platform-config-web/
+©¦   ©À©¤©¤ platform-eventbus-web/
+©¦   ©À©¤©¤ platform-i18n-web/
+©¦   ©À©¤©¤ platform-navigation-web/
+©¦   ©À©¤©¤ platform-router-web/
+©¦   ©À©¤©¤ platform-shared/
+©¦   ©¸©¤©¤ platform-state-web/
+©¸©¤©¤ server/
+    ©À©¤©¤ platform-auth/
+    ©À©¤©¤ platform-common/
+    ©À©¤©¤ platform-common-starter/
+    ©À©¤©¤ platform-config/
+    ©À©¤©¤ platform-gateway/
+    ©À©¤©¤ platform-observability/
+    ©¸©¤©¤ platform-parent/
 ```
 
 ## Representative Capability Areas
@@ -61,11 +61,11 @@ packages/
 
 | Module | Package | Primary Responsibility |
 |--------|---------|------------------------|
-| Authentication | `@brix/platform-auth-web`, `@brix/platform-auth-service-web`, `@brix/platform-auth-ui-web` | identity integration and user-facing auth flows |
-| Eventing | `@brix/platform-eventbus-web` | governed event transport for web plugins |
-| Configuration | `@brix/platform-config-web` | runtime configuration access |
-| Navigation | `@brix/platform-navigation-web`, `@brix/platform-router-web` | routing and navigation orchestration |
-| Shared runtime helpers | `@brix/platform-shared`, `@brix/platform-state-web`, `@brix/platform-i18n-web` | shared client-side platform capabilities |
+| Authentication | `@brix-sdk/platform-auth-web`, `@brix-sdk/platform-auth-service-web`, `@brix-sdk/platform-auth-ui-web` | identity integration and user-facing auth flows |
+| Eventing | `@brix-sdk/platform-eventbus-web` | governed event transport for web plugins |
+| Configuration | `@brix-sdk/platform-config-web` | runtime configuration access |
+| Navigation | `@brix-sdk/platform-navigation-web`, `@brix-sdk/platform-router-web` | routing and navigation orchestration |
+| Shared runtime helpers | `@brix-sdk/platform-shared`, `@brix-sdk/platform-state-web`, `@brix-sdk/platform-i18n-web` | shared client-side platform capabilities |
 
 ### Server Modules
 
@@ -94,7 +94,7 @@ packages/
 ### Frontend Dependency
 
 ```bash
-pnpm add @brix/platform-auth-web
+pnpm add @brix-sdk/platform-auth-web
 ```
 
 ## Naming Conventions

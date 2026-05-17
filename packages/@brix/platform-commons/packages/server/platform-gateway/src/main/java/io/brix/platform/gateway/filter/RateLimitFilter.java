@@ -18,6 +18,7 @@ package io.brix.platform.gateway.filter;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,11 +28,15 @@ import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -94,6 +99,8 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
      */
     private final RateLimitConfig rateLimitConfig;
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     public RateLimitFilter(RateLimitConfig rateLimitConfig) {
         this.rateLimitConfig = rateLimitConfig;
     }
@@ -110,8 +117,8 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
         String routeId = (route != null && route.getId() != null) ? route.getId() : "default";
 
-        // Get corresponding rate limiter
-        RateLimiter rateLimiter = rateLimitConfig.getRateLimiterForRoute(routeId);
+        // Phase 4.6: Try per-tenant rate limiter first
+        RateLimiter rateLimiter = resolveRateLimiter(exchange, routeId);
         if (rateLimiter == null) {
             return chain.filter(exchange);
         }
@@ -122,22 +129,81 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
         try {
             permitted = rateLimiter.acquirePermission();
         } catch (RequestNotPermitted e) {
-            // explicitthrowoutexceptionofsituation
             permitted = false;
         }
 
         if (permitted) {
-            // permitobtainsuccessful，continueexecutefilter
             if (logger.isDebugEnabled()) {
                 logger.debug("[brix] RateLimit[{}] permitted, available={}", 
-                        routeId, rateLimiter.getMetrics().getAvailablePermissions());
+                        rateLimiter.getName(), rateLimiter.getMetrics().getAvailablePermissions());
             }
             return chain.filter(exchange);
         } else {
-            // permitobtainfailed，return429 response
             logger.warn("[brix] RateLimit[{}] rejected - rate limit exceeded, path={}", 
-                    routeId, exchange.getRequest().getPath());
-            return rejectRequest(exchange, routeId);
+                    rateLimiter.getName(), exchange.getRequest().getPath());
+            return rejectRequest(exchange, rateLimiter.getName());
+        }
+    }
+
+    /**
+     * Resolves the appropriate rate limiter, preferring per-tenant if enabled.
+     *
+     * <p>Resolution order:
+     * <ol>
+     *   <li>Per-tenant limiter (tenantId:routeId) — if tenant rate limiting is enabled
+     *       and tenant ID can be extracted from the JWT</li>
+     *   <li>Route-level limiter — fallback when tenant is unknown or disabled</li>
+     * </ol>
+     */
+    private RateLimiter resolveRateLimiter(ServerWebExchange exchange, String routeId) {
+        if (rateLimitConfig.getProperties().isTenantEnabled()) {
+            String tenantId = extractTenantFromJwt(exchange);
+            if (tenantId != null) {
+                RateLimiter tenantLimiter = rateLimitConfig.getRateLimiterForTenant(tenantId, routeId);
+                if (tenantLimiter != null) {
+                    return tenantLimiter;
+                }
+                // Fall through to route-level limiter if tenant limit count exceeded
+            }
+        }
+        return rateLimitConfig.getRateLimiterForRoute(routeId);
+    }
+
+    /**
+     * Extracts the tenant ID from the JWT token's payload (Base64 decode only, no verification).
+     *
+     * <p>Security note: This does NOT verify the JWT signature — it merely reads the claim
+     * for rate-limiting key purposes. Downstream authentication filters are responsible
+     * for full JWT validation. If a malicious client sends a fake JWT, it simply gets
+     * rate-limited under whatever key the fake token provides, and then the auth pipeline
+     * rejects the request. There is no security bypass.</p>
+     *
+     * @param exchange the server web exchange
+     * @return tenant ID, or {@code null} if not extractable
+     */
+    private String extractTenantFromJwt(ServerWebExchange exchange) {
+        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        String token = authHeader.substring(7);
+        String[] parts = token.split("\\.");
+        if (parts.length < 2) {
+            return null;
+        }
+
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(parts[1]);
+            JsonNode payload = OBJECT_MAPPER.readTree(decoded);
+            String claimName = rateLimitConfig.getProperties().getTenantJwtClaim();
+            JsonNode claimNode = payload.get(claimName);
+            return (claimNode != null && !claimNode.isNull()) ? claimNode.asText() : null;
+        } catch (Exception e) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("[brix] Failed to extract tenant from JWT: {}", e.getMessage());
+            }
+            return null;
         }
     }
 

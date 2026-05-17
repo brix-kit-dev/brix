@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file Runtime Context Abstract Definition
  * @description Defines the core interface for runtime context (no React dependency)
- * @module @brix/runtime-sdk-api-web/context/RuntimeContext
+ * @module @brix-sdk/runtime-sdk-api-web/context/RuntimeContext
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
  * Extracted RuntimeContext abstraction from index.ts to keep the contract layer free of React dependencies.
- * React-related Context and Hooks are migrated to @brix/runtime-sdk-react package.
+ * React-related Context and Hooks are migrated to @brix-sdk/runtime-sdk-react package.
  *
  * [Design Principles]
  * - Pure abstract interface, no dependency on any UI framework

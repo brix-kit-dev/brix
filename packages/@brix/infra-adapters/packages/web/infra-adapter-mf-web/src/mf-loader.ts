@@ -16,26 +16,26 @@
 /**
  * @file mf-loader - Module Federation Component Loader
  * @description Encapsulates Module Federation dynamic remote component loading with a simplified API
- * @module @brix/infra-adapter-mf-web/mf-loader
+ * @module @brix-sdk/infra-adapter-mf-web/mf-loader
  * @version 3.2.0
  *
- * 【Architectural Position】
+ * ��Architectural Position��
  * This module provides a simplified API for Module Federation remote component loading,
  * serving as a lightweight alternative to MFPluginLoader for direct component loading scenarios.
  *
- * 【Design Principles】
+ * ��Design Principles��
  * Following the v3.0.4 Blueprint Manifest-Driven architecture:
  * - No hardcoded port-to-plugin mappings
  * - Scope name parsed from remoteEntry URL
  * - Supports component caching and container reuse
  *
- * 【Difference from MFPluginLoader】
+ * ��Difference from MFPluginLoader��
  * - MFPluginLoader: Full-featured plugin loader implementing PluginLoader interface, manages plugin lifecycle
  * - mfLoader: Lightweight function, directly loads remote components, suitable for RemoteComponent scenarios
  *
- * 【Usage Example】
+ * ��Usage Example��
  * ```tsx
- * import { mfLoader } from '@brix/infra-adapter-mf-web';
+ * import { mfLoader } from '@brix-sdk/infra-adapter-mf-web';
  *
  * // Directly load remote component
  * const { default: UserList } = await mfLoader(
@@ -93,6 +93,16 @@ export interface ManifestConfig {
  */
 export interface MFLoadOptions {
   /**
+   * Explicit scope name (federation container name)
+   * 
+   * This takes highest priority when determining the container name.
+   * Must match the 'name' field in the remote's ModuleFederationPlugin config.
+   * 
+   * @example 'partners' for partners-ui-web plugin
+   */
+  scope?: string;
+
+  /**
    * Manifest configuration (optional)
    *
    * If provided, directly use federationName as scope,
@@ -113,14 +123,14 @@ export interface MFLoadOptions {
 // ============================================================================
 
 /**
- * Container cache (remoteEntry URL → Container)
+ * Container cache (remoteEntry URL �� Container)
  *
  * Avoid redundant loading of remoteEntry.js
  */
 const containerCache = new Map<string, MFContainer>();
 
 /**
- * Module cache (remoteEntry::exposePath → Component)
+ * Module cache (remoteEntry::exposePath �� Component)
  *
  * Avoid redundant module initialization
  */
@@ -136,23 +146,30 @@ const loadingPromises = new Map<string, Promise<MFContainer>>();
 // ============================================================================
 
 /**
- * Parse scope name from remoteEntry URL
+ * Parse scope name from remoteEntry URL or use explicit scope
  *
- * [Parsing Strategy - Manifest-Driven Priority]
- * 1. If manifest.federationName is provided, use it directly (most reliable)
- * 2. Otherwise parse from URL path (fallback)
+ * [Parsing Strategy - Priority Order]
+ * 1. If explicit scope is provided, use it directly (highest priority)
+ * 2. If manifest.federationName is provided, use it (manifest-driven)
+ * 3. Otherwise parse from URL path (fallback)
  *
  * [IMPORTANT] v3.2.0 removed hardcoded port mapping
  * Old versions used port number mapping to scope (e.g., 3001→identity), this violated Manifest-Driven principle.
  * New version requirements:
- * - Production: Pass via manifest.federationName
+ * - Production: Pass via scope or manifest.federationName
  * - Development: Parse from URL path (/remotes/{scope}/remoteEntry.js)
  *
  * @param remoteEntry - Remote entry URL
+ * @param scope - Explicit scope name (highest priority)
  * @param manifest - Optional manifest configuration
  * @returns scope name
  */
-function extractScopeName(remoteEntry: string, manifest?: ManifestConfig): string {
+function extractScopeName(remoteEntry: string, scope?: string, manifest?: ManifestConfig): string {
+  // [Highest Priority] Use explicit scope parameter
+  if (scope) {
+    return scope;
+  }
+
   // [Priority] Use federationName from manifest
   if (manifest?.federationName) {
     return manifest.federationName;
@@ -195,17 +212,11 @@ function extractScopeName(remoteEntry: string, manifest?: ManifestConfig): strin
     // Note: This scheme no longer uses hardcoded mapping, but generates unique identifiers
     if (url.hostname === 'localhost' && url.port) {
       // Return port as temporary identifier, Host layer should pass correct scope via manifest param
-      console.warn(
-        `[mfLoader] Cannot parse scope name from URL "${remoteEntry}", using port as temporary identifier.` +
-        `It's recommended to pass correct scope via manifest.federationName parameter.`
-      );
       return `plugin_${url.port}`;
     }
 
-    console.warn(`[mfLoader] Cannot parse scope name, using "unknown": ${remoteEntry}`);
     return 'unknown';
   } catch {
-    console.error(`[mfLoader] Invalid remoteEntry URL: ${remoteEntry}`);
     return 'unknown';
   }
 }
@@ -308,7 +319,6 @@ async function ensureSharedScopeInitialized(): Promise<void> {
   if (typeof win.__webpack_init_sharing__ === 'function') {
     if (!win.__webpack_share_scopes__?.default) {
       await win.__webpack_init_sharing__('default');
-      console.log('[mfLoader] Initialized shared scope via webpack');
     }
   } else {
     // Fallback: Create manual shared scope with React from global
@@ -318,7 +328,6 @@ async function ensureSharedScopeInitialized(): Promise<void> {
     }
     if (!win.__webpack_share_scopes__.default) {
       win.__webpack_share_scopes__.default = createManualSharedScope();
-      console.log('[mfLoader] Created manual shared scope');
     }
   }
 }
@@ -373,7 +382,7 @@ function getDefaultShareScope(): unknown {
  *
  * Dynamically load Module Federation remote components.
  *
- * 【Usage Example】
+ * ��Usage Example��
  * ```tsx
  * // Basic usage (parse scope from URL)
  * const { default: UserList } = await mfLoader(
@@ -407,8 +416,8 @@ export async function mfLoader(
   }
 
   try {
-    // 1. Parse scope name
-    const scopeName = extractScopeName(remoteEntry, options.manifest);
+    // 1. Parse scope name (priority: options.scope > manifest.federationName > URL parsing)
+    const scopeName = extractScopeName(remoteEntry, options.scope, options.manifest);
 
     // 2. Load container
     const container = await loadContainer(remoteEntry, scopeName, options.shareScope);
@@ -422,7 +431,6 @@ export async function mfLoader(
 
     return module;
   } catch (error) {
-    console.error(`[mfLoader] Failed to load module: ${exposePath} from ${remoteEntry}`, error);
     throw error;
   }
 }

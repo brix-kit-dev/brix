@@ -15,16 +15,28 @@
  */
 package io.runtime.orchestrator.lifecycle;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.runtime.manifest.model.ModuleManifest;
 import io.runtime.orchestrator.registry.ModuleRegistry;
 import io.runtime.sdk.capability.HealthStatus;
 import io.runtime.sdk.capability.LifecycleCapability;
 import io.runtime.sdk.context.RuntimeContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.*;
-import java.util.concurrent.*;
 
 /**
  * Default Module Lifecycle Manager Implementation.
@@ -39,6 +51,14 @@ import java.util.concurrent.*;
  *   <li>Lifecycle event notifications</li>
  *   <li>Health check</li>
  * </ul>
+ * 
+ * <h3>Thread Pool Configuration</h3>
+ * <p>Uses a bounded {@link ThreadPoolExecutor} with a core pool size of 4 threads,
+ * a maximum pool size of 16 threads, and a bounded work queue of 256 tasks.
+ * The {@link ThreadPoolExecutor.CallerRunsPolicy} is applied as the rejection policy
+ * to provide back-pressure rather than silently dropping tasks or throwing exceptions.
+ * This prevents resource exhaustion under high load while ensuring lifecycle operations
+ * are never lost.</p>
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -73,7 +93,10 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
     private volatile LifecycleManagerState state = LifecycleManagerState.CREATED;
 
     /**
-     * Executor.
+     * Bounded thread pool executor for lifecycle operations.
+     *
+     * <p>Configured with a bounded queue and CallerRunsPolicy rejection handler to prevent
+     * unbounded thread creation. Core=4, Max=16, Queue=256, KeepAlive=60s.</p>
      */
     private final ExecutorService executor;
 
@@ -97,14 +120,39 @@ public class DefaultModuleLifecycleManager implements ModuleLifecycleManager {
      * @param registry module registry
      * @param contextFactory context factory
      */
+    /** Core thread pool size for lifecycle operations. */
+    private static final int CORE_POOL_SIZE = 4;
+
+    /** Maximum thread pool size for lifecycle operations. */
+    private static final int MAX_POOL_SIZE = 16;
+
+    /** Keep-alive time in seconds for idle threads beyond the core pool size. */
+    private static final long KEEP_ALIVE_SECONDS = 60L;
+
+    /** Bounded work queue capacity to prevent unbounded task accumulation. */
+    private static final int WORK_QUEUE_CAPACITY = 256;
+
     public DefaultModuleLifecycleManager(ModuleRegistry registry, RuntimeContextFactory contextFactory) {
         this.registry = Objects.requireNonNull(registry, "Registry cannot be null");
         this.contextFactory = contextFactory;
-        this.executor = Executors.newCachedThreadPool(r -> {
-            Thread t = new Thread(r, "lifecycle-manager");
-            t.setDaemon(true);
-            return t;
-        });
+
+        // Bounded thread pool: prevents unbounded thread creation (Phase 0.1 security fix).
+        // CallerRunsPolicy provides back-pressure — the submitting thread executes the task
+        // when the queue is full, which naturally throttles producers.
+        AtomicInteger threadCounter = new AtomicInteger(0);
+        this.executor = new ThreadPoolExecutor(
+            CORE_POOL_SIZE,
+            MAX_POOL_SIZE,
+            KEEP_ALIVE_SECONDS,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(WORK_QUEUE_CAPACITY),
+            r -> {
+                Thread t = new Thread(r, "lifecycle-manager-" + threadCounter.getAndIncrement());
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
+        );
     }
 
     /**

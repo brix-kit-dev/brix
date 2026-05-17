@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,10 @@
 /**
  * @file Route Guard Components
  * @description Provides authentication guard and permission guard components
- * @module @brix/platform-router-web
+ * @module @brix-sdk/platform-router-web
  * @version 3.0.0
  * 
- * „ÄêArchitecture Notes„Äë
+ * °æArchitecture Notes°ø
  * Route guard components provide:
  * 1. Authentication guard component (AuthGuardRoute) - Protects routes requiring login
  * 2. Permission guard component (PermissionGuardRoute) - Protects routes requiring specific permissions

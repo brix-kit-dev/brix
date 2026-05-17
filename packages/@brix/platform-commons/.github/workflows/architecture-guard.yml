@@ -3,10 +3,10 @@
 # ============================================================================
 #
 # This CI pipeline enforces architectural rules from the Architecture Review
-# Checklist (附录C). Applicable checks for platform-commons are implemented here.
+# Checklist (Appendix C). Applicable checks for platform-commons are implemented here.
 #
 # ============================================================================
-# 附录C 可 CI 化检查项对照表
+# Appendix C CI-compatible Check Item Reference
 # ============================================================================
 #
 # | ID        | Check                              | Implementation      |
@@ -106,7 +106,7 @@ jobs:
           fi
 
   # ========================================
-  # Java 架构测试
+  # Java Architecture Tests
   # ========================================
   java-architecture:
     name: Java Architecture Tests
@@ -127,15 +127,15 @@ jobs:
 
       - name: Maven Enforcer Check
         run: |
-          echo "🔍 运行 Maven Enforcer 依赖规则检查..."
-          mvn enforcer:enforce -B || echo "⚠️ Enforcer 规则未配置，跳过检查"
+          echo "Running Maven Enforcer dependency rule check..."
+          mvn enforcer:enforce -B || echo "WARNING: Enforcer rules not configured; skipping check"
 
       - name: Platform Common JPA Isolation Check
         run: |
-          echo "🔍 检查 platform-common 核心模块是否依赖 JPA..."
+          echo "Checking whether platform-common core module depends on JPA..."
           
-          # platform-common 核心模块不应直接依赖 JPA
-          # JPA 依赖应该在 platform-common-starter 中
+          # platform-common core module should not directly depend on JPA
+          # JPA dependencies should be in platform-common-starter
           
           if [ -d "packages/server/platform-common" ]; then
             cd packages/server/platform-common
@@ -143,18 +143,18 @@ jobs:
             JPA_DEPS=$(mvn dependency:tree -B 2>/dev/null | grep -i "javax.persistence\|jakarta.persistence\|spring-data-jpa" || true)
             
             if [ -n "$JPA_DEPS" ]; then
-              echo "❌ platform-common 核心模块包含 JPA 依赖:"
+              echo "FAIL: platform-common core module contains JPA dependency:"
               echo "$JPA_DEPS"
               echo ""
-              echo "⚠️  JPA 依赖应该隔离在 platform-common-starter 中"
+              echo "WARNING: JPA dependencies should be isolated in platform-common-starter"
               exit 1
             else
-              echo "✅ platform-common 核心模块无 JPA 依赖"
+              echo "PASS: platform-common core module has no JPA dependency"
             fi
           fi
 
   # ========================================
-  # TypeScript 架构检查
+  # TypeScript Architecture Check
   # ========================================
   ts-architecture:
     name: TypeScript Architecture
@@ -182,21 +182,21 @@ jobs:
 
       - name: Check Platform Auth Separation
         run: |
-          echo "🔍 检查 platform-auth 模块分层..."
+          echo "Checking platform-auth module layering..."
           
-          # 检查 platform-auth-service-web 是否存在
+          # Check whether platform-auth-service-web exists
           if [ ! -d "packages/client/platform-auth-service-web" ]; then
-            echo "⚠️  platform-auth-service-web 模块不存在"
-            echo "    建议将 platform-auth-web 拆分为:"
-            echo "    - platform-auth-web (Capability 接口)"
-            echo "    - platform-auth-service-web (服务工厂)"
-            echo "    - platform-auth-ui-web (UI 组件)"
+            echo "WARNING: platform-auth-service-web module does not exist"
+            echo "    Consider splitting platform-auth-web into:"
+            echo "    - platform-auth-web (Capability interface)"
+            echo "    - platform-auth-service-web (service factory)"
+            echo "    - platform-auth-ui-web (UI components)"
           else
-            echo "✅ platform-auth 模块已正确分层"
+            echo "PASS: platform-auth module is correctly layered"
           fi
 
   # ========================================
-  # 文件复杂度门控
+  # File Complexity Gate
   # ========================================
   file-complexity:
     name: File Complexity Gate
@@ -207,25 +207,25 @@ jobs:
 
       - name: Java File Complexity
         run: |
-          echo "🔍 检查 Java 文件复杂度..."
+          echo "Checking Java file complexity..."
           
           find . -name '*.java' -path '*/src/main/*' | while read f; do
             LINES=$(cat "$f" | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*\*' | wc -l)
             
             if [ "$LINES" -gt 300 ]; then
-              echo "⚠️  $f: $LINES 行 (建议 < 300 行)"
+              echo "WARNING: $f: $LINES lines (recommended < 300 lines)"
             fi
           done
 
       - name: TypeScript File Complexity
         run: |
-          echo "🔍 检查 TypeScript 文件复杂度..."
+          echo "Checking TypeScript file complexity..."
           
           find . -name '*.ts' -path '*/src/*' ! -name '*.d.ts' ! -name '*.test.ts' | while read f; do
             LINES=$(wc -l < "$f")
             
             if [ "$LINES" -gt 500 ]; then
-              echo "⚠️  $f: $LINES 行 (建议 < 500 行)"
+              echo "WARNING: $f: $LINES lines (recommended < 500 lines)"
             fi
           done
 
@@ -241,7 +241,7 @@ jobs:
       - name: Check all jobs
         run: |
           echo "============================================"
-          echo "Architecture Guard - 附录C 检查结果汇总"
+          echo "Architecture Guard - Appendix C Check Results Summary"
           echo "============================================"
           echo ""
           echo "| Check ID   | Job                     | Status |"

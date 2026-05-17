@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: <%= serviceName %>
-          image: <%= registry || 'ghcr.io' %>/<%= organization || 'shinwa' %>/<%= serviceName %>:latest
+          image: <%= registry || 'ghcr.io' %>/<%= organization || 'brix' %>/<%= serviceName %>:latest
           imagePullPolicy: Always
           ports:
             - name: http

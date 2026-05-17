@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file interface.ts
  * @description HTTP client core interfaces and types
- * @module @brix/infra-adapter-http-web
+ * @module @brix-sdk/infra-adapter-http-web
  * @author Brix Platform Team
  * @version 3.1.0
  * 
@@ -30,10 +30,10 @@
  * - Decoupled from specific HTTP libraries, adaptable to fetch/axios implementations
  * - Complete TypeScript type definitions
  * - Supports interceptor chain processing
- * 
- * 【架构说明】
- * 本模块属于 v3.0 架构的基础设施适配层(Layer 2.5)，
- * 提供与具体 HTTP 库解耦的通用接口定义。
+ *
+ * Architecture Note:
+ * This module belongs to the infrastructure adapter layer (Layer 2.5) of v3.0 architecture,
+ * providing common interface definitions decoupled from specific HTTP libraries.
  */
 
 // ============================================================
@@ -263,11 +263,11 @@ export interface InterceptorManager<T> {
  * Contains error code, status code, request configuration, and other information
  * for error classification handling and retry decision-making.
  * 
- * 【关键设计】
- * HttpError 封装了所有 HTTP 相关错误信息，包括：
- * - code: 错误码（用于业务分类处理）
- * - status: HTTP 状态码
- * - retryable: 是否可重试（用于重试策略判断）
+ * ���ؼ���ơ�
+ * HttpError ��װ������ HTTP ��ش�����Ϣ��������
+ * - code: �����루����ҵ����ദ����
+ * - status: HTTP ״̬��
+ * - retryable: �Ƿ�����ԣ��������Բ����жϣ�
  * 
  * @example
  * ```typescript

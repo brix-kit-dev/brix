@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file LoginForm Component
  * @description Configurable login form component (capability implementation)
- * @module @brix/platform-auth-web/components/LoginForm
+ * @module @brix-sdk/platform-auth-web/components/LoginForm
  * @version 3.0.0
  * 
  * Architecture Overview:
@@ -46,7 +46,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { useUIOptional } from '@brix/runtime-sdk-react';
+import { useUIOptional } from '@brix-sdk/runtime-sdk-react';
 import type {
   LoginFormProps,
   LoginFormData,
@@ -60,12 +60,12 @@ import { generateLoginStyles, DEFAULT_PRIMARY_COLOR, DEFAULT_GRADIENT } from './
  * Default branding configuration
  */
 const DEFAULT_BRANDING: LoginFormBranding = {
-  appName: 'Shinwa Platform',
+  appName: 'Brix Platform',
   welcomeMessage: 'Welcome Back',
   subtitle: 'Login to continue using your account',
   primaryColor: DEFAULT_PRIMARY_COLOR,
   gradientColors: DEFAULT_GRADIENT,
-  footerText: `© ${new Date().getFullYear()} Shinwa Platform`,
+  footerText: `? ${new Date().getFullYear()} Brix Platform`,
 };
 
 /**
@@ -163,8 +163,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   /**
    * Handle input change
    */
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    const checked = 'checked' in e.target ? e.target.checked : false;
+    const type = 'type' in e.target ? e.target.type : 'text';
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -219,14 +221,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   }, [onForgotPassword]);
   
   /**
-   * 处理社交登录
    */
   const handleSocialLogin = useCallback((providerId: string) => {
     onSocialLogin?.(providerId);
   }, [onSocialLogin]);
   
   /**
-   * 处理注册跳转
    */
   const handleRegister = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -234,19 +234,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   }, [onRegister]);
   
   /**
-   * 渲染 Logo
-   * 当没有配logo 时返null（不显示默认图标
    */
   const renderLogo = () => {
-    // 如果没有配置 logo，不显示任何内容
     if (!branding.logo) {
       return null;
     }
     
     if (typeof branding.logo === 'string') {
       return (
-        <div className="shinwa-login-logo">
-          <img src={branding.logo} alt="Logo" className="shinwa-login-logo-image" />
+        <div className="brix-login-logo">
+          <img src={branding.logo} alt="Logo" className="brix-login-logo-image" />
         </div>
       );
     }
@@ -259,31 +256,31 @@ export const LoginForm: React.FC<LoginFormProps> = ({
    */
   const renderFormContent = () => (
     <div 
-      className={`shinwa-login-container ${containerClassName || ''}`}
+      className={`brix-login-container ${containerClassName || ''}`}
       style={containerStyle}
     >
       {/* Logo and title */}
-      <div className="shinwa-login-header">
+      <div className="brix-login-header">
         {renderLogo()}
-        <h1 className="shinwa-login-title">{branding.appName}</h1>
-        <p className="shinwa-login-subtitle">
+        <h1 className="brix-login-title">{branding.appName}</h1>
+        <p className="brix-login-subtitle">
           {branding.welcomeMessage}
           {branding.subtitle && <><br />{branding.subtitle}</>}
         </p>
       </div>
       
       {/* Login form */}
-      <form className="shinwa-login-form" onSubmit={handleSubmit}>
+      <form className="brix-login-form" onSubmit={handleSubmit}>
         {/* Error hint */}
         {error && (
-          <div className="shinwa-login-error">
+          <div className="brix-login-error">
             <span>!</span>
             <span>{error}</span>
           </div>
         )}
         
         {/* Username */}
-        <div className="shinwa-form-group">
+        <div className="brix-form-group">
           {ui ? (
             <ui.Input
               label={labels.usernameLabel}
@@ -299,14 +296,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             />
           ) : (
             <>
-              <label htmlFor="shinwa-username" className="shinwa-form-label">
+              <label htmlFor="brix-username" className="brix-form-label">
                 {labels.usernameLabel}
               </label>
               <input
-                id="shinwa-username"
+                id="brix-username"
                 name="username"
                 type="text"
-                className="shinwa-form-input"
+                className="brix-form-input"
                 placeholder={labels.usernamePlaceholder}
                 value={formData.username}
                 onChange={handleInputChange}
@@ -319,7 +316,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </div>
         
         {/* Password */}
-        <div className="shinwa-form-group">
+        <div className="brix-form-group">
           {ui ? (
             <ui.Input
               label={labels.passwordLabel}
@@ -334,14 +331,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             />
           ) : (
             <>
-              <label htmlFor="shinwa-password" className="shinwa-form-label">
+              <label htmlFor="brix-password" className="brix-form-label">
                 {labels.passwordLabel}
               </label>
               <input
-                id="shinwa-password"
+                id="brix-password"
                 name="password"
                 type="password"
-                className="shinwa-form-input"
+                className="brix-form-input"
                 placeholder={labels.passwordPlaceholder}
                 value={formData.password}
                 onChange={handleInputChange}
@@ -354,9 +351,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         
         {/* Remember me & Forgot password */}
         {(features.showRememberMe || features.showForgotPassword) && (
-          <div className="shinwa-form-row">
+          <div className="brix-form-row">
             {features.showRememberMe ? (
-              <label className="shinwa-checkbox-label">
+              <label className="brix-checkbox-label">
                 <input
                   type="checkbox"
                   name="rememberMe"
@@ -377,7 +374,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               ) : (
                 <button
                   type="button"
-                  className="shinwa-forgot-link"
+                  className="brix-forgot-link"
                   onClick={handleForgotPassword}
                 >
                   {labels.forgotPasswordLabel}
@@ -402,11 +399,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         ) : (
           <button
             type="submit"
-            className="shinwa-login-button"
+            className="brix-login-button"
             disabled={loading}
           >
             {loading ? (
-              <span className="shinwa-loading-spinner" />
+              <span className="brix-loading-spinner" />
             ) : (
               labels.submitLabel
             )}
@@ -416,20 +413,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         {/* Social login */}
         {features.enableSocialLogin && socialProviders.length > 0 && (
           <>
-            <div className="shinwa-social-divider">
-              <div className="shinwa-social-divider-line" />
-              <span className="shinwa-social-divider-text">
+            <div className="brix-social-divider">
+              <div className="brix-social-divider-line" />
+              <span className="brix-social-divider-text">
                 {labels.socialLoginDivider}
               </span>
-              <div className="shinwa-social-divider-line" />
+              <div className="brix-social-divider-line" />
             </div>
             
-            <div className="shinwa-social-buttons">
+            <div className="brix-social-buttons">
               {socialProviders.map(provider => (
                 <button
                   key={provider.id}
                   type="button"
-                  className="shinwa-social-button"
+                  className="brix-social-button"
                   style={{
                     backgroundColor: provider.backgroundColor,
                     color: provider.textColor,
@@ -441,15 +438,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     // Check if it's an SVG string
                     provider.icon.includes('<svg') ? (
                       <span 
-                        className="shinwa-social-icon-svg" 
+                        className="brix-social-icon-svg" 
                         dangerouslySetInnerHTML={{ __html: provider.icon }} 
                       />
                     ) : (
                       // Check if it's a URL (contains / or .) or emoji/text
                       provider.icon.includes('/') || provider.icon.includes('.') ? (
-                        <img src={provider.icon} alt={provider.name} className="shinwa-social-icon" />
+                        <img src={provider.icon} alt={provider.name} className="brix-social-icon" />
                       ) : (
-                        <span className="shinwa-social-icon-emoji">{provider.icon}</span>
+                        <span className="brix-social-icon-emoji">{provider.icon}</span>
                       )
                     )
                   ) : (
@@ -464,7 +461,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         
         {/* Register link */}
         {features.showRegisterLink && onRegister && (
-          <div className="shinwa-register-link">
+          <div className="brix-register-link">
             <span>{labels.registerPrefix} </span>
             {ui ? (
               <ui.Button variant="text" onClick={handleRegister} style={{ textTransform: 'none', padding: 0, minWidth: 'auto', fontWeight: 500 }}>
@@ -481,7 +478,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       
       {/* Footer info */}
       {branding.footerText && (
-        <div className="shinwa-login-footer">
+        <div className="brix-login-footer">
           <p>{branding.footerText}</p>
         </div>
       )}
@@ -500,7 +497,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   
   // Show full page
   return (
-    <div className="shinwa-login-page">
+    <div className="brix-login-page">
       <style>{styles}</style>
       {renderFormContent()}
     </div>

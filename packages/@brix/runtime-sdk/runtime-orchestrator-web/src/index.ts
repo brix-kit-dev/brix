@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file runtime-orchestrator-web module entry
  * @description Web runtime Orchestrator exports
- * @module @brix/runtime-orchestrator-web
+ * @module @brix-sdk/runtime-orchestrator-web
  * @version 3.2.0
  *
  * Module Description:
@@ -35,7 +35,7 @@
  * Following the v3.0.4 blueprint Host ultra-thin principle, all plugin system logic is delegated to this module.
  * Host Layer usage:
  * ```typescript
- * import { usePluginSystem } from '@brix/runtime-orchestrator-web';
+ * import { usePluginSystem } from '@brix-sdk/runtime-orchestrator-web';
  *
  * function App() {
  *   const { menus, routes, loading } = usePluginSystem({
@@ -115,6 +115,9 @@ export {
   type UsePluginSystemResult,
   type UsePluginSystemOptions,
   type HostMenuConfig,
+  type LocalPluginConfig,
+  type LocalPluginMenu,
+  type LocalPluginRoute,
   // useWebUIRuntime - Low-level runtime control
   useWebUIRuntime,
   type LifecyclePhase,
@@ -125,3 +128,16 @@ export {
   type UseWebUIRuntimeOptions,
   type UseWebUIRuntimeResult,
 } from './hooks';
+
+// ============================================================================
+// Governance (Phase 2.8)
+// ============================================================================
+export {
+  GovernanceEnforcer,
+  type GovernanceViolation,
+  type GovernanceConfig,
+  type CapabilityWhitelist,
+  type EventRoutingRules,
+  type EventRoutingRule,
+  type UIBudget,
+} from './governance';

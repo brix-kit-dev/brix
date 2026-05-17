@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Event Bus Capability Implementation
  * @description Implements GovernedEventBusCapability Interface
- * @module @brix/platform-eventbus-web/EventBusCapabilityImpl
+ * @module @brix-sdk/platform-eventbus-web/EventBusCapabilityImpl
  * @version 3.0.0
  * 
  * Architecture Overview:
@@ -43,58 +43,12 @@ import type {
   Unsubscribe,
   BackpressureConfig,
   BackpressureMetrics,
-} from '@brix/runtime-sdk-api-web';
-import { EventRouter } from './EventRouter';
-import type { EventLogger } from './EventLogger';
+} from '@brix-sdk/runtime-sdk-api-web';
+import type { EventBusCapabilityConfig, EventRouterLike, EventLoggerLike, ObservabilityLike } from '@brix-sdk/runtime-sdk-api-web';
 import { BackpressureManager } from './BackpressureManager';
 
-/**
- * Event Bus Capability Configuration
- */
-export interface EventBusCapabilityConfig {
-  /**
-   * Event router instance
-   */
-  eventRouter: EventRouter;
-  
-  /**
-   * Event logger instance
-   */
-  eventLogger: EventLogger;
-  
-  /**
-   * Current plugin ID
-   */
-  pluginId: string;
-  
-  /**
-   * Trace ID generator
-   */
-  traceIdGenerator?: () => string;
-  
-  /**
-   * Tenant ID provider
-   */
-  tenantIdProvider?: () => string;
-
-  /**
-   * Backpressure configuration
-   * 
-   * 背压配置
-   * 
-   * @since 3.3.0
-   */
-  backpressure?: BackpressureConfig;
-
-  /**
-   * Warning callback for backpressure threshold
-   * 
-   * 背压阈值警告回调
-   * 
-   * @since 3.3.0
-   */
-  onBackpressureWarning?: (eventType: string, queueDepth: number, threshold: number) => void;
-}
+// Re-export contract-layer type for backward compatibility
+export type { EventBusCapabilityConfig };
 
 /**
  * Event Bus Capability Implementation
@@ -124,12 +78,12 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
   /**
    * Event router
    */
-  private eventRouter: EventRouter;
+  private eventRouter: EventRouterLike;
   
   /**
    * Event logger
    */
-  private eventLogger: EventLogger;
+  private eventLogger: EventLoggerLike;
   
   /**
    * Current plugin ID
@@ -153,10 +107,15 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
 
   /**
    * Backpressure manager
-   * 背压管理器
    * @since 3.3.0
    */
   private backpressureManager: BackpressureManager;
+
+  /**
+   * Observability integration for event tracing
+   * @since 3.2.0
+   */
+  private observability: ObservabilityLike | undefined;
   
   /**
    * Constructor
@@ -169,6 +128,7 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
     this.pluginId = config.pluginId;
     this.traceIdGenerator = config.traceIdGenerator ?? this.defaultTraceIdGenerator;
     this.tenantIdProvider = config.tenantIdProvider ?? (() => 'default');
+    this.observability = config.observability;
     this.backpressureManager = new BackpressureManager(
       config.backpressure,
       config.onBackpressureWarning
@@ -184,6 +144,8 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
    * @param scope - Event scope (default 'host')
    */
   emit<T = unknown>(eventType: string, payload: T, scope?: 'plugin' | 'host'): void {
+    const startTime = performance.now();
+
     // Build event metadata
     const metadata: GovernedEventMetadata = {
       eventId: this.traceIdGenerator(),
@@ -201,21 +163,17 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
     };
 
     // Apply backpressure check
-    // 应用背压检查
     const backpressureResult = this.backpressureManager.checkAndApply(
       eventType,
       event as GovernedEvent
     );
 
     // Log dropped events (use 'emit' action type since 'dropped' is not supported)
-    // 记录被丢弃的事件（使用 'emit' action 类型，因为 'dropped' 不被支持）
     if (backpressureResult.droppedEvents.length > 0) {
       // Silently drop - backpressure manager already handles metrics
-      // 静默丢弃 - 背压管理器已处理指标
     }
 
     // If event was not accepted (e.g., 'block' strategy), skip publishing
-    // 如果事件未被接受（例如 'block' 策略），跳过发布
     if (!backpressureResult.accepted) {
       return;
     }
@@ -225,11 +183,27 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
     this.eventLogger.log(event as GovernedEvent, 'emit', receiverCount);
     
     // Publish event asynchronously (next microtask)
-    // 异步发布事件（下一个微任务）
     queueMicrotask(() => {
-      this.eventRouter.publish(event as GovernedEvent);
-      // Mark as processed after async publish
-      this.backpressureManager.markProcessed(eventType);
+      try {
+        this.eventRouter.publish(event as GovernedEvent);
+        // Mark as processed after async publish
+        this.backpressureManager.markProcessed(eventType);
+
+        this.observability?.traceEvent('event.emitted', {
+          eventType,
+          sourcePlugin: this.pluginId,
+          receiverCount,
+          duration: performance.now() - startTime,
+        });
+      } catch (error) {
+        this.observability?.traceEvent('event.emit.error', {
+          eventType,
+          sourcePlugin: this.pluginId,
+          errorType: (error as Error).name,
+          duration: performance.now() - startTime,
+        });
+        throw error;
+      }
     });
   }
   
@@ -245,10 +219,26 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
     eventType: string,
     handler: GovernedEventHandler<T>
   ): Unsubscribe {
-    // Wrap handler to log events
+    // Wrap handler to log events and trace observability
     const loggingHandler: GovernedEventHandler<T> = (event) => {
+      const startTime = performance.now();
       this.eventLogger.log(event as GovernedEvent, 'receive');
-      handler(event);
+      try {
+        handler(event);
+        this.observability?.traceEvent('event.received', {
+          eventType,
+          targetPlugin: this.pluginId,
+          duration: performance.now() - startTime,
+        });
+      } catch (error) {
+        this.observability?.traceEvent('event.receive.error', {
+          eventType,
+          targetPlugin: this.pluginId,
+          errorType: (error as Error).name,
+          duration: performance.now() - startTime,
+        });
+        throw error;
+      }
     };
     
     const unsubscribe = this.eventRouter.subscribe(
@@ -378,9 +368,7 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
 
   /**
    * Configure backpressure settings
-   * 
-   * 配置背压设置
-   * 
+   *
    * @param config - Backpressure configuration
    * @since 3.3.0
    */
@@ -390,9 +378,7 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
 
   /**
    * Get current backpressure metrics
-   * 
-   * 获取当前背压指标
-   * 
+   *
    * @returns Current backpressure metrics snapshot
    * @since 3.3.0
    */
@@ -402,9 +388,7 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
 
   /**
    * Check if backpressure is currently active
-   * 
-   * 检查背压是否当前处于激活状态
-   * 
+   *
    * @param eventType - Optional event type to check specific queue
    * @returns True if backpressure limit is reached
    * @since 3.3.0
@@ -415,9 +399,7 @@ export class EventBusCapabilityImpl implements GovernedEventBusCapability {
 
   /**
    * Reset backpressure metrics
-   * 
-   * 重置背压指标
-   * 
+   *
    * @since 3.3.0
    */
   resetBackpressureMetrics(): void {

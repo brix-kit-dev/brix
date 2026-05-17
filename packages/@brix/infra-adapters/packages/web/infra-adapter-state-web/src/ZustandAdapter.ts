@@ -16,7 +16,7 @@
 /**
  * @file Zustand State Management Adapter
  * @description Implements plugin state isolation using Zustand
- * @module @brix/infra-adapter-state-web/ZustandAdapter
+ * @module @brix-sdk/infra-adapter-state-web/ZustandAdapter
  * @version 3.0.0
  * 
  * [Design Notes]
@@ -25,26 +25,26 @@
  * 
  * [Architectural Position]
  * ```
- * ┌─────────────────────────────────────┐
- * │  Plugin Layer                       │
- * │  Uses PluginStateCapability         │
- * │  ❌ MUST NOT use zustand directly    │
- * └───────────────┬─────────────────────┘
- *                 │ Request state operation
- * ┌───────────────▼─────────────────────┐
- * │  platform-state-web                 │
- * │  PluginStateCapabilityImpl          │
- * └───────────────┬─────────────────────┘
- *                 │ Calls
- * ┌───────────────▼─────────────────────┐
- * │  infra-adapter-state-web            │  ← This module
- * │  ZustandAdapter                     │
- * └───────────────┬─────────────────────┘
- *                 │ Wraps
- * ┌───────────────▼─────────────────────┐
- * │  zustand                            │
- * │  Base State Library                 │
- * └─────────────────────────────────────┘
+ * ������������������������������������������������������������������������������
+ * ��  Plugin Layer                       ��
+ * ��  Uses PluginStateCapability         ��
+ * ��  ? MUST NOT use zustand directly    ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� Request state operation
+ * ������������������������������������������������������������������������������
+ * ��  platform-state-web                 ��
+ * ��  PluginStateCapabilityImpl          ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� Calls
+ * ������������������������������������������������������������������������������
+ * ��  infra-adapter-state-web            ��  �� This module
+ * ��  ZustandAdapter                     ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� Wraps
+ * ������������������������������������������������������������������������������
+ * ��  zustand                            ��
+ * ��  Base State Library                 ��
+ * ������������������������������������������������������������������������������
  * ```
  * 
  * [v3.0 Architectural Constraint - Red Line 3]
@@ -446,7 +446,6 @@ export class ZustandAdapter {
         JSON.stringify(state)
       );
     } catch (error) {
-      console.warn('[ZustandAdapter] State persistence failed:', error);
     }
   }
   

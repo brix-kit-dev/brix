@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Manifest Validator
  * @description Validates structural and semantic correctness of application and plugin manifests
- * @module @brix/runtime-manifest-web/ManifestValidator
+ * @module @brix-sdk/runtime-manifest-web/ManifestValidator
  * @version 3.0.0
  * 
  * [Design Notes]

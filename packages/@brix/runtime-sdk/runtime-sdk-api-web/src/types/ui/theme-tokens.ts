@@ -16,7 +16,7 @@
 /**
  * @file Theme Tokens Type Definitions
  * @description Defines theme token types and preset values for the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/theme-tokens
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/theme-tokens
  * @version 3.2.0
  *
  * [Design Principles]
@@ -237,6 +237,70 @@ export interface ThemeTokens {
    * Large border radius for modals, large cards.
    */
   borderRadiusLarge: number;
+
+  // ========================================
+  // Sizing Tokens ï¿?Standardized Control Heights
+  // ========================================
+  //
+  // [Architectural Note ï¿?v3.3.0]
+  // Control sizing tokens unify the height of interactive primitives
+  // (Button, TextField, Select, ...) across UI adapters. They guarantee
+  // visual rhythm regardless of which underlying UI library is plugged in,
+  // and let plugins request a consistent density via `useUI()` without
+  // touching adapter-specific styling APIs.
+
+  /**
+   * Control Height - Small
+   *
+   * Compact density (e.g., dense tables, inline filters). Recommended 32px.
+   */
+  controlHeightSmall: number;
+
+  /**
+   * Control Height - Medium
+   *
+   * Default density for forms and toolbars. Recommended 40px.
+   */
+  controlHeightMedium: number;
+
+  /**
+   * Control Height - Large
+   *
+   * Comfortable density (e.g., hero CTAs, mobile). Recommended 48px.
+   */
+  controlHeightLarge: number;
+
+  // ========================================
+  // Typography Tokens ï¿?Standardized Font Sizes
+  // ========================================
+
+  /**
+   * Font Size - Small (px)
+   *
+   * Captions, helper text, dense table cells. Recommended 12px.
+   */
+  fontSizeSmall: number;
+
+  /**
+   * Font Size - Medium / Base (px)
+   *
+   * Default body text size. Recommended 14px.
+   */
+  fontSizeMedium: number;
+
+  /**
+   * Font Size - Large (px)
+   *
+   * Emphasized body text, large CTAs. Recommended 16px.
+   */
+  fontSizeLarge: number;
+
+  /**
+   * Font Family Stack
+   *
+   * Primary font stack applied across all UI adapters.
+   */
+  fontFamily: string;
 }
 
 /**
@@ -263,95 +327,27 @@ export interface ThemeProviderProps {
 }
 
 // ============================================================================
-// MUI Theme Presets
+// Brand Preset Constants ï¿?RELOCATED (Plan B, v3.4.0)
 // ============================================================================
-
-/**
- * MUI Light Theme Tokens
- *
- * Default light mode theme following Material UI conventions.
- */
-export const MUI_THEME_TOKENS: ThemeTokens = {
-  // Brand Colors
-  primary: '#1976d2',
-  primaryLight: '#42a5f5',
-  primaryDark: '#1565c0',
-  primaryContrastText: '#ffffff',
-
-  secondary: '#9c27b0',
-  secondaryLight: '#ba68c8',
-  secondaryDark: '#7b1fa2',
-  secondaryContrastText: '#ffffff',
-
-  // Semantic Colors
-  error: '#d32f2f',
-  warning: '#ed6c02',
-  info: '#0288d1',
-  success: '#2e7d32',
-
-  // Neutral Colors
-  background: '#f5f5f5',
-  paper: '#ffffff',
-  textPrimary: 'rgba(0, 0, 0, 0.87)',
-  textSecondary: 'rgba(0, 0, 0, 0.6)',
-  textDisabled: 'rgba(0, 0, 0, 0.38)',
-  divider: 'rgba(0, 0, 0, 0.12)',
-
-  // Layout Colors
-  sidebarBackground: '#1e293b',
-  sidebarText: 'rgba(255, 255, 255, 0.87)',
-  sidebarActiveBackground: '#3b82f6',
-  sidebarHoverBackground: 'rgba(255, 255, 255, 0.08)',
-  headerBackground: '#ffffff',
-  headerText: 'rgba(0, 0, 0, 0.87)',
-
-  // Shape Tokens
-  borderRadiusSmall: 4,
-  borderRadiusMedium: 8,
-  borderRadiusLarge: 12,
-};
-
-/**
- * MUI Dark Theme Tokens
- *
- * Dark mode variant of MUI theme tokens.
- */
-export const MUI_DARK_THEME_TOKENS: ThemeTokens = {
-  // Brand Colors (same as light)
-  primary: '#90caf9',
-  primaryLight: '#e3f2fd',
-  primaryDark: '#42a5f5',
-  primaryContrastText: 'rgba(0, 0, 0, 0.87)',
-
-  secondary: '#ce93d8',
-  secondaryLight: '#f3e5f5',
-  secondaryDark: '#ab47bc',
-  secondaryContrastText: 'rgba(0, 0, 0, 0.87)',
-
-  // Semantic Colors (adjusted for dark mode)
-  error: '#f44336',
-  warning: '#ffa726',
-  info: '#29b6f6',
-  success: '#66bb6a',
-
-  // Neutral Colors (inverted)
-  background: '#121212',
-  paper: '#1e1e1e',
-  textPrimary: 'rgba(255, 255, 255, 0.87)',
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  textDisabled: 'rgba(255, 255, 255, 0.38)',
-  divider: 'rgba(255, 255, 255, 0.12)',
-
-  // Layout Colors (adjusted for dark mode)
-  sidebarBackground: '#0f172a',
-  sidebarText: 'rgba(255, 255, 255, 0.87)',
-  sidebarActiveBackground: '#1e40af',
-  sidebarHoverBackground: 'rgba(255, 255, 255, 0.08)',
-  headerBackground: '#1e1e1e',
-  headerText: 'rgba(255, 255, 255, 0.87)',
-
-  // Shape Tokens (same as light)
-  borderRadiusSmall: 4,
-  borderRadiusMedium: 8,
-  borderRadiusLarge: 12,
-};
+//
+// [Architecture Blueprint v3.0.9 ï¿?Layer 2A Purity]
+// The constant brand presets that previously lived here
+// (`BRIX_LIGHT_THEME_TOKENS`, `BRIX_DARK_THEME_TOKENS`,
+//  deprecated `MUI_THEME_TOKENS`, `MUI_DARK_THEME_TOKENS`)
+// have been moved to `@brix-sdk/platform-design-tokens` because they encode
+// design decisions, not contract obligations.
+//
+// Layer 2A is defined as pure interface declarations only â€?no concrete
+// values, no design opinions. Concrete `#7c3aed` literals violated that
+// doctrine. Keeping the
+// constants here also created a structural risk where new hex literals
+// could drift into the contract layer over time.
+//
+// [Migration]
+// - import { BRIX_LIGHT_THEME_TOKENS } from '@brix-sdk/platform-design-tokens';
+// - import { BRIX_DARK_THEME_TOKENS } from '@brix-sdk/platform-design-tokens';
+// - import type { ThemeTokens } from '@brix-sdk/runtime-sdk-api-web';
+//
+// The `ThemeTokens` interface above remains the canonical contract; only
+// the *values* moved.
+// ============================================================================

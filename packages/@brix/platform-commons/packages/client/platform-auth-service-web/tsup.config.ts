@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file platform-auth-service-web æ„å»ºé…ç½®
- * @description è®¤è¯æœåŠ¡å·¥å‚åŒ…çš„ tsup æ„å»ºé…ç½®
- * @module @brix/platform-auth-service-web
+ * @file platform-auth-service-web ¹¹½¨ÅäÖÃ
+ * @description ÈÏÖ¤·şÎñ¹¤³§°üµÄ tsup ¹¹½¨ÅäÖÃ
+ * @module @brix-sdk/platform-auth-service-web
  * @version 3.1.0
  */
 
@@ -34,7 +34,7 @@ export default defineConfig({
   clean: true,
   external: [
     'react', 
-    '@brix/runtime-sdk-api-web',
+    '@brix-sdk/runtime-sdk-api-web',
   ],
   treeshake: true,
 });

@@ -29,8 +29,18 @@ public class JwtProperties {
     /** Whether to enable JWT validation */
     private boolean enabled = true;
 
-    /** RS256 public key path */
+    /** RS256 public key path (verification side) */
     private String publicKeyPath = "classpath:keys/public.pem";
+
+    /**
+     * RS256 private key path (issuance side, PKCS#8 PEM).
+     *
+     * <p>Required by {@code JwtIssuerCapability} implementation. Not required for
+     * pure validation-only deployments (e.g., gateway / resource server hosts).</p>
+     *
+     * @since 3.2.0
+     */
+    private String privateKeyPath = "classpath:keys/private.pem";
 
     /** JWT issuer */
     private String issuer = "brix-auth-center";
@@ -40,6 +50,31 @@ public class JwtProperties {
 
     /** Clock skew tolerance time (seconds) */
     private int clockSkewSeconds = 60;
+
+    /**
+     * Access Token lifetime in seconds (default 1 hour).
+     *
+     * @since 3.2.0
+     */
+    private long accessTokenExpirationSeconds = 3600L;
+
+    /**
+     * Identity Token lifetime in seconds (default 5 minutes).
+     *
+     * <p>Identity Token 是多租户登录第一阶段的过渡令牌，仅允许
+     * {@code select-tenant} / {@code register-tenant} 两个动作，
+     * 故有效期必须远短于 Access Token。</p>
+     *
+     * @since 3.2.0
+     */
+    private long identityTokenExpirationSeconds = 300L;
+
+    /**
+     * Token version claim ({@code tv}) for future format migrations.
+     *
+     * @since 3.2.0
+     */
+    private int tokenVersion = 2;
 
     // ========== Getters and Setters ==========
 
@@ -57,6 +92,14 @@ public class JwtProperties {
 
     public void setPublicKeyPath(String publicKeyPath) {
         this.publicKeyPath = publicKeyPath;
+    }
+
+    public String getPrivateKeyPath() {
+        return privateKeyPath;
+    }
+
+    public void setPrivateKeyPath(String privateKeyPath) {
+        this.privateKeyPath = privateKeyPath;
     }
 
     public String getIssuer() {
@@ -81,5 +124,29 @@ public class JwtProperties {
 
     public void setClockSkewSeconds(int clockSkewSeconds) {
         this.clockSkewSeconds = clockSkewSeconds;
+    }
+
+    public long getAccessTokenExpirationSeconds() {
+        return accessTokenExpirationSeconds;
+    }
+
+    public void setAccessTokenExpirationSeconds(long accessTokenExpirationSeconds) {
+        this.accessTokenExpirationSeconds = accessTokenExpirationSeconds;
+    }
+
+    public long getIdentityTokenExpirationSeconds() {
+        return identityTokenExpirationSeconds;
+    }
+
+    public void setIdentityTokenExpirationSeconds(long identityTokenExpirationSeconds) {
+        this.identityTokenExpirationSeconds = identityTokenExpirationSeconds;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(int tokenVersion) {
+        this.tokenVersion = tokenVersion;
     }
 }

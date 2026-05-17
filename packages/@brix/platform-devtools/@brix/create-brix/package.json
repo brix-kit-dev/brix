@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/create-brix",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/create-brix",
+  "version": "3.2.0",
   "description": "Brix Platform CLI - Create plugins and services",
   "author": "Brix Platform Authors",
   "license": "Apache-2.0",
@@ -59,7 +59,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/brix-platform/platform-devtools.git",
-    "directory": "@brix/create-brix"
+    "directory": "@brix-sdk/create-brix"
   },
   "publishConfig": {
     "access": "public"

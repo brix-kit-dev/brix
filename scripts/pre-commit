@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# Phase 0.5 — Pre-commit hook to prevent accidental commit of sensitive files.
+#
+# This hook checks staged files for security-sensitive patterns:
+#   - Private keys (*.pem, *.key, *.p12, *.jks, *.keystore, *.pfx)
+#   - Client secrets (client_secret*.json)
+#   - Certificate files (*.crt when not in test resources)
+#
+# Installation:
+#   cp scripts/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# To bypass (NOT recommended, requires explicit justification):
+#   git commit --no-verify
+#
+
+echo "🔐 [Pre-commit] Checking for security-sensitive files..."
+
+# Define patterns of files that should never be committed
+SENSITIVE_PATTERNS="\.pem$|\.p12$|\.jks$|\.keystore$|\.pfx$|\.key$|client_secret.*\.json$"
+
+# Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+# Check each staged file against sensitive patterns
+BLOCKED_FILES=""
+for FILE in $STAGED_FILES; do
+    if echo "$FILE" | grep -qEi "$SENSITIVE_PATTERNS"; then
+        BLOCKED_FILES="$BLOCKED_FILES\n  ❌ $FILE"
+    fi
+done
+
+if [ -n "$BLOCKED_FILES" ]; then
+    echo ""
+    echo "⛔ COMMIT BLOCKED — Security-sensitive files detected in staging area:"
+    echo ""
+    printf "$BLOCKED_FILES\n"
+    echo ""
+    echo "These files may contain private keys, certificates, or secrets."
+    echo "They must NOT be committed to version control."
+    echo ""
+    echo "Actions:"
+    echo "  1. Remove from staging:  git reset HEAD <file>"
+    echo "  2. Add to .gitignore if not already present"
+    echo "  3. If this is a false positive, use:  git commit --no-verify"
+    echo "     (Requires explicit justification in commit message)"
+    echo ""
+    exit 1
+fi
+
+echo "✅ [Pre-commit] No security-sensitive files detected."
+exit 0

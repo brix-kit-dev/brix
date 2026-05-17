@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file PluginManager Unit Tests
  * @description Test core functionality of the Plugin Manager
- * @module @brix/runtime-orchestrator-web/test
+ * @module @brix-sdk/runtime-orchestrator-web/test
  * @version 3.2.0
  * 
  * Test Coverage:
@@ -30,7 +30,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PluginManager, type PluginManagerConfig } from './PluginManager';
-import type { PluginEntry, PluginLifecycle, CapabilityRegistry } from '@brix/runtime-sdk-api-web';
+import type { PluginEntry, PluginLifecycle, CapabilityRegistry } from '@brix-sdk/runtime-sdk-api-web';
 import type { CapabilityAssembler } from './CapabilityAssembler';
 
 // ============================================================================

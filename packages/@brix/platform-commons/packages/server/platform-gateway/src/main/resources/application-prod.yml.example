@@ -121,7 +121,7 @@ gateway:
 logging:
   level:
     root: INFO
-    shinwa.platform: INFO
+    io.brix.platform: INFO
     org.springframework.cloud.gateway: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

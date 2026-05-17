@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/runtime-orchestrator-web",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/runtime-orchestrator-web",
+  "version": "3.2.0",
   "description": "Brix Runtime Orchestrator Web - Web runtime orchestration",
   "type": "module",
   "main": "dist/index.cjs",
@@ -10,7 +10,8 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
     }
   },
   "files": [
@@ -40,7 +41,7 @@
     "directory": "runtime-orchestrator-web"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "workspace:*"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.1",

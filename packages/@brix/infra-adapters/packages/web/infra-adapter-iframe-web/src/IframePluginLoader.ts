@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,20 +16,20 @@
 /**
  * @file iframe Plugin Loader
  * @description Plugin isolation loading implementation based on iframe
- * @module @brix/infra-adapter-iframe-web/IframePluginLoader
+ * @module @brix-sdk/infra-adapter-iframe-web/IframePluginLoader
  * @version 3.0.0
  * 
- * „ÄêDesign Notes„Äë
+ * °æDesign Notes°ø
  * IframePluginLoader is the iframe implementation of the PluginLoader interface.
  * As a fallback for Module Federation, provides fully isolated plugin loading capability.
  * 
- * „ÄêApplicable Scenarios„Äë
+ * °æApplicable Scenarios°ø
  * 1. Embedded Mode: Plugin embedded in customer systems
  * 2. Security Isolation: Loading untrusted third-party plugins
  * 3. Fallback Solution: Alternative when Module Federation is unavailable
  * 4. Legacy Systems: Integrating non-React legacy applications
  * 
- * „ÄêDifferences from MF Loader„Äë
+ * °æDifferences from MF Loader°ø
  * | Feature | MFPluginLoader | IframePluginLoader |
  * |---------|----------------|-------------------|
  * | Isolation | Shared JS runtime | Fully isolated |
@@ -38,7 +38,7 @@
  * | Communication | Direct calls | postMessage |
  * | Style isolation | Requires extra handling | Naturally isolated |
  * 
- * „ÄêArchitectural Constraint - v3.0 Runtime Shell„Äë
+ * °æArchitectural Constraint - v3.0 Runtime Shell°ø
  * - This loader is only for Host layer use
  * - Plugins communicate with Host via IframeBridge
  * - All loading behavior must be observable
@@ -100,7 +100,7 @@ export interface IframePluginLoaderOptions {
  * 
  * Plugin loader implementation based on iframe, providing fully isolated plugin runtime environment.
  * 
- * „ÄêUsage Example„Äë
+ * °æUsage Example°ø
  * ```typescript
  * // Create loader
  * const loader = new IframePluginLoader({

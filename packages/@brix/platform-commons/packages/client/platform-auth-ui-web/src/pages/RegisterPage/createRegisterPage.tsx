@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file createRegisterPage 工厂函数
- * @description 创建预装配的注册页面组件
- * @module @brix/platform-auth-web/pages/RegisterPage/createRegisterPage
+ * @file createRegisterPage ��������
+ * @description ����Ԥװ���ע��ҳ�����
+ * @module @brix-sdk/platform-auth-web/pages/RegisterPage/createRegisterPage
  * @version 3.0.0
  */
 
@@ -26,19 +26,19 @@ import type { RegisterFormData, RegisterFormResult } from '../../components/Regi
 import type { LoginFormBranding } from '../../components/LoginForm/types';
 
 // ============================================================================
-// 类型定义
+// ���Ͷ���
 // ============================================================================
 
 export interface RegisterPageConfig {
-  /** 注册处理函数 */
+  /** ע�ᴦ����� */
   onRegister: (data: RegisterFormData) => Promise<RegisterFormResult>;
-  /** 注册成功后的回调 */
+  /** ע��ɹ���Ļص� */
   onRegisterSuccess?: () => void;
-  /** 返回登录回调 */
+  /** ���ص�¼�ص� */
   onBackToLogin?: () => void;
-  /** 品牌配置 */
+  /** Ʒ������ */
   branding?: LoginFormBranding;
-  /** 自定义标*/
+  /** �Զ����*/
   labels?: {
     title?: string;
     subtitle?: string;
@@ -56,7 +56,7 @@ export interface RegisterPageConfig {
     backToLoginLabel?: string;
     termsLabel?: string;
   };
-  /** 功能配置 */
+  /** �������� */
   features?: {
     requireName?: boolean;
     showTermsCheckbox?: boolean;
@@ -66,14 +66,14 @@ export interface RegisterPageConfig {
 }
 
 // ============================================================================
-// 工厂函数
+// ��������
 // ============================================================================
 
 /**
- * 创建预装配的注册页面组件
+ * ����Ԥװ���ע��ҳ�����
  * 
- * @param config - 注册页面配置
- * @returns React 组件
+ * @param config - ע��ҳ������
+ * @returns React ���
  * 
  * @example
  * ```tsx
@@ -98,8 +98,7 @@ export function createSimpleRegisterPage(config: RegisterPageConfig): React.FC {
   } = config;
   
   const PrebuiltRegisterPage: React.FC = () => {
-    const handleRegisterSuccess = useCallback((result: RegisterFormResult) => {
-      console.log('Registration successful:', result.user);
+    const handleRegisterSuccess = useCallback((_result: RegisterFormResult) => {
       onRegisterSuccess?.();
     }, []);
     

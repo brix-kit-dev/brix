@@ -1,1 +1,5 @@
-io.brix.platform.auth.SecurityAutoConfiguration
+io.brix.platform.auth.password.PasswordCapabilityAutoConfiguration
+io.brix.platform.auth.jwt.JwtIssuerAutoConfiguration
+io.brix.platform.auth.flow.AuthFlowAutoConfiguration
+io.brix.platform.auth.refresh.RefreshTokenAutoConfiguration
+io.brix.platform.auth.oauth2.OAuth2FederationAutoConfiguration

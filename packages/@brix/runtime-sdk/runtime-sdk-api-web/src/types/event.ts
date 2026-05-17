@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Event-Related Type Definitions
  * @description Defines core types for the event system, including event messages, handlers, subscription options, etc.
- * @module @brix/runtime-sdk-api-web/types/event
+ * @module @brix-sdk/runtime-sdk-api-web/types/event
  * @version 3.3.0
  *
  * [v3.3 Changes - Phase 3 Contract Layer Cleanup]
@@ -387,8 +387,15 @@ export interface GovernedEventMetadata {
   /** Sender (Plugin ID) */
   readonly source: string;
 
-  /** Tenant ID */
-  readonly tenantId?: string;
+  /**
+   * Tenant ID.
+   *
+   * Required for cross-plugin events to enforce tenant-level isolation (R3.6).
+   * Automatically populated by EventBusCapability from the current tenant context.
+   *
+   * @since 3.2.0 — changed from optional to required
+   */
+  readonly tenantId: string;
 
   /**
    * Event Scope
@@ -433,8 +440,17 @@ export interface EventMetadata {
   /** Emit Timestamp (milliseconds) */
   readonly timestamp: number;
 
-  /** Tenant ID (multi-tenant scenario) */
-  readonly tenantId?: string;
+  /**
+   * Tenant ID (multi-tenant scenario).
+   *
+   * Required for all cross-plugin (scope: 'host') events to ensure
+   * tenant-level data isolation during event processing (R3.6 compliance).
+   * Automatically populated from the current tenant context by the
+   * EventBusCapability implementation when not explicitly provided.
+   *
+   * @since 3.2.0 — changed from optional to required
+   */
+  readonly tenantId: string;
 
   /** Custom Tags (for filtering and classification) */
   readonly tags?: ReadonlyArray<string>;
@@ -492,17 +508,17 @@ export interface WebEventEmitOptions {
 export type BackpressureOverflowStrategy =
   /**
    * Drop oldest events to make room for new ones
-   * 丢弃最旧的事件以为新事件腾出空间
+   * ������ɵ��¼���Ϊ���¼��ڳ��ռ�
    */
   | 'drop-oldest'
   /**
    * Reject new events when queue is full (throws BackpressureError)
-   * 队列满时拒绝新事件（抛出 BackpressureError）
+   * ������ʱ�ܾ����¼����׳� BackpressureError��
    */
   | 'reject'
   /**
    * Block the emit call until space is available (async only)
-   * 阻塞 emit 调用直到有空间可用（仅异步）
+   * ���� emit ����ֱ���пռ���ã����첽��
    */
   | 'block';
 
@@ -512,8 +528,8 @@ export type BackpressureOverflowStrategy =
  * <p>Configuration for event bus backpressure management.
  * Prevents memory exhaustion and ensures system stability under high load.</p>
  *
- * 事件总线背压管理配置。
- * 防止内存耗尽，确保高负载下的系统稳定性。
+ * �¼����߱�ѹ�������á�
+ * ��ֹ�ڴ�ľ���ȷ���߸����µ�ϵͳ�ȶ��ԡ�
  *
  * @since 3.3.0
  */
@@ -524,8 +540,8 @@ export interface BackpressureConfig {
    * <p>When the number of pending events exceeds this limit,
    * the overflow strategy is applied.</p>
    *
-   * 每个事件类型的最大队列深度。
-   * 当待处理事件数量超过此限制时，将应用溢出策略。
+   * ÿ���¼����͵���������ȡ�
+   * ���������¼���������������ʱ����Ӧ��������ԡ�
    *
    * @default 1000
    */
@@ -534,7 +550,7 @@ export interface BackpressureConfig {
   /**
    * Global maximum queue depth (across all event types)
    *
-   * 全局最大队列深度（跨所有事件类型）
+   * ȫ����������ȣ��������¼����ͣ�
    *
    * @default 10000
    */
@@ -543,7 +559,7 @@ export interface BackpressureConfig {
   /**
    * Overflow strategy when queue is full
    *
-   * 队列满时的溢出策略
+   * ������ʱ���������
    *
    * @default 'drop-oldest'
    */
@@ -554,7 +570,7 @@ export interface BackpressureConfig {
    *
    * <p>Emits a warning event when queue reaches this percentage of maxQueueDepth.</p>
    *
-   * 警告阈值百分比。当队列达到 maxQueueDepth 的此百分比时发出警告事件。
+   * ������ֵ�ٷֱȡ������дﵽ maxQueueDepth �Ĵ˰ٷֱ�ʱ���������¼���
    *
    * @default 80
    */
@@ -563,7 +579,7 @@ export interface BackpressureConfig {
   /**
    * Enable backpressure metrics collection
    *
-   * 启用背压指标收集
+   * ���ñ�ѹָ���ռ�
    *
    * @default true
    */
@@ -737,7 +753,7 @@ export interface GovernedEventBusCapability {
   /**
    * Configure backpressure settings
    *
-   * 配置背压设置
+   * ���ñ�ѹ����
    *
    * @param config Backpressure configuration
    * @since 3.3.0
@@ -747,7 +763,7 @@ export interface GovernedEventBusCapability {
   /**
    * Get current backpressure metrics
    *
-   * 获取当前背压指标
+   * ��ȡ��ǰ��ѹָ��
    *
    * @returns Current backpressure metrics
    * @since 3.3.0
@@ -757,7 +773,7 @@ export interface GovernedEventBusCapability {
   /**
    * Check if backpressure is active for an event type
    *
-   * 检查某事件类型是否处于背压状态
+   * ���ĳ�¼������Ƿ��ڱ�ѹ״̬
    *
    * @param eventType Event type to check
    * @returns True if backpressure is active
@@ -768,7 +784,7 @@ export interface GovernedEventBusCapability {
   /**
    * Reset backpressure metrics
    *
-   * 重置背压指标
+   * ���ñ�ѹָ��
    *
    * @since 3.3.0
    */

@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/infra-adapter-ui-mui",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/infra-adapter-ui-mui",
+  "version": "3.2.0",
   "type": "module",
   "description": "Brix MUI UI Adapter - Material UI atomic components implementing UIAdapter contract for production-grade enterprise applications",
   "main": "dist/index.cjs",
@@ -26,11 +26,14 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/runtime-sdk-react": "workspace:*",
+    "@brix-sdk/platform-design-tokens": "link:../../../../platform-commons/packages/client/platform-design-tokens"
   },
   "peerDependencies": {
-    "@brix/runtime-sdk-api-web": "^3.1.0",
-    "@brix/shared-runtime-web": "^1.0.0",
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/runtime-sdk-react": "workspace:*",
+    "@brix-sdk/shared-runtime-web": "workspace:*",
     "@mui/material": "^7.0.0",
     "@mui/icons-material": "^7.0.0",
     "@emotion/react": "^11.11.0",
@@ -61,5 +64,8 @@
     "typescript": "^5.3.0",
     "vitest": "^1.2.0",
     "rimraf": "^5.0.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

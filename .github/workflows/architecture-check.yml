@@ -1,0 +1,216 @@
+# ============================================================================
+# Architecture Check (Brix SDK)
+# ============================================================================
+#
+# Phase 3 / C-6 — CI gate for the brix open-source monorepo.
+#
+# Enforces three architectural invariants on every PR / push to main:
+#   1. Lint passes across all SDK packages (no rule disabled silently).
+#   2. TypeScript type-checks across all SDK packages.
+#   3. Vitest suite passes across all SDK packages.
+#
+# This workflow intentionally does NOT include @brix-sdk/enterprise-*
+# packages — those live in the brix-enterprise repository and are gated
+# by `architecture-check.yml` there.
+#
+# @see docs-dev/前端稳定性改造计划-v1.0.md §5 (Phase 3 — 防回归底座)
+# ============================================================================
+
+name: Architecture Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+      - 'packages/**/package.json'
+      - 'packages/**/tsconfig.json'
+      - 'packages/**/pom.xml'
+      - 'packages/**/vitest.config.*'
+      - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
+      - 'package.json'
+      - 'pom.xml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/architecture-check.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+      - 'packages/**/package.json'
+      - 'packages/**/pom.xml'
+      - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
+      - 'package.json'
+      - 'pom.xml'
+      - 'pnpm-lock.yaml'
+
+# Cancel superseded runs to keep the queue short.
+concurrency:
+  group: architecture-check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================================
+  # Job: Lint + Typecheck + Test
+  #
+  # All three are intentionally co-located in one job so that:
+  #   * a broken lockfile fails fast (single `pnpm install`),
+  #   * the runner image / pnpm cache is shared,
+  #   * the gate is atomic — partial green is meaningless to a reviewer.
+  # ==========================================================================
+  quality-gate:
+    name: Lint + Typecheck + Test + Dependency Governance
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup Java (17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ----------------------------------------------------------------------
+      # Step: Dependency governance — Phase 2 / DEP-1.
+      # Fails on TypeScript import cycles before they can harden into layer
+      # coupling between SDK packages.
+      # ----------------------------------------------------------------------
+      - name: TypeScript dependency cycle check
+        run: pnpm dlx madge@6.1.0 --circular --extensions ts,tsx packages/@brix --exclude '(^|/)(dist|target|node_modules)(/|$)'
+
+      # ----------------------------------------------------------------------
+      # Step: Maven dependency analysis — Phase 2 / DEP-1.
+      # Fails when Java modules declare unused dependencies or use undeclared
+      # ones, keeping module POMs aligned with actual compile-time boundaries.
+      # ----------------------------------------------------------------------
+      - name: Maven dependency analysis
+        run: mvn -q -DskipTests -DfailOnWarning=true dependency:analyze-only
+
+      # ----------------------------------------------------------------------
+      # Step: Lint — every package must define a `lint` script.
+      # `--if-present` keeps packages without lint (assets-only) from failing.
+      # ----------------------------------------------------------------------
+      - name: Lint
+        run: pnpm -r --if-present run lint
+        env:
+          CI: true
+
+      # ----------------------------------------------------------------------
+      # Step: Typecheck — fail-at-end so that a single broken package does
+      # not hide unrelated regressions.
+      # ----------------------------------------------------------------------
+      - name: Typecheck
+        run: pnpm -r --if-present run typecheck
+        env:
+          CI: true
+
+      # ----------------------------------------------------------------------
+      # Step: Test — uses each package's own `test` script (vitest run).
+      # Per Phase 3 plan §5.1 the failure threshold is "any test fails".
+      # ----------------------------------------------------------------------
+      - name: Run unit tests
+        run: pnpm -r --if-present run test
+        env:
+          CI: true
+
+  scaffold-smoke:
+    name: create-brix Scaffold Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build create-brix
+        run: pnpm --filter @brix-sdk/create-brix build
+
+      - name: Generate smoke app
+        run: |
+          set -euo pipefail
+          node packages/@brix/platform-devtools/@brix/create-brix/dist/cli.js app smoke \
+            --yes \
+            --skip-install \
+            --skip-git \
+            --no-with-ui-mobile \
+            --no-with-app \
+            --output-dir "$RUNNER_TEMP/create-brix-smoke"
+
+      - name: Assert scaffold architecture
+        run: |
+          set -euo pipefail
+          APP_DIR="$RUNNER_TEMP/create-brix-smoke/app-smoke"
+
+          test -f "$APP_DIR/pom.xml"
+          test -f "$APP_DIR/smoke-api/pom.xml"
+          test -f "$APP_DIR/smoke-core/pom.xml"
+          test -f "$APP_DIR/smoke-server/pom.xml"
+          test -f "$APP_DIR/smoke-ui-web/src/bootstrap.tsx"
+          test -f "$APP_DIR/smoke-ui-web/src/repositories/SmokeRepository.ts"
+
+          if test -d "$APP_DIR/smoke-core/src/main/java/io/brix/app/smoke/core/controller"; then
+            echo "Core module must not contain a controller package."
+            exit 1
+          fi
+
+          if grep -RInE '<artifactId>(spring-boot-starter-web|spring-kafka|spring-data-redis|spring-cloud-starter-openfeign|okhttp|retrofit|minio)</artifactId>' "$APP_DIR/smoke-core/pom.xml"; then
+            echo "Core module contains forbidden infrastructure or web dependencies."
+            exit 1
+          fi
+
+          if ! test -f "$APP_DIR/smoke-server/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"; then
+            echo "Server module must register auto-configuration through Spring Boot imports."
+            exit 1
+          fi
+
+          if grep -RInE 'fetch\(|@brix-sdk/infra-adapter-ui-mui' "$APP_DIR/smoke-ui-web"; then
+            echo "UI web scaffold contains direct HTTP, infra adapter, or UI library usage."
+            exit 1
+          fi
+
+          if grep -RInE "from ['\"](react-router-dom|@mui/material|antd)" "$APP_DIR/smoke-ui-web"; then
+            echo "UI web scaffold contains direct frontend library imports."
+            exit 1
+          fi
+
+          if grep -RIn '@brix-sdk/brix' "$APP_DIR"; then
+            echo "Scaffold contains legacy SDK package references."
+            exit 1
+          fi
+
+          if grep -RInE '"@brix-sdk/[^"]+"\s*:\s*"\^1\.' "$APP_DIR"; then
+            echo "Scaffold contains legacy 1.x Brix SDK versions."
+            exit 1
+          fi

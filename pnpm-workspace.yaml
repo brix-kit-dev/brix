@@ -10,25 +10,60 @@
 
 packages:
   # ==================== Core Packages ====================
+  
   # Runtime SDK - Capability contracts and orchestration engine
-  - 'packages/@brix/runtime-sdk'
-  - 'packages/@brix/runtime-sdk/*'
+  - 'packages/@brix/brix'                                 # Public frontend SDK facade
+  - 'packages/@brix/runtime-sdk'                          # Root package
+  - 'packages/@brix/runtime-sdk/runtime-sdk-api-web'      # Web API contracts
+  - 'packages/@brix/runtime-sdk/runtime-sdk-api-mobile'   # Mobile API contracts  
+  - 'packages/@brix/runtime-sdk/runtime-sdk-react'        # React bindings
+  - 'packages/@brix/runtime-sdk/runtime-orchestrator-web' # Web orchestrator
+  - 'packages/@brix/runtime-sdk/runtime-manifest-web'     # Manifest loader
   
   # Infrastructure Adapters - Concrete capability implementations
-  - 'packages/@brix/infra-adapters'
-  - 'packages/@brix/infra-adapters/*'
+  - 'packages/@brix/infra-adapters'                                       # Root package
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-http-web'   # HTTP runtime
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-mf-web'     # Module Federation
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-iframe-web' # iframe isolation
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-native-web' # Native import
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-router-web' # React Router
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-state-web'  # Zustand state
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-ui-native'  # Native UI
+  - 'packages/@brix/infra-adapters/packages/web/infra-adapter-ui-mui'     # MUI adapter
+  - 'packages/@brix/infra-adapters/packages/mobile/infra-adapter-module-mobile'     # RN module
+  - 'packages/@brix/infra-adapters/packages/mobile/infra-adapter-navigation-mobile' # RN navigation
+  - 'packages/@brix/infra-adapters/packages/mobile/infra-adapter-storage-mobile'    # RN storage
+  - 'packages/@brix/infra-adapters/packages/mobile/infra-adapter-device-mobile'     # RN device
+  - 'packages/@brix/infra-adapters/packages/mobile/infra-adapter-biometric-mobile'  # RN biometric
+  - 'packages/@brix/infra-adapters/packages/mobile/infra-adapter-push-mobile'       # RN push
   
   # Platform Commons - Platform-level shared capabilities
-  - 'packages/@brix/platform-commons'
-  - 'packages/@brix/platform-commons/*'
-  
+  - 'packages/@brix/platform-commons'                                           # Root package
+  - 'packages/@brix/platform-commons/packages/client/platform-shared'           # Shared utilities
+  - 'packages/@brix/platform-commons/packages/client/platform-auth-web'         # Auth facade
+  - 'packages/@brix/platform-commons/packages/client/platform-auth-service-web' # Auth service
+  - 'packages/@brix/platform-commons/packages/client/platform-auth-ui-web'      # Auth UI
+  - 'packages/@brix/platform-commons/packages/client/platform-config-web'       # Config management
+  - 'packages/@brix/platform-commons/packages/client/platform-eventbus-web'     # Event bus
+  - 'packages/@brix/platform-commons/packages/client/platform-i18n-web'         # i18n
+  - 'packages/@brix/platform-commons/packages/client/platform-navigation-web'   # Navigation
+  - 'packages/@brix/platform-commons/packages/client/platform-router-web'       # Router
+  - 'packages/@brix/platform-commons/packages/client/platform-state-web'        # State management
+  - 'packages/@brix/platform-commons/packages/client/platform-frame-web'        # Frame (layout/theme/pages)
+  - 'packages/@brix/platform-commons/packages/client/platform-frame-mobile'     # Mobile frame (shell/navigation/plugins)
+  - 'packages/@brix/platform-commons/packages/client/platform-tenant-web'       # Tenant capability (multi-tenancy)
+  - 'packages/@brix/platform-commons/packages/client/platform-tenant-mobile'    # Mobile tenant capability
+  - 'packages/@brix/platform-commons/packages/client/platform-admin-web'        # Platform super-admin SDK (SSOT v1.0 §9)
+
   # Platform DevTools - Development and build tooling
-  - 'packages/@brix/platform-devtools'
-  - 'packages/@brix/platform-devtools/*'
+  - 'packages/@brix/platform-devtools'                               # Root package
+  - 'packages/@brix/platform-devtools/eslint-config-architecture'    # ESLint config
+  - 'packages/@brix/platform-devtools/@brix/create-brix'             # CLI scaffolding
+  - 'packages/@brix/platform-commons/packages/client/platform-design-tokens'  # Design tokens (Layer 2C)
   
   # Shared Runtime - Layer 2B unified runtime dependencies
-  - 'packages/@brix/shared-runtime'
-  - 'packages/@brix/shared-runtime/*'
+  - 'packages/@brix/shared-runtime'                        # Root package
+  - 'packages/@brix/shared-runtime/shared-runtime-web'     # Web runtime bundle
   
   # ==================== Examples ====================
   - 'examples/*'

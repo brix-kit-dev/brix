@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file Native Badge Component
  * @description Pure CSS badge component implementing BadgeProps from UIAdapter contract.
- * @module @brix/infra-adapter-ui-native/components/NativeBadge
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeBadge
  * @version 3.1.0
  */
 
 import type { FC, CSSProperties } from 'react';
-import type { BadgeProps, BadgeColor } from '@brix/runtime-sdk-api-web';
+import type { BadgeProps, BadgeColor } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Style Constants

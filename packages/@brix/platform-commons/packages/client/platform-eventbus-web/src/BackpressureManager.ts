@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,17 +16,13 @@
 /**
  * @file Backpressure Manager
  * @description Manages event queue backpressure and overflow strategies
- * @module @brix/platform-eventbus-web/BackpressureManager
+ * @module @brix-sdk/platform-eventbus-web/BackpressureManager
  * @version 3.3.0
  * @since 3.3.0
  *
  * Architecture Overview:
  * BackpressureManager provides queue management and overflow handling
  * to prevent memory exhaustion under high event load.
- *
- * 架构概述：
- * BackpressureManager 提供队列管理和溢出处理，
- * 以防止高事件负载下的内存耗尽。
  *
  * Core Responsibilities:
  * 1. Track event queue depth per event type
@@ -39,8 +35,8 @@ import type {
   BackpressureConfig,
   BackpressureMetrics,
   GovernedEvent,
-} from '@brix/runtime-sdk-api-web';
-import { BackpressureError } from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
+import { BackpressureError } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Queued event entry
@@ -66,8 +62,6 @@ const DEFAULT_CONFIG: Required<BackpressureConfig> = {
  *
  * Manages event queue depth and applies overflow strategies.
  *
- * 管理事件队列深度并应用溢出策略。
- *
  * @example
  * ```typescript
  * const manager = new BackpressureManager({
@@ -90,19 +84,16 @@ export class BackpressureManager {
 
   /**
    * Event queues per type
-   * 每种类型的事件队列
    */
   private queues: Map<string, QueuedEvent[]> = new Map();
 
   /**
    * Total events across all queues
-   * 所有队列中的事件总数
    */
   private totalQueueDepth: number = 0;
 
   /**
    * Metrics tracking
-   * 指标跟踪
    */
   private metrics: {
     droppedCount: number;
@@ -147,8 +138,6 @@ export class BackpressureManager {
   /**
    * Check if event can be accepted and apply overflow strategy if needed
    *
-   * 检查事件是否可以被接受，如果需要则应用溢出策略
-   *
    * @param eventType - Event type
    * @param event - The event to check
    * @returns Result indicating if event was accepted and any dropped events
@@ -162,7 +151,6 @@ export class BackpressureManager {
     const droppedEvents: GovernedEvent[] = [];
 
     // Check warning threshold
-    // 检查警告阈值
     const warningLimit = Math.floor(
       (this.config.maxQueueDepth * this.config.warningThreshold) / 100
     );
@@ -171,19 +159,16 @@ export class BackpressureManager {
     }
 
     // Check if queue is at capacity
-    // 检查队列是否已满
     if (queueDepth >= this.config.maxQueueDepth) {
       return this.applyOverflowStrategy(eventType, event, queue, droppedEvents);
     }
 
     // Check global limit
-    // 检查全局限制
     if (this.totalQueueDepth >= this.config.globalMaxQueueDepth) {
       return this.applyGlobalOverflowStrategy(eventType, event, droppedEvents);
     }
 
     // Accept the event
-    // 接受事件
     this.enqueue(eventType, event);
     return { accepted: true, droppedEvents };
   }
@@ -303,7 +288,6 @@ export class BackpressureManager {
     switch (strategy) {
       case 'drop-oldest': {
         // Drop the oldest event and add the new one
-        // 丢弃最旧的事件并添加新事件
         const dropped = queue.shift();
         if (dropped) {
           droppedEvents.push(dropped.event);
@@ -316,21 +300,18 @@ export class BackpressureManager {
 
       case 'reject': {
         // Reject the new event
-        // 拒绝新事件
         this.metrics.rejectedCount++;
         throw new BackpressureError(eventType, queue.length, this.config.maxQueueDepth);
       }
 
       case 'block': {
         // In sync context, we cannot truly block, so we reject
-        // 在同步上下文中，我们无法真正阻塞，所以拒绝
         this.metrics.rejectedCount++;
         return { accepted: false, droppedEvents };
       }
 
       default: {
         // Unknown strategy, use drop-oldest as fallback
-        // 未知策略，使用 drop-oldest 作为后备
         const dropped = queue.shift();
         if (dropped) {
           droppedEvents.push(dropped.event);
@@ -363,7 +344,6 @@ export class BackpressureManager {
     }
 
     // drop-oldest: Find the oldest event across all queues
-    // drop-oldest: 在所有队列中找到最旧的事件
     let oldestTimestamp = Infinity;
     let oldestType: string | null = null;
 

@@ -1,0 +1,241 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+
+/**
+ * @file PlatformTenantListPage — paginated tenant view + status mutation entry.
+ *
+ * Status transitions go through {@link UpdateTenantStatusDialog} which
+ * enforces (client-side) the same legal targets the backend StatusMachine
+ * accepts (`ACTIVE` / `SUSPENDED`).
+ */
+
+import { useState } from 'react';
+import { useAuth, useI18n } from '@brix-sdk/runtime-sdk-react';
+import {
+  useUIStrict,
+  AdminPageShell,
+  PageHeader,
+  SummaryGrid,
+  ToolbarPanel,
+  TriState,
+  DataTable,
+  StatusBadge,
+} from '../internal/ui-kit';
+import { usePlatformTenantList } from '../hooks/usePlatformTenantList';
+import { UpdateTenantStatusDialog } from './UpdateTenantStatusDialog';
+import {
+  PLATFORM_ADMIN_PERMISSIONS,
+  PLATFORM_TENANT_STATUS,
+  type PlatformTenantStatus,
+} from '../constants';
+import { I18N_KEYS, I18N_NAMESPACE, makeT } from '../i18n';
+import type { PlatformTenantDto } from '../types';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: '— Any —' },
+  ...Object.values(PLATFORM_TENANT_STATUS).map((v) => ({
+    value: v,
+    label: v,
+  })),
+];
+
+function badgeKind(status: PlatformTenantStatus) {
+  switch (status) {
+    case PLATFORM_TENANT_STATUS.ACTIVE:
+      return 'success' as const;
+    case PLATFORM_TENANT_STATUS.SUSPENDED:
+      return 'warning' as const;
+    case PLATFORM_TENANT_STATUS.TERMINATED:
+      return 'error' as const;
+    default:
+      return 'neutral' as const;
+  }
+}
+
+export function PlatformTenantListPage(): JSX.Element {
+  const { Button, Input, Select } = useUIStrict();
+  const tt = makeT(useI18n(I18N_NAMESPACE).t);
+  const { hasPermission } = useAuth();
+
+  const list = usePlatformTenantList();
+  const [editing, setEditing] = useState<PlatformTenantDto | null>(null);
+  const [searchText, setSearchText] = useState('');
+
+  const canUpdate = hasPermission(
+    PLATFORM_ADMIN_PERMISSIONS.TENANT_UPDATE_STATUS,
+  );
+  const tenantsOnPage = list.data?.content ?? [];
+  const activeCount = tenantsOnPage.filter(
+    (tenant) => tenant.status === PLATFORM_TENANT_STATUS.ACTIVE,
+  ).length;
+  const suspendedCount = tenantsOnPage.filter(
+    (tenant) => tenant.status === PLATFORM_TENANT_STATUS.SUSPENDED,
+  ).length;
+  const memberCount = tenantsOnPage.reduce(
+    (total, tenant) => total + tenant.memberCount,
+    0,
+  );
+
+  function applySearch() {
+    list.setQuery({ ...list.query, q: searchText.trim() || undefined, page: 0 });
+  }
+
+  return (
+    <AdminPageShell>
+      <PageHeader
+        title={tt(I18N_KEYS.tenant.listTitle)}
+        subtitle={tt(I18N_KEYS.tenant.listSubtitle)}
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => list.refresh()}
+            data-testid="platform-tenant-refresh"
+          >
+            {tt(I18N_KEYS.common.refresh)}
+          </Button>
+        }
+      />
+
+      <SummaryGrid
+        items={[
+          {
+            label: tt(I18N_KEYS.tenant.summaryTotal),
+            value: list.data?.totalElements ?? '—',
+            tone: 'brand',
+          },
+          {
+            label: tt(I18N_KEYS.tenant.summaryActive),
+            value: activeCount,
+            tone: 'success',
+          },
+          {
+            label: tt(I18N_KEYS.tenant.summarySuspended),
+            value: suspendedCount,
+            tone: suspendedCount > 0 ? 'warning' : 'neutral',
+          },
+          {
+            label: tt(I18N_KEYS.tenant.summaryMembers),
+            value: memberCount,
+            tone: 'info',
+          },
+        ]}
+      />
+
+      <ToolbarPanel>
+        <div style={{ flex: '1 1 280px' }}>
+          <Input
+            type="search"
+            label={tt(I18N_KEYS.tenant.searchLabel)}
+            placeholder={tt(I18N_KEYS.tenant.searchPlaceholder)}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            fullWidth
+            data-testid="platform-tenant-search"
+          />
+        </div>
+        <div style={{ minWidth: 220 }}>
+          <Select
+            label={tt(I18N_KEYS.tenant.filterStatus)}
+            options={STATUS_FILTER_OPTIONS}
+            value={list.query.status ?? ''}
+            onChange={(v) =>
+              list.setQuery({
+                ...list.query,
+                status: ((v as string) || undefined) as
+                  | PlatformTenantStatus
+                  | undefined,
+                page: 0,
+              })
+            }
+            clearable
+            fullWidth
+            data-testid="platform-tenant-filter-status"
+          />
+        </div>
+        <Button
+          variant="secondary"
+          onClick={applySearch}
+          data-testid="platform-tenant-search-apply"
+        >
+          {tt(I18N_KEYS.tenant.applyFilters)}
+        </Button>
+      </ToolbarPanel>
+
+      <TriState
+        loading={list.loading}
+        error={list.error}
+        data={list.data}
+        isEmpty={(d) => d.content.length === 0}
+        loadingNode={tt(I18N_KEYS.common.loading)}
+        emptyNode={tt(I18N_KEYS.common.empty)}
+      >
+        {(page) => (
+          <DataTable
+            rowKey={(r) => r.id}
+            rows={page.content}
+            columns={[
+              {
+                key: 'code',
+                header: tt(I18N_KEYS.tenant.colCode),
+                render: (r) => r.code,
+              },
+              {
+                key: 'name',
+                header: tt(I18N_KEYS.tenant.colName),
+                render: (r) => r.name,
+              },
+              {
+                key: 'status',
+                header: tt(I18N_KEYS.tenant.colStatus),
+                render: (r) => (
+                  <StatusBadge kind={badgeKind(r.status)}>{r.status}</StatusBadge>
+                ),
+              },
+              {
+                key: 'members',
+                header: tt(I18N_KEYS.tenant.colMembers),
+                render: (r) => r.memberCount,
+              },
+              {
+                key: 'createdAt',
+                header: tt(I18N_KEYS.tenant.colCreatedAt),
+                render: (r) => new Date(r.createdAt).toLocaleString(),
+              },
+              {
+                key: 'actions',
+                header: tt(I18N_KEYS.common.actions),
+                render: (r) =>
+                  canUpdate ? (
+                    <Button
+                      size="small"
+                      variant="secondary"
+                      onClick={() => setEditing(r)}
+                      data-testid="platform-tenant-row-update-status"
+                    >
+                      {tt(I18N_KEYS.tenant.actionUpdateStatus)}
+                    </Button>
+                  ) : (
+                    '—'
+                  ),
+              },
+            ]}
+          />
+        )}
+      </TriState>
+
+      {editing ? (
+        <UpdateTenantStatusDialog
+          open
+          tenant={editing}
+          onClose={() => setEditing(null)}
+          onUpdated={() => {
+            setEditing(null);
+            void list.refresh();
+          }}
+        />
+      ) : null}
+    </AdminPageShell>
+  );
+}

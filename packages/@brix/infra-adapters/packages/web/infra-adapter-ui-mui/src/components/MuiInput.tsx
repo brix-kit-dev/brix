@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Input Component
  * @description Material UI implementation of InputProps from UIAdapter contract.
  *              Full-featured text input with label, validation, and adornments.
- * @module @brix/infra-adapter-ui-mui/components/MuiInput
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiInput
  * @version 3.1.0
  *
  * [Design Principles]
@@ -32,7 +32,7 @@
  */
 
 import type { FC } from 'react';
-import type { InputProps, ComponentSize } from '@brix/runtime-sdk-api-web';
+import type { InputProps, ComponentSize } from '@brix-sdk/runtime-sdk-api-web';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import { MuiIcon } from '../icons/MuiIcon';
@@ -132,12 +132,15 @@ export const MuiInput: FC<InputProps> = ({
   name,
   autoFocus = false,
   autoComplete,
+  multiline = false,
+  rows,
   onChange,
   onFocus,
   onBlur,
   onKeyDown,
   style,
   className,
+  'data-testid': dataTestId,
 }) => {
   // Build start adornment element if icon name is provided
   const startAdornmentElement = startAdornment ? (
@@ -158,6 +161,7 @@ export const MuiInput: FC<InputProps> = ({
   const inputProps = {
     maxLength,
     readOnly,
+    'data-testid': dataTestId,
   };
 
   return (
@@ -173,6 +177,8 @@ export const MuiInput: FC<InputProps> = ({
       required={required}
       size={SIZE_MAP[size]}
       fullWidth={fullWidth}
+      multiline={multiline}
+      rows={multiline ? rows : undefined}
       name={name}
       autoFocus={autoFocus}
       autoComplete={autoComplete}

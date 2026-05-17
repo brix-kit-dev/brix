@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Camera capability type definitions
  * @description Define camera photo capture and gallery access capability contract
- * @module @brix/runtime-sdk-api-mobile/types/camera
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/camera
  * @version 3.2.0
  *
  * [v3.2.0 Notes]

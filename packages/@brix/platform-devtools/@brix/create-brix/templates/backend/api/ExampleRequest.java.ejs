@@ -1,0 +1,8 @@
+package <%= packageName %>.api.request;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record Create<%= classPrefix %>Request(
+        @NotBlank String name
+) {
+}

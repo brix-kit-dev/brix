@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,19 +16,19 @@
 /**
  * @file React Router Adapter
  * @description Adapts react-router-dom to RouterService interface
- * @module @brix/platform-router-web/ReactRouterAdapter
+ * @module @brix-sdk/platform-router-web/ReactRouterAdapter
  * @version 3.0.0
  * 
- * ã€Architecture Notesã€‘
+ * ¡¾Architecture Notes¡¿
  * ReactRouterAdapter is the react-router-dom implementation of RouterService.
  * Through the adapter pattern, it wraps react-router-dom API into a unified interface.
  * 
- * ã€Initialization Flowã€‘
+ * ¡¾Initialization Flow¡¿
  * 1. Host application creates ReactRouterAdapter instance within RouterProvider
  * 2. Uses RouterInjector component to inject navigate function
  * 3. NavigationCapability implementation performs navigation through this adapter
  * 
- * ã€Technical Detailsã€‘
+ * ¡¾Technical Details¡¿
  * - react-router-dom v6's navigate function can only be obtained within components
  * - navigate function is injected via setNavigator() method with delayed injection
  * - History listening is implemented via window.addEventListener('popstate')
@@ -42,7 +42,7 @@ import type { RouterService, NavigateOptions, UrlChangeListener, Unsubscribe } f
  * 
  * Wraps react-router-dom API into RouterService interface.
  * 
- * ã€Usage Exampleã€‘
+ * ¡¾Usage Example¡¿
  * ```typescript
  * // Initialize in Host application
  * const routerAdapter = new ReactRouterAdapter();
@@ -89,7 +89,7 @@ export class ReactRouterAdapter implements RouterService {
    * Called by Host inside RouterProvider to inject react-router's navigate function.
    * This is a required initialization step, otherwise navigation operations will fail.
    * 
-   * ã€Technical Reasonã€‘
+   * ¡¾Technical Reason¡¿
    * react-router-dom v6's useNavigate() can only be used inside Router component.
    * Therefore, navigate function must be obtained in component and injected to adapter.
    * 

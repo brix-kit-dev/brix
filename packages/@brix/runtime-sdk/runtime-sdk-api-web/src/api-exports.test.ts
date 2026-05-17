@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Public API Snapshot Test (Golden File)
  * @description Validates stability of public API exports to prevent accidental breaking changes
- * @module @brix/runtime-sdk-api-web/test
+ * @module @brix-sdk/runtime-sdk-api-web/test
  * @version 3.2.0
  * 
  * [Test Description]

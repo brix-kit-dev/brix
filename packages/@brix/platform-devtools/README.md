@@ -6,8 +6,8 @@ Platform DevTools contains development-time tooling for Brix. These packages sup
 
 | Package | Purpose | Typical Usage |
 |---------|---------|---------------|
-| `@brix/create-brix` | scaffolding CLI for plugins, applications, and services | `pnpm create @brix/brix` |
-| `@brix/design-tokens` | shared design tokens for frontend development | `devDependencies` |
+| `@brix-sdk/create-brix` | scaffolding CLI for plugins, applications, and services | `pnpm create @brix-sdk/brix` |
+| `@brix-sdk/platform-design-tokens` | shared design tokens for frontend development | `devDependencies` |
 | `architecture-guard` | architecture conformance checks for Java modules | build and CI validation |
 | `eslint-config-architecture` | architecture-aware ESLint rules for frontend code | frontend linting |
 
@@ -16,22 +16,22 @@ Platform DevTools contains development-time tooling for Brix. These packages sup
 ### Create a Plugin
 
 ```bash
-pnpm create @brix/brix plugin
+pnpm create @brix-sdk/brix plugin
 ```
 
 ### Create a Service
 
 ```bash
-pnpm create @brix/brix service
+pnpm create @brix-sdk/brix service
 ```
 
 ## Repository Layout
 
 ```text
 platform-devtools/
-├── @brix/
-│   ├── create-brix/
-│   └── design-tokens/
+├── @brix-sdk/
+�?  ├── create-brix/
+�?  └── design-tokens/
 ├── architecture-guard/
 └── eslint-config-architecture/
 ```

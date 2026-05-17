@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file Native Input Component
  * @description Pure CSS input field component implementing InputProps from UIAdapter contract.
  *              No external UI library dependencies.
- * @module @brix/infra-adapter-ui-native/components/NativeInput
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeInput
  * @version 3.1.0
  *
  * [Design Principles]
@@ -28,7 +28,7 @@
  */
 
 import { useId, type FC, type CSSProperties } from 'react';
-import type { InputProps, ComponentSize } from '@brix/runtime-sdk-api-web';
+import type { InputProps, ComponentSize } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 
 // ============================================================================
@@ -141,6 +141,7 @@ export const NativeInput: FC<InputProps> = ({
   onKeyDown,
   style,
   className,
+  'data-testid': dataTestId,
 }) => {
   // Generate unique ID for label association
   const inputId = useId();
@@ -238,6 +239,7 @@ export const NativeInput: FC<InputProps> = ({
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           style={inputStyle}
+          data-testid={dataTestId}
           aria-invalid={error}
           aria-describedby={helperText ? `${inputId}-helper` : undefined}
         />

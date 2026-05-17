@@ -18,6 +18,8 @@ package io.runtime.sdk.capability;
 import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Event Bus Capability Contract
  *
@@ -77,6 +79,7 @@ import io.runtime.sdk.event.IntegrationEvent;
  * @see DomainEvent
  * @see IntegrationEvent
  */
+@Since("3.0.0")
 public interface EventBusCapability {
 
     /**

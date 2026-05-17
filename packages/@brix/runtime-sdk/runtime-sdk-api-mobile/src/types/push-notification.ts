@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Push notification capability type definitions
  * @description Define push notification capability contract
- * @module @brix/runtime-sdk-api-mobile/types/push-notification
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/push-notification
  * @version 3.2.0
  *
  * [v3.2.0 Notes]

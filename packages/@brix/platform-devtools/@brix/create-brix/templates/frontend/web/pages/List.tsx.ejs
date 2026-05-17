@@ -1,232 +1,43 @@
-﻿/**
- * <%= classPrefix %> List Page
- * 
- * @module @brix/<%= name %>-web
- * @generated <%= date %>
- * 
- * Features:
- * - Display <%= displayName %> data list
- * - Support pagination and search
- * - Support view details, edit, and delete operations
- */
+import React from 'react';
+import { useUI } from '@brix-sdk/runtime-sdk-react';
+<% if (typeof withShared !== 'undefined') { -%>
+import { use<%= classPrefix %> } from '../hooks/use<%= classPrefix %>';
+<% } -%>
 
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  Box,
-  Typography,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TablePagination,
-  CircularProgress,
-  Alert,
-  Stack,
-  Button,
-  TextField,
-  InputAdornment,
-  IconButton,
-  Paper,
-  Tooltip,
-} from '@mui/material';
-import {
-  Search,
-  Refresh,
-  Add,
-  Edit,
-  Delete,
-  Visibility,
-} from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-
-/**
- * <%= displayName %> List Page Component
- */
 export default function <%= classPrefix %>List(): React.ReactElement {
-  const navigate = useNavigate();
-  const { t } = useTranslation();
-  
-  // State management
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [keyword, setKeyword] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 0,
-    size: 10,
-    totalElements: 0,
-    totalPages: 0,
-  });
+  const { Box, Typography, Paper, Button, Stack, Spin, Alert } = useUI();
+<% if (typeof withShared !== 'undefined') { -%>
+  const { records, isLoading, error, reload } = use<%= classPrefix %>();
 
-  // Load data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // TODO: Replace with actual API call
-      // const response = await api.get<%= classPrefix %>List({ keyword, page: pagination.page, size: pagination.size });
-      // setData(response.data.content);
-      // setPagination(prev => ({ ...prev, totalElements: response.data.totalElements, totalPages: response.data.totalPages }));
-      
-      // Mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setData([
-        { id: '1', name: '<%= displayName %> Sample 1', createdAt: new Date().toISOString() },
-        { id: '2', name: '<%= displayName %> Sample 2', createdAt: new Date().toISOString() },
-      ]);
-      setPagination(prev => ({ ...prev, totalElements: 2, totalPages: 1 }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  }, [keyword, pagination.page, pagination.size]);
-
-  // Initial load
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Search handler
-  const handleSearch = useCallback(() => {
-    setPagination(prev => ({ ...prev, page: 0 }));
-    fetchData();
-  }, [fetchData]);
-
-  // Refresh handler
-  const handleRefresh = useCallback(() => {
-    setKeyword('');
-    setPagination(prev => ({ ...prev, page: 0 }));
-    fetchData();
-  }, [fetchData]);
-
-  // Pagination handler
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setPagination(prev => ({ ...prev, page: 0, size: parseInt(event.target.value, 10) }));
-  };
-
-  // View details
-  const handleView = (id: string) => {
-    navigate(`/<%= name.replace('plugin-', '') %>/${id}`);
-  };
+  if (isLoading) {
+    return <Spin />;
+  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Page title */}
-      <Typography variant="h5" component="h1" gutterBottom>
-        {t('<%= name.replace('plugin-', '') %>.list.title', '<%= displayName %>列表')}
-      </Typography>
-
-      {/* Toolbar */}
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            size="small"
-            placeholder={t('<%= name.replace('plugin-', '') %>.list.searchPlaceholder', 'Search...')}
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ minWidth: 250 }}
-          />
-          <Button variant="outlined" onClick={handleSearch} startIcon={<Search />}>
-            {t('common.search', 'Search')}
-          </Button>
-          <Button variant="outlined" onClick={handleRefresh} startIcon={<Refresh />}>
-            {t('common.refresh', 'Refresh')}
-          </Button>
-          <Box sx={{ flexGrow: 1 }} />
-          <Button variant="contained" startIcon={<Add />} onClick={() => navigate('/<%= name.replace('plugin-', '') %>/new')}>
-            {t('<%= name.replace('plugin-', '') %>.list.add', '新增')}
-          </Button>
-        </Stack>
-      </Paper>
-
-      {/* Error alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Data table */}
-      <Paper>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>{t('<%= name.replace('plugin-', '') %>.list.name', 'Name')}</TableCell>
-                  <TableCell>{t('<%= name.replace('plugin-', '') %>.list.createdAt', 'Created at')}</TableCell>
-                  <TableCell align="right">{t('common.actions', '操作')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data.map((item) => (
-                  <TableRow key={item.id} hover>
-                    <TableCell>{item.id}</TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
-                    <TableCell align="right">
-                      <Tooltip title={t('common.view', 'View')}>
-                        <IconButton size="small" onClick={() => handleView(item.id)}>
-                          <Visibility />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={t('common.edit', 'Edit')}>
-                        <IconButton size="small" onClick={() => navigate(`/<%= name.replace('plugin-', '') %>/${item.id}/edit`)}>
-                          <Edit />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={t('common.delete', 'Delete')}>
-                        <IconButton size="small" color="error">
-                          <Delete />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {data.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        {t('common.noData', 'No data')}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <TablePagination
-              component="div"
-              count={pagination.totalElements}
-              page={pagination.page}
-              rowsPerPage={pagination.size}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[10, 20, 50]}
-              labelRowsPerPage={t('common.rowsPerPage', '每pages行数')}
-            />
-          </>
-        )}
+    <Box data-module="<%= name %>" sx={{ p: 3 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="h5"><%= displayName %></Typography>
+        <Button variant="outlined" onClick={reload}>Refresh</Button>
+      </Stack>
+      {error ? <Alert severity="error">{error.message}</Alert> : null}
+      <Stack spacing={2}>
+        {records.map(record => (
+          <Paper key={record.id} sx={{ p: 2 }}>
+            <Typography variant="subtitle1">{record.name}</Typography>
+            <Typography variant="body2" color="text.secondary">{record.createdAt}</Typography>
+          </Paper>
+        ))}
+      </Stack>
+    </Box>
+  );
+<% } else { -%>
+  return (
+    <Box data-module="<%= name %>" sx={{ p: 3 }}>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h5"><%= displayName %></Typography>
+        <Typography variant="body2" color="text.secondary"><%= description %></Typography>
       </Paper>
     </Box>
   );
+<% } -%>
 }

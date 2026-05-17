@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Navigation Capability Implementation
  * @description Implements NavigationCapability interface
- * @module @brix/platform-navigation-web/NavigationCapabilityImpl
+ * @module @brix-sdk/platform-navigation-web/NavigationCapabilityImpl
  * @version 3.0.0
  * 
  * [Architectural Notes]
@@ -32,12 +32,12 @@
  * [Architectural Relationships]
  * ```text
  * Plugin Code
- *   ↓ calls requestNavigate('booking:detail', { id: '123' })
+ *   �� calls requestNavigate('booking:detail', { id: '123' })
  * NavigationCapabilityImpl (this class)
- *   ↓ 1. PageRegistry.resolve() find page
- *   ↓ 2. GovernancePolicy.canNavigate() check permissions
- *   ↓ 3. PageRegistry.buildUrl() build URL
- *   ↓ 4. RouterService.navigate() execute navigation
+ *   �� 1. PageRegistry.resolve() find page
+ *   �� 2. GovernancePolicy.canNavigate() check permissions
+ *   �� 3. PageRegistry.buildUrl() build URL
+ *   �� 4. RouterService.navigate() execute navigation
  * react-router-dom
  * ```
  * 
@@ -46,35 +46,10 @@
  * This achieves true platform independence.
  */
 
-import type { NavigationCapability, NavigateOptions, NavigateResult, WebNavigateOptions, PageChangeEvent, PageChangeHandler, Unsubscribe } from '@brix/runtime-sdk-api-web';
-import type { RouterService } from '@brix/platform-router-web';
-import type { PageRegistry } from './PageRegistry';
-import type { GovernancePolicy } from './types';
+import type { NavigationCapability, NavigateOptions, NavigateResult, WebNavigateOptions, PageChangeEvent, PageChangeHandler, Unsubscribe, NavigationCapabilityConfig, RouterServiceLike, PageRegistryLike, NavigationGovernancePolicyLike } from '@brix-sdk/runtime-sdk-api-web';
 
-/**
- * Navigation capability implementation configuration
- */
-export interface NavigationCapabilityConfig {
-  /**
-   * Router service instance
-   */
-  routerService: RouterService;
-  
-  /**
-   * Page registry instance
-   */
-  pageRegistry: PageRegistry;
-  
-  /**
-   * Governance policy instance
-   */
-  governancePolicy: GovernancePolicy;
-  
-  /**
-   * Current plugin ID (for governance policy checks)
-   */
-  pluginId: string;
-}
+// Re-export contract-layer type for backward compatibility
+export type { NavigationCapabilityConfig };
 
 /**
  * Navigation Capability Implementation
@@ -99,17 +74,17 @@ export class NavigationCapabilityImpl implements NavigationCapability {
   /**
    * Router service
    */
-  private routerService: RouterService;
+  private routerService: RouterServiceLike;
   
   /**
    * Page registry
    */
-  private pageRegistry: PageRegistry;
+  private pageRegistry: PageRegistryLike;
   
   /**
    * Governance policy
    */
-  private governancePolicy: GovernancePolicy;
+  private governancePolicy: NavigationGovernancePolicyLike;
   
   /**
    * Current plugin ID
@@ -267,16 +242,16 @@ export class NavigationCapabilityImpl implements NavigationCapability {
     }
     
     const lowerReason = denialReason.toLowerCase();
-    if (lowerReason.includes('permission') || lowerReason.includes('权限')) {
+    if (lowerReason.includes('permission') || lowerReason.includes('Ȩ��')) {
       return 'permission_denied';
     }
-    if (lowerReason.includes('feature') || lowerReason.includes('功能') || lowerReason.includes('禁用')) {
+    if (lowerReason.includes('feature') || lowerReason.includes('����') || lowerReason.includes('����')) {
       return 'feature_disabled';
     }
-    if (lowerReason.includes('not found') || lowerReason.includes('不存在') || lowerReason.includes('未找到')) {
+    if (lowerReason.includes('not found') || lowerReason.includes('������') || lowerReason.includes('δ�ҵ�')) {
       return 'page_not_found';
     }
-    if (lowerReason.includes('blocked') || lowerReason.includes('阻止')) {
+    if (lowerReason.includes('blocked') || lowerReason.includes('��ֹ')) {
       return 'navigation_blocked';
     }
     

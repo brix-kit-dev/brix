@@ -18,6 +18,8 @@ package io.runtime.sdk.capability;
 import java.io.InputStream;
 import java.time.Duration;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * File Storage Capability Contract
  * 
@@ -69,6 +71,7 @@ import java.time.Duration;
  * @author Runtime SDK Team
  * @since 3.0.0
  */
+@Since("3.0.0")
 public interface FileStorageCapability {
 
     /**

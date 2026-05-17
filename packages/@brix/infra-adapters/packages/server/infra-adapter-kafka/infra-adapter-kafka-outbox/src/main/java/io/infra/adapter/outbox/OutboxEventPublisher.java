@@ -20,7 +20,9 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -36,7 +38,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.infra.adapter.kafka.EventSerializationException;
 import io.infra.adapter.kafka.EventTopicResolver;
+import io.infra.adapter.kafka.IntegrationEventMetadataSupport;
 import io.infra.adapter.kafka.config.KafkaEventBusProperties;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
@@ -94,6 +99,18 @@ public class OutboxEventPublisher {
     /** Outbox configuration properties (externalized via brix.infra.kafka.outbox.*) */
     private final KafkaEventBusProperties.OutboxProperties outboxConfig;
 
+    /** Micrometer counter for processed events (nullable when Micrometer is absent) */
+    private final Counter processedCounter;
+
+    /** Micrometer counter for retried events (nullable when Micrometer is absent) */
+    private final Counter retriedCounter;
+
+    /** Micrometer counter for dead-lettered events (nullable when Micrometer is absent) */
+    private final Counter deadLetteredCounter;
+
+    /** Supplier that resolves the current tenant ID from runtime context. */
+    private final Supplier<Optional<String>> tenantIdProvider;
+
     /**
      * Construct Outbox event publisher.
      *
@@ -109,11 +126,74 @@ public class OutboxEventPublisher {
             EventTopicResolver topicResolver,
             ObjectMapper objectMapper,
             KafkaEventBusProperties.OutboxProperties outboxConfig) {
+        this(outboxRepository, kafkaTemplate, topicResolver, objectMapper, outboxConfig, Optional::empty, null);
+    }
+
+    /**
+     * Construct Outbox event publisher with optional Micrometer metrics.
+     *
+     * <p>When {@code meterRegistry} is provided, the following metrics are registered:</p>
+     * <ul>
+     *   <li>{@code brix.outbox.pending} — gauge: current count of PENDING events</li>
+     *   <li>{@code brix.outbox.processed} — counter: total successfully processed events</li>
+     *   <li>{@code brix.outbox.retried} — counter: total retried events</li>
+     * </ul>
+     *
+     * @param outboxRepository Outbox JPA repository
+     * @param kafkaTemplate    Kafka message template
+     * @param topicResolver    Event Topic resolver
+     * @param objectMapper     JSON serializer
+     * @param outboxConfig     Outbox externalized configuration properties
+     * @param meterRegistry    Micrometer registry (nullable)
+     * @since 3.2.0
+     */
+    public OutboxEventPublisher(
+            OutboxEventRepository outboxRepository,
+            KafkaTemplate<String, String> kafkaTemplate,
+            EventTopicResolver topicResolver,
+            ObjectMapper objectMapper,
+            KafkaEventBusProperties.OutboxProperties outboxConfig,
+            MeterRegistry meterRegistry) {
+        this(outboxRepository, kafkaTemplate, topicResolver, objectMapper, outboxConfig, Optional::empty, meterRegistry);
+    }
+
+    /**
+     * Construct Outbox event publisher with tenant metadata and optional Micrometer metrics.
+     *
+     * @param outboxRepository Outbox JPA repository
+     * @param kafkaTemplate    Kafka message template
+     * @param topicResolver    Event Topic resolver
+     * @param objectMapper     JSON serializer
+     * @param outboxConfig     Outbox externalized configuration properties
+     * @param tenantIdProvider current tenant resolver, may be {@code null}
+     * @param meterRegistry    Micrometer registry, may be {@code null}
+     */
+    public OutboxEventPublisher(
+            OutboxEventRepository outboxRepository,
+            KafkaTemplate<String, String> kafkaTemplate,
+            EventTopicResolver topicResolver,
+            ObjectMapper objectMapper,
+            KafkaEventBusProperties.OutboxProperties outboxConfig,
+            Supplier<Optional<String>> tenantIdProvider,
+            MeterRegistry meterRegistry) {
         this.outboxRepository = Objects.requireNonNull(outboxRepository);
         this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate);
         this.topicResolver = Objects.requireNonNull(topicResolver);
         this.objectMapper = Objects.requireNonNull(objectMapper);
         this.outboxConfig = Objects.requireNonNull(outboxConfig);
+        this.tenantIdProvider = tenantIdProvider != null ? tenantIdProvider : Optional::empty;
+
+        if (meterRegistry != null) {
+            meterRegistry.gauge("brix.outbox.pending",
+                    outboxRepository, repo -> repo.countByStatus(OutboxEvent.Status.PENDING));
+            this.processedCounter = meterRegistry.counter("brix.outbox.processed");
+            this.retriedCounter = meterRegistry.counter("brix.outbox.retried");
+            this.deadLetteredCounter = meterRegistry.counter("brix.outbox.dead_lettered");
+        } else {
+            this.processedCounter = null;
+            this.retriedCounter = null;
+            this.deadLetteredCounter = null;
+        }
     }
 
     /**
@@ -139,6 +219,8 @@ public class OutboxEventPublisher {
     @Transactional
     public void saveForLater(IntegrationEvent event) {
         Objects.requireNonNull(event, "Event cannot be null");
+
+        IntegrationEventMetadataSupport.enrich(event, tenantIdProvider);
 
         // Idempotency check: if event already exists, return directly
         if (outboxRepository.existsByEventId(event.getEventId())) {
@@ -206,7 +288,16 @@ public class OutboxEventPublisher {
                 sendToKafka(event);
                 event.markCompleted();
                 outboxRepository.save(event);
+                if (processedCounter != null) {
+                    processedCounter.increment();
+                }
 
+                log.info("event.published name={} sourcePlugin={} tenantId={} traceId={} eventId={}",
+                        event.getEventType(),
+                        event.getSourceModule(),
+                        event.getTenantId(),
+                        event.getTraceId(),
+                        event.getEventId());
                 log.debug("Outbox event sent successfully: eventId={}", event.getEventId());
 
             } catch (Exception e) {
@@ -238,6 +329,9 @@ public class OutboxEventPublisher {
             event.incrementRetryCount();
             event.resetToPending();
             outboxRepository.save(event);
+            if (retriedCounter != null) {
+                retriedCounter.increment();
+            }
         }
     }
 
@@ -271,13 +365,7 @@ public class OutboxEventPublisher {
      */
     private void sendToKafka(OutboxEvent event) {
         // Build Kafka message Headers with event metadata
-        RecordHeaders headers = new RecordHeaders();
-        headers.add("eventId", event.getEventId().getBytes(StandardCharsets.UTF_8));
-        headers.add("eventType", event.getEventType().getBytes(StandardCharsets.UTF_8));
-
-        if (event.getSourceModule() != null) {
-            headers.add("sourceModule", event.getSourceModule().getBytes(StandardCharsets.UTF_8));
-        }
+        RecordHeaders headers = buildHeaders(event);
 
         // Create ProducerRecord (use routingKey as Partition Key to ensure ordering)
         ProducerRecord<String, String> record = new ProducerRecord<>(
@@ -306,10 +394,20 @@ public class OutboxEventPublisher {
         int maxRetry = outboxConfig.getMaxRetryCount();
 
         if (event.getRetryCount() >= maxRetry) {
-            // Exceeded retry count, mark as failed
-            event.markFailed(e.getMessage());
-            log.error("Outbox event send failed (reached max retry count {}): eventId={}, error={}",
-                    maxRetry, event.getEventId(), e.getMessage());
+            try {
+                sendToDlq(event, e);
+                event.markDeadLettered(failureMessage(e));
+                if (deadLetteredCounter != null) {
+                    deadLetteredCounter.increment();
+                }
+                log.error("Outbox event send failed and was routed to DLQ: eventId={}, retries={}, topic={}",
+                        event.getEventId(), event.getRetryCount(), resolveDlqTopic(event));
+            } catch (Exception dlqFailure) {
+                event.markFailed("DLQ publish failed: " + failureMessage(dlqFailure)
+                        + "; original failure: " + failureMessage(e));
+                log.error("Outbox event send failed and DLQ routing failed: eventId={}, retries={}",
+                        event.getEventId(), event.getRetryCount(), dlqFailure);
+            }
         } else {
             // Reset to pending, wait for next retry
             event.resetToPending();
@@ -318,5 +416,52 @@ public class OutboxEventPublisher {
         }
 
         outboxRepository.save(event);
+    }
+
+    private void sendToDlq(OutboxEvent event, Exception cause) {
+        RecordHeaders headers = buildHeaders(event);
+        addHeader(headers, "dlqOriginalTopic", event.getTopic());
+        addHeader(headers, "dlqReason", failureMessage(cause));
+        addHeader(headers, "dlqFailedAt", Instant.now().toString());
+
+        ProducerRecord<String, String> record = new ProducerRecord<>(
+                resolveDlqTopic(event),
+                null,
+                event.getRoutingKey(),
+                event.getPayload(),
+                headers
+        );
+
+        kafkaTemplate.send(record).join();
+    }
+
+    private RecordHeaders buildHeaders(OutboxEvent event) {
+        RecordHeaders headers = new RecordHeaders();
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_EVENT_ID, event.getEventId());
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_EVENT_TYPE, event.getEventType());
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_TIMESTAMP,
+                event.getCreatedAt() != null ? String.valueOf(event.getCreatedAt().toEpochMilli()) : null);
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_SOURCE_MODULE, event.getSourceModule());
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_TENANT_ID, event.getTenantId());
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_TRACE_ID, event.getTraceId());
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_SCHEMA_VERSION, String.valueOf(event.getSchemaVersion()));
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_CORRELATION_ID, event.getCorrelationId());
+        addHeader(headers, IntegrationEventMetadataSupport.HEADER_ROUTING_KEY, event.getRoutingKey());
+        return headers;
+    }
+
+    private void addHeader(RecordHeaders headers, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            headers.add(key, value.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private String resolveDlqTopic(OutboxEvent event) {
+        String suffix = outboxConfig.getDlqTopicSuffix();
+        return event.getTopic() + (suffix == null || suffix.isBlank() ? ".DLQ" : suffix);
+    }
+
+    private String failureMessage(Exception exception) {
+        return exception.getMessage() != null ? exception.getMessage() : exception.getClass().getName();
     }
 }

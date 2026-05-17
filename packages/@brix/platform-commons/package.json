@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/platform-commons",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/platform-commons",
+  "version": "3.2.0",
   "private": true,
   "license": "Apache-2.0",
   "description": "Brix Platform Commons - Platform-level shared capabilities (unified frontend/backend repository)",

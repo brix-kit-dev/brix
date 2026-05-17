@@ -16,7 +16,7 @@
 /**
  * @file Button Component Type Definitions
  * @description Defines types for the Button component in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/button
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/button
  * @version 3.2.0
  */
 
@@ -138,6 +138,13 @@ export interface ButtonProps {
    * Additional CSS class names for styling customization.
    */
   className?: string;
+
+  /**
+   * Test ID
+   *
+   * Data attribute for testing frameworks.
+   */
+  'data-testid'?: string;
 
   /**
    * Button Content

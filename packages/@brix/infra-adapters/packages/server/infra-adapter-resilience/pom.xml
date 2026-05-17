@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix</groupId>
+        <artifactId>infra-adapters</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>infra-adapter-resilience</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Brix Infra Adapter - Resilience</name>
+    <description>
+        Resilience Capability Adapter (Open Source)
+
+        Provides a production-grade ResilienceCapability implementation based on
+        Resilience4j, offering:
+        - Circuit Breaker: Prevents fault propagation with configurable thresholds
+        - Rate Limiter: Protects services from overload with per-key token bucket
+        - Bulkhead: Thread isolation for concurrent operations
+        - Retry: Automatic retry with configurable backoff (future extension)
+
+        All instances are created on-demand with sensible defaults from YAML configuration.
+        Actuator endpoint exposes real-time circuit breaker and rate limiter metrics.
+
+        Naming Convention:
+        - Maven GroupId: io.brix (brand)
+        - Java Package: io.infra.adapter.resilience (neutral)
+
+        Architecture Layer: Layer 2C - Capability Implementation (infra-adapters)
+
+        Blueprint Reference: v3.0.9 Section 3 "Runtime Shell Capability Contract"
+    </description>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <properties>
+        <runtime-sdk.version>3.2.0</runtime-sdk.version>
+        <resilience4j.version>2.1.0</resilience4j.version>
+    </properties>
+
+    <dependencies>
+        <!-- ========== Brix Runtime SDK API (Capability Contract) ========== -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <version>${runtime-sdk.version}</version>
+        </dependency>
+
+        <!-- ========== Resilience4j Core ========== -->
+        <!--
+            Circuit Breaker: Core resilience pattern for fault prevention.
+            Uses Resilience4j CircuitBreakerRegistry for centralized management.
+        -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
+        <!--
+            Rate Limiter: Token-bucket rate limiting per key.
+            Used by isRateLimited() and tryAcquire() contract methods.
+        -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-ratelimiter</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
+        <!--
+            Bulkhead: Thread isolation for concurrent call protection.
+            Limits the number of concurrent calls to prevent thread exhaustion.
+        -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-bulkhead</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
+        <!-- ========== Spring Boot ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ========== Logging ========== -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- ========== Test Dependencies ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

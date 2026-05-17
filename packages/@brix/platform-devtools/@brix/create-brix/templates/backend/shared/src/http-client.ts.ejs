@@ -1,0 +1,14 @@
+import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
+import type { <%= classPrefix %>Record, Create<%= classPrefix %>Request } from './types';
+
+export class <%= classPrefix %>HttpClient {
+  constructor(private readonly http: HttpCapability) {}
+
+  list(): Promise<<%= classPrefix %>Record[]> {
+    return this.http.get<<%= classPrefix %>Record[]>('/api/<%= name %>');
+  }
+
+  create(request: Create<%= classPrefix %>Request): Promise<<%= classPrefix %>Record> {
+    return this.http.post<<%= classPrefix %>Record>('/api/<%= name %>', request);
+  }
+}

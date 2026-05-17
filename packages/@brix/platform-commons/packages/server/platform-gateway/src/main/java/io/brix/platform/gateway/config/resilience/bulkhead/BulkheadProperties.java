@@ -107,34 +107,34 @@ public class BulkheadProperties {
     }
 
     /**
-     * obtainspecifyrouteofisolationconfiguration
+     * Look up the bulkhead configuration for a specific route.
      * 
-     * @param routeId routeID
-     * @return isolationconfiguration
+     * @param routeId route ID
+     * @return bulkhead configuration (falls back to {@code defaultConfig} if not present)
      */
     public BulkheadConfig getConfigForRoute(String routeId) {
         return routes.getOrDefault(routeId, defaultConfig);
     }
 
     /**
-     * singleisolationconfiguration
+     * Per-route bulkhead configuration.
      */
     public static class BulkheadConfig {
 
         /**
-         * maximumconcurrentcallcount
+         * Maximum concurrent calls.
          * <p>
-         * simultaneouslyonlyallowspecifycountamountofrequestcalldownstreamservice
-         * defaultvalue：25，according todownstreamservicecanforceadjust
+         * Only this many requests may invoke the downstream service at the same time.
+         * Default: 25 — tune downward based on the downstream service's capacity.
          * </p>
          */
         private int maxConcurrentCalls = 25;
 
         /**
-         * obtainpermitofmaximumwaittime
+         * Maximum wait time to acquire a permit.
          * <p>
-         * whenconcurrentcountreachtouplimittime，newrequestwaitofmaximumtime
-         * defaultvalue：PT0Sseconds），representsestablishthat isreject
+         * When the concurrency limit is reached, new requests will wait at most this long.
+         * Default: PT0S (zero seconds) — reject immediately rather than queue.
          * </p>
          */
         private Duration maxWaitDuration = Duration.ZERO;

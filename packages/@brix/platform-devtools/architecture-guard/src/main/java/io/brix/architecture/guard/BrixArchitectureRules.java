@@ -20,6 +20,7 @@ import com.tngtech.archunit.junit.ArchTests;
 
 import io.brix.architecture.guard.profiles.AdapterProfile;
 import io.brix.architecture.guard.profiles.CommonsProfile;
+import io.brix.architecture.guard.profiles.CoreProfileV2;
 import io.brix.architecture.guard.profiles.HostProfile;
 import io.brix.architecture.guard.profiles.PluginProfile;
 import io.brix.architecture.guard.profiles.SdkProfile;
@@ -42,6 +43,7 @@ import io.brix.architecture.guard.profiles.SdkProfile;
  * <table>
  *   <tr><th>Profile</th><th>Target Layer</th><th>Rules</th></tr>
  *   <tr><td>{@link #pluginProfile()}</td><td>Plugin (Business Modules)</td><td>42 rules (13 red lines)</td></tr>
+ *   <tr><td>{@link #coreProfileV2()}</td><td>Plugin Core</td><td>Plugin baseline plus R1.1 core adjudication</td></tr>
  *   <tr><td>{@link #hostProfile()}</td><td>Host Layer</td><td>Ultra-thin shell rules</td></tr>
  *   <tr><td>{@link #adapterProfile()}</td><td>Infra Adapters</td><td>Adapter isolation rules</td></tr>
  *   <tr><td>{@link #sdkProfile()}</td><td>Runtime SDK</td><td>SDK API stability rules</td></tr>
@@ -84,6 +86,22 @@ public final class BrixArchitectureRules {
      */
     public static ArchTests pluginProfile() {
         return ArchTests.in(PluginProfile.class);
+    }
+
+    /**
+     * Plugin-core rule profile for the v3.0.9 Phase 1 adjudication.
+     *
+     * <p>Use this profile for {@code *-core} modules. It keeps the plugin
+     * red-line baseline and adds the R1.1 decision that plugin-core is
+     * application core plus persistence contract: JPA/Jakarta persistence
+     * contracts are allowed, while controllers, direct middleware clients,
+     * infrastructure adapters, and misplaced transaction boundaries remain
+     * forbidden.</p>
+     *
+     * @return ArchTests rule set
+     */
+    public static ArchTests coreProfileV2() {
+        return ArchTests.in(CoreProfileV2.class);
     }
 
     /**

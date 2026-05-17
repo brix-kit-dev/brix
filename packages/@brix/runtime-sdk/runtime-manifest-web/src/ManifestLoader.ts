@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Manifest Loader
  * @description Responsible for loading application manifests from various sources
- * @module @brix/runtime-manifest-web/ManifestLoader
+ * @module @brix-sdk/runtime-manifest-web/ManifestLoader
  * @version 3.0.0
  * 
  * [Design Notes]

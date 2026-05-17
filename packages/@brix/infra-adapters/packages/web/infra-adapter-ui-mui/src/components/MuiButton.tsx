@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Button Component
  * @description Material UI implementation of ButtonProps from UIAdapter contract.
  *              Production-grade button with loading states, icons, and accessibility.
- * @module @brix/infra-adapter-ui-mui/components/MuiButton
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiButton
  * @version 3.1.0
  *
  * [Design Principles]
@@ -32,7 +32,7 @@
  */
 
 import type { FC } from 'react';
-import type { ButtonProps, ButtonVariant, ComponentSize } from '@brix/runtime-sdk-api-web';
+import type { ButtonProps, ButtonVariant, ComponentSize } from '@brix-sdk/runtime-sdk-api-web';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import { MuiIcon } from '../icons/MuiIcon';
@@ -144,6 +144,7 @@ export const MuiButton: FC<ButtonProps> = ({
   type = 'button',
   style,
   className,
+  'data-testid': dataTestId,
   children,
 }) => {
   // Determine if button is interactive
@@ -175,6 +176,7 @@ export const MuiButton: FC<ButtonProps> = ({
       type={type}
       style={style}
       className={className}
+      data-testid={dataTestId}
       startIcon={startIconElement}
       endIcon={endIconElement}
     >

@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 /**
- * @file RegisterPage å¯¼å‡º
- * @module @brix/platform-auth-web/pages/RegisterPage
+ * @file RegisterPage µ¼³ö
+ * @module @brix-sdk/platform-auth-web/pages/RegisterPage
  */
 
 export { createSimpleRegisterPage } from './createRegisterPage';

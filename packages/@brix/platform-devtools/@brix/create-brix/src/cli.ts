@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file cli.ts
  * @description Brix Platform Scaffolding CLI Entry
- * @module @brix/create-brix
+ * @module @brix-sdk/create-brix
  * @version 3.0.4
  * 
  * v3.0.4 Changes:
@@ -66,20 +66,20 @@ function printBanner(): void {
   // Dynamically calculate version display width for banner alignment
   const versionText = `Brix Platform Generator v${VERSION}`;
   // Banner inner width fixed at 66 characters, calculate required padding
-  const paddingLength = Math.max(0, 66 - 4 - versionText.length); // 4 = "║  " + " ║"
+  const paddingLength = Math.max(0, 66 - 4 - versionText.length); // 4 = "�U  " + " �U"
   const padding = ' '.repeat(paddingLength);
   
   console.log(chalk.cyan(`
-  ╔══════════════════════════════════════════════════════════════════╗
-  ║                                                                  ║
-  ║  ${chalk.bold(versionText)}${padding}║
-  ║                                                                  ║
-  ║  v3.0 Runtime Shell Architecture + v2.x Compatibility Mode       ║
-  ║  ● app     - Business App Module (v3.0 Recommended, Runtime Shell)║
-  ║  ● plugin  - Plugin Skeleton (v2.x Compatible, Pure JAR)         ║
-  ║  ● service - Service Skeleton (v2.x Compatible, Runnable)        ║
-  ║                                                                  ║
-  ╚══════════════════════════════════════════════════════════════════╝
+  �X�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�[
+  �U                                                                  �U
+  �U  ${chalk.bold(versionText)}${padding}�U
+  �U                                                                  �U
+  �U  v3.0 Runtime Shell Architecture + v2.x Compatibility Mode       �U
+  �U  �� app     - Business App Module (v3.0 Recommended, Runtime Shell)�U
+  �U  �� plugin  - Plugin Skeleton (v2.x Compatible, Pure JAR)         �U
+  �U  �� service - Service Skeleton (v2.x Compatible, Runnable)        �U
+  �U                                                                  �U
+  �^�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�a
   `));
 }
 
@@ -97,7 +97,7 @@ async function createPlugin(name?: string, options?: {
   dryRun?: boolean;
 }): Promise<void> {
   printBanner();
-  console.log(chalk.blue('📦 Creating Plugin Skeleton\n'));
+  console.log(chalk.blue('?? Creating Plugin Skeleton\n'));
 
   try {
     // Collect configuration
@@ -145,7 +145,7 @@ async function createService(name?: string, options?: {
   yes?: boolean;
 }): Promise<void> {
   printBanner();
-  console.log(chalk.blue('🚀 Creating Service Skeleton\n'));
+  console.log(chalk.blue('?? Creating Service Skeleton\n'));
 
   try {
     // Collect configuration
@@ -187,8 +187,8 @@ async function createService(name?: string, options?: {
  * Print next steps after plugin creation
  */
 function printPluginNextSteps(config: PluginConfig): void {
-  console.log(chalk.cyan('\n📋 Next Steps:'));
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.cyan('\n?? Next Steps:'));
+  console.log(chalk.gray('��'.repeat(50)));
   console.log(`
   1. Enter the plugin directory:
      ${chalk.yellow(`cd ${config.outputDir}/${config.name}`)}
@@ -198,7 +198,7 @@ function printPluginNextSteps(config: PluginConfig): void {
 
   3. Add dependency to your service:
      ${chalk.gray(`<dependency>
-       <groupId>shinwa.plugin</groupId>
+       <groupId>io.brix.plugin</groupId>
        <artifactId>${config.name}-core</artifactId>
        <version>0.1.0-SNAPSHOT</version>
      </dependency>`)}
@@ -209,8 +209,8 @@ function printPluginNextSteps(config: PluginConfig): void {
  * Print service configuration summary (non-interactive mode)
  */
 function printServiceConfigSummary(config: ServiceConfig): void {
-  console.log(chalk.cyan('\n📋 Configuration Summary (Non-interactive Mode):'));
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.cyan('\n?? Configuration Summary (Non-interactive Mode):'));
+  console.log(chalk.gray('��'.repeat(50)));
   console.log(`  Service Name: ${chalk.yellow(config.fullName)}`);
   console.log(`  Port: ${chalk.yellow(config.port)}`);
   console.log(`  Assembled Plugins:`);
@@ -221,15 +221,15 @@ function printServiceConfigSummary(config: ServiceConfig): void {
       console.log(`    - ${chalk.green(p.name)}`);
     });
   }
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.gray('��'.repeat(50)));
 }
 
 /**
  * Print next steps after service creation
  */
 function printServiceNextSteps(config: ServiceConfig): void {
-  console.log(chalk.cyan('\n📋 Next Steps:'));
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.cyan('\n?? Next Steps:'));
+  console.log(chalk.gray('��'.repeat(50)));
   console.log(`
   1. Enter the service directory:
      ${chalk.yellow(`cd ${config.outputDir}/${config.name}`)}
@@ -280,7 +280,7 @@ async function createApp(name?: string, options?: {
   yes?: boolean;
 }): Promise<void> {
   printBanner();
-  console.log(chalk.blue('🚀 Creating Business Application Module (v3.0 Architecture)\n'));
+  console.log(chalk.blue('?? Creating Business Application Module (v3.0 Architecture)\n'));
 
   try {
     // Collect configuration
@@ -322,8 +322,8 @@ async function createApp(name?: string, options?: {
  * Print next steps after business application creation
  */
 function printAppNextSteps(config: AppConfig): void {
-  console.log(chalk.cyan('\n📋 Next Steps (v3.0 Architecture):'));
-  console.log(chalk.gray('─'.repeat(60)));
+  console.log(chalk.cyan('\n?? Next Steps (v3.0 Architecture):'));
+  console.log(chalk.gray('��'.repeat(60)));
   console.log(`
   1. Enter the application directory:
      ${chalk.yellow(`cd ${config.outputDir}/${config.fullName}`)}
@@ -339,10 +339,10 @@ function printAppNextSteps(config: AppConfig): void {
      ${chalk.gray(`Access: http://localhost:${config.webPort}`)}
 
   5. Key files:
-     ${chalk.gray('● module-manifest.yaml - Module declaration (capabilities/events/dependencies)')}
-     ${chalk.gray('● {name}-core/service - Use RuntimeContext to access capabilities')}
-     ${chalk.gray('● {name}-ui-web/hooks - Use UIRuntimeContext to access UI capabilities')}
-     ${chalk.gray('● {name}-shared - Frontend-backend shared type definitions')}
+     ${chalk.gray('�� module-manifest.yaml - Module declaration (capabilities/events/dependencies)')}
+     ${chalk.gray('�� {name}-core/service - Use RuntimeContext to access capabilities')}
+     ${chalk.gray('�� {name}-ui-web/hooks - Use UIRuntimeContext to access UI capabilities')}
+     ${chalk.gray('�� {name}-shared - Frontend-backend shared type definitions')}
 
   6. Deploy to Host:
      ${chalk.gray('Deploy build artifacts to Full Product Host or Embedded Host')}
@@ -393,7 +393,7 @@ program
   .option('--dry-run', 'Preview only, do not create files')
   .action(async (name: string, options: { type: string; outputDir: string; dryRun?: boolean }) => {
     printBanner();
-    console.log(chalk.blue(`➕ Adding ${options.type} sub-module to application\n`));
+    console.log(chalk.blue(`? Adding ${options.type} sub-module to application\n`));
     
     const validTypes = ['shared', 'ui-web', 'ui-mobile', 'server'];
     if (!validTypes.includes(options.type)) {
@@ -411,11 +411,11 @@ program
     // Build minimal config, enable only specified module type
     const config: AppConfig = {
       name,
-      fullName: `shinwa-app-${name}`,
+      fullName: `app-${name}`,
       displayName: `${name} Module`,
       description: 'Brix Platform v3.0 Business Application Module',
       moduleType: 'business',
-      author: 'Shinwa Team',
+      author: 'Brix Team',
       version: '3.0.0-SNAPSHOT',
       outputDir: options.outputDir,
       withApi: false,

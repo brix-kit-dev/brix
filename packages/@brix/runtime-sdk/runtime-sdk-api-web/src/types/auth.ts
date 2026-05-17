@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Authentication Capability Type Definitions
  * @description Defines core types for the authentication system, including user info, auth info, permission verification, etc.
- * @module @brix/runtime-sdk-api-web/types/auth
+ * @module @brix-sdk/runtime-sdk-api-web/types/auth
  * @version 3.2.0
  *
  * [v3.2 Changes]
@@ -204,6 +204,35 @@ export interface LoginCredentials {
 // =========================================
 
 /**
+ * Login Step — mirrors backend {@code LoginStatus}.
+ *
+ * - `COMPLETE`：登录已完成，已下发 access/refresh token。
+ * - `SELECT_TENANT`：身份属于多个租户，前端必须使用 {@link LoginResult.identityToken}
+ *   调用 `/api/auth/select-tenant` 完成第二阶段。
+ *
+ * @since 3.2.0
+ */
+export type LoginStep = 'COMPLETE' | 'SELECT_TENANT';
+
+/**
+ * Tenant option presented during the SELECT_TENANT step.
+ * 字段直接映射后端 {@code TenantOptionDto}（v3.2.0）。
+ *
+ * @since 3.2.0
+ */
+export interface TenantOption {
+  readonly tenantId: string;
+  readonly tenantCode: string;
+  readonly tenantName: string;
+  /** 'actor' = B 端从业者；'subject' = C 端服务对象 */
+  readonly roleType: 'actor' | 'subject';
+  /** 业务子角色（可选，例如 OWNER / ADMIN / MEMBER） */
+  readonly subRole?: string;
+  /** 最近一次访问该租户的 ISO8601 时间（可选） */
+  readonly lastAccessAt?: string;
+}
+
+/**
  * Login Result
  *
  * <p>Result returned from a login request.</p>
@@ -213,6 +242,13 @@ export interface LoginCredentials {
 export interface LoginResult {
   /** Whether Login Succeeded */
   readonly success: boolean;
+  /**
+   * Login flow step. When omitted, treat as `COMPLETE` for backward
+   * compatibility. Mirrors backend {@code LoginResponse.status}.
+   *
+   * @since 3.2.0
+   */
+  readonly status?: LoginStep;
   /** User Info (on success) */
   readonly user?: User;
   /** Access Token (on success) */
@@ -229,6 +265,51 @@ export interface LoginResult {
   readonly requireMfa?: boolean;
   /** MFA Session Identifier */
   readonly mfaSession?: string;
+  /**
+   * Short-lived identity token issued for the SELECT_TENANT step. The frontend
+   * MUST submit it as the bearer token for `/api/auth/select-tenant`. Only
+   * present when {@link status} is `SELECT_TENANT`. Mirrors backend
+   * {@code LoginResponse.identityToken}.
+   *
+   * @since 3.2.0
+   */
+  readonly identityToken?: string;
+  /**
+   * Tenant choices for the SELECT_TENANT step. Only present when
+   * {@link status} is `SELECT_TENANT`. Mirrors backend
+   * {@code LoginResponse.tenantOptions}.
+   *
+   * @since 3.2.0
+   */
+  readonly tenantOptions?: readonly TenantOption[];
+  /** Identity ID (Snowflake, stringified). Mirrors backend `identityId`. */
+  readonly identityId?: string;
+  /** Display name resolved from tenant principal or identity username. */
+  readonly displayName?: string;
+  /** Primary role code; for tenant-scoped tokens this is the principalType. */
+  readonly primaryRole?: string;
+  /** All role codes the principal carries within the active tenant. */
+  readonly roles?: readonly string[];
+  /** Permission codes derived from role bindings (may be empty). */
+  readonly permissions?: readonly string[];
+  /**
+   * Whether the user must rotate their password before accessing protected
+   * resources. Login still succeeds; the UI must route to the change-password
+   * step when this flag is true. Mirrors backend
+   * {@code LoginResponse.mustChangePassword}.
+   *
+   * @since 3.2.0
+   */
+  readonly mustChangePassword?: boolean;
+  /**
+   * Whether the authenticated principal is a platform-level administrator
+   * (PlatformAdmin), as opposed to a tenant member. The UI uses this signal
+   * to route into the platform admin console theme. Mirrors backend
+   * {@code LoginResponse.platformAdminMode}.
+   *
+   * @since 3.2.0
+   */
+  readonly platformAdminMode?: boolean;
 }
 
 // =========================================

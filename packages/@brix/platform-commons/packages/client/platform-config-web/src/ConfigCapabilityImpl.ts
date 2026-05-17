@@ -16,7 +16,7 @@
 /**
  * @file Configuration Capability Implementation
  * @description Implements ConfigCapability Interface - Provides runtime configuration management
- * @module @brix/platform-config-web/ConfigCapabilityImpl
+ * @module @brix-sdk/platform-config-web/ConfigCapabilityImpl
  * @version 3.1.0
  *
  * Architecture Overview:
@@ -34,107 +34,23 @@
  * - Do not store sensitive configuration in localStorage
  * - All configuration changes must be logged for auditing
  *
- * 【架构要点】
- * - 配置能力通过 HttpCapability 从后端拉取配置，不直接调用 fetch
- * - 支持配置热更新，通过轮询或推送机制实现
- * - 配置缓存在内存中，支持 TTL 过期
+ * Key Architecture Points:
+ * - Configuration fetches config from backend via HttpCapability, never calls fetch directly
+ * - Supports hot-reload via polling or push mechanism
+ * - Configuration is cached in memory with TTL expiration
  */
 
-import type { 
-  ConfigCapability,
-  HttpCapability,
-} from '@brix/runtime-sdk-api-web';
+import type {
+  ConfigStoreCapability,
+  ConfigCapabilityImplOptions,
+  ConfigChangeEvent,
+  ConfigChangeHandler,
+} from '@brix-sdk/runtime-sdk-api-web';
 import { ConfigStore, type ConfigStoreOptions } from './ConfigStore';
 import { ConfigHttpClient, type ConfigHttpClientOptions } from './ConfigHttpClient';
 
-/**
- * Configuration Capability Implementation Options
- *
- * 【配置项说明】
- * - httpCapability: HTTP 能力实例，用于从后端拉取配置
- * - configEndpoint: 配置 API 端点
- * - refreshInterval: 配置刷新间隔（毫秒），0 表示禁用自动刷新
- * - initialConfig: 初始配置（用于 SSR 或预加载场景）
- */
-export interface ConfigCapabilityImplOptions {
-  /**
-   * HTTP Capability instance for fetching configuration
-   * HTTP 能力实例，用于从后端拉取配置
-   */
-  httpCapability: HttpCapability;
-
-  /**
-   * Configuration API endpoint
-   * 配置 API 端点 URL
-   * @default '/api/v1/config'
-   */
-  configEndpoint?: string;
-
-  /**
-   * Configuration refresh interval in milliseconds
-   * Set to 0 to disable auto-refresh
-   * 配置自动刷新间隔（毫秒），设为 0 禁用自动刷新
-   * @default 0
-   */
-  refreshInterval?: number;
-
-  /**
-   * Initial configuration (for SSR or preloading scenarios)
-   * 初始配置（用于 SSR 或预加载场景）
-   */
-  initialConfig?: Record<string, unknown>;
-
-  /**
-   * Plugin ID for scoped configuration
-   * 插件 ID，用于获取作用域配置
-   */
-  pluginId?: string;
-
-  /**
-   * Cache TTL in milliseconds
-   * 缓存 TTL（毫秒）
-   * @default 300000 (5 minutes)
-   */
-  cacheTtl?: number;
-
-  /**
-   * Enable configuration change logging
-   * 启用配置变更日志
-   * @default true
-   */
-  enableChangeLogging?: boolean;
-}
-
-/**
- * Configuration change event
- * 配置变更事件
- */
-export interface ConfigChangeEvent {
-  /**
-   * Changed configuration key
-   */
-  key: string;
-  
-  /**
-   * Previous value
-   */
-  oldValue: unknown;
-  
-  /**
-   * New value
-   */
-  newValue: unknown;
-  
-  /**
-   * Change timestamp
-   */
-  timestamp: number;
-}
-
-/**
- * Configuration change handler type
- */
-export type ConfigChangeHandler = (event: ConfigChangeEvent) => void;
+// Re-export contract-layer types for backward compatibility
+export type { ConfigCapabilityImplOptions, ConfigChangeEvent, ConfigChangeHandler };
 
 /**
  * Configuration Capability Implementation
@@ -142,11 +58,11 @@ export type ConfigChangeHandler = (event: ConfigChangeEvent) => void;
  * Implements ConfigCapability interface, providing configuration management
  * with support for remote loading, caching, and hot-reload.
  *
- * 【核心实现说明】
- * 1. 通过 HttpCapability 从后端 API 加载配置
- * 2. 配置缓存在 ConfigStore 中，支持 TTL 过期
- * 3. 支持配置变更监听，可用于实现热更新
- * 4. 支持点号分隔的嵌套键访问，如 'api.baseUrl'
+ * Core Implementation Notes:
+ * 1. Loads configuration from backend API via HttpCapability
+ * 2. Configuration is cached in ConfigStore with TTL expiration
+ * 3. Supports configuration change listeners for hot-reload
+ * 4. Supports dot-separated nested key access, e.g. 'api.baseUrl'
  *
  * Usage Example:
  * ```typescript
@@ -170,52 +86,44 @@ export type ConfigChangeHandler = (event: ConfigChangeEvent) => void;
  * });
  * ```
  */
-export class ConfigCapabilityImpl implements ConfigCapability {
+export class ConfigCapabilityImpl implements ConfigStoreCapability {
   /**
    * Configuration store
-   * 配置存储
    */
   private readonly store: ConfigStore;
 
   /**
    * Configuration HTTP client
-   * 配置 HTTP 客户端
    */
   private readonly httpClient: ConfigHttpClient;
 
   /**
    * Auto-refresh timer
-   * 自动刷新定时器
    */
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Refresh interval
-   * 刷新间隔
    */
   private readonly refreshInterval: number;
 
   /**
    * Change handlers registry
-   * 变更处理器注册表
    */
   private readonly changeHandlers: Map<string, Set<ConfigChangeHandler>> = new Map();
 
   /**
    * Global change handlers (listen to all changes)
-   * 全局变更处理器（监听所有变更）
    */
   private readonly globalChangeHandlers: Set<ConfigChangeHandler> = new Set();
 
   /**
    * Enable change logging flag
-   * 启用变更日志标志
    */
   private readonly enableChangeLogging: boolean;
 
   /**
    * Initialization state
-   * 初始化状态
    */
   private initialized = false;
 
@@ -246,10 +154,10 @@ export class ConfigCapabilityImpl implements ConfigCapability {
    * Initialize configuration capability
    * Load initial configuration from backend
    *
-   * 【初始化流程】
-   * 1. 从后端 API 加载配置
-   * 2. 合并到配置存储
-   * 3. 启动自动刷新（如果配置了刷新间隔）
+   * Initialization Flow:
+   * 1. Load configuration from backend API
+   * 2. Merge into configuration store
+   * 3. Start auto-refresh (if refresh interval is configured)
    *
    * @returns Promise that resolves when initialization is complete
    */
@@ -271,7 +179,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
       this.initialized = true;
     } catch (error) {
       // Log error but don't throw - use initial/default config
-      console.error('[ConfigCapabilityImpl] Failed to load remote configuration:', error);
       
       // Mark as initialized even on failure to allow using default values
       this.initialized = true;
@@ -283,8 +190,8 @@ export class ConfigCapabilityImpl implements ConfigCapability {
    *
    * Supports dot-notation for nested keys (e.g., 'api.baseUrl')
    *
-   * 【键值解析】
-   * 支持点号分隔的嵌套键访问：
+   * Key Resolution:
+   * Supports dot-separated nested key access:
    * - 'api.baseUrl' -> config.api.baseUrl
    * - 'features.darkMode.enabled' -> config.features.darkMode.enabled
    *
@@ -316,11 +223,11 @@ export class ConfigCapabilityImpl implements ConfigCapability {
   /**
    * Refresh configuration from backend
    *
-   * 【刷新流程】
-   * 1. 从后端 API 获取最新配置
-   * 2. 对比现有配置，检测变更
-   * 3. 更新配置存储
-   * 4. 触发变更事件
+   * Refresh Flow:
+   * 1. Fetch latest configuration from backend API
+   * 2. Compare with existing configuration to detect changes
+   * 3. Update configuration store
+   * 4. Fire change events
    *
    * @returns Promise that resolves when refresh is complete
    */
@@ -341,7 +248,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
         this.notifyChangeHandlers(change);
       }
     } catch (error) {
-      console.error('[ConfigCapabilityImpl] Failed to refresh configuration:', error);
       throw error;
     }
   }
@@ -381,9 +287,9 @@ export class ConfigCapabilityImpl implements ConfigCapability {
   /**
    * Set configuration value (local only, not persisted to backend)
    *
-   * 【本地配置覆盖】
-   * 用于运行时本地覆盖配置，不持久化到后端
-   * 常用于开发调试或临时覆盖场景
+   * Local Configuration Override:
+   * Used for runtime local config overrides, not persisted to backend.
+   * Common for development debugging or temporary override scenarios.
    *
    * @param key - Configuration key
    * @param value - Configuration value
@@ -417,10 +323,10 @@ export class ConfigCapabilityImpl implements ConfigCapability {
    * Destroy configuration capability
    * Clean up resources and stop auto-refresh
    *
-   * 【清理工作】
-   * 1. 停止自动刷新定时器
-   * 2. 清空变更处理器
-   * 3. 清空配置存储
+   * Cleanup:
+   * 1. Stop auto-refresh timer
+   * 2. Clear change handlers
+   * 3. Clear configuration store
    */
   destroy(): void {
     this.stopAutoRefresh();
@@ -432,7 +338,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
 
   /**
    * Start auto-refresh
-   * 启动自动刷新
    */
   private startAutoRefresh(): void {
     if (this.refreshTimer) {
@@ -440,15 +345,13 @@ export class ConfigCapabilityImpl implements ConfigCapability {
     }
 
     this.refreshTimer = setInterval(() => {
-      this.refresh().catch((error) => {
-        console.error('[ConfigCapabilityImpl] Auto-refresh failed:', error);
+      this.refresh().catch((_error) => {
       });
     }, this.refreshInterval);
   }
 
   /**
    * Stop auto-refresh
-   * 停止自动刷新
    */
   private stopAutoRefresh(): void {
     if (this.refreshTimer) {
@@ -459,7 +362,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
 
   /**
    * Detect configuration changes
-   * 检测配置变更
    *
    * @param oldConfig - Previous configuration
    * @param newConfig - New configuration
@@ -496,7 +398,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
 
   /**
    * Flatten nested configuration object
-   * 展平嵌套配置对象
    *
    * @param obj - Configuration object
    * @param prefix - Key prefix
@@ -523,7 +424,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
 
   /**
    * Deep equality check
-   * 深度相等比较
    *
    * @param a - First value
    * @param b - Second value
@@ -560,7 +460,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
 
   /**
    * Notify change handlers
-   * 通知变更处理器
    *
    * @param event - Change event
    */
@@ -580,7 +479,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
         try {
           handler(event);
         } catch (error) {
-          console.error('[ConfigCapabilityImpl] Change handler error:', error);
         }
       }
     }
@@ -590,7 +488,6 @@ export class ConfigCapabilityImpl implements ConfigCapability {
       try {
         handler(event);
       } catch (error) {
-        console.error('[ConfigCapabilityImpl] Global change handler error:', error);
       }
     }
   }

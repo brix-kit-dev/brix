@@ -32,7 +32,7 @@ import java.net.http.HttpClient;
  * <p>
  * According to the v3.0 Runtime Shell Architecture Blueprint:
  * <ul>
- *   <li>Host layer (shinwa-host-assembly) only performs assembly, contains no implementation code</li>
+ *   <li>Host layer (enterprise-host) only performs assembly, contains no implementation code</li>
  *   <li>All capability implementations must be in infra-adapters or platform-commons</li>
  *   <li>This class was migrated from host-shell-standalone, complying with the thin Host principle</li>
  * </ul>

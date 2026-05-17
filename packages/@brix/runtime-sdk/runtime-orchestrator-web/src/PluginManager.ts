@@ -16,7 +16,7 @@
 /**
  * @file Plugin Manager
  * @description Manages UI plugin loading, initialization and lifecycle
- * @module @brix/runtime-orchestrator-web/PluginManager
+ * @module @brix-sdk/runtime-orchestrator-web/PluginManager
  * @version 3.0.0
  * 
  * [v3.2 Refactoring Notes]
@@ -33,9 +33,6 @@
  * 6. deactivating - Plugin is deactivating
  * 7. inactive - Plugin deactivated
  * 8. error - Plugin encountered error
- * 
- * 【中文技术要点】
- * 插件管理器负责完整的插件生命周期管理，支持依赖拓扑排序、热重载等特性。
  */
 
 import type {
@@ -43,8 +40,8 @@ import type {
   PluginLifecycle,
   PluginStatus,
   CapabilityRegistry,
-} from '@brix/runtime-sdk-api-web';
-import { EventBusCapabilityType } from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
+import { EventBusCapabilityType } from '@brix-sdk/runtime-sdk-api-web';
 import type { CapabilityAssembler } from './CapabilityAssembler';
 import { executeLoad } from './plugin-loader';
 import {
@@ -195,7 +192,6 @@ export class PluginManager {
         try {
           await this.load(pluginId);
         } catch (error) {
-          console.error(`Failed to load plugin "${pluginId}":`, error);
           
           if (this.config.strictMode) {
             throw error;
@@ -266,7 +262,6 @@ export class PluginManager {
         try {
           await this.activate(pluginId);
         } catch (error) {
-          console.error(`Failed to activate plugin "${pluginId}":`, error);
           
           if (this.config.strictMode) {
             throw error;
@@ -335,7 +330,6 @@ export class PluginManager {
         try {
           await this.deactivate(pluginId);
         } catch (error) {
-          console.error(`Failed to deactivate plugin "${pluginId}":`, error);
           
           if (this.config.strictMode) {
             throw error;
@@ -367,7 +361,6 @@ export class PluginManager {
       try {
         await runtime.instance.onDispose();
       } catch (error) {
-        console.warn(`Error disposing plugin "${pluginId}":`, error);
       }
     }
     
@@ -433,7 +426,6 @@ export class PluginManager {
         try {
           contribution.cleanup();
         } catch (error) {
-          console.warn(`Error cleaning up plugin contribution "${contribution.id}":`, error);
         }
       }
     }

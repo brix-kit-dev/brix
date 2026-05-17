@@ -15,15 +15,15 @@
  */
 package io.infra.adapter.kafka;
 
-import io.runtime.sdk.capability.EventBusCapability;
-import io.runtime.sdk.capability.EventPublishException;
-import io.runtime.sdk.capability.registry.Capability;
-import io.runtime.sdk.capability.registry.CapabilityLevel;
-import io.runtime.sdk.event.DomainEvent;
-import io.runtime.sdk.event.IntegrationEvent;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
@@ -32,12 +32,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.EventPublishException;
+import io.runtime.sdk.capability.registry.Capability;
+import io.runtime.sdk.capability.registry.CapabilityLevel;
+import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.event.IntegrationEvent;
 
 /**
  * Kafka-based Event Bus Capability Implementation.
@@ -108,6 +113,26 @@ public class KafkaEventBusCapability implements EventBusCapability {
      */
     private static final int PUBLISH_TIMEOUT_SECONDS = 10;
 
+    // ==================== Micrometer Metric Names (R3.3 / R3.7) ====================
+
+    /** Counter: total number of events successfully published. */
+    private static final String METRIC_PUBLISHED_TOTAL = "brix.event.published.total";
+
+    /** Counter: total number of events that failed to publish. */
+    private static final String METRIC_PUBLISH_ERROR = "brix.event.publish.error";
+
+    /** Timer: duration of publish operations. */
+    private static final String METRIC_PUBLISH_DURATION = "brix.event.publish.duration";
+
+    /** Counter: total number of events successfully consumed. */
+    private static final String METRIC_CONSUMED_TOTAL = "brix.event.consumed.total";
+
+    /** Counter: event consumption retry attempts. */
+    private static final String METRIC_RETRY_COUNT = "brix.event.retry.count";
+
+    /** Counter: events sent to the dead-letter queue. */
+    private static final String METRIC_DLQ_COUNT = "brix.event.dlq.count";
+
     /**
      * Kafka message template.
      * 
@@ -137,22 +162,70 @@ public class KafkaEventBusCapability implements EventBusCapability {
     private final String currentModuleId;
 
     /**
+     * Supplier that resolves the current tenant ID from the runtime context.
+     *
+     * <p>Injected by Spring auto-configuration.  Typically backed by
+     * {@code TenantContext.getTenantId()} from {@code platform-common}.
+     * Returns {@code Optional.empty()} when no tenant context is available
+     * (e.g., system-level background jobs).</p>
+     *
+     * @since 3.2.0
+     */
+    private final Supplier<Optional<String>> tenantIdProvider;
+
+    /**
+     * Micrometer meter registry for publishing event metrics (R3.3 / R3.7).
+     *
+     * <p>Optional dependency — when {@code null}, metrics are simply not recorded.
+     * This keeps the adapter functional in environments without Actuator/Micrometer.</p>
+     *
+     * @since 3.2.0
+     */
+    private final MeterRegistry meterRegistry;
+
+    /**
      * Constructor.
      * 
-     * @param kafkaTemplate   Kafka message template, injected by Spring
-     * @param topicResolver   Topic resolver
-     * @param objectMapper    JSON serializer
-     * @param currentModuleId Current module ID, used to identify event source
+     * @param kafkaTemplate    Kafka message template, injected by Spring
+     * @param topicResolver    Topic resolver
+     * @param objectMapper     JSON serializer
+     * @param currentModuleId  Current module ID, used to identify event source
+     * @param tenantIdProvider Supplier resolving the current tenant ID from runtime context;
+     *                         may be {@code null}, in which case events must carry tenantId explicitly
      */
     public KafkaEventBusCapability(
             KafkaTemplate<String, String> kafkaTemplate,
             EventTopicResolver topicResolver,
             ObjectMapper objectMapper,
-            String currentModuleId) {
+            String currentModuleId,
+            Supplier<Optional<String>> tenantIdProvider) {
+        this(kafkaTemplate, topicResolver, objectMapper, currentModuleId, tenantIdProvider, null);
+    }
+
+    /**
+     * Constructor with Micrometer support.
+     *
+     * @param kafkaTemplate    Kafka message template, injected by Spring
+     * @param topicResolver    Topic resolver
+     * @param objectMapper     JSON serializer
+     * @param currentModuleId  Current module ID, used to identify event source
+     * @param tenantIdProvider Supplier resolving the current tenant ID from runtime context
+     * @param meterRegistry    Micrometer registry for event metrics (optional, may be {@code null})
+     * @since 3.2.0
+     */
+    public KafkaEventBusCapability(
+            KafkaTemplate<String, String> kafkaTemplate,
+            EventTopicResolver topicResolver,
+            ObjectMapper objectMapper,
+            String currentModuleId,
+            Supplier<Optional<String>> tenantIdProvider,
+            MeterRegistry meterRegistry) {
         this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate, "kafkaTemplate cannot be null");
         this.topicResolver = Objects.requireNonNull(topicResolver, "topicResolver cannot be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
         this.currentModuleId = Objects.requireNonNull(currentModuleId, "currentModuleId cannot be null");
+        this.tenantIdProvider = tenantIdProvider != null ? tenantIdProvider : Optional::empty;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -173,6 +246,9 @@ public class KafkaEventBusCapability implements EventBusCapability {
     public void publish(DomainEvent event) {
         // Parameter validation
         Objects.requireNonNull(event, "Domain event cannot be null");
+
+        String eventTypeName = event.getClass().getSimpleName();
+        Timer.Sample sample = startTimerSample();
 
         // Resolve Topic
         String topic = topicResolver.resolveDomainTopic(event, currentModuleId);
@@ -200,6 +276,8 @@ public class KafkaEventBusCapability implements EventBusCapability {
         
         try {
             SendResult<String, String> result = future.get(PUBLISH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            // R3.3: Record publish success metric
+            recordPublishSuccess(eventTypeName, currentModuleId, sample);
             if (log.isDebugEnabled()) {
                 log.debug("Domain event published successfully: eventId={}, topic={}, partition={}, offset={}",
                         event.getEventId(),
@@ -209,12 +287,15 @@ public class KafkaEventBusCapability implements EventBusCapability {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            recordPublishError(eventTypeName, e);
             throw new EventPublishException(event.getEventId(),
                     "Domain event publishing interrupted: eventId=" + event.getEventId(), e);
         } catch (ExecutionException e) {
+            recordPublishError(eventTypeName, e.getCause());
             throw new EventPublishException(event.getEventId(),
                     "Domain event publishing failed: eventId=" + event.getEventId() + ", topic=" + topic, e.getCause());
         } catch (TimeoutException e) {
+            recordPublishError(eventTypeName, e);
             throw new EventPublishException(event.getEventId(),
                     "Domain event publishing timed out: eventId=" + event.getEventId() + ", topic=" + topic, e);
         }
@@ -245,6 +326,11 @@ public class KafkaEventBusCapability implements EventBusCapability {
         // Parameter validation
         Objects.requireNonNull(event, "Integration event cannot be null");
 
+        IntegrationEventMetadataSupport.enrich(event, tenantIdProvider);
+
+        String eventTypeName = event.getClass().getSimpleName();
+        Timer.Sample sample = startTimerSample();
+
         // Resolve Topic
         String topic = topicResolver.resolveIntegrationTopic(event);
         
@@ -271,20 +357,26 @@ public class KafkaEventBusCapability implements EventBusCapability {
         
         try {
             SendResult<String, String> result = future.get(PUBLISH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            log.info("Integration event published successfully: eventId={}, type={}, topic={}, partition={}, offset={}",
+            // R3.3: Record publish success metric
+            recordPublishSuccess(eventTypeName, event.getSourceModule(), sample);
+            log.info("Integration event published successfully: eventId={}, type={}, traceId={}, topic={}, partition={}, offset={}",
                     event.getEventId(),
                     event.getEventType(),
+                    event.getTraceId(),
                     result.getRecordMetadata().topic(),
                     result.getRecordMetadata().partition(),
                     result.getRecordMetadata().offset());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            recordPublishError(eventTypeName, e);
             throw new EventPublishException(event.getEventId(),
                     "Integration event publishing interrupted: eventId=" + event.getEventId(), e);
         } catch (ExecutionException e) {
+            recordPublishError(eventTypeName, e.getCause());
             throw new EventPublishException(event.getEventId(),
                     "Integration event publishing failed: eventId=" + event.getEventId() + ", topic=" + topic, e.getCause());
         } catch (TimeoutException e) {
+            recordPublishError(eventTypeName, e);
             throw new EventPublishException(event.getEventId(),
                     "Integration event publishing timed out: eventId=" + event.getEventId() + ", topic=" + topic, e);
         }
@@ -330,28 +422,16 @@ public class KafkaEventBusCapability implements EventBusCapability {
 
     /**
      * Build message Headers for integration events.
+     *
+     * <p>Includes all base event metadata plus tenant ID and schema version
+     * (R3.6 compliance) so that consumers can filter and validate events
+     * at the header level without full payload deserialization.</p>
      * 
      * @param event the integration event
      * @return Kafka Headers
      */
     private Headers buildIntegrationHeaders(IntegrationEvent event) {
-        RecordHeaders headers = new RecordHeaders();
-        
-        // Add event metadata
-        addHeader(headers, HEADER_EVENT_ID, event.getEventId());
-        addHeader(headers, HEADER_EVENT_TYPE, event.getEventType());
-        addHeader(headers, HEADER_TIMESTAMP, String.valueOf(event.getTimestamp().toEpochMilli()));
-        addHeader(headers, HEADER_SOURCE_MODULE, event.getSourceModule());
-        
-        // Add integration event specific information
-        if (event.getCorrelationId() != null) {
-            addHeader(headers, "correlationId", event.getCorrelationId());
-        }
-        if (event.getRoutingKey() != null) {
-            addHeader(headers, "routingKey", event.getRoutingKey());
-        }
-        
-        return headers;
+        return IntegrationEventMetadataSupport.buildHeaders(event);
     }
 
     /**
@@ -365,5 +445,104 @@ public class KafkaEventBusCapability implements EventBusCapability {
         if (value != null) {
             headers.add(key, value.getBytes(StandardCharsets.UTF_8));
         }
+    }
+
+    // ==================== R3.3 / R3.7: Micrometer Metrics Helpers ====================
+
+    /**
+     * Starts a timer sample for measuring publish duration.
+     * Returns {@code null} when no MeterRegistry is configured.
+     */
+    private Timer.Sample startTimerSample() {
+        return meterRegistry != null ? Timer.start(meterRegistry) : null;
+    }
+
+    /**
+     * Records a successful event publish (counter + timer).
+     *
+     * @param eventType    simple class name of the event
+     * @param sourceModule module that published the event
+     * @param sample       timer sample started before publishing (may be {@code null})
+     */
+    private void recordPublishSuccess(String eventType, String sourceModule, Timer.Sample sample) {
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METRIC_PUBLISHED_TOTAL,
+                "eventType", eventType,
+                "sourceModule", sourceModule
+        ).increment();
+
+        if (sample != null) {
+            sample.stop(meterRegistry.timer(METRIC_PUBLISH_DURATION,
+                    "eventType", eventType));
+        }
+    }
+
+    /**
+     * Records a failed event publish attempt.
+     *
+     * @param eventType simple class name of the event
+     * @param cause     the exception that caused the failure
+     */
+    private void recordPublishError(String eventType, Throwable cause) {
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METRIC_PUBLISH_ERROR,
+                "eventType", eventType,
+                "errorType", cause.getClass().getSimpleName()
+        ).increment();
+    }
+
+    /**
+     * Records a successful event consumption.
+     *
+     * <p>Intended to be called by consumer-side infrastructure (e.g., KafkaListener wrappers)
+     * when an event is processed successfully.</p>
+     *
+     * @param eventType    simple class name of the consumed event
+     * @param sourceModule source module of the event
+     */
+    public void recordConsumeSuccess(String eventType, String sourceModule) {
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METRIC_CONSUMED_TOTAL,
+                "eventType", eventType,
+                "sourceModule", sourceModule
+        ).increment();
+    }
+
+    /**
+     * Records an event consumption retry attempt (R3.7).
+     *
+     * @param eventType simple class name of the retried event
+     * @param attempt   retry attempt number (1-based)
+     */
+    public void recordConsumeRetry(String eventType, int attempt) {
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METRIC_RETRY_COUNT,
+                "eventType", eventType,
+                "attempt", String.valueOf(attempt)
+        ).increment();
+    }
+
+    /**
+     * Records an event sent to the dead-letter queue (R3.7).
+     *
+     * @param eventType simple class name of the DLQ'd event
+     * @param cause     the exception that caused permanent failure
+     */
+    public void recordDlq(String eventType, Throwable cause) {
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METRIC_DLQ_COUNT,
+                "eventType", eventType,
+                "errorType", cause.getClass().getSimpleName()
+        ).increment();
     }
 }

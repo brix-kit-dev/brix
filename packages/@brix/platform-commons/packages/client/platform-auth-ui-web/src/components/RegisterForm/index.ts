@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 /**
- * @file RegisterForm ç»„ä»¶å¯¼å‡º
- * @module @brix/platform-auth-web/components/RegisterForm
+ * @file RegisterForm ×é¼þµ¼³ö
+ * @module @brix-sdk/platform-auth-web/components/RegisterForm
  */
 
 export { RegisterForm } from './RegisterForm';

@@ -58,6 +58,7 @@ const sidebars: SidebarsConfig = {
         'guides/testing',
         'guides/deployment',
         'guides/architecture-guard',
+        'guides/secret-rotation',
       ],
     },
 

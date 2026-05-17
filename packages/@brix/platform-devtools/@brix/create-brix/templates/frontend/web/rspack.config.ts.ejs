@@ -1,137 +1,49 @@
-﻿/**
- * Rspack 配置 - Module Federation
- * 
- * @module @brix/<%= name %>-web
- * @generated <%= date %>
- * 
- * v2.1 架构规范：
- * - 使用 Module Federation 暴露组件
- * - exposes 目录下的包装器确保初始化顺序
- * - 与基座Total享 react, react-dom, react-router-dom, @mui/material
- */
-
 import { defineConfig } from '@rspack/cli';
-import { ModuleFederationPlugin } from '@module-federation/enhanced/rspack';
-import path from 'path';
+import { container } from '@rspack/core';
+import { getRemoteSharedConfig } from '@brix-sdk/shared-runtime-web/mf-config';
 
-const isDev = process.env.NODE_ENV !== 'production';
-const PORT = process.env.PORT || <%= webPort || 3000 %>;
-
-// Module Federation 的 scope Name（驼峰命名）
-const SCOPE_NAME = '<%= name.replace('plugin-', '').replace(/-./g, x => x[1].toUpperCase()) %>';
+const { ModuleFederationPlugin } = container;
 
 export default defineConfig({
   entry: './src/index.tsx',
   output: {
-    path: path.resolve(__dirname, 'dist'),
-    publicPath: isDev ? `http://localhost:${PORT}/` : '/',
-    filename: '[name].[contenthash].js',
-    uniqueName: '<%= name %>-web',
+    publicPath: 'auto',
+    clean: true,
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-    },
+    extensions: ['.tsx', '.ts', '.js'],
   },
   module: {
     rules: [
       {
-        test: /\.(ts|tsx)$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'builtin:swc-loader',
-          options: {
-            jsc: {
-              parser: {
-                syntax: 'typescript',
-                tsx: true,
-              },
-              transform: {
-                react: {
-                  runtime: 'automatic',
-                },
+        test: /\.tsx?$/,
+        loader: 'builtin:swc-loader',
+        options: {
+          jsc: {
+            parser: {
+              syntax: 'typescript',
+              tsx: true,
+            },
+            transform: {
+              react: {
+                runtime: 'automatic',
               },
             },
           },
         },
-      },
-      {
-        test: /\.css$/,
-        type: 'css',
-      },
-      {
-        test: /\.(png|jpg|jpeg|gif|svg|woff|woff2|eot|ttf|otf)$/,
-        type: 'asset',
+        type: 'javascript/auto',
       },
     ],
   },
   plugins: [
     new ModuleFederationPlugin({
-      name: SCOPE_NAME,
+      name: '<%= name.replace(/-/g, "_") %>_web',
       filename: 'remoteEntry.js',
       exposes: {
-        // 暴露列表pages面
-        './<%= classPrefix %>List': './src/exposes/<%= classPrefix %>List.tsx',
-        // 暴露Detail Page
-        './<%= classPrefix %>Detail': './src/exposes/<%= classPrefix %>Detail.tsx',
+        './List': './src/exposes/<%= classPrefix %>List.tsx',
+        './Detail': './src/exposes/<%= classPrefix %>Detail.tsx',
       },
-      shared: {
-        react: {
-          singleton: true,
-          requiredVersion: '^18.3.1',
-          eager: false,
-        },
-        'react-dom': {
-          singleton: true,
-          requiredVersion: '^18.3.1',
-          eager: false,
-        },
-        'react-router-dom': {
-          singleton: true,
-          requiredVersion: '^6.28.0',
-          eager: false,
-        },
-        '@mui/material': {
-          singleton: true,
-          requiredVersion: '^5.16.14',
-          eager: false,
-        },
-        '@emotion/react': {
-          singleton: true,
-          requiredVersion: '^11.14.0',
-          eager: false,
-        },
-        '@emotion/styled': {
-          singleton: true,
-          requiredVersion: '^11.14.0',
-          eager: false,
-        },
-        i18next: {
-          singleton: true,
-          requiredVersion: '^23.16.8',
-          eager: false,
-        },
-        'react-i18next': {
-          singleton: true,
-          requiredVersion: '^15.1.3',
-          eager: false,
-        },
-      },
+      shared: getRemoteSharedConfig(),
     }),
   ],
-  devServer: {
-    port: PORT,
-    hot: true,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': '*',
-    },
-    historyApiFallback: true,
-    allowedHosts: 'all',
-  },
-  optimization: {
-    splitChunks: false, // Module Federation 需要Disabled splitChunks
-  },
 });

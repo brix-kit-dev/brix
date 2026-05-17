@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Event Latency Tracker
  * @description Records end-to-end latency from event publish to subscribe
- * @module @brix/platform-eventbus-web/EventLatencyTracker
+ * @module @brix-sdk/platform-eventbus-web/EventLatencyTracker
  * @version 3.0.0
  * 
  * Architecture Overview:
@@ -34,7 +34,7 @@
  * - 100% cross-plugin events go through EventBus
  */
 
-import type { GovernedEvent } from '@brix/runtime-sdk-api-web';
+import type { GovernedEvent } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Latency statistics result

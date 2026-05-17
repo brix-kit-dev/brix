@@ -1,60 +1,64 @@
-# @brix/platform-auth-service-web
+# @brix-sdk/platform-auth-service-web
 
-> Web 端认证服务工厂 - 提供 OAuth、Token 管理等认证服务
+> Authentication service implementation for Brix Platform
 
-[![npm version](https://img.shields.io/npm/v/@brix/platform-auth-service-web.svg)](https://www.npmjs.com/package/@brix/platform-auth-service-web)
+[![npm version](https://img.shields.io/npm/v/@brix-sdk/platform-auth-service-web.svg)](https://www.npmjs.com/package/@brix-sdk/platform-auth-service-web)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-## 📋 概述
+## Overview
 
-`@brix/platform-auth-service-web` 是 Brix 平台的认证服务包，从 `@brix/platform-auth-web` v3.0 拆分而来。
+`@brix-sdk/platform-auth-service-web` provides authentication services including OAuth, token management, and session handling. This package was extracted from `@brix-sdk/platform-auth-web` in v3.0.
 
-### v3.1 架构重构
+### v3.1 Architecture
 
-| 包名 | 职责 | 说明 |
-|------|------|------|
-| `@brix/platform-auth-web` | 能力实现 | AuthCapabilityImpl |
-| `@brix/platform-auth-ui-web` | UI 组件 | 登录表单、权限守卫等 |
-| `@brix/platform-auth-service-web` | 服务工厂 | OAuth、Token 管理 |
+| Package | Responsibility | Description |
+|---------|----------------|-------------|
+| `@brix-sdk/platform-auth-web` | Capability implementation | AuthCapabilityImpl |
+| `@brix-sdk/platform-auth-ui-web` | UI components | Login form, permission guards |
+| `@brix-sdk/platform-auth-service-web` | Service factory | OAuth, token management |
 
-## 📦 安装
+## Installation
 
 ```bash
-pnpm add @brix/platform-auth-service-web
+npm install @brix-sdk/platform-auth-service-web
 ```
 
-## 🚀 使用
+## Usage
 
-### 平台认证服务
+### Platform Auth Service
 
 ```typescript
-import { createPlatformAuthService } from '@brix/platform-auth-service-web';
+import { createPlatformAuthService } from '@brix-sdk/platform-auth-service-web';
 
-// 创建认证服务
+// Create auth service
 const authService = createPlatformAuthService({
   baseUrl: '/api/auth',
   tokenStorage: 'localStorage',
 });
 
-// 登录
+// Login
 const result = await authService.login({
   username: 'user@example.com',
   password: 'password',
 });
 
-// 获取当前用户
+// Get current user
 const user = authService.getCurrentUser();
 
-// 登出
+// Logout
 await authService.logout();
 ```
+
+## License
+
+Apache-2.0
 
 ### Google OAuth 服务
 
 ```typescript
-import { GoogleOAuthService, initGoogleAuth } from '@brix/platform-auth-service-web';
+import { GoogleOAuthService, initGoogleAuth } from '@brix-sdk/platform-auth-service-web';
 
-// 初始化 Google OAuth
+// 初始�?Google OAuth
 initGoogleAuth({
   clientId: 'your-google-client-id',
   redirectUri: window.location.origin + '/oauth/callback',
@@ -64,14 +68,14 @@ initGoogleAuth({
 // 获取服务实例
 const googleAuth = getGoogleAuthService();
 
-// 开始 OAuth 流程
+// 开�?OAuth 流程
 googleAuth.startOAuthFlow();
 
 // 处理回调
 const result = await googleAuth.handleCallback(code);
 ```
 
-## 📚 API 参考
+## 📚 API 参�?
 
 ### 平台认证服务
 
@@ -88,10 +92,10 @@ const result = await googleAuth.handleCallback(code);
 
 | 方法 | 说明 |
 |------|------|
-| `initGoogleAuth(config)` | 初始化 Google OAuth |
+| `initGoogleAuth(config)` | 初始�?Google OAuth |
 | `getGoogleAuthService()` | 获取服务单例 |
-| `resetGoogleAuth()` | 重置服务状态 |
-| `startOAuthFlow()` | 开始 OAuth 流程 |
+| `resetGoogleAuth()` | 重置服务状�?|
+| `startOAuthFlow()` | 开�?OAuth 流程 |
 | `handleCallback(code)` | 处理 OAuth 回调 |
 
 ### 类型定义
@@ -112,8 +116,8 @@ interface GoogleOAuthConfig {
 
 ## 🔒 安全注意事项
 
-1. **Token 存储**：生产环境建议使用 HttpOnly Cookie 而非 localStorage
-2. **PKCE**：Google OAuth 实现已内置 PKCE 支持
+1. **Token 存储**：生产环境建议使�?HttpOnly Cookie 而非 localStorage
+2. **PKCE**：Google OAuth 实现已内�?PKCE 支持
 3. **CSRF**：确保后端实现了 CSRF 保护
 
 ## 📄 License

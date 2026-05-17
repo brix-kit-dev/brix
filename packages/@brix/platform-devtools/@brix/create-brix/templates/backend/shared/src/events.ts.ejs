@@ -1,0 +1,5 @@
+export interface <%= classPrefix %>CreatedEvent {
+  readonly eventId: string;
+  readonly tenantId: string;
+  readonly <%= name.replace(/-/g, '') %>Id: string;
+}

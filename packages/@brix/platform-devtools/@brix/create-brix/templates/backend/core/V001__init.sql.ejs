@@ -1,11 +1,10 @@
 -- =========================================================
--- <%= displayName %> 初始化脚本
--- 版本: V<%= flywayPrefix %>_001
--- 生成时间: <%= date %>
+-- <%= displayName %> initial schema
+-- Version: V<%= typeof flywayPrefix !== 'undefined' ? flywayPrefix : '001' %>_001
+-- Generated at: <%= date %>
 -- =========================================================
 
--- 示例表结构（请根据实际业务修改）
-CREATE TABLE IF NOT EXISTS <%= name.replace('plugin-', '').replace(/-/g, '_') %>_example (
+CREATE TABLE IF NOT EXISTS <%= name.replace('plugin-', '').replace(/-/g, '_') %>_record (
     id              BIGSERIAL PRIMARY KEY,
     tenant_id       VARCHAR(64) NOT NULL,
     name            VARCHAR(255) NOT NULL,
@@ -18,13 +17,12 @@ CREATE TABLE IF NOT EXISTS <%= name.replace('plugin-', '').replace(/-/g, '_') %>
     version         INTEGER NOT NULL DEFAULT 0
 );
 
--- 租户索引（多租户数据隔离）
-CREATE INDEX IF NOT EXISTS idx_<%= name.replace('plugin-', '').replace(/-/g, '_') %>_example_tenant 
-    ON <%= name.replace('plugin-', '').replace(/-/g, '_') %>_example(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_<%= name.replace('plugin-', '').replace(/-/g, '_') %>_record_tenant 
+    ON <%= name.replace('plugin-', '').replace(/-/g, '_') %>_record(tenant_id);
 
-<% if (includeOutbox) { %>
+<% if (typeof includeOutbox !== 'undefined' && includeOutbox) { %>
 -- =========================================================
--- Outbox 表（事件一致性保障）
+-- Outbox table for integration event consistency
 -- =========================================================
 CREATE TABLE IF NOT EXISTS <%= name.replace('plugin-', '').replace(/-/g, '_') %>_outbox (
     id              BIGSERIAL PRIMARY KEY,
@@ -43,4 +41,4 @@ CREATE INDEX IF NOT EXISTS idx_<%= name.replace('plugin-', '').replace(/-/g, '_'
     ON <%= name.replace('plugin-', '').replace(/-/g, '_') %>_outbox(status, created_at);
 <% } %>
 
-COMMENT ON TABLE <%= name.replace('plugin-', '').replace(/-/g, '_') %>_example IS '<%= displayName %> 示例表';
+COMMENT ON TABLE <%= name.replace('plugin-', '').replace(/-/g, '_') %>_record IS '<%= displayName %> records';

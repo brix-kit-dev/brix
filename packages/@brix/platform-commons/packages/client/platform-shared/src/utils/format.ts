@@ -1,36 +1,35 @@
-/**
+﻿/**
  * @file format.ts
- * @description 格式化工具函数集
- * @module @brix/utils/format
+ * @description Formatting utility functions
+ * @module @brix-sdk/utils/format
  * @version 3.0.0
  * 
- * 【模块说明】
- * 提供各种数据格式化工具，包括文件大小、日期时间、数字、货币、字符串等。
- * 这些函数遵循中国大陆的常用格式习惯，同时支持国际化配置。
+ * ## Module Overview
+ * Provides various data formatting utilities including file size, date/time, numbers, currency, strings, etc.
+ * These functions follow common formatting conventions and support internationalization configuration.
  * 
- * 【使用场景】
- * - 文件大小：上传下载、存储空间显示
- * - 日期格式化：时间显示、相对时间、倒计时
- * - 数字格式化：金额、百分比、统计数据
- * - 字符串处理：截断、大小写转换
+ * ## Use Cases
+ * - File size: Upload/download display, storage space
+ * - Date formatting: Time display, relative time, countdown
+ * - Number formatting: Currency, percentage, statistics
+ * - String processing: Truncation, case conversion
  * 
  * @license Apache-2.0
  */
 
 // ============================================================
-// 文件大小格式化
+// File Size Formatting
 // ============================================================
 
 /**
- * 格式化文件大小
+ * Format file size
  * 
- * 【功能说明】
- * 将字节数转换为人类可读的文件大小格式。
- * 自动选择合适的单位（B、KB、MB、GB 等）。
+ * Converts a byte count into a human-readable file size string.
+ * Automatically selects the appropriate unit (B, KB, MB, GB, etc.).
  * 
- * @param bytes 字节数
- * @param decimals 小数位数（默认 2）
- * @returns 格式化后的字符串
+ * @param bytes - Byte count
+ * @param decimals - Decimal places (default: 2)
+ * @returns Formatted string
  * 
  * @example
  * ```typescript
@@ -54,14 +53,13 @@ export function formatFileSize(bytes: number, decimals: number = 2): string {
 }
 
 /**
- * 解析文件大小字符串为字节数
+ * Parse a file size string into bytes
  * 
- * 【功能说明】
- * 将文件大小字符串（如 '1 MB', '500KB'）解析为字节数。
- * 支持各种常见格式，大小写不敏感。
+ * Parses file size strings (e.g., '1 MB', '500KB') into byte count.
+ * Supports various common formats, case-insensitive.
  * 
- * @param sizeStr 文件大小字符串
- * @returns 字节数（解析失败返回 0）
+ * @param sizeStr - File size string
+ * @returns Byte count (returns 0 on parse failure)
  * 
  * @example
  * ```typescript
@@ -81,7 +79,7 @@ export function parseFileSize(sizeStr: string): number {
     PB: 1024 ** 5,
   };
 
-  const match = sizeStr.trim().toUpperCase().match(/^([\d.]+)\s*([A-Z]+)$/);
+  const match = sizeStr.trim().toUpperCase().match(/^([\d.]+)\s*([A-Z]+)/);
   if (!match) return 0;
 
   const [, value, unit] = match;
@@ -89,40 +87,38 @@ export function parseFileSize(sizeStr: string): number {
 }
 
 // ============================================================
-// 日期格式化
+// Date Formatting
 // ============================================================
 
 /**
- * 格式化日期
+ * Format date
  * 
- * 【功能说明】
- * 将日期格式化为指定格式的字符串。
- * 支持常用的占位符，如 YYYY、MM、DD、HH、mm、ss 等。
+ * Formats a date into a string of the specified format.
+ * Supports common placeholders like YYYY, MM, DD, HH, mm, ss, etc.
  * 
- * 【支持的占位符】
- * - YYYY: 四位年份
- * - YY: 两位年份
- * - MM: 两位月份（01-12）
- * - M: 月份（1-12）
- * - DD: 两位日期（01-31）
- * - D: 日期（1-31）
- * - HH: 两位小时（00-23）
- * - H: 小时（0-23）
- * - mm: 两位分钟（00-59）
- * - m: 分钟（0-59）
- * - ss: 两位秒（00-59）
- * - s: 秒（0-59）
- * - SSS: 毫秒
+ * Supported placeholders:
+ * - YYYY: Four-digit year
+ * - YY: Two-digit year
+ * - MM: Two-digit month (01-12)
+ * - M: Month (1-12)
+ * - DD: Two-digit day (01-31)
+ * - D: Day (1-31)
+ * - HH: Two-digit hour (00-23)
+ * - H: Hour (0-23)
+ * - mm: Two-digit minute (00-59)
+ * - m: Minute (0-59)
+ * - ss: Two-digit second (00-59)
+ * - s: Second (0-59)
+ * - SSS: Milliseconds
  * 
- * @param date 日期（Date 对象、时间戳或日期字符串）
- * @param format 格式字符串（默认 'YYYY-MM-DD HH:mm:ss'）
- * @returns 格式化后的日期字符串
+ * @param date - Date (Date object, timestamp, or date string)
+ * @param format - Format string (default: 'YYYY-MM-DD HH:mm:ss')
+ * @returns Formatted date string
  * 
  * @example
  * ```typescript
  * formatDate(new Date(), 'YYYY-MM-DD');          // '2024-01-01'
  * formatDate(Date.now(), 'YYYY-MM-DD HH:mm:ss'); // '2024-01-01 12:00:00'
- * formatDate(new Date(), 'YYYY年MM月DD日');      // '2024年01月01日'
  * formatDate(new Date(), 'MM/DD/YYYY');          // '01/01/2024'
  * ```
  */
@@ -153,7 +149,7 @@ export function formatDate(
   };
 
   let result = format;
-  // 按长度降序排列，避免 MM 被 M 替换
+  // Sort by key length descending to prevent MM replacing before M
   const keys = Object.keys(replacements).sort((a, b) => b.length - a.length);
   for (const key of keys) {
     result = result.replace(new RegExp(key, 'g'), replacements[key]);
@@ -163,23 +159,22 @@ export function formatDate(
 }
 
 /**
- * 格式化相对时间
+ * Format relative time
  * 
- * 【功能说明】
- * 将日期转换为相对于当前时间的描述，如"3分钟前"、"2天后"。
- * 使用中文描述，适合中国用户的阅读习惯。
+ * Converts a date into a description relative to the current time,
+ * such as "3 minutes ago" or "in 2 days".
  * 
- * @param date 日期（Date 对象、时间戳或日期字符串）
- * @param now 当前时间戳（默认 Date.now()）
- * @returns 相对时间字符串
+ * @param date - Date (Date object, timestamp, or date string)
+ * @param now - Current timestamp (default: Date.now())
+ * @returns Relative time string
  * 
  * @example
  * ```typescript
- * formatRelativeTime(Date.now() - 30000);     // '30秒前'
- * formatRelativeTime(Date.now() - 3600000);   // '1小时前'
- * formatRelativeTime(Date.now() - 86400000);  // '1天前'
- * formatRelativeTime(Date.now() + 86400000);  // '1天后'
- * formatRelativeTime(Date.now() - 5000);      // '刚刚'
+ * formatRelativeTime(Date.now() - 30000);     // '30 seconds ago'
+ * formatRelativeTime(Date.now() - 3600000);   // '1 hour ago'
+ * formatRelativeTime(Date.now() - 86400000);  // '1 day ago'
+ * formatRelativeTime(Date.now() + 86400000);  // 'in 1 day'
+ * formatRelativeTime(Date.now() - 5000);      // 'just now'
  * ```
  */
 export function formatRelativeTime(
@@ -189,7 +184,7 @@ export function formatRelativeTime(
   const d = new Date(date);
   const diff = now - d.getTime();
   const absDiff = Math.abs(diff);
-  const suffix = diff > 0 ? '前' : '后';
+  const isPast = diff > 0;
 
   const seconds = Math.floor(absDiff / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -198,40 +193,42 @@ export function formatRelativeTime(
   const months = Math.floor(days / 30);
   const years = Math.floor(days / 365);
 
+  const format = (value: number, unit: string) =>
+    isPast ? `${value} ${unit}${value > 1 ? 's' : ''} ago` : `in ${value} ${unit}${value > 1 ? 's' : ''}`;
+
   if (seconds < 60) {
-    return seconds <= 10 ? '刚刚' : `${seconds}秒${suffix}`;
+    return seconds <= 10 ? 'just now' : format(seconds, 'second');
   }
   if (minutes < 60) {
-    return `${minutes}分钟${suffix}`;
+    return format(minutes, 'minute');
   }
   if (hours < 24) {
-    return `${hours}小时${suffix}`;
+    return format(hours, 'hour');
   }
   if (days < 30) {
-    return `${days}天${suffix}`;
+    return format(days, 'day');
   }
   if (months < 12) {
-    return `${months}个月${suffix}`;
+    return format(months, 'month');
   }
-  return `${years}年${suffix}`;
+  return format(years, 'year');
 }
 
 /**
- * 格式化时长
+ * Format duration
  * 
- * 【功能说明】
- * 将毫秒数格式化为时长字符串。
- * 支持短格式（1:01:01）和长格式（1小时1分钟1秒）两种风格。
+ * Formats a millisecond count into a duration string.
+ * Supports short format (1:01:01) and long format (1 hour 1 minute 1 second).
  * 
- * @param ms 毫秒数
- * @param options 格式选项
- * @param options.style 格式风格：'short'（默认）或 'long'
- * @returns 格式化后的时长字符串
+ * @param ms - Milliseconds
+ * @param options - Format options
+ * @param options.style - Format style: 'short' (default) or 'long'
+ * @returns Formatted duration string
  * 
  * @example
  * ```typescript
  * formatDuration(3661000);                    // '1:01:01'
- * formatDuration(3661000, { style: 'long' }); // '1小时1分钟1秒'
+ * formatDuration(3661000, { style: 'long' }); // '1 hour 1 minute 1 second'
  * formatDuration(65000);                      // '1:05'
  * formatDuration(90061000);                   // '1d 1:01:01'
  * ```
@@ -249,11 +246,11 @@ export function formatDuration(
 
   if (style === 'long') {
     const parts: string[] = [];
-    if (days > 0) parts.push(`${days}天`);
-    if (hours > 0) parts.push(`${hours}小时`);
-    if (minutes > 0) parts.push(`${minutes}分钟`);
-    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}秒`);
-    return parts.join('');
+    if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+    if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+    if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds} second${seconds > 1 ? 's' : ''}`);
+    return parts.join(' ');
   }
 
   if (days > 0) {
@@ -266,19 +263,18 @@ export function formatDuration(
 }
 
 // ============================================================
-// 数字格式化
+// Number Formatting
 // ============================================================
 
 /**
- * 格式化数字为千分位
+ * Format number with thousands separator
  * 
- * 【功能说明】
- * 将数字格式化为带千分位分隔符的字符串。
- * 可指定小数位数。
+ * Formats a number with comma thousands separators.
+ * Supports specifying decimal places.
  * 
- * @param num 数字
- * @param decimals 小数位数（可选）
- * @returns 格式化后的字符串
+ * @param num - Number
+ * @param decimals - Decimal places (optional)
+ * @returns Formatted string
  * 
  * @example
  * ```typescript
@@ -286,12 +282,11 @@ export function formatDuration(
  * formatNumber(1234567.89, 2);  // '1,234,567.89'
  * formatNumber(1000, 2);        // '1,000.00'
  * formatNumber(NaN);            // 'NaN'
- * formatNumber(Infinity);       // '∞'
  * ```
  */
 export function formatNumber(num: number, decimals?: number): string {
   if (isNaN(num)) return 'NaN';
-  if (!isFinite(num)) return num > 0 ? '∞' : '-∞';
+  if (!isFinite(num)) return num > 0 ? 'Infinity' : '-Infinity';
 
   const fixed = decimals !== undefined ? num.toFixed(decimals) : num.toString();
   const [intPart, decPart] = fixed.split('.');
@@ -302,16 +297,15 @@ export function formatNumber(num: number, decimals?: number): string {
 }
 
 /**
- * 格式化百分比
+ * Format percentage
  * 
- * 【功能说明】
- * 将数值格式化为百分比字符串。
- * 支持将比率（0-1）或百分比值转换为显示格式。
+ * Formats a numeric value as a percentage string.
+ * Supports converting ratios (0-1) or percentage values to display format.
  * 
- * @param value 数值
- * @param decimals 小数位数（默认 2）
- * @param asRatio 值是否为比率（0-1），默认 true
- * @returns 格式化后的百分比字符串
+ * @param value - Numeric value
+ * @param decimals - Decimal places (default: 2)
+ * @param asRatio - Whether the value is a ratio (0-1), default: true
+ * @returns Formatted percentage string
  * 
  * @example
  * ```typescript
@@ -331,23 +325,21 @@ export function formatPercent(
 }
 
 /**
- * 格式化货币
+ * Format currency
  * 
- * 【功能说明】
- * 将金额格式化为货币字符串。
- * 使用 Intl.NumberFormat 实现，支持国际化。
+ * Formats an amount into a currency string.
+ * Uses Intl.NumberFormat for internationalization support.
  * 
- * @param amount 金额
- * @param currency 货币代码（默认 'CNY'）
- * @param locale 地区（默认 'zh-CN'）
- * @returns 格式化后的货币字符串
+ * @param amount - Amount
+ * @param currency - Currency code (default: 'CNY')
+ * @param locale - Locale (default: 'zh-CN')
+ * @returns Formatted currency string
  * 
  * @example
  * ```typescript
  * formatCurrency(1234.56);                   // '¥1,234.56'
  * formatCurrency(1234.56, 'USD', 'en-US');   // '$1,234.56'
- * formatCurrency(1234.56, 'EUR', 'de-DE');   // '1.234,56 €'
- * formatCurrency(1234.56, 'JPY', 'ja-JP');   // '￥1,235'
+ * formatCurrency(1234.56, 'EUR', 'de-DE');   // '1.234,56 EUR'
  * ```
  */
 export function formatCurrency(
@@ -362,26 +354,25 @@ export function formatCurrency(
 }
 
 // ============================================================
-// 字符串格式化
+// String Formatting
 // ============================================================
 
 /**
- * 截断字符串
+ * Truncate string
  * 
- * 【功能说明】
- * 将超长字符串截断并添加后缀。
- * 常用于显示标题、描述等需要限制长度的文本。
+ * Truncates a long string and adds a suffix.
+ * Commonly used for displaying titles, descriptions, and other length-limited text.
  * 
- * @param str 原字符串
- * @param maxLength 最大长度
- * @param suffix 截断后缀（默认 '...'）
- * @returns 截断后的字符串
+ * @param str - Original string
+ * @param maxLength - Maximum length
+ * @param suffix - Truncation suffix (default: '...')
+ * @returns Truncated string
  * 
  * @example
  * ```typescript
- * truncate('这是一段很长的文字', 5);        // '这是...'
- * truncate('短文本', 10);                   // '短文本'
- * truncate('Hello World', 8, '…');          // 'Hello W…'
+ * truncate('This is a very long text', 10);    // 'This is...'
+ * truncate('Short', 10);                       // 'Short'
+ * truncate('Hello World', 8, '~');             // 'Hello W~'
  * ```
  */
 export function truncate(
@@ -394,13 +385,12 @@ export function truncate(
 }
 
 /**
- * 首字母大写
+ * Capitalize first letter
  * 
- * 【功能说明】
- * 将字符串的首字母转为大写，其余保持不变。
+ * Converts the first character of a string to uppercase, leaving the rest unchanged.
  * 
- * @param str 原字符串
- * @returns 首字母大写的字符串
+ * @param str - Original string
+ * @returns String with capitalized first letter
  * 
  * @example
  * ```typescript
@@ -414,14 +404,13 @@ export function capitalize(str: string): string {
 }
 
 /**
- * 驼峰转短横线（kebab-case）
+ * Convert camelCase to kebab-case
  * 
- * 【功能说明】
- * 将驼峰命名转换为短横线命名。
- * 常用于 CSS 类名、URL 路径等场景。
+ * Converts camelCase naming to kebab-case (hyphenated) naming.
+ * Commonly used for CSS class names, URL paths, etc.
  * 
- * @param str 驼峰命名的字符串
- * @returns 短横线命名的字符串
+ * @param str - camelCase string
+ * @returns kebab-case string
  * 
  * @example
  * ```typescript
@@ -438,14 +427,13 @@ export function kebabCase(str: string): string {
 }
 
 /**
- * 短横线转驼峰（camelCase）
+ * Convert kebab-case to camelCase
  * 
- * 【功能说明】
- * 将短横线命名转换为驼峰命名。
- * 常用于将 CSS 属性名转换为 JavaScript 属性名。
+ * Converts kebab-case (hyphenated) naming to camelCase naming.
+ * Commonly used for converting CSS property names to JavaScript property names.
  * 
- * @param str 短横线命名的字符串
- * @returns 驼峰命名的字符串
+ * @param str - kebab-case string
+ * @returns camelCase string
  * 
  * @example
  * ```typescript

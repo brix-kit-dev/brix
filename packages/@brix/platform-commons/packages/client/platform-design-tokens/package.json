@@ -1,0 +1,55 @@
+{
+  "name": "@brix-sdk/platform-design-tokens",
+  "version": "3.2.0",
+  "description": "Brix Platform design tokens (colors, spacing, typography)",
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./css": "./dist/tokens.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external @brix-sdk/runtime-sdk-api-web && npm run build:css",
+    "build:css": "node scripts/generate-css.mjs",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external @brix-sdk/runtime-sdk-api-web",
+    "lint": "eslint src --ext .ts",
+    "clean": "rimraf dist"
+  },
+  "peerDependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
+  },
+  "devDependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "brix",
+    "platform",
+    "design-tokens",
+    "theme",
+    "colors",
+    "spacing",
+    "typography"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-devtools.git",
+    "directory": "@brix-sdk/platform-design-tokens"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

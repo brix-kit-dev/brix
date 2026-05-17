@@ -33,9 +33,9 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
 /**
  * HikariCP-based database capability implementation.
  * 
- * <p>This class is the standard implementation of {@link DatabaseCapability}, providing database access
- * capability based on HikariCP connection pool. Plugins use this implementation to obtain data sources,
- * query dialects, and execute native SQL without needing to know specific database drivers.</p>
+ * <p>This class is the standard adapter-side implementation of {@link DatabaseCapability}.
+ * The public contract exposes only database metadata. The raw {@link DataSource} and
+ * native SQL helpers remain adapter-internal and must not be consumed by plugins.</p>
  * 
  * <h3>Core Features</h3>
  * <ul>
@@ -125,11 +125,8 @@ public class HikariDatabaseCapability implements DatabaseCapability {
     }
 
     /**
-     * {@inheritDoc}
-     * 
-     * <p>Returns the data source instance managed by HikariCP.</p>
+     * Returns the adapter-managed data source for infrastructure assembly code.
      */
-    @Override
     public DataSource getDataSource() {
         return dataSource;
     }
@@ -159,9 +156,7 @@ public class HikariDatabaseCapability implements DatabaseCapability {
     }
 
     /**
-     * {@inheritDoc}
-     * 
-     * <p>Executes native SQL using Spring JdbcTemplate. Parameters are passed via placeholders to prevent SQL injection.</p>
+     * Executes native SQL for adapter/platform-internal infrastructure code.
      * 
      * @param sql        Native SQL statement
      * @param resultType Result type
@@ -169,7 +164,6 @@ public class HikariDatabaseCapability implements DatabaseCapability {
      * @param <T>        Result type
      * @return Query result
      */
-    @Override
     public <T> T executeNative(String sql, Class<T> resultType, Object... params) {
         Objects.requireNonNull(sql, "sql cannot be null");
         Objects.requireNonNull(resultType, "resultType cannot be null");

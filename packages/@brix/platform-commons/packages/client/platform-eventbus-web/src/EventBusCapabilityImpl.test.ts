@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file EventBusCapabilityImpl Unit Tests
  * @description Tests core functionality of event bus capability implementation
- * @module @brix/platform-eventbus-web/test
+ * @module @brix-sdk/platform-eventbus-web/test
  * @version 3.2.0
  * 
  * Test Coverage:
@@ -31,7 +31,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventBusCapabilityImpl, type EventBusCapabilityConfig } from './EventBusCapabilityImpl';
 import { EventRouter } from './EventRouter';
 import { EventLogger } from './EventLogger';
-import type { GovernedEvent } from '@brix/runtime-sdk-api-web';
+import type { GovernedEvent } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Mock Types and Factories

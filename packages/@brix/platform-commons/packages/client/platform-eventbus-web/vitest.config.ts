@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,21 +16,21 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest é…ç½®
+ * Vitest ÅäÖÃ
  * 
- * é’ˆå¯¹ @brix/platform-eventbus-web çš„å•å…ƒæµ‹è¯•é…ç½®ã€‚
+ * Õë¶Ô @brix-sdk/platform-eventbus-web µÄµ¥Ôª²âÊÔÅäÖÃ¡£
  * 
  * @see https://vitest.dev/config/
  */
 export default defineConfig({
   test: {
-    // æµ‹è¯•ç¯å¢ƒ
+    // ²âÊÔ»·¾³
     environment: 'node',
     
-    // åŒ…å«çš„æµ‹è¯•æ–‡ä»¶
+    // °üº¬µÄ²âÊÔÎÄ¼ş
     include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
     
-    // è¦†ç›–ç‡é…ç½®
+    // ¸²¸ÇÂÊÅäÖÃ
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -38,10 +38,10 @@ export default defineConfig({
       exclude: ['src/**/*.test.ts', 'src/**/*.spec.ts', 'src/index.ts'],
     },
     
-    // å…¨å±€è®¾ç½®
+    // È«¾ÖÉèÖÃ
     globals: true,
     
-    // è¶…æ—¶è®¾ç½®
+    // ³¬Ê±ÉèÖÃ
     testTimeout: 10000,
   },
 });

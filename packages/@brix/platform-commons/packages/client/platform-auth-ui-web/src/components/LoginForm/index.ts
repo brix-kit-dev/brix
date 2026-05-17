@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file LoginForm æ¨¡å—å…¥å£
- * @description å¯¼å‡º LoginForm ç»„ä»¶åŠå…¶ç±»å‹
- * @module @brix/platform-auth-web/components/LoginForm
+ * @file LoginForm Ä£¿éÈë¿Ú
+ * @description µ¼³ö LoginForm ×é¼ş¼°ÆäÀàĞÍ
+ * @module @brix-sdk/platform-auth-web/components/LoginForm
  * @version 3.0.0
  */
 

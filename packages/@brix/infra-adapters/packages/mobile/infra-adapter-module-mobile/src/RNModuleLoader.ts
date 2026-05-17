@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file React Native Module Loading Adapter
  * @description Brix UI Mobile dynamic module loading implementation
- * @module @brix/infra-adapter-module-mobile
+ * @module @brix-sdk/infra-adapter-module-mobile
  * @version 3.0.0
  * 
  * Design Notes:
@@ -25,22 +25,22 @@
  * 
  * v3.0 Architecture Position:
  * ```
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚                    Mobile App Layer                         â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”       â”‚
- * â”‚    â”‚  Screen A   â”‚  â”‚  Screen B   â”‚  â”‚  Screen C   â”‚       â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜       â”‚
- * â”‚           â”‚                â”‚                â”‚              â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”       â”‚
- * â”‚    â”‚           Mobile Host Container               â”‚       â”‚
- * â”‚    â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚       â”‚
- * â”‚    â”‚  â”‚      RNModuleLoader (this adapter)          â”‚ â”‚       â”‚
- * â”‚    â”‚  â”‚  - Bundle parsing and loading               â”‚ â”‚       â”‚
- * â”‚    â”‚  â”‚  - Metro integration                        â”‚ â”‚       â”‚
- * â”‚    â”‚  â”‚  - Module cache management                  â”‚ â”‚       â”‚
- * â”‚    â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚       â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜       â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦                    Mobile App Layer                         ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´  ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´  ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´       ©¦
+ * ©¦    ©¦  Screen A   ©¦  ©¦  Screen B   ©¦  ©¦  Screen C   ©¦       ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼  ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼  ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼       ©¦
+ * ©¦           ©¦                ©¦                ©¦              ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©Ø©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©Ø©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©Ø©¤©¤©¤©¤©¤©¤©´       ©¦
+ * ©¦    ©¦           Mobile Host Container               ©¦       ©¦
+ * ©¦    ©¦  ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´ ©¦       ©¦
+ * ©¦    ©¦  ©¦      RNModuleLoader (this adapter)          ©¦ ©¦       ©¦
+ * ©¦    ©¦  ©¦  - Bundle parsing and loading               ©¦ ©¦       ©¦
+ * ©¦    ©¦  ©¦  - Metro integration                        ©¦ ©¦       ©¦
+ * ©¦    ©¦  ©¦  - Module cache management                  ©¦ ©¦       ©¦
+ * ©¦    ©¦  ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼ ©¦       ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼       ©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  * 
  * Mobile Module Loading Strategies:
@@ -49,15 +49,15 @@
  * 3. Local modules: Hot reload in development mode
  * 
  * v3.0 Boundary Constraints:
- * âŒ Plugins must NOT directly use require()
- * âŒ Plugins must NOT access Native Module registry
- * âŒ Plugins must NOT access other modules bypassing the loader
- * âœ… Plugins declare module dependencies through PluginModuleCapability
- * âœ… Module loading is managed by Host
+ * ? Plugins must NOT directly use require()
+ * ? Plugins must NOT access Native Module registry
+ * ? Plugins must NOT access other modules bypassing the loader
+ * ? Plugins declare module dependencies through PluginModuleCapability
+ * ? Module loading is managed by Host
  * 
  * Usage Example (Host layer only):
  * ```typescript
- * import { RNModuleLoader } from '@brix/infra-adapter-module-mobile';
+ * import { RNModuleLoader } from '@brix-sdk/infra-adapter-module-mobile';
  * 
  * const loader = new RNModuleLoader({
  *   registry: moduleRegistry,

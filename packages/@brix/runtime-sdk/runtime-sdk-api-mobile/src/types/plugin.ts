@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Plugin related type definitions
  * @description Define core types for the plugin system, including manifest, instance, lifecycle, etc.
- * @module @brix/runtime-sdk-api-mobile/types/plugin
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/plugin
  * @version 3.2.0
  *
  * [v3.2.0 Notes]
@@ -36,7 +36,7 @@
  * 
  * <p>Usage:</p>
  * <ul>
- *   <li>In React Native projects, use type definitions from @brix/runtime-sdk-react-native</li>
+ *   <li>In React Native projects, use type definitions from @brix-sdk/runtime-sdk-react-native</li>
  *   <li>In framework-agnostic scenarios, use unknown and handle at runtime</li>
  * </ul>
  */

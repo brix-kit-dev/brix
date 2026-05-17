@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: <%= fullName %>
+  flyway:
+    enabled: <%= includeFlyway ? 'true' : 'false' %>
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

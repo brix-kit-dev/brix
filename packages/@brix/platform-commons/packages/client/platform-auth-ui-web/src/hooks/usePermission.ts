@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file Permission Hook
  * @description Provides React Hook for permission checking
- * @module @brix/platform-auth-web/hooks/usePermission
+ * @module @brix-sdk/platform-auth-web/hooks/usePermission
  * @version 3.0.0
  */
 
 import { useMemo } from 'react';
-import type { AuthCapability } from '@brix/runtime-sdk-api-web';
+import type { AuthCapability } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Permission Check Hook Return Type

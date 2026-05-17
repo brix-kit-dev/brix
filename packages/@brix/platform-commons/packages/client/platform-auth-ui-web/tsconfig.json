@@ -5,10 +5,12 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@brix/runtime-sdk-api-web": ["../../../../runtime-sdk/runtime-sdk-api-web/src"],
-      "@brix/runtime-sdk-api-web/*": ["../../../../runtime-sdk/runtime-sdk-api-web/src/*"],
-      "@brix/platform-auth-web": ["../platform-auth-web/src"],
-      "@brix/platform-auth-web/*": ["../platform-auth-web/src/*"]
+      "@brix-sdk/runtime-sdk-api-web": ["../../../../runtime-sdk/runtime-sdk-api-web/src"],
+      "@brix-sdk/runtime-sdk-api-web/*": ["../../../../runtime-sdk/runtime-sdk-api-web/src/*"],
+      "@brix-sdk/runtime-sdk-react": ["../../../../runtime-sdk/runtime-sdk-react/src"],
+      "@brix-sdk/runtime-sdk-react/*": ["../../../../runtime-sdk/runtime-sdk-react/src/*"],
+      "@brix-sdk/platform-auth-web": ["../platform-auth-web/src"],
+      "@brix-sdk/platform-auth-web/*": ["../platform-auth-web/src/*"]
     }
   },
   "include": ["src/**/*"],

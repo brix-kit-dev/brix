@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,17 +16,17 @@
 /**
  * @file DynamicMenuProvider
  * @description Dynamic Menu React Context Provider
- * @module @brix/platform-navigation-web/manifest/DynamicMenuProvider
+ * @module @brix-sdk/platform-navigation-web/manifest/DynamicMenuProvider
  * @version 3.0.0
  *
- * „ÄêDesign Notes„Äë
+ * °æDesign Notes°ø
  * Following v3.0.4 blueprint Manifest-Driven architecture:
  * - Provides React Context for menu data
  * - Supports permission-aware menu filtering
  * - Manages menu expand/collapse state
  * - Integrates with MenuRegistry and ManifestAggregator
  *
- * „ÄêUsage„Äë
+ * °æUsage°ø
  * ```tsx
  * // Host layer usage
  * <DynamicMenuProvider pluginConfigs={pluginConfigs} permissionChecker={checkPerm}>

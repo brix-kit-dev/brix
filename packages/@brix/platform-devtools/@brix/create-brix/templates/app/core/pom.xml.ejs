@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   <%= fullName %>-core module
   
@@ -23,7 +23,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.shinwa.app</groupId>
+        <groupId>io.brix.app</groupId>
         <artifactId><%= fullName %></artifactId>
         <version><%= version %></version>
         <relativePath>../pom.xml</relativePath>
@@ -40,7 +40,7 @@
 <% if (withApi) { -%>
         <!-- API module（DTO、Event） -->
         <dependency>
-            <groupId>com.shinwa.app</groupId>
+            <groupId>io.brix.app</groupId>
             <artifactId><%= name %>-api</artifactId>
         </dependency>
 <% } -%>

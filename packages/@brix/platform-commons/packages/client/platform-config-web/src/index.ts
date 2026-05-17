@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file platform-config-web Module Entry
  * @description Web Configuration Capability Implementation - Implements ConfigCapability Interface
- * @module @brix/platform-config-web
+ * @module @brix-sdk/platform-config-web
  * @version 3.1.0
  *
  * Module Description:
@@ -30,7 +30,7 @@
  * | +-- ConfigCapability Interface Definition                              |
  * +-------------------------------------------------------------------------+
  * | Capability Implementation Layer (platform-commons)                     |
- * | +-- platform-config-web (this module) â­                               |
+ * | +-- platform-config-web (this module) ?                               |
  * |      +-- ConfigCapabilityImpl (interface implementation)               |
  * |      +-- ConfigStore (in-memory configuration cache)                   |
  * |      +-- ConfigHttpClient (fetch configuration via HttpCapability)     |
@@ -44,14 +44,14 @@
  * 4. Change detection and notification
  *
  * Architectural Constraints:
- * âŒ Do not call fetch/axios directly, use HttpCapability
- * âŒ Do not store sensitive configuration in localStorage
- * âœ… All configuration changes must be logged
+ * ? Do not call fetch/axios directly, use HttpCapability
+ * ? Do not store sensitive configuration in localStorage
+ * ? All configuration changes must be logged
  *
- * ã€æ¨¡å—èŒè´£ã€‘
- * - å®ç° ConfigCapability æ¥å£
- * - é€šè¿‡ HttpCapability ä»åç«¯åŠ è½½é…ç½®
- * - æä¾›é…ç½®ç¼“å­˜å’Œçƒ­æ›´æ–°èƒ½åŠ›
+ * ¡¾Ä£¿éÖ°Ôğ¡¿
+ * - ÊµÏÖ ConfigCapability ½Ó¿Ú
+ * - Í¨¹ı HttpCapability ´Óºó¶Ë¼ÓÔØÅäÖÃ
+ * - Ìá¹©ÅäÖÃ»º´æºÍÈÈ¸üĞÂÄÜÁ¦
  */
 
 // ============================================================================
@@ -88,8 +88,8 @@ import { ConfigCapabilityImpl, type ConfigCapabilityImplOptions } from './Config
  *
  * Factory function to create a new ConfigCapabilityImpl instance.
  *
- * ã€å·¥å‚å‡½æ•°è¯´æ˜ã€‘
- * æä¾›ä¾¿æ·çš„é…ç½®èƒ½åŠ›åˆ›å»ºæ–¹å¼ï¼Œè‡ªåŠ¨åˆå§‹åŒ–
+ * ¡¾¹¤³§º¯ÊıËµÃ÷¡¿
+ * Ìá¹©±ã½İµÄÅäÖÃÄÜÁ¦´´½¨·½Ê½£¬×Ô¶¯³õÊ¼»¯
  *
  * Usage Example:
  * ```typescript

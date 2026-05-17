@@ -16,7 +16,7 @@
 /**
  * @file Common UI Type Definitions
  * @description Shared type definitions used across UI components
- * @module @brix/runtime-sdk-api-web/types/ui/common
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/common
  * @version 3.2.0
  */
 

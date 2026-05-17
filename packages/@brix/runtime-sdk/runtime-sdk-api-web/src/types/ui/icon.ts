@@ -16,7 +16,7 @@
 /**
  * @file Icon Component Type Definitions
  * @description Defines types for the Icon component in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/icon
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/icon
  * @version 3.2.0
  */
 

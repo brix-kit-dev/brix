@@ -16,6 +16,7 @@
 package io.brix.platform.common.tenant;
 
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 /**
@@ -327,5 +328,212 @@ public final class TenantContext {
      */
     public static <T> T runAsSystem(Supplier<T> supplier) {
         return runWithTenant(SYSTEM_TENANT_ID, supplier);
+    }
+
+    // =====================================================
+    // Context Propagation Operations (for async execution)
+    // =====================================================
+
+    /**
+     * Wraps a Runnable to propagate the current tenant context to another thread.
+     * 
+     * <p>This method captures the current tenant ID and user ID at the time of wrapping,
+     * and ensures they are properly set in the target thread before execution,
+     * and cleaned up after execution completes (whether successfully or with exception).
+     * 
+     * <h3>Usage Example</h3>
+     * <pre>{@code
+     * // In a controller or service method:
+     * String tenantId = TenantContext.getCurrentTenantId();
+     * 
+     * // Wrap the task to propagate context
+     * Runnable task = TenantContext.wrap(() -> {
+     *     // Inside async thread, tenant context is available
+     *     String tid = TenantContext.getCurrentTenantId(); // Same as original
+     *     processDataForTenant(tid);
+     * });
+     * 
+     * // Submit to executor
+     * executor.submit(task);
+     * }</pre>
+     * 
+     * <h3>Thread Safety</h3>
+     * <ul>
+     *   <li>The captured tenant ID is immutable after wrapping</li>
+     *   <li>Each wrapped runnable operates independently</li>
+     *   <li>Context is thread-local and isolated between threads</li>
+     * </ul>
+     * 
+     * @param runnable the original Runnable to wrap
+     * @return a new Runnable that propagates tenant context
+     * @throws IllegalArgumentException if runnable is null
+     * @since 3.1.0
+     */
+    public static Runnable wrap(Runnable runnable) {
+        if (runnable == null) {
+            throw new IllegalArgumentException("Runnable cannot be null");
+        }
+        
+        // Capture current context at wrap time
+        final String capturedTenantId = TENANT_ID_HOLDER.get();
+        final String capturedUserId = USER_ID_HOLDER.get();
+        final TenantInfo capturedTenantInfo = TENANT_INFO_HOLDER.get();
+        
+        return () -> {
+            // Store previous context of target thread (if any)
+            String previousTenantId = TENANT_ID_HOLDER.get();
+            String previousUserId = USER_ID_HOLDER.get();
+            TenantInfo previousTenantInfo = TENANT_INFO_HOLDER.get();
+            
+            try {
+                // Set captured context in target thread
+                if (capturedTenantId != null) {
+                    TENANT_ID_HOLDER.set(capturedTenantId);
+                }
+                if (capturedUserId != null) {
+                    USER_ID_HOLDER.set(capturedUserId);
+                }
+                if (capturedTenantInfo != null) {
+                    TENANT_INFO_HOLDER.set(capturedTenantInfo);
+                }
+                
+                // Execute the original runnable
+                runnable.run();
+            } finally {
+                // Restore previous context or clear
+                restoreOrClear(TENANT_ID_HOLDER, previousTenantId);
+                restoreOrClear(USER_ID_HOLDER, previousUserId);
+                restoreOrClear(TENANT_INFO_HOLDER, previousTenantInfo);
+            }
+        };
+    }
+
+    /**
+     * Wraps a Callable to propagate the current tenant context to another thread.
+     * 
+     * <p>This method captures the current tenant ID and user ID at the time of wrapping,
+     * and ensures they are properly set in the target thread before execution,
+     * and cleaned up after execution completes (whether successfully or with exception).
+     * 
+     * <h3>Usage Example</h3>
+     * <pre>{@code
+     * // In a service method:
+     * Callable<List<Order>> task = TenantContext.wrap(() -> {
+     *     // Inside async thread, tenant context is available
+     *     return orderRepository.findByTenantId(TenantContext.getCurrentTenantId());
+     * });
+     * 
+     * // Submit to executor and get future
+     * Future<List<Order>> future = executor.submit(task);
+     * List<Order> orders = future.get();
+     * }</pre>
+     * 
+     * <h3>Exception Handling</h3>
+     * <p>If the wrapped callable throws an exception, the context is still properly
+     * cleaned up before the exception propagates. The original exception is wrapped
+     * in an {@link Exception} as required by the {@link Callable} interface.
+     * 
+     * @param callable the original Callable to wrap
+     * @param <V> the return type of the callable
+     * @return a new Callable that propagates tenant context
+     * @throws IllegalArgumentException if callable is null
+     * @since 3.1.0
+     */
+    public static <V> Callable<V> wrap(Callable<V> callable) {
+        if (callable == null) {
+            throw new IllegalArgumentException("Callable cannot be null");
+        }
+        
+        // Capture current context at wrap time
+        final String capturedTenantId = TENANT_ID_HOLDER.get();
+        final String capturedUserId = USER_ID_HOLDER.get();
+        final TenantInfo capturedTenantInfo = TENANT_INFO_HOLDER.get();
+        
+        return () -> {
+            // Store previous context of target thread (if any)
+            String previousTenantId = TENANT_ID_HOLDER.get();
+            String previousUserId = USER_ID_HOLDER.get();
+            TenantInfo previousTenantInfo = TENANT_INFO_HOLDER.get();
+            
+            try {
+                // Set captured context in target thread
+                if (capturedTenantId != null) {
+                    TENANT_ID_HOLDER.set(capturedTenantId);
+                }
+                if (capturedUserId != null) {
+                    USER_ID_HOLDER.set(capturedUserId);
+                }
+                if (capturedTenantInfo != null) {
+                    TENANT_INFO_HOLDER.set(capturedTenantInfo);
+                }
+                
+                // Execute the original callable
+                return callable.call();
+            } finally {
+                // Restore previous context or clear
+                restoreOrClear(TENANT_ID_HOLDER, previousTenantId);
+                restoreOrClear(USER_ID_HOLDER, previousUserId);
+                restoreOrClear(TENANT_INFO_HOLDER, previousTenantInfo);
+            }
+        };
+    }
+
+    /**
+     * Helper method to restore previous ThreadLocal value or clear if null.
+     * 
+     * @param holder the ThreadLocal holder
+     * @param previousValue the previous value to restore (or null to clear)
+     * @param <T> the type of the ThreadLocal value
+     */
+    private static <T> void restoreOrClear(ThreadLocal<T> holder, T previousValue) {
+        if (previousValue != null) {
+            holder.set(previousValue);
+        } else {
+            holder.remove();
+        }
+    }
+
+    /**
+     * Sets the current tenant (convenience method combining tenant ID and info).
+     * 
+     * <p>This method sets both the tenant ID and tenant information in one call.
+     * It is useful when you have a complete TenantInfo object.
+     * 
+     * @param tenantInfo the tenant information to set
+     * @throws IllegalArgumentException if tenantInfo is null or has null tenantId
+     * @since 3.1.0
+     */
+    public static void setCurrentTenant(TenantInfo tenantInfo) {
+        if (tenantInfo == null) {
+            throw new IllegalArgumentException("TenantInfo cannot be null");
+        }
+        if (tenantInfo.getTenantId() == null || tenantInfo.getTenantId().isBlank()) {
+            throw new IllegalArgumentException("TenantInfo.tenantId cannot be null or blank");
+        }
+        setTenantId(tenantInfo.getTenantId());
+        setTenantInfo(tenantInfo);
+    }
+
+    /**
+     * Gets the current tenant information.
+     * 
+     * <p>This method returns the full TenantInfo if available, otherwise
+     * constructs a minimal TenantInfo from the tenant ID.
+     * 
+     * @return current TenantInfo, or null if no tenant context is set
+     * @since 3.1.0
+     */
+    public static TenantInfo getCurrentTenant() {
+        TenantInfo info = TENANT_INFO_HOLDER.get();
+        if (info != null) {
+            return info;
+        }
+        
+        String tenantId = TENANT_ID_HOLDER.get();
+        if (tenantId != null) {
+            return TenantInfo.builder(tenantId).build();
+        }
+        
+        return null;
     }
 }

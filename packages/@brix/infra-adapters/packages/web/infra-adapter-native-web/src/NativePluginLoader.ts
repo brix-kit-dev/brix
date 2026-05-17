@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,29 +16,29 @@
 /**
  * @file Native Plugin Loader
  * @description Local plugin loading implementation based on native dynamic import
- * @module @brix/infra-adapter-native-web/NativePluginLoader
+ * @module @brix-sdk/infra-adapter-native-web/NativePluginLoader
  * @version 3.0.0
  * 
- * ã€Design Notesã€‘
+ * ¡¾Design Notes¡¿
  * NativePluginLoader is the simplest plugin loader implementation,
  * loading local modules based on browser native dynamic import() syntax.
  * 
- * ã€Applicable Scenariosã€‘
+ * ¡¾Applicable Scenarios¡¿
  * 1. Development Mode: Directly import components during local development
  * 2. Simple Deployment: Monolithic applications with all plugins bundled together
  * 3. SSR Scenarios: Module loading during server-side rendering
  * 4. Test Scenarios: Simulating plugin loading in unit tests
  * 
- * ã€Differences from Other Loadersã€‘
+ * ¡¾Differences from Other Loaders¡¿
  * | Feature | NativePluginLoader | MFPluginLoader | IframePluginLoader |
  * |---------|-------------------|----------------|-------------------|
- * | Remote loading | âŒ | âœ… | âœ… |
- * | Runtime composition | âŒ | âœ… | âœ… |
- * | Independent deploy | âŒ | âœ… | âœ… |
+ * | Remote loading | ? | ? | ? |
+ * | Runtime composition | ? | ? | ? |
+ * | Independent deploy | ? | ? | ? |
  * | Load speed | Fastest | Fast | Slower |
  * | Complexity | Lowest | Medium | Higher |
  * 
- * ã€Architectural Constraint - v3.0 Runtime Shellã€‘
+ * ¡¾Architectural Constraint - v3.0 Runtime Shell¡¿
  * - This loader is only for Host layer use
  * - Plugins should not directly manipulate the loader
  * - Module paths are determined by Host configuration
@@ -48,7 +48,7 @@ import type { ComponentType } from 'react';
 import type {
   PluginManifest as BasePluginManifest,
   PluginInstance as BasePluginInstance,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Native plugin status
@@ -105,7 +105,7 @@ export class NativePluginLoadError extends Error {
  * Plugin loader based on dynamic import,
  * the simplest loader implementation suitable for development mode and monolithic applications.
  * 
- * ã€Usage Exampleã€‘
+ * ¡¾Usage Example¡¿
  * ```typescript
  * // Create loader
  * const loader = new NativePluginLoader({

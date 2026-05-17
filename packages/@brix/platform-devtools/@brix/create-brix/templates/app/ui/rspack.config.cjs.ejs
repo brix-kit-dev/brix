@@ -21,7 +21,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     publicPath: isDev ? 'http://localhost:<%= webPort %>/' : 'auto',
-    filename: '[name].[contenthash].js',
+    filename: isDev ? '[name].js' : '[name].[contenthash].js',
     clean: true,
   },
 
@@ -114,7 +114,8 @@ module.exports = {
 
   devServer: {
     port: <%= webPort %>,
-    hot: true,
+    hot: isDev,
+    liveReload: isDev,
     historyApiFallback: true,
     headers: {
       'Access-Control-Allow-Origin': '*',

@@ -18,6 +18,8 @@ package io.runtime.sdk.capability;
 import java.time.Duration;
 import java.util.Optional;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * State Store Capability Contract
  * 
@@ -80,6 +82,7 @@ import java.util.Optional;
  * @author Runtime SDK Team
  * @since 3.0.0
  */
+@Since("3.0.0")
 public interface StateStoreCapability {
 
     /**

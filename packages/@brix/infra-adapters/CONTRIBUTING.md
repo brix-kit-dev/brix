@@ -84,7 +84,7 @@ public class RedisCacheAutoConfiguration {
 |------|------|------------|
 | Adapter implementation | `XxxCapabilityImpl` or `XxxAdapter` | `createXxxCapability` |
 | Auto-configuration | `XxxAutoConfiguration` | `XxxConfig` |
-| Module name | `infra-adapter-xxx-yyy` | `@brix/infra-adapter-xxx-yyy` |
+| Module name | `infra-adapter-xxx-yyy` | `@brix-sdk/infra-adapter-xxx-yyy` |
 
 ## Pull Request Expectations
 

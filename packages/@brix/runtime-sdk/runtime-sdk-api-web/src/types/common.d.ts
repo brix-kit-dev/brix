@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Common Type Definitions
  * @description Defines utility types and API response types
- * @module @brix/runtime-sdk-api-web/types/common
+ * @module @brix-sdk/runtime-sdk-api-web/types/common
  * @version 3.2.0
  *
  * [v3.2 Changes]

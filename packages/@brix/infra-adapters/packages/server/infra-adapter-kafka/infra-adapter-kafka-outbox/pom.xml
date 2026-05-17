@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Authors
   ~
@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>infra-adapters</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../../pom.xml</relativePath>
     </parent>
 
@@ -31,27 +31,29 @@
 
     <name>Brix Infra Adapter - Kafka Outbox</name>
     <description>
-        Outbox 模式事件发布适配器（开源）
+        Outbox Pattern Event Publishing Adapter (Open Source)
         
-        本模块提供基于 Outbox 模式的事务性事件发布机制，保证
-        业务操作与事件发布的数据一致性（AtLeastOnce 语义）。
+        Provides a transactional event publishing mechanism based on the Outbox pattern,
+        guaranteeing data consistency between business operations and event publishing
+        (at-least-once semantics).
         
-        核心组件：
-        - OutboxEvent：Outbox 事件 JPA 实体
-        - OutboxEventPublisher：定时发布器（processOutbox / retryFailedEvents / cleanupOldEvents）
-        - OutboxEventRepository：Spring Data JPA 仓储
-        - OutboxAutoConfiguration：Spring Boot 自动配置
+        Core Components:
+        - OutboxEvent: Outbox event JPA entity
+        - OutboxEventPublisher: Scheduled publisher (processOutbox / retryFailedEvents / cleanupOldEvents)
+        - OutboxEventRepository: Spring Data JPA repository
+        - OutboxAutoConfiguration: Spring Boot auto-configuration
         
-        设计说明：
-        Outbox 是跨基础设施的模式（需要 DB + MQ 协同），独立为模块以避免
-        infra-adapter-kafka 引入 JPA 依赖。本模块作为 infra-adapter-kafka
-        的可选增强，需要同时引入 kafka 适配器和 JPA 依赖方可激活。
+        Design Notes:
+        Outbox is a cross-infrastructure pattern (requires DB + MQ coordination);
+        it is isolated into its own module to avoid infra-adapter-kafka pulling in JPA
+        dependencies. This module is an optional enhancement for infra-adapter-kafka,
+        requiring both the Kafka adapter and JPA dependencies to activate.
         
-        命名规范：
-        - Maven GroupId: io.brix（品牌）
-        - Java Package: io.infra.adapter.outbox（中立）
+        Naming Convention:
+        - Maven GroupId: io.brix (brand)
+        - Java Package: io.infra.adapter.outbox (neutral)
         
-        属于开源平台层（Layer 2.5: Adapter 层）
+        Architecture Layer: Layer 2.5 - Adapter Layer (Open Source)
     </description>
 
     <licenses>
@@ -62,13 +64,13 @@
     </licenses>
 
     <dependencies>
-        <!-- ========== Brix Runtime SDK API（开源核心层） ========== -->
+        <!-- ========== Brix Runtime SDK API (Open Source Core Layer) ========== -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
 
-        <!-- ========== 依赖 Kafka Core（同一聚合模块内的子模块依赖） ========== -->
+        <!-- ========== Depends on Kafka Core (sub-module dependency within the same aggregator) ========== -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>infra-adapter-kafka-core</artifactId>
@@ -90,19 +92,19 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- ========== 数据库（Outbox 模式核心依赖） ========== -->
+        <!-- ========== Database (core dependency for Outbox pattern) ========== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- ========== Kafka（发送事件） ========== -->
+        <!-- ========== Kafka (event sending) ========== -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
-        <!-- ========== JSON 序列化 ========== -->
+        <!-- ========== JSON Serialization ========== -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -112,13 +114,26 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
-        <!-- ========== 日志 ========== -->
+        <!-- ========== Logging ========== -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- ========== 测试 ========== -->
+        <!-- ========== AOP (for @CriticalEvent Outbox interception, R13.4) ========== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- ========== Micrometer (optional, for Outbox metrics: R3.7) ========== -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ========== Tests ========== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -127,7 +142,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

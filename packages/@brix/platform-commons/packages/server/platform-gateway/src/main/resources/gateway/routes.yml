@@ -79,7 +79,7 @@ spring:
         # 
         # 所有插件的路由不再静态配置，而是通过以下机制动态加载：
         # 1. 插件启动时向 /api/plugin-engine/register 注册能力契约
-        # 2. 插件引擎将路由写入 Redis (shinwa:gateway:routes)
+        # 2. 插件引擎将路由写入 Redis (brix:gateway:routes)
         # 3. 网关通过 GatewayRouteConfig 从 Redis 动态加载路由
         # 4. 插件心跳超时后，路由自动移除
         #

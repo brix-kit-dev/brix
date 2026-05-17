@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,26 +16,26 @@
 /**
  * @file infra-adapter-iframe-web Module Entry
  * @description Brix UI iframe Adapter - Plugin isolation loading implementation based on iframe
- * @module @brix/infra-adapter-iframe-web
+ * @module @brix-sdk/infra-adapter-iframe-web
  * @version 3.0.0
  * 
- * „ÄêModule Description„Äë
+ * °æModule Description°ø
  * This module is a UI adapter layer component in the v3.0 Runtime Shell architecture,
  * providing iframe-based plugin isolation loading capability.
  * Serves as a fallback option for Module Federation.
  * 
- * „ÄêApplicable Scenarios„Äë
+ * °æApplicable Scenarios°ø
  * - Embedded Mode: Plugin embedded in customer systems
  * - Security Isolation: Loading untrusted third-party plugins
  * - Legacy System Integration: Integrating non-React legacy applications
  * 
- * „ÄêCore Components„Äë
+ * °æCore Components°ø
  * - IframePluginLoader: iframe plugin loader
  * - IframeBridge: Cross-window communication bridge
  * 
- * „ÄêUsage Example„Äë
+ * °æUsage Example°ø
  * ```typescript
- * import { IframePluginLoader, IframeBridge } from '@brix/infra-adapter-iframe-web';
+ * import { IframePluginLoader, IframeBridge } from '@brix-sdk/infra-adapter-iframe-web';
  * 
  * // Create loader
  * const loader = new IframePluginLoader({

@@ -5,3 +5,6 @@ io.brix.platform.starter.autoconfigure.ServiceRegistrationAutoConfiguration
 io.brix.platform.starter.autoconfigure.JacksonAutoConfig
 io.brix.platform.starter.autoconfigure.CorsAutoConfiguration
 io.brix.platform.starter.autoconfigure.OpenApiAutoConfiguration
+io.brix.platform.starter.autoconfigure.I18nAutoConfiguration
+io.brix.platform.starter.autoconfigure.PlatformCacheAutoConfiguration
+io.brix.platform.starter.datasource.SlowQueryLoggingAutoConfiguration

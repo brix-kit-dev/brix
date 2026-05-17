@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,10 @@
 /**
  * @file PluginStateCapabilityImpl Unit Tests
  * @description Tests core functionality of plugin state capability implementation
- * @module @brix/platform-state-web/test
+ * @module @brix-sdk/platform-state-web/test
  * @version 3.2.0
  * 
- * „ÄêTest Coverage„Äë
+ * °æTest Coverage°ø
  * - get()/set(): Basic state read/write
  * - delete()/has(): State existence check and deletion
  * - getOrDefault(): State read with default value

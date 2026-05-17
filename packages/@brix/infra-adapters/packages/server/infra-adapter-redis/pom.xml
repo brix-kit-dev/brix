@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Authors
   ~
@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>infra-adapters</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -31,18 +31,18 @@
 
     <name>Brix Infra Adapter - Redis</name>
     <description>
-        Redis 状态存储适配器（开源）
+        Redis State Store Adapter (Open Source)
         
-        本模块提供基于 Redis 的 StateStoreCapability 和 LockCapability 实现，包括：
-        - 键值存储（支持 TTL）
-        - 分布式锁
-        - 缓存操作
+        Provides Redis-based StateStoreCapability and LockCapability implementations, including:
+        - Key-value storage (with TTL support)
+        - Distributed locking
+        - Cache operations
         
-        命名规范：
-        - Maven GroupId: io.brix（品牌）
-        - Java Package: io.infra.adapter.redis（中立）
+        Naming Convention:
+        - Maven GroupId: io.brix (brand)
+        - Java Package: io.infra.adapter.redis (neutral)
         
-        属于开源平台层（Layer 2: Adapter 层）
+        Architecture Layer: Layer 2 - Adapter Layer (Open Source)
     </description>
 
     <licenses>
@@ -52,16 +52,11 @@
         </license>
     </licenses>
 
-    <properties>
-        <runtime-sdk.version>3.0.0-SNAPSHOT</runtime-sdk.version>
-    </properties>
-
     <dependencies>
-        <!-- ========== Brix Runtime SDK API（开源核心层） ========== -->
+        <!-- ========== Brix Runtime SDK API (Open Source Core Layer) ========== -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>
-            <version>${runtime-sdk.version}</version>
         </dependency>
 
         <!-- ========== Spring Boot ========== -->
@@ -90,7 +85,7 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- ========== JSON 序列化 ========== -->
+        <!-- ========== JSON Serialization ========== -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -100,13 +95,13 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
-        <!-- ========== 日志 ========== -->
+        <!-- ========== Logging ========== -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- ========== 测试 ========== -->
+        <!-- ========== Tests ========== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -115,7 +110,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

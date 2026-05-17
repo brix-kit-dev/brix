@@ -12,15 +12,15 @@
  * 2. 数据格式转换
  * 3. 错误处理标准化
  *
- * 【架构红线 R3 合规】
- * - 所有 HTTP 请求通过 HttpCapability 发起
- * - 禁止直接使用 fetch/axios
- * - HttpCapability 通过 RuntimeContext 注入
+ * [Architecture Red Line R3 Compliance]
+ * - All HTTP requests via HttpCapability
+ * - Direct use of fetch/axios is prohibited
+ * - HttpCapability is injected via RuntimeContext
  *
- * @see HttpCapability 定义于 @brix/runtime-sdk-api-web
+ * @see HttpCapability defined in @brix-sdk/runtime-sdk-api-web
  */
 
-import type { HttpCapability } from '@brix/runtime-sdk-api-web';
+import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
 import type { 
   <%= classPrefix %>, 
   Create<%= classPrefix %>Request,

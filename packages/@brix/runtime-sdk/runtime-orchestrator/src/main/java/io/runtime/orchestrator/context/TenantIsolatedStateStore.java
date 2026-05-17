@@ -221,6 +221,16 @@ public class TenantIsolatedStateStore implements StateStoreCapability {
         return delegate.exists(tenantKey);
     }
 
+    @Override
+    public boolean putIfAbsent(String key, Object value, Duration ttl) {
+        Objects.requireNonNull(key, "key cannot be null");
+
+        String tenantKey = tenantKey(key);
+        log.debug("Tenant-isolated put-if-absent: originalKey={}, tenantKey={}, ttl={}", key, tenantKey, ttl);
+
+        return delegate.putIfAbsent(tenantKey, value, ttl);
+    }
+
     // ==================== Helper Methods ====================
 
     /**

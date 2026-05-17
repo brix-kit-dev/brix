@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    ============================================================================
+    Platform Admin — 平台超级管理员服务模块
+    ============================================================================
+
+    【模块说明 / Module Description】
+    本模块实现蓝图 v1.0-平台超管最小实现-唯一真相来源.md §13 中描述的
+    P-2 (Maven 模块)、P-3 (认证控制器)、P-4 (管理员 CRUD)、
+    P-5 (审计控制器)、P-6 (租户视图控制器) 各阶段。
+
+    【架构层次 / Architecture Layer】
+    Layer 2C: 能力实现层（平台自治，无租户上下文）
+
+    【架构红线 / Architectural Red Lines (SSOT §11)】
+    R-1: 本模块绝对禁止依赖任何 enterprise-* 模块。
+    R-2: enterprise-solutions 绝对禁止将本模块加入依赖。
+    R-3: 所有端点必须使用 @RequirePermission(PlatformPermissions.XXX)，
+         禁止使用角色名字符串进行权限判断。
+    R-10: 临时密码绝对禁止出现在审计日志的 reason 字段中。
+
+    【Route Prefix / 路由前缀】
+    所有端点统一使用 /api/platform/** 前缀，与租户业务路由隔离。
+
+    【Auto-Configuration】
+    META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+    → io.brix.platform.admin.config.PlatformAdminAutoConfiguration
+
+    ============================================================================
+    -->
+
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-admin</artifactId>
+    <name>Platform Admin</name>
+    <description>平台超级管理员服务 — 超管 CRUD、审计、租户视图、RBAC</description>
+
+    <dependencies>
+
+        <!-- ================================================================
+             Platform Internal Dependencies
+             ================================================================ -->
+
+        <!--
+            platform-auth: PlatformPermissions, AuditAction, RoleCode,
+            @RequirePermission, AuthenticatedUser, SecurityContextHolder.
+        -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-auth</artifactId>
+        </dependency>
+
+        <!--
+            platform-auth-servlet: SecurityContextFilter (required for
+            @RequirePermission AOP to find AuthenticatedUser in thread-local).
+        -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-auth-servlet</artifactId>
+        </dependency>
+
+        <!--
+            platform-tenant: PlatformAdmin / Identity / Tenant entities,
+            PlatformAdminRepository, IdentityRepository, TenantRepository,
+            AuditService, IdentityTenantCapability.
+        -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-tenant</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Runtime SDK API: AuthFlowCapability (login delegation), PasswordCapability -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+        </dependency>
+
+        <!-- ================================================================
+             Spring Boot — Web & Validation
+             ================================================================ -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Auto-configuration support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Jackson (JSON serialization for response DTOs) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- ================================================================
+             Test
+             ================================================================ -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>

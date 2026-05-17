@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Card Component
  * @description Material UI implementation of CardProps from UIAdapter contract.
  *              Content container with header, footer, and elevation support.
- * @module @brix/infra-adapter-ui-mui/components/MuiCard
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiCard
  * @version 3.1.0
  *
  * [Design Principles]
@@ -32,7 +32,7 @@
  */
 
 import type { FC } from 'react';
-import type { CardProps } from '@brix/runtime-sdk-api-web';
+import type { CardProps } from '@brix-sdk/runtime-sdk-api-web';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
@@ -128,6 +128,10 @@ export const MuiCard: FC<CardProps> = ({
   // Check if header should be rendered
   const hasHeader = title || subtitle || headerActions;
 
+  // When card has no header and no footer, children manage their own layout
+  // (raw container mode) — skip CardContent wrapper to avoid double padding.
+  const useRawContent = !hasHeader && !footer;
+
   /**
    * Renders the card content structure
    *
@@ -160,8 +164,8 @@ export const MuiCard: FC<CardProps> = ({
         />
       )}
 
-      {/* Main content area */}
-      {children && <CardContent>{children}</CardContent>}
+      {/* Main content area — raw mode skips CardContent padding */}
+      {children && (useRawContent ? children : <CardContent>{children}</CardContent>)}
 
       {/* Footer section for actions */}
       {footer && <CardActions>{footer}</CardActions>}
@@ -179,7 +183,10 @@ export const MuiCard: FC<CardProps> = ({
         className={className}
         sx={cardStyle}
       >
-        <CardActionArea onClick={handleActionClick}>
+        <CardActionArea
+          onClick={handleActionClick}
+          sx={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', flex: 1 }}
+        >
           {renderCardContent()}
         </CardActionArea>
       </Card>

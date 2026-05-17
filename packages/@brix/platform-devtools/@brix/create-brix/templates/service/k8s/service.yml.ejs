@@ -29,10 +29,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - <%= host || serviceName + '.shinwa.com' %>
+        - <%= host || serviceName + '.brix.io' %>
       secretName: <%= serviceName %>-tls
   rules:
-    - host: <%= host || serviceName + '.shinwa.com' %>
+    - host: <%= host || serviceName + '.brix.io' %>
       http:
         paths:
           - path: /

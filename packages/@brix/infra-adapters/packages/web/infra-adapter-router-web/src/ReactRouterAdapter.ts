@@ -16,7 +16,7 @@
 /**
  * @file react-router Router Adapter
  * @description Encapsulates react-router-dom to provide routing capabilities for the Host layer
- * @module @brix/infra-adapter-router-web/ReactRouterAdapter
+ * @module @brix-sdk/infra-adapter-router-web/ReactRouterAdapter
  * @version 3.0.0
  * 
  * [Design Notes]
@@ -25,26 +25,26 @@
  * 
  * [Architectural Position]
  * ```
- * ┌─────────────────────────────────────┐
- * │  Plugin Layer                       │
- * │  Uses NavigationCapability          │
- * │  ❌ MUST NOT use react-router directly│
- * └───────────────┬─────────────────────┘
- *                 │ Request navigation
- * ┌───────────────▼─────────────────────┐
- * │  platform-navigation-web            │
- * │  NavigationCapabilityImpl           │
- * └───────────────┬─────────────────────┘
- *                 │ Calls
- * ┌───────────────▼─────────────────────┐
- * │  infra-adapter-router-web           │  ← This module
- * │  ReactRouterAdapter                 │
- * └───────────────┬─────────────────────┘
- *                 │ Wraps
- * ┌───────────────▼─────────────────────┐
- * │  react-router-dom                   │
- * │  Infrastructure Library             │
- * └─────────────────────────────────────┘
+ * ������������������������������������������������������������������������������
+ * ��  Plugin Layer                       ��
+ * ��  Uses NavigationCapability          ��
+ * ��  ? MUST NOT use react-router directly��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� Request navigation
+ * ������������������������������������������������������������������������������
+ * ��  platform-navigation-web            ��
+ * ��  NavigationCapabilityImpl           ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� Calls
+ * ������������������������������������������������������������������������������
+ * ��  infra-adapter-router-web           ��  �� This module
+ * ��  ReactRouterAdapter                 ��
+ * ���������������������������������Щ�������������������������������������������
+ *                 �� Wraps
+ * ������������������������������������������������������������������������������
+ * ��  react-router-dom                   ��
+ * ��  Infrastructure Library             ��
+ * ������������������������������������������������������������������������������
  * ```
  * 
  * [v3.0 Architectural Constraint - Red Line 1]
@@ -343,13 +343,11 @@ export class ReactRouterAdapter {
     options?: NavigateOptions
   ): boolean {
     if (!this.router) {
-      console.error('[ReactRouterAdapter] Router not initialized');
       return false;
     }
     
     const path = this.pageIdToPath.get(pageId);
     if (!path) {
-      console.error(`[ReactRouterAdapter] Page not found: ${pageId}`);
       return false;
     }
     
@@ -377,7 +375,6 @@ export class ReactRouterAdapter {
    */
   navigateToPath(path: string, options?: NavigateOptions): void {
     if (!this.router) {
-      console.error('[ReactRouterAdapter] Router not initialized');
       return;
     }
     

@@ -4,15 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!--
-    【4.5 修复】统一继承根 platform-commons POM，
-    替代此前的 platform-parent:1.0.0-SNAPSHOT 独立树。
-    版本从 1.0.0-SNAPSHOT 升级至 3.0.0-SNAPSHOT，与全平台统一。
-    -->
     <parent>
         <groupId>io.brix.platform</groupId>
         <artifactId>platform-commons</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -63,7 +58,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

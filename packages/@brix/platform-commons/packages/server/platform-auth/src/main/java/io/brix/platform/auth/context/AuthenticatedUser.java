@@ -20,26 +20,39 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import io.brix.platform.auth.enums.TokenRole;
+import io.brix.platform.auth.enums.TokenType;
+
 /**
  * Authenticated User Information
  * <p>
- * User context information parsed from JWT Token
+ * User context information parsed from JWT Token.
+ * Supports B2B2C dual-track authentication: Actor (B-side) and Subject (C-side).
  * </p>
  *
+ * <h3>Phase 2 — 双轨认证扩展</h3>
+ * <ul>
+ *   <li>{@link #memberId} / {@link #memberType} — Actor Token (B 端，mid/mtype)</li>
+ *   <li>{@link #principalId} / {@link #principalType} — Subject Token (C 端，pid/ptype)</li>
+ *   <li>{@link #tokenRole} — actor 或 subject，mid 与 pid 互斥</li>
+ *   <li>{@link #tokenType} — ACCESS / IDENTITY / REFRESH</li>
+ *   <li>{@link #allowedActions} — Identity Token 的操作白名单</li>
+ * </ul>
+ *
  * @author Brix Platform Authors Platform Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 public class AuthenticatedUser implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /**
-     * User ID
+     * User ID (sub claim — identity_id or profile_id)
      */
     private String userId;
 
     /**
-     * Tenant ID
+     * Tenant ID (tid claim)
      */
     private String tenantId;
 
@@ -59,7 +72,7 @@ public class AuthenticatedUser implements Serializable {
     private Long tokenVersion;
 
     /**
-     * Role list
+     * Role list (RBAC roles)
      */
     private List<String> roles = new ArrayList<>();
 
@@ -67,6 +80,79 @@ public class AuthenticatedUser implements Serializable {
      * Permission list (Immutable Permission ID)
      */
     private List<String> permissions = new ArrayList<>();
+
+    // ========== Phase 2 — B2B2C 双轨扩展字段 ==========
+
+    /**
+     * Member ID (mid claim) — Actor (B 端) 身份标识。
+     *
+     * <p>来自 {@code sys_tenant_member.id}。与 {@link #principalId} 互斥。
+     */
+    private String memberId;
+
+    /**
+     * Member Type (mtype claim) — Actor 的成员类型。
+     *
+     * <p>取值：OWNER / ADMIN / MEMBER。仅当 {@link #memberId} 非空时有效。
+     */
+    private String memberType;
+
+    /**
+     * Principal ID (pid claim) — Subject (C 端) 身份标识。
+     *
+     * <p>来自 {@code sys_tenant_principal.id}。与 {@link #memberId} 互斥。
+     */
+    private String principalId;
+
+    /**
+     * Principal Type (ptype claim) — Subject 的主体类型。
+     *
+     * <p>取值：CUSTOMER / GUEST。仅当 {@link #principalId} 非空时有效。
+     */
+    private String principalType;
+
+    /**
+     * Token 角色类型 (role claim) — actor 或 subject。
+     *
+     * <p>标识当前 Token 的双轨身份类型。
+     */
+    private TokenRole tokenRole;
+
+    /**
+     * Token 类型 (token_type claim) — ACCESS / IDENTITY / REFRESH。
+     */
+    private TokenType tokenType;
+
+    /**
+     * 允许的操作列表 (allowed_actions claim)。
+     *
+     * <p>仅 Identity Token 使用，限制可调用的端点
+     * （例如 "select-tenant"、"register-tenant"）。
+     */
+    private List<String> allowedActions = new ArrayList<>();
+
+    /**
+     * Platform admin role code (platform_role claim) — e.g. {@code "SUPER_ADMIN"}.
+     *
+     * <p>Non-null only for Platform Admin tokens. Sourced from
+     * {@code sys_platform_admin.role} via the {@code platform_role} JWT claim.
+     * Intentionally separate from the generic {@link #roles} list, which carries
+     * tenant-scoped RBAC roles.
+     */
+    private String platformRole;
+
+    /**
+     * Original platform-admin identity that initiated an impersonation session
+     * (the {@code original_sub} JWT claim). Non-null only for tokens issued by
+     * {@code ViewModeCapability.switchTo} — i.e. when a platform admin is
+     * temporarily viewing the system as a tenant Actor or Subject.
+     *
+     * <p>Used by the front-end banner ("您正在以平台超管身份操作")
+     * and by the audit-log entry written on each view-mode switch.</p>
+     *
+     * @since 3.3.0
+     */
+    private String originalSub;
 
     // ========== Getters & Setters ==========
 
@@ -203,10 +289,169 @@ public class AuthenticatedUser implements Serializable {
     }
 
     /**
-     * Check if user is super admin
+     * Check if this is a Platform Admin token (any platform admin role).
+     *
+     * @return {@code true} if the {@code platform_role} claim is present
+     */
+    public boolean isPlatformAdmin() {
+        return platformRole != null;
+    }
+
+    /**
+     * Check if this is a Super Administrator token.
+     *
+     * <p>Evaluated against the {@code platform_role} JWT claim, not a role-name
+     * string in the generic {@code roles} list. This eliminates the former ambiguity
+     * between {@code "SUPER_ADMIN"} and {@code "ROLE_SUPER_ADMIN"} literals.
+     *
+     * @return {@code true} only when {@code platform_role == "SUPER_ADMIN"}
      */
     public boolean isSuperAdmin() {
-        return hasRole("SUPER_ADMIN") || hasRole("ROLE_SUPER_ADMIN");
+        return "SUPER_ADMIN".equals(platformRole);
+    }
+
+    // ========== Phase 3 — Platform Admin ==========
+
+    public String getPlatformRole() {
+        return platformRole;
+    }
+
+    public void setPlatformRole(String platformRole) {
+        this.platformRole = platformRole;
+    }
+
+    // ========== Phase 2 / C-4 ViewMode — Impersonation ==========
+
+    /**
+     * Returns the platform-admin identity ID that initiated the current
+     * impersonation session, or {@code null} if this token is not an
+     * impersonation token.
+     *
+     * @return the {@code original_sub} JWT claim value, or {@code null}
+     * @since 3.3.0
+     */
+    public String getOriginalSub() {
+        return originalSub;
+    }
+
+    /**
+     * Sets the {@code original_sub} value (extracted by {@code JwtValidator}).
+     *
+     * @since 3.3.0
+     */
+    public void setOriginalSub(String originalSub) {
+        this.originalSub = originalSub;
+    }
+
+    /**
+     * Convenience predicate — {@code true} when the current session represents
+     * a platform-admin impersonating a tenant view.
+     *
+     * @return {@code true} iff {@link #getOriginalSub()} is non-null
+     * @since 3.3.0
+     */
+    public boolean isImpersonating() {
+        return originalSub != null;
+    }
+
+    // ========== Phase 2 — 双轨 Getters & Setters ==========
+
+    public String getMemberId() {
+        return memberId;
+    }
+
+    public void setMemberId(String memberId) {
+        this.memberId = memberId;
+    }
+
+    public String getMemberType() {
+        return memberType;
+    }
+
+    public void setMemberType(String memberType) {
+        this.memberType = memberType;
+    }
+
+    public String getPrincipalId() {
+        return principalId;
+    }
+
+    public void setPrincipalId(String principalId) {
+        this.principalId = principalId;
+    }
+
+    public String getPrincipalType() {
+        return principalType;
+    }
+
+    public void setPrincipalType(String principalType) {
+        this.principalType = principalType;
+    }
+
+    public TokenRole getTokenRole() {
+        return tokenRole;
+    }
+
+    public void setTokenRole(TokenRole tokenRole) {
+        this.tokenRole = tokenRole;
+    }
+
+    public TokenType getTokenType() {
+        return tokenType;
+    }
+
+    public void setTokenType(TokenType tokenType) {
+        this.tokenType = tokenType;
+    }
+
+    public List<String> getAllowedActions() {
+        return allowedActions;
+    }
+
+    public void setAllowedActions(List<String> allowedActions) {
+        this.allowedActions = allowedActions != null ? allowedActions : new ArrayList<>();
+    }
+
+    // ========== Phase 2 — 双轨 Convenience Methods ==========
+
+    /**
+     * 判断是否为 Actor（B 端）身份。
+     *
+     * @return 是否 Actor
+     */
+    public boolean isActor() {
+        return tokenRole == TokenRole.ACTOR || memberId != null;
+    }
+
+    /**
+     * 判断是否为 Subject（C 端）身份。
+     *
+     * @return 是否 Subject
+     */
+    public boolean isSubject() {
+        return tokenRole == TokenRole.SUBJECT || principalId != null;
+    }
+
+    /**
+     * 判断是否为 Identity Token（临时身份令牌）。
+     *
+     * @return 是否 Identity Token
+     */
+    public boolean isIdentityToken() {
+        return tokenType == TokenType.IDENTITY;
+    }
+
+    /**
+     * 判断 Identity Token 是否允许指定操作。
+     *
+     * @param action 操作标识
+     * @return 是否允许
+     */
+    public boolean isActionAllowed(String action) {
+        if (tokenType != TokenType.IDENTITY) {
+            return true; // Access Token 不受 allowed_actions 限制
+        }
+        return allowedActions != null && allowedActions.contains(action);
     }
 
     @Override
@@ -229,6 +474,9 @@ public class AuthenticatedUser implements Serializable {
                 "userId='" + userId + '\'' +
                 ", tenantId='" + tenantId + '\'' +
                 ", username='" + username + '\'' +
+                ", tokenRole=" + tokenRole +
+                ", memberId='" + memberId + '\'' +
+                ", principalId='" + principalId + '\'' +
                 ", roles=" + roles +
                 '}';
     }

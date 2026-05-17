@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Utility functions export
  * @description Export all utility functions
- * @module @brix/platform-shared/utils
+ * @module @brix-sdk/platform-shared/utils
  * @version 3.0.0
  */
 
@@ -24,16 +24,16 @@ export { debounce, throttle } from './debounce';
 export { 
   generateUUID, 
   isValidUUID,
-  // çŸ­ ID å’Œ Nano ID
+  // ¶Ì ID ºÍ Nano ID
   generateShortId,
   generateNanoId,
-  // æ—¶é—´æˆ³ ID
+  // Ê±¼ä´Á ID
   generateTimestampId,
   extractTimestampFromId,
-  // é›ªèŠ± ID
+  // Ñ©»¨ ID
   SimpleSnowflake,
   generateSnowflakeId,
-  // åºåˆ— ID ç”Ÿæˆå™¨
+  // ĞòÁĞ ID Éú³ÉÆ÷
   createSequenceIdGenerator,
   createDailySequenceIdGenerator,
 } from './id';

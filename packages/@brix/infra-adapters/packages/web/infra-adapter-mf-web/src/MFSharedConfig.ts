@@ -17,27 +17,27 @@
 /**
  * @file Module Federation Shared Dependency Configuration
  * @description Defines Module Federation shared dependency configuration strategy
- * @module @brix/infra-adapter-mf-web/MFSharedConfig
+ * @module @brix-sdk/infra-adapter-mf-web/MFSharedConfig
  * @version 3.1.0
  *
  * ## DEPRECATION NOTICE
  *
- * This module is deprecated in favor of @brix/shared-runtime-web/mf-config.
+ * This module is deprecated in favor of @brix-sdk/shared-runtime-web/mf-config.
  * All MF shared configuration should be obtained from the Shared Runtime Layer.
  *
  * Migration Guide:
  * ```typescript
  * // Before (DEPRECATED)
- * import { DEFAULT_SHARED_CONFIG } from '@brix/infra-adapter-mf-web';
+ * import { DEFAULT_SHARED_CONFIG } from '@brix-sdk/infra-adapter-mf-web';
  *
  * // After (RECOMMENDED)
- * import { getHostSharedConfig, getRemoteSharedConfig } from '@brix/shared-runtime-web/mf-config';
+ * import { getHostSharedConfig, getRemoteSharedConfig } from '@brix-sdk/shared-runtime-web/mf-config';
  * ```
  *
- * @deprecated Use @brix/shared-runtime-web/mf-config instead.
+ * @deprecated Use @brix-sdk/shared-runtime-web/mf-config instead.
  *             This module will be removed in the next major version.
  *
- * @see {@link @brix/shared-runtime-web/mf-config} - New canonical location
+ * @see {@link @brix-sdk/shared-runtime-web/mf-config} - New canonical location
  */
 
 // ============================================================================
@@ -46,7 +46,7 @@
 
 /**
  * Shared dependency configuration item
- * @deprecated Use SharedConfig from @brix/shared-runtime-web/mf-config
+ * @deprecated Use SharedConfig from @brix-sdk/shared-runtime-web/mf-config
  */
 export interface SharedDependencyConfig {
   /**
@@ -82,7 +82,7 @@ export interface SharedDependencyConfig {
 
 /**
  * Shared dependency configuration mapping
- * @deprecated Use SharedConfig from @brix/shared-runtime-web/mf-config
+ * @deprecated Use SharedConfig from @brix-sdk/shared-runtime-web/mf-config
  */
 export type SharedDependencies = Record<string, SharedDependencyConfig>;
 
@@ -94,8 +94,8 @@ export type SharedDependencies = Record<string, SharedDependencyConfig>;
  * Default shared dependency configuration
  *
  * @deprecated This constant is deprecated. Use the following instead:
- *   - For Host: `getHostSharedConfig()` from @brix/shared-runtime-web/mf-config
- *   - For Remote: `getRemoteSharedConfig()` from @brix/shared-runtime-web/mf-config
+ *   - For Host: `getHostSharedConfig()` from @brix-sdk/shared-runtime-web/mf-config
+ *   - For Remote: `getRemoteSharedConfig()` from @brix-sdk/shared-runtime-web/mf-config
  *
  * NOTE: This static config does NOT distinguish Host vs Remote eager settings.
  * The new shared-runtime-web functions properly set eager: true for Host
@@ -160,7 +160,7 @@ export const DEFAULT_SHARED_CONFIG: SharedDependencies = {
 /**
  * Create shared dependency configuration
  *
- * @deprecated Use functions from @brix/shared-runtime-web/mf-config:
+ * @deprecated Use functions from @brix-sdk/shared-runtime-web/mf-config:
  *   - `getHostSharedConfig()` for Host applications
  *   - `getRemoteSharedConfig()` for Remote plugins
  *   - `mergeSharedConfig()` for extending default config
@@ -172,12 +172,6 @@ export function createSharedConfig(
   customConfig?: Partial<SharedDependencies>
 ): SharedDependencies {
   // Emit deprecation warning at build time (rspack config execution)
-  console.warn(
-    '[DEPRECATED] createSharedConfig() is deprecated.\n' +
-    'Use @brix/shared-runtime-web/mf-config instead:\n' +
-    '  - Host: getHostSharedConfig()\n' +
-    '  - Remote: getRemoteSharedConfig()'
-  );
 
   // If no custom config, return default config directly
   if (!customConfig) {

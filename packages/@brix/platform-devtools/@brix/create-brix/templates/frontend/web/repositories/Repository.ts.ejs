@@ -1,0 +1,14 @@
+import type { UseHttpResult } from '@brix-sdk/runtime-sdk-react';
+import type { <%= classPrefix %>Record, Create<%= classPrefix %>Request } from '@brix-sdk/<%= name %>-shared';
+
+export class <%= classPrefix %>Repository {
+  constructor(private readonly http: UseHttpResult) {}
+
+  list(): Promise<<%= classPrefix %>Record[]> {
+    return this.http.get<<%= classPrefix %>Record[]>('/api/<%= name %>');
+  }
+
+  create(request: Create<%= classPrefix %>Request): Promise<<%= classPrefix %>Record> {
+    return this.http.post<<%= classPrefix %>Record>('/api/<%= name %>', request);
+  }
+}

@@ -15,7 +15,9 @@
  */
 package io.brix.platform.starter.web;
 
-import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -33,12 +35,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
 import io.brix.platform.common.dto.ApiResponse;
+import io.brix.platform.common.exception.MissingRequiredCapabilityException;
 import io.brix.platform.common.exception.PlatformErrorCode;
 import io.brix.platform.common.exception.PlatformException;
-
-import java.util.Map;
-import java.util.stream.Collectors;
+import io.brix.platform.common.exception.TenantRequiredException;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * v2.1 Global Exception Handler
@@ -48,6 +52,8 @@ import java.util.stream.Collectors;
  * <p>Exception types handled:</p>
  * <ul>
  *   <li>PlatformException - Platform business exception</li>
+ *   <li>MissingRequiredCapabilityException - Required capability unavailable (R10.3)</li>
+ *   <li>TenantRequiredException - Missing tenant context (R10.3)</li>
  *   <li>MethodArgumentNotValidException - Parameter validation exception</li>
  *   <li>BindException - Parameter binding exception</li>
  *   <li>MissingServletRequestParameterException - Missing request parameter</li>
@@ -63,7 +69,15 @@ import java.util.stream.Collectors;
  */
 @RestControllerAdvice
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@Order(Ordered.HIGHEST_PRECEDENCE)
+// IMPORTANT: This is a catch-all fallback advice. It MUST run with the lowest
+// precedence so that domain-specific @RestControllerAdvice beans (e.g.
+// AuthFlowExceptionAdvice in platform-auth-web) are consulted first. With
+// HIGHEST_PRECEDENCE, this advice's @ExceptionHandler(Exception.class) handler
+// would short-circuit specific advices (Spring resolves matching handlers
+// advice-by-advice in @Order, not by exception specificity across advices),
+// causing all domain exceptions to surface as 500 "Unknown exception" instead
+// of their intended HTTP status (e.g. 401 Invalid credentials, 403 forbidden).
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class GlobalExceptionHandler {
     
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -91,6 +105,61 @@ public class GlobalExceptionHandler {
         );
         
         return ResponseEntity.status(status).body(response);
+    }
+    
+    /**
+     * Handle missing required capability exception (R10.3 / R2.7).
+     *
+     * <p>Thrown when a required Runtime Shell capability is not registered.
+     * Returns 503 (Service Unavailable) because the platform cannot fulfil
+     * the request without the missing capability.</p>
+     *
+     * @param ex Missing capability exception
+     * @param request HTTP request
+     * @return 503 error response
+     * @since 3.2.0
+     */
+    @ExceptionHandler(MissingRequiredCapabilityException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingCapabilityException(
+            MissingRequiredCapabilityException ex, HttpServletRequest request) {
+        
+        log.error("[GlobalExceptionHandler] Missing required capability: {}, path: {}",
+            ex.getCapabilityName(), request.getRequestURI());
+        
+        ApiResponse<Void> response = ApiResponse.failure(
+            PlatformErrorCode.CAPABILITY_UNAVAILABLE,
+            ex.getMessage()
+        );
+        
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
+    
+    /**
+     * Handle tenant context required exception (R10.3 / R16).
+     *
+     * <p>Thrown when a tenant-scoped operation is attempted without a
+     * resolvable tenant context. Returns 403 (Forbidden) to signal
+     * that the request structure is valid but tenant identification
+     * is missing.</p>
+     *
+     * @param ex Tenant required exception
+     * @param request HTTP request
+     * @return 403 error response
+     * @since 3.2.0
+     */
+    @ExceptionHandler(TenantRequiredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTenantRequiredException(
+            TenantRequiredException ex, HttpServletRequest request) {
+        
+        log.warn("[GlobalExceptionHandler] Tenant context required, path: {}",
+            request.getRequestURI());
+        
+        ApiResponse<Void> response = ApiResponse.failure(
+            PlatformErrorCode.TENANT_REQUIRED,
+            ex.getMessage()
+        );
+        
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
     
     /**
@@ -260,7 +329,7 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * Handle resource not found exception
+     * Handle resource not found exception (controller mapping)
      * 
      * @param ex Not found exception
      * @param request HTTP request
@@ -278,6 +347,33 @@ public class GlobalExceptionHandler {
         ApiResponse<Void> response = ApiResponse.failure(
             PlatformErrorCode.RESOURCE_NOT_FOUND,
             message
+        );
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    /**
+     * Handle static resource not found exception.
+     *
+     * <p>Thrown by Spring's static resource handler when a requested resource
+     * does not exist (e.g., plugin remoteEntry.js on a backend that doesn't
+     * serve frontend assets). Returns 404 instead of falling through to the
+     * catch-all 500 handler.</p>
+     *
+     * @param ex Static resource not found exception
+     * @param request HTTP request
+     * @return 404 error response
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(
+            NoResourceFoundException ex, HttpServletRequest request) {
+        
+        log.debug("[GlobalExceptionHandler] Static resource not found: {}", 
+            request.getRequestURI());
+        
+        ApiResponse<Void> response = ApiResponse.failure(
+            PlatformErrorCode.RESOURCE_NOT_FOUND,
+            "Resource not found"
         );
         
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);

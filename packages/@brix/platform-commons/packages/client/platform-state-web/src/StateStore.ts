@@ -16,7 +16,7 @@
 /**
  * @file State Store
  * @description Global state store based on zustand
- * @module @brix/platform-state-web/StateStore
+ * @module @brix-sdk/platform-state-web/StateStore
  * @version 3.0.0
  * 
  * [Architecture Notes]
@@ -354,7 +354,6 @@ export class StateStore {
         try {
           listener(key, value, previousValue);
         } catch (error) {
-          console.error('[StateStore] Listener execution error:', error);
         }
       });
     }
@@ -368,7 +367,6 @@ export class StateStore {
         try {
           listener(key, value, previousValue);
         } catch (error) {
-          console.error('[StateStore] Listener execution error:', error);
         }
       });
     }
@@ -378,7 +376,6 @@ export class StateStore {
       try {
         listener(key, value, previousValue);
       } catch (error) {
-        console.error('[StateStore] Listener execution error:', error);
       }
     });
   }
@@ -401,7 +398,6 @@ export class StateStore {
         return { ...initialState, ...parsed };
       }
     } catch (error) {
-      console.error('[StateStore] Failed to restore state from storage:', error);
     }
     
     return initialState;
@@ -438,7 +434,6 @@ export class StateStore {
       current[key] = value;
       localStorage.setItem(this.persistenceConfig.storageKey, JSON.stringify(current));
     } catch (error) {
-      console.error('[StateStore] Failed to persist state:', error);
     }
   }
   
@@ -460,7 +455,6 @@ export class StateStore {
         localStorage.setItem(this.persistenceConfig.storageKey, JSON.stringify(current));
       }
     } catch (error) {
-      console.error('[StateStore] Failed to remove persisted state:', error);
     }
   }
 }

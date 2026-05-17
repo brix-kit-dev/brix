@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Biometric capability type definitions
  * @description Define biometric (fingerprint/face) authentication capability contract
- * @module @brix/runtime-sdk-api-mobile/types/biometric
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/biometric
  * @version 3.2.0
  *
  * [v3.2.0 Notes]

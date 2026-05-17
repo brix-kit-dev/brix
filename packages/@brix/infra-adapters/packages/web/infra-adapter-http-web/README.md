@@ -1,4 +1,4 @@
-# @brix/infra-adapter-http-web
+# @brix-sdk/infra-adapter-http-web
 
 Brix Platform HTTP Infrastructure Adapter - HTTP library-agnostic capabilities for web applications.
 
@@ -16,7 +16,7 @@ This package provides common HTTP utilities that are decoupled from any specific
 ## Installation
 
 ```bash
-pnpm add @brix/infra-adapter-http-web
+pnpm add @brix-sdk/infra-adapter-http-web
 ```
 
 ## Architecture
@@ -25,7 +25,7 @@ This package belongs to the infrastructure adapter layer (Layer 2.5) of v3.0 arc
 
 ```
 Layer 3:     Host (Configuration Only)
-Layer 2.5:   infra-adapter-http-web â† This package
+Layer 2.5:   infra-adapter-http-web â†?This package
 Layer 2:     runtime-sdk-api-web (Capability Contracts)
 ```
 
@@ -34,7 +34,7 @@ Layer 2:     runtime-sdk-api-web (Capability Contracts)
 ### Retry Mechanism
 
 ```typescript
-import { withRetry, createRetryable } from '@brix/infra-adapter-http-web';
+import { withRetry, createRetryable } from '@brix-sdk/infra-adapter-http-web';
 
 // Basic retry
 const result = await withRetry(
@@ -67,7 +67,7 @@ const orders = await retryable(() => fetchOrders());
 ### Cache
 
 ```typescript
-import { SimpleCache, withCache, generateCacheKey } from '@brix/infra-adapter-http-web';
+import { SimpleCache, withCache, generateCacheKey } from '@brix-sdk/infra-adapter-http-web';
 
 // Create cache instance
 const cache = new SimpleCache({
@@ -97,7 +97,7 @@ cache.destroy();
 ### Error Handling
 
 ```typescript
-import { HttpError, HttpErrorCode } from '@brix/infra-adapter-http-web';
+import { HttpError, HttpErrorCode } from '@brix-sdk/infra-adapter-http-web';
 
 try {
   await fetch('/api/data');

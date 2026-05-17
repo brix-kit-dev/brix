@@ -1,10 +1,10 @@
-﻿# =========================================================
+# =========================================================
 # <%= displayName %> 服务配置
 # 生成时间: <%= date %>
 # =========================================================
 
 # ==================== 服务注册配置 ====================
-shinwa:
+brix:
   service:
     name: <%= fullName %>
     base-url: ${PLATFORM_HOST_URL:<%= baseUrl %>}
@@ -20,10 +20,10 @@ shinwa:
       enabled: true
       base-packages:
 <% plugins.forEach(plugin => { %>
-        - com.shinwa.plugin.<%= plugin.name.replace('plugin-', '').replace(/-/g, '') %>
+        - io.brix.plugin.<%= plugin.name.replace('plugin-', '').replace(/-/g, '') %>
 <% }); %>
 <% if (plugins.length === 0) { %>
-        - com.shinwa.plugin
+        - io.brix.plugin
 <% } %>
   
   # API 版本配置
@@ -38,11 +38,11 @@ shinwa:
 # ==================== Spring 配置 ====================
 spring:
   application:
-    name: ${shinwa.service.name}
+    name: ${brix.service.name}
   
   # Data source configuration（Docker 环境使用环境变量覆盖）
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shinwa_<%= name %>}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/brix_<%= name %>}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -99,6 +99,6 @@ management:
 # ==================== Logging configuration ====================
 logging:
   level:
-    shinwa: DEBUG
+    brix: DEBUG
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG

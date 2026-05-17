@@ -1,0 +1,61 @@
+module:
+  id: "<%= fullName %>"
+  version: "<%= version %>"
+  type: "<%= moduleType %>"
+  description: "<%= description %>"
+
+lifecycle:
+  startup-order: <%= startupOrder %>
+  depends-on:
+<% if (dependsOn.length === 0) { -%>
+    []
+<% } else { -%>
+<% dependsOn.forEach(dep => { -%>
+    - "<%= dep %>"
+<% }); -%>
+<% } -%>
+
+capabilities:
+  required:
+<% if (requiredCapabilities.length === 0) { -%>
+    []
+<% } else { -%>
+<% requiredCapabilities.forEach(cap => { -%>
+    - "<%= cap %>"
+<% }); -%>
+<% } -%>
+  optional:
+<% if (optionalCapabilities.length === 0) { -%>
+    []
+<% } else { -%>
+<% optionalCapabilities.forEach(cap => { -%>
+    - "<%= cap %>"
+<% }); -%>
+<% } -%>
+
+events:
+  publishes:
+<% if (publishesEvents.length === 0) { -%>
+    []
+<% } else { -%>
+<% publishesEvents.forEach(event => { -%>
+    - type: "<%= event %>"
+      category: "integration"
+<% }); -%>
+<% } -%>
+  subscribes:
+<% if (subscribesEvents.length === 0) { -%>
+    []
+<% } else { -%>
+<% subscribesEvents.forEach(event => { -%>
+    - type: "<%= event %>"
+<% }); -%>
+<% } -%>
+
+permissions:
+  - id: "<%= name %>:read"
+    name: "Read <%= displayName %>"
+    description: "Read <%= displayName %> records"
+  - id: "<%= name %>:write"
+    name: "Manage <%= displayName %>"
+    description: "Create and update <%= displayName %> records"

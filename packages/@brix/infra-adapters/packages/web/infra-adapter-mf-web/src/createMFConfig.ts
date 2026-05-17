@@ -16,7 +16,7 @@
 /**
  * @file Module Federation Configuration Factory
  * @description Provides centralized MF configuration for Host and Remote plugins
- * @module @brix/infra-adapter-mf-web/createMFConfig
+ * @module @brix-sdk/infra-adapter-mf-web/createMFConfig
  * @version 3.3.0
  *
  * [Architectural Position]
@@ -157,7 +157,7 @@ function mergeSharedConfig(
  * @example
  * ```javascript
  * // rspack.config.mjs
- * import { createHostMFConfig } from '@brix/infra-adapter-mf-web';
+ * import { createHostMFConfig } from '@brix-sdk/infra-adapter-mf-web';
  *
  * new rspack.container.ModuleFederationPlugin(createHostMFConfig());
  * ```
@@ -195,7 +195,7 @@ export function createHostMFConfig(options: HostMFOptions = {}): MFPluginConfig 
  * @example
  * ```typescript
  * // rspack.config.ts
- * import { createRemoteMFConfig } from '@brix/infra-adapter-mf-web';
+ * import { createRemoteMFConfig } from '@brix-sdk/infra-adapter-mf-web';
  *
  * new rspack.container.ModuleFederationPlugin(createRemoteMFConfig({
  *   scopeName: 'partners',

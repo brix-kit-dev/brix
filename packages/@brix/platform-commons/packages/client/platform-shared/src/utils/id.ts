@@ -1,19 +1,19 @@
-/**
+﻿/**
  * @file id.ts
- * @description ID 生成工具函数集
- * @module @brix/utils/id
+ * @description ID generation utility functions
+ * @module @brix-sdk/utils/id
  * @version 3.0.0
  * 
- * 【模块说明】
- * 提供各种 ID 生成工具，包括 UUID、短 ID、NanoID、时间戳 ID、雪花 ID 等。
- * 不同场景可选择不同的 ID 生成策略。
+ * ## Module Overview
+ * Provides various ID generation utilities including UUID, ShortId, NanoID, TimestampId, SnowflakeId, etc.
+ * Different scenarios can use different ID generation strategies.
  * 
- * 【选择建议】
- * - UUID：需要全球唯一且标准格式时使用
- * - ShortId：用于 URL、临时标识等需要短 ID 的场景
- * - NanoId：URL 安全的短 ID，比 ShortId 更随机
- * - TimestampId：需要按时间排序的场景
- * - SnowflakeId：高并发分布式系统（需配合节点 ID）
+ * ## Selection Guide
+ * - UUID: When globally unique and standard format is required
+ * - ShortId: For URLs, temporary identifiers, and other short ID scenarios
+ * - NanoId: URL-safe short ID, more random than ShortId
+ * - TimestampId: When time-sorted ordering is needed
+ * - SnowflakeId: High-concurrency distributed systems (requires node ID)
  * 
  * @license Apache-2.0
  */
@@ -23,18 +23,17 @@
 // ============================================================
 
 /**
- * 生成 UUID v4
+ * Generate UUID v4
  * 
- * 【功能说明】
- * 生成符合 RFC 4122 v4 标准的 UUID。
- * 优先使用原生 crypto.randomUUID()，降级使用随机数生成。
+ * Generates a UUID conforming to the RFC 4122 v4 standard.
+ * Prefers native crypto.randomUUID(), falls back to random number generation.
  * 
- * 【特点】
- * - 全球唯一
- * - 标准格式，便于跨系统交互
- * - 36字符（含连字符）
+ * Characteristics:
+ * - Globally unique
+ * - Standard format, facilitates cross-system interoperability
+ * - 36 characters (including hyphens)
  * 
- * @returns UUID 字符串
+ * @returns UUID string
  * 
  * @example
  * ```typescript
@@ -43,12 +42,12 @@
  * ```
  */
 export function generateUUID(): string {
-  // 优先使用 crypto API
+  // Prefer crypto API
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
 
-  // 降级方案
+  // Fallback implementation
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -57,19 +56,18 @@ export function generateUUID(): string {
 }
 
 /**
- * 验证 UUID 格式
+ * Validate UUID format
  * 
- * 【功能说明】
- * 验证字符串是否为有效的 UUID 格式（v1-v5）。
+ * Validates whether a string is a valid UUID format (v1-v5).
  * 
- * @param uuid UUID 字符串
- * @returns 是否为有效 UUID
+ * @param uuid - UUID string
+ * @returns Whether it is a valid UUID
  * 
  * @example
  * ```typescript
  * isValidUUID('f47ac10b-58cc-4372-a567-0e02b2c3d479'); // true
  * isValidUUID('not-a-uuid');                           // false
- * isValidUUID('f47ac10b58cc4372a5670e02b2c3d479');    // false（缺少连字符）
+ * isValidUUID('f47ac10b58cc4372a5670e02b2c3d479');    // false (missing hyphens)
  * ```
  */
 export function isValidUUID(uuid: string): boolean {
@@ -78,28 +76,27 @@ export function isValidUUID(uuid: string): boolean {
 }
 
 // ============================================================
-// 短 ID
+// Short ID
 // ============================================================
 
 /**
- * 生成短 ID
+ * Generate short ID
  * 
- * 【功能说明】
- * 生成指定长度的随机 ID，默认使用字母数字字符集。
- * 适用于 URL 路径、临时标识等场景。
+ * Generates a random ID of specified length, using alphanumeric character set by default.
+ * Suitable for URL paths, temporary identifiers, etc.
  * 
- * 【碰撞概率】
- * 8位默认字符集约有 218 万亿种组合（62^8）
+ * Collision probability:
+ * 8-char default charset has ~218 trillion combinations (62^8)
  * 
- * @param length ID 长度（默认 8）
- * @param charset 字符集（默认字母数字）
- * @returns 短 ID 字符串
+ * @param length - ID length (default: 8)
+ * @param charset - Character set (default: alphanumeric)
+ * @returns Short ID string
  * 
  * @example
  * ```typescript
  * generateShortId();      // 'a1B2c3D4'
  * generateShortId(12);    // 'a1B2c3D4e5F6'
- * generateShortId(6, '0123456789'); // '123456'（纯数字）
+ * generateShortId(6, '0123456789'); // '123456' (digits only)
  * ```
  */
 export function generateShortId(
@@ -109,7 +106,7 @@ export function generateShortId(
   const charsetLength = charset.length;
   let result = '';
 
-  // 优先使用 crypto API
+  // Prefer crypto API
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     const randomValues = new Uint32Array(length);
     crypto.getRandomValues(randomValues);
@@ -126,19 +123,18 @@ export function generateShortId(
 }
 
 /**
- * 生成 NanoID 风格的 ID
+ * Generate NanoID-style ID
  * 
- * 【功能说明】
- * 生成 NanoID 风格的随机 ID，使用 URL 安全字符集。
- * 比 UUID 更短，比 ShortId 更随机。
+ * Generates a NanoID-style random ID using a URL-safe character set.
+ * Shorter than UUID, more random than ShortId.
  * 
- * 【特点】
- * - URL 安全（无需编码）
- * - 默认21位，碰撞概率极低
- * - 比 UUID 更短
+ * Characteristics:
+ * - URL safe (no encoding needed)
+ * - Default 21 characters, extremely low collision probability
+ * - Shorter than UUID
  * 
- * @param length ID 长度（默认 21）
- * @returns NanoID 字符串
+ * @param length - ID length (default: 21)
+ * @returns NanoID string
  * 
  * @example
  * ```typescript
@@ -147,37 +143,36 @@ export function generateShortId(
  * ```
  */
 export function generateNanoId(length: number = 21): string {
-  // URL 安全字符集
+  // URL-safe character set
   const charset = 'useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict';
   return generateShortId(length, charset);
 }
 
 // ============================================================
-// 时间戳 ID
+// Timestamp ID
 // ============================================================
 
 /**
- * 生成基于时间戳的 ID
+ * Generate timestamp-based ID
  * 
- * 【功能说明】
- * 生成包含时间信息的 ID，格式为：时间戳(base36) + 随机串。
- * 适用于需要按时间排序或提取时间信息的场景。
+ * Generates an ID containing time information in the format: timestamp(base36) + random string.
+ * Suitable for scenarios requiring time-based sorting or time extraction from IDs.
  * 
- * 【优势】
- * - 按创建时间自然排序
- * - 可以从 ID 中提取创建时间
- * - 比 UUID 更短
+ * Advantages:
+ * - Naturally sorted by creation time
+ * - Creation time extractable from ID
+ * - Shorter than UUID
  * 
- * @param randomLength 随机部分长度（默认 6）
- * @returns 时间戳 ID
+ * @param randomLength - Random part length (default: 6)
+ * @returns Timestamp ID
  * 
  * @example
  * ```typescript
  * generateTimestampId();    // 'lnjhgk4xabcdef'
  * generateTimestampId(10);  // 'lnjhgk4xabcdefghij'
  * 
- * // ID 可按时间排序
- * const ids = [id1, id2, id3].sort(); // 按创建时间排序
+ * // IDs can be sorted by time
+ * const ids = [id1, id2, id3].sort(); // sorted by creation time
  * ```
  */
 export function generateTimestampId(randomLength: number = 6): string {
@@ -187,14 +182,13 @@ export function generateTimestampId(randomLength: number = 6): string {
 }
 
 /**
- * 从时间戳 ID 中提取时间
+ * Extract time from timestamp ID
  * 
- * 【功能说明】
- * 尝试从时间戳 ID 中提取创建时间。
- * 仅适用于 generateTimestampId 生成的 ID。
+ * Attempts to extract the creation time from a timestamp ID.
+ * Only works with IDs generated by generateTimestampId.
  * 
- * @param id 时间戳 ID
- * @returns Date 对象，解析失败返回 null
+ * @param id - Timestamp ID
+ * @returns Date object, or null on parse failure
  * 
  * @example
  * ```typescript
@@ -206,7 +200,7 @@ export function generateTimestampId(randomLength: number = 6): string {
  * ```
  */
 export function extractTimestampFromId(id: string): Date | null {
-  // 尝试提取 base36 时间戳部分（前8位）
+  // Attempt to extract base36 timestamp part (first 8 chars)
   const timestampPart = id.slice(0, 8);
   try {
     const timestamp = parseInt(timestampPart, 36);
@@ -218,24 +212,23 @@ export function extractTimestampFromId(id: string): Date | null {
 }
 
 // ============================================================
-// 序列 ID
+// Sequence ID
 // ============================================================
 
 /**
- * 创建序列 ID 生成器
+ * Create sequence ID generator
  * 
- * 【功能说明】
- * 创建一个自增序列 ID 生成器，每次调用返回递增的 ID。
- * 适用于单机环境下的唯一 ID 生成。
+ * Creates an auto-incrementing sequence ID generator that returns an incrementing ID on each call.
+ * Suitable for single-machine unique ID generation.
  * 
- * 【注意】
- * - 仅在单进程内唯一
- * - 重启后计数器重置
- * - 不适合分布式环境
+ * Note:
+ * - Only unique within a single process
+ * - Counter resets on restart
+ * - Not suitable for distributed environments
  * 
- * @param prefix ID 前缀（可选）
- * @param start 起始值（默认 1）
- * @returns 生成器函数
+ * @param prefix - ID prefix (optional)
+ * @param start - Starting value (default: 1)
+ * @returns Generator function
  * 
  * @example
  * ```typescript
@@ -258,20 +251,19 @@ export function createSequenceIdGenerator(
 }
 
 /**
- * 创建带日期前缀的序列 ID 生成器
+ * Create daily sequence ID generator
  * 
- * 【功能说明】
- * 创建按日自增的序列 ID 生成器。
- * 格式：前缀 + 日期(YYYYMMDD) + 序号(6位)。
- * 每天计数器自动重置。
+ * Creates a daily auto-incrementing sequence ID generator.
+ * Format: prefix + date(YYYYMMDD) + sequence(6 digits).
+ * Counter resets automatically each day.
  * 
- * 【适用场景】
- * - 订单号
- * - 流水号
- * - 工单号
+ * Use cases:
+ * - Order numbers
+ * - Transaction numbers
+ * - Work order numbers
  * 
- * @param prefix ID 前缀（可选）
- * @returns 生成器函数
+ * @param prefix - ID prefix (optional)
+ * @returns Generator function
  * 
  * @example
  * ```typescript
@@ -279,8 +271,8 @@ export function createSequenceIdGenerator(
  * genOrderId(); // 'ORD20240101000001'
  * genOrderId(); // 'ORD20240101000002'
  * 
- * // 第二天
- * genOrderId(); // 'ORD20240102000001'（计数器重置）
+ * // Next day
+ * genOrderId(); // 'ORD20240102000001' (counter reset)
  * ```
  */
 export function createDailySequenceIdGenerator(prefix: string = ''): () => string {
@@ -298,24 +290,23 @@ export function createDailySequenceIdGenerator(prefix: string = ''): () => strin
 }
 
 // ============================================================
-// 雪花 ID (简化版)
+// Snowflake ID (Simplified)
 // ============================================================
 
 /**
- * 简化版雪花 ID 生成器
+ * Simplified Snowflake ID generator
  * 
- * 【功能说明】
- * 生成类似 Twitter Snowflake 的 64 位唯一 ID。
- * 此为简化实现，不含 workerId/datacenterId。
+ * Generates 64-bit unique IDs similar to Twitter Snowflake.
+ * This is a simplified implementation without workerId/datacenterId.
  * 
- * 【ID 结构】
- * - 时间戳（41位）：可用约69年
- * - 序列号（12位）：每毫秒可生成 4096 个 ID
- * - 随机数（10位）：增加随机性
+ * ID structure:
+ * - Timestamp (41 bits): usable for ~69 years
+ * - Sequence number (12 bits): up to 4096 IDs per millisecond
+ * - Random number (10 bits): adds randomness
  * 
- * 【注意】
- * - 简化版适用于单节点或对全局唯一性要求不高的场景
- * - 生产环境分布式部署建议使用服务端生成
+ * Note:
+ * - Simplified version suitable for single-node or non-critical uniqueness scenarios
+ * - For distributed production deployment, use server-side generation
  * 
  * @example
  * ```typescript
@@ -325,36 +316,36 @@ export function createDailySequenceIdGenerator(prefix: string = ''): () => strin
  * ```
  */
 export class SimpleSnowflake {
-  /** 当前序列号 */
+  /** Current sequence number */
   private sequence = 0;
-  /** 上次生成时间戳 */
+  /** Last generation timestamp */
   private lastTimestamp = -1;
 
   /**
-   * 生成雪花 ID
+   * Generate snowflake ID
    * 
-   * @returns 雪花 ID 字符串
+   * @returns Snowflake ID string
    */
   generate(): string {
     let timestamp = Date.now();
 
     if (timestamp === this.lastTimestamp) {
-      // 同一毫秒内，序列号递增
+      // Same millisecond, increment sequence number
       this.sequence = (this.sequence + 1) & 0xfff; // 12 bit
       if (this.sequence === 0) {
-        // 序列号溢出，等待下一毫秒
+        // Sequence overflow, wait for next millisecond
         while (timestamp <= this.lastTimestamp) {
           timestamp = Date.now();
         }
       }
     } else {
-      // 新的毫秒，重置序列号
+      // New millisecond, reset sequence number
       this.sequence = 0;
     }
 
     this.lastTimestamp = timestamp;
 
-    // 使用 BigInt 组合各部分
+    // Combine parts using BigInt
     const random = Math.floor(Math.random() * 1024); // 10 bit
     const id =
       (BigInt(timestamp) << BigInt(22)) |
@@ -366,26 +357,25 @@ export class SimpleSnowflake {
 }
 
 /**
- * 默认的雪花 ID 生成器实例
+ * Default snowflake ID generator instance
  */
 const defaultSnowflake = new SimpleSnowflake();
 
 /**
- * 生成雪花 ID
+ * Generate snowflake ID
  * 
- * 【功能说明】
- * 使用默认生成器实例生成雪花 ID。
- * 便捷函数，无需手动创建实例。
+ * Generates a snowflake ID using the default generator instance.
+ * Convenience function that eliminates the need to manually create an instance.
  * 
- * @returns 雪花 ID 字符串
+ * @returns Snowflake ID string
  * 
  * @example
  * ```typescript
  * generateSnowflakeId(); // '7123456789012345678'
  * generateSnowflakeId(); // '7123456789012345679'
  * 
- * // 可按数值排序（时间有序）
- * BigInt(id1) < BigInt(id2); // true（id1 先生成）
+ * // IDs can be sorted numerically (time-ordered)
+ * BigInt(id1) < BigInt(id2); // true (id1 generated first)
  * ```
  */
 export function generateSnowflakeId(): string {

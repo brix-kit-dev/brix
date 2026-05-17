@@ -84,6 +84,16 @@ public class PluginRegistryEndpoint {
     @Value("${host.plugins.base-url:/plugins}")
     private String pluginsBaseUrl;
 
+    private static final String FIELD_NAME = "name";
+    private static final String FIELD_DISPLAY_NAME = "displayName";
+    private static final String FIELD_PLUGIN = "plugin";
+    private static final String FIELD_UI = "ui";
+    private static final String FIELD_WEB = "web";
+    private static final String FIELD_ENABLED = "enabled";
+    private static final String FIELD_REMOTE_ENTRY = "remoteEntry";
+    private static final String FIELD_MANIFEST_URL = "manifestUrl";
+    private static final String FIELD_SCOPE = "scope";
+
     /**
      * Constructs plugin registry endpoint.
      *
@@ -139,14 +149,9 @@ public class PluginRegistryEndpoint {
     /**
      * Builds PluginInfo from pure manifest configuration (for modules with UI config but not registered).
      */
-    @SuppressWarnings("unchecked")
     private PluginInfo toPluginInfoFromManifest(String moduleId, Map<String, Object> manifest) {
-        Map<String, Object> pluginInfo = (Map<String, Object>) manifest.get("plugin");
-        String name = pluginInfo != null ? (String) pluginInfo.getOrDefault("name", moduleId) : moduleId;
-        
-        String baseUrl = pluginsBaseUrl.endsWith("/") ? pluginsBaseUrl : pluginsBaseUrl + "/";
-        String remoteEntry = baseUrl + moduleId + "/remoteEntry.js";
-        String manifestUrl = baseUrl + moduleId + "/ui-manifest.json";
+        String name = resolveManifestName(moduleId, manifest);
+        WebUiContract webUi = resolveWebUiContract(moduleId, manifest);
         
         // Get order from manifest's menus as priority
         int priority = 100;
@@ -155,8 +160,8 @@ public class PluginRegistryEndpoint {
             Object firstMenu = menus.get(0);
             if (firstMenu instanceof Map<?, ?> menuMap) {
                 Object order = menuMap.get("order");
-                if (order instanceof Number) {
-                    priority = ((Number) order).intValue();
+                if (order instanceof Number orderNumber) {
+                    priority = orderNumber.intValue();
                 }
             }
         }
@@ -164,8 +169,8 @@ public class PluginRegistryEndpoint {
         return new PluginInfo(
                 moduleId,
                 name,
-                remoteEntry,
-                manifestUrl,
+            webUi.remoteEntry(),
+            webUi.manifestUrl(),
                 false,  // Unregistered module marked as disabled (for UI display only)
                 priority,
                 manifest
@@ -182,12 +187,6 @@ public class PluginRegistryEndpoint {
         String name = metadata.getModuleName() != null ? metadata.getModuleName() : moduleId;
         int priority = metadata.getStartupOrder();
 
-        // Build front-end resource paths
-        // Convention: UI resource path is /plugins/{id}/
-        String baseUrl = pluginsBaseUrl.endsWith("/") ? pluginsBaseUrl : pluginsBaseUrl + "/";
-        String remoteEntry = baseUrl + moduleId + "/remoteEntry.js";
-        String manifestUrl = baseUrl + moduleId + "/ui-manifest.json";
-
         // 1. First get manifest from UIManifestLoader (loaded from config file)
         Map<String, Object> manifest = manifestLoader.getManifest(moduleId);
         
@@ -199,16 +198,106 @@ public class PluginRegistryEndpoint {
             }
         }
 
+        WebUiContract webUi = resolveWebUiContract(moduleId, manifest);
+
         return new PluginInfo(
                 moduleId,
                 name,
-                remoteEntry,
-                manifestUrl,
-                true,  // Registered means enabled
+                webUi.remoteEntry(),
+                webUi.manifestUrl(),
+                webUi.enabled(),
                 priority,
                 manifest
         );
     }
+
+    private WebUiContract resolveWebUiContract(String moduleId, Map<String, Object> manifest) {
+        Map<String, Object> web = getWebManifest(manifest);
+        String remoteEntry = getString(web, FIELD_REMOTE_ENTRY);
+        String manifestUrl = firstNonBlank(
+                getString(web, FIELD_MANIFEST_URL),
+                conventionManifestUrl(moduleId));
+        String scope = getString(web, FIELD_SCOPE);
+        boolean webEnabled = Boolean.TRUE.equals(web.get(FIELD_ENABLED));
+        boolean loadable = webEnabled && hasText(remoteEntry) && hasText(scope);
+
+        if (webEnabled && !loadable) {
+            log.debug(
+                    "Plugin '{}' declares ui.web.enabled=true but lacks remoteEntry/scope; reporting it disabled for web discovery",
+                    moduleId);
+        }
+
+        return new WebUiContract(
+                firstNonBlank(remoteEntry, conventionRemoteEntry(moduleId)),
+                manifestUrl,
+                loadable);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getWebManifest(Map<String, Object> manifest) {
+        if (manifest == null) {
+            return Map.of();
+        }
+        Object ui = manifest.get(FIELD_UI);
+        if (!(ui instanceof Map<?, ?> uiMap)) {
+            return Map.of();
+        }
+        Object web = uiMap.get(FIELD_WEB);
+        if (web instanceof Map<?, ?> webMap) {
+            return (Map<String, Object>) webMap;
+        }
+        return Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String resolveManifestName(String moduleId, Map<String, Object> manifest) {
+        if (manifest == null) {
+            return moduleId;
+        }
+        String displayName = getString(manifest, FIELD_DISPLAY_NAME);
+        if (hasText(displayName)) {
+            return displayName;
+        }
+        String name = getString(manifest, FIELD_NAME);
+        if (hasText(name)) {
+            return name;
+        }
+        Object pluginInfo = manifest.get(FIELD_PLUGIN);
+        if (pluginInfo instanceof Map<?, ?> pluginMap) {
+            String pluginName = getString((Map<String, Object>) pluginMap, FIELD_NAME);
+            if (hasText(pluginName)) {
+                return pluginName;
+            }
+        }
+        return moduleId;
+    }
+
+    private String getString(Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        return value instanceof String text && hasText(text) ? text : null;
+    }
+
+    private String firstNonBlank(String preferred, String fallback) {
+        return hasText(preferred) ? preferred : fallback;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String conventionRemoteEntry(String moduleId) {
+        return normalizedPluginsBaseUrl() + moduleId + "/remoteEntry.js";
+    }
+
+    private String conventionManifestUrl(String moduleId) {
+        return normalizedPluginsBaseUrl() + moduleId + "/ui-manifest.json";
+    }
+
+    private String normalizedPluginsBaseUrl() {
+        return pluginsBaseUrl.endsWith("/") ? pluginsBaseUrl : pluginsBaseUrl + "/";
+    }
+
+    private record WebUiContract(String remoteEntry, String manifestUrl, boolean enabled) {}
 
     /**
      * Plugin information.

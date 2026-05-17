@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,14 @@
 /**
  * @file Google OAuth Constants
  * @description Constants and configuration utilities for Google OAuth
- * @module @brix/platform-auth-web/services/google-oauth/google-oauth-constants
+ * @module @brix-sdk/platform-auth-web/services/google-oauth/google-oauth-constants
  * @version 3.2.0
  * 
  * Extracted from GoogleOAuthService.ts as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.
  * 
- * ã€ä¸­æ–‡æŠ€æœ¯è¦ç‚¹ã€‘
- * é›†ä¸­ç®¡ç† Google OAuth ç›¸å…³å¸¸é‡ï¼Œä¾¿äºç»´æŠ¤å’Œé…ç½®ã€‚
+ * ¡¾ÖĞÎÄ¼¼ÊõÒªµã¡¿
+ * ¼¯ÖĞ¹ÜÀí Google OAuth Ïà¹Ø³£Á¿£¬±ãÓÚÎ¬»¤ºÍÅäÖÃ¡£
  */
 
 /**

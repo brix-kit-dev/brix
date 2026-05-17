@@ -262,6 +262,25 @@ public class InMemoryStateStoreCapability implements StateStoreCapability {
         return cache.getIfPresent(key) != null;
     }
 
+    @Override
+    public boolean putIfAbsent(String key, Object value, Duration ttl) {
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(value, "value cannot be null");
+
+        Duration effectiveTtl = ttl != null ? ttl : defaultTtl;
+        synchronized (this) {
+            if (cache.getIfPresent(key) != null) {
+                return false;
+            }
+
+            ttlMap.put(key, effectiveTtl.toNanos());
+            cache.put(key, new CacheEntry(value, System.currentTimeMillis()));
+        }
+        log.debug("State store put-if-absent: key={}, type={}, ttl={}",
+                key, value.getClass().getSimpleName(), effectiveTtl);
+        return true;
+    }
+
     /**
      * Gets the current cache size
      * 

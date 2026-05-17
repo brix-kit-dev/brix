@@ -15,63 +15,103 @@
  */
 package io.brix.platform.auth.oauth2;
 
-import lombok.Data;
-
 /**
- * OAuth2 User Info
- * <p>
- * Standardized user info retrieved from third-party identity providers.
- * Different providers' raw fields are mapped to a unified field structure.
- * </p>
+ * Standardized OAuth2 user information retrieved from a third-party Identity Provider.
+ *
+ * <p>Maps provider-specific raw fields to a unified structure:
+ * <table>
+ *   <tr><th>Provider</th><th>userId field</th><th>name field</th></tr>
+ *   <tr><td>Google</td><td>sub</td><td>name</td></tr>
+ *   <tr><td>GitHub</td><td>id</td><td>login / name</td></tr>
+ *   <tr><td>WeChat</td><td>openid</td><td>nickname</td></tr>
+ * </table>
+ *
+ * <h3>Architecture Note</h3>
+ * <p>This class resides in platform-auth core because it is a shared domain type
+ * consumed by both the reactive OAuth2 flow (platform-auth-reactive) and any
+ * downstream service that processes OAuth2 user data.
  *
  * @author Brix Platform Authors
  * @version 1.0.0
  * @since P112
  */
-@Data
 public class OAuth2UserInfo {
 
-    /**
-     * Identity provider identifier (google, wechat, github)
-     */
+    /** Identity provider identifier (e.g., "google", "wechat", "github"). */
     private String provider;
 
-    /**
-     * User's unique identifier at the provider
-     * <ul>
-     *   <li>Google: sub</li>
-     *   <li>WeChat: openid</li>
-     *   <li>GitHub: id</li>
-     * </ul>
-     */
+    /** User's unique identifier at the provider (e.g., Google sub, WeChat openid). */
     private String providerId;
 
-    /**
-     * User display name
-     */
+    /** User display name. */
     private String name;
 
-    /**
-     * User email (may be empty)
-     */
+    /** User email address (may be null for some providers). */
     private String email;
 
-    /**
-     * User avatar URL (may be empty)
-     */
+    /** User avatar URL (may be null). */
     private String avatar;
 
-    /**
-     * Raw attributes JSON string
-     * Preserves complete user info returned by provider for extension
-     */
+    /** Raw JSON attributes string for extensibility. */
     private String rawAttributes;
 
+    // ========== Getters & Setters ==========
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public String getProviderId() {
+        return providerId;
+    }
+
+    public void setProviderId(String providerId) {
+        this.providerId = providerId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public String getRawAttributes() {
+        return rawAttributes;
+    }
+
+    public void setRawAttributes(String rawAttributes) {
+        this.rawAttributes = rawAttributes;
+    }
+
     /**
-     * Generate unique OAuth2 binding identifier
-     * Format: provider:providerId
+     * Generates a unique OAuth2 binding key in the format {@code provider:providerId}.
      *
-     * @return Binding identifier
+     * <p>This key is used to link OAuth2 identities to platform user accounts,
+     * enabling multi-provider login for a single user.
+     *
+     * @return the binding key, e.g., "google:1234567890"
      */
     public String getBindingKey() {
         return provider + ":" + providerId;

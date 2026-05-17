@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +16,15 @@
 /**
  * @file usePluginState Hook
  * @description Plugin State Management Capability React Hook
- * @module @brix/runtime-sdk-react/hooks/usePluginState
+ * @module @brix-sdk/runtime-sdk-react/hooks/usePluginState
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
- * Migrated from @brix/runtime-sdk-api-web to a standalone React binding package.
+ * Migrated from @brix-sdk/runtime-sdk-api-web to a standalone React binding package.
  */
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import type { PluginStateCapability } from '@brix/runtime-sdk-api-web';
+import type { PluginStateCapability } from '@brix-sdk/runtime-sdk-api-web';
 import { useRuntimeContext } from './useRuntimeContext';
 
 /**

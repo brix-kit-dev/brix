@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,19 +16,19 @@
 /**
  * @file useHttp Hook
  * @description HTTP Capability React Hook
- * @module @brix/runtime-sdk-react/hooks/useHttp
+ * @module @brix-sdk/runtime-sdk-react/hooks/useHttp
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
- * Migrated from @brix/runtime-sdk-api-web to a standalone React binding package.
+ * Migrated from @brix-sdk/runtime-sdk-api-web to a standalone React binding package.
  */
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import type { 
   HttpCapability,
   HttpRequestConfig,
   HttpResponse 
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 import { useRuntimeContext } from './useRuntimeContext';
 
 /**
@@ -51,19 +51,24 @@ export interface HttpRequestState<T> {
 
 /**
  * useHttp Hook Return Type
+ *
+ * Convenience methods (get, post, put, delete, patch) delegate to the
+ * underlying {@link HttpCapability} and return unwrapped response data `T`.
+ * Use {@link UseHttpResult.request} when you need the full
+ * {@link HttpResponse} envelope (status, headers, etc.).
  */
 export interface UseHttpResult {
-  /** Send GET request */
-  get: <T>(url: string, config?: Partial<HttpRequestConfig>) => Promise<HttpResponse<T>>;
-  /** Send POST request */
-  post: <T>(url: string, data?: unknown, config?: Partial<HttpRequestConfig>) => Promise<HttpResponse<T>>;
-  /** Send PUT request */
-  put: <T>(url: string, data?: unknown, config?: Partial<HttpRequestConfig>) => Promise<HttpResponse<T>>;
-  /** Send DELETE request */
-  delete: <T>(url: string, config?: Partial<HttpRequestConfig>) => Promise<HttpResponse<T>>;
-  /** Send PATCH request */
-  patch: <T>(url: string, data?: unknown, config?: Partial<HttpRequestConfig>) => Promise<HttpResponse<T>>;
-  /** Generic request method */
+  /** Send GET request — returns unwrapped response data */
+  get: <T>(url: string, params?: Record<string, unknown>) => Promise<T>;
+  /** Send POST request — returns unwrapped response data */
+  post: <T>(url: string, data?: unknown) => Promise<T>;
+  /** Send PUT request — returns unwrapped response data */
+  put: <T>(url: string, data?: unknown) => Promise<T>;
+  /** Send DELETE request — returns unwrapped response data */
+  delete: <T>(url: string) => Promise<T>;
+  /** Send PATCH request — returns unwrapped response data */
+  patch: <T>(url: string, data?: unknown) => Promise<T>;
+  /** Generic request method — returns full HttpResponse envelope */
   request: <T>(config: HttpRequestConfig) => Promise<HttpResponse<T>>;
 }
 
@@ -80,8 +85,8 @@ export interface UseHttpResult {
  *   
  *   useEffect(() => {
  *     const loadUsers = async () => {
- *       const response = await http.get<User[]>('/api/users');
- *       setUsers(response.data);
+ *       const users = await http.get<User[]>('/api/users');
+ *       setUsers(users);
  *     };
  *     loadUsers();
  *   }, [http]);
@@ -96,6 +101,11 @@ export interface UseHttpResult {
 export function useHttp(): UseHttpResult {
   const context = useRuntimeContext();
 
+  // Stabilize httpCapability via useRef to prevent cascading reference changes.
+  // context.getCapability returns the same singleton instance, but useMemo([context])
+  // alone doesn't guarantee referential stability of the wrapper methods below.
+  // Using a ref ensures the capability reference is always current without 
+  // triggering dependency chain re-evaluations.
   const httpCapability = useMemo(() => {
     const capability = context.getCapability<HttpCapability>(HttpCapabilityType);
     if (!capability) {
@@ -106,38 +116,49 @@ export function useHttp(): UseHttpResult {
     return capability;
   }, [context]);
 
+  const httpCapabilityRef = useRef(httpCapability);
+  httpCapabilityRef.current = httpCapability;
+
+  // Use stable callbacks that read from ref — these never change identity,
+  // so downstream useMemo/useCallback/useEffect won't re-trigger.
+  // Convenience methods delegate to HttpCapability's own methods which
+  // properly unwrap HttpResponse and return T directly.
   const request = useCallback(<T>(config: HttpRequestConfig): Promise<HttpResponse<T>> => {
-    return httpCapability.request<T>(config);
-  }, [httpCapability]);
+    return httpCapabilityRef.current.request<T>(config);
+  }, []);
 
-  const get = useCallback(<T>(url: string, config?: Partial<HttpRequestConfig>): Promise<HttpResponse<T>> => {
-    return httpCapability.request<T>({ ...config, url, method: 'GET' });
-  }, [httpCapability]);
+  const get = useCallback(<T>(url: string, params?: Record<string, unknown>): Promise<T> => {
+    return httpCapabilityRef.current.get<T>(url, params);
+  }, []);
 
-  const post = useCallback(<T>(url: string, data?: unknown, config?: Partial<HttpRequestConfig>): Promise<HttpResponse<T>> => {
-    return httpCapability.request<T>({ ...config, url, method: 'POST', data });
-  }, [httpCapability]);
+  const post = useCallback(<T>(url: string, data?: unknown): Promise<T> => {
+    return httpCapabilityRef.current.post<T>(url, data);
+  }, []);
 
-  const put = useCallback(<T>(url: string, data?: unknown, config?: Partial<HttpRequestConfig>): Promise<HttpResponse<T>> => {
-    return httpCapability.request<T>({ ...config, url, method: 'PUT', data });
-  }, [httpCapability]);
+  const put = useCallback(<T>(url: string, data?: unknown): Promise<T> => {
+    return httpCapabilityRef.current.put<T>(url, data);
+  }, []);
 
-  const del = useCallback(<T>(url: string, config?: Partial<HttpRequestConfig>): Promise<HttpResponse<T>> => {
-    return httpCapability.request<T>({ ...config, url, method: 'DELETE' });
-  }, [httpCapability]);
+  const del = useCallback(<T>(url: string): Promise<T> => {
+    return httpCapabilityRef.current.delete<T>(url);
+  }, []);
 
-  const patch = useCallback(<T>(url: string, data?: unknown, config?: Partial<HttpRequestConfig>): Promise<HttpResponse<T>> => {
-    return httpCapability.request<T>({ ...config, url, method: 'PATCH', data });
-  }, [httpCapability]);
+  const patch = useCallback(<T>(url: string, data?: unknown): Promise<T> => {
+    return httpCapabilityRef.current.patch<T>(url, data);
+  }, []);
 
-  return {
+  // Memoize the returned object so consumers (e.g. useMemo([http])) receive
+  // a referentially stable value. Without this, every render creates a new
+  // wrapper object, causing downstream dependency chains to cascade:
+  //   new http → new repository → new fetchData → useEffect re-run → infinite loop
+  return useMemo(() => ({
     get,
     post,
     put,
     delete: del,
     patch,
     request,
-  };
+  }), [get, post, put, del, patch, request]);
 }
 
 /**
@@ -152,7 +173,7 @@ export function useHttp(): UseHttpResult {
  *   const http = useHttp();
  *   
  *   useEffect(() => {
- *     execute(() => http.get<User[]>('/api/users'));
+ *     execute(() => http.request<User[]>({ url: '/api/users', method: 'GET' }));
  *   }, [execute, http]);
  *   
  *   if (isLoading) return <Loading />;

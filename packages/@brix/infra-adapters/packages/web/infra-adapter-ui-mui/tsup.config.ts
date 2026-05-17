@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,9 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
+  // DTS enabled: the Form component now exposes the canonical FormComponentType
+  // compound contract at the export site (see MuiForm.tsx), so monorepo type
+  // resolution succeeds without any runtime-cast workaround.
   dts: {
     compilerOptions: {
       composite: false,
@@ -28,7 +31,7 @@ export default defineConfig({
   outDir: 'dist',
   splitting: true,
   treeshake: true,
-  external: ['react', 'react-dom', '@emotion/react', '@emotion/styled'],
+  external: ['react', 'react-dom', '@emotion/react', '@emotion/styled', '@brix-sdk/runtime-sdk-api-web', '@brix-sdk/platform-design-tokens'],
   esbuildOptions(options) {
     options.jsx = 'automatic';
   },

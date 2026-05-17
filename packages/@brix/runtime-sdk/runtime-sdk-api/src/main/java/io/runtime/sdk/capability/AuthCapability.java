@@ -15,6 +15,8 @@
  */
 package io.runtime.sdk.capability;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Authentication Capability Contract (Standard Name)
  * 
@@ -50,6 +52,7 @@ package io.runtime.sdk.capability;
  * @since 3.2.0
  * @see AuthContextCapability
  */
+@Since("3.2.0")
 public interface AuthCapability extends AuthContextCapability {
     // This interface inherits all methods from AuthContextCapability
     // As a standardized name alias, no additional methods needed

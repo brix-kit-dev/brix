@@ -1,6 +1,6 @@
 {
-  "name": "@brix/shared-runtime-workspace",
-  "version": "1.0.0",
+  "name": "@brix-sdk/shared-runtime-workspace",
+  "version": "3.2.0",
   "private": true,
   "description": "Brix Shared Runtime - Single Source of Truth for Frontend Runtime Dependencies",
   "keywords": [

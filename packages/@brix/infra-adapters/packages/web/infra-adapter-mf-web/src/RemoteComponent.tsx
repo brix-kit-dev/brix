@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,329 +14,275 @@
  * limitations under the License.
  */
 /**
- * @file RemoteComponent - Remote Component Loader
- * @description Encapsulates lazy loading logic for Module Federation remote components
- * @module @brix/infra-adapter-mf-web/RemoteComponent
- * @version 3.2.0
+ * @file RemoteComponent - Module Federation remote component loader
+ * @description React component that lazily loads a Module Federation remote
+ *              and isolates render-time crashes via the cross-cutting
+ *              `UIAdapter.ErrorBoundary` capability.
+ * @module @brix-sdk/infra-adapter-mf-web/RemoteComponent
+ * @version 3.3.0
  *
- * 【Architectural Position】
- * RemoteComponent is a React component provided by the Infra Adapter layer,
- * used for dynamically loading MF remote modules in the Host/Shell layer.
+ * [Architectural Position - v3.0.9 Runtime Shell Blueprint]
+ * - Layer 2C (Implementation): MF-specific dynamic loader
+ * - Delegates ALL fallback presentation to `UIAdapter.ErrorBoundary` (Layer 2A
+ *   contract supplied by infra-adapter-ui-mui / infra-adapter-ui-native).
+ *   No inline styling, no hard-coded colours, no magic strings in fallbacks.
  *
- * 【Design Principles】
- * - Follows the v3.0.4 blueprint's infrastructure adapter layer positioning
- * - Uses React.lazy + Suspense for lazy loading
- * - Provides loading state and error boundary
- * - Supports component-level fallback display
- * - Built-in smart caching mechanism
- *
- * 【Usage Example】
- * ```tsx
- * import { RemoteComponent } from '@brix/infra-adapter-mf-web';
- *
- * <RemoteComponent
- *   remoteEntry="/plugins/identity/remoteEntry.js"
- *   exposePath="./pages/UserList"
- *   componentProps={{ userId: 123 }}
- *   fallback={<Skeleton />}
- * />
- * ```
+ * [Frontend Stability Reform Plan v1.0 — C-1.4]
+ * - Removed legacy inline `<div>` fallback (visual inconsistency)
+ * - Added bounded automatic retry with cache-busting reload token
+ * - Plugin-unavailable detection moved to a pure helper for unit testing
  */
 
 import {
   lazy,
+  useState,
+  useCallback,
+  useMemo,
   Suspense,
-  Component,
   type ReactNode,
   type ComponentType,
-  type ErrorInfo,
+  type FC,
 } from 'react';
+import type {
+  ErrorBoundaryProps,
+  ErrorBoundaryFallbackProps,
+  RemoteLoaderProps,
+  RemoteErrorRenderState,
+} from '@brix-sdk/runtime-sdk-api-web';
 import { mfLoader } from './mf-loader';
 
-// ========== Type Definitions ==========
+// ============================================================================
+// Retry Policy Constants — no magic numbers per Stability Redline §22
+// ============================================================================
 
 /**
- * RemoteComponent Props
+ * Maximum number of automatic reload attempts after a remote component crashes.
+ * After this is exhausted, the user must navigate away and back to retry.
  */
-export interface RemoteComponentProps {
-  /** Remote entry URL (remoteEntry.js) */
-  remoteEntry: string;
-  /** Exposed module path (e.g. ./pages/UserList) */
-  exposePath: string;
-  /** Props to pass to remote component */
-  componentProps?: Record<string, unknown>;
-  /** Content to display while loading */
-  fallback?: ReactNode;
-  /** Content to display on error (uses default error UI if not provided) */
-  errorFallback?: ReactNode;
-  /** Callback when component loads successfully */
-  onLoad?: () => void;
-  /** Callback when component fails to load */
-  onError?: (error: Error) => void;
-}
+export const REMOTE_COMPONENT_MAX_AUTO_RETRY = 3 as const;
+
+// ============================================================================
+// Public Props
+// ============================================================================
 
 /**
- * Error boundary state
- */
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
-}
-
-/**
- * Error boundary props
- */
-interface ErrorBoundaryProps {
-  children: ReactNode;
-  fallback?: ReactNode;
-  onError?: (error: Error) => void;
-}
-
-// ========== Error Boundary Component ==========
-
-/**
- * Remote Component Error Boundary
+ * Props for `RemoteComponent`.
  *
- * Catches JavaScript errors in child component tree,
- * and displays a fallback UI instead of the crashed component tree.
- */
-class RemoteErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('[RemoteComponent] Remote component loading failed:', error, errorInfo);
-    this.props.onError?.(error);
-  }
-
-  render(): ReactNode {
-    if (this.state.hasError) {
-      // If custom error fallback is provided, use it
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      // Determine if this is a plugin unavailable error
-      const errorMsg = this.state.error?.message || '';
-      const isPluginUnavailable =
-        errorMsg.includes('remoteEntry') ||
-        errorMsg.includes('Container not found') ||
-        errorMsg.includes('Failed to load') ||
-        errorMsg.includes('Loading script failed') ||
-        errorMsg.includes('Network error');
-
-      // Friendly message for plugin unavailable
-      if (isPluginUnavailable) {
-        return (
-          <div
-            style={{
-              padding: '48px 24px',
-              textAlign: 'center',
-              color: '#8c8c8c',
-              backgroundColor: '#fafafa',
-              borderRadius: '8px',
-              margin: '16px',
-              border: '1px dashed #d9d9d9',
-            }}
-          >
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔌</div>
-            <h3 style={{ margin: '0 0 8px 0', color: '#595959' }}>Plugin Temporarily Unavailable</h3>
-            <p style={{ margin: 0, fontSize: '14px' }}>This plugin module is not started or is under development</p>
-            <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#bfbfbf' }}>
-              Please start the corresponding plugin's dev server, or contact the administrator
-            </p>
-          </div>
-        );
-      }
-
-      // Generic error message
-      return (
-        <div
-          style={{
-            padding: '24px',
-            textAlign: 'center',
-            color: '#ff4d4f',
-            backgroundColor: '#fff2f0',
-            borderRadius: '8px',
-            margin: '16px',
-          }}
-        >
-          <h3 style={{ margin: '0 0 8px 0' }}>Component Loading Failed</h3>
-          <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
-            {this.state.error?.message || 'Unknown error'}
-          </p>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-// ========== Loading State Component ==========
-
-/**
- * Default Loading Component
+ * Structural alias of the {@link RemoteLoaderProps} Layer 2A contract — kept
+ * as a local name so the historical export `RemoteComponentProps` remains
+ * stable for existing call sites (R-6 backward compatibility).
  *
- * Displays a spinning loading indicator
+ * @see RemoteLoaderProps in `@brix-sdk/runtime-sdk-api-web` for the canonical
+ *      contract this implementation satisfies.
  */
-function DefaultLoadingFallback(): ReactNode {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '48px',
-        color: '#999',
-      }}
-    >
-      <div
-        style={{
-          width: '32px',
-          height: '32px',
-          border: '3px solid #f0f0f0',
-          borderTop: '3px solid #1890ff',
-          borderRadius: '50%',
-          animation: 'remote-component-spin 1s linear infinite',
-        }}
-      />
-      <style>{`
-        @keyframes remote-component-spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
-  );
-}
+export type RemoteComponentProps = RemoteLoaderProps;
 
-// ========== Component Cache ==========
+// Re-export for adapter consumers that prefer importing from the
+// implementation package (kept thin — the canonical source is the contract).
+export type { RemoteErrorRenderState } from '@brix-sdk/runtime-sdk-api-web';
 
-/**
- * Lazy Load Component Cache
- *
- * Uses remoteEntry + exposePath as cache key,
- * ensuring lazy load wrapper is created only once for the same remote component.
- */
+// ============================================================================
+// Lazy Component Cache (keyed by remoteEntry::exposePath::scope::reloadToken)
+// ============================================================================
+
 const lazyComponentCache = new Map<string, ComponentType<Record<string, unknown>>>();
 
-/**
- * Get or create lazy load component
- *
- * @param remoteEntry - Remote entry URL
- * @param exposePath - Exposed module path
- * @returns React lazy load component
- */
+function buildCacheKey(remoteEntry: string, exposePath: string, scope?: string): string {
+  return `${remoteEntry}::${exposePath}::${scope ?? ''}`;
+}
+
 function getLazyComponent(
   remoteEntry: string,
-  exposePath: string
+  exposePath: string,
+  scope: string | undefined,
+  reloadToken: number,
 ): ComponentType<Record<string, unknown>> {
-  const cacheKey = `${remoteEntry}::${exposePath}`;
+  // The reloadToken is included so retries bypass the cache and force a fresh
+  // wrapper (the underlying `mfLoader` may also cache internally).
+  const cacheKey = `${buildCacheKey(remoteEntry, exposePath, scope)}::${reloadToken}`;
 
-  if (!lazyComponentCache.has(cacheKey)) {
-    const LazyComponent = lazy(async () => {
-      const module = await mfLoader(remoteEntry, exposePath);
-      return { default: module.default as ComponentType<Record<string, unknown>> };
+  let cached = lazyComponentCache.get(cacheKey);
+  if (cached === undefined) {
+    cached = lazy(async () => {
+      const mod = await mfLoader(remoteEntry, exposePath, { scope });
+      return { default: mod.default as ComponentType<Record<string, unknown>> };
     });
-
-    lazyComponentCache.set(cacheKey, LazyComponent);
+    lazyComponentCache.set(cacheKey, cached);
   }
-
-  return lazyComponentCache.get(cacheKey)!;
+  return cached;
 }
 
 /**
- * Clear lazy load component cache
+ * Clear cached lazy wrappers. Used by HMR / plugin reload flows.
  *
- * Used for hot reload or plugin reload scenarios
- *
- * @param remoteEntry - Optional, specify to clear cache for a specific remote entry
+ * @param remoteEntry - When provided, only entries belonging to this remote
+ *                      are evicted; otherwise the entire cache is cleared.
  */
 export function clearRemoteComponentCache(remoteEntry?: string): void {
-  if (remoteEntry) {
-    // Clear cache with specific prefix
-    for (const key of lazyComponentCache.keys()) {
-      if (key.startsWith(`${remoteEntry}::`)) {
-        lazyComponentCache.delete(key);
-      }
-    }
-  } else {
-    // Clear all cache
+  if (remoteEntry === undefined) {
     lazyComponentCache.clear();
+    return;
+  }
+  const prefix = `${remoteEntry}::`;
+  for (const key of lazyComponentCache.keys()) {
+    if (key.startsWith(prefix)) {
+      lazyComponentCache.delete(key);
+    }
   }
 }
 
 /**
- * Get current cached component count
- *
- * @returns Number of cached components
+ * Returns the current number of cached lazy wrappers (for diagnostics).
  */
 export function getRemoteComponentCacheSize(): number {
   return lazyComponentCache.size;
 }
 
-// ========== Main Component ==========
+// ============================================================================
+// Plugin-Unavailable Heuristic — exported for unit testing
+// ============================================================================
 
 /**
- * Remote Component Loader
+ * Substrings characteristic of "plugin remote not running" failures. Kept as
+ * a named constant so tests assert against the exact list.
+ */
+export const PLUGIN_UNAVAILABLE_ERROR_MARKERS: ReadonlyArray<string> = [
+  'remoteEntry',
+  'Container not found',
+  'Failed to load',
+  'Loading script failed',
+  'Network error',
+];
+
+/**
+ * Pure heuristic: classify an error as "plugin temporarily unavailable" so
+ * the host can render an actionable, non-alarming message.
+ */
+export function isPluginUnavailableError(error: Error): boolean {
+  const message = error.message ?? '';
+  return PLUGIN_UNAVAILABLE_ERROR_MARKERS.some((marker) => message.includes(marker));
+}
+
+// ============================================================================
+// Pass-Through Boundary (used when no `ErrorBoundary` prop is provided)
+// ============================================================================
+
+/**
+ * Minimal pass-through used when the caller does not inject a UI-supplied
+ * boundary. It mounts children directly; if a crash occurs, React surfaces
+ * the error to the nearest ancestor boundary. This intentionally has no UI
+ * of its own — visual presentation is always the UIAdapter's responsibility.
+ */
+const PassThroughBoundary: FC<ErrorBoundaryProps> = ({ children }) => <>{children}</>;
+
+// ============================================================================
+// Default Render Prop
+// ============================================================================
+
+/**
+ * Minimal accessible fallback used when `renderError` is not provided. The
+ * surrounding `ErrorBoundary` is what supplies the visual envelope.
+ */
+function defaultRenderError({
+  error,
+  attempt,
+  canRetry,
+  isPluginUnavailable,
+  retry,
+}: RemoteErrorRenderState): ReactNode {
+  return (
+    <div role="alert" data-testid="remote-component-error">
+      <p>
+        {isPluginUnavailable
+          ? 'Plugin temporarily unavailable.'
+          : `Remote component failed to load: ${error.message}`}
+      </p>
+      {canRetry ? (
+        <button type="button" onClick={retry} data-testid="remote-component-retry">
+          Retry (attempt {attempt + 1} / {REMOTE_COMPONENT_MAX_AUTO_RETRY})
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+/**
+ * RemoteComponent
  *
- * Dynamically loads remote components using Module Federation,
- * automatically handling loading state and error boundary.
- *
- * 【Features】
- * - React.lazy + Suspense lazy loading
- * - Built-in error boundary with graceful fallback
- * - Smart caching to avoid duplicate loading
- * - Friendly message when plugin unavailable
- * - Support for custom loading and error UI
+ * Loads a Module Federation remote module via `React.lazy` + `Suspense` and
+ * delegates render-time error isolation to the cross-cutting
+ * `UIAdapter.ErrorBoundary` capability. Provides bounded automatic retry that
+ * forces a cache-busting re-fetch of the remote module on each attempt.
  *
  * @example
  * ```tsx
- * // Basic usage
- * <RemoteComponent
- *   remoteEntry="http://localhost:3001/remoteEntry.js"
- *   exposePath="./pages/UserList"
- * />
- *
- * // Full usage
+ * const { ErrorBoundary, Spin } = useUI();
  * <RemoteComponent
  *   remoteEntry={plugin.remoteEntry}
  *   exposePath={route.exposePath}
- *   componentProps={{ userId: 123 }}
- *   fallback={<Skeleton />}
- *   errorFallback={<CustomError />}
- *   onLoad={() => console.log('Component loaded')}
- *   onError={(err) => reportError(err)}
+ *   componentProps={{ userId }}
+ *   ErrorBoundary={ErrorBoundary}
+ *   fallback={<Spin />}
+ *   onError={(err) => telemetry.report(err)}
  * />
  * ```
- *
- * @param props - Component props
- * @returns React node
  */
 export function RemoteComponent({
   remoteEntry,
   exposePath,
-  componentProps = {},
+  scope,
+  componentProps,
   fallback,
-  errorFallback,
-  onLoad,
+  ErrorBoundary,
+  renderError,
   onError,
 }: RemoteComponentProps): ReactNode {
-  const LazyComponent = getLazyComponent(remoteEntry, exposePath);
+  const [attempt, setAttempt] = useState<number>(0);
 
+  const Boundary: ComponentType<ErrorBoundaryProps> = ErrorBoundary ?? PassThroughBoundary;
+
+  const LazyComponent = useMemo(
+    () => getLazyComponent(remoteEntry, exposePath, scope, attempt),
+    [remoteEntry, exposePath, scope, attempt],
+  );
+
+  const handleRetry = useCallback((): void => {
+    setAttempt((prev) => prev + 1);
+  }, []);
+
+  const fallbackRenderer = useCallback(
+    ({ error, reset }: ErrorBoundaryFallbackProps): ReactNode => {
+      const canRetry = attempt < REMOTE_COMPONENT_MAX_AUTO_RETRY;
+      const retry = (): void => {
+        // Reset boundary first so the next render mounts the new lazy
+        // component built from the bumped reloadToken.
+        reset();
+        handleRetry();
+      };
+      const state: RemoteErrorRenderState = {
+        error,
+        attempt,
+        canRetry,
+        isPluginUnavailable: isPluginUnavailableError(error),
+        retry,
+      };
+      return (renderError ?? defaultRenderError)(state);
+    },
+    [attempt, handleRetry, renderError],
+  );
+
+  // resetKeys causes the boundary to clear its captured error when `attempt`
+  // advances, so no stale error state leaks across retries.
   return (
-    <RemoteErrorBoundary fallback={errorFallback} onError={onError}>
-      <Suspense fallback={fallback ?? <DefaultLoadingFallback />}>
-        <LazyComponent {...componentProps} ref={onLoad ? () => onLoad() : undefined} />
+    <Boundary fallback={fallbackRenderer} onError={onError} resetKeys={[attempt]}>
+      <Suspense fallback={fallback ?? null}>
+        <LazyComponent {...(componentProps ?? {})} />
       </Suspense>
-    </RemoteErrorBoundary>
+    </Boundary>
   );
 }
 

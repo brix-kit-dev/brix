@@ -15,7 +15,9 @@
  */
 package io.infra.adapter.kafka;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -69,6 +71,8 @@ class KafkaEventBusCapabilityTest {
     private KafkaEventBusCapability eventBus;
 
     private static final String MODULE_ID = "booking";
+    private static final String TEST_TENANT_ID = "test-tenant";
+    private static final Supplier<Optional<String>> TEST_TENANT_PROVIDER = () -> Optional.of(TEST_TENANT_ID);
 
     @BeforeEach
     void setUp() {
@@ -77,7 +81,7 @@ class KafkaEventBusCapabilityTest {
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         topicResolver = new EventTopicResolver();
-        eventBus = new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, MODULE_ID);
+        eventBus = new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, MODULE_ID, TEST_TENANT_PROVIDER);
     }
 
     // ==================== Constructor Validation ====================
@@ -90,7 +94,7 @@ class KafkaEventBusCapabilityTest {
         @DisplayName("kafkaTemplate null should throw NPE")
         void shouldThrow_whenKafkaTemplateNull() {
             assertThatThrownBy(() ->
-                new KafkaEventBusCapability(null, topicResolver, objectMapper, MODULE_ID))
+                new KafkaEventBusCapability(null, topicResolver, objectMapper, MODULE_ID, null))
                 .isInstanceOf(NullPointerException.class);
         }
 
@@ -98,7 +102,7 @@ class KafkaEventBusCapabilityTest {
         @DisplayName("topicResolver null should throw NPE")
         void shouldThrow_whenTopicResolverNull() {
             assertThatThrownBy(() ->
-                new KafkaEventBusCapability(kafkaTemplate, null, objectMapper, MODULE_ID))
+                new KafkaEventBusCapability(kafkaTemplate, null, objectMapper, MODULE_ID, null))
                 .isInstanceOf(NullPointerException.class);
         }
 
@@ -106,7 +110,7 @@ class KafkaEventBusCapabilityTest {
         @DisplayName("objectMapper null should throw NPE")
         void shouldThrow_whenObjectMapperNull() {
             assertThatThrownBy(() ->
-                new KafkaEventBusCapability(kafkaTemplate, topicResolver, null, MODULE_ID))
+                new KafkaEventBusCapability(kafkaTemplate, topicResolver, null, MODULE_ID, null))
                 .isInstanceOf(NullPointerException.class);
         }
 
@@ -114,8 +118,16 @@ class KafkaEventBusCapabilityTest {
         @DisplayName("currentModuleId null should throw NPE")
         void shouldThrow_whenModuleIdNull() {
             assertThatThrownBy(() ->
-                new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, null))
+                new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, null, null))
                 .isInstanceOf(NullPointerException.class);
+        }
+
+        @Test
+        @DisplayName("tenantIdProvider null should default to Optional.empty")
+        void shouldAcceptNullTenantIdProvider() {
+            KafkaEventBusCapability bus = new KafkaEventBusCapability(
+                kafkaTemplate, topicResolver, objectMapper, MODULE_ID, null);
+            assertThat(bus).isNotNull();
         }
     }
 
@@ -225,7 +237,7 @@ class KafkaEventBusCapabilityTest {
         }
 
         @Test
-        @DisplayName("Should include standard integration event headers (including sourceModule)")
+        @DisplayName("Should include standard integration event headers (including sourceModule, tenantId, schemaVersion)")
         @SuppressWarnings("unchecked")
         void shouldIncludeIntegrationHeaders() {
             TestIntegrationEvent event = new TestIntegrationEvent("key-1");
@@ -240,6 +252,9 @@ class KafkaEventBusCapabilityTest {
             assertThat(record.headers().lastHeader("eventType")).isNotNull();
             assertThat(record.headers().lastHeader("sourceModule")).isNotNull();
             assertThat(record.headers().lastHeader("routingKey")).isNotNull();
+            assertThat(record.headers().lastHeader("tenantId")).isNotNull();
+            assertThat(new String(record.headers().lastHeader("tenantId").value())).isEqualTo(TEST_TENANT_ID);
+            assertThat(record.headers().lastHeader("schemaVersion")).isNotNull();
         }
 
         @Test

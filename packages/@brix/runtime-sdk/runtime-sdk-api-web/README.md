@@ -12,7 +12,7 @@ This package provides framework-agnostic TypeScript type definitions and contrac
 - 🔌 **Framework Agnostic** - No dependency on React, Vue, Angular, or any UI framework
 - 📦 **Pure Type Definitions** - Contains only contracts, no runtime implementations
 - 🎯 **Full TypeScript Support** - Complete type safety with IntelliSense
-- 🏗️ **Modular Design** - Import only what you need
+- 🏗�?**Modular Design** - Import only what you need
 
 ## Installation
 
@@ -120,7 +120,7 @@ const myPlugin: PluginDefinition = {
 src/
 ├── index.ts              # Main entry point
 ├── context/              # RuntimeContext definitions
-│   └── RuntimeContext.ts
+�?  └── RuntimeContext.ts
 └── types/                # Type definitions
     ├── auth.ts           # Authentication types
     ├── capability.ts     # Capability contracts
@@ -140,16 +140,16 @@ src/
 
 ## Framework Bindings
 
-For React-specific bindings (hooks, providers), use `@brix/runtime-sdk-react` instead:
+For React-specific bindings (hooks, providers), use `@brix-sdk/runtime-sdk-react` instead:
 
 ```bash
-npm install @brix/runtime-sdk-react
+npm install @brix-sdk/runtime-sdk-react
 ```
 
 ## Related Packages
 
-- [`@brix/runtime-sdk-react`](https://github.com/brix-kit-dev/brix) - React bindings with hooks and providers
-- [`@brix/runtime-host`](https://github.com/brix-kit-dev/brix) - Runtime host implementation
+- [`@brix-sdk/runtime-sdk-react`](https://github.com/brix-kit-dev/brix) - React bindings with hooks and providers
+- [`@brix-sdk/runtime-host`](https://github.com/brix-kit-dev/brix) - Runtime host implementation
 
 ## License
 

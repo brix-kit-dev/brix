@@ -4,7 +4,9 @@ node_modules/
 
 # Build outputs
 dist/
+dist-test/
 target/
+bin/
 *.jar
 *.class
 
@@ -22,10 +24,20 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 
-# Environment
+# Environment (IMPORTANT: Never commit secrets)
 .env
 .env.local
 .env.*.local
+
+# Security-sensitive files (Phase 0.5 — prevent accidental key/secret commits)
+*.pem
+*.p12
+*.jks
+*.keystore
+*.key
+*.pfx
+client_secret*.json
+*.crt
 
 # Test
 coverage/

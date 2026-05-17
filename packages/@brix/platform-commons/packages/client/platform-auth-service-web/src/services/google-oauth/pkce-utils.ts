@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file PKCE Utilities
  * @description PKCE (Proof Key for Code Exchange) utility functions for OAuth 2.0
- * @module @brix/platform-auth-web/services/google-oauth/pkce-utils
+ * @module @brix-sdk/platform-auth-web/services/google-oauth/pkce-utils
  * @version 3.2.0
  * 
  * Extracted from GoogleOAuthService.ts as part of v3.2 architecture refactoring
@@ -29,9 +29,7 @@
  * 4. Token exchange includes original code_verifier
  * 5. Server verifies SHA256(code_verifier) == code_challenge
  * 
- * 【中文技术要点】
- * PKCE 是 OAuth 2.0 for Native Apps (RFC 8252) 推荐的安全机制。
- * 即使授权码被截获，攻击者也无法交换 Token，因为缺少 code_verifier。
+ * PKCE OAuth 2.0 for Native Apps (RFC 8252)
  * 
  * @see https://datatracker.ietf.org/doc/html/rfc7636
  */
@@ -44,8 +42,6 @@ import type { PKCEPair } from './google-types';
  * Uses Web Crypto API's crypto.getRandomValues() for cryptographically secure random numbers.
  * More secure than Math.random().
  * 
- * 【中文技术要点】
- * 使用 Web Crypto API 生成密码学安全的随机数，符合 RFC 7636 PKCE 规范要求。
  * 
  * @param length - String length (recommended: 32-64 characters)
  * @returns Random string
@@ -101,12 +97,11 @@ export function base64URLEncode(buffer: ArrayBuffer): string {
 /**
  * Generate PKCE Code Verifier and Code Challenge
  * 
- * 【PKCE 流程说明】
- * 1. 客户端生成随机 code_verifier（43-128 字符）
- * 2. 计算 code_challenge = BASE64URL(SHA256(code_verifier))
- * 3. 授权请求带上 code_challenge
- * 4. Token 交换时带上原始 code_verifier
- * 5. 服务器验证 SHA256(code_verifier) == code_challenge
+ * 1. code_verifier43-128
+ * 2. code_challenge = BASE64URL(SHA256(code_verifier))
+ * 3. code_challenge
+ * 4. Token code_verifier
+ * 5. SHA256(code_verifier) == code_challenge
  * 
  * @see https://datatracker.ietf.org/doc/html/rfc7636
  * @returns PKCE parameter pair

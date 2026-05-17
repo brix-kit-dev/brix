@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Type definitions unified export
  * @description Re-export all type definitions from categorized files
- * @module @brix/runtime-sdk-api-mobile/types
+ * @module @brix-sdk/runtime-sdk-api-mobile/types
  * @version 3.2.0
  *
  * [v3.2.0 Notes]
@@ -96,6 +96,11 @@ export * from './config';
 // Common Utility Types
 // =========================================
 export * from './common';
+
+// =========================================
+// Tenant Capability Types
+// =========================================
+export * from './tenant';
 
 // =========================================
 // Mobile-Specific Capability Types

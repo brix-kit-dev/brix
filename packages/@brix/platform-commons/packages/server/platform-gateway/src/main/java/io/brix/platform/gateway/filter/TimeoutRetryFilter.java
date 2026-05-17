@@ -32,28 +32,28 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
+import io.brix.platform.gateway.config.resilience.HttpTimeoutProperties;
+import io.brix.platform.gateway.config.resilience.RetryProperties;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import reactor.util.retry.RetryBackoffSpec;
-import io.brix.platform.gateway.config.resilience.HttpTimeoutProperties;
-import io.brix.platform.gateway.config.resilience.RetryProperties;
 
 /**
- * globaltimeoutwithretryfilter
+ * Global timeout and retry filter.
  * <p>
- * MVP Red Line Requirements
+ * MVP Red-Line Requirements:
  * <ul>
- *   <li>explicitTimeout configuration</li>
- *   <li>Limited retries（most3 times）</li>
+ *   <li>Explicit timeout configuration</li>
+ *   <li>Bounded retries (max 3 attempts)</li>
  * </ul>
  * </p>
  *
- * <h3>functionalitydescription</h3>
+ * <h3>Functional description</h3>
  * <ul>
- *   <li>globaltimeoutcontrol：preventrequestnolimitperiod suspended</li>
- *   <li>automaticretry：fortemporarytimeityerrorperformre-</li>
- *   <li>Exponential backoff：avoidburstlarge number ofretryrequest</li>
- *   <li>randomjitter：preventthundering herdeffect</li>
+ *   <li>Global timeout control — prevents requests from hanging indefinitely</li>
+ *   <li>Automatic retry — retries on transient/timeout errors</li>
+ *   <li>Exponential backoff — avoids large bursts of retry traffic</li>
+ *   <li>Random jitter — prevents thundering-herd effects</li>
  * </ul>
  *
  * @author Brix Platform Authors
@@ -66,12 +66,12 @@ public class TimeoutRetryFilter implements GlobalFilter, Ordered {
     private static final Logger logger = LoggerFactory.getLogger(TimeoutRetryFilter.class);
     
     /**
-     * requeststarttimepropertieskey
+     * Exchange attribute key for the request start time.
      */
     private static final String REQUEST_START_TIME = "requestStartTime";
     
     /**
-     * retrycountpropertieskey
+     * Exchange attribute key for the current retry count.
      */
     private static final String RETRY_COUNT = "retryCount";
 
@@ -86,7 +86,7 @@ public class TimeoutRetryFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // onlogandauthenticationfilterofafter，onactualrouteof
+        // After the logging and authentication filters, before the actual route is invoked.
         return Ordered.LOWEST_PRECEDENCE - 100;
     }
 
@@ -95,22 +95,22 @@ public class TimeoutRetryFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         HttpMethod method = request.getMethod();
         
-        // recordrequeststarttime
+        // Record request start time
         exchange.getAttributes().put(REQUEST_START_TIME, System.currentTimeMillis());
         exchange.getAttributes().put(RETRY_COUNT, 0);
         
-        // buildwithtimeoutofrequestprocess
+        // Build the request processing chain with timeout enforcement
         Mono<Void> requestMono = chain.filter(exchange);
         
-        // applicationglobaltimeout
+        // Apply global timeout
         requestMono = applyTimeout(requestMono, exchange);
         
-        // applicationretrystrategy（onlyforidempotentmethod）
+        // Apply retry policy (only for idempotent methods)
         if (retryProperties.isEnabled() && isRetryableMethod(method)) {
             requestMono = applyRetry(requestMono, exchange);
         }
         
-        // processcompleteafterrecordconsumetime
+        // Log elapsed time on completion
         return requestMono
             .doOnSuccess(v -> logRequestCompletion(exchange, null))
             .doOnError(e -> logRequestCompletion(exchange, e));

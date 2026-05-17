@@ -16,7 +16,7 @@
 /**
  * @file Message API Type Definitions
  * @description Defines types for the Toast/Snackbar Message API in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/message
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/message
  * @version 3.2.0
  */
 

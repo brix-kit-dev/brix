@@ -1,47 +1,47 @@
-/**
+﻿/**
  * @file timing.ts
- * @description 时间控制工具函数集
- * @module @brix/utils/timing
+ * @description Time control utility functions
+ * @module @brix-sdk/utils/timing
  * @version 3.0.0
  * 
- * 【模块说明】
- * 提供各种时间控制相关的工具函数，包括防抖、节流、延迟、超时等。
- * 这些函数是前端开发中最常用的性能优化工具。
+ * ## Module Overview
+ * Provides various time control utility functions including debounce, throttle, delay, timeout, etc.
+ * These functions are the most commonly used performance optimization tools in frontend development.
  * 
- * 【使用场景】
- * - 防抖：搜索输入、表单校验、窗口调整
- * - 节流：滚动事件、按钮点击、拖拽操作
- * - 延迟：动画间隔、轮询等待、用户反馈
- * - 超时：网络请求、长时任务控制
+ * ## Use Cases
+ * - Debounce: search input, form validation, window resize
+ * - Throttle: scroll events, button clicks, drag operations
+ * - Delay: animation intervals, polling waits, user feedback
+ * - Timeout: network requests, long-running task control
  * 
  * @license Apache-2.0
  */
 
 // ============================================================
-// 防抖（Debounce）
+// Debounce
 // ============================================================
 
 /**
- * 防抖函数
+ * Debounce function
  * 
- * 【功能说明】
- * 延迟执行目标函数，在延迟期间如果再次调用则重新计时。
- * 适用于搜索输入、窗口调整等高频触发场景。
+ * Delays execution of the target function; if called again during the delay period,
+ * the timer resets. Suitable for high-frequency trigger scenarios such as search input
+ * and window resizing.
  * 
- * 【工作原理】
- * 1. 每次调用时清除之前的定时器
- * 2. 设置新的定时器
- * 3. 仅当定时器到期后才真正执行函数
+ * How it works:
+ * 1. Each call clears the previous timer
+ * 2. Sets a new timer
+ * 3. The function is only executed when the timer expires
  * 
- * @template T 函数类型
- * @param func 需要防抖的函数
- * @param wait 延迟时间（毫秒）
- * @param immediate 是否立即执行首次调用（默认 false）
- * @returns 防抖后的函数
+ * @template T - Function type
+ * @param func - Function to debounce
+ * @param wait - Delay time in milliseconds
+ * @param immediate - Whether to execute immediately on first call (default: false)
+ * @returns Debounced function
  * 
  * @example
  * ```typescript
- * // 基础用法：搜索防抖
+ * // Basic usage: search debounce
  * const debouncedSearch = debounce((text: string) => {
  *   searchApi(text);
  * }, 300);
@@ -50,7 +50,7 @@
  *   debouncedSearch(e.target.value);
  * });
  * 
- * // 立即执行模式：按钮防连点
+ * // Immediate mode: prevent repeated button clicks
  * const debouncedClick = debounce(() => {
  *   submitForm();
  * }, 1000, true);
@@ -84,30 +84,29 @@ export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
 }
 
 /**
- * 带取消和刷新功能的防抖函数接口
+ * Cancelable debounced function interface
  * 
- * @template T 原函数类型
+ * @template T - Original function type
  */
 export interface DebouncedFunction<T extends (...args: Parameters<T>) => ReturnType<T>> {
-  /** 调用防抖函数 */
+  /** Call the debounced function */
   (...args: Parameters<T>): void;
-  /** 取消待执行的调用 */
+  /** Cancel pending invocation */
   cancel: () => void;
-  /** 立即执行待执行的调用 */
+  /** Immediately execute pending invocation */
   flush: () => void;
 }
 
 /**
- * 创建可取消的防抖函数
+ * Create a cancelable debounced function
  * 
- * 【功能说明】
- * 扩展版防抖函数，支持取消和立即刷新。
- * 适用于需要手动控制防抖行为的场景。
+ * Extended debounce function that supports cancel and immediate flush.
+ * Suitable for scenarios requiring manual control over debounce behavior.
  * 
- * @template T 函数类型
- * @param func 需要防抖的函数
- * @param wait 延迟时间（毫秒）
- * @returns 带取消功能的防抖函数
+ * @template T - Function type
+ * @param func - Function to debounce
+ * @param wait - Delay time in milliseconds
+ * @returns Cancelable debounced function
  * 
  * @example
  * ```typescript
@@ -115,15 +114,15 @@ export interface DebouncedFunction<T extends (...args: Parameters<T>) => ReturnT
  *   saveToServer(data);
  * }, 1000);
  * 
- * // 正常调用
+ * // Normal call
  * debouncedSave(formData);
  * 
- * // 组件卸载时取消
+ * // Cancel on component unmount
  * onUnmount(() => {
  *   debouncedSave.cancel();
  * });
  * 
- * // 离开页面前立即保存
+ * // Flush before leaving page
  * onBeforeUnload(() => {
  *   debouncedSave.flush();
  * });
@@ -180,36 +179,36 @@ export function debounceWithCancel<T extends (...args: Parameters<T>) => ReturnT
 }
 
 // ============================================================
-// 节流（Throttle）
+// Throttle
 // ============================================================
 
 /**
- * 节流函数
+ * Throttle function
  * 
- * 【功能说明】
- * 限制函数在指定时间内只能执行一次。
- * 适用于滚动事件、按钮点击等需要限制频率的场景。
+ * Limits a function to execute at most once within a specified time interval.
+ * Suitable for scenarios requiring frequency limiting such as scroll events
+ * and button clicks.
  * 
- * 【工作原理】
- * 1. 记录上次执行时间
- * 2. 如果距离上次执行超过限制时间，则执行函数
- * 3. 否则忽略本次调用
+ * How it works:
+ * 1. Records the last execution time
+ * 2. If elapsed time since last execution exceeds the limit, execute the function
+ * 3. Otherwise ignore the current call
  * 
- * @template T 函数类型
- * @param func 需要节流的函数
- * @param limit 时间限制（毫秒）
- * @returns 节流后的函数
+ * @template T - Function type
+ * @param func - Function to throttle
+ * @param limit - Time limit in milliseconds
+ * @returns Throttled function
  * 
  * @example
  * ```typescript
- * // 滚动事件节流
+ * // Scroll event throttle
  * const throttledScroll = throttle(() => {
  *   updateScrollIndicator();
  * }, 100);
  * 
  * window.addEventListener('scroll', throttledScroll);
  * 
- * // 按钮点击节流
+ * // Button click throttle
  * const throttledSubmit = throttle(() => {
  *   submitForm();
  * }, 2000);
@@ -233,23 +232,22 @@ export function throttle<T extends (...args: Parameters<T>) => ReturnType<T>>(
 }
 
 /**
- * 带尾调用的节流函数
+ * Throttle function with trailing call
  * 
- * 【功能说明】
- * 在节流期间的最后一次调用会在节流结束后执行。
- * 确保最终状态能够被正确更新。
+ * The last call during the throttle period will execute after throttle ends.
+ * Ensures the final state is correctly updated.
  * 
- * @template T 函数类型
- * @param func 需要节流的函数
- * @param limit 时间限制（毫秒）
- * @returns 节流后的函数
+ * @template T - Function type
+ * @param func - Function to throttle
+ * @param limit - Time limit in milliseconds
+ * @returns Throttled function
  * 
  * @example
  * ```typescript
- * // 拖拽事件：既要及时响应，又要确保最终位置正确
+ * // Drag event: responsive yet ensures final position is correct
  * const throttledDrag = throttleWithTrailing((position) => {
  *   updateElementPosition(position);
- * }, 16); // 约 60fps
+ * }, 16); // ~60fps
  * ```
  */
 export function throttleWithTrailing<T extends (...args: Parameters<T>) => ReturnType<T>>(
@@ -280,26 +278,25 @@ export function throttleWithTrailing<T extends (...args: Parameters<T>) => Retur
 }
 
 // ============================================================
-// 延迟（Delay）
+// Delay
 // ============================================================
 
 /**
- * 延迟执行
+ * Delay execution
  * 
- * 【功能说明】
- * 返回一个在指定时间后解决的 Promise。
- * 用于 async/await 语法中实现等待效果。
+ * Returns a Promise that resolves after a specified time.
+ * Used for implementing wait effects in async/await syntax.
  * 
- * @param ms 延迟时间（毫秒）
+ * @param ms - Delay time in milliseconds
  * @returns Promise<void>
  * 
  * @example
  * ```typescript
- * // 基础用法
+ * // Basic usage
  * await delay(1000);
- * console.log('1秒后执行');
+ * console.log('Executed after 1 second');
  * 
- * // 动画间隔
+ * // Animation intervals
  * for (const item of items) {
  *   await fadeIn(item);
  *   await delay(200);
@@ -311,23 +308,22 @@ export function delay(ms: number): Promise<void> {
 }
 
 /**
- * 带返回值的延迟
+ * Delay with return value
  * 
- * 【功能说明】
- * 延迟指定时间后返回指定的值。
- * 适用于需要延迟返回特定值的场景。
+ * Returns a specified value after a delay.
+ * Suitable for scenarios requiring delayed return of specific values.
  * 
- * @template T 返回值类型
- * @param ms 延迟时间（毫秒）
- * @param value 返回值
+ * @template T - Return value type
+ * @param ms - Delay time in milliseconds
+ * @param value - Return value
  * @returns Promise<T>
  * 
  * @example
  * ```typescript
- * // 延迟返回默认值
+ * // Delayed default value
  * const result = await delayWith(1000, { status: 'ready' });
  * 
- * // Promise.race 超时降级
+ * // Promise.race timeout fallback
  * const data = await Promise.race([
  *   fetchData(),
  *   delayWith(5000, defaultData),
@@ -339,37 +335,36 @@ export function delayWith<T>(ms: number, value: T): Promise<T> {
 }
 
 /**
- * 可取消延迟接口
+ * Cancelable delay interface
  */
 export interface CancelableDelay {
-  /** 延迟 Promise */
+  /** Delay Promise */
   promise: Promise<void>;
-  /** 取消延迟 */
+  /** Cancel the delay */
   cancel: () => void;
 }
 
 /**
- * 创建可取消的延迟
+ * Create a cancelable delay
  * 
- * 【功能说明】
- * 创建一个可以被手动取消的延迟。
- * 适用于需要中断等待的场景，如组件卸载时。
+ * Creates a delay that can be manually cancelled.
+ * Suitable for scenarios requiring interruption of waits, such as component unmount.
  * 
- * @param ms 延迟时间（毫秒）
- * @returns 可取消的延迟对象
+ * @param ms - Delay time in milliseconds
+ * @returns Cancelable delay object
  * 
  * @example
  * ```typescript
  * const { promise, cancel } = cancelableDelay(5000);
  * 
- * // 设置取消条件
+ * // Set cancel condition
  * button.onclick = cancel;
  * 
  * try {
  *   await promise;
- *   showMessage('操作完成');
+ *   showMessage('Operation completed');
  * } catch (e) {
- *   showMessage('操作已取消');
+ *   showMessage('Operation cancelled');
  * }
  * ```
  */
@@ -392,40 +387,39 @@ export function cancelableDelay(ms: number): CancelableDelay {
 }
 
 // ============================================================
-// 超时（Timeout）
+// Timeout
 // ============================================================
 
 /**
- * 带超时的 Promise 包装
+ * Promise wrapper with timeout
  * 
- * 【功能说明】
- * 为任意 Promise 添加超时限制，超时后抛出错误。
- * 适用于网络请求、长时间操作等需要超时控制的场景。
+ * Adds a timeout limit to any Promise; throws an error on timeout.
+ * Suitable for network requests, long-running operations requiring timeout control.
  * 
- * @template T Promise 解析类型
- * @param promise 原始 Promise
- * @param ms 超时时间（毫秒）
- * @param message 超时错误消息（可选）
+ * @template T - Promise resolution type
+ * @param promise - Original Promise
+ * @param ms - Timeout in milliseconds
+ * @param message - Timeout error message (optional)
  * @returns Promise<T>
- * @throws Error 超时时抛出错误
+ * @throws Error when timed out
  * 
  * @example
  * ```typescript
- * // API 请求超时
+ * // API request timeout
  * try {
  *   const data = await withTimeout(
  *     fetch('/api/data'),
  *     5000,
- *     '请求超时，请检查网络'
+ *     'Request timed out, please check network'
  *   );
  * } catch (e) {
- *   if (e.message.includes('超时')) {
+ *   if (e.message.includes('timed out')) {
  *     showRetryDialog();
  *   }
  * }
  * 
- * // 文件上传超时
- * await withTimeout(uploadFile(file), 60000, '上传超时');
+ * // File upload timeout
+ * await withTimeout(uploadFile(file), 60000, 'Upload timed out');
  * ```
  */
 export function withTimeout<T>(
@@ -447,21 +441,20 @@ export function withTimeout<T>(
 }
 
 // ============================================================
-// 调度（Scheduling）
+// Scheduling
 // ============================================================
 
 /**
- * 在下一个宏任务中执行
+ * Execute in next macro task
  * 
- * 【功能说明】
- * 将函数调度到下一个事件循环执行。
- * 类似于 Vue 的 nextTick，但更简单。
+ * Schedules a function for execution in the next event loop iteration.
+ * Similar to Vue's nextTick but simpler.
  * 
- * @param fn 要执行的函数
+ * @param fn - Function to execute
  * 
  * @example
  * ```typescript
- * // 确保 DOM 更新后执行
+ * // Ensure execution after DOM update
  * element.innerHTML = newContent;
  * nextTick(() => {
  *   element.querySelector('.new-element').focus();
@@ -473,25 +466,24 @@ export function nextTick(fn: () => void): void {
 }
 
 /**
- * 请求空闲回调（带降级）
+ * Request idle callback (with fallback)
  * 
- * 【功能说明】
- * 在浏览器空闲时执行任务，支持不兼容浏览器的降级处理。
- * 适用于低优先级的后台任务。
+ * Executes tasks during browser idle time with fallback for incompatible browsers.
+ * Suitable for low-priority background tasks.
  * 
- * @param fn 要执行的函数
- * @param options 配置选项
- * @param options.timeout 超时时间（毫秒）
- * @returns 请求 ID
+ * @param fn - Function to execute
+ * @param options - Configuration options
+ * @param options.timeout - Timeout in milliseconds
+ * @returns Request ID
  * 
  * @example
  * ```typescript
- * // 空闲时发送分析数据
+ * // Send analytics data during idle time
  * requestIdleCallback(() => {
  *   sendAnalytics(analyticsData);
  * }, { timeout: 5000 });
  * 
- * // 空闲时预加载资源
+ * // Preload resources during idle time
  * requestIdleCallback(() => {
  *   preloadNextPageResources();
  * });
@@ -504,6 +496,6 @@ export function requestIdleCallback(
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     return (window as Window & { requestIdleCallback: (cb: () => void, opts?: { timeout?: number }) => number }).requestIdleCallback(fn, options);
   }
-  // 降级到 setTimeout
+  // Fallback to setTimeout
   return setTimeout(fn, options?.timeout ?? 1) as unknown as number;
 }

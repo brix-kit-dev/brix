@@ -32,9 +32,9 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.brix.platform.gateway.dto.PluginRouteDTO;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import io.brix.platform.gateway.dto.PluginRouteDTO;
 
 /**
  * Gateway Route Configuration
@@ -194,31 +194,32 @@ public class GatewayRouteConfig {
         predicate.addArg("pattern", pluginRoute.getPath());
         definition.setPredicates(List.of(predicate));
 
-        // extract basePath beforefixandcreateRewritePath filter
-        // routepathformat: /api/platform/api/v1/users/register/**
-        // needstrip/api/platform beforefix，retainafteraspectofpathconvertsendgiveafter
+        // Extract the basePath prefix and create a RewritePath filter.
+        // Route path format: /api/platform/api/v1/users/register/**
+        // We need to strip the /api/platform prefix and forward only the trailing path
+        // segment to the downstream service.
         String path = pluginRoute.getPath();
         java.util.List<org.springframework.cloud.gateway.filter.FilterDefinition> filters = new java.util.ArrayList<>();
         
-        // checktestwhethercontainservicebeforefix（like /api/platform, /api/medical, /api/case
-        // thesebeforefixbyserviceof api-base-path configurationdetermine
+        // Detect whether the path contains a service prefix (e.g. /api/platform, /api/medical, /api/case).
+        // These prefixes are determined by each service's api-base-path configuration.
         java.util.regex.Pattern basePathPattern = java.util.regex.Pattern.compile("^(/api/[^/]+)(/.*)?$");
         java.util.regex.Matcher matcher = basePathPattern.matcher(path.replace("/**", ""));
         
         if (matcher.matches()) {
             String basePath = matcher.group(1);  //  /api/platform
-            // use RewritePath /api/platform/xxx rewrite/xxx
-            // regexexpressionneedconvertmeaning，Spring Cloud Gateway RewritePath use Java regex
+            // Use RewritePath to convert /api/platform/xxx -> /xxx.
+            // Spring Cloud Gateway's RewritePath uses Java regex syntax.
             org.springframework.cloud.gateway.filter.FilterDefinition rewriteFilter = new org.springframework.cloud.gateway.filter.FilterDefinition();
             rewriteFilter.setName("RewritePath");
-            // /api/platform(?<segment>.*) rewrite$\{segment}
+            // /api/platform(?<segment>.*) -> ${segment}
             String escapedBasePath = basePath.replace("/", "\\/");
             rewriteFilter.addArg("regexp", escapedBasePath + "(?<segment>.*)");
             rewriteFilter.addArg("replacement", "${segment}");
             filters.add(rewriteFilter);
             logger.debug("Added RewritePath filter: {} -> ${{segment}}", basePath);
         } else {
-            // nomethodidentify basePath beforefix，useStripPrefix=0 retaincompleteintegerpath
+            // Could not identify a basePath prefix - use StripPrefix=0 to keep the full path.
             org.springframework.cloud.gateway.filter.FilterDefinition stripPrefixFilter = new org.springframework.cloud.gateway.filter.FilterDefinition();
             stripPrefixFilter.setName("StripPrefix");
             stripPrefixFilter.addArg("parts", "0");

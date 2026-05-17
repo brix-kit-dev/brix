@@ -12,14 +12,14 @@
  * 2. Calls Repository 获取数据
  * 3. 向 View 层提供响应式Status和操作方法
  *
- * 【架构红线】
- * - Hooks 不直接访问 HttpCapability，通过 Repository 层
- * - Hooks 不包含 UI 渲染逻辑
+ * [Architecture Red Lines]
+ * - Hooks should not access HttpCapability directly, use Repository layer
+ * - Hooks should not contain UI rendering logic
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRuntimeContext } from '@brix/runtime-sdk-api-mobile';
-import type { <%= classPrefix %>, PagedResponse } from '@brix/<%= name %>-shared';
+import { useRuntimeContext } from '@brix-sdk/runtime-sdk-react';
+import type { <%= classPrefix %>, PagedResponse } from '@brix-sdk/<%= name %>-shared';
 import { create<%= classPrefix %>Repository } from '../repositories/<%= classPrefix %>Repository.js';
 
 // ============================================================================

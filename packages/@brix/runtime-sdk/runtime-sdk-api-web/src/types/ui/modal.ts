@@ -16,7 +16,7 @@
 /**
  * @file Modal Component Type Definitions
  * @description Defines types for the Modal component in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/modal
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/modal
  * @version 3.2.0
  */
 
@@ -180,6 +180,13 @@ export interface ModalProps {
    * Custom CSS Class Name
    */
   className?: string;
+
+  /**
+   * Test ID
+   *
+   * Data attribute for testing frameworks.
+   */
+  'data-testid'?: string;
 
   /**
    * Modal Content

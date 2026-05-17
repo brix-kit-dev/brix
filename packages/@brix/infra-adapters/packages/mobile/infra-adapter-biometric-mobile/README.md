@@ -1,10 +1,10 @@
-# @brix/infra-adapter-biometric-mobile
+# @brix-sdk/infra-adapter-biometric-mobile
 
 Biometric authentication adapter for Brix Runtime SDK Mobile platform.
 
 ## Overview
 
-This package provides a standalone biometric authentication capability for mobile applications built on the Brix Runtime SDK. It was extracted from `@brix/infra-adapter-device-mobile` to follow the Single Responsibility Principle and provide better modularity.
+This package provides a standalone biometric authentication capability for mobile applications built on the Brix Runtime SDK. It was extracted from `@brix-sdk/infra-adapter-device-mobile` to follow the Single Responsibility Principle and provide better modularity.
 
 ## Features
 
@@ -17,7 +17,7 @@ This package provides a standalone biometric authentication capability for mobil
 ## Installation
 
 ```bash
-pnpm add @brix/infra-adapter-biometric-mobile
+pnpm add @brix-sdk/infra-adapter-biometric-mobile
 ```
 
 ## Usage
@@ -26,7 +26,7 @@ pnpm add @brix/infra-adapter-biometric-mobile
 import {
   BiometricCapabilityAdapter,
   BiometricCapability,
-} from '@brix/infra-adapter-biometric-mobile';
+} from '@brix-sdk/infra-adapter-biometric-mobile';
 
 // Create adapter instance
 const biometric: BiometricCapability = new BiometricCapabilityAdapter();
@@ -88,35 +88,35 @@ if (availability.available && availability.enrolled) {
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Mobile Plugin Layer                      │
-│    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
-│    │  Booking    │  │  Identity   │  │  Payments   │       │
-│    │  Plugin     │  │  Plugin     │  │  Plugin     │       │
-│    └──────┬──────┘  └──────┬──────┘  └──────┬──────┘       │
-│           │                │                │              │
-│           ▼                ▼                ▼              │
-│    ┌─────────────────────────────────────────────────┐     │
-│    │         BiometricCapability Interface            │     │
-│    │  - checkAvailability()                          │     │
-│    │  - authenticate()                               │     │
-│    │  - getBiometricType()                           │     │
-│    └─────────────────────────────────────────────────┘     │
-│                           │                                │
-│                           ▼                                │
-│    ┌─────────────────────────────────────────────────┐     │
-│    │      BiometricCapabilityAdapter (this package)   │     │
-│    │  - Native module abstraction                    │     │
-│    │  - Platform-specific handling                   │     │
-│    │  - Error normalization                          │     │
-│    └─────────────────────────────────────────────────┘     │
-│                           │                                │
-│                           ▼                                │
-│    ┌─────────────────────────────────────────────────┐     │
-│    │           React Native Native Modules            │     │
-│    │   (react-native-biometrics, LocalAuthentication) │     │
-│    └─────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────�?
+�?                   Mobile Plugin Layer                      �?
+�?   ┌─────────────�? ┌─────────────�? ┌─────────────�?      �?
+�?   �? Booking    �? �? Identity   �? �? Payments   �?      �?
+�?   �? Plugin     �? �? Plugin     �? �? Plugin     �?      �?
+�?   └──────┬──────�? └──────┬──────�? └──────┬──────�?      �?
+�?          �?               �?               �?             �?
+�?          �?               �?               �?             �?
+�?   ┌─────────────────────────────────────────────────�?    �?
+�?   �?        BiometricCapability Interface            �?    �?
+�?   �? - checkAvailability()                          �?    �?
+�?   �? - authenticate()                               �?    �?
+�?   �? - getBiometricType()                           �?    �?
+�?   └─────────────────────────────────────────────────�?    �?
+�?                          �?                               �?
+�?                          �?                               �?
+�?   ┌─────────────────────────────────────────────────�?    �?
+�?   �?     BiometricCapabilityAdapter (this package)   �?    �?
+�?   �? - Native module abstraction                    �?    �?
+�?   �? - Platform-specific handling                   �?    �?
+�?   �? - Error normalization                          �?    �?
+�?   └─────────────────────────────────────────────────�?    �?
+�?                          �?                               �?
+�?                          �?                               �?
+�?   ┌─────────────────────────────────────────────────�?    �?
+�?   �?          React Native Native Modules            �?    �?
+�?   �?  (react-native-biometrics, LocalAuthentication) �?    �?
+�?   └─────────────────────────────────────────────────�?    �?
+└─────────────────────────────────────────────────────────────�?
 ```
 
 ## License

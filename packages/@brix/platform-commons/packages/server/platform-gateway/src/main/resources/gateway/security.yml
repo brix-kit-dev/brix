@@ -77,6 +77,7 @@ gateway:
     exposed-headers:
       - X-Trace-Id
       - X-Request-Id
+      - X-Tenant-Id
     # 是否允许携带凭证（Cookie、Authorization）
     allow-credentials: true
     # 预检请求缓存时间（秒）

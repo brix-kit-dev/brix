@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Plugin Loader Capability Interface
  * @description Abstracts plugin loading/rendering capabilities for dependency injection
- * @module @brix/runtime-sdk-api-web/types/plugin-loader-capability
+ * @module @brix-sdk/runtime-sdk-api-web/types/plugin-loader-capability
  * @version 3.2.0
  *
  * [v3.2.0 Added - D6 Fix]
@@ -30,9 +30,9 @@
  * - Supports different plugin loader implementations (MF, iframe, native, etc.)
  *
  * [Architectural Constraints]
- * ❌ Shell components directly importing specific loaders is prohibited
- * ❌ Tight coupling with Module Federation is prohibited
- * ✅ Obtain plugin loader through PluginLoaderCapability or usePluginLoader hook
+ * ? Shell components directly importing specific loaders is prohibited
+ * ? Tight coupling with Module Federation is prohibited
+ * ? Obtain plugin loader through PluginLoaderCapability or usePluginLoader hook
  */
 
 import type { ComponentType, ReactNode } from 'react';
@@ -96,7 +96,7 @@ export const PluginLoaderCapabilityType = Symbol.for('PluginLoaderCapability');
  * @example Host Registration
  * ```typescript
  * // In host-shell assembly
- * import { RemoteComponent } from '@brix/infra-adapter-mf-web';
+ * import { RemoteComponent } from '@brix-sdk/infra-adapter-mf-web';
  *
  * const pluginLoaderCapability: PluginLoaderCapability = {
  *   RemoteComponent,

@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Responsive Hook
  * @description Provides responsive breakpoint detection for Runtime SDK
- * @module @brix/runtime-sdk-react/hooks/useResponsive
+ * @module @brix-sdk/runtime-sdk-react/hooks/useResponsive
  * @version 3.2.0
  *
  * [Architecture Positioning]
@@ -30,7 +30,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import type { LayoutCapability, LayoutState } from '@brix/runtime-sdk-api-web';
+import type { LayoutCapability, LayoutState } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Responsive Hook Return Type
@@ -59,27 +59,27 @@ export interface UseResponsiveResult {
   isXs: boolean;
   
   /**
-   * Whether at small breakpoint (â‰¥576px)
+   * Whether at small breakpoint (¡Ý576px)
    */
   isSm: boolean;
   
   /**
-   * Whether at medium breakpoint (â‰¥768px)
+   * Whether at medium breakpoint (¡Ý768px)
    */
   isMd: boolean;
   
   /**
-   * Whether at large breakpoint (â‰¥992px)
+   * Whether at large breakpoint (¡Ý992px)
    */
   isLg: boolean;
   
   /**
-   * Whether at extra-large breakpoint (â‰¥1200px)
+   * Whether at extra-large breakpoint (¡Ý1200px)
    */
   isXl: boolean;
   
   /**
-   * Whether at extra-extra-large breakpoint (â‰¥1400px)
+   * Whether at extra-extra-large breakpoint (¡Ý1400px)
    */
   isXxl: boolean;
   

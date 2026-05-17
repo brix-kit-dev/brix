@@ -16,7 +16,7 @@
 /**
  * @file Badge Component Type Definitions
  * @description Defines types for the Badge component in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/badge
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/badge
  * @version 3.2.0
  */
 

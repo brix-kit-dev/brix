@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Plugin Loader
  * @description Plugin loading utilities for different module formats
- * @module @brix/runtime-orchestrator-web/plugin-loader
+ * @module @brix-sdk/runtime-orchestrator-web/plugin-loader
  * @version 3.0.0
  * 
  * Extracted from PluginManager.ts as part of v3.2 architecture refactoring
@@ -28,12 +28,12 @@
  * - cjs: CommonJS loading (placeholder)
  * - iife: IIFE loading (placeholder)
  * 
- * 【中文技术要点】
- * 插件加载器支持多种模块格式，推荐使用 ESM 动态导入。
- * script 方式通过全局变量 __BRIX_PLUGIN__ 暴露插件实例。
+ * �����ļ���Ҫ�㡿
+ * ���������֧�ֶ���ģ���ʽ���Ƽ�ʹ�� ESM ��̬���롣
+ * script ��ʽͨ��ȫ�ֱ��� __BRIX_PLUGIN__ ��¶���ʵ����
  */
 
-import type { PluginEntry, PluginLifecycle } from '@brix/runtime-sdk-api-web';
+import type { PluginEntry, PluginLifecycle } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Execute plugin loading
@@ -50,7 +50,9 @@ export async function executeLoad(entry: PluginEntry): Promise<PluginLifecycle> 
   // Execute loading based on loader type
   if (loader === 'esm') {
     // ESM dynamic import (recommended)
-    const module = await import(/* @vite-ignore */ entryPoint);
+    // webpackIgnore: true suppresses "Critical dependency: request is an expression" warning
+    // This is intentional for dynamic Module Federation plugin loading (v3.0.7 Blueprint)
+    const module = await import(/* webpackIgnore: true */ entryPoint);
     return module.default || module;
   } else if (loader === 'cjs') {
     // CommonJS loading (requires special handling)
@@ -72,9 +74,9 @@ export async function executeLoad(entry: PluginEntry): Promise<PluginLifecycle> 
  * Loads plugin by injecting a script tag into the document head.
  * Plugin must expose its instance via window.__BRIX_PLUGIN__ global variable.
  * 
- * 【中文技术要点】
- * 通过 script 标签加载插件，插件需要将实例暴露到 window.__BRIX_PLUGIN__。
- * 加载完成后自动清理全局变量，避免污染全局命名空间。
+ * �����ļ���Ҫ�㡿
+ * ͨ�� script ��ǩ���ز���������Ҫ��ʵ����¶�� window.__BRIX_PLUGIN__��
+ * ������ɺ��Զ�����ȫ�ֱ�����������Ⱦȫ�������ռ䡣
  * 
  * @param url - Script URL
  * @returns Plugin instance

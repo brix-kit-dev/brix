@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Biometric Capability Adapter
  * @description Standalone biometric authentication adapter for Brix Runtime SDK Mobile
- * @module @brix/infra-adapter-biometric-mobile
+ * @module @brix-sdk/infra-adapter-biometric-mobile
  * @version 3.1.0
  *
  * [Architecture Positioning]
@@ -34,9 +34,8 @@
  * - Native module abstraction
  * - Secure credential handling
  *
- * 【生物识别能力适配器】
- * 从 DeviceCapabilityAdapter 提取的独立生物识别认证适配器，
- * 提供指纹、面部识别等生物特征认证能力。
+ * Extracted from DeviceCapabilityAdapter as an independent biometric authentication module,
+ * providing fingerprint, face recognition and other biometric authentication capabilities.
  *
  * @author Brix Platform Authors
  * @since 3.1.0
@@ -171,9 +170,6 @@ export interface BiometricAuthOptions {
  * Biometric Capability Interface
  *
  * Defines the contract for biometric authentication capability.
- *
- * 【生物识别能力接口】
- * 定义生物识别认证能力的契约接口。
  */
 export interface BiometricCapability {
   /**
@@ -219,7 +215,7 @@ export interface BiometricCapability {
  *
  * @example
  * ```typescript
- * import { BiometricCapabilityAdapter } from '@brix/infra-adapter-biometric-mobile';
+ * import { BiometricCapabilityAdapter } from '@brix-sdk/infra-adapter-biometric-mobile';
  *
  * const biometric = new BiometricCapabilityAdapter();
  *
@@ -237,9 +233,6 @@ export interface BiometricCapability {
  * }
  * ```
  *
- * 【生物识别能力适配器实现】
- * 使用 React Native 原生模块实现 BiometricCapability 接口。
- * 抽象平台特定的生物识别实现，提供统一的认证 API。
  *
  * @author Brix Platform Authors
  * @since 3.1.0
@@ -247,7 +240,6 @@ export interface BiometricCapability {
 export class BiometricCapabilityAdapter implements BiometricCapability {
   /**
    * Native module reference (to be injected by Host layer)
-   * 原生模块引用（由 Host 层注入）
    * 
    * Note: Prefixed with underscore to indicate intentionally unused in placeholder.
    * Will be used when native module integration is implemented.
@@ -274,7 +266,6 @@ export class BiometricCapabilityAdapter implements BiometricCapability {
    */
   async checkAvailability(): Promise<BiometricAvailability> {
     // Placeholder implementation - requires native module integration
-    // 占位实现 - 需要原生模块集成
     console.warn(
       '[BiometricCapabilityAdapter] Biometric availability check requires Native integration. ' +
       'This placeholder returns a mock response.'
@@ -316,7 +307,6 @@ export class BiometricCapabilityAdapter implements BiometricCapability {
     }
 
     // Placeholder implementation - requires native module integration
-    // 占位实现 - 需要原生模块集成
     console.warn(
       `[BiometricCapabilityAdapter] Biometric authentication requires Native integration. ` +
       `Prompt: "${options.promptMessage}"`

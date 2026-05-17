@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ConfigCapabilityImpl } from './ConfigCapabilityImpl';
-import type { HttpCapability } from '@brix/runtime-sdk-api-web';
+import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
 
 // Mock HttpCapability
 const createMockHttpCapability = (mockConfig: Record<string, unknown> = {}): HttpCapability => ({

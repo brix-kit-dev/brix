@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file IframePluginLoader Unit Tests
  * @description Tests for the core functionality of the iframe plugin loader
- * @module @brix/infra-adapter-iframe-web/test
+ * @module @brix-sdk/infra-adapter-iframe-web/test
  * @version 3.2.0
  * 
  * [Test Coverage]

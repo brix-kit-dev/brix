@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Navigation Governance Policy
  * @description Implements permission checking and governance policies for navigation
- * @module @brix/platform-navigation-web/GovernancePolicy
+ * @module @brix-sdk/platform-navigation-web/GovernancePolicy
  * @version 3.0.0
  * 
  * [Architectural Notes]

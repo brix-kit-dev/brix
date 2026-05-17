@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Event Router
  * @description Responsible for event distribution, filtering, and routing
- * @module @brix/platform-eventbus-web/EventRouter
+ * @module @brix-sdk/platform-eventbus-web/EventRouter
  * @version 3.0.0
  * 
  * Architecture Overview:
@@ -30,7 +30,7 @@
  * - host: Cross-plugin propagation (default)
  */
 
-import type { GovernedEvent, GovernedEventHandler, Unsubscribe } from '@brix/runtime-sdk-api-web';
+import type { GovernedEvent, GovernedEventHandler, Unsubscribe } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Subscription information

@@ -1,0 +1,13 @@
+import React from 'react';
+import { useUI } from '@brix-sdk/runtime-sdk-react';
+import <%= classPrefix %>List from './pages/<%= classPrefix %>List';
+
+export default function App(): React.ReactElement {
+  const { ThemeProvider } = useUI();
+
+  return (
+    <ThemeProvider>
+      <<%= classPrefix %>List />
+    </ThemeProvider>
+  );
+}

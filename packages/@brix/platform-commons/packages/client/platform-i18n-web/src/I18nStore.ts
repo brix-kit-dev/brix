@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Internationalization Store
  * @description Manages internationalization state and translation resources
- * @module @brix/platform-i18n-web/I18nStore
+ * @module @brix-sdk/platform-i18n-web/I18nStore
  * @version 3.0.0
  * 
  * Design Notes:
@@ -39,7 +39,7 @@ import type {
   NumberFormatOptions,
   RelativeTimeFormatOptions,
   Unsubscribe,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Locale change listener
@@ -75,7 +75,7 @@ export interface I18nStoreConfig {
   
   /**
    * Storage key name
-   * @default 'shinwa:locale'
+   * @default 'brix:locale'
    */
   storageKey?: string;
   
@@ -174,7 +174,7 @@ export class I18nStore {
       defaultLocale: 'zh-CN',
       fallbackLocale: 'en-US',
       persist: true,
-      storageKey: 'shinwa:locale',
+      storageKey: 'brix:locale',
       ...config,
     };
     

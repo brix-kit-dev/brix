@@ -20,18 +20,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
@@ -110,7 +114,11 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     private final BlockingQueue<Object> eventHistory;
 
     /**
-     * Async executor
+     * Bounded async executor for event dispatching.
+     *
+     * <p>When async mode is enabled, events are dispatched using a bounded
+     * {@link ThreadPoolExecutor} with Core=2, Max=8, Queue=1024 and CallerRunsPolicy.
+     * This prevents unbounded thread creation under high event throughput.</p>
      */
     private final ExecutorService executor;
 
@@ -125,13 +133,39 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     private final int maxHistorySize;
 
     /**
+     * Micrometer meter registry for event metrics (R3.3).
+     * Optional — when {@code null}, metrics are not recorded.
+     *
+     * @since 3.2.0
+     */
+    private final MeterRegistry meterRegistry;
+
+    /** Counter metric name: total published events. */
+    private static final String METRIC_PUBLISHED_TOTAL = "brix.event.published.total";
+
+    /** Counter metric name: total consumed events. */
+    private static final String METRIC_CONSUMED_TOTAL = "brix.event.consumed.total";
+
+    /**
      * Creates an in-memory event bus (default configuration)
      * 
      * <p>Uses synchronous mode, retains last 1000 events in history.</p>
      */
     public InMemoryEventBusCapability() {
-        this(false, 1000);
+        this(false, 1000, null);
     }
+
+    /** Core thread pool size for async event dispatching. */
+    private static final int ASYNC_CORE_POOL_SIZE = 2;
+
+    /** Maximum thread pool size for async event dispatching. */
+    private static final int ASYNC_MAX_POOL_SIZE = 8;
+
+    /** Keep-alive time in seconds for idle threads beyond the core pool size. */
+    private static final long ASYNC_KEEP_ALIVE_SECONDS = 60L;
+
+    /** Bounded work queue capacity for async event dispatching tasks. */
+    private static final int ASYNC_QUEUE_CAPACITY = 1024;
 
     /**
      * Creates an in-memory event bus
@@ -140,18 +174,45 @@ public class InMemoryEventBusCapability implements EventBusCapability {
      * @param maxHistorySize Maximum event history size (0 means no retention)
      */
     public InMemoryEventBusCapability(boolean asyncMode, int maxHistorySize) {
+        this(asyncMode, maxHistorySize, null);
+    }
+
+    /**
+     * Creates an in-memory event bus with Micrometer support (R3.3).
+     *
+     * @param asyncMode      Whether to use async mode
+     * @param maxHistorySize Maximum event history size (0 means no retention)
+     * @param meterRegistry  Micrometer registry (optional, may be {@code null})
+     * @since 3.2.0
+     */
+    public InMemoryEventBusCapability(boolean asyncMode, int maxHistorySize, MeterRegistry meterRegistry) {
         this.asyncMode = asyncMode;
         this.maxHistorySize = maxHistorySize;
+        this.meterRegistry = meterRegistry;
         this.eventHistory = maxHistorySize > 0 
             ? new LinkedBlockingQueue<>(maxHistorySize) 
             : null;
-        this.executor = asyncMode 
-            ? Executors.newCachedThreadPool(r -> {
-                Thread t = new Thread(r, "inmemory-eventbus");
-                t.setDaemon(true);
-                return t;
-            }) 
-            : null;
+
+        // Phase 0.1 security fix: bounded thread pool prevents resource exhaustion.
+        // CallerRunsPolicy ensures no events are silently dropped when the queue is full.
+        if (asyncMode) {
+            AtomicInteger threadCounter = new AtomicInteger(0);
+            this.executor = new ThreadPoolExecutor(
+                ASYNC_CORE_POOL_SIZE,
+                ASYNC_MAX_POOL_SIZE,
+                ASYNC_KEEP_ALIVE_SECONDS,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(ASYNC_QUEUE_CAPACITY),
+                r -> {
+                    Thread t = new Thread(r, "inmemory-eventbus-" + threadCounter.getAndIncrement());
+                    t.setDaemon(true);
+                    return t;
+                },
+                new ThreadPoolExecutor.CallerRunsPolicy()
+            );
+        } else {
+            this.executor = null;
+        }
     }
 
     /**
@@ -171,6 +232,9 @@ public class InMemoryEventBusCapability implements EventBusCapability {
 
         // Record event history
         recordHistory(event);
+
+        // R3.3: Record publish metric
+        recordPublishMetric(event.getClass().getSimpleName(), "domain");
 
         // Get subscribers
         @SuppressWarnings("unchecked")
@@ -197,12 +261,32 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     @Override
     public void publishIntegration(IntegrationEvent event) {
         Objects.requireNonNull(event, "Integration event cannot be null");
+        ensureTraceId(event);
 
-        log.debug("Publishing integration event: type={}, eventId={}", 
-            event.getClass().getSimpleName(), event.getEventId());
+        // R3.6: Validate tenantId presence for integration events.
+        // In production, the Kafka adapter auto-populates from TenantContext.
+        // For the in-memory adapter (dev/test), we log a warning instead of
+        // throwing, to keep the local development experience frictionless.
+        if (event.getTenantId() == null || event.getTenantId().isBlank()) {
+            log.warn("Integration event published without tenantId: eventId={}, type={}. "
+                    + "In production, this would be auto-populated from TenantContext.",
+                    event.getEventId(), event.getClass().getSimpleName());
+        }
+
+        log.debug("Publishing integration event: type={}, eventId={}, tenantId={}", 
+            event.getClass().getSimpleName(), event.getEventId(), event.getTenantId());
+        log.info("event.published name={} sourcePlugin={} tenantId={} traceId={} eventId={}",
+            event.getEventType(),
+            event.getSourceModule(),
+            event.getTenantId(),
+            event.getTraceId(),
+            event.getEventId());
 
         // Record event history
         recordHistory(event);
+
+        // R3.3: Record publish metric
+        recordPublishMetric(event.getClass().getSimpleName(), "integration");
 
         // Get subscribers
         @SuppressWarnings("unchecked")
@@ -370,9 +454,51 @@ public class InMemoryEventBusCapability implements EventBusCapability {
     private <T> void invokeHandler(T event, Consumer<T> handler) {
         try {
             handler.accept(event);
+            // R3.3: Record consume success metric
+            if (meterRegistry != null) {
+                meterRegistry.counter(METRIC_CONSUMED_TOTAL,
+                        "eventType", event.getClass().getSimpleName()
+                ).increment();
+            }
+            if (event instanceof IntegrationEvent integrationEvent) {
+                log.info("event.consumed name={} sourcePlugin={} tenantId={} traceId={} eventId={}",
+                        integrationEvent.getEventType(),
+                        integrationEvent.getSourceModule(),
+                        integrationEvent.getTenantId(),
+                        integrationEvent.getTraceId(),
+                        integrationEvent.getEventId());
+            }
         } catch (Exception e) {
             log.error("Event handler execution failed: eventType={}, error={}", 
                 event.getClass().getSimpleName(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * Records an event publish metric (R3.3 compliance).
+     *
+     * @param eventType simple class name of the event
+     * @param category  "domain" or "integration"
+     * @since 3.2.0
+     */
+    private void recordPublishMetric(String eventType, String category) {
+        if (meterRegistry != null) {
+            meterRegistry.counter(METRIC_PUBLISHED_TOTAL,
+                    "eventType", eventType,
+                    "category", category
+            ).increment();
+        }
+    }
+
+    /**
+     * Ensures the integration event carries a traceId (P0-1 compliance).
+     * Resolution order: existing value → MDC traceId → random UUID.
+     */
+    private void ensureTraceId(IntegrationEvent event) {
+        if (event.getTraceId() != null && !event.getTraceId().isEmpty()) {
+            return;
+        }
+        String mdcTraceId = MDC.get("traceId");
+        event.setTraceId(mdcTraceId != null ? mdcTraceId : UUID.randomUUID().toString());
     }
 }

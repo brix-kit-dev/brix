@@ -2,7 +2,7 @@
  * @file Native SVG Icon Definitions
  * @description SVG path definitions for inline icons used in Native UI Adapter.
  *              All icons are from MUI (Material Design Icons) or similar open-source icon sets.
- * @module @brix/infra-adapter-ui-native/icons/svg-icons
+ * @module @brix-sdk/infra-adapter-ui-native/icons/svg-icons
  * @version 3.1.0
  *
  * [Design Principles]

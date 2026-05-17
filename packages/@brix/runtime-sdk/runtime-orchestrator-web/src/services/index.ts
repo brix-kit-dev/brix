@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Services Barrel Export
  * @description Export all service modules
- * @module @brix/runtime-orchestrator-web/services
+ * @module @brix-sdk/runtime-orchestrator-web/services
  */
 
 // Plugin Discovery

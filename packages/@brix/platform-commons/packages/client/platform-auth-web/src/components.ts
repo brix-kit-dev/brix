@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,24 +15,24 @@
  */
 /**
  * @file Re-export entry point for authentication UI components
- * @description Backward-compatible re-export from @brix/platform-auth-ui-web
- * @module @brix/platform-auth-web/components
+ * @description Backward-compatible re-export from @brix-sdk/platform-auth-ui-web
+ * @module @brix-sdk/platform-auth-web/components
  * @version 3.2.0
  * 
- * ã€æ¶æ„è¯´æ˜ Architecture Noteã€‘
- * v3.2 é‡‡ç”¨ä¸‰åŒ…åˆ†ç¦»æ¶æ„ï¼ŒUI ç»„ä»¶å®é™…å®šä¹‰åœ¨ @brix/platform-auth-ui-webã€‚
- * æœ¬æ–‡ä»¶æä¾›å‘åå…¼å®¹çš„é‡å¯¼å‡ºå…¥å£ã€‚
+ * ¡¾¼Ü¹¹ËµÃ÷ Architecture Note¡¿
+ * v3.2 ²ÉÓÃÈı°ü·ÖÀë¼Ü¹¹£¬UI ×é¼şÊµ¼Ê¶¨ÒåÔÚ @brix-sdk/platform-auth-ui-web¡£
+ * ±¾ÎÄ¼şÌá¹©Ïòºó¼æÈİµÄÖØµ¼³öÈë¿Ú¡£
  * 
- * In v3.2 architecture, UI components are defined in @brix/platform-auth-ui-web.
+ * In v3.2 architecture, UI components are defined in @brix-sdk/platform-auth-ui-web.
  * This file provides backward-compatible re-exports.
  * 
  * @example
  * ```typescript
  * // Legacy import (still works)
- * import { AuthGuard, LoginForm } from '@brix/platform-auth-web/components';
+ * import { AuthGuard, LoginForm } from '@brix-sdk/platform-auth-web/components';
  * 
  * // Recommended: import directly from sub-package
- * import { AuthGuard, LoginForm } from '@brix/platform-auth-ui-web';
+ * import { AuthGuard, LoginForm } from '@brix-sdk/platform-auth-ui-web';
  * ```
  */
 
@@ -53,4 +53,4 @@ export {
   type RegisterFormProps,
   type RegisterFormData,
   type RegisterFormResult,
-} from '@brix/platform-auth-ui-web';
+} from '@brix-sdk/platform-auth-ui-web';

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Configuration capability type definitions
  * @description Define core types for configuration management system
- * @module @brix/runtime-sdk-api-mobile/types/config
+ * @module @brix-sdk/runtime-sdk-api-mobile/types/config
  * @version 3.2.0
  *
  * [v3.2.0 Notes]

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Error code definitions
  * @description Cross-platform shared error code constants
- * @module @brix/platform-shared/constants/errors
+ * @module @brix-sdk/platform-shared/constants/errors
  * @version 3.0.0
  */
 

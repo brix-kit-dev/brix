@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file CapabilityAssembler Unit Tests
  * @description Test core functionality of the Capability Assembler
- * @module @brix/runtime-orchestrator-web/test
+ * @module @brix-sdk/runtime-orchestrator-web/test
  * @version 3.2.0
  * 
  * Test Coverage:
@@ -30,7 +30,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CapabilityAssembler, type CapabilityAssemblerConfig, type CapabilityFactory } from './CapabilityAssembler';
-import type { CapabilityType, CapabilityRegistry, CapabilityProvider } from '@brix/runtime-sdk-api-web';
+import type { CapabilityType, CapabilityRegistry, CapabilityProvider } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Mock Setup

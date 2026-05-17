@@ -1,7 +1,7 @@
 /**
  * @file Application Manifest Type Definitions
  * @description Defines complete types for application manifest and plugin manifest
- * @module @brix/runtime-manifest-web/types/Manifest
+ * @module @brix-sdk/runtime-manifest-web/types/Manifest
  * @version 3.0.0
  * 
  * [Design Notes]
@@ -17,7 +17,7 @@
  * using the same data structures to facilitate frontend-backend collaboration.
  */
 
-import type { PluginDependency } from '@brix/runtime-sdk-api-web';
+import type { PluginDependency } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Application Manifest
@@ -78,7 +78,7 @@ export interface AppMeta {
  * 
  * Contains plugin entry information and manifest-specific fields
  * 
- * [Note] This type is compatible with PluginEntry from @brix/runtime-sdk-shared,
+ * [Note] This type is compatible with PluginEntry from @brix-sdk/runtime-sdk-shared,
  * but defined as an independent type to avoid cross-package type reference issues.
  */
 export interface PluginManifest {

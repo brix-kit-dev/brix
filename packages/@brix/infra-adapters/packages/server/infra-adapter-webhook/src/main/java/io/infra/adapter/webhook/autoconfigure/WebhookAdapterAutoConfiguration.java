@@ -15,17 +15,19 @@
  */
 package io.infra.adapter.webhook.autoconfigure;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.infra.adapter.webhook.HttpWebhookEventBus;
-import io.infra.adapter.webhook.WebhookConfig;
-import io.infra.adapter.webhook.WebhookSignatureVerifier;
-import io.runtime.sdk.capability.EventBusCapability;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.infra.adapter.webhook.HttpWebhookEventBus;
+import io.infra.adapter.webhook.WebhookConfig;
+import io.infra.adapter.webhook.WebhookSignatureVerifier;
+import io.runtime.sdk.capability.EventBusCapability;
 
 /**
  * Webhook Adapter Auto-Configuration
@@ -108,7 +110,7 @@ public class WebhookAdapterAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)
-    public EventBusCapability webhookEventBus(
+    public HttpWebhookEventBus webhookEventBus(
             WebhookConfig config,
             ObjectMapper objectMapper) {
         return new HttpWebhookEventBus(config, objectMapper, null);

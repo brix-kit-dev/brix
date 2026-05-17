@@ -1,17 +1,13 @@
 /**
  * @file index.ts
- * @description @brix/infra-adapter-http-web package entry point
- * @module @brix/infra-adapter-http-web
+ * @description @brix-sdk/infra-adapter-http-web package entry point
+ * @module @brix-sdk/infra-adapter-http-web
  * @version 3.1.0
  * 
  * Brix Platform HTTP Infrastructure Adapter provides HTTP library-agnostic capabilities:
  * - Retry mechanism: Exponential backoff + random jitter
  * - Cache capability: TTL-based in-memory caching
  * - Error handling: Unified HTTP error representation
- * 
- * 【架构说明】
- * 本包属于 v3.0 架构的基础设施适配层(Layer 2.5)，提供与具体 HTTP 库解耦的通用能力。
- * 不依赖任何具体 HTTP 库（如 axios），可以与任何 HTTP 实现配合使用。
  * 
  * Architecture Position:
  * This package belongs to the infrastructure adapter layer (Layer 2.5) of v3.0 architecture,
@@ -25,7 +21,7 @@
  *   SimpleCache, 
  *   HttpError,
  *   calculateBackoffDelay 
- * } from '@brix/infra-adapter-http-web';
+ * } from '@brix-sdk/infra-adapter-http-web';
  * 
  * // Using retry
  * const result = await withRetry(
@@ -114,3 +110,16 @@ export {
   type HttpRequestInterceptor,
   type HttpResponseInterceptor,
 } from './HttpCapabilityImpl';
+
+// ============================================================
+// Built-in Response Interceptors (Stability Reform v1.0 — C-2)
+// ============================================================
+
+export {
+  createErrorEventInterceptor,
+  buildErrorPayload,
+  classifyHttpError,
+  extractServerErrorCode,
+  extractServerRequestId,
+  sanitizeUrlForTelemetry,
+} from './interceptors/error';

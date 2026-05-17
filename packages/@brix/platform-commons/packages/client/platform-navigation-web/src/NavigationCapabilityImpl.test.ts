@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,10 @@
 /**
  * @file NavigationCapabilityImpl Unit Tests
  * @description Tests for core functionality of the navigation capability implementation
- * @module @brix/platform-navigation-web/test
+ * @module @brix-sdk/platform-navigation-web/test
  * @version 3.2.0
  * 
- * „ÄêTest Coverage„Äë
+ * °æTest Coverage°ø
  * - requestNavigate(): Navigation requests, permission checks, URL building
  * - queryPageInfo(): Page information queries
  * - onPageChange(): Page change listeners
@@ -29,7 +29,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NavigationCapabilityImpl, type NavigationCapabilityConfig } from './NavigationCapabilityImpl';
-import type { NavigateResult, PageInfo, PageChangeHandler } from '@brix/runtime-sdk-api-web';
+import type { NavigateResult, PageInfo, PageChangeHandler } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Mock Types and Factories

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Theme Capability Type Definitions
  * @description Defines core types for the theme system, including theme mode, color configuration, theme switching, etc.
- * @module @brix/runtime-sdk-api-web/types/theme
+ * @module @brix-sdk/runtime-sdk-api-web/types/theme
  * @version 3.2.0
  *
  * [v3.2.0 Addition]
@@ -29,13 +29,14 @@
  * - Hardcoding color values in components is prohibited
  *
  * [Architectural Constraints]
- * ❌ Do not directly manipulate document.documentElement.style
- * ❌ Do not hardcode color values
- * ❌ Do not directly use localStorage to store theme preferences
- * ✅ Operate theme through ThemeCapability or useTheme hook
+ * ? Do not directly manipulate document.documentElement.style
+ * ? Do not hardcode color values
+ * ? Do not directly use localStorage to store theme preferences
+ * ? Operate theme through ThemeCapability or useTheme hook
  */
 
 import type { Unsubscribe } from './event';
+import type { DesignTokens } from './ui/design-tokens';
 
 // =========================================
 // Theme Mode
@@ -375,4 +376,48 @@ export interface ThemeCapability {
    * @returns Unsubscribe function
    */
   onThemeChange?(handler: ThemeChangeHandler): Unsubscribe;
+
+  // =========================================
+  // Design Tokens (v3.2.1 — Brix Semantic Tokens)
+  // =========================================
+
+  /**
+   * Get Complete Design Tokens (UI-Library-Agnostic)
+   *
+   * Returns the fully resolved Brix semantic design tokens for the current
+   * theme mode (light/dark). Tokens are automatically updated when the
+   * theme mode changes.
+   *
+   * <h3>Implementation Mechanism</h3>
+   * <p>ThemeCapabilityImpl delegates to the injected {@link DesignTokenResolver}.</p>
+   * <ul>
+   *   <li>MUI adapter injects MuiDesignTokenResolver</li>
+   *   <li>Native adapter injects NativeDesignTokenResolver</li>
+   * </ul>
+   *
+   * <h3>Usage Scenarios</h3>
+   * <ul>
+   *   <li>Plugin inline styles requiring platform colors/spacing/shape</li>
+   *   <li>Business semantic colors referencing platform tokens (e.g., statusDot using tokens.colors.status.error)</li>
+   *   <li>Responsive layouts using tokens.breakpoints</li>
+   * </ul>
+   *
+   * @returns Complete design tokens for the current resolved theme mode.
+   *          The returned object is frozen (shallow freeze) and readonly.
+   *
+   * @example
+   * ```typescript
+   * const theme = context.getCapability<ThemeCapability>(ThemeCapabilityType);
+   * const tokens = theme.getDesignTokens();
+   *
+   * // Use Brix semantic tokens instead of MUI palette
+   * element.style.backgroundColor = tokens.colors.surface.card;
+   * element.style.borderRadius = tokens.shape.md;
+   * element.style.padding = tokens.space.md;
+   * element.style.color = tokens.colors.text.primary;
+   * ```
+   *
+   * @since 3.2.1
+   */
+  getDesignTokens(): DesignTokens;
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Debounce and throttle utilities
  * @description Provides debounce and throttle functions
- * @module @brix/platform-shared/utils/debounce
+ * @module @brix-sdk/platform-shared/utils/debounce
  * @version 3.0.0
  */
 

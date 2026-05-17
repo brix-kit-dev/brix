@@ -17,6 +17,8 @@ package io.runtime.sdk.capability;
 
 import java.util.Map;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Observability Capability Contract
  * 
@@ -77,6 +79,7 @@ import java.util.Map;
  * @author Runtime SDK Team
  * @since 3.0.0
  */
+@Since("3.0.0")
 public interface ObservabilityCapability {
 
     /**

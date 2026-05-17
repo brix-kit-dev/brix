@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Authors
   ~
@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>infra-adapters</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -31,21 +31,21 @@
 
     <name>Brix Infra Adapter - Database</name>
     <description>
-        数据库能力适配器（开源）
+        Database Capability Adapter (Open Source)
         
-        本模块提供基于 HikariCP 的 DatabaseCapability 实现，包括：
-        - 配置驱动的多数据库厂商切换（PostgreSQL / Kingbase / MySQL / Oracle）
-        - HikariCP 连接池统一管理
-        - DatabaseDialect 方言抽象
-        - 多租户 Schema 隔离支持
+        Provides a HikariCP-based DatabaseCapability implementation, including:
+        - Configuration-driven multi-vendor switching (PostgreSQL / Kingbase / MySQL / Oracle)
+        - Unified HikariCP connection pool management
+        - DatabaseDialect abstraction
+        - Multi-tenant schema isolation support
         
-        命名规范：
-        - Maven GroupId: io.brix（品牌）
-        - Java Package: io.infra.adapter.database（中立）
+        Naming Convention:
+        - Maven GroupId: io.brix (brand)
+        - Java Package: io.infra.adapter.database (neutral)
         
-        属于开源平台层（Layer 2.5: Adapter 层）
+        Architecture Layer: Layer 2.5 - Adapter Layer (Open Source)
         
-        蓝图对照：v3.0.2 第 3.3.1 节「DatabaseCapability - 数据库能力」
+        Blueprint Reference: v3.0.2 Section 3.3.1 "DatabaseCapability"
     </description>
 
     <licenses>
@@ -56,16 +56,14 @@
     </licenses>
 
     <properties>
-        <runtime-sdk.version>3.0.0-SNAPSHOT</runtime-sdk.version>
         <hikaricp.version>5.1.0</hikaricp.version>
     </properties>
 
     <dependencies>
-        <!-- ========== Brix Runtime SDK API（开源核心层） ========== -->
+        <!-- ========== Brix Runtime SDK API (Open Source Core Layer) ========== -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>
-            <version>${runtime-sdk.version}</version>
         </dependency>
 
         <!-- ========== Spring Boot ========== -->
@@ -88,16 +86,44 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- ========== 数据库连接池 ========== -->
+        <!-- ========== Database Connection Pool ========== -->
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
+        </dependency>
+
+        <!-- ========== Micrometer (optional — for Prometheus metrics export) ========== -->
+        <!--
+            Phase 5.2: HikariCP pool metrics export to Prometheus.
+            Optional dependency: metrics exporter activates only when MeterRegistry
+            is on the classpath (provided by spring-boot-starter-actuator in Host layer).
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- ========== JDBC API ========== -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
+        </dependency>
+
+        <!-- ========== Flyway Database Migration ========== -->
+        <!--
+            Flyway is declared as optional since not all deployments require migration support.
+            Host layer includes this module and activates migration via configuration.
+        -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- ========== PostgreSQL 驱动（运行时可选） ========== -->
@@ -126,7 +152,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -6,14 +6,14 @@
 
     <groupId>io.brix</groupId>
     <artifactId>architecture-guard</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.2.0</version>
     <packaging>jar</packaging>
 
     <name>Brix Architecture Guard</name>
     <description>
-        共享 ArchUnit 架构约束规则库。
-        实现 v3.0 运行壳架构蓝图中定义的 8 条架构红线，
-        供所有业务模块以「一个文件即启用」方式引入。
+        Shared ArchUnit architecture constraint rule library.
+        Implements the 8 architecture guardrails defined in the v3.0 Runtime Shell Architecture Blueprint,
+        allowing all business modules to enable enforcement by including a single file.
     </description>
 
     <licenses>
@@ -32,7 +32,7 @@
     </properties>
 
     <dependencies>
-        <!-- ArchUnit 核心（编译时依赖，消费方以 test scope 引入本库即可） -->
+        <!-- ArchUnit core (compile scope; consumers include this library with test scope) -->
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
@@ -40,7 +40,7 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- JUnit 5（仅用于本库自身测试） -->
+        <!-- JUnit 5 (used only for this library's own tests) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

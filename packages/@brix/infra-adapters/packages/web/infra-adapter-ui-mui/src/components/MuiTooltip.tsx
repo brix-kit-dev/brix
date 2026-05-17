@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Tooltip Component
  * @description Material UI implementation of TooltipProps from UIAdapter contract.
  *              Informative text that appears on hover or focus.
- * @module @brix/infra-adapter-ui-mui/components/MuiTooltip
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiTooltip
  * @version 3.1.0
  *
  * [Design Principles]
@@ -32,7 +32,7 @@
  */
 
 import type { FC } from 'react';
-import type { TooltipProps, TooltipPlacement } from '@brix/runtime-sdk-api-web';
+import type { TooltipProps, TooltipPlacement } from '@brix-sdk/runtime-sdk-api-web';
 import Tooltip from '@mui/material/Tooltip';
 
 // ============================================================================

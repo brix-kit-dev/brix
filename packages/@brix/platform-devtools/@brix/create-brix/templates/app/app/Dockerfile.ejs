@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # <%= displayName %> Dockerfile
 # ==============================================================================
 # [v3.0 Architecture]
@@ -27,12 +27,12 @@ RUN java -Djarmode=layertools -jar application.jar extract
 FROM eclipse-temurin:21-jre-alpine
 
 LABEL maintainer="<%= author %>"
-LABEL description="<%= displayName %> - Shinwa Platform v3.0"
+LABEL description="<%= displayName %> - Brix Platform v3.0"
 LABEL version="<%= version %>"
 
 # 创建非 root 用户
-RUN addgroup -g 1001 shinwa && \
-    adduser -u 1001 -G shinwa -s /bin/sh -D shinwa
+RUN addgroup -g 1001 brix && \
+    adduser -u 1001 -G brix -s /bin/sh -D brix
 
 WORKDIR /app
 
@@ -43,10 +43,10 @@ COPY --from=builder /app/snapshot-dependencies/ ./
 COPY --from=builder /app/application/ ./
 
 # 设置文件所有者
-RUN chown -R shinwa:shinwa /app
+RUN chown -R brix:brix /app
 
 # 切换到非 root 用户
-USER shinwa
+USER brix
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Layout Capability Type Definitions
  * @description Defines core types for the layout system, including sidebar, header, fullscreen, and other layout controls
- * @module @brix/runtime-sdk-api-web/types/layout
+ * @module @brix-sdk/runtime-sdk-api-web/types/layout
  * @version 3.2.0
  *
  * [v3.2.0 Added]
@@ -28,10 +28,10 @@
  * - All requests go through governance policy checks
  *
  * [Architectural Constraints]
- * ❌ Directly manipulating document.body is prohibited
- * ❌ Creating global Portals to body is prohibited
- * ❌ Modifying global CSS (like overflow) is prohibited
- * ✅ Request layout changes through LayoutCapability or useLayout hook
+ * ? Directly manipulating document.body is prohibited
+ * ? Creating global Portals to body is prohibited
+ * ? Modifying global CSS (like overflow) is prohibited
+ * ? Request layout changes through LayoutCapability or useLayout hook
  */
 
 import type { Unsubscribe } from './event';
@@ -62,7 +62,7 @@ export type LayoutMode = 'console' | 'portal' | 'minimal';
  * [Note: Canonical Definition]
  * This is the canonical LayoutState for the runtime capability layer.
  * Shell layers may define their own simplified LayoutState with mutable fields
- * for local UI component state (e.g., shinwa-platform-shell-web/AppLayout.tsx).
+ * for local UI component state (e.g., brix-platform-shell-web/AppLayout.tsx).
  * Those are intentionally different as they serve different architectural layers.
  */
 export interface LayoutState {

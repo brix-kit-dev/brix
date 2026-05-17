@@ -99,7 +99,7 @@ public class SimpleAdapterAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(StateStoreCapability.class)
-    public StateStoreCapability stateStoreCapability(SimpleAdapterProperties properties) {
+    public InMemoryStateStoreCapability stateStoreCapability(SimpleAdapterProperties properties) {
         SimpleAdapterProperties.StateStoreConfig config = properties.getStateStore();
         
         log.info("Configuring in-memory state store: maxSize={}, defaultTtl={}", 

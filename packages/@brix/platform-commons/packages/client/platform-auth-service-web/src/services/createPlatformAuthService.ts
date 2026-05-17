@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Platform Authentication Service
  * @description Universal Authentication Service Factory - Handles login, registration, OAuth authentication, and more
- * @module @brix/platform-auth-web/services/createPlatformAuthService
+ * @module @brix-sdk/platform-auth-web/services/createPlatformAuthService
  * @version 3.1.0
  *
  * Architectural Description:
@@ -41,6 +41,8 @@ export interface AuthUser {
   name: string;
   avatar?: string;
   role: string;
+  roles?: string[];
+  permissions?: string[];
   provider?: 'local' | 'google' | 'apple' | 'microsoft';
 }
 
@@ -49,6 +51,22 @@ export interface LoginResult {
   user?: AuthUser;
   token?: string;
   error?: string;
+  /**
+   * Platform admin mode flag. When {@code true} the caller MUST redirect the
+   * user to the platform admin console instead of the default dashboard.
+   *
+   * @since 3.2.0
+   */
+  platformAdminMode?: boolean;
+  /**
+    * Optional redirect path. Set to the configured platform-admin home path when
+   * {@link platformAdminMode} is {@code true} so that navigation layers that
+   * consume {@code result.redirectTo} (e.g. createLoginPage) route platform
+   * admins to the admin console automatically.
+   *
+   * @since 3.2.0
+   */
+  redirectTo?: string;
 }
 
 export interface RegisterData {
@@ -78,10 +96,8 @@ export interface PlatformAuthServiceOptions {
   storageMode?: 'memory' | 'session' | 'cookie';
   /** OAuth configuration (provider => config) */
   oauthProviders?: Record<string, OAuthConfig>;
-  /** Development mode flag */
-  devMode?: boolean;
-  /** Mock user list (for development mode) */
-  mockUsers?: Array<AuthUser & { password: string }>;
+  /** Platform-admin landing path used when backend marks the login as platform-admin mode. */
+  platformAdminRedirectPath?: string;
 }
 
 // ============================================================================
@@ -166,7 +182,7 @@ function generateState(): string {
 // ============================================================================
 
 /**
- * 创建平台认证服务实例
+ * ����ƽ̨��֤����ʵ��
  *
  * @example
  * ```ts
@@ -184,28 +200,10 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
     apiBaseUrl = '/api',
     storageMode = 'memory',
     oauthProviders = {},
-    devMode = false,
+    platformAdminRedirectPath,
   } = options;
 
   const secureStorage = createSecureStorage(storageMode);
-
-  // Mock users (for development)
-  const mockUsers: Map<string, AuthUser & { password: string }> = new Map();
-  if (options.mockUsers) {
-    for (const u of options.mockUsers) {
-      mockUsers.set(u.username, u);
-    }
-  } else {
-    // Default mock users
-    mockUsers.set('admin', {
-      id: '1', username: 'admin', email: 'admin@example.com', phone: '13800138000',
-      password: 'admin', name: 'Administrator', role: 'admin', provider: 'local',
-    });
-    mockUsers.set('user', {
-      id: '2', username: 'user', email: 'user@example.com', phone: '13900139000',
-      password: 'user123', name: 'Regular User', role: 'user', provider: 'local',
-    });
-  }
 
   function saveAuthData(user: AuthUser, token: string, refreshToken?: string): void {
     secureStorage.setToken(token);
@@ -215,52 +213,38 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
     }
   }
 
-  function simulateLogin(account: string, password: string): LoginResult {
-    for (const [, u] of mockUsers) {
-      if (u.username === account || u.email === account || u.phone === account) {
-        if (u.password === password) {
-          const token = `mock_token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          const { password: _, ...userWithoutPassword } = u;
-          saveAuthData(userWithoutPassword, token);
-          return { success: true, user: userWithoutPassword, token };
-        }
-      }
-    }
-    return { success: false, error: 'Invalid username or password' };
-  }
-
-  function simulateRegister(data: RegisterData): RegisterResult {
-    if (mockUsers.has(data.username)) {
-      return { success: false, error: 'Username already registered' };
-    }
-    for (const user of mockUsers.values()) {
-      if (user.email === data.email) return { success: false, error: 'Email already registered' };
-      if (data.phone && user.phone === data.phone) return { success: false, error: 'Phone number already registered' };
-    }
-    const newUser: AuthUser & { password: string } = {
-      id: `${Date.now()}`, username: data.username, email: data.email,
-      phone: data.phone, password: data.password, name: data.username,
-      role: 'user', provider: 'local',
-    };
-    mockUsers.set(data.username, newUser);
-    const { password: _, ...userWithoutPassword } = newUser;
-    return { success: true, user: userWithoutPassword };
-  }
-
   return {
-    async login(username: string, password: string, rememberMe?: boolean): Promise<LoginResult> {
+    async login(username: string, password: string, _rememberMe?: boolean): Promise<LoginResult> {
       try {
-        if (devMode) return simulateLogin(username, password);
-
         const response = await fetch(`${apiBaseUrl}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, rememberMe }),
+          body: JSON.stringify({ loginId: username, password }),
         });
+
+        if (!response.ok) {
+          let errorDetail: string;
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.message || errorData.description || response.statusText;
+          } catch {
+            errorDetail = `${response.status} ${response.statusText}`;
+          }
+          return { success: false, error: errorDetail };
+        }
+
         const data = await response.json();
-        if (response.ok && data.success) {
+        if (data.success) {
           saveAuthData(data.user, data.token, data.refreshToken);
-          return { success: true, user: data.user, token: data.token };
+          return {
+            success: true,
+            user: data.user,
+            token: data.token,
+            platformAdminMode: data.platformAdminMode === true,
+            redirectTo: data.platformAdminMode === true
+              ? platformAdminRedirectPath
+              : data.redirectTo,
+          };
         }
         return { success: false, error: data.message || 'Login failed' };
       } catch (error) {
@@ -277,15 +261,26 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
         if (data.password.length < 6) {
           return { success: false, error: 'Password must be at least 6 characters' };
         }
-        if (devMode) return simulateRegister(data);
 
         const response = await fetch(`${apiBaseUrl}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
+
+        if (!response.ok) {
+          let errorDetail: string;
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.message || errorData.description || response.statusText;
+          } catch {
+            errorDetail = `${response.status} ${response.statusText}`;
+          }
+          return { success: false, error: errorDetail };
+        }
+
         const result = await response.json();
-        if (response.ok && result.success) {
+        if (result.success) {
           return { success: true, user: result.user };
         }
         return { success: false, error: result.message || 'Registration failed' };
@@ -305,14 +300,14 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
       const redirectUri = config.redirectUri || `${window.location.origin}/auth/callback/${provider}`;
 
       try {
-        // 通过后端获取授权 URL 和 state（state 会存入 StateStore/Redis）
+        // ͨ����˻�ȡ��Ȩ URL �� state��state ����� StateStore/Redis��
         const response = await fetch(
           `${apiBaseUrl}/v1/oauth2/${provider}/authorize?redirectUri=${encodeURIComponent(redirectUri)}`,
         );
 
         if (response.ok) {
           const data = await response.json();
-          // 后端返回 { authorizationUrl, state }
+          // ��˷��� { authorizationUrl, state }
           if (data.authorizationUrl && data.state) {
             sessionStorage.setItem('oauth_state', data.state);
             localStorage.setItem('oauth_state', data.state);
@@ -378,10 +373,25 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, redirectUri, state: savedState }),
         });
+
+        // Handle HTTP errors before JSON parsing - prevents SyntaxError on non-JSON error responses
+        // (e.g., 504 Gateway Timeout returns text body, not JSON)
+        if (!response.ok) {
+          let errorDetail: string;
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.message || errorData.description || response.statusText;
+          } catch {
+            errorDetail = `${response.status} ${response.statusText}`;
+          }
+          console.error('[Auth] OAuth callback server error:', response.status, errorDetail);
+          return { success: false, error: errorDetail };
+        }
+
         const data = await response.json();
 
-        if (response.ok && data.accessToken) {
-          // 映射 OAuth2AuthResult → AuthUser + LoginResult
+        if (data.accessToken) {
+          // ӳ�� OAuth2AuthResult �� AuthUser + LoginResult
           const user: AuthUser = {
             id: data.userId,
             username: data.username || data.email,
@@ -430,6 +440,25 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
       return secureStorage.getToken();
     },
 
+    /**
+     * Replace the active access token without going through the regular
+     * login flow. Used by Phase 2 / C-4 ViewMode capability when the
+     * platform admin switches between viewing perspectives — the backend
+     * issues a fresh JWT with new {@code tenant_id} / {@code original_sub}
+     * claims and the Host installs it via this entry point before
+     * triggering a reload.
+     *
+     * @param token the new JWT to install
+     * @since 3.3.0
+     */
+    setToken(token: string): void {
+      secureStorage.setToken(token);
+    },
+
+    installSession(user: AuthUser, token: string, refreshToken?: string): void {
+      saveAuthData(user, token, refreshToken);
+    },
+
     async refreshToken(): Promise<boolean> {
       const refreshToken = secureStorage.getRefreshToken();
       if (!refreshToken) return false;
@@ -441,10 +470,19 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
           body: JSON.stringify({ refreshToken }),
         });
         const data = await response.json();
-        if (response.ok && data.success) {
-          secureStorage.setToken(data.token);
-          if (data.refreshToken) {
+        const accessToken = typeof data.accessToken === 'string' && data.accessToken.length > 0
+          ? data.accessToken
+          : typeof data.token === 'string' && data.token.length > 0
+            ? data.token
+            : null;
+        const succeeded = data.success !== false;
+        if (response.ok && succeeded && accessToken) {
+          secureStorage.setToken(accessToken);
+          if (typeof data.refreshToken === 'string' && data.refreshToken.length > 0) {
             secureStorage.setRefreshToken(data.refreshToken);
+          }
+          if (data.user) {
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
           }
           return true;
         }

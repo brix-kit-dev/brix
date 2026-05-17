@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,14 @@
 /**
  * @file Configuration Store
  * @description In-memory configuration store with TTL support
- * @module @brix/platform-config-web/ConfigStore
+ * @module @brix-sdk/platform-config-web/ConfigStore
  * @version 3.1.0
  *
- * 【功能说明】
- * ConfigStore 是一个内存配置存储，支持：
- * 1. 嵌套键访问（点号分隔）
- * 2. TTL 过期机制
- * 3. 配置合并
+ * Overview:
+ * ConfigStore is an in-memory configuration store that supports:
+ * 1. Nested key access (dot-separated)
+ * 2. TTL expiration
+ * 3. Configuration merging
  */
 
 /**
@@ -32,21 +32,18 @@
 export interface ConfigStoreOptions {
   /**
    * Cache TTL in milliseconds
-   * 缓存 TTL（毫秒）
    * @default 300000 (5 minutes)
    */
   ttl?: number;
 
   /**
    * Initial configuration
-   * 初始配置
    */
   initialConfig?: Record<string, unknown>;
 }
 
 /**
  * Cache entry with expiration
- * 带过期时间的缓存条目
  */
 interface CacheEntry {
   /**
@@ -65,9 +62,9 @@ interface CacheEntry {
  *
  * In-memory configuration store with support for nested keys and TTL.
  *
- * 【存储结构】
- * 配置以扁平化键值对存储，支持点号分隔的嵌套访问
- * 例如：'api.baseUrl' -> { key: 'api.baseUrl', value: '/api/v1' }
+ * Storage Structure:
+ * Configuration is stored as flattened key-value pairs, supporting dot-separated nested access.
+ * Example: 'api.baseUrl' -> { key: 'api.baseUrl', value: '/api/v1' }
  *
  * Usage Example:
  * ```typescript
@@ -79,19 +76,16 @@ interface CacheEntry {
 export class ConfigStore {
   /**
    * Configuration cache
-   * 配置缓存
    */
   private readonly cache: Map<string, CacheEntry> = new Map();
 
   /**
    * Raw configuration object (for getAll)
-   * 原始配置对象（用于 getAll）
    */
   private configObject: Record<string, unknown> = {};
 
   /**
    * Default TTL
-   * 默认 TTL
    */
   private readonly defaultTtl: number;
 
@@ -113,9 +107,9 @@ export class ConfigStore {
    *
    * Supports dot-notation for nested keys.
    *
-   * 【键值解析逻辑】
-   * 1. 首先尝试直接匹配完整键
-   * 2. 如果没找到，尝试从原始对象中解析嵌套路径
+   * Key Resolution Logic:
+   * 1. First tries exact match on the full key
+   * 2. If not found, resolves nested path from the raw config object
    *
    * @typeParam T - Expected value type
    * @param key - Configuration key (supports dot notation)
@@ -207,8 +201,8 @@ export class ConfigStore {
    *
    * Deep merge new configuration into existing configuration.
    *
-   * 【合并策略】
-   * 深度合并：对象会递归合并，数组和原始值会被覆盖
+   * Merge Strategy:
+   * Deep merge: objects are merged recursively; arrays and primitives are overwritten
    *
    * @param config - Configuration to merge
    */

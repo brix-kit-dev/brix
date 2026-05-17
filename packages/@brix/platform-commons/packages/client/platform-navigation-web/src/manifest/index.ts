@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Manifest Module Index
  * @description Manifest-driven menu and routing aggregation module
- * @module @brix/platform-navigation-web/manifest
+ * @module @brix-sdk/platform-navigation-web/manifest
  * @version 3.0.0
  *
  * [Module Description]
@@ -32,7 +32,7 @@
 // ============================================================================
 
 export type {
-  // UI Manifest ç±»å‹
+  // UI Manifest ÀàĞÍ
   UIPluginManifest,
   PluginInfo,
   FederationConfig,
@@ -46,10 +46,10 @@ export type {
   DependencyConfig,
   DevServerConfig,
 
-  // Host é…ç½®ç±»å‹
+  // Host ÅäÖÃÀàĞÍ
   HostPluginConfig,
 
-  // èšåˆç»“æœç±»å‹
+  // ¾ÛºÏ½á¹ûÀàĞÍ
   AggregatedRoute,
   AggregatedMenu,
   PluginRuntimeConfig,

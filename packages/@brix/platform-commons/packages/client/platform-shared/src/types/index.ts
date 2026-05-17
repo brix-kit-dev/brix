@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Type definitions export
  * @description Export all shared type definitions
- * @module @brix/platform-shared/types
+ * @module @brix-sdk/platform-shared/types
  * @version 3.0.0
  */
 

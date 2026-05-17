@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file @brix/runtime-sdk-api-mobile unified entry
+ * @file @brix-sdk/runtime-sdk-api-mobile unified entry
  * @description UI capability contract definitions - React Native mobile platform (framework-agnostic)
- * @module @brix/runtime-sdk-api-mobile
+ * @module @brix-sdk/runtime-sdk-api-mobile
  * @version 3.2.0
  *
  * [Module Responsibilities]
@@ -41,7 +41,7 @@
  * - This module is a pure contract definition layer, containing no concrete implementations
  * - Framework-agnostic: Does not depend on React Native or other UI frameworks
  * - Plugins only need to depend on this module
- * - For React Native bindings, use @brix/runtime-sdk-react-native (Phase 2)
+ * - For React Native bindings, use @brix-sdk/runtime-sdk-react-native (Phase 2)
  *
  * [v3.2.0 Notes]
  * - Created mobile contract package based on runtime-sdk-api-web pattern

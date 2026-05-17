@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,36 +16,36 @@
 /**
  * @file Module Federation Plugin Loader
  * @description Implements PluginLoader interface, loads remote plugin modules based on Module Federation
- * @module @brix/infra-adapter-mf-web/MFPluginLoader
+ * @module @brix-sdk/infra-adapter-mf-web/MFPluginLoader
  * @version 3.0.0
  * 
- * 【Design Notes】
+ * Design Notes:
  * MFPluginLoader is the Module Federation implementation of PluginLoader interface.
  * As a UI adapter layer component in the v3.0 Runtime Shell architecture, responsible for:
  * 1. Dynamically loading remote plugin modules
  * 2. Managing plugin lifecycle
  * 3. Providing plugin caching and preloading
  * 
- * 【Architectural Position】
+ * Architectural Position:
  * ```
- * ┌─────────────────────────────────────┐
- * │  Host Layer (platform-host-web)    │
- * │  ↓ uses                            │
- * ├─────────────────────────────────────┤
- * │  Adapter Layer (infra-adapter-mf-web)│  ← This module
- * │  ↓ implements                       │
- * ├─────────────────────────────────────┤
- * │  Contract Layer (runtime-sdk-api-web)│
- * │  PluginLoader interface             │
- * └─────────────────────────────────────┘
+ * +----------------------------------------+
+ * |  Host Layer (platform-host-web)        |
+ * |  - uses                               |
+ * +----------------------------------------+
+ * |  Adapter Layer (infra-adapter-mf-web)  |  <-- This module
+ * |  - implements                          |
+ * +----------------------------------------+
+ * |  Contract Layer (runtime-sdk-api-web)  |
+ * |  PluginLoader interface               |
+ * +----------------------------------------+
  * ```
  * 
- * 【v3.0 Architectural Constraints】
+ * v3.0 Architectural Constraints:
  * - This loader is only for Host Layer use
  * - Plugins should not directly operate the loader
  * - All loading behaviors must be observable (for governance)
  * 
- * 【Backend Correspondence】
+ * Backend Correspondence:
  * Backend: PluginEngine loads Plugin JAR
  * Frontend: MFPluginLoader loads remote UI modules
  */
@@ -107,12 +107,12 @@ export interface MFPluginLoaderOptions {
  * Plugin loader implemented based on Module Federation technology.
  * Supports dynamic loading, caching, preloading, and error handling.
  * 
- * 【Use Cases】
+ * Use Cases:
  * - Product Mode (Full Product): Multiple plugins loaded in parallel
  * - Standalone Deployment: Plugins loaded from CDN
  * - Development Mode: Supports hot updates
  * 
- * 【Technical Requirements】
+ * Technical Requirements:
  * - Remote plugins need to use webpack 5+ or rspack's Module Federation plugin
  * - Remote entry needs to export remoteEntry.js
  * - Exposed modules need a default export (React component)
@@ -189,7 +189,7 @@ export class MFPluginLoader implements PluginLoader {
    * 
    * Load remote plugin module based on manifest configuration.
    * 
-   * 【Loading Flow】
+   * Loading Flow:
    * 1. Check cache, return directly if already loaded
    * 2. Check if loading, avoid duplicate requests
    * 3. Trigger onLoadStart callback

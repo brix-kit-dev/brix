@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,22 +17,25 @@
  * @file Native Theme Provider
  * @description Theme context provider implementing ThemeProviderProps from UIAdapter contract.
  *              Provides CSS custom properties for theme-aware styling.
- * @module @brix/infra-adapter-ui-native/theme/NativeThemeProvider
+ * @module @brix-sdk/infra-adapter-ui-native/theme/NativeThemeProvider
  * @version 3.1.0
  *
  * [Design Principles]
  * - Uses CSS custom properties for theme token injection
  * - Zero runtime overhead - pure CSS theming
  * - Supports light and dark theme modes
- * - Integrates with @brix/design-tokens color definitions
+ * - Integrates with @brix-sdk/platform-design-tokens color definitions
  */
 
 import { useMemo, type FC, type CSSProperties } from 'react';
-import type { ThemeProviderProps, ThemeTokens } from '@brix/runtime-sdk-api-web';
 import {
-  lightTheme as designLightTheme,
-  darkTheme as designDarkTheme,
-} from '@brix/design-tokens';
+  BRIX_LIGHT_THEME_TOKENS,
+  BRIX_DARK_THEME_TOKENS,
+} from '@brix-sdk/platform-design-tokens';
+import type {
+  ThemeProviderProps,
+  ThemeTokens,
+} from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Theme Token Definitions
@@ -41,88 +44,23 @@ import {
 /**
  * Light Theme Tokens
  *
- * <p>Complete MUI-compatible theme tokens for light mode.</p>
+ * <p>Native adapter light theme. Inherits all values from {@link BRIX_LIGHT_THEME_TOKENS}
+ * (single source of truth) with adapter-specific overrides for shape tokens.</p>
  */
 export const NATIVE_LIGHT_THEME_TOKENS: ThemeTokens = {
-  // Brand Colors
-  primary: designLightTheme.primary,
-  primaryLight: designLightTheme.primaryLight,
-  primaryDark: designLightTheme.primaryDark,
-  primaryContrastText: designLightTheme.primaryContrastText,
-  secondary: designLightTheme.secondary,
-  secondaryLight: designLightTheme.secondaryLight,
-  secondaryDark: designLightTheme.secondaryDark,
-  secondaryContrastText: designLightTheme.secondaryContrastText,
-
-  // Semantic Colors
-  error: designLightTheme.error,
-  warning: designLightTheme.warning,
-  info: designLightTheme.info,
-  success: designLightTheme.success,
-
-  // Neutral Colors
-  background: designLightTheme.background,
-  paper: designLightTheme.paper,
-  textPrimary: designLightTheme.textPrimary,
-  textSecondary: designLightTheme.textSecondary,
-  textDisabled: designLightTheme.textDisabled,
-  divider: designLightTheme.divider,
-
-  // Layout Colors
-  sidebarBackground: designLightTheme.sidebarBackground,
-  sidebarText: designLightTheme.sidebarText,
-  sidebarActiveBackground: designLightTheme.sidebarActiveBackground,
-  sidebarHoverBackground: designLightTheme.sidebarHoverBackground,
-  headerBackground: designLightTheme.headerBackground,
-  headerText: designLightTheme.headerText,
-
-  // Shape Tokens
-  borderRadiusSmall: 4,
-  borderRadiusMedium: 8,
+  ...BRIX_LIGHT_THEME_TOKENS,
+  // Adapter-specific overrides
   borderRadiusLarge: 16,
 };
 
 /**
  * Dark Theme Tokens
  *
- * <p>Complete MUI-compatible theme tokens for dark mode.</p>
+ * <p>Native adapter dark theme. Inherits from {@link BRIX_DARK_THEME_TOKENS}.</p>
  */
 export const NATIVE_DARK_THEME_TOKENS: ThemeTokens = {
-  // Brand Colors (adjusted for dark mode)
-  primary: designDarkTheme.primary,
-  primaryLight: designDarkTheme.primaryLight,
-  primaryDark: designDarkTheme.primaryDark,
-  primaryContrastText: designDarkTheme.primaryContrastText,
-  secondary: designDarkTheme.secondary,
-  secondaryLight: designDarkTheme.secondaryLight,
-  secondaryDark: designDarkTheme.secondaryDark,
-  secondaryContrastText: designDarkTheme.secondaryContrastText,
-
-  // Semantic Colors
-  error: designDarkTheme.error,
-  warning: designDarkTheme.warning,
-  info: designDarkTheme.info,
-  success: designDarkTheme.success,
-
-  // Neutral Colors
-  background: designDarkTheme.background,
-  paper: designDarkTheme.paper,
-  textPrimary: designDarkTheme.textPrimary,
-  textSecondary: designDarkTheme.textSecondary,
-  textDisabled: designDarkTheme.textDisabled,
-  divider: designDarkTheme.divider,
-
-  // Layout Colors
-  sidebarBackground: designDarkTheme.sidebarBackground,
-  sidebarText: designDarkTheme.sidebarText,
-  sidebarActiveBackground: designDarkTheme.sidebarActiveBackground,
-  sidebarHoverBackground: designDarkTheme.sidebarHoverBackground,
-  headerBackground: designDarkTheme.headerBackground,
-  headerText: designDarkTheme.headerText,
-
-  // Shape Tokens
-  borderRadiusSmall: 4,
-  borderRadiusMedium: 8,
+  ...BRIX_DARK_THEME_TOKENS,
+  // Adapter-specific overrides
   borderRadiusLarge: 16,
 };
 
@@ -158,7 +96,7 @@ export function getNativeThemeTokens(): ThemeTokens {
  *   <li>CSS custom property injection for theme tokens</li>
  *   <li>Light and dark theme modes</li>
  *   <li>Zero runtime overhead theming</li>
- *   <li>Integration with @brix/design-tokens</li>
+ *   <li>Integration with @brix-sdk/platform-design-tokens</li>
  * </ul>
  *
  * @example
@@ -218,11 +156,22 @@ export const NativeThemeProvider: FC<ThemeProviderProps> = ({
       '--brix-radius-medium': `${tokens.borderRadiusMedium}px`,
       '--brix-radius-large': `${tokens.borderRadiusLarge}px`,
 
+      // Sizing Tokens â€?Standardized Control Heights
+      '--brix-control-height-small': `${tokens.controlHeightSmall}px`,
+      '--brix-control-height-medium': `${tokens.controlHeightMedium}px`,
+      '--brix-control-height-large': `${tokens.controlHeightLarge}px`,
+
+      // Typography Tokens
+      '--brix-font-size-small': `${tokens.fontSizeSmall}px`,
+      '--brix-font-size-medium': `${tokens.fontSizeMedium}px`,
+      '--brix-font-size-large': `${tokens.fontSizeLarge}px`,
+      '--brix-font-family': tokens.fontFamily,
+
       // Base styles
       color: tokens.textPrimary,
       backgroundColor: tokens.background,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-      fontSize: '14px',
+      fontFamily: tokens.fontFamily,
+      fontSize: `${tokens.fontSizeMedium}px`,
       lineHeight: 1.5,
       minHeight: '100%',
     } as CSSProperties;

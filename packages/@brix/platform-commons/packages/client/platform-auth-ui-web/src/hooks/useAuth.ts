@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,57 +14,57 @@
  * limitations under the License.
  */
 /**
- * @file è®¤è¯ Hook
- * @description æä¾›è®¤è¯ç›¸å…³React Hooks
- * @module @brix/platform-auth-web/hooks/useAuth
+ * @file ÈÏÖ¤ Hook
+ * @description Ìá¹©ÈÏÖ¤Ïà¹ØReact Hooks
+ * @module @brix-sdk/platform-auth-web/hooks/useAuth
  * @version 3.0.0
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { AuthCapability, User, Tenant, AuthChangeEvent } from '@brix/runtime-sdk-api-web';
+import type { AuthCapability, User, Tenant, AuthChangeEvent } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
- * æ‰©å±•çš„è®¤è¯èƒ½åŠ›æŽ¥å£ï¼ˆç”¨äºŽ Feature Flag åŠŸèƒ½
+ * À©Õ¹µÄÈÏÖ¤ÄÜÁ¦½Ó¿Ú£¨ÓÃÓÚ Feature Flag ¹¦ÄÜ
  * 
- * ã€è¯´æ˜Ž
- * isFeatureEnabled æ˜¯å®žçŽ°å±‚çš„æ‰©å±•åŠŸèƒ½ï¼Œä¸åœ¨æ ¸å¿ƒå¥‘çº¦ä¸­
- * é€šè¿‡æŽ¥å£æ‰©å±•è€Œéžç›´æŽ¥å¼•ç”¨å®žçŽ°ç±»åž‹ï¼Œä¿æŒæž¶æž„åˆè§„
+ * ¡¾ËµÃ÷
+ * isFeatureEnabled ÊÇÊµÏÖ²ãµÄÀ©Õ¹¹¦ÄÜ£¬²»ÔÚºËÐÄÆõÔ¼ÖÐ
+ * Í¨¹ý½Ó¿ÚÀ©Õ¹¶ø·ÇÖ±½ÓÒýÓÃÊµÏÖÀàÐÍ£¬±£³Ö¼Ü¹¹ºÏ¹æ
  */
 interface AuthCapabilityExtended extends AuthCapability {
   isFeatureEnabled?: (key: string) => boolean;
 }
 
 /**
- * è®¤è¯ Hook è¿”å›ž
+ * ÈÏÖ¤ Hook ·µ»Ø
  */
 export interface UseAuthResult {
   /**
-   * å½“å‰ç”¨æˆ·
+   * µ±Ç°ÓÃ»§
    */
   user: User | null;
   
   /**
-   * æ˜¯å¦å·²è®¤
+   * ÊÇ·ñÒÑÈÏ
    */
   isAuthenticated: boolean;
   
   /**
-   * å½“å‰ç§Ÿæˆ·
+   * µ±Ç°×â»§
    */
   tenant: Tenant | null;
   
   /**
-   * æ£€æŸ¥æƒ
+   * ¼ì²éÈ¨
    */
   hasPermission: (permission: string) => boolean;
   
   /**
-   * æ£€æŸ¥è§’
+   * ¼ì²é½Ç
    */
   hasRole: (role: string) => boolean;
   
   /**
-   * èŽ·å– Token
+   * »ñÈ¡ Token
    */
   getToken: () => string | null;
   
@@ -118,32 +118,32 @@ export function useAuth(auth: AuthCapability): UseAuthResult {
         setUser(event.user);
       }
       
-      // æ›´æ–°ç§Ÿæˆ·
+      // ¸üÐÂ×â»§
       setTenant(auth.getCurrentTenant?.() ?? null);
     });
     
     return () => unsubscribe?.();
   }, [auth]);
   
-  // æ£€æŸ¥æƒé™ï¼ˆä½¿ç”¨ useCallback é¿å…é‡å¤åˆ›å»º
+  // ¼ì²éÈ¨ÏÞ£¨Ê¹ÓÃ useCallback ±ÜÃâÖØ¸´´´½¨
   const hasPermission = useCallback(
     (permission: string) => auth.hasPermission(permission),
     [auth]
   );
   
-  // æ£€æŸ¥è§’
+  // ¼ì²é½Ç
   const hasRole = useCallback(
     (role: string) => auth.hasRole(role),
     [auth]
   );
   
-  // èŽ·å– Token
+  // »ñÈ¡ Token
   const getToken = useCallback(
     () => auth.getToken(),
     [auth]
   );
   
-  // æ£€Feature Flagï¼ˆæ‰©å±•åŠŸèƒ½ï¼Œé€šè¿‡æŽ¥å£æ£€æŸ¥å¯é€‰æ–¹æ³•ï¼‰
+  // ¼ìFeature Flag£¨À©Õ¹¹¦ÄÜ£¬Í¨¹ý½Ó¿Ú¼ì²é¿ÉÑ¡·½·¨£©
   const isFeatureEnabled = useCallback(
     (key: string) => {
       const extAuth = auth as AuthCapabilityExtended;
@@ -154,7 +154,7 @@ export function useAuth(auth: AuthCapability): UseAuthResult {
     [auth]
   );
   
-  // è®¡ç®—æ˜¯å¦å·²è®¤
+  // ¼ÆËãÊÇ·ñÒÑÈÏ
   const isAuthenticated = useMemo(
     () => auth.isAuthenticated(),
     [auth, user]

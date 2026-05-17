@@ -17,12 +17,16 @@ package io.infra.adapter.kafka.config;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -41,6 +45,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.infra.adapter.kafka.EventTopicResolver;
 import io.infra.adapter.kafka.KafkaEventBusCapability;
 import io.infra.adapter.kafka.health.KafkaHealthIndicator;
+import io.infra.adapter.kafka.metrics.KafkaConsumerMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.runtime.sdk.capability.EventBusCapability;
 
 /**
@@ -52,16 +58,16 @@ import io.runtime.sdk.capability.EventBusCapability;
  * <h3>Configuration Items</h3>
  * <table border="1">
  *   <tr><th>Configuration</th><th>Description</th><th>Default</th></tr>
- *   <tr><td>shinwa.runtime.kafka.enabled</td><td>Whether to enable</td><td>true</td></tr>
- *   <tr><td>shinwa.runtime.kafka.bootstrap-servers</td><td>Kafka address</td><td>localhost:9092</td></tr>
- *   <tr><td>shinwa.runtime.kafka.topic-prefix</td><td>Topic prefix</td><td></td></tr>
- *   <tr><td>shinwa.runtime.module-id</td><td>Current module ID</td><td>unknown</td></tr>
+ *   <tr><td>brix.runtime.kafka.enabled</td><td>Whether to enable</td><td>true</td></tr>
+ *   <tr><td>brix.runtime.kafka.bootstrap-servers</td><td>Kafka address</td><td>localhost:9092</td></tr>
+ *   <tr><td>brix.runtime.kafka.topic-prefix</td><td>Topic prefix</td><td></td></tr>
+ *   <tr><td>brix.runtime.module-id</td><td>Current module ID</td><td>unknown</td></tr>
  * </table>
  * 
  * <h3>Conditional Assembly</h3>
  * <ul>
  *   <li>Requires KafkaTemplate class to be present (spring-kafka dependency)</li>
- *   <li>Configured shinwa.runtime.kafka.enabled=true (default)</li>
+ *   <li>Configured brix.runtime.kafka.enabled=true (default)</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team
@@ -175,20 +181,28 @@ public class KafkaAutoConfiguration {
      * Configure EventBusCapability implementation.
      * 
      * <p>This is the core capability implementation Bean, modules obtain this implementation through RuntimeContext.</p>
+     *
+     * <p>The {@code tenantIdProvider} is injected optionally.  When {@code platform-common}
+     * is on the classpath, its auto-configuration registers a
+     * {@code Supplier<Optional<String>>} bean backed by {@code TenantContext}.
+     * If absent (e.g., in a pure unit-test setup), the adapter falls back to requiring
+     * callers to set tenantId on events explicitly.</p>
      * 
-     * @param kafkaTemplate Kafka template
-     * @param topicResolver Topic resolver
-     * @param objectMapper  JSON serializer
-     * @param moduleId      Current module ID
+     * @param kafkaTemplate    Kafka template
+     * @param topicResolver    Topic resolver
+     * @param moduleId         Current module ID
+     * @param tenantIdProvider Optional tenant ID supplier from platform-common
      * @return EventBusCapability instance
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)
-    public EventBusCapability kafkaEventBusCapability(
+    public KafkaEventBusCapability kafkaEventBusCapability(
             KafkaTemplate<String, String> kafkaTemplate,
             EventTopicResolver topicResolver,
-            @Value("${brix.infra.module-id:unknown}") String moduleId) {
-        return new KafkaEventBusCapability(kafkaTemplate, topicResolver, createEventObjectMapper(), moduleId);
+            @Value("${brix.infra.module-id:unknown}") String moduleId,
+            @Autowired(required = false) Supplier<Optional<String>> tenantIdProvider) {
+        return new KafkaEventBusCapability(
+                kafkaTemplate, topicResolver, createEventObjectMapper(), moduleId, tenantIdProvider);
     }
 
     /**
@@ -206,6 +220,25 @@ public class KafkaAutoConfiguration {
             KafkaAdmin kafkaAdmin,
             KafkaEventBusProperties properties) {
         return new KafkaHealthIndicator(kafkaAdmin, properties.getHealth().getTimeoutSeconds());
+    }
+
+    /**
+     * Configures consumer-side Micrometer metrics for event observability.
+     *
+     * <p>Activates only when a {@link MeterRegistry} bean is present (typically via
+     * {@code spring-boot-starter-actuator}). Provides counters for consumed events,
+     * retry attempts, and dead-letter queue routing — fulfilling Architecture Red
+     * Line 3 (all cross-plugin communication must be observable).</p>
+     *
+     * @param meterRegistry the Micrometer meter registry
+     * @return KafkaConsumerMetrics instance
+     * @since 3.2.0
+     */
+    @Bean
+    @ConditionalOnBean(MeterRegistry.class)
+    @ConditionalOnMissingBean(KafkaConsumerMetrics.class)
+    public KafkaConsumerMetrics kafkaConsumerMetrics(MeterRegistry meterRegistry) {
+        return new KafkaConsumerMetrics(meterRegistry);
     }
 
 }

@@ -259,6 +259,27 @@ public class RedisStateStoreCapability implements StateStoreCapability {
         return Boolean.TRUE.equals(exists);
     }
 
+    @Override
+    public boolean putIfAbsent(String key, Object value, Duration ttl) {
+        Objects.requireNonNull(key, "key cannot be null");
+        Objects.requireNonNull(value, "value cannot be null");
+        Objects.requireNonNull(ttl, "ttl cannot be null");
+
+        if (ttl.isNegative()) {
+            throw new IllegalArgumentException("ttl cannot be negative");
+        }
+
+        String fullKey = buildKey(key);
+
+        try {
+            String json = objectMapper.writeValueAsString(value);
+            Boolean stored = redisTemplate.opsForValue().setIfAbsent(fullKey, json, ttl);
+            return Boolean.TRUE.equals(stored);
+        } catch (JsonProcessingException e) {
+            throw new StateStoreException("State store serialization failed: " + key, e);
+        }
+    }
+
     /**
      * Gets and removes value (atomic operation).
      * 

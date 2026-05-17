@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Avatar Component
  * @description Material UI implementation of AvatarProps from UIAdapter contract.
  *              User avatar with image, fallback, and icon support.
- * @module @brix/infra-adapter-ui-mui/components/MuiAvatar
+ * @module @brix-sdk/infra-adapter-ui-mui/components/MuiAvatar
  * @version 3.1.0
  *
  * [Design Principles]
@@ -32,7 +32,7 @@
  */
 
 import type { FC } from 'react';
-import type { AvatarProps, ComponentSize, AvatarShape } from '@brix/runtime-sdk-api-web';
+import type { AvatarProps, ComponentSize, AvatarShape } from '@brix-sdk/runtime-sdk-api-web';
 import Avatar from '@mui/material/Avatar';
 import { MuiIcon } from '../icons/MuiIcon';
 

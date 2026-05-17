@@ -1,0 +1,72 @@
+{
+  "name": "@brix-sdk/brix",
+  "version": "3.2.0",
+  "description": "Brix Platform SDK - One package for all Brix capabilities (Firebase v9 style)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks.d.ts",
+      "import": "./dist/hooks.js",
+      "default": "./dist/hooks.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/runtime-sdk-react": "workspace:*",
+    "@brix-sdk/runtime-manifest-web": "workspace:*",
+    "@brix-sdk/runtime-orchestrator-web": "workspace:*",
+    "@brix-sdk/shared-runtime-web": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "keywords": [
+    "brix",
+    "sdk",
+    "runtime",
+    "platform",
+    "micro-frontend",
+    "module-federation",
+    "plugin"
+  ],
+  "author": "Brix Platform Authors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/brix.git",
+    "directory": "packages/@brix/brix"
+  },
+  "homepage": "https://brix-platform.github.io/brix",
+  "publishConfig": {
+    "access": "public"
+  }
+}

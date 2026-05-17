@@ -16,16 +16,16 @@
 /**
  * @file Configuration HTTP Client
  * @description Fetches configuration from backend via HttpCapability
- * @module @brix/platform-config-web/ConfigHttpClient
+ * @module @brix-sdk/platform-config-web/ConfigHttpClient
  * @version 3.1.0
  *
- * 【架构约束】
- * - 不直接调用 fetch/axios，必须通过 HttpCapability
- * - 支持插件作用域的配置获取
- * - 自动处理认证头（由 HttpCapability 注入）
+ * Architectural Constraints:
+ * - Must not call fetch/axios directly; must go through HttpCapability
+ * - Supports plugin-scoped configuration retrieval
+ * - Auth headers are handled automatically (injected by HttpCapability)
  */
 
-import type { HttpCapability } from '@brix/runtime-sdk-api-web';
+import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Configuration HTTP Client Options
@@ -33,26 +33,22 @@ import type { HttpCapability } from '@brix/runtime-sdk-api-web';
 export interface ConfigHttpClientOptions {
   /**
    * HTTP Capability instance
-   * HTTP 能力实例
    */
   httpCapability: HttpCapability;
 
   /**
    * Configuration API endpoint
-   * 配置 API 端点
    * @default '/api/v1/config'
    */
   endpoint?: string;
 
   /**
    * Plugin ID for scoped configuration
-   * 插件 ID，用于获取作用域配置
    */
   pluginId?: string;
 
   /**
    * Request timeout in milliseconds
-   * 请求超时时间（毫秒）
    * @default 10000
    */
   timeout?: number;
@@ -60,7 +56,6 @@ export interface ConfigHttpClientOptions {
 
 /**
  * Configuration Response from Backend
- * 后端配置响应结构
  */
 export interface ConfigResponse {
   /**
@@ -84,10 +79,10 @@ export interface ConfigResponse {
  *
  * Fetches configuration from backend API using HttpCapability.
  *
- * 【请求流程】
- * 1. 构建请求 URL（包含插件 ID 参数）
- * 2. 通过 HttpCapability 发送 GET 请求
- * 3. 解析响应并返回配置数据
+ * Request Flow:
+ * 1. Build request URL (with plugin ID parameter)
+ * 2. Send GET request via HttpCapability
+ * 3. Parse response and return configuration data
  *
  * Usage Example:
  * ```typescript
@@ -137,9 +132,9 @@ export class ConfigHttpClient {
   /**
    * Fetch configuration from backend
    *
-   * 【请求参数】
-   * - pluginId: 插件 ID（可选，用于获取插件专属配置）
-   * - scope: 配置作用域（global/plugin）
+   * Request Parameters:
+   * - pluginId: Plugin ID (optional, for fetching plugin-specific config)
+   * - scope: Configuration scope (global/plugin)
    *
    * @returns Configuration data
    * @throws Error if fetch fails
@@ -150,7 +145,7 @@ export class ConfigHttpClient {
       const url = this.buildUrl();
 
       // Fetch configuration via HttpCapability
-      // HttpCapability 会自动注入认证头和处理错误
+      // HttpCapability automatically injects auth headers and handles errors
       const response = await this.httpCapability.get<ConfigResponse>(url, {
         timeout: this.timeout,
         headers: {
@@ -172,7 +167,6 @@ export class ConfigHttpClient {
 
       return {};
     } catch (error) {
-      console.error('[ConfigHttpClient] Failed to fetch configuration:', error);
       throw new ConfigFetchError(
         `Failed to fetch configuration from ${this.endpoint}`,
         error,
@@ -206,10 +200,6 @@ export class ConfigHttpClient {
 
       return {};
     } catch (error) {
-      console.error(
-        `[ConfigHttpClient] Failed to fetch plugin configuration for ${pluginId}:`,
-        error,
-      );
       throw new ConfigFetchError(
         `Failed to fetch plugin configuration for ${pluginId}`,
         error,
@@ -222,8 +212,8 @@ export class ConfigHttpClient {
    *
    * Used for efficient polling - only fetch full config if version changed.
    *
-   * 【版本检查优化】
-   * 用于高效轮询 - 仅在版本变化时获取完整配置
+   * Version Check Optimization:
+   * Used for efficient polling - only fetches full config when version changes
    *
    * @returns Current configuration version, or null if not available
    */
@@ -270,7 +260,6 @@ export class ConfigHttpClient {
 
 /**
  * Configuration Fetch Error
- * 配置获取错误
  */
 export class ConfigFetchError extends Error {
   /**

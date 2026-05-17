@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file prompts.ts
  * @description Interactive Prompts
- * @module @brix/create-brix
+ * @module @brix-sdk/create-brix
  * @version 3.0
  * 
  * v3.0 Changes:
  * - Added collectAppConfig / confirmAppConfig functions
- * - Support for v3.0 business application module (shinwa-app-*) creation
+ * - Support for v3.0 business application module (app-*) creation
  */
 
 import inquirer from 'inquirer';
@@ -44,14 +44,14 @@ import {
  * Version unified to 1.0.0-SNAPSHOT (development stage)
  */
 const AVAILABLE_PLUGINS: PluginDependency[] = [
-  { name: 'plugin-user', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-user-core' },
-  { name: 'plugin-contract', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-contract-core' },
-  { name: 'plugin-file-center', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-file-center-core' },
-  { name: 'plugin-notification', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-notification-core' },
-  { name: 'plugin-partner-catalog', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-partner-catalog-core' },
-  { name: 'plugin-service-package', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-service-package-core' },
-  { name: 'plugin-medical-intake', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-medical-intake-core' },
-  { name: 'plugin-risk-compliance', version: '1.0.0-SNAPSHOT', groupId: 'com.shinwa.plugin', artifactId: 'plugin-risk-compliance-core' },
+  { name: 'plugin-user', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-user-core' },
+  { name: 'plugin-contract', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-contract-core' },
+  { name: 'plugin-file-center', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-file-center-core' },
+  { name: 'plugin-notification', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-notification-core' },
+  { name: 'plugin-partner-catalog', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-partner-catalog-core' },
+  { name: 'plugin-service-package', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-service-package-core' },
+  { name: 'plugin-medical-intake', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-medical-intake-core' },
+  { name: 'plugin-risk-compliance', version: '1.0.0-SNAPSHOT', groupId: 'io.brix.plugin', artifactId: 'plugin-risk-compliance-core' },
 ];
 
 /**
@@ -143,7 +143,7 @@ export async function collectPluginConfig(
       type: 'input',
       name: 'author',
       message: 'Author:',
-      default: 'Shinwa Team',
+      default: 'Brix Team',
     },
     {
       type: 'confirm',
@@ -246,24 +246,24 @@ export async function collectPluginConfig(
  * Confirm plugin configuration
  */
 export async function confirmConfig(config: PluginConfig): Promise<boolean> {
-  console.log(chalk.cyan('\n📋 Configuration Confirmation:'));
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.cyan('\n?? Configuration Confirmation:'));
+  console.log(chalk.gray('��'.repeat(50)));
   console.log(`  Name: ${chalk.yellow(config.name)}`);
   console.log(`  Display Name: ${config.displayName}`);
   console.log(`  Description: ${config.description}`);
   console.log(`  Flyway Prefix: ${chalk.yellow(config.flywayPrefix)}`);
   console.log(`  Modules:`);
-  console.log(`    - Core: ${chalk.green('✓')}`);
-  console.log(`    - API: ${config.withApi ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - Web: ${config.withWeb ? chalk.green('✓') + chalk.gray(` (port: ${config.webPort})`) : chalk.gray('✗')}`);
-  console.log(`    - Mobile: ${config.withMobile ? chalk.green('✓') : chalk.gray('✗')}`);
+  console.log(`    - Core: ${chalk.green('?')}`);
+  console.log(`    - API: ${config.withApi ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - Web: ${config.withWeb ? chalk.green('?') + chalk.gray(` (port: ${config.webPort})`) : chalk.gray('?')}`);
+  console.log(`    - Mobile: ${config.withMobile ? chalk.green('?') : chalk.gray('?')}`);
   console.log(`  Features:`);
-  console.log(`    - Flyway: ${config.includeFlyway ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - Kafka: ${config.includeKafka ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - Outbox: ${config.includeOutbox ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - Multi-tenant: ${config.includeTenantSupport ? chalk.green('✓') : chalk.gray('✗')}`);
+  console.log(`    - Flyway: ${config.includeFlyway ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - Kafka: ${config.includeKafka ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - Outbox: ${config.includeOutbox ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - Multi-tenant: ${config.includeTenantSupport ? chalk.green('?') : chalk.gray('?')}`);
   console.log(`  Output Directory: ${config.outputDir}`);
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.gray('��'.repeat(50)));
 
   const { confirmed } = await inquirer.prompt([
     {
@@ -320,11 +320,11 @@ export async function collectServiceConfig(
     return {
       name: serviceName,
       javaPackageName,
-      fullName: `shinwa-service-${serviceName}`,
+      fullName: `brix-service-${serviceName}`,
       displayName: `${serviceName} Service`,
       description: 'Brix Platform Service',
       port: options?.port || 8080,
-      author: 'Shinwa Team',
+      author: 'Brix Team',
       version: '1.0.0-SNAPSHOT',
       outputDir: options?.outputDir || '.',
       plugins,
@@ -332,8 +332,8 @@ export async function collectServiceConfig(
       withK8s: options?.withK8s ?? false,
       baseUrl: 'http://localhost:8900',
       heartbeatInterval: '30s',
-      apiKey: '${SHINWA_SERVICE_API_KEY:platform-service-key}',
-      apiSecret: '${SHINWA_SERVICE_API_SECRET:platform-service-secret}',
+      apiKey: '${BRIX_SERVICE_API_KEY:platform-service-key}',
+      apiSecret: '${BRIX_SERVICE_API_SECRET:platform-service-secret}',
     };
   }
 
@@ -341,7 +341,7 @@ export async function collectServiceConfig(
     {
       type: 'input',
       name: 'name',
-      message: 'Service name (without shinwa-service- prefix):',
+      message: 'Service name (without brix-service- prefix):',
       default: name,
       validate: (input: string) => {
         if (!/^[a-z][a-z0-9-]*$/.test(input)) {
@@ -394,7 +394,7 @@ export async function collectServiceConfig(
       type: 'input',
       name: 'author',
       message: 'Author:',
-      default: 'Shinwa Team',
+      default: 'Brix Team',
     },
     {
       type: 'confirm',
@@ -441,7 +441,7 @@ export async function collectServiceConfig(
   return {
     name: serviceName,
     javaPackageName,
-    fullName: `shinwa-service-${serviceName}`,
+    fullName: `brix-service-${serviceName}`,
     displayName: answers.displayName,
     description: answers.description,
     port: options?.port || answers.port || 8080,
@@ -453,8 +453,8 @@ export async function collectServiceConfig(
     withK8s: options?.withK8s ?? answers.withK8s ?? false,
     baseUrl: answers.baseUrl || 'http://localhost:8900',
     heartbeatInterval: '30s',
-    apiKey: '${SHINWA_SERVICE_API_KEY:platform-service-key}',
-    apiSecret: '${SHINWA_SERVICE_API_SECRET:platform-service-secret}',
+    apiKey: '${BRIX_SERVICE_API_KEY:platform-service-key}',
+    apiSecret: '${BRIX_SERVICE_API_SECRET:platform-service-secret}',
   };
 }
 
@@ -462,8 +462,8 @@ export async function collectServiceConfig(
  * Confirm service configuration
  */
 export async function confirmServiceConfig(config: ServiceConfig): Promise<boolean> {
-  console.log(chalk.cyan('\n📋 Configuration Confirmation:'));
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.cyan('\n?? Configuration Confirmation:'));
+  console.log(chalk.gray('��'.repeat(50)));
   console.log(`  Service Name: ${chalk.yellow(config.fullName)}`);
   console.log(`  Display Name: ${config.displayName}`);
   console.log(`  Description: ${config.description}`);
@@ -477,10 +477,10 @@ export async function confirmServiceConfig(config: ServiceConfig): Promise<boole
       console.log(`    - ${chalk.green(p.name)}`);
     });
   }
-  console.log(`  Docker: ${config.withDocker ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`  Kubernetes: ${config.withK8s ? chalk.green('✓') : chalk.gray('✗')}`);
+  console.log(`  Docker: ${config.withDocker ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`  Kubernetes: ${config.withK8s ? chalk.green('?') : chalk.gray('?')}`);
   console.log(`  Output Directory: ${config.outputDir}`);
-  console.log(chalk.gray('─'.repeat(50)));
+  console.log(chalk.gray('��'.repeat(50)));
 
   const { confirmed } = await inquirer.prompt([
     {
@@ -504,17 +504,17 @@ export async function confirmServiceConfig(config: ServiceConfig): Promise<boole
  * Used to automatically assign dev ports for new modules
  */
 const ALLOCATED_WEB_PORTS: Record<string, number> = {
-  'booking': 3031,      // shinwa-app-booking
-  'identity': 3032,     // shinwa-app-identity  
-  'messenger': 3033,    // shinwa-app-messenger
-  'carousel': 3034,     // shinwa-app-carousel
-  'partners': 3035,     // shinwa-app-partners
-  'products': 3036,     // shinwa-app-products
-  'storage': 3037,      // shinwa-app-storage
-  'contracts': 3038,    // shinwa-app-contracts
-  'workflow': 3039,     // shinwa-app-workflow
-  'intake': 3040,       // shinwa-app-intake
-  'compliance': 3041,   // shinwa-app-compliance
+  'booking': 3031,      // app-booking
+  'identity': 3032,     // app-identity  
+  'messenger': 3033,    // app-messenger
+  'carousel': 3034,     // app-carousel
+  'partners': 3035,     // app-partners
+  'products': 3036,     // app-products
+  'storage': 3037,      // app-storage
+  'contracts': 3038,    // app-contracts
+  'workflow': 3039,     // app-workflow
+  'intake': 3040,       // app-intake
+  'compliance': 3041,   // app-compliance
 };
 
 /**
@@ -571,11 +571,11 @@ export async function collectAppConfig(
     
     return {
       name,
-      fullName: `shinwa-app-${name}`,
+      fullName: `app-${name}`,
       displayName: `${name.charAt(0).toUpperCase()}${name.slice(1)} Module`,
       description: 'Brix Platform v3.0 Business Application Module',
       moduleType: 'business',
-      author: 'Shinwa Team',
+      author: 'Brix Team',
       version: '3.0.0-SNAPSHOT',
       outputDir: options.outputDir || '.',
       withApi: options.withApi ?? true,
@@ -611,8 +611,8 @@ export async function collectAppConfig(
         if (!/^[a-z][a-z0-9-]*$/.test(input)) {
           return 'Name can only contain lowercase letters, numbers, and hyphens, starting with a letter';
         }
-        if (input.startsWith('shinwa-')) {
-          return 'Do not include shinwa- prefix, it will be added automatically';
+        if (input.startsWith('brix-')) {
+          return 'Do not include brix- prefix, it will be added automatically';
         }
         return true;
       },
@@ -647,7 +647,7 @@ export async function collectAppConfig(
       type: 'input',
       name: 'author',
       message: 'Author:',
-      default: 'Shinwa Team',
+      default: 'Brix Team',
     },
     {
       type: 'confirm',
@@ -802,7 +802,7 @@ export async function collectAppConfig(
 
   return {
     name: appName,
-    fullName: `shinwa-app-${appName}`,
+    fullName: `app-${appName}`,
     displayName: answers.displayName,
     description: answers.description,
     moduleType: answers.moduleType || 'business',
@@ -840,23 +840,23 @@ export async function collectAppConfig(
  * @returns Promise<boolean> Whether user confirmed
  */
 export async function confirmAppConfig(config: AppConfig): Promise<boolean> {
-  console.log(chalk.cyan('\n📋 Business Application Configuration Confirmation (v3.0.4 Architecture):'));
-  console.log(chalk.gray('─'.repeat(60)));
+  console.log(chalk.cyan('\n?? Business Application Configuration Confirmation (v3.0.4 Architecture):'));
+  console.log(chalk.gray('��'.repeat(60)));
   console.log(`  Application Name: ${chalk.yellow(config.fullName)}`);
   console.log(`  Display Name: ${config.displayName}`);
   console.log(`  Description: ${config.description}`);
   console.log(`  Module Type: ${chalk.cyan(config.moduleType)}`);
   console.log(`  Startup Priority: ${config.startupOrder}`);
   console.log(`  Module Structure (Backend):`);
-  console.log(`    - API:    ${config.withApi ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - Core:   ${config.withCore ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - Server: ${config.withServer ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - App:    ${config.withApp ? chalk.green('✓') : chalk.gray('✗')}`);
+  console.log(`    - API:    ${config.withApi ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - Core:   ${config.withCore ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - Server: ${config.withServer ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - App:    ${config.withApp ? chalk.green('?') : chalk.gray('?')}`);
   console.log(`  Module Structure (Frontend):`);
-  console.log(`    - Shared:    ${config.withShared ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`    - UI Web:    ${config.withUiWeb || config.withUi ? chalk.green('✓') + chalk.gray(` (Port: ${config.webPort})`) : chalk.gray('✗')}`);
-  console.log(`    - UI Mobile: ${config.withUiMobile ? chalk.green('✓') + chalk.gray(` (Port: ${config.mobilePort})`) : chalk.gray('✗')}`);
-  console.log(`  Contract Testing (Pact): ${config.withPact ? chalk.green('✓') : chalk.gray('✗')}`);
+  console.log(`    - Shared:    ${config.withShared ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`    - UI Web:    ${config.withUiWeb || config.withUi ? chalk.green('?') + chalk.gray(` (Port: ${config.webPort})`) : chalk.gray('?')}`);
+  console.log(`    - UI Mobile: ${config.withUiMobile ? chalk.green('?') + chalk.gray(` (Port: ${config.mobilePort})`) : chalk.gray('?')}`);
+  console.log(`  Contract Testing (Pact): ${config.withPact ? chalk.green('?') : chalk.gray('?')}`);
   console.log(`  Required Capabilities:`);
   if (config.requiredCapabilities.length === 0) {
     console.log(`    ${chalk.gray('(None)')}`);
@@ -873,10 +873,10 @@ export async function confirmAppConfig(config: AppConfig): Promise<boolean> {
       console.log(`    - ${chalk.blue(cap)}`);
     });
   }
-  console.log(`  Docker: ${config.withDocker ? chalk.green('✓') : chalk.gray('✗')}`);
-  console.log(`  Kubernetes: ${config.withK8s ? chalk.green('✓') : chalk.gray('✗')}`);
+  console.log(`  Docker: ${config.withDocker ? chalk.green('?') : chalk.gray('?')}`);
+  console.log(`  Kubernetes: ${config.withK8s ? chalk.green('?') : chalk.gray('?')}`);
   console.log(`  Output Directory: ${config.outputDir}`);
-  console.log(chalk.gray('─'.repeat(60)));
+  console.log(chalk.gray('��'.repeat(60)));
 
   const { confirmed } = await inquirer.prompt([
     {
@@ -896,13 +896,13 @@ export async function confirmAppConfig(config: AppConfig): Promise<boolean> {
  * @param config Application configuration
  */
 export function printAppConfigSummary(config: AppConfig): void {
-  console.log(chalk.cyan('\n📋 Configuration Summary (Non-interactive Mode - v3.0 Architecture):'));
-  console.log(chalk.gray('─'.repeat(60)));
+  console.log(chalk.cyan('\n?? Configuration Summary (Non-interactive Mode - v3.0 Architecture):'));
+  console.log(chalk.gray('��'.repeat(60)));
   console.log(`  Application Name: ${chalk.yellow(config.fullName)}`);
   console.log(`  Module Type: ${chalk.cyan(config.moduleType)}`);
   console.log(`  Module Structure: API=${config.withApi}, Core=${config.withCore}, UI=${config.withUi}, App=${config.withApp}`);
   if (config.withUi) {
     console.log(`  Web Port: ${config.webPort}`);
   }
-  console.log(chalk.gray('─'.repeat(60)));
+  console.log(chalk.gray('��'.repeat(60)));
 }

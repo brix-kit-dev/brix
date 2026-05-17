@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
  * @file Native UI Adapter
  * @description Complete UIAdapter implementation using pure CSS components.
  *              No external UI library dependencies (MUI, Ant Design, etc.).
- * @module @brix/infra-adapter-ui-native/adapter
- * @version 3.1.0
+ * @module @brix-sdk/infra-adapter-ui-native/adapter
+ * @version 3.2.0
  *
  * [Design Principles]
  * - Zero third-party UI library dependencies
@@ -26,35 +26,82 @@
  * - Full UIAdapter contract compliance
  * - Theme support via CSS custom properties
  *
- * [Architectural Position - v3.0.4 Blueprint]
+ * [Architectural Position - v3.0.8 Blueprint]
  * This adapter is selected at Host layer configuration and provides atomic components
  * for Shell layer layout assembly. It implements the UIAdapter interface defined in
- * @brix/runtime-sdk-api-web.
+ * @brix-sdk/runtime-sdk-api-web.
  *
- * [Component Summary]
- * - Form Components: NativeButton, NativeInput, NativeSelect
- * - Display Components: NativeCard, NativeAvatar, NativeBadge, NativeTooltip
- * - Navigation Components: NativeMenu, NativeMenuItem
- * - Feedback Components: NativeModal, nativeMessageAPI
+ * [Component Summary - v3.2.0]
+ * - Layout Components: NativeBox, NativeStack, NativePaper, NativeDivider
+ * - Typography: NativeTypography
+ * - Form Components: NativeButton, NativeInput, NativeSelect, NativeCheckbox,
+ *                    NativeSwitch, NativeRadio, NativeRadioGroup, NativeForm, NativeFormItem
+ * - Data Display: NativeCard, NativeAvatar, NativeBadge, NativeTooltip, NativeTable,
+ *                 NativeTag, NativeList, NativeListItem, NativeEmpty, NativePagination
+ * - Navigation Components: NativeMenu, NativeMenuItem, NativeTabs, NativeTabPane, NativeBreadcrumb
+ * - Feedback Components: NativeModal, nativeMessageAPI, NativeAlert, NativeSpin, NativeProgress
+ * - Container Components: NativeDrawer, NativeCollapse, NativeCollapsePanel, NativePopover
  * - Theme System: NativeThemeProvider, getNativeThemeTokens
  * - Icon System: NativeIcon
  */
 
-import type { UIAdapter } from '@brix/runtime-sdk-api-web';
+import type { UIAdapter } from '@brix-sdk/runtime-sdk-api-web';
 
-// Component imports
+// Form Component Imports
 import { NativeButton } from './components/NativeButton';
 import { NativeInput } from './components/NativeInput';
 import { NativeSelect } from './components/NativeSelect';
+import { NativeCheckbox } from './components/NativeCheckbox';
+import { NativeSwitch } from './components/NativeSwitch';
+import { NativeRadio, NativeRadioGroup } from './components/NativeRadio';
+import { NativeForm, NativeFormItem } from './components/NativeForm';
+
+// Layout Component Imports
+import { NativeBox } from './components/NativeBox';
+import { NativeStack } from './components/NativeStack';
+import { NativePaper } from './components/NativePaper';
+import { NativeDivider } from './components/NativeDivider';
+
+// Typography Import
+import { NativeTypography } from './components/NativeTypography';
+
+// Data Display Component Imports
 import { NativeCard } from './components/NativeCard';
 import { NativeAvatar } from './components/NativeAvatar';
 import { NativeBadge } from './components/NativeBadge';
 import { NativeTooltip } from './components/NativeTooltip';
+import { NativeTable } from './components/NativeTable';
+import { NativeTag } from './components/NativeTag';
+import { NativeList, NativeListItem } from './components/NativeList';
+import { NativeEmpty } from './components/NativeEmpty';
+import { NativePagination } from './components/NativePagination';
+
+// Navigation Component Imports
 import { NativeMenu } from './components/NativeMenu';
 import { NativeMenuItem } from './components/NativeMenuItem';
+import { NativeTabs, NativeTabPane } from './components/NativeTabs';
+import { NativeBreadcrumb } from './components/NativeBreadcrumb';
+import { NativeSteps } from './components/NativeSteps';
+
+// Feedback Component Imports
 import { NativeModal } from './components/NativeModal';
 import { nativeMessageAPI } from './components/NativeMessage';
+import { NativeAlert } from './components/NativeAlert';
+import { NativeSpin } from './components/NativeSpin';
+import { NativeProgress } from './components/NativeProgress';
+
+// Container Component Imports
+import { NativeDrawer } from './components/NativeDrawer';
+import { NativeCollapse, NativeCollapsePanel } from './components/NativeCollapse';
+import { NativePopover } from './components/NativePopover';
+import { NativePopconfirm } from './components/NativePopconfirm';
+import { NativeErrorBoundary } from './components/NativeErrorBoundary';
+import { NativeSkeleton } from './components/NativeSkeleton';
+
+// Theme System Imports
 import { NativeThemeProvider, getNativeThemeTokens } from './theme/NativeThemeProvider';
+
+// Icon System Import
 import { NativeIcon } from './icons/NativeIcon';
 
 // ============================================================================
@@ -77,7 +124,7 @@ import { NativeIcon } from './icons/NativeIcon';
  * @example
  * ```typescript
  * // In Host layer configuration
- * import { nativeUIAdapter } from '@brix/infra-adapter-ui-native';
+ * import { nativeUIAdapter } from '@brix-sdk/infra-adapter-ui-native';
  *
  * const hostConfig = {
  *   uiAdapter: nativeUIAdapter,
@@ -97,6 +144,49 @@ import { NativeIcon } from './icons/NativeIcon';
  * ```
  */
 export const nativeUIAdapter: UIAdapter = {
+  // ========================================
+  // Layout Components
+  // ========================================
+
+  /**
+   * Box Component
+   *
+   * <p>Universal layout container with component polymorphism.</p>
+   */
+  Box: NativeBox,
+
+  /**
+   * Stack Component
+   *
+   * <p>Flexbox layout with gap and direction control.</p>
+   */
+  Stack: NativeStack,
+
+  /**
+   * Paper Component
+   *
+   * <p>Elevated surface container with shadow system.</p>
+   */
+  Paper: NativePaper,
+
+  /**
+   * Divider Component
+   *
+   * <p>Visual separator with optional text label.</p>
+   */
+  Divider: NativeDivider,
+
+  // ========================================
+  // Typography
+  // ========================================
+
+  /**
+   * Typography Component
+   *
+   * <p>Text styling with Material Design type scale.</p>
+   */
+  Typography: NativeTypography,
+
   // ========================================
   // Form Components
   // ========================================
@@ -122,8 +212,50 @@ export const nativeUIAdapter: UIAdapter = {
    */
   Select: NativeSelect,
 
+  /**
+   * Checkbox Component
+   *
+   * <p>Binary selection control with label support.</p>
+   */
+  Checkbox: NativeCheckbox,
+
+  /**
+   * Switch Component
+   *
+   * <p>Toggle control for on/off states.</p>
+   */
+  Switch: NativeSwitch,
+
+  /**
+   * Radio Component
+   *
+   * <p>Single option selection from a group.</p>
+   */
+  Radio: NativeRadio,
+
+  /**
+   * RadioGroup Component
+   *
+   * <p>Container for radio button groups.</p>
+   */
+  RadioGroup: NativeRadioGroup,
+
+  /**
+   * Form Component
+   *
+   * <p>Form container with layout control.</p>
+   */
+  Form: NativeForm,
+
+  /**
+   * FormItem Component
+   *
+   * <p>Form field wrapper with label and validation.</p>
+   */
+  FormItem: NativeFormItem,
+
   // ========================================
-  // Display Components
+  // Data Display Components
   // ========================================
 
   /**
@@ -154,8 +286,50 @@ export const nativeUIAdapter: UIAdapter = {
    */
   Tooltip: NativeTooltip,
 
+  /**
+   * Table Component
+   *
+   * <p>Data table with sorting, selection, and pagination.</p>
+   */
+  Table: NativeTable,
+
+  /**
+   * Tag Component
+   *
+   * <p>Label/chip for categorization and status.</p>
+   */
+  Tag: NativeTag,
+
+  /**
+   * List Component
+   *
+   * <p>Vertical list container for items.</p>
+   */
+  List: NativeList,
+
+  /**
+   * ListItem Component
+   *
+   * <p>Individual item in a list.</p>
+   */
+  ListItem: NativeListItem,
+
+  /**
+   * Empty Component
+   *
+   * <p>Empty state placeholder with illustration.</p>
+   */
+  Empty: NativeEmpty,
+
+  /**
+   * Pagination Component
+   *
+   * <p>Page navigation for data sets.</p>
+   */
+  Pagination: NativePagination,
+
   // ========================================
-  // Navigation Components (Atomic Level)
+  // Navigation Components
   // ========================================
 
   /**
@@ -171,6 +345,34 @@ export const nativeUIAdapter: UIAdapter = {
    * <p>Individual menu item for custom rendering.</p>
    */
   MenuItem: NativeMenuItem,
+
+  /**
+   * Tabs Component
+   *
+   * <p>Tab-based navigation with content panels.</p>
+   */
+  Tabs: NativeTabs,
+
+  /**
+   * TabPane Component
+   *
+   * <p>Individual tab panel in Tabs.</p>
+   */
+  TabPane: NativeTabPane,
+
+  /**
+   * Breadcrumb Component
+   *
+   * <p>Hierarchical navigation path indicator.</p>
+   */
+  Breadcrumb: NativeBreadcrumb,
+
+  /**
+   * Steps Component
+   *
+   * <p>Step-by-step navigation for multi-step workflows.</p>
+   */
+  Steps: NativeSteps,
 
   // ========================================
   // Feedback Components
@@ -189,6 +391,66 @@ export const nativeUIAdapter: UIAdapter = {
    * <p>Imperative toast/snackbar notification system.</p>
    */
   message: nativeMessageAPI,
+
+  /**
+   * Alert Component
+   *
+   * <p>Inline feedback message with severity levels.</p>
+   */
+  Alert: NativeAlert,
+
+  /**
+   * Spin Component
+   *
+   * <p>Loading indicator with optional content wrapper.</p>
+   */
+  Spin: NativeSpin,
+
+  /**
+   * Progress Component
+   *
+   * <p>Progress indicator (linear or circular).</p>
+   */
+  Progress: NativeProgress,
+
+  // ========================================
+  // Container Components
+  // ========================================
+
+  /**
+   * Drawer Component
+   *
+   * <p>Slide-in panel from any edge of the viewport.</p>
+   */
+  Drawer: NativeDrawer,
+
+  /**
+   * Collapse Component
+   *
+   * <p>Collapsible content panels (accordion).</p>
+   */
+  Collapse: NativeCollapse,
+
+  /**
+   * CollapsePanel Component
+   *
+   * <p>Individual panel in Collapse.</p>
+   */
+  CollapsePanel: NativeCollapsePanel,
+
+  /**
+   * Popover Component
+   *
+   * <p>Floating content panel triggered by interaction.</p>
+   */
+  Popover: NativePopover,
+
+  /**
+   * Popconfirm Component
+   *
+   * <p>Confirmation dialog triggered by user interaction.</p>
+   */
+  Popconfirm: NativePopconfirm,
 
   // ========================================
   // Theme System
@@ -218,6 +480,27 @@ export const nativeUIAdapter: UIAdapter = {
    * <p>Inline SVG icon with name-based lookup.</p>
    */
   Icon: NativeIcon,
+
+  // ========================================
+  // Cross-cutting Components
+  // (v3.3.0 Frontend Stability Reform Plan v1.0 — C-1)
+  // ========================================
+
+  /**
+   * ErrorBoundary Component
+   *
+   * <p>React render-time exception isolator with pluggable fallback.</p>
+   */
+  ErrorBoundary: NativeErrorBoundary,
+
+  /**
+   * Skeleton Component (v3.3.0 Frontend Stability Reform Plan v1.0 — C-7)
+   *
+   * <p>CLS-stable structural placeholder. Consumed automatically by
+   * `usePageState().render()` and may be used directly by plugins for
+   * custom skeleton layouts.</p>
+   */
+  Skeleton: NativeSkeleton,
 };
 
 // ============================================================================

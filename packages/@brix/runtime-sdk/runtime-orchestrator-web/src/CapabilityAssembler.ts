@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Capability Assembler
  * @description Responsible for capability auto-assembly, dependency injection and initialization
- * @module @brix/runtime-orchestrator-web/CapabilityAssembler
+ * @module @brix-sdk/runtime-orchestrator-web/CapabilityAssembler
  * @version 3.0.0
  * 
  * Design Notes:
@@ -39,7 +39,7 @@ import type {
   CapabilityRegisterOptions,
   CapabilityId,
   CapabilityRegistry,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Capability factory function type

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file useUI Hook
  * @description React hook for accessing UIAdapter from RuntimeContext
- * @module @brix/runtime-sdk-react/hooks/useUI
+ * @module @brix-sdk/runtime-sdk-react/hooks/useUI
  * @version 3.2.0
  *
  * [Architectural Position]
@@ -31,7 +31,7 @@
  *
  * [Usage Example]
  * ```tsx
- * import { useUI } from '@brix/runtime-sdk-react';
+ * import { useUI } from '@brix-sdk/runtime-sdk-react';
  *
  * const MyComponent: FC = () => {
  *   const { Button, Menu, Icon } = useUI();
@@ -46,8 +46,8 @@
 
 import { useContext } from 'react';
 import { RuntimeContextReact } from '../context/RuntimeContextReact';
-import type { UIAdapter } from '@brix/runtime-sdk-api-web';
-import { UICapabilityType } from '@brix/runtime-sdk-api-web';
+import type { UIAdapter } from '@brix-sdk/runtime-sdk-api-web';
+import { UICapabilityType } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Hook Interface

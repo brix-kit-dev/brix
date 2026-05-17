@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Plugin-Related Type Definitions
  * @description Defines core types for the plugin system, including manifest, instance, lifecycle, etc.
- * @module @brix/runtime-sdk-api-web/types/plugin
+ * @module @brix-sdk/runtime-sdk-api-web/types/plugin
  * @version 3.2.1
  *
  * [v3.2.1 Changes]
@@ -39,8 +39,8 @@ import type { CapabilityRegistry } from './capability';
  *
  * <p>Usage:</p>
  * <ul>
- *   <li>In React projects, use type definitions from @brix/runtime-sdk-react</li>
- *   <li>In Vue projects, use type definitions from @brix/runtime-sdk-vue</li>
+ *   <li>In React projects, use type definitions from @brix-sdk/runtime-sdk-react</li>
+ *   <li>In Vue projects, use type definitions from @brix-sdk/runtime-sdk-vue</li>
  *   <li>In framework-agnostic scenarios, use unknown and handle at runtime</li>
  * </ul>
  */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,303 +14,137 @@
  * limitations under the License.
  */
 /**
- * @file LoginForm 类型定义
- * @description 登录表单组件的类型定
- * @module @brix/platform-auth-web/components/LoginForm/types
+ * @file LoginForm type definitions
+ * @module @brix-sdk/platform-auth-web/components/LoginForm/types
  * @version 3.0.0
  */
 
 import type { ReactNode, CSSProperties } from 'react';
 
-/**
- * 登录表单数据
- */
+/** Login form input data. */
 export interface LoginFormData {
-  /**
-   * 用户邮箱/手机
-   */
+  /** Username or email address. */
   username: string;
-  
-  /**
-   * 密码
-   */
+  /** Password. */
   password: string;
-  
-  /**
-   * 记住
-   */
+  /** Whether to persist the session. */
   rememberMe: boolean;
 }
 
-/**
- * 登录结果
- */
+/** Login form submission result. */
 export interface LoginFormResult {
-  /**
-   * 是否成功
-   */
+  /** Whether login was successful. */
   success: boolean;
-  
-  /**
-   * 错误消息
-   */
+  /** Error message if login failed. */
   error?: string;
-  
-  /**
-   * 重定向地址
-   */
+  /** Optional redirect path after successful login. */
   redirectTo?: string;
 }
 
-/**
- * 社交登录提供商配
- */
+/** Social login provider configuration. */
 export interface SocialProvider {
-  /**
-   * 提供ID
-   */
+  /** Provider identifier (e.g., 'google', 'github'). */
   id: string;
-  
-  /**
-   * 显示名称
-   */
+  /** Display name for the provider. */
   name: string;
-  
-  /**
-   * 图标（可以是 URL React 节点
-   */
+  /** Icon element or URL. */
   icon?: string | ReactNode;
-  
-  /**
-   * 背景
-   */
+  /** Button background color. */
   backgroundColor?: string;
-  
-  /**
-   * 文字颜色
-   */
+  /** Button text color. */
   textColor?: string;
 }
 
-/**
- * 品牌配置
- */
+/** Visual branding configuration for the login form. */
 export interface LoginFormBranding {
-  /**
-   * Logo URL React 节点
-   */
+  /** Logo URL or React element. */
   logo?: string | ReactNode;
-  
-  /**
-   * 应用名称
-   */
+  /** Application name displayed on the form. */
   appName?: string;
-  
-  /**
-   * 欢迎
-   */
+  /** Welcome message above the form. */
   welcomeMessage?: string;
-  
-  /**
-   * 副标
-   */
+  /** Subtitle text below the welcome message. */
   subtitle?: string;
-  
-  /**
-   * 主题
-   */
+  /** Primary brand color. */
   primaryColor?: string;
-  
-  /**
-   * 第二颜色（背景辅助）
-   */
+  /** Secondary brand color. */
   secondaryColor?: string;
-  
-  /**
-   * 第三颜色（纯净底色
-   */
+  /** Tertiary brand color. */
   tertiaryColor?: string;
-  
-  /**
-   * 渐变色（用于背景
-   */
+  /** Gradient colors for background. */
   gradientColors?: [string, string];
-  
-  /**
-   * 页脚文案
-   */
+  /** Footer text. */
   footerText?: string;
 }
 
-/**
- * 表单文案配置
- */
+/** Customizable label strings for the login form. */
 export interface LoginFormLabels {
-  /**
-   * 用户邮箱/手机号标
-   */
+  /** Username field label. */
   usernameLabel?: string;
-  
-  /**
-   * 用户邮箱/手机号占位符
-   */
+  /** Username field placeholder. */
   usernamePlaceholder?: string;
-  
-  /**
-   * 密码标签
-   */
+  /** Password field label. */
   passwordLabel?: string;
-  
-  /**
-   * 密码占位
-   */
+  /** Password field placeholder. */
   passwordPlaceholder?: string;
-  
-  /**
-   * 记住我文
-   */
+  /** Remember me checkbox label. */
   rememberMeLabel?: string;
-  
-  /**
-   * 忘记密码文案
-   */
+  /** Forgot password link text. */
   forgotPasswordLabel?: string;
-  
-  /**
-   * 登录按钮文案
-   */
+  /** Submit button label. */
   submitLabel?: string;
-  
-  /**
-   * 加载中文
-   */
+  /** Loading state label. */
   loadingLabel?: string;
-  
-  /**
-   * 社交登录分隔文案
-   */
+  /** Divider text between form and social login. */
   socialLoginDivider?: string;
-  
-  /**
-   * 注册链接前缀文案
-   */
+  /** Registration prompt prefix text. */
   registerPrefix?: string;
-  
-  /**
-   * 注册链接文案
-   */
+  /** Registration link label. */
   registerLabel?: string;
 }
 
-/**
- * 功能开关配
- */
+/** Feature flags for LoginForm behavior. */
 export interface LoginFormFeatures {
-  /**
-   * 是否显示记住
-   * @default true
-   */
+  /** Whether to show the remember me checkbox. */
   showRememberMe?: boolean;
-  
-  /**
-   * 是否显示忘记密码
-   * @default true
-   */
+  /** Whether to show the forgot password link. @default true */
   showForgotPassword?: boolean;
-  
-  /**
-   * 是否启用社交登录
-   * @default false
-   */
+  /** Whether to enable social login buttons. @default false */
   enableSocialLogin?: boolean;
-  
-  /**
-   * 是否自动聚焦用户名输入框
-   * @default true
-   */
+  /** Whether to auto-focus the username field. @default true */
   autoFocus?: boolean;
-  
-  /**
-   * 是否显示注册链接
-   * @default false
-   */
+  /** Whether to show the registration link. @default false */
   showRegisterLink?: boolean;
 }
 
-/**
- * LoginForm 组件 Props
- */
+/** LoginForm component props. */
 export interface LoginFormProps {
-  /**
-   * 品牌配置
-   */
+  /** Visual branding configuration. */
   branding?: LoginFormBranding;
-  
-  /**
-   * 文案配置
-   */
+  /** Customizable label strings. */
   labels?: LoginFormLabels;
-  
-  /**
-   * 功能开
-   */
+  /** Feature flags. */
   features?: LoginFormFeatures;
-  
-  /**
-   * 社交登录提供商列
-   */
+  /** Available social login providers. */
   socialProviders?: SocialProvider[];
-  
-  /**
-   * 登录处理函数
-   * 
-   * Host 提供，处理实际的登录逻辑
-   */
+  /** Login handler — called when the form is submitted. */
   onLogin: (data: LoginFormData) => Promise<LoginFormResult>;
-  
-  /**
-   * 登录成功回调
-   */
+  /** Called after a successful login. */
   onLoginSuccess?: (result: LoginFormResult) => void;
-  
-  /**
-   * 登录失败回调
-   */
+  /** Called when a login error occurs. */
   onLoginError?: (error: string) => void;
-  
-  /**
-   * 忘记密码回调
-   */
+  /** Called when the forgot password link is clicked. */
   onForgotPassword?: () => void;
-  
-  /**
-   * 社交登录回调
-   */
+  /** Called when a social login button is clicked. */
   onSocialLogin?: (providerId: string) => void;
-  
-  /**
-   * 注册回调
-   */
+  /** Called when the register link is clicked. */
   onRegister?: () => void;
-  
-  /**
-   * 容器样式
-   */
+  /** Container inline styles. */
   containerStyle?: CSSProperties;
-  
-  /**
-   * 容器类名
-   */
+  /** Container CSS class name. */
   containerClassName?: string;
-  
-  /**
-   * 是否显示页面容器（包含背景）
-   * @default true
-   */
+  /** Whether to render the page container wrapper. @default true */
   showPageContainer?: boolean;
-  
-  /**
-   * 初始
-   */
+  /** Initial form values. */
   initialValues?: Partial<LoginFormData>;
 }

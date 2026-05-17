@@ -28,14 +28,28 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import jakarta.annotation.PostConstruct;
 
 /**
- * CORS Configuration.
+ * CORS Configuration — Production-hardened whitelist enforcement.
  *
  * <p>Configures global CORS (Cross-Origin Resource Sharing) policies,
  * allowing frontend applications to access gateway APIs across origins.
- * All configuration options can be externalized via application.yml.
+ * All configuration options can be externalized via application.yml.</p>
  *
- * @author Brix Platform Authors
- * @version 1.0.1
+ * <h3>Phase 5.5 Production Hardening Enhancements</h3>
+ * <ul>
+ *   <li>Startup validation: blocks wildcard origins in production</li>
+ *   <li>Security audit logging: logs all CORS configuration changes</li>
+ *   <li>Exposed headers: includes {@code X-Trace-Id}, {@code X-Request-Id},
+ *       {@code X-Tenant-Id} for observability correlation</li>
+ *   <li>{@code Vary: Origin} header: automatically set by Spring's
+ *       {@link CorsWebFilter} for proper CDN/proxy caching behavior</li>
+ * </ul>
+ *
+ * <h3>OWASP Compliance</h3>
+ * <p>Follows OWASP CORS guidelines: explicit origin whitelist, restricted
+ * methods and headers, credentials limited to whitelisted origins.</p>
+ *
+ * @author Brix Platform Team
+ * @version 2.0.0 (Phase 5.5 — Production Hardening)
  * @see CorsProperties CORS configuration properties
  * @see CorsWebFilter Spring WebFlux reactive CORS filter
  */
@@ -93,9 +107,9 @@ public class CorsConfig {
     public void validateCorsConfiguration() {
         log.info("[CORS] Configuration loaded: {}", corsProperties);
 
-        // checkwhethercontainpassconfigurationsymbolorigin
+        // Check whether configuration contains wildcard origin pattern
         if (corsProperties.hasWildcardOrigin()) {
-            // checkwhetherisproductionenvironment
+            // Check if current environment is production
             boolean isProduction = isProductionEnvironment();
 
             // Production environment block check
@@ -119,6 +133,25 @@ public class CorsConfig {
         } else {
             log.info("[CORS] Configuration check passed, allowed origins: {}", corsProperties.getAllowedOriginPatterns());
         }
+
+        // Security audit: log the full CORS configuration for compliance
+        logCorsSecurityAudit();
+    }
+
+    /**
+     * Logs a security audit summary of the active CORS configuration.
+     *
+     * <p>Emitted at INFO level on every startup so that operations teams can
+     * confirm the effective whitelist without inspecting YAML files.</p>
+     */
+    private void logCorsSecurityAudit() {
+        log.info("[CORS-AUDIT] Effective CORS whitelist: origins={}, methods={}, headers={}, credentials={}, maxAge={}s",
+            corsProperties.getAllowedOriginPatterns(),
+            corsProperties.getAllowedMethods(),
+            corsProperties.getAllowedHeaders(),
+            corsProperties.isAllowCredentials(),
+            corsProperties.getMaxAge()
+        );
     }
 
     /**

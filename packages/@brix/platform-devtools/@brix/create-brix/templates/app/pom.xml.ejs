@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   v3.0 业务应用module父 POM
   
@@ -79,14 +79,14 @@
             <!-- 内部module -->
 <% if (withApi) { -%>
             <dependency>
-                <groupId>com.shinwa.app</groupId>
+                <groupId>io.brix.app</groupId>
                 <artifactId><%= name %>-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 <% } -%>
 <% if (withCore) { -%>
             <dependency>
-                <groupId>com.shinwa.app</groupId>
+                <groupId>io.brix.app</groupId>
                 <artifactId><%= name %>-core</artifactId>
                 <version>${project.version}</version>
             </dependency>

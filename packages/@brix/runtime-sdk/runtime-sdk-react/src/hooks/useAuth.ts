@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,11 +16,11 @@
 /**
  * @file useAuth Hook
  * @description Authentication Capability React Hook
- * @module @brix/runtime-sdk-react/hooks/useAuth
+ * @module @brix-sdk/runtime-sdk-react/hooks/useAuth
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
- * Migrated from @brix/runtime-sdk-api-web to a standalone React binding package.
+ * Migrated from @brix-sdk/runtime-sdk-api-web to a standalone React binding package.
  */
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
@@ -28,7 +28,7 @@ import type {
   AuthCapability, 
   AuthUser,
   LoginCredentials,
-} from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
 import { useRuntimeContext } from './useRuntimeContext';
 
 /**

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Authors
   ~
@@ -22,28 +22,28 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>infra-adapters</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
     <artifactId>infra-adapter-webhook</artifactId>
     <name>Brix Infra Adapter - Webhook</name>
     <description>
-        基于 HTTP Webhook 的事件总线适配器实现（开源）
+        HTTP Webhook-based EventBus Adapter Implementation (Open Source)
         
-        为嵌入模式（Embedded Host）提供轻量级的事件发布能力：
-        - HttpWebhookEventBus: 通过 HTTP POST 发布事件
-        - WebhookSignatureVerifier: Webhook 签名验证
-        - WebhookRetryHandler: 指数退避重试
+        Provides lightweight event publishing capability for Embedded Host mode:
+        - HttpWebhookEventBus: Publishes events via HTTP POST
+        - WebhookSignatureVerifier: Webhook signature verification
+        - WebhookRetryHandler: Exponential backoff retry
         
-        适用场景：
-        - 嵌入模式部署（无 Kafka）
-        - 与外部系统的 Webhook 集成
-        - 轻量级事件通知
+        Use Cases:
+        - Embedded mode deployment (no Kafka)
+        - Webhook integration with external systems
+        - Lightweight event notification
         
-        架构分层：Layer 2 - Adapter 层
+        Architecture Layer: Layer 2 - Adapter Layer
         Package: io.infra.adapter.webhook
-        许可证：Apache 2.0
+        License: Apache 2.0
     </description>
 
     <dependencies>
@@ -53,7 +53,7 @@
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
 
-        <!-- JSON 序列化 -->
+        <!-- JSON Serialization -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -63,7 +63,7 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
-        <!-- HTTP 客户端 -->
+        <!-- HTTP Client -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
@@ -80,10 +80,17 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- Spring Boot（可选，用于自动配置） -->
+        <!-- Spring Boot (optional, for auto-configuration) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Micrometer Core for event metrics (R3.3 compliance, optional) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
             <optional>true</optional>
         </dependency>
 
@@ -101,7 +108,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

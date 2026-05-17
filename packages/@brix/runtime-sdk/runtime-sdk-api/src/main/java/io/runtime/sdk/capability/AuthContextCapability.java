@@ -18,6 +18,8 @@ package io.runtime.sdk.capability;
 import java.security.Principal;
 import java.util.Set;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Authentication Context Capability Contract
  * 
@@ -80,10 +82,16 @@ import java.util.Set;
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
+ * @deprecated Since 3.2.0. Use {@link AuthCapability} instead — the standard
+ *             cross-platform capability name aligned with the TypeScript SDK.
+ *             This interface is retained for binary compatibility and will be
+ *             removed in v4.0.
  * @see AuthCapability Recommended standardized name
  * @see Principal
  * @see DataScope
  */
+@Deprecated(since = "3.2.0", forRemoval = true)
+@Since("3.0.0")
 public interface AuthContextCapability {
 
     /**

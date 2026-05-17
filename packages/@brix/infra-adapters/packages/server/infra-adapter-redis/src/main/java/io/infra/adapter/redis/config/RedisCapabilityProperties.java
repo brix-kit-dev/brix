@@ -23,7 +23,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>Defines configuration items for Redis capability, mapped to application.yml configuration.</p>
  * 
  * <pre>{@code
- * shinwa:
+ * brix:
  *   runtime:
  *     redis:
  *       enabled: true

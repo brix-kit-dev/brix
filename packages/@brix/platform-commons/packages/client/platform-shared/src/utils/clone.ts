@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Deep clone utility
  * @description Provides deep clone functions
- * @module @brix/platform-shared/utils/clone
+ * @module @brix-sdk/platform-shared/utils/clone
  * @version 3.0.0
  */
 

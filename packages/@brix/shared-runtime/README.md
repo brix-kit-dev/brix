@@ -1,4 +1,4 @@
-# @brix/shared-runtime
+# @brix-sdk/shared-runtime
 
 Brix Platform Shared Runtime - Frontend Runtime Dependencies Management
 
@@ -10,7 +10,7 @@ This monorepo contains shared runtime packages for the Brix Platform frontend. T
 
 | Package | Description |
 |---------|-------------|
-| [@brix/shared-runtime-web](./shared-runtime-web) | Web runtime dependencies (React, Router, MUI, Zustand) |
+| [@brix-sdk/shared-runtime-web](./shared-runtime-web) | Web runtime dependencies (React, Router, MUI, Zustand) |
 
 ## Purpose
 
@@ -24,36 +24,36 @@ In Module Federation environments, proper runtime dependency management is criti
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Layer 3: Host Shell (Standalone/Embedded)              │
-│  - Uses getHostSharedConfig() with eager: true          │
-│  - Provides runtime dependencies to all plugins         │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  Layer 2B: @brix/shared-runtime-web                     │
-│  - Single Source of Truth for versions                  │
-│  - MF shared configuration                              │
-│  - Runtime re-exports                                   │
-└─────────────────────────────────────────────────────────┘
-                           ▲
-                           │
-┌─────────────────────────────────────────────────────────┐
-│  Layer 1 & 2C: Plugins & Adapters                       │
-│  - Use getRemoteSharedConfig() with eager: false        │
-│  - Import from @brix/shared-runtime-web/*               │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────�?
+�? Layer 3: Host Shell (Standalone/Embedded)              �?
+�? - Uses getHostSharedConfig() with eager: true          �?
+�? - Provides runtime dependencies to all plugins         �?
+└─────────────────────────────────────────────────────────�?
+                           �?
+                           �?
+┌─────────────────────────────────────────────────────────�?
+�? Layer 2B: @brix-sdk/shared-runtime-web                     �?
+�? - Single Source of Truth for versions                  �?
+�? - MF shared configuration                              �?
+�? - Runtime re-exports                                   �?
+└─────────────────────────────────────────────────────────�?
+                           �?
+                           �?
+┌─────────────────────────────────────────────────────────�?
+�? Layer 1 & 2C: Plugins & Adapters                       �?
+�? - Use getRemoteSharedConfig() with eager: false        �?
+�? - Import from @brix-sdk/shared-runtime-web/*               �?
+└─────────────────────────────────────────────────────────�?
 ```
 
 ## Quick Start
 
 ```bash
 # Install
-pnpm add @brix/shared-runtime-web
+pnpm add @brix-sdk/shared-runtime-web
 
 # In rspack.config.mjs (Plugin)
-import { getRemoteSharedConfig } from '@brix/shared-runtime-web/mf-config';
+import { getRemoteSharedConfig } from '@brix-sdk/shared-runtime-web/mf-config';
 
 new ModuleFederationPlugin({
   name: 'my_plugin',
@@ -61,8 +61,8 @@ new ModuleFederationPlugin({
 });
 
 # In code
-import { useState } from '@brix/shared-runtime-web/react';
-import { Button } from '@brix/shared-runtime-web/ui';
+import { useState } from '@brix-sdk/shared-runtime-web/react';
+import { Button } from '@brix-sdk/shared-runtime-web/ui';
 ```
 
 ## Development

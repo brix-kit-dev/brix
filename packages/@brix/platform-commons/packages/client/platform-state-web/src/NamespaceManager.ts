@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Namespace Manager
  * @description Manages plugin state namespaces
- * @module @brix/platform-state-web/NamespaceManager
+ * @module @brix-sdk/platform-state-web/NamespaceManager
  * @version 3.0.0
  * 
  * [Architecture Notes]

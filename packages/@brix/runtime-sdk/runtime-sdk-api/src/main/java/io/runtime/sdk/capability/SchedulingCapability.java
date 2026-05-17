@@ -18,6 +18,8 @@ package io.runtime.sdk.capability;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Scheduling Capability Contract (Optional Capability)
  * 
@@ -67,6 +69,7 @@ import java.util.concurrent.TimeUnit;
  * @author Runtime SDK Team
  * @since 3.0.0
  */
+@Since("3.0.0")
 public interface SchedulingCapability {
 
     /**

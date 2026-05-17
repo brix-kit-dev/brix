@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file MUI Icon Component
  * @description Material UI implementation of IconProps from UIAdapter contract.
  *              Name-based icon lookup using @mui/icons-material library.
- * @module @brix/infra-adapter-ui-mui/icons/MuiIcon
+ * @module @brix-sdk/infra-adapter-ui-mui/icons/MuiIcon
  * @version 3.1.0
  *
  * [Design Principles]
@@ -37,7 +37,7 @@
 
 import React, { useMemo } from 'react';
 import type { FC, CSSProperties, ComponentType } from 'react';
-import type { IconProps, ComponentSize } from '@brix/runtime-sdk-api-web';
+import type { IconProps, ComponentSize } from '@brix-sdk/runtime-sdk-api-web';
 import type { SvgIconProps } from '@mui/material/SvgIcon';
 
 // ============================================================================
@@ -188,6 +188,60 @@ import EventNoteOutlined from '@mui/icons-material/EventNoteOutlined';
 import AddCircleOutlineOutlined from '@mui/icons-material/AddCircleOutlineOutlined';
 import PeopleOutlined from '@mui/icons-material/PeopleOutlined';
 import StorefrontOutlined from '@mui/icons-material/StorefrontOutlined';
+
+// ============================================================================
+// Domain-Specific Icons (Partners, Booking, Medical, Compliance, etc.)
+// ============================================================================
+import AllInclusiveOutlined from '@mui/icons-material/AllInclusiveOutlined';
+import LocalHospitalOutlined from '@mui/icons-material/LocalHospitalOutlined';
+import HotelOutlined from '@mui/icons-material/HotelOutlined';
+import DirectionsCarOutlined from '@mui/icons-material/DirectionsCarOutlined';
+import TranslateOutlined from '@mui/icons-material/TranslateOutlined';
+import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
+import BlockOutlined from '@mui/icons-material/BlockOutlined';
+import BookmarkOutlined from '@mui/icons-material/BookmarkOutlined';
+import DevicesOutlined from '@mui/icons-material/DevicesOutlined';
+import DoneOutlined from '@mui/icons-material/DoneOutlined';
+import DoneAllOutlined from '@mui/icons-material/DoneAllOutlined';
+import DraftsOutlined from '@mui/icons-material/DraftsOutlined';
+import DrawOutlined from '@mui/icons-material/DrawOutlined';
+import EditNoteOutlined from '@mui/icons-material/EditNoteOutlined';
+import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
+import FlightLandOutlined from '@mui/icons-material/FlightLandOutlined';
+import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined';
+import HealingOutlined from '@mui/icons-material/HealingOutlined';
+import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
+import HourglassEmptyOutlined from '@mui/icons-material/HourglassEmptyOutlined';
+import InsightsOutlined from '@mui/icons-material/InsightsOutlined';
+import LinkOffOutlined from '@mui/icons-material/LinkOffOutlined';
+import LocalOfferOutlined from '@mui/icons-material/LocalOfferOutlined';
+import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined';
+import MeetingRoomOutlined from '@mui/icons-material/MeetingRoomOutlined';
+import NavigateBeforeOutlined from '@mui/icons-material/NavigateBeforeOutlined';
+import NavigateNextOutlined from '@mui/icons-material/NavigateNextOutlined';
+import NoteAddOutlined from '@mui/icons-material/NoteAddOutlined';
+import PauseOutlined from '@mui/icons-material/PauseOutlined';
+import PauseCircleOutlined from '@mui/icons-material/PauseCircleOutlined';
+import PersonOffOutlined from '@mui/icons-material/PersonOffOutlined';
+import PlayArrowOutlined from '@mui/icons-material/PlayArrowOutlined';
+import PlayCircleOutlined from '@mui/icons-material/PlayCircleOutlined';
+import PriorityHighOutlined from '@mui/icons-material/PriorityHighOutlined';
+import RemoveOutlined from '@mui/icons-material/RemoveOutlined';
+import RemoveCircleOutlined from '@mui/icons-material/RemoveCircleOutlined';
+import ReplyOutlined from '@mui/icons-material/ReplyOutlined';
+import RestaurantOutlined from '@mui/icons-material/RestaurantOutlined';
+import RingVolumeOutlined from '@mui/icons-material/RingVolumeOutlined';
+import ScheduleOutlined from '@mui/icons-material/ScheduleOutlined';
+import SkipNextOutlined from '@mui/icons-material/SkipNextOutlined';
+import StopOutlined from '@mui/icons-material/StopOutlined';
+import SwapHorizOutlined from '@mui/icons-material/SwapHorizOutlined';
+import CameraAltOutlined from '@mui/icons-material/CameraAltOutlined';
+import TodayOutlined from '@mui/icons-material/TodayOutlined';
+import UpdateOutlined from '@mui/icons-material/UpdateOutlined';
+import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined';
+import AddBusinessOutlined from '@mui/icons-material/AddBusinessOutlined';
+import IndeterminateCheckBoxOutlined from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 
 // ============================================================================
 // Icon Type Definition
@@ -379,9 +433,76 @@ const ICON_REGISTRY: Record<string, MuiIconComponent> = {
   
   // Form Controls
   checkbox: CheckBoxOutlined,
+  check_box: CheckBoxOutlined,
   checkbox_blank: CheckBoxOutlineBlankOutlined,
   radio_checked: RadioButtonCheckedOutlined,
   radio_unchecked: RadioButtonUncheckedOutlined,
+  radio_button_unchecked: RadioButtonUncheckedOutlined,
+  indeterminate_check_box: IndeterminateCheckBoxOutlined,
+
+  // Domain: Partners / Medical / Hospitality / Transport
+  all_inclusive: AllInclusiveOutlined,
+  local_hospital: LocalHospitalOutlined,
+  hotel: HotelOutlined,
+  directions_car: DirectionsCarOutlined,
+  translate: TranslateOutlined,
+  medical_services: MedicalServicesOutlined,
+  healing: HealingOutlined,
+  restaurant: RestaurantOutlined,
+  flight_land: FlightLandOutlined,
+  meeting_room: MeetingRoomOutlined,
+  add_business: AddBusinessOutlined,
+
+  // Domain: Scheduling / Time
+  schedule: ScheduleOutlined,
+  today: TodayOutlined,
+  event_available: EventAvailableOutlined,
+  hourglass_empty: HourglassEmptyOutlined,
+  update: UpdateOutlined,
+  history: HistoryOutlined,
+
+  // Domain: Workflow / Status
+  done: DoneOutlined,
+  done_all: DoneAllOutlined,
+  block: BlockOutlined,
+  pause: PauseOutlined,
+  pause_circle: PauseCircleOutlined,
+  play_arrow: PlayArrowOutlined,
+  play_circle: PlayCircleOutlined,
+  stop: StopOutlined,
+  skip_next: SkipNextOutlined,
+  priority_high: PriorityHighOutlined,
+  swap_horiz: SwapHorizOutlined,
+
+  // Domain: Content / Documents
+  archive: ArchiveOutlined,
+  bookmark: BookmarkOutlined,
+  drafts: DraftsOutlined,
+  draw: DrawOutlined,
+  edit_note: EditNoteOutlined,
+  note_add: NoteAddOutlined,
+  folder_open: FolderOpenOutlined,
+  upload_file: UploadFileOutlined,
+  reply: ReplyOutlined,
+  insights: InsightsOutlined,
+
+  // Domain: Devices / System
+  devices: DevicesOutlined,
+  extension: ExtensionOutlined,
+  ring_volume: RingVolumeOutlined,
+  camera: CameraAltOutlined,
+  take_photo: CameraAltOutlined,
+
+  // Domain: People
+  person_off: PersonOffOutlined,
+
+  // Domain: Actions (additional)
+  remove: RemoveOutlined,
+  remove_circle: RemoveCircleOutlined,
+  link_off: LinkOffOutlined,
+  local_offer: LocalOfferOutlined,
+  navigate_before: NavigateBeforeOutlined,
+  navigate_next: NavigateNextOutlined,
 };
 
 // ============================================================================

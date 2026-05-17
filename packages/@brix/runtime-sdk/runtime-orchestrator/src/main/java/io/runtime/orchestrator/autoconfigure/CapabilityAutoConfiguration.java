@@ -15,6 +15,8 @@
  */
 package io.runtime.orchestrator.autoconfigure;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -299,6 +301,27 @@ public class CapabilityAutoConfiguration {
     private void scanAndRegisterAnnotatedCapabilities(ApplicationContext ctx,
                                                        DefaultCapabilityRegistry registry,
                                                        Set<String> disabledCapabilities) {
+        // Eagerly instantiate every bean whose declared type carries @Capability.
+        //
+        // Spring's getBeansWithAnnotation(...) only returns beans that have already
+        // been instantiated; for capabilities created via @Bean factory methods in
+        // an Adapter's @AutoConfiguration (e.g. infra-adapter-minio's
+        // FileStorageCapability bean), the runtime class — and therefore the
+        // @Capability annotation on it — is unknown until the bean is created.
+        // getBeanNamesForAnnotation, in contrast, also inspects factory-method
+        // return types' classes, so it discovers Adapter-provided capabilities
+        // without needing to know the contract type up-front. We then force-
+        // instantiate each so the subsequent getBeansWithAnnotation() call sees
+        // them. This preserves the Capability Contract scanning model
+        // (Blueprint v3.0.x §3) for both directly-declared and factory-method
+        // -provided capability beans, with no per-Adapter wiring in the Host.
+        String[] capabilityBeanNames = ctx.getBeanNamesForAnnotation(Capability.class);
+        for (String name : capabilityBeanNames) {
+            if (name != null) {
+                ctx.getBean(name);
+            }
+        }
+
         Map<String, Object> capabilityBeans = ctx.getBeansWithAnnotation(Capability.class);
         log.info("Found {} beans annotated with @Capability", capabilityBeans.size());
 
@@ -320,6 +343,62 @@ public class CapabilityAutoConfiguration {
                 Class<Object> capabilityType = (Class<Object>) descriptor.getType();
                 registry.register(capabilityType, bean, descriptor);
                 log.debug("Registered capability: {} -> {}", typeName, bean.getClass().getSimpleName());
+
+                // Honor SDK alias semantics: when a capability contract extends another
+                // capability contract in the io.runtime.sdk.capability package (e.g.
+                // AuthCapability extends AuthContextCapability), also register the bean
+                // under each such super-interface so that lookups by the legacy/aliased
+                // contract type succeed. Per SDK javadoc, aliased contracts are
+                // "fully equivalent at runtime, no forced migration required".
+                registerCapabilityAliasSuperInterfaces(registry, capabilityType, bean, disabledCapabilities);
+            }
+        }
+    }
+
+    /**
+     * Registers the given capability bean under any of its super-interfaces that are
+     * themselves capability contracts (interfaces declared under
+     * {@code io.runtime.sdk.capability}). The registration is idempotent — existing
+     * registrations are preserved.
+     *
+     * <p>Walks the full super-interface graph (transitively) so that multi-level
+     * alias chains are honored.</p>
+     *
+     * @param registry             the capability registry being populated
+     * @param capabilityType       the primary contract type the bean was registered under
+     * @param bean                 the capability instance
+     * @param disabledCapabilities set of disabled capability type names (skipped)
+     */
+    private void registerCapabilityAliasSuperInterfaces(DefaultCapabilityRegistry registry,
+                                                        Class<?> capabilityType,
+                                                        Object bean,
+                                                        Set<String> disabledCapabilities) {
+        Set<Class<?>> visited = new HashSet<>();
+        Deque<Class<?>> stack = new ArrayDeque<>();
+        for (Class<?> directParent : capabilityType.getInterfaces()) {
+            stack.push(directParent);
+        }
+        while (!stack.isEmpty()) {
+            Class<?> parent = stack.pop();
+            if (!visited.add(parent)) {
+                continue;
+            }
+            // Only treat interfaces in the SDK capability contract package as aliases.
+            if (parent.isInterface()
+                    && parent.getName().startsWith("io.runtime.sdk.capability.")
+                    && !disabledCapabilities.contains(parent.getName())
+                    && !registry.isAvailable(parent)) {
+                @SuppressWarnings({"unchecked", "rawtypes"})
+                boolean registered = registry.registerIfAbsent((Class) parent, bean);
+                if (registered) {
+                    log.debug("Registered capability alias: {} -> {} (alias of {})",
+                            parent.getSimpleName(),
+                            bean.getClass().getSimpleName(),
+                            capabilityType.getSimpleName());
+                }
+            }
+            for (Class<?> grandParent : parent.getInterfaces()) {
+                stack.push(grandParent);
             }
         }
     }
@@ -389,7 +468,12 @@ public class CapabilityAutoConfiguration {
                                     "or move it to the optional list in configuration.");
                 }
             } catch (ClassNotFoundException e) {
-                log.warn("Required capability type not found (possible configuration error): {}", typeName);
+                throw new IllegalStateException(
+                        "Required capability type not found: " + typeName +
+                                ". Required capabilities must be resolvable at startup; " +
+                                "add the dependency that declares this capability contract, " +
+                                "or move it to the optional list in configuration.",
+                        e);
             }
         }
         log.info("Required capabilities validation passed");

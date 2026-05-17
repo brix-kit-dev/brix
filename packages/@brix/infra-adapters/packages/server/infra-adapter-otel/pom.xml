@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2026 Brix Authors
   ~
@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.brix</groupId>
         <artifactId>infra-adapters</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -31,9 +31,10 @@
 
     <name>Brix Infra Adapter - OpenTelemetry</name>
     <description>
-        基于 OpenTelemetry 的可观测性适配器（开源）。
-        实现 ObservabilityCapability 接口，提供分布式追踪、指标收集和日志关联功能。
-        适用于需要完整可观测性的生产部署场景。
+        OpenTelemetry-based observability adapter (Open Source).
+        Implements the ObservabilityCapability interface, providing distributed tracing,
+        metrics collection, and log correlation.
+        Suitable for production deployment scenarios requiring full observability.
     </description>
 
     <properties>
@@ -87,7 +88,7 @@
         </dependency>
 
         <!-- ========== OpenTelemetry Exporters ========== -->
-        <!-- OTLP Exporter (推荐) -->
+        <!-- OTLP Exporter (recommended) -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
@@ -95,7 +96,7 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- Jaeger Exporter (可选) -->
+        <!-- Jaeger Exporter (optional) -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-jaeger</artifactId>
@@ -103,7 +104,7 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- Prometheus Exporter (可选) -->
+        <!-- Prometheus Exporter (optional) -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-prometheus</artifactId>
@@ -111,7 +112,7 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- Logging Exporter (开发调试) -->
+        <!-- Logging Exporter (for development/debugging) -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-logging</artifactId>
@@ -160,7 +161,7 @@
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>
-            <version>3.1.0-SNAPSHOT</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

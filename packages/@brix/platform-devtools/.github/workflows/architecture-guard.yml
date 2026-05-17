@@ -3,10 +3,10 @@
 # ============================================================================
 #
 # This CI pipeline enforces architectural rules from the Architecture Review
-# Checklist (附录C). Applicable checks for platform-devtools are implemented here.
+# Checklist (Appendix C). Applicable checks for platform-devtools are implemented here.
 #
 # ============================================================================
-# 附录C 可 CI 化检查项对照表
+# Appendix C CI-compatible Check Item Reference
 # ============================================================================
 #
 # | ID        | Check                              | Implementation      |
@@ -109,7 +109,7 @@ jobs:
           fi
 
   # ========================================
-  # ArchUnit 规则库测试
+  # ArchUnit Rules Library Test
   # ========================================
   archunit-tests:
     name: ArchUnit Rules Test
@@ -128,38 +128,38 @@ jobs:
       - name: Run ArchUnit Tests
         working-directory: architecture-guard
         run: |
-          echo "🔍 运行 ArchUnit 规则自身测试..."
+          echo "Running ArchUnit rules self-test..."
           mvn test -B
           
       - name: Verify Rule Coverage
         working-directory: architecture-guard
         run: |
-          echo "🔍 验证规则覆盖完整性..."
+          echo "Verifying rule coverage completeness..."
           
-          # 检查 PluginProfile 是否包含全部 8 条红线
+          # Check whether PluginProfile contains all 8 red-line rules
           PLUGIN_RULES=$(grep -c "@ArchTest" src/main/java/io/brix/architecture/guard/profiles/PluginProfile.java || true)
           
-          echo "PluginProfile 规则数量: $PLUGIN_RULES"
+          echo "PluginProfile rule count: $PLUGIN_RULES"
           
           if [ "$PLUGIN_RULES" -lt 13 ]; then
-            echo "⚠️  PluginProfile 规则数量不足，请检查是否覆盖全部红线"
+            echo "WARNING: PluginProfile rule count insufficient; verify all red-line rules are covered"
           else
-            echo "✅ PluginProfile 规则覆盖充分"
+            echo "PASS: PluginProfile rule coverage is sufficient"
           fi
           
-          # 检查 HostProfile 规则数量
+          # Check HostProfile rule count
           HOST_RULES=$(grep -c "@ArchTest" src/main/java/io/brix/architecture/guard/profiles/HostProfile.java || true)
           
-          echo "HostProfile 规则数量: $HOST_RULES"
+          echo "HostProfile rule count: $HOST_RULES"
           
           if [ "$HOST_RULES" -lt 10 ]; then
-            echo "⚠️  HostProfile 规则数量不足，请检查超薄原则规则"
+            echo "WARNING: HostProfile rule count insufficient; verify ultra-thin principle rules"
           else
-            echo "✅ HostProfile 规则覆盖充分"
+            echo "PASS: HostProfile rule coverage is sufficient"
           fi
 
   # ========================================
-  # ESLint 配置验证
+  # ESLint Config Validation
   # ========================================
   eslint-config-test:
     name: ESLint Config Validation
@@ -185,17 +185,17 @@ jobs:
       - name: Validate ESLint Config Syntax
         working-directory: eslint-config-architecture
         run: |
-          echo "🔍 验证 ESLint 配置语法..."
+          echo "Validating ESLint config syntax..."
           
-          # 使用 Node.js 验证配置是否可正确加载
+          # Use Node.js to verify configuration loads correctly
           node -e "
             const config = require('./index.js');
             if (!Array.isArray(config)) {
-              console.error('❌ ESLint 配置应该导出数组');
+              console.error('FAIL: ESLint config should export an array');
               process.exit(1);
             }
-            console.log('✅ ESLint 配置语法正确');
-            console.log('  配置块数量:', config.length);
+            console.log('PASS: ESLint config syntax is correct');
+            console.log('  Config block count:', config.length);
             config.forEach((c, i) => {
               console.log('  [' + i + '] name:', c.name || '(unnamed)');
             });
@@ -204,47 +204,47 @@ jobs:
       - name: Check Rule Coverage
         working-directory: eslint-config-architecture
         run: |
-          echo "🔍 检查 ESLint 规则覆盖..."
+          echo "Checking ESLint rule coverage..."
           
-          # 检查红线覆盖
+          # Check red-line coverage
           if grep -q "infra-adapter" index.js; then
-            echo "✅ 红线1: 基础设施适配器检查 - 已覆盖"
+            echo "PASS: Red-line 1: Infra adapter check - covered"
           else
-            echo "❌ 红线1: 基础设施适配器检查 - 未覆盖"
+            echo "FAIL: Red-line 1: Infra adapter check - not covered"
           fi
           
           if grep -q "kafkajs\|ioredis\|amqplib" index.js; then
-            echo "✅ 红线2: 中间件客户端检查 - 已覆盖"
+            echo "PASS: Red-line 2: Middleware client check - covered"
           else
-            echo "❌ 红线2: 中间件客户端检查 - 未覆盖"
+            echo "FAIL: Red-line 2: Middleware client check - not covered"
           fi
           
           if grep -q "axios\|fetch" index.js; then
-            echo "✅ 红线3: HTTP 客户端检查 - 已覆盖"
+            echo "PASS: Red-line 3: HTTP client check - covered"
           else
-            echo "❌ 红线3: HTTP 客户端检查 - 未覆盖"
+            echo "FAIL: Red-line 3: HTTP client check - not covered"
           fi
           
           if grep -q "localStorage\|sessionStorage" index.js; then
-            echo "✅ 红线6: 本地存储检查 - 已覆盖"
+            echo "PASS: Red-line 6: Local storage check - covered"
           else
-            echo "❌ 红线6: 本地存储检查 - 未覆盖"
+            echo "FAIL: Red-line 6: Local storage check - not covered"
           fi
           
           if grep -q "no-console" index.js; then
-            echo "✅ 红线7: Console 检查 - 已覆盖"
+            echo "PASS: Red-line 7: Console check - covered"
           else
-            echo "❌ 红线7: Console 检查 - 未覆盖"
+            echo "FAIL: Red-line 7: Console check - not covered"
           fi
           
           if grep -q "EventEmitter\|events" index.js; then
-            echo "✅ 红线8: EventEmitter 检查 - 已覆盖"
+            echo "PASS: Red-line 8: EventEmitter check - covered"
           else
-            echo "❌ 红线8: EventEmitter 检查 - 未覆盖"
+            echo "FAIL: Red-line 8: EventEmitter check - not covered"
           fi
 
   # ========================================
-  # 设计令牌验证
+  # Design Tokens Validation
   # ========================================
   design-tokens-test:
     name: Design Tokens Validation
@@ -269,23 +269,23 @@ jobs:
 
       - name: Validate Design Tokens
         run: |
-          echo "🔍 验证设计令牌..."
+          echo "Validating design tokens..."
           
           if [ -d "@brix/design-tokens" ]; then
             cd "@brix/design-tokens"
             
-            # 检查必要的令牌文件
+            # Check required token files
             REQUIRED_FILES="tokens.json breakpoints colors spacing typography"
             
             for f in $REQUIRED_FILES; do
               if [ -f "$f.json" ] || [ -f "src/$f.ts" ] || [ -f "src/$f.json" ]; then
-                echo "✅ $f 令牌已定义"
+                echo "PASS: $f tokens defined"
               else
-                echo "⚠️  $f 令牌可能未定义"
+                echo "WARNING: $f tokens may not be defined"
               fi
             done
           else
-            echo "⚠️  @brix/design-tokens 目录不存在"
+            echo "WARNING: @brix/design-tokens directory does not exist"
 
   # ========================================
   # 📋 Architecture Guard Summary
@@ -299,7 +299,7 @@ jobs:
       - name: Check all jobs
         run: |
           echo "============================================"
-          echo "Architecture Guard - 附录C 检查结果汇总"
+          echo "Architecture Guard - Appendix C Check Results Summary"
           echo "============================================"
           echo ""
           echo "| Check ID   | Job                     | Status |"

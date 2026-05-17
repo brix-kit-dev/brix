@@ -1,12 +1,12 @@
-# @brix/platform-config-web
+# @brix-sdk/platform-config-web
 
 > Web Configuration Capability Implementation - Implements ConfigCapability Interface
 
 ## 📖 Overview
 
-`platform-config-web` is the implementation module for the `ConfigCapability` interface defined in `@brix/runtime-sdk-api-web`. It provides configuration loading, caching, and hot-reload capabilities for web applications.
+`platform-config-web` is the implementation module for the `ConfigCapability` interface defined in `@brix-sdk/runtime-sdk-api-web`. It provides configuration loading, caching, and hot-reload capabilities for web applications.
 
-## 🏗️ Architectural Position
+## 🏗�?Architectural Position
 
 ```text
 +-------------------------------------------------------------------------+
@@ -14,7 +14,7 @@
 | +-- ConfigCapability Interface Definition                              |
 +-------------------------------------------------------------------------+
 | Capability Implementation Layer (platform-commons)                     |
-| +-- platform-config-web ⭐                                             |
+| +-- platform-config-web �?                                            |
 |      +-- ConfigCapabilityImpl (interface implementation)               |
 |      +-- ConfigStore (in-memory configuration cache)                   |
 |      +-- ConfigHttpClient (fetch configuration via HttpCapability)     |
@@ -24,7 +24,7 @@
 ## 🚀 Installation
 
 ```bash
-pnpm add @brix/platform-config-web
+pnpm add @brix-sdk/platform-config-web
 ```
 
 ## 📦 Usage
@@ -32,8 +32,8 @@ pnpm add @brix/platform-config-web
 ### Basic Usage
 
 ```typescript
-import { createConfigCapability } from '@brix/platform-config-web';
-import type { HttpCapability } from '@brix/runtime-sdk-api-web';
+import { createConfigCapability } from '@brix-sdk/platform-config-web';
+import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
 
 // Create configuration capability
 const configCapability = await createConfigCapability({
@@ -113,9 +113,9 @@ Main implementation class.
 
 ## 📝 Design Constraints
 
-- ❌ Do not call `fetch`/`axios` directly - use `HttpCapability`
-- ❌ Do not store sensitive configuration in localStorage
-- ✅ All configuration changes are logged for auditing
+- �?Do not call `fetch`/`axios` directly - use `HttpCapability`
+- �?Do not store sensitive configuration in localStorage
+- �?All configuration changes are logged for auditing
 
 ## 📄 License
 

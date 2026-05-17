@@ -1,0 +1,169 @@
+# ============================================================================
+# Brix Module Manifest Schema
+# ============================================================================
+# YAML Schema definition for module-manifest.yaml — the module-level
+# declaration covering lifecycle, capability requirements, event contracts,
+# permissions, and configuration for server-side plugin modules.
+#
+# Applies to: app-*/module-manifest.yaml
+# Version: 3.2.0
+# ============================================================================
+
+type: object
+required:
+  - module
+properties:
+
+  # --------------------------------------------------------------------------
+  # Module information
+  # --------------------------------------------------------------------------
+  module:
+    type: object
+    required: [id, name, version]
+    properties:
+      id:
+        type: string
+        description: Globally unique module identifier.
+        pattern: "^[a-z][a-z0-9-]*$"
+      name:
+        type: string
+        description: Human-readable module name.
+      version:
+        type: string
+        description: SemVer version string.
+      type:
+        type: string
+        enum: [plugin, platform, infrastructure]
+        description: Module type classification.
+      category:
+        type: string
+        enum: [business, platform, infrastructure]
+      vendor:
+        type: string
+      description:
+        type: string
+    additionalProperties: false
+
+  # --------------------------------------------------------------------------
+  # Lifecycle configuration
+  # --------------------------------------------------------------------------
+  lifecycle:
+    type: object
+    properties:
+      startup-order:
+        type: integer
+        description: Startup priority (lower = earlier).
+        minimum: 0
+      depends-on:
+        type: array
+        items:
+          type: string
+        description: Module IDs that must be ready before this module starts.
+      health-check:
+        type: object
+        properties:
+          path:
+            type: string
+            description: Actuator health check endpoint path.
+          interval:
+            type: integer
+            description: Health check interval in seconds.
+            minimum: 1
+          timeout:
+            type: integer
+            description: Health check timeout in seconds.
+            minimum: 1
+        additionalProperties: false
+    additionalProperties: false
+
+  # --------------------------------------------------------------------------
+  # Capability requirements
+  # --------------------------------------------------------------------------
+  capabilities:
+    type: object
+    properties:
+      required:
+        type: array
+        items:
+          type: string
+        description: Capabilities that MUST be present (startup fails otherwise).
+      optional:
+        type: array
+        items:
+          type: string
+        description: Capabilities used when available (graceful degradation).
+    additionalProperties: false
+
+  # --------------------------------------------------------------------------
+  # Event declarations
+  # --------------------------------------------------------------------------
+  events:
+    type: object
+    properties:
+      publishes:
+        type: array
+        items:
+          type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              description: Fully qualified event type name.
+            description:
+              type: string
+          additionalProperties: false
+      subscribes:
+        type: array
+        items:
+          type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              description: Fully qualified event type to subscribe to.
+            description:
+              type: string
+          additionalProperties: false
+    additionalProperties: false
+
+  # --------------------------------------------------------------------------
+  # Permission declarations
+  # --------------------------------------------------------------------------
+  permissions:
+    type: array
+    items:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          description: "Permission identifier (format: '<module>:<action>')."
+        name:
+          type: string
+          description: Human-readable permission name.
+        description:
+          type: string
+      additionalProperties: false
+
+  # --------------------------------------------------------------------------
+  # Configuration declarations
+  # --------------------------------------------------------------------------
+  config:
+    type: array
+    items:
+      type: object
+      required: [key, type]
+      properties:
+        key:
+          type: string
+          description: Configuration key (dot-separated namespace).
+        type:
+          type: string
+          enum: [string, int, boolean, duration, double]
+        default:
+          description: Default value (type matches the 'type' field).
+        description:
+          type: string
+      additionalProperties: false
+
+additionalProperties: false

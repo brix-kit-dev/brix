@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Page Registry
  * @description Manages PageId to URL mapping relationships
- * @module @brix/platform-navigation-web/PageRegistry
+ * @module @brix-sdk/platform-navigation-web/PageRegistry
  * @version 3.0.0
  * 
  * [Architectural Notes]

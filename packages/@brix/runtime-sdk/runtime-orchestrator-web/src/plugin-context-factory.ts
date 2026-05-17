@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Plugin Context Factory
  * @description Factory functions for creating plugin runtime context
- * @module @brix/runtime-orchestrator-web/plugin-context-factory
+ * @module @brix-sdk/runtime-orchestrator-web/plugin-context-factory
  * @version 3.0.0
  * 
  * [v3.2 Extracted Module]
@@ -26,17 +26,17 @@
  * - Event publishing and subscription
  * - Plugin metadata
  * 
- * 【中文技术要点】
- * 插件上下文工厂，为插件提供沙箱化的能力访问接口。
- * 通过 recordContribution 回调追踪插件注册的资源，支持插件卸载时自动清理。
+ * [Key Points]
+ * This factory creates sandboxed, controlled access interfaces for plugins.
+ * Tracks plugin-registered resources via the recordContribution callback, supporting automatic cleanup on plugin unload.
  */
 
 import type {
   PluginEntry,
   PluginContext,
   CapabilityRegistry,
-} from '@brix/runtime-sdk-api-web';
-import { EventBusCapabilityType } from '@brix/runtime-sdk-api-web';
+} from '@brix-sdk/runtime-sdk-api-web';
+import { EventBusCapabilityType } from '@brix-sdk/runtime-sdk-api-web';
 import type { PluginContribution } from './plugin-manager-types';
 
 /**

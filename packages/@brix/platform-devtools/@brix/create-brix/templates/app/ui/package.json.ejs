@@ -12,6 +12,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "^<%= sdkVersion %>",
+    "@brix-sdk/runtime-sdk-react": "^<%= sdkVersion %>",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.22.0"
@@ -20,16 +22,12 @@
     "@rspack/cli": "^1.1.0",
     "@rspack/core": "^1.1.0",
     "@rspack/plugin-react-refresh": "^1.0.0",
-    "@runtime/ui-sdk": "^3.0.0",
-    "@brix/eslint-config-architecture": "^3.1.0",
+    "@brix-sdk/eslint-config-architecture": "^<%= sdkVersion %>",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.5",
     "eslint": "^9.0.0",
     "react-refresh": "^0.14.2",
     "typescript": "^5.3.3"
-  },
-  "peerDependencies": {
-    "@runtime/ui-sdk": "^3.0.0"
   },
   "author": "<%= author %>",
   "license": "UNLICENSED"

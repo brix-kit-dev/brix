@@ -165,6 +165,52 @@ public class RateLimitConfig {
     }
 
     /**
+     * Returns a per-tenant rate limiter for the given tenant and route.
+     *
+     * <p>Phase 4.6 — Composite key {@code tenantId:routeId} provides isolation
+     * so that one tenant's traffic cannot exhaust another tenant's quota.
+     * Configuration lookup order: tenant-specific > route-specific > default.</p>
+     *
+     * <p>A hard upper bound ({@code maxTenantLimiters}) prevents unbounded
+     * memory growth. When the limit is reached, the method returns {@code null}
+     * and the caller should fall back to the route-level limiter.</p>
+     *
+     * @param tenantId the tenant identifier (from JWT claim)
+     * @param routeId  the gateway route ID
+     * @return a per-tenant rate limiter, or {@code null} if disabled / limit reached
+     */
+    public RateLimiter getRateLimiterForTenant(String tenantId, String routeId) {
+        if (!properties.isEnabled() || !properties.isTenantEnabled() || rateLimiterRegistry == null) {
+            return null;
+        }
+
+        String compositeKey = tenantId + ":" + routeId;
+
+        // Guard against unbounded growth
+        if (!rateLimiterCache.containsKey(compositeKey)
+                && rateLimiterCache.size() >= properties.getMaxTenantLimiters()) {
+            logger.warn("[brix] Per-tenant rate limiter limit reached ({}), falling back to route limiter for tenant={}",
+                    properties.getMaxTenantLimiters(), tenantId);
+            return null;
+        }
+
+        return rateLimiterCache.computeIfAbsent(compositeKey, key -> {
+            RateLimitProperties.RateLimitConfig config = properties.getConfigForTenant(tenantId, routeId);
+
+            RateLimiterConfig rateLimiterConfig = RateLimiterConfig.custom()
+                    .limitForPeriod(config.getLimitForPeriod())
+                    .limitRefreshPeriod(config.getLimitRefreshPeriod())
+                    .timeoutDuration(config.getTimeoutDuration())
+                    .build();
+
+            logger.debug("[brix] Created per-tenant rate limiter: tenant={}, route={}, limit={}",
+                    tenantId, routeId, config.getLimitForPeriod());
+
+            return rateLimiterRegistry.rateLimiter(key, rateLimiterConfig);
+        });
+    }
+
+    /**
      * obtaindefaultrate limit
      * <p>
      * used fornohasrouteinformationtimeofrate limit

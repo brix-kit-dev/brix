@@ -90,6 +90,18 @@ public class MinioAutoConfiguration {
      * <p>Creates {@link FileStorageCapability} implementation based on MinIO client and
      * default bucket name. Only created when no other {@link FileStorageCapability} exists
      * in the container.</p>
+     *
+     * <p><b>Return type rationale</b>: declared as the concrete
+     * {@link MinioFileStorageCapability} (not the {@link FileStorageCapability}
+     * interface) so Spring can resolve the bean's runtime type — and therefore
+     * the {@code @Capability} annotation on it — <em>before</em> the bean is
+     * instantiated. This lets {@code CapabilityAutoConfiguration} discover the
+     * Adapter via {@code getBeanNamesForAnnotation(Capability.class)} and
+     * register it into the {@code CapabilityRegistry} during the eager
+     * registry-building phase, instead of after the registry has been frozen.
+     * (Blueprint v3.0.x §3 Capability Contract; aligns with Spring Framework
+     * guidance to declare {@code @Bean} methods with concrete return types
+     * whenever annotation-driven introspection is required.)</p>
      * 
      * @param minioClient MinIO client
      * @param properties  MinIO configuration properties
@@ -97,7 +109,7 @@ public class MinioAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(FileStorageCapability.class)
-    public FileStorageCapability fileStorageCapability(MinioClient minioClient, MinioProperties properties) {
+    public MinioFileStorageCapability fileStorageCapability(MinioClient minioClient, MinioProperties properties) {
         log.info("[MinIO] Registering file storage capability: bucket={}", properties.getBucketName());
         return new MinioFileStorageCapability(minioClient, properties.getBucketName());
     }

@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/infra-adapter-ui-native",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/infra-adapter-ui-native",
+  "version": "3.2.0",
   "type": "module",
   "description": "Brix Native UI Adapter - Pure CSS atomic components implementing UIAdapter contract without third-party UI library dependencies",
   "main": "dist/index.cjs",
@@ -26,11 +26,13 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "link:../../../../runtime-sdk/runtime-sdk-api-web",
-    "@brix/design-tokens": "link:../../../../platform-devtools/@brix/design-tokens"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/runtime-sdk-react": "workspace:*",
+    "@brix-sdk/platform-design-tokens": "link:../../../../platform-commons/packages/client/platform-design-tokens"
   },
   "peerDependencies": {
-    "@brix/runtime-sdk-api-web": "^3.1.0",
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
+    "@brix-sdk/runtime-sdk-react": "workspace:*",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
@@ -59,5 +61,8 @@
     "typescript": "^5.4.0",
     "vitest": "^1.3.0",
     "rimraf": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

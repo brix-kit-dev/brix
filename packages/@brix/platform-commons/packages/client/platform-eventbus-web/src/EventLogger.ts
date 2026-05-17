@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Event Logger
  * @description Records all events for debugging and observability
- * @module @brix/platform-eventbus-web/EventLogger
+ * @module @brix-sdk/platform-eventbus-web/EventLogger
  * @version 3.0.0
  * 
  * Architecture Overview:
@@ -30,7 +30,7 @@
  * 4. Support exporting event logs
  */
 
-import type { GovernedEvent } from '@brix/runtime-sdk-api-web';
+import type { GovernedEvent } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Log level
@@ -350,7 +350,7 @@ export class EventLogger {
     const { event, action, receiverCount } = entry;
     const { type, metadata } = event;
     
-    const prefix = action === 'emit' ? '📤' : '📥';
+    const prefix = action === 'emit' ? '??' : '??';
     const source = metadata.source;
     const scope = metadata.scope;
     

@@ -124,6 +124,7 @@ public final class ArchitectureGuardConfig {
 
         // Direct database access (should use DatabaseCapability)
         forbidden.add("java.sql..");
+        forbidden.add("javax.sql..");
         forbidden.add("org.springframework.jdbc..");
         forbidden.add("org.hibernate..");
 

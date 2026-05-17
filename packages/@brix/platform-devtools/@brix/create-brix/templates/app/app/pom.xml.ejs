@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   <%= displayName %> 聚合启动module POM
   
@@ -45,7 +45,7 @@
 
         <!-- Runtime SDK（运行时能力入口） -->
         <dependency>
-            <groupId>com.shinwa.runtime</groupId>
+            <groupId>io.brix.runtime</groupId>
             <artifactId>runtime-sdk</artifactId>
         </dependency>
 
@@ -63,13 +63,13 @@
 
         <!-- 可观测性 Starter -->
         <dependency>
-            <groupId>com.shinwa.platform</groupId>
+            <groupId>io.brix.platform</groupId>
             <artifactId>platform-observability-starter</artifactId>
         </dependency>
 
         <!-- 安全 Starter -->
         <dependency>
-            <groupId>com.shinwa.platform</groupId>
+            <groupId>io.brix.platform</groupId>
             <artifactId>platform-security-starter</artifactId>
         </dependency>
 <% if (features.database) { %>

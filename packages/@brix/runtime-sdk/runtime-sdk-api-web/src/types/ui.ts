@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file UI Adapter Type Definitions - Backward Compatibility Re-export
  * @description Re-exports all UI adapter types from the ui/ subfolder for backward compatibility.
- * @module @brix/runtime-sdk-api-web/types/ui
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui
  * @version 3.2.0
  *
  * [v3.2.0 Refactoring]
@@ -37,7 +37,7 @@
  * - ui/adapter.ts: UIAdapter interface and capability symbol
  *
  * This file re-exports everything from the ui/ folder for backward compatibility.
- * New code should import directly from '@brix/runtime-sdk-api-web/types/ui/[component]'.
+ * New code should import directly from '@brix-sdk/runtime-sdk-api-web/types/ui/[component]'.
  *
  * [Architectural Constraints - v3.0.4 Blueprint]
  * - UIAdapter only contains ATOMIC components

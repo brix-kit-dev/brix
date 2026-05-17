@@ -1,0 +1,38 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import type { RuntimeContext } from '@brix-sdk/runtime-sdk-api-web';
+import { RuntimeContextProvider } from '@brix-sdk/runtime-sdk-react';
+import App from './App';
+
+const RUNTIME_CONTEXT_GLOBAL = '__BRIX_RUNTIME_CONTEXT__';
+
+declare global {
+  interface Window {
+    __BRIX_RUNTIME_CONTEXT__?: RuntimeContext;
+  }
+}
+
+function resolveRuntimeContext(): RuntimeContext {
+  const runtimeContext = window[RUNTIME_CONTEXT_GLOBAL];
+  if (!runtimeContext) {
+    throw new Error('RuntimeContext must be injected by the Host Shell before <%= name %> starts.');
+  }
+  return runtimeContext;
+}
+
+function bootstrap(): void {
+  const container = document.getElementById('root');
+  if (!container) {
+    return;
+  }
+
+  createRoot(container).render(
+    <React.StrictMode>
+      <RuntimeContextProvider value={resolveRuntimeContext()}>
+        <App />
+      </RuntimeContextProvider>
+    </React.StrictMode>
+  );
+}
+
+bootstrap();

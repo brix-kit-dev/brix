@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Icons Module Exports
  * @description Exports for the icon system including NativeIcon component and SVG registry.
- * @module @brix/infra-adapter-ui-native/icons
+ * @module @brix-sdk/infra-adapter-ui-native/icons
  * @version 3.1.0
  */
 

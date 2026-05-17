@@ -1,1 +1,2 @@
 io.infra.adapter.database.config.DatabaseAutoConfiguration
+io.infra.adapter.database.migration.FlywayModuleMigrationAutoConfiguration

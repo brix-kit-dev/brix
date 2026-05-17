@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,21 +16,21 @@
 /**
  * @file Router Service Interface Definition
  * @description Defines the unified interface for platform internal router service, for capability implementation layer use
- * @module @brix/platform-router-web/RouterService
+ * @module @brix-sdk/platform-router-web/RouterService
  * @version 3.0.0
  * 
- * ã€Architecture Notesã€‘
+ * ¡¾Architecture Notes¡¿
  * RouterService is the platform's internal router service interface, not exposed to plugins.
  * 
- * ã€Responsibility Boundariesã€‘
+ * ¡¾Responsibility Boundaries¡¿
  * - Encapsulates implementation details of underlying routing library (react-router-dom)
  * - Provides unified routing operation interface
  * - Only for internal use by platform modules like platform-navigation-web
  * 
- * ã€Architectural Constraintsã€‘
- * âŒ Forbidden to use this service directly in plugins
- * âŒ Forbidden to import this module in code outside Host layer
- * âœ… Plugins can only use routing functionality indirectly through NavigationCapability
+ * ¡¾Architectural Constraints¡¿
+ * ? Forbidden to use this service directly in plugins
+ * ? Forbidden to import this module in code outside Host layer
+ * ? Plugins can only use routing functionality indirectly through NavigationCapability
  */
 
 /**
@@ -70,11 +70,11 @@ export interface NavigateOptions {
  * 
  * Unified interface for platform internal routing operations.
  * 
- * ã€Importantã€‘
+ * ¡¾Important¡¿
  * This is an internal platform service, NOT exposed to plugins!
  * Plugins can only request navigation through NavigationCapability.
  * 
- * ã€Design Rationaleã€‘
+ * ¡¾Design Rationale¡¿
  * 1. Routing is Host's core control point, plugins cannot directly operate
  * 2. Through capability layer abstraction, navigation governance can be implemented (permission checks, logging, etc.)
  * 3. Plugins don't need to care about underlying routing library implementation

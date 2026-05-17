@@ -1,4 +1,4 @@
-﻿package <%= packageName %>;
+package <%= packageName %>;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -26,9 +26,9 @@ import org.springframework.context.annotation.ComponentScan;
 @ComponentScan(basePackages = {
     "<%= packageName %>",
 <% plugins.forEach(plugin => { %>
-    "com.shinwa.plugin.<%= plugin.name.replace('plugin-', '').replace(/-/g, '') %>",
+    "io.brix.plugin.<%= plugin.name.replace('plugin-', '').replace(/-/g, '') %>",
 <% }); %>
-    "shinwa.platform.starter"
+    "io.brix.platform.starter"
 })
 public class <%= classPrefix %>Application {
 

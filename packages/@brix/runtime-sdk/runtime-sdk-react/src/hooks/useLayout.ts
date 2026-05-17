@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,28 +15,43 @@
  */
 /**
  * @file Layout Hook
- * @description Provides layout-related React Hooks for Runtime SDK
- * @module @brix/runtime-sdk-react/hooks/useLayout
- * @version 3.2.0
+ * @description Provides layout-related React Hooks for Runtime SDK.
+ *              Resolves LayoutCapability from RuntimeContext following the
+ *              standard capability hook pattern (useAuth, useI18n, useTenant).
+ * @module @brix-sdk/runtime-sdk-react/hooks/useLayout
+ * @version 3.2.1
  *
  * [Architecture Positioning]
- * This hook provides React bindings for LayoutCapability,
- * enabling layout state management in React components.
+ * React binding layer — bridges LayoutCapability contract to React components.
+ * Plugins access layout state and controls exclusively through this hook.
  *
- * [Design Principles]
- * - Reactive layout state updates
- * - Fullscreen and sidebar control
- * - Breakpoint-aware rendering
+ * [Architecture Compliance]
+ * - Blueprint v3.0.9 Constraint 2: Plugins only depend on Capability Contract
+ * - Phase 2.1: Formal useLayout hook resolving from RuntimeContext
  *
- * 【布局Hook】
- * 提供布局状态和控制方法的React Hook，包括：
- * - 全屏控制
- * - 侧边栏显示/折叠控制
- * - 断点检测
+ * [Migration Guide]
+ * Before (v3.2.0 — required manual capability parameter):
+ *   const layout = useRuntimeContext().getCapability<LayoutCapability>(...);
+ *   const { isMobile } = useLayout(layout);
+ *
+ * After (v3.2.1 — resolves automatically from RuntimeContext):
+ *   const { isMobile, toggleSidebar } = useLayout();
+ *
+ * @since 3.2.0
+ * @see LayoutCapability — Contract in runtime-sdk-api-web
+ * @see LayoutCapabilityImpl — Implementation in platform-frame-web
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { LayoutCapability, LayoutState, LayoutChangeEvent } from '@brix/runtime-sdk-api-web';
+import type { LayoutCapability, LayoutState, LayoutChangeEvent } from '@brix-sdk/runtime-sdk-api-web';
+import { useRuntimeContext } from './useRuntimeContext';
+
+/**
+ * LayoutCapability type identifier.
+ * Matches the Symbol used in bootstrap registration.
+ * @internal
+ */
+const LayoutCapabilityType = Symbol.for('LayoutCapability');
 
 /**
  * Layout Hook Return Type
@@ -108,20 +123,20 @@ export interface UseLayoutResult {
 /**
  * Layout Hook
  *
- * React Hook that provides layout state and control methods.
- * Subscribes to layout changes and updates components reactively.
+ * Resolves LayoutCapability from RuntimeContext and provides reactive
+ * layout state for React components. Automatically re-renders when
+ * layout state changes (fullscreen, sidebar, breakpoint).
  *
  * @example
  * ```tsx
  * function MyComponent() {
- *   const layout = useRuntimeContext().getCapability('layout');
  *   const {
  *     isMobile,
  *     isSidebarCollapsed,
  *     toggleSidebarCollapsed,
  *     toggleFullscreen,
- *   } = useLayout(layout);
- *   
+ *   } = useLayout();
+ *
  *   return (
  *     <div>
  *       <button onClick={toggleSidebarCollapsed}>
@@ -133,73 +148,76 @@ export interface UseLayoutResult {
  * }
  * ```
  *
- * @param layout - Layout capability instance
  * @returns Layout state and control methods
+ * @throws Error if used outside RuntimeContextProvider
+ * @throws Error if LayoutCapability is not registered
  */
-export function useLayout(layout: LayoutCapability): UseLayoutResult {
-  const [layoutState, setLayoutState] = useState<LayoutState>(() => layout.getState());
+export function useLayout(): UseLayoutResult {
+  const context = useRuntimeContext();
+
+  // Resolve LayoutCapability from RuntimeContext (memoized per context instance)
+  const layoutCapability = useMemo(() => {
+    const capability = context.getCapability<LayoutCapability>(LayoutCapabilityType);
+    if (!capability) {
+      throw new Error(
+        '[runtime-sdk-react] LayoutCapability is not registered in RuntimeContext. ' +
+        'Ensure the Host registers LayoutCapability in bootstrap via ' +
+        'runtime.registerCapability(LayoutCapabilityType, layoutCapability).'
+      );
+    }
+    return capability;
+  }, [context]);
+
+  const [layoutState, setLayoutState] = useState<LayoutState>(() => layoutCapability.getState());
   
   // Subscribe to layout state changes
-  // 订阅布局状态变化事件（如果能力支持）
   useEffect(() => {
-    // onLayoutChange is optional, check if available
-    if (!layout.onLayoutChange) {
+    if (!layoutCapability.onLayoutChange) {
       return;
     }
-    
-    const unsubscribe = layout.onLayoutChange((event: LayoutChangeEvent) => {
+
+    const unsubscribe = layoutCapability.onLayoutChange((event: LayoutChangeEvent) => {
       setLayoutState(event.state);
     });
-    
+
     return () => unsubscribe();
-  }, [layout]);
-  
-  // Request fullscreen mode
-  // 请求进入全屏模式
+  }, [layoutCapability]);
+
   const requestFullscreen = useCallback(
-    () => layout.requestFullscreen(),
-    [layout]
+    () => layoutCapability.requestFullscreen(),
+    [layoutCapability]
   );
-  
-  // Exit fullscreen mode
-  // 请求退出全屏模式
+
   const requestExitFullscreen = useCallback(
-    () => layout.requestExitFullscreen(),
-    [layout]
+    () => layoutCapability.requestExitFullscreen(),
+    [layoutCapability]
   );
-  
-  // Toggle fullscreen mode
+
   const toggleFullscreen = useCallback(async () => {
     if (layoutState.fullscreen) {
-      return layout.requestExitFullscreen();
+      return layoutCapability.requestExitFullscreen();
     } else {
-      return layout.requestFullscreen();
+      return layoutCapability.requestFullscreen();
     }
-  }, [layout, layoutState.fullscreen]);
-  
-  // Toggle sidebar visibility
+  }, [layoutCapability, layoutState.fullscreen]);
+
   const toggleSidebar = useCallback(async () => {
     if (layoutState.sidebarVisible) {
-      return layout.requestHideSidebar();
+      return layoutCapability.requestHideSidebar();
     } else {
-      return layout.requestShowSidebar();
+      return layoutCapability.requestShowSidebar();
     }
-  }, [layout, layoutState.sidebarVisible]);
-  
-  // Toggle sidebar collapsed state
-  // 切换侧边栏折叠状态
+  }, [layoutCapability, layoutState.sidebarVisible]);
+
   const toggleSidebarCollapsed = useCallback(async () => {
     if (layoutState.sidebarCollapsed) {
-      // requestExpandSidebar is optional, check if available
-      return layout.requestExpandSidebar?.() ?? Promise.resolve(false);
+      return layoutCapability.requestExpandSidebar?.() ?? Promise.resolve(false);
     } else {
-      // requestCollapseSidebar is optional, check if available
-      return layout.requestCollapseSidebar?.() ?? Promise.resolve(false);
+      return layoutCapability.requestCollapseSidebar?.() ?? Promise.resolve(false);
     }
-  }, [layout, layoutState.sidebarCollapsed]);
+  }, [layoutCapability, layoutState.sidebarCollapsed]);
   
-  // Compute mobile flag
-  // 计算是否为移动设备
+  // Compute mobile flag based on current breakpoint
   const isMobile = useMemo(() => {
     return layoutState.breakpoint === 'xs' || layoutState.breakpoint === 'sm';
   }, [layoutState.breakpoint]);

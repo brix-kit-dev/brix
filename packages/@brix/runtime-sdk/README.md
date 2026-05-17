@@ -12,11 +12,11 @@ The Runtime SDK is the contract-first core of the Brix Runtime Shell architectur
 
 ```text
 Layer 3: Host Assembly Layer                 <- assembles implementations around this repository
-        â†“
+        â†?
 Layer 2C: Capability Implementation Layer    <- infra-adapters and platform-commons
-        â†“ implements
+        â†?implements
 Layer 2A / 2B: Contracts and Shared Runtime  <- this repository is centered here
-        â†‘ only dependency allowed for plugins
+        â†?only dependency allowed for plugins
 Layer 1: Plugin Layer                        <- depends only on API contracts
 ```
 
@@ -66,16 +66,16 @@ runtime-sdk/
 
 | Module | Responsibility | Notes |
 |--------|----------------|-------|
-| `@brix/runtime-sdk-api-web` | web capability contracts and shared types | primary dependency for web plugins |
-| `@brix/runtime-manifest-web` | manifest parsing and validation | supports declarative plugin loading |
-| `@brix/runtime-orchestrator-web` | runtime composition and plugin lifecycle | used by web Hosts |
-| `@brix/runtime-sdk-react` | React integration helpers and providers | binds capability access into React applications |
+| `@brix-sdk/runtime-sdk-api-web` | web capability contracts and shared types | primary dependency for web plugins |
+| `@brix-sdk/runtime-manifest-web` | manifest parsing and validation | supports declarative plugin loading |
+| `@brix-sdk/runtime-orchestrator-web` | runtime composition and plugin lifecycle | used by web Hosts |
+| `@brix-sdk/runtime-sdk-react` | React integration helpers and providers | binds capability access into React applications |
 
 ### Mobile Module
 
 | Module | Responsibility | Notes |
 |--------|----------------|-------|
-| `@brix/runtime-sdk-api-mobile` | mobile capability contracts and shared types | primary dependency for mobile plugins |
+| `@brix-sdk/runtime-sdk-api-mobile` | mobile capability contracts and shared types | primary dependency for mobile plugins |
 
 ---
 
@@ -94,7 +94,7 @@ runtime-sdk/
 ### Web Plugin Dependency
 
 ```bash
-pnpm add @brix/runtime-sdk-api-web
+pnpm add @brix-sdk/runtime-sdk-api-web
 ```
 
 ### Example Java Module

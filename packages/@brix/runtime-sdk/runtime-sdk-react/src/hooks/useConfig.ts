@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +16,15 @@
 /**
  * @file useConfig Hook
  * @description Config Capability React Hook
- * @module @brix/runtime-sdk-react/hooks/useConfig
+ * @module @brix-sdk/runtime-sdk-react/hooks/useConfig
  * @version 3.2.0
  *
  * [v3.2 Refactoring Notes]
- * Migrated from @brix/runtime-sdk-api-web to a standalone React binding package.
+ * Migrated from @brix-sdk/runtime-sdk-api-web to a standalone React binding package.
  */
 
 import { useMemo, useState, useEffect } from 'react';
-import type { ConfigCapability } from '@brix/runtime-sdk-api-web';
+import type { ConfigStoreCapability } from '@brix-sdk/runtime-sdk-api-web';
 import { useRuntimeContext } from './useRuntimeContext';
 
 /**
@@ -76,7 +76,7 @@ export function useConfig<T = Record<string, unknown>>(): UseConfigResult<T> {
   const [isLoading, setIsLoading] = useState(true);
 
   const configCapability = useMemo(() => {
-    const capability = context.getCapability<ConfigCapability>(ConfigCapabilityType);
+    const capability = context.getCapability<ConfigStoreCapability>(ConfigCapabilityType);
     if (!capability) {
       throw new Error(
         '[runtime-sdk-react] ConfigCapability is not registered in RuntimeContext'

@@ -19,24 +19,25 @@ gateway:
       
       # 开发环境使用的测试 Key（仅限本地开发）
       # 这些 Key 不应在任何非本地环境中使用
+      # P0-6：所有敏感项走环境变量；dev fallback 仅供本地启动使用。
       keys:
         - name: dev-frontend
-          key: shinwa-frontend-web-api-key-v1
-          secret: shinwa-frontend-web-api-secret-v1-32chars
+          key: ${BRIX_GATEWAY_FRONTEND_KEY:brix-frontend-web-api-key-v1}
+          secret: ${BRIX_GATEWAY_FRONTEND_SECRET:brix-frontend-web-api-secret-v1-32chars}
           allowed-paths: []
         - name: dev-engine
-          key: shinwa-plugin-engine-api-key-v1
-          secret: shinwa-plugin-engine-api-secret-v1-32chars
+          key: ${BRIX_GATEWAY_ENGINE_KEY:brix-plugin-engine-api-key-v1}
+          secret: ${BRIX_GATEWAY_ENGINE_SECRET:brix-plugin-engine-api-secret-v1-32chars}
           allowed-paths:
             - /api/plugin-engine/**
         - name: dev-plugin
-          key: shinwa-plugin-service-api-key-v1
-          secret: shinwa-plugin-service-api-secret-v1-32chars
+          key: ${BRIX_GATEWAY_PLUGIN_KEY:brix-plugin-service-api-key-v1}
+          secret: ${BRIX_GATEWAY_PLUGIN_SECRET:brix-plugin-service-api-secret-v1-32chars}
           allowed-paths:
             - /api/plugins/**
         - name: dev-mobile
-          key: shinwa-mobile-app-api-key-v1
-          secret: shinwa-mobile-app-api-secret-v1-32chars
+          key: ${BRIX_GATEWAY_MOBILE_KEY:brix-mobile-app-api-key-v1}
+          secret: ${BRIX_GATEWAY_MOBILE_SECRET:brix-mobile-app-api-secret-v1-32chars}
           allowed-paths: []
 
     header-strip:

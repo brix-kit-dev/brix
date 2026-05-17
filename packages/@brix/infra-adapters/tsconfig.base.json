@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    /* 基础配置 */
+    /* Base Configuration */
     "target": "ES2022",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "module": "ESNext",
@@ -10,7 +10,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     
-    /* 严格模式 */
+    /* Strict Mode */
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -24,7 +24,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     
-    /* 输出配置 */
+    /* Output Configuration */
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -33,10 +33,10 @@
     /* JSX */
     "jsx": "react-jsx",
     
-    /* 路径映射 - 前端适配器 */
+    /* Path Mapping - Frontend Adapters */
     "baseUrl": ".",
     "paths": {
-      /* Web 适配器 */
+      /* Web Adapters */
       "@brix/infra-adapter-http-web": ["./packages/web/infra-adapter-http-web/src"],
       "@brix/infra-adapter-mf-web": ["./packages/web/infra-adapter-mf-web/src"],
       "@brix/infra-adapter-iframe-web": ["./packages/web/infra-adapter-iframe-web/src"],
@@ -44,7 +44,7 @@
       "@brix/infra-adapter-ui-native": ["./packages/web/infra-adapter-ui-native/src"],
       "@brix/infra-adapter-router-web": ["./packages/web/infra-adapter-router-web/src"],
       "@brix/infra-adapter-state-web": ["./packages/web/infra-adapter-state-web/src"],
-      /* Mobile 适配器 */
+      /* Mobile Adapters */
       "@brix/infra-adapter-module-mobile": ["./packages/mobile/infra-adapter-module-mobile/src"],
       "@brix/infra-adapter-navigation-mobile": ["./packages/mobile/infra-adapter-navigation-mobile/src"],
       "@brix/infra-adapter-storage-mobile": ["./packages/mobile/infra-adapter-storage-mobile/src"],

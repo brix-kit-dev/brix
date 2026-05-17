@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file ZustandAdapter Unit Tests
  * @description Tests for the core functionality of the Zustand state management adapter
- * @module @brix/infra-adapter-state-web/test
+ * @module @brix-sdk/infra-adapter-state-web/test
  * @version 3.2.0
  * 
  * [Test Coverage]

@@ -1,33 +1,14 @@
-﻿/**
- * @file index.tsx
- * @description <%= displayName %> Web 前端入口
- * @module @brix/<%= name %>-web
- * 
- * 生成时间: <%= date %>
- */
+﻿<% if (typeof withShared !== 'undefined') { -%>
+import './bootstrap';
 
-import React from 'react';
+export { default as App } from './App';
+<% } -%>
+export { default as <%= classPrefix %>List } from './pages/<%= classPrefix %>List';
+export { default as <%= classPrefix %>Detail } from './pages/<%= classPrefix %>Detail';
 
-/**
- * <%= displayName %> 主组件
- */
-export const <%= classPrefix %>Plugin: React.FC = () => {
-  return (
-    <div className="<%= name %>-container">
-      <h1><%= displayName %></h1>
-      <p><%= description %></p>
-    </div>
-  );
-};
-
-/**
- * 插件元信息
- */
 export const pluginMeta = {
   name: '<%= name %>',
   displayName: '<%= displayName %>',
-  version: '<%= version %>',
+  version: '<%= sdkVersion %>',
   description: '<%= description %>',
 };
-
-export default <%= classPrefix %>Plugin;

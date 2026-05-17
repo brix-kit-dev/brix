@@ -29,6 +29,21 @@ gateway:
         limit-refresh-period: PT1S
         timeout-duration: PT0S
 
+    # ---- Per-Tenant Rate Limiting (Phase 4.6) ----
+    # When enabled, each tenant gets its own rate limiter per route.
+    # Tenant ID is extracted from the JWT payload claim.
+    tenant-enabled: ${GATEWAY_RATELIMIT_TENANT_ENABLED:false}
+    tenant-jwt-claim: ${GATEWAY_RATELIMIT_TENANT_CLAIM:tenant_id}
+    max-tenant-limiters: ${GATEWAY_RATELIMIT_MAX_TENANT_LIMITERS:10000}
+    # Tenant-specific overrides (optional):
+    # tenants:
+    #   tenant-premium:
+    #     limit-for-period: 500
+    #     limit-refresh-period: PT1S
+    #     timeout-duration: PT0S
+    #   tenant-basic:
+    #     limit-for-period: 50
+
   # ========== 熔断器配置（CircuitBreaker）==========
   # 基于失败率/慢调用率触发熔断
   circuitbreaker:

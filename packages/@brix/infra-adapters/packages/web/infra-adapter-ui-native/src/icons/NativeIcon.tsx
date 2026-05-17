@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file Native Icon Component
  * @description React component for rendering SVG inline icons from the icon registry.
  *              Implements IconProps interface from runtime-sdk-api-web.
- * @module @brix/infra-adapter-ui-native/icons/NativeIcon
+ * @module @brix-sdk/infra-adapter-ui-native/icons/NativeIcon
  * @version 3.1.0
  *
  * [Design Principles]
@@ -28,7 +28,7 @@
  */
 
 import type { FC, CSSProperties } from 'react';
-import type { IconProps, ComponentSize } from '@brix/runtime-sdk-api-web';
+import type { IconProps, ComponentSize } from '@brix-sdk/runtime-sdk-api-web';
 import { getIconDef, hasIconDef } from './svg-icons';
 
 // ============================================================================

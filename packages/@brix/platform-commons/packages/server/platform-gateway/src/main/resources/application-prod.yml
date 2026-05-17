@@ -11,9 +11,15 @@ spring:
 
 gateway:
   cors:
-    # 生产环境阻止通配符配置
+    # Production: wildcard origin is blocked; set GATEWAY_ALLOWED_ORIGINS env var
+    # Example: GATEWAY_ALLOWED_ORIGINS=https://www.example.com,https://*.example.com
     block-wildcard-in-production: true
     warn-on-wildcard: true
+    # Expose observability correlation headers for downstream consumers
+    exposed-headers:
+      - X-Trace-Id
+      - X-Request-Id
+      - X-Tenant-Id
 
   security:
     api-key:

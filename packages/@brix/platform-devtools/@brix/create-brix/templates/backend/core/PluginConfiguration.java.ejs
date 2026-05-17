@@ -1,20 +1,14 @@
 ﻿package <%= packageName %>.config;
 
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * <%= displayName %> 插件配置
- * 
- * <p>生成时间: <%= date %></p>
- * 
- * <p>此Configuration class在服务启动时通过 @ComponentScan 扫描自动加载</p>
- * 
+ * <%= displayName %> plugin configuration.
+ *
+ * <p>Beans must be imported by plugin-owned auto-configuration instead of host package scanning.</p>
+ *
  * @author <%= author %>
  */
 @Configuration
-@ComponentScan(basePackages = "<%= packageName %>")
 public class <%= classPrefix %>PluginConfiguration {
-    
-    // 在此添加插件级别的 Bean 定义
 }

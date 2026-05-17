@@ -16,7 +16,7 @@
 /**
  * @file UI Adapter Type Definitions Barrel Export
  * @description Unified export for all UI adapter type definitions
- * @module @brix/runtime-sdk-api-web/types/ui
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui
  * @version 3.2.0
  *
  * [v3.2.0 Refactoring]
@@ -63,14 +63,71 @@ export * from './modal';
 export * from './message';
 
 // =========================================
+// v3.2.0 Extended Component Types
+// Phase 1: UIAdapter Contract Extension (BrixUI Governance Plan)
+// =========================================
+
+// Layout Components
+export * from './box';
+export * from './stack';
+export * from './paper';
+export * from './divider';
+
+// Typography
+export * from './typography';
+
+// Data Display Components
+export * from './table';
+export * from './tag';
+export * from './list';
+export * from './empty';
+export * from './pagination';
+
+// Form Components
+export * from './checkbox';
+export * from './switch';
+export * from './radio';
+export * from './form';
+
+// Feedback Components
+export * from './alert';
+export * from './spin';
+export * from './progress';
+// Frontend Stability Reform v1.0 — C-7: Skeleton placeholder component
+export * from './skeleton';
+
+// Navigation Components
+export * from './tabs';
+export * from './breadcrumb';
+export * from './steps';
+
+// Container Components
+export * from './drawer';
+export * from './collapse';
+export * from './popover';
+export * from './popconfirm';
+
+// =========================================
 // Theme System
 // =========================================
 export * from './theme-tokens';
 
 // =========================================
+// Design Tokens (v3.2.1 — Brix Semantic Token Contract)
+// =========================================
+export * from './design-tokens';
+export * from './design-token-resolver';
+
+// =========================================
 // Icon System
 // =========================================
 export * from './icon';
+
+// =========================================
+// Cross-cutting Components
+// (v3.3.0 Frontend Stability Reform Plan v1.0 — C-1)
+// =========================================
+export * from './error-boundary';
 
 // =========================================
 // UI Adapter Interface

@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,18 +16,18 @@
 /**
  * @file MenuRegistry
  * @description Menu Registry - Manages aggregated menu data
- * @module @brix/platform-navigation-web/manifest/MenuRegistry
+ * @module @brix-sdk/platform-navigation-web/manifest/MenuRegistry
  * @version 3.0.0
  *
- * ã€Design Notesã€‘
+ * ¡¾Design Notes¡¿
  * Following v3.0.4 blueprint Manifest-Driven architecture:
  * - Stores aggregated menu tree
  * - Provides menu query capabilities
  * - Supports permission filtering
  * - Supports dynamic refresh
  *
- * ã€Relationship with PageRegistryã€‘
- * - PageRegistry: Manages PageId â†’ URL mapping
+ * ¡¾Relationship with PageRegistry¡¿
+ * - PageRegistry: Manages PageId ¡ú URL mapping
  * - MenuRegistry: Manages menu tree structure and queries
  */
 
@@ -63,7 +63,7 @@ export interface MenuRegistryConfig {
  *
  * Manages aggregated menu data, providing query and filtering capabilities.
  *
- * ã€Usage Exampleã€‘
+ * ¡¾Usage Example¡¿
  * ```typescript
  * const registry = new MenuRegistry({
  *   permissionChecker: (perm) => userPermissions.includes(perm),

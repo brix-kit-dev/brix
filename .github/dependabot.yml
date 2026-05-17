@@ -1,0 +1,58 @@
+# Dependabot configuration for automated dependency updates.
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+
+updates:
+  # Maven (Java backend) ─────────────────────────────────────
+  - package-ecosystem: maven
+    directory: /packages/@brix/platform-commons
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - java
+    reviewers:
+      - brix-platform/core-team
+
+  - package-ecosystem: maven
+    directory: /packages/@brix/runtime-sdk
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - java
+
+  - package-ecosystem: maven
+    directory: /packages/@brix/infra-adapters
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - java
+
+  # npm (frontend / website) ─────────────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - javascript
+
+  # GitHub Actions ────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - ci

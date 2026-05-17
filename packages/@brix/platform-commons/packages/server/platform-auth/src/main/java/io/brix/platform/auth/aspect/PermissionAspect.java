@@ -28,6 +28,7 @@ import org.springframework.core.annotation.Order;
 
 import io.brix.platform.auth.annotation.RequirePermission;
 import io.brix.platform.auth.annotation.RequireRole;
+import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
 
@@ -98,9 +99,13 @@ public class PermissionAspect {
         AuthenticatedUser user = securityContextHolder.getCurrentUser()
                 .orElseThrow(() -> new PermissionDeniedException("User not authenticated"));
 
-        // Super admin bypasses permission check
-        if (user.isSuperAdmin()) {
-            logger.debug("Super admin bypassed permission check for {}", joinPoint.getSignature());
+        // P0-3: Capability-based bypass — platform admins carry BYPASS_PERMISSION_CHECK
+        // in their JWT permissions claim. This replaces the former role-name identity check
+        // (isSuperAdmin()) with a verifiable capability that flows through the token.
+        if (user.hasPermission(PlatformPermissions.BYPASS_PERMISSION_CHECK)) {
+            // P2-9: Audit-grade log — bypass is a security-significant event.
+            logger.warn("[AUDIT] Platform admin bypass applied: userId={}, platformRole={}, endpoint={}",
+                    user.getUserId(), user.getPlatformRole(), joinPoint.getSignature());
             return;
         }
 
@@ -139,9 +144,10 @@ public class PermissionAspect {
         AuthenticatedUser user = securityContextHolder.getCurrentUser()
                 .orElseThrow(() -> new PermissionDeniedException("User not authenticated"));
 
-        // Super admin bypasses role check
-        if (user.isSuperAdmin()) {
-            logger.debug("Super admin bypassed role check for {}", joinPoint.getSignature());
+        // P0-3: Same capability-based bypass for role checks.
+        if (user.hasPermission(PlatformPermissions.BYPASS_PERMISSION_CHECK)) {
+            logger.warn("[AUDIT] Platform admin bypass applied: userId={}, platformRole={}, endpoint={}",
+                    user.getUserId(), user.getPlatformRole(), joinPoint.getSignature());
             return;
         }
 

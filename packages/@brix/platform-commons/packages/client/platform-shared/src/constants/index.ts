@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Constants export
  * @description Export all shared constants
- * @module @brix/platform-shared/constants
+ * @module @brix-sdk/platform-shared/constants
  * @version 3.0.0
  */
 

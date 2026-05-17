@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +16,15 @@
 /**
  * @file Google OAuth Factory
  * @description Singleton factory functions for GoogleOAuthService
- * @module @brix/platform-auth-web/services/google-oauth/google-oauth-factory
+ * @module @brix-sdk/platform-auth-web/services/google-oauth/google-oauth-factory
  * @version 3.2.0
  * 
  * Extracted from GoogleOAuthService.ts as part of v3.2 architecture refactoring
  * to keep each file under 500 lines per code quality guidelines.
  * 
- * ã€ä¸­æ–‡æŠ€æœ¯è¦ç‚¹ã€‘
- * å•ä¾‹å·¥å‚æ¨¡å¼ç¡®ä¿æ•´ä¸ªåº”ç”¨å…±äº«ä¸€ä¸ª OAuth æœåŠ¡å®ä¾‹ã€‚
- * è¿™å¯¹äºç»´æŠ¤ä¸€è‡´çš„è®¤è¯çŠ¶æ€å’Œé¿å…é‡å¤åˆå§‹åŒ–å¾ˆé‡è¦ã€‚
+ * ¡¾ÖĞÎÄ¼¼ÊõÒªµã¡¿
+ * µ¥Àı¹¤³§Ä£Ê½È·±£Õû¸öÓ¦ÓÃ¹²ÏíÒ»¸ö OAuth ·şÎñÊµÀı¡£
+ * Õâ¶ÔÓÚÎ¬»¤Ò»ÖÂµÄÈÏÖ¤×´Ì¬ºÍ±ÜÃâÖØ¸´³õÊ¼»¯ºÜÖØÒª¡£
  */
 
 import type { GoogleOAuthConfig } from './google-types';

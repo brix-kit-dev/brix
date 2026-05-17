@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file 认证 Hooks 导出
- * @description 导出所有认证相Hooks
- * @module @brix/platform-auth-web/hooks
+ * @file ��֤ Hooks ����
+ * @description ����������֤��Hooks
+ * @module @brix-sdk/platform-auth-web/hooks
  * @version 3.0.0
  */
 
@@ -28,3 +28,9 @@ export {
   useRole,
   type UsePermissionResult,
 } from './usePermission';
+export {
+  useGoogleAuth,
+  type UseGoogleAuthOptions,
+  type UseGoogleAuthReturn,
+  type AuthStorageAdapter,
+} from './useGoogleAuth';

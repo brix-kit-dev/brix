@@ -1,5 +1,5 @@
-﻿/*
- * Copyright (c) 2024-2026 Shinwa Solutions. All rights reserved.
+/*
+ * Copyright (c) 2024-2026 Brix Solutions. All rights reserved.
  *
  * <%= displayName %> 配置属性类
  * 
@@ -7,7 +7,7 @@
  * 
  * [Design Notes]
  * 本配置属性类对应 application.yml 中的配置项：
- * shinwa.app.<%= name.replace(/-/g, '.') %>.*
+ * brix.app.<%= name.replace(/-/g, '.') %>.*
  * 
  * 【架构红线 R6】
  * - module配置必须通过 ConfigCapability 或 @ConfigurationProperties 获取
@@ -24,11 +24,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * <%= displayName %> 配置属性
  *
- * <p>绑定 {@code application.yml} 中以 {@code shinwa.app.<%= name.replace(/-/g, '.') %>} 为前缀的配置项。</p>
+ * <p>绑定 {@code application.yml} 中以 {@code brix.app.<%= name.replace(/-/g, '.') %>} 为前缀的配置项。</p>
  *
  * <p>配置示例：</p>
  * <pre>
- * shinwa:
+ * brix:
  *   app:
  *     <%= name.replace(/-/g, '.') %>:
  *       enabled: true
@@ -40,7 +40,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author <%= author %>
  * @since <%= date %>
  */
-@ConfigurationProperties(prefix = "shinwa.app.<%= name.replace(/-/g, '.') %>")
+@ConfigurationProperties(prefix = "brix.app.<%= name.replace(/-/g, '.') %>")
 public class <%= classPrefix %>Properties {
 
     /**

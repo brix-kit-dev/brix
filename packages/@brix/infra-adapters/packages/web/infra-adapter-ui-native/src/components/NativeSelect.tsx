@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  * @file Native Select Component
  * @description Pure CSS select/dropdown component implementing SelectProps from UIAdapter contract.
  *              No external UI library dependencies.
- * @module @brix/infra-adapter-ui-native/components/NativeSelect
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeSelect
  * @version 3.1.0
  *
  * [Design Principles]
@@ -28,7 +28,7 @@
  */
 
 import { useId, type FC, type CSSProperties, type ChangeEvent } from 'react';
-import type { SelectProps, ComponentSize, SelectOption } from '@brix/runtime-sdk-api-web';
+import type { SelectProps, ComponentSize, SelectOption } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 
 // ============================================================================
@@ -134,6 +134,7 @@ export const NativeSelect: FC<SelectProps> = ({
   onChange,
   style,
   className,
+  'data-testid': dataTestId,
 }) => {
   // Generate unique ID for label association
   const selectId = useId();
@@ -239,6 +240,7 @@ export const NativeSelect: FC<SelectProps> = ({
           defaultValue={defaultValue?.toString()}
           onChange={handleChange}
           style={selectStyle}
+          data-testid={dataTestId}
           aria-invalid={error}
           aria-describedby={helperText ? `${selectId}-helper` : undefined}
         >
@@ -255,6 +257,7 @@ export const NativeSelect: FC<SelectProps> = ({
               key={option.value}
               value={option.value}
               disabled={option.disabled}
+              data-testid={option['data-testid']}
             >
               {option.label}
             </option>
@@ -273,6 +276,7 @@ export const NativeSelect: FC<SelectProps> = ({
           <button
             type="button"
             onClick={handleClear}
+            data-testid={dataTestId ? `${dataTestId}-clear` : undefined}
             style={{
               position: 'absolute',
               right: '28px',

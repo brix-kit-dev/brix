@@ -1,6 +1,6 @@
-﻿{
-  "name": "@brix/infra-adapter-biometric-mobile",
-  "version": "1.0.0",
+{
+  "name": "@brix-sdk/infra-adapter-biometric-mobile",
+  "version": "3.2.0",
   "description": "Biometric authentication adapter for Brix Runtime SDK Mobile",
   "type": "module",
   "main": "./dist/index.js",
@@ -47,8 +47,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brix/infra-adapters.git",
+    "url": "https://github.com/brix-platform/infra-adapters.git",
     "directory": "packages/mobile/infra-adapter-biometric-mobile"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "sideEffects": false
 }

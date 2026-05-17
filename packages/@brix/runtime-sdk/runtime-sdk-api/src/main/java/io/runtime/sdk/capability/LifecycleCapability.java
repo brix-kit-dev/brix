@@ -17,6 +17,8 @@ package io.runtime.sdk.capability;
 
 import io.runtime.sdk.context.RuntimeContext;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Lifecycle Capability Contract
  * 
@@ -89,6 +91,7 @@ import io.runtime.sdk.context.RuntimeContext;
  * @see HealthStatus
  * @see ModuleMetadata
  */
+@Since("3.0.0")
 public interface LifecycleCapability {
 
     /**

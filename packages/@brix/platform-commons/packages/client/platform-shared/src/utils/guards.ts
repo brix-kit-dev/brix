@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Type guard utilities
  * @description Provides type guards and assertion functions
- * @module @brix/platform-shared/utils/guards
+ * @module @brix-sdk/platform-shared/utils/guards
  * @version 3.0.0
  */
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file infra-adapter-navigation-mobile Module Entry
  * @description Brix UI Mobile Navigation Adapter - React Navigation routing implementation
- * @module @brix/infra-adapter-navigation-mobile
+ * @module @brix-sdk/infra-adapter-navigation-mobile
  * @version 3.0.0
  * 
  * Module Description:
@@ -29,15 +29,15 @@
  * - Plugins operate navigation through the NavigationCapability contract
  * 
  * v3.0 Boundary Constraints:
- * ❌ Plugins must NOT directly operate Navigation Container
- * ❌ Plugins must NOT access other plugins' navigation state
- * ❌ Plugins must NOT register global Deep Link handlers
- * ✅ Plugins declare navigation intent through NavigationCapability
- * ✅ Navigation permissions are controlled by Host
+ * ? Plugins must NOT directly operate Navigation Container
+ * ? Plugins must NOT access other plugins' navigation state
+ * ? Plugins must NOT register global Deep Link handlers
+ * ? Plugins declare navigation intent through NavigationCapability
+ * ? Navigation permissions are controlled by Host
  * 
  * Usage (Host layer only):
  * ```typescript
- * import { RNNavigationAdapter, createScreenId } from '@brix/infra-adapter-navigation-mobile';
+ * import { RNNavigationAdapter, createScreenId } from '@brix-sdk/infra-adapter-navigation-mobile';
  * 
  * const adapter = new RNNavigationAdapter({
  *   screenRegistry: registry,

@@ -1,0 +1,150 @@
+# ============================================================================
+# Brix UI Manifest Schema
+# ============================================================================
+# YAML Schema definition for ui-manifest.yaml — the frontend plugin
+# declaration used by the Host Shell to assemble pages, menus, and
+# platform-specific UI components.
+#
+# Applies to: *-ui-web/ui-manifest.yaml, *-ui-mobile/ui-manifest.yaml
+# Version: 3.2.0
+# ============================================================================
+
+type: object
+required:
+  - plugin
+  - pages
+properties:
+
+  # --------------------------------------------------------------------------
+  # Plugin basic information
+  # --------------------------------------------------------------------------
+  plugin:
+    type: object
+    required: [id, name, version]
+    properties:
+      id:
+        type: string
+        description: Plugin short identifier (matches plugin-manifest.json 'name').
+        pattern: "^[a-z][a-z0-9-]*$"
+      name:
+        type: string
+        description: Human-readable display name.
+      version:
+        type: string
+        description: SemVer version string.
+      description:
+        type: string
+      vendor:
+        type: string
+      icon:
+        type: string
+        description: Icon identifier (Material icon name or custom).
+      category:
+        type: string
+        enum: [business, platform, infrastructure]
+    additionalProperties: false
+
+  # --------------------------------------------------------------------------
+  # Page declarations (Manifest-Driven routing)
+  # --------------------------------------------------------------------------
+  pages:
+    type: array
+    description: >
+      Declarative page registrations. Plugins declare pages here;
+      the Host owns the final route mapping decision.
+    items:
+      type: object
+      required: [pageId, component, title]
+      properties:
+        pageId:
+          type: string
+          description: "Globally unique page ID (format: '<plugin>:<page>')."
+          pattern: "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
+        component:
+          type: string
+          description: Relative path to the page component.
+        title:
+          type: string
+        titleKey:
+          type: string
+          description: i18n key for the page title.
+        permission:
+          type: string
+          description: Required permission to access this page.
+        params:
+          type: array
+          items:
+            type: object
+            required: [name, type]
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [string, number, boolean]
+              required:
+                type: boolean
+            additionalProperties: false
+        platforms:
+          type: object
+          properties:
+            web:
+              type: object
+              properties:
+                suggestedPath:
+                  type: string
+                  description: Suggested URL path (Host may override).
+              additionalProperties: false
+            mobile:
+              type: object
+              properties:
+                suggestedScreen:
+                  type: string
+                  description: Suggested screen name in navigation stack.
+              additionalProperties: false
+          additionalProperties: false
+        config:
+          type: object
+          description: Additional page configuration.
+          properties:
+            keepAlive:
+              type: boolean
+            breadcrumb:
+              type: array
+              items:
+                type: object
+                properties:
+                  label:
+                    type: string
+                  pageId:
+                    type: string
+                additionalProperties: false
+          additionalProperties: true
+      additionalProperties: false
+
+  # --------------------------------------------------------------------------
+  # Menu declarations
+  # --------------------------------------------------------------------------
+  menus:
+    type: array
+    items:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        titleKey:
+          type: string
+        icon:
+          type: string
+        order:
+          type: integer
+        parentId:
+          type: string
+        permission:
+          type: string
+      additionalProperties: false
+
+additionalProperties: false

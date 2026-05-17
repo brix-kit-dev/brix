@@ -17,6 +17,8 @@ package io.runtime.sdk.capability;
 
 import java.util.List;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * ID Generator Capability Contract
  *
@@ -88,6 +90,7 @@ import java.util.List;
  * @author Runtime SDK Team
  * @since 3.1.0
  */
+@Since("3.1.0")
 public interface IdGeneratorCapability {
 
     /**

@@ -30,24 +30,27 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
+
 import reactor.core.publisher.Mono;
 
 /**
- * Sensitive Header Strip Filter
+ * Sensitive Header Strip Filter.
  * <p>
- * onrequestconvertsendtodownstreamservicebefore，stripcancanbeclientforgeofsensitiveheader，
- * preventidentityforgeattack。theseheaderwillbyaftercontinueofrecognizeauthorizationservicere-newinject
+ * Strips client-controllable sensitive identity headers from the inbound request
+ * before it is forwarded to downstream services, preventing identity-spoofing
+ * attacks. These headers are re-injected by the downstream authentication filter
+ * after the authoritative identity has been resolved.
  * </p>
  * <p>
- * MVP Red Line Requirementsstripofheader
+ * MVP red-line headers stripped:
  * <ul>
- *   <li>x-user-id - useuserID</li>
- *   <li>x-tenant-id - ID</li>
- *   <li>x-role / x-roles - roleinformation</li>
+ *   <li>{@code x-user-id}  — caller user ID</li>
+ *   <li>{@code x-tenant-id} — tenant ID</li>
+ *   <li>{@code x-role} / {@code x-roles} — role information</li>
  * </ul>
  * </p>
  * <p>
- * executepriority：onauthenticationfilterofafter，businessfilterbefore
+ * Execution order: after the authentication filter, before any business filter.
  * </p>
  *
  * @author Brix Platform Authors
@@ -75,7 +78,7 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
         String requestId = request.getId();
 
-        // checkwhetherisexcludepath
+        // Bypass excluded paths
         if (isExcludedPath(path)) {
             logger.debug("[brix] Header strip bypassed for excluded path: {} (ID: {})", 
                     path, requestId);
@@ -86,25 +89,25 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
         Set<String> sensitiveHeaders = properties.getHeadersAsSet();
         List<String> strippedHeaders = new ArrayList<>();
 
-        // checkandrecordwhichsensitiveheaderstoreonforrequest
+        // Detect which sensitive headers are present on this request
         for (String headerName : headers.keySet()) {
             if (sensitiveHeaders.contains(headerName.toLowerCase())) {
                 strippedHeaders.add(headerName);
             }
         }
 
-        // ifnohasneedstripofheader，directlyreleaseline
+        // Nothing to strip → short-circuit
         if (strippedHeaders.isEmpty()) {
             return chain.filter(exchange);
         }
 
-        // buildnewofrequest，stripsensitiveheader
+        // Build a mutated request with the sensitive headers removed
         ServerHttpRequest.Builder requestBuilder = request.mutate();
         for (String header : strippedHeaders) {
             requestBuilder.headers(httpHeaders -> httpHeaders.remove(header));
         }
 
-        // recordstriplog
+        // Audit log of stripped headers
         if (properties.isLogStripped()) {
             logStrippedHeaders(request, strippedHeaders, requestId);
         }
@@ -114,7 +117,7 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * recordbestripofheadermessage
+     * Log information about the headers that were stripped from the request.
      */
     private void logStrippedHeaders(ServerHttpRequest request, List<String> strippedHeaders, String requestId) {
         StringBuilder logMessage = new StringBuilder();
@@ -127,10 +130,10 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
             logMessage.append(header);
 
             if (properties.isLogStrippedValue()) {
-                // onlyonopensendenvironmentrecordoriginalvalue（productionenvironmentnotshouldthisenable）
+                // Only log raw values in development (must NOT be enabled in production).
                 List<String> values = request.getHeaders().get(header);
                 if (values != null && !values.isEmpty()) {
-                    // forvalueperformsanitizeplace
+                    // Mask the value before recording.
                     String maskedValue = maskValue(values.get(0));
                     logMessage.append("=").append(maskedValue);
                 }
@@ -143,12 +146,12 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
 
         logMessage.append(" (ID: ").append(requestId).append(")");
         
-        // use WARN level，causeisthiscancanismaliciousrequestofsign
+        // Use WARN level — a stripped sensitive header is a sign of a potentially malicious request.
         logger.warn(logMessage.toString());
     }
 
     /**
-     * forvalueperformsanitizeplace
+     * Mask the header value before logging.
      */
     private String maskValue(String value) {
         if (value == null || value.length() <= 4) {
@@ -160,7 +163,7 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * checkpathwhetheronexcludelist
+     * Check whether the path is on the exclude list.
      */
     private boolean isExcludedPath(String path) {
         for (String pattern : properties.getExcludePaths()) {
@@ -173,7 +176,7 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // onauthenticationfilterofafterexecute
+        // Run after the authentication filter.
         return Ordered.HIGHEST_PRECEDENCE + 20;
     }
 }

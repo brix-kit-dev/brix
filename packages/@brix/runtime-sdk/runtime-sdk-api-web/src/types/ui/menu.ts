@@ -16,7 +16,7 @@
 /**
  * @file Menu Component Type Definitions
  * @description Defines types for the Menu and MenuItem components in the UI adapter system
- * @module @brix/runtime-sdk-api-web/types/ui/menu
+ * @module @brix-sdk/runtime-sdk-api-web/types/ui/menu
  * @version 3.2.0
  *
  * [Architectural Note]

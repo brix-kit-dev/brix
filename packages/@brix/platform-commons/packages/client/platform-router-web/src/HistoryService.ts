@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,14 @@
 /**
  * @file Browser History Service
  * @description Provides browser history management functionality
- * @module @brix/platform-router-web/HistoryService
+ * @module @brix-sdk/platform-router-web/HistoryService
  * @version 3.0.0
  * 
- * ã€Architecture Notesã€‘
+ * ¡¾Architecture Notes¡¿
  * HistoryService provides advanced browser history management features,
  * including history tracking, navigation interception, navigation confirmation, etc.
  * 
- * ã€Usage Scenariosã€‘
+ * ¡¾Usage Scenarios¡¿
  * - Block navigation when form is unsaved
  * - Track user navigation path
  * - Implement "return to home" functionality
@@ -73,7 +73,7 @@ export type Unsubscribe = () => void;
  * 
  * Provides history tracking and navigation interception functionality.
  * 
- * ã€Featuresã€‘
+ * ¡¾Features¡¿
  * - Maintains navigation history within the application
  * - Supports navigation interception (e.g., unsaved confirmation)
  * - Provides advanced navigation features like "return to home"
@@ -199,7 +199,7 @@ export class HistoryService {
    * 
    * Interceptors can block navigation (e.g., confirm when form unsaved).
    * 
-   * ã€Usage Exampleã€‘
+   * ¡¾Usage Example¡¿
    * ```typescript
    * const unsubscribe = historyService.addInterceptor(async (from, to) => {
    *   if (formDirty) {

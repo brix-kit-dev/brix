@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * @file platform-auth-ui-web æ„å»ºé…ç½®
- * @description UI ç»„ä»¶åŒ…çš„ tsup æ„å»ºé…ç½®
- * @module @brix/platform-auth-ui-web
+ * @file platform-auth-ui-web ¹¹½¨ÅäÖÃ
+ * @description UI ×é¼ş°üµÄ tsup ¹¹½¨ÅäÖÃ
+ * @module @brix-sdk/platform-auth-ui-web
  * @version 3.1.0
  */
 
@@ -37,9 +37,9 @@ export default defineConfig({
   external: [
     'react', 
     'react-router-dom', 
-    '@brix/runtime-sdk-api-web',
-    '@brix/runtime-sdk-react',
-    '@brix/platform-auth-web',
+    '@brix-sdk/runtime-sdk-api-web',
+    '@brix-sdk/runtime-sdk-react',
+    '@brix-sdk/platform-auth-web',
   ],
   treeshake: true,
 });

@@ -133,4 +133,21 @@ public class FallbackAuthContextCapability implements AuthContextCapability {
     public Set<DataScope> getAuthorizedScopes() {
         return Set.of(DataScope.all());
     }
+
+    /**
+     * Returns the default tenant ID for development/testing environments.
+     *
+     * <p>In fallback mode, returns {@code "default"} as the tenant identifier,
+     * matching the system's default tenant convention used by {@code TenantContextHolder}
+     * when no {@code X-Tenant-Id} header is provided.</p>
+     *
+     * <p><strong>Note:</strong> Production deployments use JWT-based tenant resolution
+     * via {@link TenantAwarePrincipal}, not this fallback.</p>
+     *
+     * @return {@code "default"} always in fallback mode
+     */
+    @Override
+    public String getTenantId() {
+        return "default";
+    }
 }

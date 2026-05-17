@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file Hooks Barrel Export
  * @description React Hooks export entry
- * @module @brix/runtime-orchestrator-web/hooks
+ * @module @brix-sdk/runtime-orchestrator-web/hooks
  * @version 3.2.0
  *
  * Module Description:
@@ -29,6 +29,8 @@
 
 // ========== usePluginSystem ==========
 // Plugin system Hook (recommended) - Provides high-level abstraction
+// After P2-2 refactor, the monolithic hook was decomposed into three sub-hooks
+// while preserving the same public API surface via this façade.
 export {
   usePluginSystem,
   type AggregatedMenuItem,
@@ -38,7 +40,17 @@ export {
   type UsePluginSystemResult,
   type UsePluginSystemOptions,
   type HostMenuConfig,
+  type LocalPluginConfig,
+  type LocalPluginMenu,
+  type LocalPluginRoute,
 } from './usePluginSystem';
+
+// ========== Sub-hooks (advanced usage) ==========
+// These hooks can be used independently for fine-grained control.
+// Most consumers should prefer the usePluginSystem façade above.
+export { usePluginDiscovery, checkPluginHealth, type UsePluginDiscoveryOptions, type UsePluginDiscoveryResult } from './usePluginDiscovery';
+export { usePluginLifecycle, type LifecycleInput } from './usePluginLifecycle';
+export { usePluginMenu, type UsePluginMenuOptions, type UsePluginMenuResult } from './usePluginMenu';
 
 // ========== useWebUIRuntime ==========
 // Low-level runtime Hook - Provides finer-grained control

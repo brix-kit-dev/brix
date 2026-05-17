@@ -1,29 +1,27 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  =========================================================
-  <%= name %>-api API module
-  生成时间: <%= date %>
-  =========================================================
--->
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>shinwa.plugin</groupId>
-        <artifactId><%= name %></artifactId>
+        <groupId><%= typeof moduleType !== 'undefined' ? 'io.brix.app' : 'io.brix.plugin' %></groupId>
+        <artifactId><%= fullName || name %></artifactId>
         <version><%= version %></version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId><%= name %>-api</artifactId>
     <packaging>jar</packaging>
 
     <name><%= displayName %> API</name>
-    <description><%= name %> API module - 供其他插件依赖</description>
+    <description><%= displayName %> public contracts</description>
 
     <dependencies>
-        <!-- 仅包含必要的依赖，避免传递依赖污染 -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+        </dependency>
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>

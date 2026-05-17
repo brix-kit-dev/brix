@@ -17,6 +17,8 @@ package io.runtime.sdk.capability;
 
 import java.util.function.Supplier;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Resilience Capability Contract
  * 
@@ -83,6 +85,7 @@ import java.util.function.Supplier;
  * @author Runtime SDK Team
  * @since 3.0.0
  */
+@Since("3.0.0")
 public interface ResilienceCapability {
 
     /**

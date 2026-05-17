@@ -1,35 +1,36 @@
-/**
+﻿/**
  * @file validators.ts
- * @description 验证工具函数集
- * @module @brix/utils/validators
+ * @description Validation utility functions
+ * @module @brix-sdk/utils/validators
  * @version 3.0.0
  * 
- * 【模块说明】
- * 提供各种数据验证工具函数，包括基础格式验证、中国特有证件验证、密码强度检查等。
- * 验证函数均返回布尔值，不抛出异常，便于条件判断使用。
+ * ## Module Overview
+ * Provides various data validation utilities including basic format validation,
+ * China-specific document verification, password strength checking, and more.
+ * All validation functions return boolean values without throwing exceptions,
+ * making them convenient for conditional logic.
  * 
- * 【使用场景】
- * - 表单验证：邮箱、手机号、密码等
- * - 证件验证：身份证、统一社会信用代码、银行卡等
- * - 数据校验：URL、IP、JSON 格式等
- * - 类型检查：空值、数字、范围等
+ * ## Use Cases
+ * - Form validation: email, phone, password, etc.
+ * - Document validation: ID card, unified social credit code, bank card
+ * - Data validation: URL, IP, JSON format
+ * - Type checking: empty values, numbers, ranges
  * 
  * @license Apache-2.0
  */
 
 // ============================================================
-// 基础验证
+// Basic Validation
 // ============================================================
 
 /**
- * 验证邮箱格式
+ * Validate email format
  * 
- * 【功能说明】
- * 验证字符串是否为有效的邮箱地址格式。
- * 使用 RFC 5322 简化版正则表达式。
+ * Validates whether a string is a valid email address format
+ * using a simplified RFC 5322 regular expression.
  * 
- * @param email 邮箱地址
- * @returns 是否为有效邮箱格式
+ * @param email - Email address
+ * @returns Whether the email format is valid
  * 
  * @example
  * ```typescript
@@ -42,57 +43,55 @@
  */
 export function isValidEmail(email: string): boolean {
   if (!email || typeof email !== 'string') return false;
-  // RFC 5322 简化版
+  // Simplified RFC 5322
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email.trim());
 }
 
 /**
- * 验证中国大陆手机号
+ * Validate China mainland phone number
  * 
- * 【功能说明】
- * 验证字符串是否为有效的中国大陆手机号码。
- * 支持目前所有运营商号段（13x、14x、15x、16x、17x、18x、19x）。
+ * Validates whether a string is a valid China mainland mobile phone number.
+ * Supports all current carrier number segments (13x, 14x, 15x, 16x, 17x, 18x, 19x).
  * 
- * 【验证规则】
- * - 11位数字
- * - 以1开头
- * - 第二位为3-9
+ * Validation rules:
+ * - 11 digits
+ * - Starts with 1
+ * - Second digit is 3-9
  * 
- * @param phone 手机号
- * @returns 是否为有效手机号
+ * @param phone - Phone number
+ * @returns Whether the phone number is valid
  * 
  * @example
  * ```typescript
  * isValidPhone('13800138000');  // true
  * isValidPhone('19912345678');  // true
- * isValidPhone('12345678901');  // false（第二位不符合）
- * isValidPhone('1380013800');   // false（位数不足）
- * isValidPhone('138 0013 8000'); // false（含空格）
+ * isValidPhone('12345678901');  // false (second digit invalid)
+ * isValidPhone('1380013800');   // false (insufficient digits)
+ * isValidPhone('138 0013 8000'); // false (contains spaces)
  * ```
  */
 export function isValidPhone(phone: string): boolean {
   if (!phone || typeof phone !== 'string') return false;
-  // 中国大陆手机号：1开头，第二位3-9，共11位
+  // China mainland mobile: starts with 1, second digit 3-9, total 11 digits
   const phoneRegex = /^1[3-9]\d{9}$/;
   return phoneRegex.test(phone.trim());
 }
 
 /**
- * 验证 URL 格式
+ * Validate URL format
  * 
- * 【功能说明】
- * 验证字符串是否为有效的 HTTP/HTTPS URL。
- * 使用原生 URL API 进行解析验证。
+ * Validates whether a string is a valid HTTP/HTTPS URL
+ * using the native URL API for parsing validation.
  * 
- * @param url URL 字符串
- * @returns 是否为有效 URL
+ * @param url - URL string
+ * @returns Whether the URL is valid
  * 
  * @example
  * ```typescript
  * isValidUrl('https://example.com');        // true
  * isValidUrl('http://example.com/path');    // true
- * isValidUrl('ftp://example.com');          // false（不支持 FTP）
+ * isValidUrl('ftp://example.com');          // false (FTP not supported)
  * isValidUrl('not-a-url');                  // false
  * isValidUrl('');                           // false
  * ```
@@ -108,27 +107,26 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
- * 验证 IPv4 地址
+ * Validate IPv4 address
  * 
- * 【功能说明】
- * 验证字符串是否为有效的 IPv4 地址格式。
+ * Validates whether a string is a valid IPv4 address format.
  * 
- * 【验证规则】
- * - 四段数字，用点分隔
- * - 每段范围 0-255
- * - 不允许前导零（如 01.02.03.04）
+ * Validation rules:
+ * - Four numeric segments separated by dots
+ * - Each segment ranges from 0-255
+ * - Leading zeros are not allowed (e.g., 01.02.03.04)
  * 
- * @param ip IP 地址字符串
- * @returns 是否为有效 IPv4 地址
+ * @param ip - IP address string
+ * @returns Whether the IPv4 address is valid
  * 
  * @example
  * ```typescript
- * isValidIPv4('192.168.1.1');   // true
- * isValidIPv4('0.0.0.0');       // true
+ * isValidIPv4('192.168.1.1');     // true
+ * isValidIPv4('0.0.0.0');         // true
  * isValidIPv4('255.255.255.255'); // true
- * isValidIPv4('256.1.1.1');     // false（超出范围）
- * isValidIPv4('01.02.03.04');   // false（前导零）
- * isValidIPv4('192.168.1');     // false（不完整）
+ * isValidIPv4('256.1.1.1');       // false (out of range)
+ * isValidIPv4('01.02.03.04');     // false (leading zeros)
+ * isValidIPv4('192.168.1');       // false (incomplete)
  * ```
  */
 export function isValidIPv4(ip: string): boolean {
@@ -142,13 +140,12 @@ export function isValidIPv4(ip: string): boolean {
 }
 
 /**
- * 验证 JSON 字符串
+ * Validate JSON string
  * 
- * 【功能说明】
- * 验证字符串是否为有效的 JSON 格式。
+ * Validates whether a string is in valid JSON format.
  * 
- * @param str 待验证字符串
- * @returns 是否为有效 JSON
+ * @param str - String to validate
+ * @returns Whether it is valid JSON
  * 
  * @example
  * ```typescript
@@ -169,31 +166,30 @@ export function isValidJSON(str: string): boolean {
 }
 
 // ============================================================
-// 中国特有验证
+// China-Specific Validation
 // ============================================================
 
 /**
- * 验证中国大陆身份证号
+ * Validate China mainland resident ID card number
  * 
- * 【功能说明】
- * 验证字符串是否为有效的中国大陆居民身份证号。
- * 支持18位（新版）和15位（老版）两种格式。
- * 18位身份证会进行校验码验证。
+ * Validates whether a string is a valid China mainland resident ID card number.
+ * Supports both 18-digit (current) and 15-digit (legacy) formats.
+ * The 18-digit ID card undergoes check digit verification.
  * 
- * 【18位身份证结构】
- * - 前6位：地区码
- * - 7-14位：出生日期（YYYYMMDD）
- * - 15-17位：顺序码（第17位奇数为男，偶数为女）
- * - 第18位：校验码（0-9 或 X）
+ * 18-digit ID card structure:
+ * - Digits 1-6: Region code
+ * - Digits 7-14: Date of birth (YYYYMMDD)
+ * - Digits 15-17: Sequence code (17th digit: odd=male, even=female)
+ * - Digit 18: Check digit (0-9 or X)
  * 
- * @param idCard 身份证号
- * @returns 是否为有效身份证号
+ * @param idCard - ID card number
+ * @returns Whether the ID card number is valid
  * 
  * @example
  * ```typescript
- * isValidIdCard('110101199001011234');  // 需验证校验码
- * isValidIdCard('110101900101123');     // 15位老版身份证
- * isValidIdCard('12345678901234567');   // false（校验码错误）
+ * isValidIdCard('110101199001011234');  // check digit verification required
+ * isValidIdCard('110101900101123');     // 15-digit legacy ID
+ * isValidIdCard('12345678901234567');   // false (check digit error)
  * isValidIdCard('');                    // false
  * ```
  */
@@ -202,12 +198,12 @@ export function isValidIdCard(idCard: string): boolean {
   
   const id = idCard.trim().toUpperCase();
   
-  // 18位身份证
+  // 18-digit ID card
   if (id.length === 18) {
-    // 前17位必须是数字
+    // First 17 digits must be numeric
     if (!/^\d{17}[\dX]$/.test(id)) return false;
     
-    // 校验码验证
+    // Check digit verification
     const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
     const checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
     
@@ -219,7 +215,7 @@ export function isValidIdCard(idCard: string): boolean {
     return id[17] === checkCodes[sum % 11];
   }
   
-  // 15位身份证（老版）
+  // 15-digit ID card (legacy format)
   if (id.length === 15) {
     return /^\d{15}$/.test(id);
   }
@@ -228,54 +224,52 @@ export function isValidIdCard(idCard: string): boolean {
 }
 
 /**
- * 验证中国大陆统一社会信用代码
+ * Validate China Unified Social Credit Code
  * 
- * 【功能说明】
- * 验证字符串是否为有效的统一社会信用代码（企业信用代码）。
+ * Validates whether a string is a valid Unified Social Credit Code (enterprise credit code).
  * 
- * 【代码结构】
- * - 第1位：登记管理部门代码（1位）
- * - 第2位：机构类别代码（1位）
- * - 第3-8位：登记管理机关行政区划码（6位数字）
- * - 第9-17位：主体标识码（组织机构代码）
- * - 第18位：校验码
+ * Code structure:
+ * - Digit 1: Registration authority department code (1 digit)
+ * - Digit 2: Organization category code (1 digit)
+ * - Digits 3-8: Administrative region code (6 digits)
+ * - Digits 9-17: Subject identifier code (organization code)
+ * - Digit 18: Check digit
  * 
- * @param code 统一社会信用代码
- * @returns 是否为有效代码
+ * @param code - Unified Social Credit Code
+ * @returns Whether the code is valid
  * 
  * @example
  * ```typescript
- * isValidUnifiedCreditCode('91110000MA0ABCDE12');  // 需验证格式
+ * isValidUnifiedCreditCode('91110000MA0ABCDE12');  // format verification required
  * isValidUnifiedCreditCode('');                    // false
  * ```
  */
 export function isValidUnifiedCreditCode(code: string): boolean {
   if (!code || typeof code !== 'string') return false;
-  // 18位，由数字和大写字母组成（不含I、O、Z、S、V）
+  // 18 characters, digits and uppercase letters (excluding I, O, Z, S, V)
   const regex = /^[0-9A-HJ-NPQRTUWXY]{2}\d{6}[0-9A-HJ-NPQRTUWXY]{10}$/;
   return regex.test(code.trim().toUpperCase());
 }
 
 /**
- * 验证中国大陆银行卡号（Luhn算法）
+ * Validate China mainland bank card number (Luhn algorithm)
  * 
- * 【功能说明】
- * 验证字符串是否为有效的银行卡号。
- * 使用 Luhn 算法进行校验。
+ * Validates whether a string is a valid bank card number
+ * using the Luhn algorithm for verification.
  * 
- * 【Luhn 算法】
- * 1. 从右向左，偶数位乘2，若结果大于9则减9
- * 2. 所有位数求和
- * 3. 能被10整除则有效
+ * Luhn algorithm:
+ * 1. From right to left, double every even-positioned digit; if result > 9, subtract 9
+ * 2. Sum all digits
+ * 3. Valid if divisible by 10
  * 
- * @param cardNumber 银行卡号
- * @returns 是否为有效银行卡号
+ * @param cardNumber - Bank card number
+ * @returns Whether the bank card number is valid
  * 
  * @example
  * ```typescript
- * isValidBankCard('6222020200010001234');  // 需验证Luhn算法
- * isValidBankCard('1234 5678 9012 3456');  // 支持带空格
- * isValidBankCard('123');                  // false（位数不足）
+ * isValidBankCard('6222020200010001234');  // Luhn verification
+ * isValidBankCard('1234 5678 9012 3456');  // supports spaces
+ * isValidBankCard('123');                  // false (insufficient digits)
  * ```
  */
 export function isValidBankCard(cardNumber: string): boolean {
@@ -284,7 +278,7 @@ export function isValidBankCard(cardNumber: string): boolean {
   const cleaned = cardNumber.replace(/\s/g, '');
   if (!/^\d{13,19}$/.test(cleaned)) return false;
   
-  // Luhn 算法
+  // Luhn algorithm
   let sum = 0;
   let isEven = false;
   
@@ -304,59 +298,56 @@ export function isValidBankCard(cardNumber: string): boolean {
 }
 
 // ============================================================
-// 密码强度验证
+// Password Strength Validation
 // ============================================================
 
 /**
- * 密码强度等级
+ * Password strength level
  */
 export type PasswordStrength = 'weak' | 'medium' | 'strong' | 'very-strong';
 
 /**
- * 密码强度检查结果
+ * Password strength check result
  */
 export interface PasswordStrengthResult {
-  /** 强度等级 */
+  /** Strength level */
   strength: PasswordStrength;
-  /** 强度分数（0-10） */
+  /** Strength score (0-10) */
   score: number;
-  /** 改进建议列表 */
+  /** List of improvement suggestions */
   suggestions: string[];
 }
 
 /**
- * 检查密码强度
+ * Check password strength
  * 
- * 【功能说明】
- * 综合评估密码强度，返回强度等级、分数和改进建议。
+ * Comprehensively evaluates password strength and returns the strength level, score,
+ * and improvement suggestions.
  * 
- * 【评分规则】
- * - 长度：8位及以上 +1，12位及以上 +1，16位及以上 +1
- * - 小写字母：+1
- * - 大写字母：+1
- * - 数字：+1
- * - 特殊字符：+2
- * - 常见模式：-2
+ * Scoring rules:
+ * - Length: 8+ chars +1, 12+ chars +1, 16+ chars +1
+ * - Lowercase letters: +1
+ * - Uppercase letters: +1
+ * - Digits: +1
+ * - Special characters: +2
+ * - Common patterns: -2
  * 
- * 【强度等级】
- * - weak：分数 <= 2
- * - medium：分数 3-4
- * - strong：分数 5-6
- * - very-strong：分数 >= 7
+ * Strength levels:
+ * - weak: score <= 2
+ * - medium: score 3-4
+ * - strong: score 5-6
+ * - very-strong: score >= 7
  * 
- * @param password 密码
- * @returns 强度检查结果
+ * @param password - Password to check
+ * @returns Strength check result
  * 
  * @example
  * ```typescript
  * checkPasswordStrength('123456');
- * // { strength: 'weak', score: 0, suggestions: ['密码长度至少8位', ...] }
+ * // { strength: 'weak', score: 0, suggestions: ['Password must be at least 8 characters', ...] }
  * 
  * checkPasswordStrength('MyP@ssw0rd');
  * // { strength: 'strong', score: 7, suggestions: [] }
- * 
- * checkPasswordStrength('VeryStr0ng!P@ssw0rd');
- * // { strength: 'very-strong', score: 9, suggestions: [] }
  * ```
  */
 export function checkPasswordStrength(password: string): PasswordStrengthResult {
@@ -364,33 +355,33 @@ export function checkPasswordStrength(password: string): PasswordStrengthResult 
   let score = 0;
 
   if (!password) {
-    return { strength: 'weak', score: 0, suggestions: ['请输入密码'] };
+    return { strength: 'weak', score: 0, suggestions: ['Please enter a password'] };
   }
 
-  // 长度检查
+  // Length check
   if (password.length >= 8) score += 1;
-  else suggestions.push('密码长度至少8位');
+  else suggestions.push('Password must be at least 8 characters');
   
   if (password.length >= 12) score += 1;
   if (password.length >= 16) score += 1;
 
-  // 包含小写字母
+  // Contains lowercase letters
   if (/[a-z]/.test(password)) score += 1;
-  else suggestions.push('建议包含小写字母');
+  else suggestions.push('Consider including lowercase letters');
 
-  // 包含大写字母
+  // Contains uppercase letters
   if (/[A-Z]/.test(password)) score += 1;
-  else suggestions.push('建议包含大写字母');
+  else suggestions.push('Consider including uppercase letters');
 
-  // 包含数字
+  // Contains digits
   if (/\d/.test(password)) score += 1;
-  else suggestions.push('建议包含数字');
+  else suggestions.push('Consider including digits');
 
-  // 包含特殊字符
+  // Contains special characters
   if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 2;
-  else suggestions.push('建议包含特殊字符');
+  else suggestions.push('Consider including special characters');
 
-  // 避免常见密码模式
+  // Avoid common password patterns
   const commonPatterns = [
     /^123/,
     /password/i,
@@ -399,10 +390,10 @@ export function checkPasswordStrength(password: string): PasswordStrengthResult 
   ];
   if (commonPatterns.some((p) => p.test(password))) {
     score -= 2;
-    suggestions.push('避免使用常见密码模式');
+    suggestions.push('Avoid using common password patterns');
   }
 
-  // 确定强度等级
+  // Determine strength level
   let strength: PasswordStrength;
   if (score <= 2) strength = 'weak';
   else if (score <= 4) strength = 'medium';
@@ -413,21 +404,20 @@ export function checkPasswordStrength(password: string): PasswordStrengthResult 
 }
 
 // ============================================================
-// 类型检查
+// Type Checking
 // ============================================================
 
 /**
- * 检查是否为空值
+ * Check if a value is empty
  * 
- * 【功能说明】
- * 检查值是否为"空"。支持多种类型：
- * - null/undefined：空
- * - 字符串：空字符串或纯空白为空
- * - 数组：空数组为空
- * - 对象：空对象为空
+ * Checks whether a value is "empty". Supports multiple types:
+ * - null/undefined: empty
+ * - String: empty string or whitespace-only is empty
+ * - Array: empty array is empty
+ * - Object: empty object is empty
  * 
- * @param value 待检查的值
- * @returns 是否为空
+ * @param value - Value to check
+ * @returns Whether the value is empty
  * 
  * @example
  * ```typescript
@@ -451,14 +441,13 @@ export function isEmpty(value: unknown): boolean {
 }
 
 /**
- * 检查是否为数字
+ * Check if a value is numeric
  * 
- * 【功能说明】
- * 检查值是否为有效数字（包括数字类型和可解析的数字字符串）。
- * 排除 NaN 和 Infinity。
+ * Checks whether a value is a valid number (including numeric types and parseable numeric strings).
+ * Excludes NaN and Infinity.
  * 
- * @param value 待检查的值
- * @returns 是否为有效数字
+ * @param value - Value to check
+ * @returns Whether the value is a valid number
  * 
  * @example
  * ```typescript
@@ -479,17 +468,17 @@ export function isNumeric(value: unknown): boolean {
 }
 
 /**
- * 检查是否为整数
+ * Check if a value is an integer
  * 
- * @param value 待检查的值
- * @returns 是否为整数
+ * @param value - Value to check
+ * @returns Whether the value is an integer
  * 
  * @example
  * ```typescript
  * isInteger(123);    // true
  * isInteger(-100);   // true
  * isInteger(12.34);  // false
- * isInteger('123');  // false（需为数字类型）
+ * isInteger('123');  // false (must be number type)
  * ```
  */
 export function isInteger(value: unknown): boolean {
@@ -497,10 +486,10 @@ export function isInteger(value: unknown): boolean {
 }
 
 /**
- * 检查是否为正数
+ * Check if a value is positive
  * 
- * @param value 待检查的数字
- * @returns 是否为正数
+ * @param value - Number to check
+ * @returns Whether the value is positive
  * 
  * @example
  * ```typescript
@@ -515,18 +504,18 @@ export function isPositive(value: number): boolean {
 }
 
 /**
- * 检查是否在范围内
+ * Check if a value is within a range
  * 
- * @param value 待检查的数字
- * @param min 最小值（包含）
- * @param max 最大值（包含）
- * @returns 是否在范围内
+ * @param value - Number to check
+ * @param min - Minimum value (inclusive)
+ * @param max - Maximum value (inclusive)
+ * @returns Whether the value is within the range
  * 
  * @example
  * ```typescript
  * isInRange(5, 1, 10);   // true
- * isInRange(1, 1, 10);   // true（包含边界）
- * isInRange(10, 1, 10);  // true（包含边界）
+ * isInRange(1, 1, 10);   // true (inclusive boundary)
+ * isInRange(10, 1, 10);  // true (inclusive boundary)
  * isInRange(0, 1, 10);   // false
  * isInRange(11, 1, 10);  // false
  * ```

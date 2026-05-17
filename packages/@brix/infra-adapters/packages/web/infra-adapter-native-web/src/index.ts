@@ -1,4 +1,4 @@
-Ôªø/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,22 +16,22 @@
 /**
  * @file infra-adapter-native-web Module Entry
  * @description Brix UI Native Module Adapter - Local plugin loading implementation based on dynamic import
- * @module @brix/infra-adapter-native-web
+ * @module @brix-sdk/infra-adapter-native-web
  * @version 3.0.0
  * 
- * „ÄêModule Description„Äë
+ * °æModule Description°ø
  * This module is the simplest UI adapter implementation in the v3.0 Runtime Shell architecture.
  * Loads local modules based on browser native dynamic import.
  * 
- * „ÄêApplicable Scenarios„Äë
+ * °æApplicable Scenarios°ø
  * - Development Mode: Directly import components during local development
  * - Simple Deployment: Monolithic applications with all plugins bundled together
  * - SSR Scenarios: Module loading during server-side rendering
  * - Test Scenarios: Simulating plugin loading in unit tests
  * 
- * „ÄêUsage Example„Äë
+ * °æUsage Example°ø
  * ```typescript
- * import { NativePluginLoader } from '@brix/infra-adapter-native-web';
+ * import { NativePluginLoader } from '@brix-sdk/infra-adapter-native-web';
  * 
  * const loader = new NativePluginLoader();
  * 

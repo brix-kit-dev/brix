@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file Native Avatar Component
  * @description Pure CSS avatar component implementing AvatarProps from UIAdapter contract.
- * @module @brix/infra-adapter-ui-native/components/NativeAvatar
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeAvatar
  * @version 3.1.0
  */
 
 import { useState, type FC, type CSSProperties } from 'react';
-import type { AvatarProps, ComponentSize, AvatarShape } from '@brix/runtime-sdk-api-web';
+import type { AvatarProps, ComponentSize, AvatarShape } from '@brix-sdk/runtime-sdk-api-web';
 import { NativeIcon } from '../icons';
 
 // ============================================================================

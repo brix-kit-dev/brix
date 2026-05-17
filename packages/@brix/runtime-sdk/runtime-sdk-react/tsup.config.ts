@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,5 +22,5 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['react', '@brix/runtime-sdk-api-web'],
+  external: ['react', '@brix-sdk/runtime-sdk-api-web'],
 });

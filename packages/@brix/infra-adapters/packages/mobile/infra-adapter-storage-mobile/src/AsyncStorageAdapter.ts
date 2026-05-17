@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file AsyncStorage Storage Adapter
  * @description Brix UI Mobile Persistent Storage Implementation - Based on @react-native-async-storage/async-storage
- * @module @brix/infra-adapter-storage-mobile
+ * @module @brix-sdk/infra-adapter-storage-mobile
  * @version 3.0.0
  * 
  * Architecture Overview:
@@ -25,34 +25,34 @@
  * 
  * v3.0 Architecture Positioning:
  * ```
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚                    Mobile Plugin Layer                      â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”       â”‚
- * â”‚    â”‚  Booking    â”‚  â”‚  Products   â”‚  â”‚  Partners   â”‚       â”‚
- * â”‚    â”‚  Plugin     â”‚  â”‚  Plugin     â”‚  â”‚  Plugin     â”‚       â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜       â”‚
- * â”‚           â”‚                â”‚                â”‚              â”‚
- * â”‚           â–¼                â–¼                â–¼              â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”‚
- * â”‚    â”‚        StorageCapability Contract Interface        â”‚     â”‚
- * â”‚    â”‚  - get(key): Promise<T>                         â”‚     â”‚
- * â”‚    â”‚  - set(key, value): Promise<void>               â”‚     â”‚
- * â”‚    â”‚  - remove(key): Promise<void>                   â”‚     â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â”‚
- * â”‚                           â”‚                                â”‚
- * â”‚                           â–¼                                â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”‚
- * â”‚    â”‚      AsyncStorageAdapter (This Adapter)          â”‚     â”‚
- * â”‚    â”‚  - Namespace isolation                           â”‚     â”‚
- * â”‚    â”‚  - Data serialization/deserialization            â”‚     â”‚
- * â”‚    â”‚  - Storage quota management                      â”‚     â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â”‚
- * â”‚                           â”‚                                â”‚
- * â”‚                           â–¼                                â”‚
- * â”‚    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”     â”‚
- * â”‚    â”‚       @react-native-async-storage/async-storage  â”‚     â”‚
- * â”‚    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜     â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦                    Mobile Plugin Layer                      ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´  ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´  ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´       ©¦
+ * ©¦    ©¦  Booking    ©¦  ©¦  Products   ©¦  ©¦  Partners   ©¦       ©¦
+ * ©¦    ©¦  Plugin     ©¦  ©¦  Plugin     ©¦  ©¦  Plugin     ©¦       ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼  ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼  ©¸©¤©¤©¤©¤©¤©¤©Ğ©¤©¤©¤©¤©¤©¤©¼       ©¦
+ * ©¦           ©¦                ©¦                ©¦              ©¦
+ * ©¦           ¨‹                ¨‹                ¨‹              ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´     ©¦
+ * ©¦    ©¦        StorageCapability Contract Interface        ©¦     ©¦
+ * ©¦    ©¦  - get(key): Promise<T>                         ©¦     ©¦
+ * ©¦    ©¦  - set(key, value): Promise<void>               ©¦     ©¦
+ * ©¦    ©¦  - remove(key): Promise<void>                   ©¦     ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼     ©¦
+ * ©¦                           ©¦                                ©¦
+ * ©¦                           ¨‹                                ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´     ©¦
+ * ©¦    ©¦      AsyncStorageAdapter (This Adapter)          ©¦     ©¦
+ * ©¦    ©¦  - Namespace isolation                           ©¦     ©¦
+ * ©¦    ©¦  - Data serialization/deserialization            ©¦     ©¦
+ * ©¦    ©¦  - Storage quota management                      ©¦     ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼     ©¦
+ * ©¦                           ©¦                                ©¦
+ * ©¦                           ¨‹                                ©¦
+ * ©¦    ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´     ©¦
+ * ©¦    ©¦       @react-native-async-storage/async-storage  ©¦     ©¦
+ * ©¦    ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼     ©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  * 
  * Storage Isolation Strategy:
@@ -62,15 +62,15 @@
  * - Host can manage data across all plugins
  * 
  * v3.0 Red Line Constraints:
- * âŒ Plugins MUST NOT use AsyncStorage directly
- * âŒ Plugins MUST NOT access other plugins' storage
- * âŒ Plugins MUST NOT bypass quota limits
- * âœ… Plugins operate isolated storage through StorageCapability
- * âœ… Storage quota is managed by Host uniformly
+ * ? Plugins MUST NOT use AsyncStorage directly
+ * ? Plugins MUST NOT access other plugins' storage
+ * ? Plugins MUST NOT bypass quota limits
+ * ? Plugins operate isolated storage through StorageCapability
+ * ? Storage quota is managed by Host uniformly
  * 
  * Usage Example: (Host layer only)
  * ```typescript
- * import { AsyncStorageAdapter } from '@brix/infra-adapter-storage-mobile';
+ * import { AsyncStorageAdapter } from '@brix-sdk/infra-adapter-storage-mobile';
  * 
  * const adapter = new AsyncStorageAdapter({
  *   maxStoragePerPlugin: 5 * 1024 * 1024, // 5MB

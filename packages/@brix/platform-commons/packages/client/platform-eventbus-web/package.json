@@ -1,7 +1,7 @@
-﻿{
-  "name": "@brix/platform-eventbus-web",
-  "version": "1.0.0",
-  "description": "Web 端事件总线能力实现 - 实现 GovernedEventBusCapability 接口",
+{
+  "name": "@brix-sdk/platform-eventbus-web",
+  "version": "3.2.0",
+  "description": "Web EventBus capability implementation - implements GovernedEventBusCapability interface",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -26,7 +26,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix/runtime-sdk-api-web": "workspace:*"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^1.2.0",
@@ -43,5 +43,13 @@
   ],
   "author": "Brix Platform Authors",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brix-platform/platform-commons.git",
+    "directory": "packages/client/platform-eventbus-web"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false
 }

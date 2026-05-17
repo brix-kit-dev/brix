@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +16,11 @@
 /**
  * @file Platform common type definitions
  * @description Cross-platform shared type definitions
- * @module @brix/platform-shared/types/platform
+ * @module @brix-sdk/platform-shared/types/platform
  * @version 3.1.0
  * 
- * 【架构说明】
- * v3.1.0 重构：PluginMetadata 现在从 @brix/runtime-sdk-api-web 重新导出，
- * 消除类型并行定义问题。runtime-sdk-api-web 是权威定义位置。
- * 
  * Architecture Note:
- * v3.1.0 refactoring: PluginMetadata is now re-exported from @brix/runtime-sdk-api-web,
+ * v3.1.0 refactoring: PluginMetadata is now re-exported from @brix-sdk/runtime-sdk-api-web,
  * eliminating parallel type definition issues. runtime-sdk-api-web is the authoritative source.
  */
 
@@ -34,11 +30,9 @@
 
 /**
  * Re-export PluginMetadata from the authoritative source.
- * 
- * 从权威定义位置重新导出 PluginMetadata 类型。
- * @see {@link https://github.com/brix-framework/runtime-sdk | @brix/runtime-sdk-api-web}
+ * @see {@link https://github.com/brix-framework/runtime-sdk | @brix-sdk/runtime-sdk-api-web}
  */
-export { type PluginMetadata } from '@brix/runtime-sdk-api-web';
+export { type PluginMetadata } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================
 // Platform-specific Types (unique to platform-shared)

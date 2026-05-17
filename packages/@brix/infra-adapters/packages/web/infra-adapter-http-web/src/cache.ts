@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file cache.ts
  * @description HTTP response caching with TTL and LFU eviction
- * @module @brix/infra-adapter-http-web
+ * @module @brix-sdk/infra-adapter-http-web
  * @author Brix Platform Team
  * @version 3.1.0
  * 
@@ -26,9 +26,9 @@
  * - Automatic expiration cleanup
  * - Batch clearing by prefix/pattern
  * 
- * ã€æ¶æ„è¯´æ˜ã€‘
- * æœ¬æ¨¡å—å±äº v3.0 æ¶æ„çš„åŸºç¡€è®¾æ–½é€‚é…å±‚(Layer 2.5)ï¼Œ
- * æä¾›ä¸å…·ä½“ HTTP åº“è§£è€¦çš„é€šç”¨ç¼“å­˜èƒ½åŠ›ã€‚
+ * ¡¾¼Ü¹¹ËµÃ÷¡¿
+ * ±¾Ä£¿éÊôÓÚ v3.0 ¼Ü¹¹µÄ»ù´¡ÉèÊ©ÊÊÅä²ã(Layer 2.5)£¬
+ * Ìá¹©Óë¾ßÌå HTTP ¿â½âñîµÄÍ¨ÓÃ»º´æÄÜÁ¦¡£
  * 
  * Use Cases:
  * - Cache HTTP responses to reduce duplicate requests
@@ -136,12 +136,12 @@ interface CacheEntry<T> {
  * Provides TTL-based key-value caching with automatic expiration cleanup
  * and LFU eviction strategy.
  * 
- * ã€å…³é”®ç‰¹æ€§ã€‘
- * - æ³›å‹æ”¯æŒï¼Œç±»å‹å®‰å…¨
- * - è‡ªåŠ¨è¿‡æœŸæ¸…ç†
- * - LFU é©±é€ï¼ˆç©ºé—´ä¸è¶³æ—¶åˆ é™¤è®¿é—®æ¬¡æ•°æœ€å°‘çš„æ¡ç›®ï¼‰
- * - æŒ‰å‰ç¼€/æ¨¡å¼æ‰¹é‡æ¸…é™¤
- * - ç»Ÿè®¡ä¿¡æ¯æŸ¥è¯¢
+ * ¡¾¹Ø¼üÌØĞÔ¡¿
+ * - ·ºĞÍÖ§³Ö£¬ÀàĞÍ°²È«
+ * - ×Ô¶¯¹ıÆÚÇåÀí
+ * - LFU ÇıÖğ£¨¿Õ¼ä²»×ãÊ±É¾³ı·ÃÎÊ´ÎÊı×îÉÙµÄÌõÄ¿£©
+ * - °´Ç°×º/Ä£Ê½ÅúÁ¿Çå³ı
+ * - Í³¼ÆĞÅÏ¢²éÑ¯
  * 
  * Features:
  * - Generic support, type-safe
@@ -527,10 +527,10 @@ export function generateCacheKey(
  * Automatically caches async function execution results. Subsequent calls
  * directly return the cached value.
  * 
- * ã€å…³é”®ç‰¹æ€§ã€‘
- * - è‡ªåŠ¨ç¼“å­˜å¼‚æ­¥å‡½æ•°ç»“æœ
- * - æ”¯æŒè‡ªå®šä¹‰ TTL
- * - ç¼“å­˜å‘½ä¸­æ—¶ç›´æ¥è¿”å›ï¼Œä¸æ‰§è¡Œå‡½æ•°
+ * ¡¾¹Ø¼üÌØĞÔ¡¿
+ * - ×Ô¶¯»º´æÒì²½º¯Êı½á¹û
+ * - Ö§³Ö×Ô¶¨Òå TTL
+ * - »º´æÃüÖĞÊ±Ö±½Ó·µ»Ø£¬²»Ö´ĞĞº¯Êı
  * 
  * @typeParam T - Return value type
  * @param key - Cache key

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 /**
  * @file State-Related Type Definitions
  * @description Defines core types for the state management system, including state change events, listeners, etc.
- * @module @brix/runtime-sdk-api-web/types/state
+ * @module @brix-sdk/runtime-sdk-api-web/types/state
  * @version 3.2.0
  *
  * [v3.2 Changes]

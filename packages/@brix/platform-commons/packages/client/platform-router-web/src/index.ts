@@ -1,4 +1,4 @@
-ï»¿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,39 +16,39 @@
 /**
  * @file platform-router-web Module Entry
  * @description Platform Internal Router Service Module - Wraps react-router-dom
- * @module @brix/platform-router-web
+ * @module @brix-sdk/platform-router-web
  * @version 3.0.0
  * 
- * ã€Module Descriptionã€‘
+ * ¡¾Module Description¡¿
  * platform-router-web is the platform's internal router service module,
  * wrapping react-router-dom to provide a unified routing interface.
  * 
- * ã€Architecture Positionã€‘
+ * ¡¾Architecture Position¡¿
  * ```text
- * â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- * â”‚ Plugin Layer                                                           â”‚
- * â”‚ â””â”€â”€ Uses NavigationCapability (can only request navigation)            â”‚
- * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- * â”‚ Capability Implementation Layer (platform-commons)                     â”‚
- * â”‚ â”œâ”€â”€ platform-navigation-web (implements NavigationCapability)          â”‚
- * â”‚ â”‚     â””â”€â”€ Calls RouterService to perform actual navigation             â”‚
- * â”‚ â””â”€â”€ platform-router-web (this module) â­                               â”‚
- * â”‚        â””â”€â”€ RouterService + ReactRouterAdapter                          â”‚
- * â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- * â”‚ Host Layer                                                             â”‚
- * â”‚ â””â”€â”€ Initializes RouterProvider, injects navigate function              â”‚
- * â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ * ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
+ * ©¦ Plugin Layer                                                           ©¦
+ * ©¦ ©¸©¤©¤ Uses NavigationCapability (can only request navigation)            ©¦
+ * ©À©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©È
+ * ©¦ Capability Implementation Layer (platform-commons)                     ©¦
+ * ©¦ ©À©¤©¤ platform-navigation-web (implements NavigationCapability)          ©¦
+ * ©¦ ©¦     ©¸©¤©¤ Calls RouterService to perform actual navigation             ©¦
+ * ©¦ ©¸©¤©¤ platform-router-web (this module) ?                               ©¦
+ * ©¦        ©¸©¤©¤ RouterService + ReactRouterAdapter                          ©¦
+ * ©À©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©È
+ * ©¦ Host Layer                                                             ©¦
+ * ©¦ ©¸©¤©¤ Initializes RouterProvider, injects navigate function              ©¦
+ * ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
  * ```
  * 
- * ã€Usage Scopeã€‘
- * âœ… platform-navigation-web (navigation capability implementation)
- * âœ… host-standalone-web (Host layer)
- * âŒ Business plugins (cannot use directly)
+ * ¡¾Usage Scope¡¿
+ * ? platform-navigation-web (navigation capability implementation)
+ * ? host-standalone-web (Host layer)
+ * ? Business plugins (cannot use directly)
  * 
- * ã€Architectural Constraintsã€‘
- * âŒ Forbidden to import this module in plugins
- * âŒ Forbidden to depend on this module in runtime-sdk-api-web
- * âœ… Can only be used in platform capability implementation layer and Host layer
+ * ¡¾Architectural Constraints¡¿
+ * ? Forbidden to import this module in plugins
+ * ? Forbidden to depend on this module in runtime-sdk-api-web
+ * ? Can only be used in platform capability implementation layer and Host layer
  */
 
 // ============================================================================
@@ -94,7 +94,7 @@ export type { Unsubscribe } from './RouterService';
 // ============================================================================
 
 /**
- * ã€Dynamic Route Renderingã€‘
+ * ¡¾Dynamic Route Rendering¡¿
  * Dynamic routing system implemented per v3.0.4 blueprint:
  * - Dynamically generates <Route> elements based on AggregatedRoute[]
  * - Integrates Module Federation lazy loading

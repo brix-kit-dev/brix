@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright 2026 Brix Platform Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,12 @@
 /**
  * @file Native Card Component
  * @description Pure CSS card container implementing CardProps from UIAdapter contract.
- * @module @brix/infra-adapter-ui-native/components/NativeCard
+ * @module @brix-sdk/infra-adapter-ui-native/components/NativeCard
  * @version 3.1.0
  */
 
 import type { FC, CSSProperties } from 'react';
-import type { CardProps } from '@brix/runtime-sdk-api-web';
+import type { CardProps } from '@brix-sdk/runtime-sdk-api-web';
 
 // ============================================================================
 // Component Implementation

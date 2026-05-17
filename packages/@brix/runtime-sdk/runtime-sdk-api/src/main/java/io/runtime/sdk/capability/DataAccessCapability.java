@@ -18,6 +18,8 @@ package io.runtime.sdk.capability;
 import java.time.Instant;
 import java.util.Set;
 
+import io.runtime.sdk.annotation.Since;
+
 /**
  * Data Access Capability Contract
  *
@@ -95,6 +97,7 @@ import java.util.Set;
  * @since 3.1.0
  * @see DataScope
  */
+@Since("3.1.0")
 public interface DataAccessCapability {
 
     /**
