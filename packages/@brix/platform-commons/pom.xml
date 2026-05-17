@@ -64,7 +64,7 @@
         Aligned with brix root POM spring-boot.version=3.2.2
         =============================================
         -->
-        <spring-boot.version>3.2.2</spring-boot.version>
+        <spring-boot.version>4.0.6</spring-boot.version>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         
         <!-- 可观测性（通过 OpenTelemetry BOM 统一管理） -->
