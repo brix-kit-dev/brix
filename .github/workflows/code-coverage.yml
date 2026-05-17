@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload JaCoCo reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-reports
           path: '**/target/site/jacoco/'
@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vitest-coverage
           path: '**/coverage/'
