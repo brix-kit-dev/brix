@@ -35,12 +35,12 @@
   "license": "Apache-2.0",
   "peerDependencies": {
     "@brix-sdk/runtime-sdk-api-mobile": "workspace:*",
-    "@react-native-async-storage/async-storage": "^1.21.0",
+    "@react-native-async-storage/async-storage": "^3.0.2",
     "react-native": ">=0.72.0"
   },
   "devDependencies": {
     "@brix-sdk/runtime-sdk-api-mobile": "workspace:*",
-    "@react-native-async-storage/async-storage": "^1.21.0",
+    "@react-native-async-storage/async-storage": "^3.0.2",
     "rimraf": "^5.0.5",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"
