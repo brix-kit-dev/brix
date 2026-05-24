@@ -30,6 +30,7 @@ on:
       - 'packages/**/vitest.config.*'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
       - 'scripts/check-banned-tokens.mjs'
+      - '.github/workflows/architecture-check.yml'
       - 'package.json'
       - 'pom.xml'
       - 'pnpm-lock.yaml'
