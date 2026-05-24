@@ -23,7 +23,7 @@
     "eslint-plugin-jsx-a11y": ">=6.8.0"
   },
   "devDependencies": {
-    "vitest": "^1.2.0",
+    "vitest": "^4.1.7",
     "eslint-plugin-jsx-a11y": "^6.8.0"
   },
   "repository": {
