@@ -150,6 +150,7 @@ jobs:
           pnpm --filter @brix-sdk/runtime-sdk-api-web run build
           pnpm --filter @brix-sdk/runtime-sdk-api-mobile run build
           pnpm --filter @brix-sdk/runtime-sdk-react run build
+          pnpm --filter @brix-sdk/runtime-orchestrator-web run build
           pnpm --filter @brix-sdk/shared-runtime-web run build
           pnpm --filter @brix-sdk/runtime-manifest-web run build
         env:
