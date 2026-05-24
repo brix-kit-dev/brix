@@ -66,6 +66,7 @@ export const NativeModal: FC<ModalProps> = ({
   footer,
   confirmText = 'OK',
   cancelText = 'Cancel',
+  showCancel = true,
   confirmLoading = false,
   onClose,
   onConfirm,
@@ -218,13 +219,15 @@ export const NativeModal: FC<ModalProps> = ({
     if (onConfirm || onCancel) {
       return (
         <div style={footerStyle}>
-          <NativeButton
-            variant="text"
-            onClick={handleCancel}
-            data-testid={dataTestId ? `${dataTestId}-cancel` : undefined}
-          >
-            {cancelText}
-          </NativeButton>
+          {showCancel && (
+            <NativeButton
+              variant="text"
+              onClick={handleCancel}
+              data-testid={dataTestId ? `${dataTestId}-cancel` : undefined}
+            >
+              {cancelText}
+            </NativeButton>
+          )}
           {onConfirm && (
             <NativeButton
               variant="primary"

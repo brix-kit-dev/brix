@@ -16,6 +16,7 @@
 package io.brix.platform.admin.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -29,6 +30,7 @@ import jakarta.validation.constraints.Size;
  *
  * @param oldPassword current password — used for re-authentication before change
  * @param newPassword new password (min 12 chars, enforced by the service layer)
+ * @param totpCode current six-digit TOTP code
  * @author Brix Platform Team
  * @since 3.2.0
  */
@@ -39,5 +41,13 @@ public record ChangeOwnPasswordRequest(
 
         @NotBlank(message = "newPassword must not be blank")
         @Size(min = 12, max = 128, message = "newPassword must be between 12 and 128 characters")
-        String newPassword
+        @Pattern(
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$",
+                message = "newPassword must contain upper, lower, digit and symbol")
+        String newPassword,
+
+        @NotBlank(message = "totpCode must not be blank")
+        @Size(min = 6, max = 6, message = "totpCode must be 6 digits")
+        @Pattern(regexp = "\\d{6}", message = "totpCode must be 6 digits")
+        String totpCode
 ) {}

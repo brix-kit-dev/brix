@@ -39,8 +39,7 @@ public record LoginResponseDto(
 
         // ===== 元数据 =====
         @Schema(description = "是否要求强制改密") boolean mustChangePassword,
-        @Schema(description = "是否要求 MFA") boolean mfaRequired,
-        @Schema(description = "是否平台管理员模式（无租户上下文）") boolean platformAdminMode
+        @Schema(description = "是否要求 MFA") boolean mfaRequired
 ) {
 
     /**

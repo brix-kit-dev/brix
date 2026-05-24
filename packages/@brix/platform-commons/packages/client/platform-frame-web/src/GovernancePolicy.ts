@@ -54,7 +54,7 @@ type RequestType = 'fullscreen' | 'hideSidebar' | 'hideHeader' | 'collapseSideba
  * const result = governance.checkRequest({
  *   type: 'fullscreen',
  *   pluginId: 'my-plugin',
- *   changes: { isFullscreen: true },
+ *   changes: { fullscreen: true },
  *   timestamp: Date.now(),
  * });
  * 
@@ -111,17 +111,17 @@ export class GovernancePolicyHandler {
     }
     
     // 3. Check if specific features are allowed
-    if (changes.isFullscreen !== undefined) {
+    if (changes.fullscreen !== undefined) {
       const result = this.checkFeature('fullscreen', pluginId);
       if (!result.success) return result;
     }
     
-    if (changes.isSidebarVisible === false) {
+    if (changes.sidebarVisible === false) {
       const result = this.checkFeature('hideSidebar', pluginId);
       if (!result.success) return result;
     }
     
-    if (changes.isHeaderVisible === false) {
+    if (changes.headerVisible === false) {
       const result = this.checkFeature('hideHeader', pluginId);
       if (!result.success) return result;
     }

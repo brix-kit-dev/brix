@@ -21,6 +21,7 @@ export * from './constants';
 export * from './types';
 export * from './repositories';
 export * from './hooks';
+export * from './guards';
 export * from './pages';
 export { I18N_NAMESPACE, I18N_KEYS, makeT, type I18nTuple } from './i18n';
 export {

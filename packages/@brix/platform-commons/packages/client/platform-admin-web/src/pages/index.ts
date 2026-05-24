@@ -4,6 +4,10 @@
  */
 
 export { PlatformLoginPage, type PlatformLoginPageProps } from './PlatformLoginPage';
+export { PlatformLoginTotpPage, type PlatformLoginTotpPageProps } from './PlatformLoginTotpPage';
+export { PlatformSetupPage } from './PlatformSetupPage';
+export { PlatformBootstrapPage } from './PlatformBootstrapPage';
+export { PlatformBootstrapSentPage } from './PlatformBootstrapSentPage';
 export { PlatformDashboardPage } from './PlatformDashboardPage';
 export { SuperAdminListPage } from './SuperAdminListPage';
 export {
@@ -24,3 +28,7 @@ export {
   UpdateTenantStatusDialog,
   type UpdateTenantStatusDialogProps,
 } from './UpdateTenantStatusDialog';
+export {
+  CreateTenantDialog,
+  type CreateTenantDialogProps,
+} from './CreateTenantDialog';

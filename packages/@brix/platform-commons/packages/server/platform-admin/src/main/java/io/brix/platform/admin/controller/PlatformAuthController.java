@@ -20,13 +20,23 @@ import java.security.Principal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.brix.platform.admin.dto.PlatformLoginRequest;
 import io.brix.platform.admin.dto.PlatformLoginResponse;
+import io.brix.platform.admin.dto.PlatformSetupCompleteRequest;
+import io.brix.platform.admin.dto.PlatformSetupCompleteResponse;
+import io.brix.platform.admin.dto.PlatformSetupTotpInitRequest;
+import io.brix.platform.admin.dto.PlatformSetupTotpInitResponse;
+import io.brix.platform.admin.dto.PlatformSetupValidateResponse;
+import io.brix.platform.admin.dto.PlatformTotpLoginRequest;
+import io.brix.platform.admin.service.PlatformMfaLoginService;
+import io.brix.platform.admin.service.PlatformSetupService;
 import io.brix.platform.auth.AuditAction;
 import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.annotation.Anonymous;
@@ -38,6 +48,7 @@ import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
 import io.runtime.sdk.capability.AuthFlowCapability.LoginCommand;
 import io.runtime.sdk.capability.AuthFlowCapability.LoginResult;
+import io.runtime.sdk.capability.AuthFlowCapability.LoginStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
@@ -48,8 +59,8 @@ import jakarta.validation.Valid;
  * <p>{@code /api/platform/auth} — distinct from tenant auth at {@code /api/auth}.
  *
  * <h3>Login Delegation</h3>
- * <p>{@link AuthFlowCapability#login} already handles the platform admin routing
- * path internally (SSOT §3 — no reimplementation needed here).
+    * <p>{@link AuthFlowCapability#loginPlatformAdmin} handles only platform
+    * administrator credentials. Tenant login remains isolated at {@code /api/auth}.
  *
  * <h3>Audit</h3>
  * <p>Both login success and failure are audited. Failed logins use
@@ -67,22 +78,28 @@ public class PlatformAuthController {
     private final AuthFlowCapability authFlow;
     private final AuthContextCapability authContext;
     private final AuditService auditService;
+    private final PlatformMfaLoginService platformMfaLoginService;
+    private final PlatformSetupService platformSetupService;
 
     public PlatformAuthController(
             AuthFlowCapability authFlow,
             AuthContextCapability authContext,
-            AuditService auditService) {
+            AuditService auditService,
+            PlatformMfaLoginService platformMfaLoginService,
+            PlatformSetupService platformSetupService) {
         this.authFlow = authFlow;
         this.authContext = authContext;
         this.auditService = auditService;
+        this.platformMfaLoginService = platformMfaLoginService;
+        this.platformSetupService = platformSetupService;
     }
 
     /**
      * Platform admin login.
      *
-     * <p>Delegates to {@link AuthFlowCapability#login}. The capability implementation
-     * returns {@code platformAdminMode = true} and a token with {@code scope=PLATFORM}
-     * and {@code platform_role} claim when the identity is an active platform admin.
+    * <p>Delegates to {@link AuthFlowCapability#loginPlatformAdmin}. The issued token
+    * carries {@code scope=PLATFORM} and a {@code platform_role} claim when the
+    * identity is an active platform administrator.
      *
      * @param request   login credentials
      * @param httpRequest raw HTTP request for client-IP extraction
@@ -97,25 +114,11 @@ public class PlatformAuthController {
         String clientIp = extractClientIp(httpRequest);
 
         try {
-            LoginResult result = authFlow.login(new LoginCommand(request.loginId(), request.password(), clientIp));
+                LoginResult result = authFlow.loginPlatformAdmin(
+                    new LoginCommand(request.loginId(), request.password(), clientIp));
 
-            // Enforce that only platform admin logins are served on this endpoint
-            if (!result.platformAdminMode()) {
-                // Identity exists but is not a platform admin — return 401 to avoid info disclosure
-                log.warn("[PlatformAuth] Non-platform-admin login attempt for loginId={}", request.loginId());
+                if (result.status() == LoginStatus.COMPLETE) {
                 auditService.log(AuditEvent.builder()
-                        .action(AuditAction.SUPER_ADMIN_LOGIN_FAILED)
-                        .resourceType("PLATFORM_AUTH")
-                        .description("Login rejected: identity is not a platform admin.")
-                        .clientIp(clientIp)
-                        .success(false)
-                        .build());
-                throw new AuthFlowException(AuthFlowException.CODE_INVALID_CREDENTIALS,
-                        "Invalid credentials.");
-            }
-
-            // Audit success
-            auditService.log(AuditEvent.builder()
                     .createdBy(result.identityId())
                     .action(AuditAction.SUPER_ADMIN_LOGIN_SUCCESS)
                     .resourceType("PLATFORM_AUTH")
@@ -124,6 +127,7 @@ public class PlatformAuthController {
                     .clientIp(clientIp)
                     .success(true)
                     .build());
+                }
 
             PlatformLoginResponse response = new PlatformLoginResponse(
                     result.status().name(),
@@ -156,6 +160,35 @@ public class PlatformAuthController {
         }
     }
 
+    @Anonymous
+    @PostMapping("/login/totp")
+    public ResponseEntity<PlatformLoginResponse> loginTotp(
+            @Valid @RequestBody PlatformTotpLoginRequest request,
+            HttpServletRequest httpRequest) {
+        return ResponseEntity.ok(platformMfaLoginService.verify(request, extractClientIp(httpRequest)));
+    }
+
+    @Anonymous
+    @GetMapping("/setup/validate")
+    public ResponseEntity<PlatformSetupValidateResponse> validateSetup(@RequestParam("token") String setupToken) {
+        return ResponseEntity.ok(platformSetupService.validate(setupToken));
+    }
+
+    @Anonymous
+    @PostMapping("/setup/totp/init")
+    public ResponseEntity<PlatformSetupTotpInitResponse> initSetupTotp(
+            @Valid @RequestBody PlatformSetupTotpInitRequest request) {
+        return ResponseEntity.ok(platformSetupService.initTotp(request));
+    }
+
+    @Anonymous
+    @PostMapping("/setup/complete")
+    public ResponseEntity<PlatformSetupCompleteResponse> completeSetup(
+            @Valid @RequestBody PlatformSetupCompleteRequest request) {
+        platformSetupService.complete(request);
+        return ResponseEntity.ok(new PlatformSetupCompleteResponse(true));
+    }
+
     /**
      * Platform admin logout.
      *
@@ -166,7 +199,7 @@ public class PlatformAuthController {
      *
      * @return 204 No Content
      */
-    @RequirePermission(PlatformPermissions.BYPASS_PERMISSION_CHECK)
+    @RequirePermission(PlatformPermissions.ADMIN_CHANGE_OWN_PASSWORD)
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest httpRequest) {
         Long identityId = resolveIdentityId();

@@ -143,9 +143,13 @@ public class AuditServiceImpl implements AuditService {
         Assert.notNull(event, "AuditEvent cannot be null");
         Assert.hasText(event.getAction(), "Action is required for audit logging");
         Assert.hasText(event.getResourceType(), "ResourceType is required for audit logging");
+        AuditSensitiveDataGuard.assertSafe("description", event.getDescription());
+        AuditSensitiveDataGuard.assertSafe("context", event.getContext());
+        AuditSensitiveDataGuard.assertSafe("errorMessage", event.getErrorMessage());
 
         log.debug("Recording audit event: action={}, resourceType={}, resourceId={}",
-                event.getAction(), event.getResourceType(), event.getResourceId());
+                event.getAction(), event.getResourceType(),
+                AuditSensitiveDataGuard.scrubForLog(event.getResourceId()));
 
         // =====================================================================
         // Entity Construction Phase - Map DTO to entity
@@ -160,9 +164,8 @@ public class AuditServiceImpl implements AuditService {
         // resolved to an identity) the caller may leave createdBy null;
         // fall back to AuditLog.ANONYMOUS_ACTOR_ID to satisfy the
         // NOT-NULL constraint while preserving an honest record.
-        auditLog.setCreatedBy(event.getCreatedBy() != null
-                ? event.getCreatedBy()
-                : AuditLog.ANONYMOUS_ACTOR_ID);
+        Long createdBy = event.getCreatedBy();
+        auditLog.setCreatedBy(createdBy != null ? createdBy : AuditLog.ANONYMOUS_ACTOR_ID);
         auditLog.setTenantId(event.getTenantId());
         auditLog.setOwnerMemberId(event.getOwnerMemberId());
         auditLog.setOwnerOrgId(event.getOwnerOrgId());

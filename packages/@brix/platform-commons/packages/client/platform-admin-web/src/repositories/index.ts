@@ -8,6 +8,14 @@ export {
   type PlatformAuthRepository,
 } from './PlatformAuthRepository';
 export {
+  createPlatformSetupRepository,
+  type PlatformSetupRepository,
+} from './PlatformSetupRepository';
+export {
+  createPlatformBootstrapRepository,
+  type PlatformBootstrapRepository,
+} from './PlatformBootstrapRepository';
+export {
   createPlatformAdminRepository,
   type PlatformAdminRepository,
 } from './PlatformAdminRepository';

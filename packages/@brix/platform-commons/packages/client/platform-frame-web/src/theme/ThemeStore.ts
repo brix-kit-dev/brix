@@ -59,35 +59,35 @@ export interface ThemeStoreConfig {
    * Default theme mode
    * @default 'system'
    */
-  defaultMode: ThemeMode;
+  defaultMode?: ThemeMode;
   
   /**
    * Initial preset ID
    */
-  initialPresetId: string;
+  initialPresetId?: string;
   
   /**
    * Whether to persist
    * @default true
    */
-  persist: boolean;
+  persist?: boolean;
   
   /**
    * Storage key name
    * @default 'theme'
    */
-  storageKey: string;
+  storageKey?: string;
   
   /**
    * Preset list
    */
-  presets: ThemePreset[];
+  presets?: ThemePreset[];
   
   /**
    * Storage adapter
    * @default LocalStorageAdapter('brix')
    */
-  storage: StorageAdapter;
+  storage?: StorageAdapter;
 }
 
 /**
@@ -263,8 +263,6 @@ export class ThemeStore {
   private getDefaultConfig(mode: 'light' | 'dark'): ThemeConfig {
     if (mode === 'dark') {
       return {
-        name: 'Default Dark',
-        mode: 'dark',
         colors: {
           primary: '#1890ff',
           secondary: '#722ed1',
@@ -272,29 +270,23 @@ export class ThemeStore {
           warning: '#faad14',
           error: '#ff4d4f',
           info: '#1890ff',
-          background: '#141414',
-          surface: '#1f1f1f',
-          text: 'rgba(255, 255, 255, 0.85)',
+          backgroundDefault: '#141414',
+          backgroundPaper: '#1f1f1f',
+          textPrimary: 'rgba(255, 255, 255, 0.85)',
           textSecondary: 'rgba(255, 255, 255, 0.45)',
           border: '#434343',
           divider: '#303030',
         },
-        borderRadius: {
-          small: '2px',
-          medium: '4px',
-          large: '8px',
-        },
+        borderRadius: 4,
         shadows: {
-          small: '0 1px 2px rgba(0, 0, 0, 0.45)',
-          medium: '0 3px 6px rgba(0, 0, 0, 0.45)',
-          large: '0 5px 15px rgba(0, 0, 0, 0.45)',
+          sm: '0 1px 2px rgba(0, 0, 0, 0.45)',
+          md: '0 3px 6px rgba(0, 0, 0, 0.45)',
+          lg: '0 5px 15px rgba(0, 0, 0, 0.45)',
         },
       };
     }
     
     return {
-      name: 'Default Light',
-      mode: 'light',
       colors: {
         primary: '#1890ff',
         secondary: '#722ed1',
@@ -302,22 +294,18 @@ export class ThemeStore {
         warning: '#faad14',
         error: '#ff4d4f',
         info: '#1890ff',
-        background: '#f0f2f5',
-        surface: '#ffffff',
-        text: 'rgba(0, 0, 0, 0.85)',
+        backgroundDefault: '#f0f2f5',
+        backgroundPaper: '#ffffff',
+        textPrimary: 'rgba(0, 0, 0, 0.85)',
         textSecondary: 'rgba(0, 0, 0, 0.45)',
         border: '#d9d9d9',
         divider: '#f0f0f0',
       },
-      borderRadius: {
-        small: '2px',
-        medium: '4px',
-        large: '8px',
-      },
+      borderRadius: 4,
       shadows: {
-        small: '0 1px 2px rgba(0, 0, 0, 0.03)',
-        medium: '0 3px 6px rgba(0, 0, 0, 0.05)',
-        large: '0 5px 15px rgba(0, 0, 0, 0.1)',
+        sm: '0 1px 2px rgba(0, 0, 0, 0.03)',
+        md: '0 3px 6px rgba(0, 0, 0, 0.05)',
+        lg: '0 5px 15px rgba(0, 0, 0, 0.1)',
       },
     };
   }
@@ -342,34 +330,26 @@ export class ThemeStore {
     if (colors.warning) root.style.setProperty('--brix-color-warning', colors.warning);
     if (colors.error) root.style.setProperty('--brix-color-error', colors.error);
     if (colors.info) root.style.setProperty('--brix-color-info', colors.info);
-    if (colors.background) root.style.setProperty('--brix-color-background', colors.background);
-    if (colors.surface) root.style.setProperty('--brix-color-surface', colors.surface);
-    if (colors.text) root.style.setProperty('--brix-color-text', colors.text);
+    if (colors.backgroundDefault) root.style.setProperty('--brix-color-background', colors.backgroundDefault);
+    if (colors.backgroundPaper) root.style.setProperty('--brix-color-surface', colors.backgroundPaper);
+    if (colors.textPrimary) root.style.setProperty('--brix-color-text', colors.textPrimary);
     if (colors.textSecondary) root.style.setProperty('--brix-color-text-secondary', colors.textSecondary);
     if (colors.border) root.style.setProperty('--brix-color-border', colors.border);
     if (colors.divider) root.style.setProperty('--brix-color-divider', colors.divider);
     
     // Set border radius variables
-    if (config.borderRadius) {
-      const { small, medium, large } = config.borderRadius;
-      if (small) root.style.setProperty('--brix-radius-small', small);
-      if (medium) root.style.setProperty('--brix-radius-medium', medium);
-      if (large) root.style.setProperty('--brix-radius-large', large);
+    if (config.borderRadius !== undefined) {
+      root.style.setProperty('--brix-radius-small', `${config.borderRadius / 2}px`);
+      root.style.setProperty('--brix-radius-medium', `${config.borderRadius}px`);
+      root.style.setProperty('--brix-radius-large', `${config.borderRadius * 2}px`);
     }
     
     // Set shadow variables
     if (config.shadows) {
-      const { small, medium, large } = config.shadows;
-      if (small) root.style.setProperty('--brix-shadow-small', small);
-      if (medium) root.style.setProperty('--brix-shadow-medium', medium);
-      if (large) root.style.setProperty('--brix-shadow-large', large);
-    }
-    
-    // Set custom variables
-    if (config.customVariables) {
-      Object.entries(config.customVariables).forEach(([key, value]) => {
-        root.style.setProperty(`--${key}`, value as string);
-      });
+      const { sm, md, lg } = config.shadows;
+      if (sm) root.style.setProperty('--brix-shadow-small', sm);
+      if (md) root.style.setProperty('--brix-shadow-medium', md);
+      if (lg) root.style.setProperty('--brix-shadow-large', lg);
     }
   }
   
@@ -384,9 +364,12 @@ export class ThemeStore {
     reason: 'user' | 'system' | 'preset'
   ): void {
     const event: ThemeChangeEvent = {
-      newState: { ...this.state },
-      oldState,
-      reason,
+      mode: this.state.mode,
+      resolvedMode: this.state.resolvedMode,
+      previousMode: oldState.mode,
+      config: this.state.config,
+      source: reason === 'preset' ? 'api' : reason,
+      timestamp: Date.now(),
     };
     
     this.listeners.forEach(listener => {
@@ -481,11 +464,11 @@ export class ThemeStore {
    * 
    * @param presetId - Preset ID
    */
-  applyPreset(presetId: string): void {
+  applyPreset(presetId: string): boolean {
     const preset = this.presets.get(presetId);
     if (!preset) {
       console.warn(`[ThemeStore] Preset does not exist`);
-      return;
+      return false;
     }
     
     const oldState = { ...this.state };
@@ -499,6 +482,8 @@ export class ThemeStore {
     this.applyThemeToDocument();
     this.saveState();
     this.notifyListeners(oldState, 'preset');
+
+    return true;
   }
   
   /**

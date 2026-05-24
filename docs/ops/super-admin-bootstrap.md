@@ -1,42 +1,32 @@
-# Platform Super-Admin Bootstrap & Disaster-Recovery Runbook
+# Platform Super-Admin Bootstrap and Recovery Runbook
 
-Audience: platform operators / SRE on-call.
-Companion: [`docs/v1.0-平台超管最小实现-唯一真相来源.md`](../v1.0-平台超管最小实现-唯一真相来源.md) (SSOT).
+Audience: platform operators and SRE on-call.
 
-This runbook describes how to:
+Companions:
 
-1. provision the very first `SUPER_ADMIN` on a new environment;
-2. rotate the bootstrap password;
-3. recover the platform when every interactive `SUPER_ADMIN` account is
-   locked out (the "disaster" scenario).
+- `docs/v2.0-平台超管功能最小实现-设计蓝图.md`
+- `docs/v3.0.9-运行壳架构设计蓝图.md`
 
----
+This runbook covers the v2.0 platform super-admin operating flows:
 
-## 1. Why a YAML bootstrap?
+1. bootstrap-stage recovery before the first formal platform super-admin is active;
+2. TOTP recovery for an existing formal platform super-admin;
+3. setup-token reissue for initial setup and password reset.
 
-Per SSOT §4.1, the `SUPER_ADMIN` role is the only role with the
-`platform:bypass` permission and the only role that can grant
-`platform:admin.create` to others. We therefore need a way to create
-that *first* admin **before** any other admin exists. The chosen design
-is a one-shot YAML-driven bootstrap that runs at application start-up:
+## 1. Operating Principles
 
-- The configuration block `brix.platform.bootstrap.super-admin` declares
-  a single seed admin: username, e-mail, and an initial password (almost
-  always sourced from a sealed secret / KMS — never committed).
-- On boot, `PlatformAdminBootstrapService` runs **before** the REST
-  layer is open for traffic. If a row matching the configured username
-  already exists, the service is a no-op. Otherwise it creates the row
-  with `forcePasswordChange = true`, so the operator is forced to rotate
-  immediately on first login.
-- The service is idempotent: re-running it (e.g. after a pod restart)
-  does NOT reset an existing admin's password.
+- The bootstrap identity is not a formal platform super-admin. It only exists to create the first formal platform super-admin.
+- Bootstrap does not use a reusable password. It uses the dedicated bootstrap setup flow and a short-lived `BOOTSTRAP_SETUP` token.
+- A formal platform super-admin becomes usable only after password setup and Google Authenticator compatible TOTP binding are both complete.
+- Setup links are delivered only through the notification capability. Production HTTP responses must only expose delivery markers such as `setupLinkSent: true`.
+- After the first formal `PLATFORM_SUPER_ADMIN` identity is active with TOTP enabled, bootstrap is permanently completed and must not be recreated by restart.
+- Platform admin tokens are `scope=PLATFORM` and do not carry `tenant_id` in the normal platform session.
 
-## 2. Provisioning a new environment
+## 2. Fresh Environment Bootstrap
 
-### 2.1 Configure the seed
+### 2.1 Configure the bootstrap identity
 
-Set these properties in the environment-specific Spring configuration
-(typically via Kubernetes `Secret` mounted as env vars):
+Set only non-secret bootstrap identity metadata in the environment-specific Spring configuration:
 
 ```yaml
 brix:
@@ -45,128 +35,174 @@ brix:
       super-admin:
         username: ops-bootstrap
         email: ops-bootstrap@example.com
-        # MUST be sourced from a sealed secret. Never commit cleartext.
-        password: ${BRIX_BOOTSTRAP_PASSWORD}
-        display-name: "Platform Bootstrap"
+        display-name: Platform Bootstrap
 ```
 
-Password requirements (enforced by `PasswordPolicy`):
-- ≥ 12 characters
-- at least one uppercase, one lowercase, one digit, one symbol.
+Do not configure a reusable bootstrap password. The bootstrap setup flow is deliberately passwordless.
 
-### 2.2 Deploy
+### 2.2 Start the platform
 
-Deploy the platform as usual (`mvn -pl …platform-admin spring-boot:run`
-or via your container image). Watch the boot log for one of:
+On startup, `SuperAdminBootstrapRunner` checks `sys_bootstrap_state` and active formal admins:
 
+- if bootstrap is completed, it returns without creating anything;
+- if no active formal super-admin exists, it ensures a restricted `BOOTSTRAP` grant exists;
+- the bootstrap grant only has `platform:bootstrap:read` and `platform:bootstrap:create-first-admin`.
+
+### 2.3 Create the first formal admin
+
+1. Open `/platform/bootstrap`.
+2. Complete the bootstrap setup session.
+3. Submit the first formal admin metadata.
+4. Confirm the UI only reports that the setup link was sent.
+5. The target admin opens the emailed `/platform/setup?token=...` link, sets a password, scans the TOTP QR payload, and confirms a 6-digit TOTP code.
+
+Bootstrap completion happens only after the formal admin identity is `ACTIVE`, MFA is enabled, the platform-admin grant is `ACTIVE`, and the role is `PLATFORM_SUPER_ADMIN`.
+
+## 3. Bootstrap Disaster Recovery
+
+Use this path only before bootstrap completion. If `sys_bootstrap_state.completed_at` is already set, bootstrap must stay completed.
+
+### 3.1 Confirm state
+
+From a hardened database session:
+
+```sql
+SELECT completed_at, completed_by_identity_id
+  FROM sys_bootstrap_state
+ ORDER BY id
+ LIMIT 1;
+
+SELECT COUNT(*) AS active_formal_admins
+  FROM sys_platform_admin pa
+  JOIN sys_identity i ON i.id = pa.identity_id
+ WHERE pa.role = 'PLATFORM_SUPER_ADMIN'
+   AND pa.status = 'ACTIVE'
+   AND i.status = 'ACTIVE'
+   AND i.mfa_enabled = TRUE;
 ```
-PlatformAdminBootstrapService: bootstrap admin 'ops-bootstrap' created
-PlatformAdminBootstrapService: bootstrap admin 'ops-bootstrap' already exists; skipping
+
+Proceed only when `completed_at IS NULL` and `active_formal_admins = 0`.
+
+### 3.2 Restore bootstrap grant metadata
+
+If the restricted bootstrap grant was accidentally disabled before completion, restore only the bootstrap identity and grant metadata:
+
+```sql
+UPDATE sys_identity
+   SET status = 'PENDING_SETUP',
+       mfa_enabled = FALSE,
+       mfa_secret_encrypted = NULL,
+       updated_at = NOW()
+ WHERE email = '<bootstrap-email>';
+
+UPDATE sys_platform_admin
+   SET status = 'ACTIVE',
+       role = 'BOOTSTRAP',
+       revoked_at = NULL,
+       revoked_by = NULL,
+       revoke_reason = NULL,
+       updated_at = NOW()
+ WHERE identity_id = (
+       SELECT id FROM sys_identity WHERE email = '<bootstrap-email>'
+ );
 ```
 
-### 2.3 First login
+Record the recovery ticket in the audit system immediately after service access is restored. Do not create a formal admin directly in the database unless the application is unavailable and an incident commander approves the break-glass action.
 
-1. Open `/platform/login` and sign in with the bootstrap credentials.
-2. The UI immediately redirects to the change-password page (because
-   `forcePasswordChange === true`).
-3. Pick a strong password and submit. The bootstrap password is now
-   useless — the only way to authenticate as `ops-bootstrap` is with
-   the new password.
+## 4. TOTP Disaster Recovery
 
-### 2.4 Provision additional admins
+Use the normal admin path when at least one other formal platform super-admin can log in.
 
-From the Super-Admin dashboard:
+1. Sign in through `/platform/login` with a different formal platform super-admin.
+2. Open the target admin in `/platform/admins`.
+3. Run reset password for the target admin.
+4. Confirm the response only reports setup-link delivery.
+5. The target admin completes `/platform/setup?token=...` and binds a fresh TOTP secret.
 
-1. Navigate to **Admins → Create**.
-2. Choose `PLATFORM_ADMIN`, `SUPPORT_ADMIN`, or `AUDITOR`. (Note:
-   `SUPER_ADMIN` is **not** offered — it is bootstrap-only by design.)
-3. The dialog shows a one-shot temporary password. Copy it via the
-   in-dialog Copy button and deliver it out-of-band (signed Slack DM,
-   sealed envelope, etc.). The password is shown exactly once and the
-   server only stores the bcrypt hash.
-4. The new admin will be forced to change their password on first login.
+The reset path must set the target identity back to `PENDING_SETUP`, clear MFA enablement, invalidate previous setup links, invalidate old platform tokens, issue a new setup link, and write audit events for the reset and setup completion.
 
-### 2.5 Lock down the bootstrap
+### 4.1 Emergency database assist
 
-After enough humans hold accounts, **disable** `ops-bootstrap`:
+Use this only when all formal admins are locked out and the application reset endpoint is unavailable:
 
-1. Sign in as a different `SUPER_ADMIN`-or-`PLATFORM_ADMIN`-with-disable.
-2. Disable `ops-bootstrap`, capturing a reason such as
-   `"superseded by named admins after env launch"`.
-3. The audit log captures `SUPER_ADMIN_DISABLED` with that reason.
+```sql
+UPDATE sys_identity
+   SET status = 'PENDING_SETUP',
+       mfa_enabled = FALSE,
+       mfa_secret_encrypted = NULL,
+       mfa_bound_at = NULL,
+       token_version = token_version + 1,
+       updated_at = NOW()
+ WHERE email = '<target-admin-email>';
+```
 
-## 3. Rotating the bootstrap password
+After this database assist, restore application access and use the normal reset endpoint to send a new setup link. Insert a manual audit row with the incident ticket, operator, target identity, and reason.
 
-For a planned rotation:
+## 5. Setup-Link Reissue
 
-1. Update the sealed secret backing `BRIX_BOOTSTRAP_PASSWORD`.
-2. Sign in as the bootstrap admin (with the **old** password).
-3. Use the change-password flow to set the **new** password — this is
-   the canonical rotation path because it's the same flow every other
-   admin uses, ensuring consistent audit-log entries.
-4. (Optional) restart the platform pods so the YAML-supplied value
-   matches what's actually in the database. Because the bootstrap is
-   idempotent, the YAML password is only used when the row does NOT
-   exist, so a mismatch is harmless but confusing.
+Use setup-link reissue when a link expired, was superseded, or the user never received email.
 
-## 4. Disaster recovery — total lockout
+### 5.1 Formal admin reset path
 
-Symptoms: every interactive `SUPER_ADMIN`/`PLATFORM_ADMIN` account is
-disabled, has a forgotten password, or is otherwise unable to log in;
-the platform is operating but no administrative actions can be taken.
+Call the platform admin reset endpoint through the UI or API:
 
-Recovery steps (perform from a hardened jump-host with database access):
+```http
+POST /api/platform/admins/{id}/reset-password
+Authorization: Bearer <PLATFORM token>
+```
 
-1. **Freeze the audit log perimeter.** Tag the runbook execution with a
-   ticket ID; every step below MUST land in `platform_audit_log` after
-   step 5. If the on-call cannot perform step 6, do not start step 1.
-2. **Confirm the bootstrap row exists.**
-   ```sql
-   SELECT id, username, status, force_password_change
-     FROM platform_admin
-    WHERE username = '<bootstrap-username>';
-   ```
-3. **Re-enable the bootstrap row** (if disabled) and **clear** any
-   account-lockout flags:
-   ```sql
-   UPDATE platform_admin
-      SET status = 'ACTIVE',
-          failed_login_count = 0,
-          locked_until = NULL,
-          force_password_change = TRUE
-    WHERE username = '<bootstrap-username>';
-   ```
-4. **Reset its password hash** to the sealed-secret value. Generate a
-   bcrypt hash off-cluster (`htpasswd -nbBC 12 '' <pw>` works), then:
-   ```sql
-   UPDATE platform_admin
-      SET password_hash = '<bcrypt-hash>',
-          updated_at = NOW()
-    WHERE username = '<bootstrap-username>';
-   ```
-5. **Insert a manual audit-log row** capturing the recovery action
-   (operator name, ticket, justification). Format:
-   ```sql
-   INSERT INTO platform_audit_log
-     (action, actor_username, target_type, target_id, result, reason, created_at)
-   VALUES
-     ('PLATFORM_RECOVERY_PASSWORD_RESET', '<operator>', 'PlatformAdmin',
-      '<bootstrap-row-id>', 'SUCCESS', '<ticket>: out-of-band recovery', NOW());
-   ```
-6. **Sign in as the bootstrap admin**, immediately rotate via the change
-   -password flow, and create at least one additional `PLATFORM_ADMIN`.
-7. **File a post-incident review.** Total lockout indicates the
-   account-recovery design or the on-call rotation needs work — capture
-   what failed in the SSRE backlog.
+Expected production response shape:
 
-> ⚠️ Do NOT issue a temporary password by editing the database
-> directly when normal admin paths are available. This recovery flow is
-> the *last* resort precisely because it bypasses the audit-log
-> guarantees enforced by the application layer.
+```json
+{
+  "setupLinkSent": true
+}
+```
 
-## 5. References
+The service must invalidate previous setup links for the identity before issuing the new link.
 
-- SSOT §4.1 — role hierarchy and bootstrap rules.
-- SSOT §6 — REST API contract for the platform-admin module.
-- SSOT §8.4 — temp-password lifecycle.
-- [`packages/@brix/platform-commons/packages/server/platform-admin/CHANGELOG.md`](../../packages/@brix/platform-commons/packages/server/platform-admin/CHANGELOG.md)
+### 5.2 Initial setup path
+
+For a newly created formal admin, use:
+
+```http
+POST /api/platform/admins
+Authorization: Bearer <PLATFORM token>
+```
+
+Expected production response shape:
+
+```json
+{
+  "id": "<platform-admin-id>",
+  "identityId": "<identity-id>",
+  "setupLinkSent": true
+}
+```
+
+Do not paste setup links into chat, issue trackers, audit reasons, or application logs. Local development may use the configured development notification channel to inspect delivery, but production responses must not contain setup credentials.
+
+## 6. Audit Checklist
+
+Every recovery action must leave an audit trail with:
+
+- operator identity;
+- target identity or platform-admin grant;
+- action taken;
+- ticket or incident reference;
+- result;
+- reason without credentials, setup links, TOTP codes, or MFA secrets.
+
+Required action coverage includes setup-link issue and consumption, TOTP binding, admin creation, admin revoke, password reset, password change, tenant status change, bootstrap first-admin creation, and bootstrap deactivation.
+
+## 7. Validation Commands
+
+Run these checks before closing the incident:
+
+```powershell
+mvn -pl packages/@brix/platform-commons/packages/server/platform-admin test
+mvn -pl packages/@brix/platform-commons/packages/server/platform-auth test
+node scripts/check-banned-tokens.mjs
+```
+
+The platform admin response scan must pass under a production profile integration-test run, and no frontend-visible permissions claim may include `platform:bypass`.

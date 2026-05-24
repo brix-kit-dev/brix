@@ -1,7 +1,7 @@
 {
   "name": "@brix-sdk/platform-admin-web",
   "version": "3.2.0",
-  "description": "Platform Super-Admin Web SDK — Pages, Hooks, Repositories for the platform-admin backend (SSOT v1.0 §9).",
+  "description": "Platform Super-Admin Web SDK — v2.0 setup/TOTP pages, hooks, and repositories for the platform-admin backend.",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -62,6 +62,7 @@
     "@brix-sdk/runtime-sdk-api-web": "workspace:*",
     "@brix-sdk/runtime-sdk-react": "workspace:*",
     "@testing-library/react": "^14.1.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.2.0",
     "@vitest/coverage-v8": "^1.2.0",
     "react": "^18.2.0",
@@ -84,5 +85,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
 }

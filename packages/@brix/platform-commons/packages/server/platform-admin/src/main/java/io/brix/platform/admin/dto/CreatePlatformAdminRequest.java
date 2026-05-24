@@ -27,18 +27,17 @@ import jakarta.validation.constraints.Size;
  * <h3>Validation</h3>
  * <ul>
  *   <li>All fields are mandatory.</li>
- *   <li>{@code role} must be one of the four defined role codes.</li>
+ *   <li>{@code role} must be {@code PLATFORM_SUPER_ADMIN}.</li>
  *   <li>{@code notes} is optional — max 1 000 chars.</li>
  * </ul>
  *
  * <h3>Security</h3>
- * <p>No password is supplied in this request. The service generates a secure
- * temporary password that is returned once in {@link CreatePlatformAdminResponse}
- * and never written to any log or audit reason field.
+ * <p>No password is supplied in this request. Setup must be completed through
+ * a server-side setup-link workflow.
  *
  * @param username display name for the new admin account
  * @param email    globally unique email; used as the login identifier
- * @param role     platform admin role code (SUPER_ADMIN / PLATFORM_ADMIN / SUPPORT_ADMIN / AUDITOR)
+ * @param role     platform admin role code ({@code PLATFORM_SUPER_ADMIN})
  * @param notes    optional notes about why this account was created (max 1000 chars)
  * @author Brix Platform Team
  * @since 3.2.0
@@ -56,8 +55,8 @@ public record CreatePlatformAdminRequest(
 
         @NotNull(message = "role must not be null")
         @Pattern(
-                regexp = "SUPER_ADMIN|PLATFORM_ADMIN|SUPPORT_ADMIN|AUDITOR",
-                message = "role must be one of: SUPER_ADMIN, PLATFORM_ADMIN, SUPPORT_ADMIN, AUDITOR"
+                regexp = "PLATFORM_SUPER_ADMIN",
+                message = "role must be PLATFORM_SUPER_ADMIN"
         )
         String role,
 

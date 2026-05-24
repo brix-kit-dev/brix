@@ -25,6 +25,7 @@ package io.brix.platform.auth.enums;
  * <ul>
  *   <li>{@link #ACTOR} — B 端操作者（Owner/Admin/Member），Token 含 {@code mid} + {@code mtype}</li>
  *   <li>{@link #SUBJECT} — C 端主体（Customer/Guest），Token 含 {@code pid} + {@code ptype}</li>
+ *   <li>{@link #BOOTSTRAP} — passwordless setup anchor used only by bootstrap endpoints</li>
  * </ul>
  *
  * @author Brix Platform Team
@@ -52,13 +53,16 @@ public enum TokenRole {
      * Platform Admin（平台超管 / 平台管理员）。
      *
      * <p>对应 {@code sys_platform_admin} 表。Token 不含租户上下文，
-     * 包含 {@code admin_id} 与 {@code admin_role}（SUPER_ADMIN / OPERATOR / AUDITOR），
+    * 包含 {@code admin_id} 与 {@code admin_role}（PLATFORM_SUPER_ADMIN），
      * 跨租户操作由 {@code @CrossTenantAccess} 显式声明并由 Aspect/Interceptor 桥接。
      *
      * <p>Issuer 端见 {@link io.brix.platform.auth.jwt.JwtIssuerCapabilityImpl}
      * 的 {@code ROLE_PLATFORM_ADMIN = "platform-admin"} 常量。
      */
-    PLATFORM_ADMIN("platform-admin");
+    PLATFORM_ADMIN("platform-admin"),
+
+    /** Passwordless bootstrap setup token role. */
+    BOOTSTRAP("bootstrap");
 
     private final String value;
 

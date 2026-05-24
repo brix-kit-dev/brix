@@ -35,12 +35,21 @@
 
 import type { LayoutState, LayoutChangeEvent, LayoutChangeHandler, Unsubscribe } from '@brix-sdk/runtime-sdk-api-web';
 import type { LayoutConfig } from './layout-types';
-import { breakpointValues, type BreakpointKey } from '@brix-sdk/platform-design-tokens';
+import { breakpointValues } from '@brix-sdk/platform-design-tokens';
+
+type MutableLayoutState = {
+  -readonly [Key in keyof LayoutState]: LayoutState[Key];
+};
+
+type InternalLayoutState = MutableLayoutState & {
+  viewportWidth: number;
+  viewportHeight: number;
+};
 
 /**
  * Breakpoint configuration type (from @brix-sdk/platform-design-tokens)
  */
-type BreakpointConfig = typeof breakpointValues;
+type BreakpointConfig = Record<keyof typeof breakpointValues, number>;
 
 /**
  * Default breakpoint configuration (from @brix-sdk/platform-design-tokens)
@@ -76,6 +85,26 @@ function calculateBreakpoint(
   return 'xs';
 }
 
+function isMobileBreakpoint(breakpoint: LayoutState['breakpoint']): boolean {
+  return breakpoint === 'xs' || breakpoint === 'sm';
+}
+
+function resolveLayoutChangeType(
+  changedProperties: (keyof InternalLayoutState)[]
+): LayoutChangeEvent['type'] {
+  if (changedProperties.includes('fullscreen')) return 'fullscreen';
+  if (
+    changedProperties.includes('sidebarVisible') ||
+    changedProperties.includes('sidebarCollapsed') ||
+    changedProperties.includes('sidebarWidth') ||
+    changedProperties.includes('sidebarCollapsedWidth')
+  ) return 'sidebar';
+  if (changedProperties.includes('headerVisible') || changedProperties.includes('headerHeight')) return 'header';
+  if (changedProperties.includes('footerVisible')) return 'footer';
+  if (changedProperties.includes('layoutMode')) return 'mode';
+  return 'breakpoint';
+}
+
 /**
  * Layout State Store
  * 
@@ -94,14 +123,14 @@ function calculateBreakpoint(
  * });
  * 
  * // Update state
- * layoutStore.update({ isSidebarVisible: false }, 'user');
+ * layoutStore.update({ sidebarVisible: false }, 'user');
  * ```
  */
 export class LayoutStore {
   /**
    * Current layout state
    */
-  private state: LayoutState;
+  private state: InternalLayoutState;
   
   /**
    * Listener list
@@ -143,17 +172,23 @@ export class LayoutStore {
       ? (config.footerHeight ?? 0) 
       : 0;
     
+    const breakpoint = calculateBreakpoint(viewportWidth, config.breakpoints);
+
     // Initialize state
     this.state = {
-      isFullscreen: false,
-      isSidebarVisible: config.defaultSidebarVisible ?? true,
-      isSidebarCollapsed: config.defaultSidebarCollapsed ?? false,
-      isHeaderVisible: config.defaultHeaderVisible ?? true,
-      isFooterVisible: config.defaultFooterVisible ?? true,
+      fullscreen: false,
+      sidebarVisible: config.defaultSidebarVisible ?? true,
+      sidebarCollapsed: config.defaultSidebarCollapsed ?? false,
+      headerVisible: config.defaultHeaderVisible ?? true,
+      footerVisible: config.defaultFooterVisible ?? true,
       viewportWidth,
       viewportHeight,
-      breakpoint: calculateBreakpoint(viewportWidth, config.breakpoints),
+      breakpoint,
+      isMobile: isMobileBreakpoint(breakpoint),
       layoutMode: config.layoutMode ?? 'console',
+      sidebarWidth: config.sidebarWidth ?? 256,
+      sidebarCollapsedWidth: config.sidebarCollapsedWidth ?? 80,
+      headerHeight: config.headerHeight ?? 64,
       contentHeight: viewportHeight - headerHeight - footerHeight,
       contentWidth: viewportWidth - sidebarWidth,
     };
@@ -190,7 +225,7 @@ export class LayoutStore {
     
     const newBreakpoint = calculateBreakpoint(viewportWidth, this.config.breakpoints);
     
-    const changedProperties: (keyof LayoutState)[] = [];
+    const changedProperties: (keyof InternalLayoutState)[] = [];
     
     if (this.state.viewportWidth !== viewportWidth) {
       changedProperties.push('viewportWidth');
@@ -207,6 +242,7 @@ export class LayoutStore {
         viewportWidth,
         viewportHeight,
         breakpoint: newBreakpoint,
+        isMobile: isMobileBreakpoint(newBreakpoint),
       }, 'system');
     }
   };
@@ -228,12 +264,12 @@ export class LayoutStore {
    * @param requestedBy - Requesting plugin ID
    */
   update(
-    changes: Partial<LayoutState>,
+    changes: Partial<InternalLayoutState>,
     reason: 'user' | 'system' | 'plugin',
     requestedBy?: string
   ): void {
     // Filter unchanged properties
-    const changedProperties = (Object.keys(changes) as (keyof LayoutState)[])
+    const changedProperties = (Object.keys(changes) as (keyof InternalLayoutState)[])
       .filter(key => this.state[key] !== changes[key]);
     
     if (changedProperties.length === 0) {
@@ -257,10 +293,12 @@ export class LayoutStore {
     
     // Create change event
     const event: LayoutChangeEvent = {
+      type: resolveLayoutChangeType(changedProperties),
       state: { ...this.state },
-      changedProperties,
-      reason,
-      requestedBy,
+      previousState: oldState,
+      source: reason,
+      pluginId: requestedBy,
+      timestamp: Date.now(),
     };
     
     // Notify listeners
@@ -279,17 +317,17 @@ export class LayoutStore {
   private recalculateContentArea(): void {
     let sidebarWidth = 0;
     
-    if (this.state.isSidebarVisible) {
-      sidebarWidth = this.state.isSidebarCollapsed
+    if (this.state.sidebarVisible) {
+      sidebarWidth = this.state.sidebarCollapsed
         ? (this.config.sidebarCollapsedWidth ?? 80)
         : (this.config.sidebarWidth ?? 256);
     }
     
-    const headerHeight = this.state.isHeaderVisible 
-      ? (this.config.headerHeight ?? 64) 
+    const headerHeight = this.state.headerVisible
+      ? (this.config.headerHeight ?? 64)
       : 0;
-    const footerHeight = this.state.isFooterVisible 
-      ? (this.config.footerHeight ?? 0) 
+    const footerHeight = this.state.footerVisible
+      ? (this.config.footerHeight ?? 0)
       : 0;
     
     this.state.contentWidth = this.state.viewportWidth - sidebarWidth;

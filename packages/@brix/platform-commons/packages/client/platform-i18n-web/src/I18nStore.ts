@@ -89,24 +89,11 @@ export interface I18nStoreConfig {
  * Default supported locales
  */
 const DEFAULT_SUPPORTED_LOCALES: LanguageInfo[] = [
-  { code: 'zh-CN', name: '简体中文', englishName: 'Chinese (Simplified)', direction: 'ltr', enabled: true },
-  { code: 'zh-TW', name: '繁體中文', englishName: 'Chinese (Traditional)', direction: 'ltr', enabled: true },
-  { code: 'en-US', name: 'English', englishName: 'English (US)', direction: 'ltr', enabled: true },
-  { code: 'ja-JP', name: '日本語', englishName: 'Japanese', direction: 'ltr', enabled: true },
+  { code: 'zh-CN', name: '简体中文', englishName: 'Chinese (Simplified)', isDefault: true },
+  { code: 'zh-TW', name: '繁體中文', englishName: 'Chinese (Traditional)' },
+  { code: 'en-US', name: 'English', englishName: 'English (US)' },
+  { code: 'ja-JP', name: '日本語', englishName: 'Japanese' },
 ];
-
-/**
- * Get browser locale
- * 
- * @returns Browser locale code
- */
-function getBrowserLocale(): LocaleCode {
-  if (typeof navigator === 'undefined') {
-    return 'zh-CN';
-  }
-  
-  return navigator.language || 'zh-CN';
-}
 
 /**
  * Internationalization Store
@@ -231,8 +218,9 @@ export class I18nStore {
    */
   private notifyListeners(oldLocale: LocaleCode): void {
     const event: LocaleChangeEvent = {
-      newLocale: this.currentLocale,
-      oldLocale,
+      locale: this.currentLocale,
+      previousLocale: oldLocale,
+      timestamp: Date.now(),
     };
     
     this.listeners.forEach(listener => {
@@ -262,7 +250,7 @@ export class I18nStore {
   async setLocale(locale: LocaleCode): Promise<boolean> {
     // Check if locale is supported
     const isSupported = this.supportedLocales.some(
-      l => l.code === locale && l.enabled
+      l => l.code === locale
     );
     
     if (!isSupported) {
@@ -284,7 +272,7 @@ export class I18nStore {
       // Update text direction
       const localeInfo = this.supportedLocales.find(l => l.code === locale);
       if (localeInfo) {
-        document.documentElement.dir = localeInfo.direction;
+        document.documentElement.dir = localeInfo.rtl ? 'rtl' : 'ltr';
       }
     }
     
@@ -371,9 +359,9 @@ export class I18nStore {
       return options?.defaultValue ?? key;
     }
     
-    // Handle interpolation
-    if (options?.interpolation) {
-      translation = this.interpolate(translation, options.interpolation);
+    const interpolation = this.getInterpolationVariables(options);
+    if (interpolation) {
+      translation = this.interpolate(translation, interpolation);
     }
     
     // Handle pluralization
@@ -430,6 +418,25 @@ export class I18nStore {
   ): string | undefined {
     return this.resources.get(locale)?.get(namespace)?.[key];
   }
+
+  private getInterpolationVariables(
+    options?: TranslateOptions
+  ): Record<string, string | number> | undefined {
+    if (!options) {
+      return undefined;
+    }
+
+    const reservedKeys = new Set(['defaultValue', 'lng', 'ns', 'count']);
+    const variables: Record<string, string | number> = {};
+
+    for (const [key, value] of Object.entries(options)) {
+      if (!reservedKeys.has(key) && (typeof value === 'string' || typeof value === 'number')) {
+        variables[key] = value;
+      }
+    }
+
+    return Object.keys(variables).length > 0 ? variables : undefined;
+  }
   
   /**
    * Handle interpolation
@@ -455,7 +462,7 @@ export class I18nStore {
    * @param locale - Locale
    * @returns Processed text
    */
-  private handlePlural(text: string, count: number, locale: LocaleCode): string {
+  private handlePlural(text: string, count: number, _locale: LocaleCode): string {
     // Simple plural handling (can be extended for more complex rules)
     return text.replace(/\{count\}/g, count.toString());
   }
@@ -470,42 +477,15 @@ export class I18nStore {
   formatDate(date: Date | number, options?: DateFormatOptions): string {
     const dateObj = typeof date === 'number' ? new Date(date) : date;
     
-    if (options?.pattern) {
-      return this.formatDatePattern(dateObj, options.pattern);
-    }
-    
     const intlOptions: Intl.DateTimeFormatOptions = {
       timeZone: options?.timeZone,
+      hour12: options?.hour12,
     };
-    
-    if (options?.style) {
-      intlOptions.dateStyle = options.style;
-      intlOptions.timeStyle = options.style;
-    } else {
-      if (options?.dateStyle) intlOptions.dateStyle = options.dateStyle;
-      if (options?.timeStyle) intlOptions.timeStyle = options.timeStyle;
-    }
+
+    if (options?.dateStyle) intlOptions.dateStyle = options.dateStyle;
+    if (options?.timeStyle) intlOptions.timeStyle = options.timeStyle;
     
     return new Intl.DateTimeFormat(this.currentLocale, intlOptions).format(dateObj);
-  }
-  
-  /**
-   * Format date using pattern
-   * 
-   * @param date - Date
-   * @param pattern - Format pattern
-   * @returns Formatted date string
-   */
-  private formatDatePattern(date: Date, pattern: string): string {
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    
-    return pattern
-      .replace('YYYY', date.getFullYear().toString())
-      .replace('MM', pad(date.getMonth() + 1))
-      .replace('DD', pad(date.getDate()))
-      .replace('HH', pad(date.getHours()))
-      .replace('mm', pad(date.getMinutes()))
-      .replace('ss', pad(date.getSeconds()));
   }
   
   /**
@@ -520,7 +500,6 @@ export class I18nStore {
       style: options?.style ?? 'decimal',
       currency: options?.currency,
       currencyDisplay: options?.currencyDisplay,
-      minimumIntegerDigits: options?.minimumIntegerDigits,
       minimumFractionDigits: options?.minimumFractionDigits,
       maximumFractionDigits: options?.maximumFractionDigits,
       useGrouping: options?.useGrouping,

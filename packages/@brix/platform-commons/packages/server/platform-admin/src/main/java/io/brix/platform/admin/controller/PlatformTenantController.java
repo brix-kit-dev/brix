@@ -23,21 +23,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.brix.platform.admin.controller.PlatformAuditController.PageResponse;
+import io.brix.platform.admin.dto.CreatePlatformTenantRequest;
 import io.brix.platform.admin.dto.PlatformTenantDto;
 import io.brix.platform.admin.dto.UpdateTenantStatusRequest;
 import io.brix.platform.auth.AuditAction;
 import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.annotation.RequirePermission;
+import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.AuditEvent;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.enums.TenantStatus;
@@ -82,14 +86,17 @@ public class PlatformTenantController {
     private final TenantRepository tenantRepository;
     private final AuditService auditService;
     private final AuthContextCapability authContext;
+    private final IdGenerator idGenerator;
 
     public PlatformTenantController(
             TenantRepository tenantRepository,
             AuditService auditService,
-            AuthContextCapability authContext) {
+            AuthContextCapability authContext,
+            IdGenerator idGenerator) {
         this.tenantRepository = tenantRepository;
         this.auditService = auditService;
         this.authContext = authContext;
+        this.idGenerator = idGenerator;
     }
 
     // ========================================================================
@@ -125,6 +132,51 @@ public class PlatformTenantController {
 
         List<PlatformTenantDto> content = result.stream().map(this::toDto).toList();
         return ResponseEntity.ok(new PageResponse<>(content, safePage, safeSize, result.getTotalElements()));
+    }
+
+    // ========================================================================
+    // POST /api/platform/tenants  — create tenant
+    // ========================================================================
+
+    /**
+     * Creates a new tenant in {@code PENDING_ACTIVATION} status.
+     *
+     * <p>The tenant can be activated afterwards via
+     * {@code PATCH /api/platform/tenants/{id}/status}.
+     *
+     * @param request tenant code and display name
+     * @return 201 Created with the newly created tenant DTO
+     */
+    @PostMapping
+    @RequirePermission(PlatformPermissions.TENANT_CREATE)
+    public ResponseEntity<PlatformTenantDto> createTenant(
+            @Valid @RequestBody CreatePlatformTenantRequest request) {
+
+        Long operatorId = requireIdentityId();
+
+        if (tenantRepository.existsByCode(request.code())) {
+            throw new IllegalArgumentException("Tenant code already exists: " + request.code());
+        }
+
+        Tenant tenant = new Tenant(request.code(), request.name());
+        tenant.setId(idGenerator.nextId());
+        tenant.setStatus(TenantStatus.PENDING_ACTIVATION);
+        tenant = tenantRepository.save(tenant);
+
+        auditService.log(AuditEvent.builder()
+                .createdBy(operatorId)
+                .action(AuditAction.TENANT_CREATED)
+                .resourceType("TENANT")
+                .resourceId(String.valueOf(tenant.getId()))
+                .description("Tenant created by platform admin: code=" + tenant.getCode()
+                        + ", name=" + tenant.getName())
+                .success(true)
+                .build());
+
+        log.info("Tenant created: id={}, code={}, operatorId={}",
+                tenant.getId(), tenant.getCode(), operatorId);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(tenant));
     }
 
     // ========================================================================

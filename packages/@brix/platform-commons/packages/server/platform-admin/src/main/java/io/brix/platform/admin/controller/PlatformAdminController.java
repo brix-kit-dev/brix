@@ -33,8 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 import io.brix.platform.admin.dto.ChangeOwnPasswordRequest;
 import io.brix.platform.admin.dto.CreatePlatformAdminRequest;
 import io.brix.platform.admin.dto.CreatePlatformAdminResponse;
-import io.brix.platform.admin.dto.DisableAdminRequest;
 import io.brix.platform.admin.dto.PlatformAdminDto;
+import io.brix.platform.admin.dto.RevokeAdminRequest;
 import io.brix.platform.admin.dto.ResetPasswordResponse;
 import io.brix.platform.admin.service.PlatformAdminService;
 import io.brix.platform.auth.PlatformPermissions;
@@ -53,10 +53,10 @@ import jakarta.validation.Valid;
  * <p>All endpoints use {@code @RequirePermission(PlatformPermissions.XXX)}.
  * Role-name-based guards ({@code @RequireRole}) are PROHIBITED by architecture contract.
  *
- * <h3>Self-Disable Guard</h3>
- * <p>The disable endpoint rejects requests where the caller attempts to disable
+ * <h3>Self-Revoke Guard</h3>
+ * <p>The revoke endpoint rejects requests where the caller attempts to revoke
  * their own account. This guard is enforced at the controller layer; the service
- * handles the last-SUPER_ADMIN guard.
+ * handles the last-formal-super-admin guard.
  *
  * @author Brix Platform Team
  * @since 3.2.0
@@ -97,11 +97,12 @@ public class PlatformAdminController {
     /**
      * Creates a new platform administrator account.
      *
-     * <p><b>R-10:</b> The one-time temporary password is returned in the response body only.
-     * It is never logged.
+    * <p>The response never contains plaintext credentials, setup tokens, setup URLs,
+    * or MFA secrets. When setup-link delivery is unavailable, the service fails
+    * closed with {@code 501 Not Implemented} before mutating data.
      *
      * @param request creation parameters
-     * @return 201 Created with admin details including the temporary password
+    * @return 201 Created with admin identifiers and setup-link delivery status
      */
     @PostMapping
     @RequirePermission(PlatformPermissions.ADMIN_CREATE)
@@ -114,35 +115,35 @@ public class PlatformAdminController {
     }
 
     // ========================================================================
-    // PATCH /api/platform/admins/{id}/disable  — disable an admin
+    // PATCH /api/platform/admins/{id}/revoke  — revoke an admin grant
     // ========================================================================
 
     /**
-     * Disables (suspends) a platform administrator account.
+    * Revokes a platform administrator grant.
      *
-     * <p>Self-disable is rejected at this layer. The service rejects the last-SUPER_ADMIN case.
+    * <p>Self-revoke is rejected at this layer. The service rejects the last-formal-super-admin case.
      *
      * @param adminId target admin ID
-     * @param request reason for disabling
+    * @param request reason for revoking
      * @return 204 No Content on success
      */
-    @PatchMapping("/{id}/disable")
-    @RequirePermission(PlatformPermissions.ADMIN_DISABLE)
-    public ResponseEntity<Void> disableAdmin(
+        @PatchMapping("/{id}/revoke")
+        @RequirePermission(PlatformPermissions.ADMIN_REVOKE)
+        public ResponseEntity<Void> revokeAdmin(
             @PathVariable("id") Long adminId,
-            @Valid @RequestBody DisableAdminRequest request) {
+            @Valid @RequestBody RevokeAdminRequest request) {
 
         Long operatorId = requireIdentityId();
         PlatformAdminDto target = adminService.getAdmin(adminId);
 
-        // Self-disable guard: an admin cannot disable their own account
+        // Self-revoke guard: an admin cannot revoke their own grant.
         if (target.identityId() != null && target.identityId().equals(operatorId)) {
             throw new AuthFlowException(
-                    "PLATFORM_ADMIN_SELF_DISABLE",
-                    "An administrator cannot disable their own account.");
+                    "PLATFORM_ADMIN_SELF_REVOKE",
+                    "An administrator cannot revoke their own grant.");
         }
 
-        adminService.disableAdmin(adminId, request, operatorId);
+        adminService.revokeAdmin(adminId, request, operatorId);
         return ResponseEntity.noContent().build();
     }
 
@@ -151,12 +152,14 @@ public class PlatformAdminController {
     // ========================================================================
 
     /**
-     * Resets a platform administrator's password to a system-generated temporary value.
+    * Starts the setup-link reset workflow for a platform administrator.
      *
-     * <p><b>R-10:</b> The temporary password appears in the response body only.
+    * <p>The response never contains plaintext credentials, setup tokens, setup URLs,
+    * or MFA secrets. When setup-link delivery is unavailable, the service fails
+    * closed with {@code 501 Not Implemented} before mutating credentials.
      *
      * @param adminId target admin ID
-     * @return 200 with temporary password (R-10: only disclosure point)
+    * @return 200 with setup-link delivery status
      */
     @PostMapping("/{id}/reset-password")
     @RequirePermission(PlatformPermissions.ADMIN_RESET_PASSWORD)

@@ -17,6 +17,9 @@ package io.brix.platform.admin.dto;
 
 import java.time.OffsetDateTime;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 /**
  * Read-only view of a tenant as seen from the platform administration perspective.
  *
@@ -33,6 +36,7 @@ import java.time.OffsetDateTime;
  * @since 3.2.0
  */
 public record PlatformTenantDto(
+        @JsonSerialize(using = ToStringSerializer.class)
         Long tenantId,
         String code,
         String name,

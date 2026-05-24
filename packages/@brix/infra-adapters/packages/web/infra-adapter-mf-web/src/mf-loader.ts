@@ -340,7 +340,7 @@ function createManualSharedScope(): Record<string, unknown> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const win = window as any;
   
-  const createSharedModule = (name: string, moduleGetter: () => unknown, version = '0.0.0') => ({
+  const createSharedModule = (moduleGetter: () => unknown, version = '0.0.0') => ({
     [version]: {
       get: async () => moduleGetter,
       loaded: true,
@@ -353,12 +353,12 @@ function createManualSharedScope(): Record<string, unknown> {
   
   // Add React if available globally
   if (win.React) {
-    scope.react = createSharedModule('react', () => win.React, '18.2.0');
+    scope.react = createSharedModule(() => win.React, '18.2.0');
   }
   
   // Add ReactDOM if available globally  
   if (win.ReactDOM) {
-    scope['react-dom'] = createSharedModule('react-dom', () => win.ReactDOM, '18.2.0');
+    scope['react-dom'] = createSharedModule(() => win.ReactDOM, '18.2.0');
   }
   
   return scope;
@@ -469,7 +469,7 @@ export async function preloadContainer(
   remoteEntry: string,
   manifest?: ManifestConfig
 ): Promise<void> {
-  const scopeName = extractScopeName(remoteEntry, manifest);
+  const scopeName = extractScopeName(remoteEntry, undefined, manifest);
   await loadContainer(remoteEntry, scopeName);
 }
 

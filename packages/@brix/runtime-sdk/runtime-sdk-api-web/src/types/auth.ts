@@ -301,15 +301,6 @@ export interface LoginResult {
    * @since 3.2.0
    */
   readonly mustChangePassword?: boolean;
-  /**
-   * Whether the authenticated principal is a platform-level administrator
-   * (PlatformAdmin), as opposed to a tenant member. The UI uses this signal
-   * to route into the platform admin console theme. Mirrors backend
-   * {@code LoginResponse.platformAdminMode}.
-   *
-   * @since 3.2.0
-   */
-  readonly platformAdminMode?: boolean;
 }
 
 // =========================================

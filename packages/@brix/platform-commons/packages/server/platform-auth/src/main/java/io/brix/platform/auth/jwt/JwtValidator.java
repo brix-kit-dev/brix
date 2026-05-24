@@ -138,6 +138,8 @@ public class JwtValidator {
         user.setUsername(claims.get("username", String.class));
         user.setEmail(claims.get("email", String.class));
         user.setTokenVersion(claims.get("tv", Long.class));
+        user.setJti(claims.get("jti", String.class));
+        user.setScope(claims.get("scope", String.class));
         
         // Extract roles and permissions
         Object rolesObj = claims.get("roles");

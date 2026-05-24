@@ -61,7 +61,7 @@ export const BRIX_LIGHT_THEME_TOKENS: ThemeTokens = {
   // Brand Colors �?Brix Canary Purple (Violet 600)
   // Used as a visual marker: pages still rendering MUI default blue indicate
   // they bypassed BrixUI/useUI() and need migration.
-  primary: '#7c3aed',
+  primary: '#000000',//'#7c3aed',
   primaryLight: '#a78bfa',
   primaryDark: '#5b21b6',
   primaryContrastText: '#ffffff',

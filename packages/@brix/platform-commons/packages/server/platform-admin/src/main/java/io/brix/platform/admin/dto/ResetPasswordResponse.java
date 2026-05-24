@@ -18,16 +18,15 @@ package io.brix.platform.admin.dto;
 /**
  * Response DTO returned after resetting a platform administrator's password.
  *
- * <h3>Security (SSOT §10 R-10)</h3>
- * <p>The {@code tempPassword} field is the ONLY point where the temporary password
- * is disclosed. It MUST NOT appear in audit logs, application logs, or the
- * audit event reason field. The calling operator is responsible for delivering
- * the password to the target admin via a secure out-of-band channel.
+ * <h3>Security</h3>
+ * <p>The reset flow must never return plaintext credentials, setup tokens,
+ * setup URLs, or MFA secrets. The only public signal is whether setup-link
+ * delivery was accepted by the notification channel.</p>
  *
- * @param tempPassword one-time temporary password — expires in 24 hours
+ * @param setupLinkSent whether the reset setup link was accepted by the notification channel
  * @author Brix Platform Team
  * @since 3.2.0
  */
 public record ResetPasswordResponse(
-        String tempPassword
+        boolean setupLinkSent
 ) {}

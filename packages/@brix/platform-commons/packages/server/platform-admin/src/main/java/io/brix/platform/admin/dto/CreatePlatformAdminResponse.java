@@ -15,29 +15,27 @@
  */
 package io.brix.platform.admin.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 /**
  * Response DTO returned after successfully creating a platform administrator account.
  *
- * <h3>Security (SSOT §10 R-10)</h3>
- * <p>The {@code tempPassword} field is the ONLY point where the temporary password
- * is disclosed. It MUST NOT appear in audit logs, application logs, or any other
- * persistent storage. The client is responsible for delivering it to the new admin
- * through a secure out-of-band channel.
+ * <h3>Security</h3>
+ * <p>This DTO deliberately exposes only stable identifiers and a delivery marker.
+ * It never carries plaintext credentials, setup tokens, setup URLs, or MFA secrets.
+ * Setup-link delivery is performed by the server-side notification capability.</p>
  *
- * @param adminId      newly created {@code sys_platform_admin.id}
- * @param identityId   newly created {@code sys_identity.id}
- * @param username     display name of the new admin
- * @param email        email / login identifier of the new admin
- * @param role         assigned platform admin role code
- * @param tempPassword one-time temporary password — valid until first login
+ * @param id            newly created {@code sys_platform_admin.id}
+ * @param identityId    newly created {@code sys_identity.id}
+ * @param setupLinkSent whether the setup link was accepted by the notification channel
  * @author Brix Platform Team
  * @since 3.2.0
  */
 public record CreatePlatformAdminResponse(
-        Long adminId,
+        @JsonSerialize(using = ToStringSerializer.class)
+        Long id,
+        @JsonSerialize(using = ToStringSerializer.class)
         Long identityId,
-        String username,
-        String email,
-        String role,
-        String tempPassword
+        boolean setupLinkSent
 ) {}

@@ -114,7 +114,6 @@ interface LoginResponseDtoRaw {
   permissions?: string[];
   mustChangePassword?: boolean;
   mfaRequired?: boolean;
-  platformAdminMode?: boolean;
 }
 
 function normaliseBaseUrl(baseUrl: string | undefined): string {
@@ -138,7 +137,6 @@ function toLoginResult(raw: LoginResponseDtoRaw): LoginResult {
     permissions: raw.permissions,
     mustChangePassword: raw.mustChangePassword,
     requireMfa: raw.mfaRequired,
-    platformAdminMode: raw.platformAdminMode,
   };
 }
 

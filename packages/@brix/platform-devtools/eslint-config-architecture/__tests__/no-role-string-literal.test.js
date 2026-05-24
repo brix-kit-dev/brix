@@ -1,7 +1,7 @@
 /**
  * Unit Tests — no-role-string-literal
  *
- * Validates SSOT v1.0 §11 R-3 ESLint enforcement:
+ * Validates SSOT v2.0 §4 / §11 R-3 ESLint enforcement:
  *  - flags every literal/template-literal whose value matches a canonical
  *    platform role code,
  *  - leaves whitelisted files (constants.ts, *.test.*, __tests__/) alone,
@@ -28,7 +28,7 @@ describe('no-role-string-literal', () => {
         {
           code: `
             import { PLATFORM_ROLE_CODE } from '@brix-sdk/platform-admin-web';
-            if (u.role === PLATFORM_ROLE_CODE.SUPER_ADMIN) {}
+            if (u.role === PLATFORM_ROLE_CODE.PLATFORM_SUPER_ADMIN) {}
           `,
           filename: 'src/pages/MyPage.tsx',
         },
@@ -39,38 +39,38 @@ describe('no-role-string-literal', () => {
         },
         // Whitelisted file — constants.ts may declare role literals.
         {
-          code: `export const ROLE = 'SUPER_ADMIN';`,
+          code: `export const ROLE = 'PLATFORM_SUPER_ADMIN';`,
           filename: 'src/constants.ts',
         },
         // Whitelisted file — test files may reference roles by literal.
         {
-          code: `expect(role).toBe('SUPER_ADMIN');`,
+          code: `expect(role).toBe('PLATFORM_SUPER_ADMIN');`,
           filename: 'src/foo.test.ts',
         },
         {
-          code: `expect(role).toBe('PLATFORM_ADMIN');`,
+          code: `expect(role).toBe('BOOTSTRAP');`,
           filename: 'src/__tests__/foo.ts',
         },
       ],
 
       invalid: [
         {
-          code: `if (u.role === 'SUPER_ADMIN') {}`,
+          code: `if (u.role === 'PLATFORM_SUPER_ADMIN') {}`,
           filename: 'src/pages/MyPage.tsx',
           errors: [{ messageId: 'noRoleLiteral' }],
         },
         {
-          code: `const r = "PLATFORM_ADMIN";`,
+          code: `const r = "BOOTSTRAP";`,
           filename: 'src/services/auth.ts',
           errors: [{ messageId: 'noRoleLiteral' }],
         },
         {
-          code: 'const r = `AUDITOR`;',
+          code: 'const r = `PLATFORM_SUPER_ADMIN`;',
           filename: 'src/services/auth.ts',
           errors: [{ messageId: 'noRoleLiteral' }],
         },
         {
-          code: `hasRole('SUPPORT_ADMIN');`,
+          code: `hasRole('BOOTSTRAP');`,
           filename: 'src/util.ts',
           errors: [{ messageId: 'noRoleLiteral' }],
         },

@@ -10,9 +10,9 @@
     ============================================================================
 
     【模块说明 / Module Description】
-    本模块实现蓝图 v1.0-平台超管最小实现-唯一真相来源.md §13 中描述的
-    P-2 (Maven 模块)、P-3 (认证控制器)、P-4 (管理员 CRUD)、
-    P-5 (审计控制器)、P-6 (租户视图控制器) 各阶段。
+    本模块实现 v2.0 平台超管最小实现蓝图中的平台级能力：
+    独立平台登录、setup-link 初始化、TOTP 校验、超管授权管理、
+    租户生命周期视图和审计查询。
 
     【架构层次 / Architecture Layer】
     Layer 2C: 能力实现层（平台自治，无租户上下文）
@@ -22,7 +22,7 @@
     R-2: enterprise-solutions 绝对禁止将本模块加入依赖。
     R-3: 所有端点必须使用 @RequirePermission(PlatformPermissions.XXX)，
          禁止使用角色名字符串进行权限判断。
-    R-10: 临时密码绝对禁止出现在审计日志的 reason 字段中。
+    R-12: API 响应绝对禁止携带明文密码、setup token、setup URL 或 MFA secret。
 
     【Route Prefix / 路由前缀】
     所有端点统一使用 /api/platform/** 前缀，与租户业务路由隔离。
@@ -43,7 +43,7 @@
 
     <artifactId>platform-admin</artifactId>
     <name>Platform Admin</name>
-    <description>平台超级管理员服务 — 超管 CRUD、审计、租户视图、RBAC</description>
+    <description>平台超级管理员服务 — setup/TOTP、超管授权、租户视图、审计、RBAC</description>
 
     <dependencies>
 
@@ -100,6 +100,11 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Auto-configuration support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -125,6 +130,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
 

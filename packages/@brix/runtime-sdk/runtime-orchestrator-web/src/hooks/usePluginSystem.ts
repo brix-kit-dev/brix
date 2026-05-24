@@ -128,6 +128,15 @@ export interface UsePluginSystemOptions {
    */
   localPlugins?: LocalPluginConfig[];
   /**
+   * Plugin health check request timeout (milliseconds)
+   *
+   * Allows dev hosts to tolerate remoteEntry.js warm-up/lazy compilation without
+   * marking a reachable plugin unhealthy.
+   *
+   * @default 5000 (5 seconds)
+   */
+  healthCheckTimeout?: number;
+  /**
    * Plugin health check interval (milliseconds)
    *
    * How often to poll plugin remoteEntry.js to detect online/offline status.
@@ -217,6 +226,7 @@ export function usePluginSystem(
     manifestTimeout = 5000,
     hostCoreMenus = EMPTY_ARRAY as unknown as HostMenuConfig[],
     localPlugins = EMPTY_ARRAY as unknown as LocalPluginConfig[],
+    healthCheckTimeout = 5000,
     healthCheckInterval = 30000,
   } = options;
 
@@ -232,6 +242,7 @@ export function usePluginSystem(
     discoveryTimeout,
     manifestTimeout,
     localPlugins,
+    healthCheckTimeout,
     healthCheckInterval,
   });
 

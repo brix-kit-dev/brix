@@ -5,25 +5,25 @@
 
 import { useCallback, useState } from 'react';
 import { useRepositories } from './useRepositories';
-import type { DisableAdminRequest, PlatformAdminDto } from '../types';
+import type { RevokeAdminRequest } from '../types';
 
-export interface UseDisableSuperAdminResult {
+export interface UseRevokeSuperAdminResult {
   loading: boolean;
   error: Error | null;
-  disable: (id: string, req: DisableAdminRequest) => Promise<PlatformAdminDto>;
+  revoke: (id: string, req: RevokeAdminRequest) => Promise<void>;
 }
 
-export function useDisableSuperAdmin(): UseDisableSuperAdminResult {
+export function useRevokeSuperAdmin(): UseRevokeSuperAdminResult {
   const { admin } = useRepositories();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const disable = useCallback(
-    async (id: string, req: DisableAdminRequest) => {
+  const revoke = useCallback(
+    async (id: string, req: RevokeAdminRequest) => {
       setLoading(true);
       setError(null);
       try {
-        return await admin.disable(id, req);
+        await admin.revoke(id, req);
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         setError(err);
@@ -35,5 +35,5 @@ export function useDisableSuperAdmin(): UseDisableSuperAdminResult {
     [admin],
   );
 
-  return { loading, error, disable };
+  return { loading, error, revoke };
 }

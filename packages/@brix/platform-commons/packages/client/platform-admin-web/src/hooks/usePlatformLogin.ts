@@ -8,8 +8,8 @@
  *
  * Three-state contract (SSOT §9 acceptance #2):
  *   `idle` | `loading` | `error`. On success the hook does NOT navigate —
- *   the caller (login page) decides where to go because the routing target
- *   depends on `forcePasswordChange`.
+ *   the caller routes to the TOTP page with the short-lived MFA challenge in
+ *   router state.
  */
 
 import { useCallback, useState } from 'react';
@@ -22,7 +22,6 @@ import type {
 export interface UsePlatformLoginResult {
   loading: boolean;
   error: Error | null;
-  /** Last successful login response — exposed so the page can read `forcePasswordChange`. */
   result: PlatformLoginResponse | null;
   login: (req: PlatformLoginRequest) => Promise<PlatformLoginResponse>;
   reset: () => void;

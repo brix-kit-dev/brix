@@ -18,8 +18,8 @@ package io.brix.platform.tenant.entity;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
-import io.brix.platform.tenant.enums.MemberStatus;
 import io.brix.platform.tenant.enums.PlatformAdminRole;
+import io.brix.platform.tenant.enums.PlatformAdminStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -41,21 +41,19 @@ import jakarta.persistence.UniqueConstraint;
  * <ul>
  *   <li>MFA should be enforced for all platform admin accounts</li>
  *   <li>All actions should be audit logged</li>
- *   <li>IP whitelist recommended for SUPER_ADMIN</li>
+ *   <li>IP whitelist recommended for formal platform super administrators</li>
  *   <li>Session timeout strictly enforced</li>
  * </ul>
  *
- * <h3>Role Hierarchy</h3>
+ * <h3>Roles</h3>
  * <ul>
- *   <li>SUPER_ADMIN - Full system access, infrastructure management</li>
- *   <li>PLATFORM_ADMIN - Tenant management, day-to-day operations</li>
- *   <li>SUPPORT_ADMIN - Customer support, limited access</li>
- *   <li>AUDITOR - Read-only compliance monitoring</li>
+ *   <li>PLATFORM_SUPER_ADMIN - formal super administrator</li>
+ *   <li>BOOTSTRAP - passwordless first-admin setup anchor</li>
  * </ul>
  *
  * <h3>Best Practices</h3>
  * <ul>
- *   <li>Limit SUPER_ADMIN accounts to 1-2 maximum</li>
+ *   <li>Keep the number of formal super-admin accounts minimal</li>
  *   <li>Regular access reviews for all admin accounts</li>
  *   <li>Document reason for admin access in notes field</li>
  * </ul>
@@ -106,13 +104,13 @@ public class PlatformAdmin {
     private PlatformAdminRole role;
 
     /**
-     * Admin account status.
-     *
-     * @see MemberStatus
+    * Platform admin grant status.
+    *
+    * @see PlatformAdminStatus
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
-    private MemberStatus status = MemberStatus.ACTIVE;
+    private PlatformAdminStatus status = PlatformAdminStatus.ACTIVE;
 
     /**
      * Whether MFA (Multi-Factor Authentication) is enabled.
@@ -134,7 +132,7 @@ public class PlatformAdmin {
     /**
      * identity_id of the operator who created this admin account.
      *
-     * <p>NULL for the first SUPER_ADMIN bootstrapped by {@code SuperAdminBootstrapRunner}
+    * <p>NULL for the bootstrap anchor created by {@code SuperAdminBootstrapRunner}
      * because no operator exists at that point.
      *
      * @since 3.2.0 (V015)
@@ -143,46 +141,34 @@ public class PlatformAdmin {
     private Long createdBy;
 
     /**
-     * Timestamp when this account was disabled.
+    * Timestamp when this platform admin grant was revoked.
      *
      * <p>NULL while the account is ACTIVE.
      *
      * @since 3.2.0 (V015)
      */
-    @Column(name = "disabled_at")
-    private OffsetDateTime disabledAt;
+    @Column(name = "revoked_at")
+    private OffsetDateTime revokedAt;
 
     /**
-     * identity_id of the operator who disabled this account.
+    * identity_id of the operator who revoked this grant.
      *
      * <p>NULL while the account is ACTIVE.
      *
      * @since 3.2.0 (V015)
      */
-    @Column(name = "disabled_by")
-    private Long disabledBy;
+    @Column(name = "revoked_by")
+    private Long revokedBy;
 
     /**
-     * Optional textual reason for disabling the account.
+    * Optional textual reason for revoking the grant.
      *
      * <p><b>Security (R-10):</b> MUST NOT contain passwords, tokens, or any other secret material.
      *
      * @since 3.2.0 (V015)
      */
-    @Column(name = "disable_reason", length = 512)
-    private String disableReason;
-
-    /**
-     * Expiry timestamp for a temporary (one-time) password.
-     *
-     * <p>Set by the {@code reset-password} flow. The service MUST verify
-     * {@code now() < tempPasswordExpiresAt} on first login and immediately
-     * set this field to {@code null} after the password is changed.
-     *
-     * @since 3.2.0 (V015)
-     */
-    @Column(name = "temp_password_expires_at")
-    private OffsetDateTime tempPasswordExpiresAt;
+    @Column(name = "revoke_reason", length = 512)
+    private String revokeReason;
 
     /**
      * Record creation timestamp.
@@ -215,7 +201,7 @@ public class PlatformAdmin {
     public PlatformAdmin(Long identityId, PlatformAdminRole role) {
         this.identityId = identityId;
         this.role = role;
-        this.status = MemberStatus.ACTIVE;
+        this.status = PlatformAdminStatus.ACTIVE;
     }
 
     // ========================================================================
@@ -242,16 +228,16 @@ public class PlatformAdmin {
      * @return true if status is ACTIVE
      */
     public boolean isActive() {
-        return status == MemberStatus.ACTIVE;
+        return status == PlatformAdminStatus.ACTIVE;
     }
 
     /**
      * Checks if this is a super administrator.
      *
-     * @return true if role is SUPER_ADMIN
+      * @return true if role is PLATFORM_SUPER_ADMIN
      */
     public boolean isSuperAdmin() {
-        return role == PlatformAdminRole.SUPER_ADMIN;
+          return role == PlatformAdminRole.PLATFORM_SUPER_ADMIN;
     }
 
     /**
@@ -294,10 +280,10 @@ public class PlatformAdmin {
     }
 
     /**
-     * Suspends this admin account.
+      * Revokes this admin account.
      */
     public void suspend() {
-        this.status = MemberStatus.SUSPENDED;
+          this.status = PlatformAdminStatus.REVOKED;
     }
 
     /**
@@ -306,63 +292,34 @@ public class PlatformAdmin {
      * @throws IllegalStateException if account cannot be activated
      */
     public void activate() {
-        if (status == MemberStatus.DELETED) {
-            throw new IllegalStateException("Cannot activate deleted admin account");
+        if (status == PlatformAdminStatus.ACTIVE) {
+            return;
         }
-        this.status = MemberStatus.ACTIVE;
+        this.status = PlatformAdminStatus.ACTIVE;
+        this.revokedAt = null;
+        this.revokedBy = null;
+        this.revokeReason = null;
     }
 
     /**
-     * Disables this admin account, recording who did it and why.
+    * Revokes this admin grant, recording who did it and why.
      *
-     * <p>Sets status to SUSPENDED and captures the lifecycle metadata required by SSOT §5.
+    * <p>Sets status to REVOKED and captures the lifecycle metadata required by SSOT §5.
      *
      * <p><b>Security (R-10):</b> {@code reason} MUST NOT contain passwords, tokens, or secrets.
      *
-     * @param operatorIdentityId identity_id of the admin performing the disable operation
+     * @param operatorIdentityId identity_id of the admin performing the revoke operation
      * @param reason             optional human-readable reason (max 512 chars)
      * @since 3.2.0
      */
-    public void disable(Long operatorIdentityId, String reason) {
-        if (status == MemberStatus.DELETED) {
-            throw new IllegalStateException("Cannot disable a deleted admin account");
+    public void revoke(Long operatorIdentityId, String reason) {
+        if (status != PlatformAdminStatus.ACTIVE) {
+            throw new IllegalStateException("Cannot revoke admin account in status: " + status);
         }
-        this.status = MemberStatus.SUSPENDED;
-        this.disabledAt = OffsetDateTime.now();
-        this.disabledBy = operatorIdentityId;
-        this.disableReason = reason;
-    }
-
-    /**
-     * Marks that a temporary password was issued for this admin account.
-     *
-     * <p>The caller MUST NOT pass the actual password — only the expiry timestamp.
-     *
-     * @param expiresAt the timestamp after which the temporary password is no longer valid
-     * @since 3.2.0
-     */
-    public void markTempPasswordIssued(OffsetDateTime expiresAt) {
-        this.tempPasswordExpiresAt = expiresAt;
-    }
-
-    /**
-     * Clears the temporary-password-expiry marker once the admin has changed their password.
-     *
-     * @since 3.2.0
-     */
-    public void clearTempPassword() {
-        this.tempPasswordExpiresAt = null;
-    }
-
-    /**
-     * Returns {@code true} if the temporary password has expired.
-     *
-     * <p>An absent (null) expiry means no temporary password is in effect — returns {@code false}.
-     *
-     * @since 3.2.0
-     */
-    public boolean isTempPasswordExpired() {
-        return tempPasswordExpiresAt != null && OffsetDateTime.now().isAfter(tempPasswordExpiresAt);
+        this.status = PlatformAdminStatus.REVOKED;
+        this.revokedAt = OffsetDateTime.now();
+        this.revokedBy = operatorIdentityId;
+        this.revokeReason = reason;
     }
 
     // ========================================================================
@@ -393,11 +350,11 @@ public class PlatformAdmin {
         this.role = role;
     }
 
-    public MemberStatus getStatus() {
+    public PlatformAdminStatus getStatus() {
         return status;
     }
 
-    public void setStatus(MemberStatus status) {
+    public void setStatus(PlatformAdminStatus status) {
         this.status = status;
     }
 
@@ -425,36 +382,28 @@ public class PlatformAdmin {
         this.createdBy = createdBy;
     }
 
-    public OffsetDateTime getDisabledAt() {
-        return disabledAt;
+    public OffsetDateTime getRevokedAt() {
+        return revokedAt;
     }
 
-    public void setDisabledAt(OffsetDateTime disabledAt) {
-        this.disabledAt = disabledAt;
+    public void setRevokedAt(OffsetDateTime revokedAt) {
+        this.revokedAt = revokedAt;
     }
 
-    public Long getDisabledBy() {
-        return disabledBy;
+    public Long getRevokedBy() {
+        return revokedBy;
     }
 
-    public void setDisabledBy(Long disabledBy) {
-        this.disabledBy = disabledBy;
+    public void setRevokedBy(Long revokedBy) {
+        this.revokedBy = revokedBy;
     }
 
-    public String getDisableReason() {
-        return disableReason;
+    public String getRevokeReason() {
+        return revokeReason;
     }
 
-    public void setDisableReason(String disableReason) {
-        this.disableReason = disableReason;
-    }
-
-    public OffsetDateTime getTempPasswordExpiresAt() {
-        return tempPasswordExpiresAt;
-    }
-
-    public void setTempPasswordExpiresAt(OffsetDateTime tempPasswordExpiresAt) {
-        this.tempPasswordExpiresAt = tempPasswordExpiresAt;
+    public void setRevokeReason(String revokeReason) {
+        this.revokeReason = revokeReason;
     }
 
     public OffsetDateTime getCreatedAt() {

@@ -19,10 +19,13 @@ import { PLATFORM_ADMIN_API } from '../constants';
 import type {
   PlatformLoginRequest,
   PlatformLoginResponse,
+  PlatformLoginTotpRequest,
+  PlatformLoginTotpResponse,
 } from '../types';
 
 export interface PlatformAuthRepository {
   login(req: PlatformLoginRequest): Promise<PlatformLoginResponse>;
+  loginTotp(req: PlatformLoginTotpRequest): Promise<PlatformLoginTotpResponse>;
   logout(): Promise<void>;
 }
 
@@ -40,9 +43,15 @@ export function createPlatformAuthRepository(
   return {
     async login(req) {
       // POST /api/platform/auth/login — see SSOT §6 endpoint #1.
-      // Returns: token + forcePasswordChange flag + permission set.
       return http.post<PlatformLoginResponse>(
         PLATFORM_ADMIN_API.AUTH_LOGIN,
+        req,
+      );
+    },
+    async loginTotp(req) {
+      // POST /api/platform/auth/login/totp — see SSOT §6 endpoint #1b.
+      return http.post<PlatformLoginTotpResponse>(
+        PLATFORM_ADMIN_API.AUTH_LOGIN_TOTP,
         req,
       );
     },

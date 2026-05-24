@@ -33,7 +33,8 @@
 
 import type {
   CapabilityId,
-  CapabilityType,
+  CapabilityKey,
+  CapabilityMeta,
   CapabilityProvider,
   CapabilityRegisterOptions,
   CapabilityStatus,
@@ -47,8 +48,8 @@ import type {
  * Stores capability registration information and runtime state
  */
 interface CapabilityEntry<T = unknown> {
-  /** Capability type identifier - can be CapabilityType object or Symbol */
-  capabilityType: CapabilityType<T> | symbol;
+  /** Capability type identifier - can be CapabilityType object or raw ID */
+  capabilityType: CapabilityKey<T>;
   
   /** Capability provider */
   provider: CapabilityProvider<T>;
@@ -94,11 +95,21 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
    * - Symbol: Used directly as ID (backward compatibility)
    * - CapabilityType object: Uses the .id property
    */
-  private extractId<T>(capabilityType: CapabilityType<T> | symbol): CapabilityId {
-    if (typeof capabilityType === 'symbol') {
+  private extractId<T>(capabilityType: CapabilityKey<T>): CapabilityId {
+    if (typeof capabilityType === 'object' && capabilityType !== null) {
+      return capabilityType.id;
+    }
+    return capabilityType;
+  }
+
+  private toMeta<T>(capabilityType: CapabilityKey<T>): CapabilityMeta {
+    if (typeof capabilityType === 'object' && capabilityType !== null) {
       return capabilityType;
     }
-    return capabilityType.id;
+    return {
+      id: capabilityType,
+      name: String(capabilityType),
+    };
   }
   
   /**
@@ -109,7 +120,7 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
    * @param options - Registration options
    */
   register<T>(
-    capabilityType: CapabilityType<T> | symbol,
+    capabilityType: CapabilityKey<T>,
     provider: CapabilityProvider<T>,
     options: CapabilityRegisterOptions = {}
   ): void {
@@ -143,7 +154,7 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
   /**
    * Unregister capability
    */
-  unregister<T>(capabilityType: CapabilityType<T> | symbol): boolean {
+  unregister<T>(capabilityType: CapabilityKey<T>): boolean {
     const id = this.extractId(capabilityType);
     const entry = this.entries.get(id);
     
@@ -167,7 +178,7 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
   /**
    * Get capability instance
    */
-  get<T>(capabilityType: CapabilityType<T> | symbol): T | undefined {
+  get<T>(capabilityType: CapabilityKey<T>): T | undefined {
     const id = this.extractId(capabilityType);
     const entry = this.entries.get(id) as CapabilityEntry<T> | undefined;
     
@@ -193,7 +204,7 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
   /**
    * Get required capability
    */
-  getRequired<T>(capabilityType: CapabilityType<T> | symbol): T {
+  getRequired<T>(capabilityType: CapabilityKey<T>): T {
     const instance = this.get(capabilityType);
     
     if (!instance) {
@@ -209,14 +220,14 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
   /**
    * Check if capability is registered
    */
-  has<T>(capabilityType: CapabilityType<T> | symbol): boolean {
+  has<T>(capabilityType: CapabilityKey<T>): boolean {
     return this.entries.has(this.extractId(capabilityType));
   }
   
   /**
    * Check if capability is ready
    */
-  isReady<T>(capabilityType: CapabilityType<T> | symbol): boolean {
+  isReady<T>(capabilityType: CapabilityKey<T>): boolean {
     const entry = this.entries.get(this.extractId(capabilityType));
     return entry?.status === 'ready';
   }
@@ -224,7 +235,7 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
   /**
    * Get capability runtime information
    */
-  getInfo<T>(capabilityType: CapabilityType<T> | symbol): CapabilityRuntimeInfo | undefined {
+  getInfo<T>(capabilityType: CapabilityKey<T>): CapabilityRuntimeInfo | undefined {
     const entry = this.entries.get(this.extractId(capabilityType));
     
     if (!entry) {
@@ -232,7 +243,7 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
     }
     
     return {
-      meta: entry.capabilityType,
+      meta: this.toMeta(entry.capabilityType),
       status: entry.status,
       registeredAt: entry.registeredAt,
       initializedAt: entry.initializedAt,
@@ -256,7 +267,7 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
     
     for (const [id, entry] of this.entries) {
       result.set(id, {
-        meta: entry.capabilityType,
+        meta: this.toMeta(entry.capabilityType),
         status: entry.status,
         registeredAt: entry.registeredAt,
         initializedAt: entry.initializedAt,
@@ -290,7 +301,8 @@ export class CapabilityRegistryImpl implements CapabilityRegistry {
     const result: CapabilityId[] = [];
     
     for (const [id, entry] of this.entries) {
-      if (entry.capabilityType.tags?.includes(tag)) {
+      const meta = this.toMeta(entry.capabilityType);
+      if (meta.tags?.includes(tag)) {
         result.push(id);
       }
     }

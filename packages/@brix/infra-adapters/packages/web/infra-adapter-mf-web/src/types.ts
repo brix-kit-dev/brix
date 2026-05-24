@@ -142,9 +142,9 @@ export interface PluginLoader extends BasePluginLoader<PluginManifest, PluginIns
   
   /**
    * Get all loaded plugins
-   * @returns Mapping from plugin ID to instance
+    * @returns Loaded plugin instances
    */
-  getLoaded(): Map<string, PluginInstance>;
+    getLoaded(): PluginInstance[];
   
   /**
    * Check if a plugin is loaded

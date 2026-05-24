@@ -18,6 +18,8 @@ package io.brix.platform.admin.dto;
 import java.time.OffsetDateTime;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 /**
  * Read-only view of a platform audit log entry.
@@ -42,11 +44,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PlatformAuditLogDto(
+        @JsonSerialize(using = ToStringSerializer.class)
         Long id,
         String action,
         String resourceType,
         String resourceId,
         String description,
+        @JsonSerialize(using = ToStringSerializer.class)
         Long actorId,
         String clientIp,
         boolean success,

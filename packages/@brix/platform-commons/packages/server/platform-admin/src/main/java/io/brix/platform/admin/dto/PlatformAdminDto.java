@@ -17,6 +17,9 @@ package io.brix.platform.admin.dto;
 
 import java.time.OffsetDateTime;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 /**
  * Read-only view of a platform administrator account.
  *
@@ -37,7 +40,9 @@ import java.time.OffsetDateTime;
  * @since 3.2.0
  */
 public record PlatformAdminDto(
+        @JsonSerialize(using = ToStringSerializer.class)
         Long adminId,
+        @JsonSerialize(using = ToStringSerializer.class)
         Long identityId,
         String username,
         String email,

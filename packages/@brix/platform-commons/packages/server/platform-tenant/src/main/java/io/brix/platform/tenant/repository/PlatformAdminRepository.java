@@ -16,8 +16,8 @@
 package io.brix.platform.tenant.repository;
 
 import io.brix.platform.tenant.entity.PlatformAdmin;
-import io.brix.platform.tenant.enums.MemberStatus;
 import io.brix.platform.tenant.enums.PlatformAdminRole;
+import io.brix.platform.tenant.enums.PlatformAdminStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -66,7 +66,7 @@ public interface PlatformAdminRepository extends JpaRepository<PlatformAdmin, Lo
      * @return true if identity is an active platform admin
      */
     @Query("SELECT CASE WHEN COUNT(pa) > 0 THEN true ELSE false END FROM PlatformAdmin pa " +
-           "WHERE pa.identityId = :identityId AND pa.status = 'ACTIVE'")
+           "WHERE pa.identityId = :identityId AND pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE")
     boolean isActivePlatformAdmin(@Param("identityId") Long identityId);
 
     /**
@@ -82,7 +82,9 @@ public interface PlatformAdminRepository extends JpaRepository<PlatformAdmin, Lo
      *
      * @return list of active platform admins
      */
-    @Query("SELECT pa FROM PlatformAdmin pa WHERE pa.status = 'ACTIVE' ORDER BY pa.role")
+    @Query("SELECT pa FROM PlatformAdmin pa "
+           + "WHERE pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE "
+           + "ORDER BY pa.role")
     List<PlatformAdmin> findAllActive();
 
     /**
@@ -90,7 +92,9 @@ public interface PlatformAdminRepository extends JpaRepository<PlatformAdmin, Lo
      *
      * @return list of super admin accounts
      */
-    @Query("SELECT pa FROM PlatformAdmin pa WHERE pa.role = 'SUPER_ADMIN' AND pa.status = 'ACTIVE'")
+    @Query("SELECT pa FROM PlatformAdmin pa "
+           + "WHERE pa.role = io.brix.platform.tenant.enums.PlatformAdminRole.PLATFORM_SUPER_ADMIN "
+           + "AND pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE")
     List<PlatformAdmin> findActiveSuperAdmins();
 
     /**
@@ -100,7 +104,9 @@ public interface PlatformAdminRepository extends JpaRepository<PlatformAdmin, Lo
      *
      * @return list of admins without MFA
      */
-    @Query("SELECT pa FROM PlatformAdmin pa WHERE pa.mfaEnabled = false AND pa.status = 'ACTIVE'")
+    @Query("SELECT pa FROM PlatformAdmin pa "
+           + "WHERE pa.mfaEnabled = false "
+           + "AND pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE")
     List<PlatformAdmin> findWithoutMfa();
 
     /**
@@ -109,23 +115,34 @@ public interface PlatformAdminRepository extends JpaRepository<PlatformAdmin, Lo
      * @param role the role to count
      * @return count of active admins with the role
      */
-    @Query("SELECT COUNT(pa) FROM PlatformAdmin pa WHERE pa.role = :role AND pa.status = 'ACTIVE'")
+    @Query("SELECT COUNT(pa) FROM PlatformAdmin pa "
+           + "WHERE pa.role = :role "
+           + "AND pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE")
     long countActiveByRole(@Param("role") PlatformAdminRole role);
+
+    @Query("SELECT COUNT(pa) FROM PlatformAdmin pa JOIN Identity i ON i.id = pa.identityId "
+           + "WHERE pa.role = io.brix.platform.tenant.enums.PlatformAdminRole.PLATFORM_SUPER_ADMIN "
+           + "AND pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE "
+           + "AND i.status = io.brix.platform.tenant.enums.IdentityStatus.ACTIVE "
+           + "AND i.mfaEnabled = true")
+    long countCompletedFormalSuperAdmins();
 
     /**
      * Counts all active platform admins.
      *
      * @return total count of active platform admins
      */
-    long countByStatus(MemberStatus status);
+       long countByStatus(PlatformAdminStatus status);
 
     /**
-     * Checks if the identity has SUPER_ADMIN role.
+       * Checks if the identity has PLATFORM_SUPER_ADMIN role.
      *
      * @param identityId the identity ID
      * @return true if identity is a super admin
      */
     @Query("SELECT CASE WHEN COUNT(pa) > 0 THEN true ELSE false END FROM PlatformAdmin pa " +
-           "WHERE pa.identityId = :identityId AND pa.role = 'SUPER_ADMIN' AND pa.status = 'ACTIVE'")
+           "WHERE pa.identityId = :identityId " +
+           "AND pa.role = io.brix.platform.tenant.enums.PlatformAdminRole.PLATFORM_SUPER_ADMIN " +
+           "AND pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE")
     boolean isSuperAdmin(@Param("identityId") Long identityId);
 }

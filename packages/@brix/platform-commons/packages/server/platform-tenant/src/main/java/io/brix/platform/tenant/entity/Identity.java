@@ -18,7 +18,7 @@ package io.brix.platform.tenant.entity;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
-import io.brix.platform.tenant.enums.MemberStatus;
+import io.brix.platform.tenant.enums.IdentityStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -61,7 +61,7 @@ import jakarta.persistence.UniqueConstraint;
  * @author Brix Platform Team
  * @since 3.1.0
  * @see TenantMember
- * @see MemberStatus
+ * @see IdentityStatus
  */
 @Entity
 @Table(
@@ -122,11 +122,11 @@ public class Identity {
     /**
      * Account status.
      *
-     * @see MemberStatus
+    * @see IdentityStatus
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
-    private MemberStatus status = MemberStatus.PENDING;
+    private IdentityStatus status = IdentityStatus.PENDING_SETUP;
 
     /**
      * Whether email has been verified.
@@ -137,19 +137,17 @@ public class Identity {
     private boolean emailVerified = false;
 
     /**
-     * Forces a password rotation on the next successful login.
+     * Forces a password rotation on the next successful non-platform login.
      *
      * <p>Set to {@code true} by:
      * <ul>
-     *   <li>SUPER_ADMIN bootstrap (operator must rotate the seeded password)</li>
-     *   <li>Administrative password reset</li>
+     *   <li>Tenant-side administrative password reset</li>
      *   <li>Future: scheduled password expiry policy</li>
      * </ul>
      *
-     * <p>This flag <b>does not</b> block authentication &mdash; login still
-     * succeeds so the user can reach the change-password screen. The flag is
-     * surfaced to the client via {@code LoginResponse.mustChangePassword},
-     * matching the Auth0 / Keycloak / Azure AD industry pattern.
+     * <p>Platform super-admin onboarding does not use this flag. It is modeled by
+     * {@link IdentityStatus#PENDING_SETUP}, setup-token validation, password setup,
+     * and TOTP binding.
      *
      * @since 3.2.0
      */
@@ -216,6 +214,25 @@ public class Identity {
     private String lastLoginIp;
 
     /**
+     * Encrypted TOTP secret used by platform setup and login flows.
+     *
+     * <p>Stored encrypted by the auth capability. Plaintext secrets must never
+     * be logged, returned, or exposed through DTOs.</p>
+     *
+     * @since 3.2.0
+     */
+    @Column(name = "mfa_secret_encrypted", length = 512)
+    private String mfaSecretEncrypted;
+
+    /** Whether TOTP MFA has been bound for this identity. */
+    @Column(name = "mfa_enabled", nullable = false)
+    private boolean mfaEnabled = false;
+
+    /** Timestamp when MFA was bound. */
+    @Column(name = "mfa_bound_at")
+    private OffsetDateTime mfaBoundAt;
+
+    /**
      * Record creation timestamp.
      */
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -246,7 +263,7 @@ public class Identity {
     public Identity(String email, String username) {
         this.email = email;
         this.username = username;
-        this.status = MemberStatus.PENDING;
+        this.status = IdentityStatus.PENDING_SETUP;
     }
 
     // ========================================================================
@@ -273,7 +290,7 @@ public class Identity {
      * @return true if status is ACTIVE
      */
     public boolean isActive() {
-        return status == MemberStatus.ACTIVE;
+        return status == IdentityStatus.ACTIVE;
     }
 
     /**
@@ -298,7 +315,7 @@ public class Identity {
                 "Cannot activate identity in status: " + status
             );
         }
-        this.status = MemberStatus.ACTIVE;
+        this.status = IdentityStatus.ACTIVE;
     }
 
     /**
@@ -306,17 +323,13 @@ public class Identity {
      */
     public void verifyEmail() {
         this.emailVerified = true;
-        if (status == MemberStatus.PENDING) {
-            this.status = MemberStatus.ACTIVE;
-        }
     }
 
     /**
-     * Marks the account as requiring a password change on next login.
+     * Marks the account as requiring a password change on the next non-platform login.
      *
-     * <p>Invoked by bootstrap, administrative reset, and password expiry
-     * policy. Does <b>not</b> alter {@link #canLogin()} &mdash; the user must
-     * be able to authenticate in order to reach the change-password flow.
+     * <p>Platform super-admin setup must use {@link IdentityStatus#PENDING_SETUP}
+     * instead of this flag.
      *
      * @since 3.2.0
      */
@@ -362,6 +375,9 @@ public class Identity {
         this.lastLoginIp = ipAddress;
         this.failedLoginCount = 0;
         this.lockedUntil = null;
+        if (this.status == IdentityStatus.LOCKED) {
+            this.status = IdentityStatus.ACTIVE;
+        }
     }
 
     /**
@@ -386,14 +402,15 @@ public class Identity {
         this.failedLoginCount++;
         if (this.failedLoginCount >= maxAttempts) {
             this.lockedUntil = OffsetDateTime.now().plusMinutes(lockMinutes);
+            this.status = IdentityStatus.LOCKED;
         }
     }
 
     /**
-     * Suspends the account.
+     * Disables the account.
      */
     public void suspend() {
-        this.status = MemberStatus.SUSPENDED;
+        this.status = IdentityStatus.DISABLED;
     }
 
     /**
@@ -441,11 +458,11 @@ public class Identity {
         this.passwordHash = passwordHash;
     }
 
-    public MemberStatus getStatus() {
+    public IdentityStatus getStatus() {
         return status;
     }
 
-    public void setStatus(MemberStatus status) {
+    public void setStatus(IdentityStatus status) {
         this.status = status;
     }
 
@@ -503,6 +520,30 @@ public class Identity {
 
     public void setLastLoginIp(String lastLoginIp) {
         this.lastLoginIp = lastLoginIp;
+    }
+
+    public String getMfaSecretEncrypted() {
+        return mfaSecretEncrypted;
+    }
+
+    public void setMfaSecretEncrypted(String mfaSecretEncrypted) {
+        this.mfaSecretEncrypted = mfaSecretEncrypted;
+    }
+
+    public boolean isMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public void setMfaEnabled(boolean mfaEnabled) {
+        this.mfaEnabled = mfaEnabled;
+    }
+
+    public OffsetDateTime getMfaBoundAt() {
+        return mfaBoundAt;
+    }
+
+    public void setMfaBoundAt(OffsetDateTime mfaBoundAt) {
+        this.mfaBoundAt = mfaBoundAt;
     }
 
     public OffsetDateTime getCreatedAt() {

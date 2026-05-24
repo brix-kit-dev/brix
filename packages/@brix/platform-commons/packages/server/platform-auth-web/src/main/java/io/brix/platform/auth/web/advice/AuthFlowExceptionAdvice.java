@@ -75,9 +75,10 @@ public class AuthFlowExceptionAdvice {
                  AuthFlowException.CODE_INVALID_REFRESH_TOKEN,
                  AuthFlowException.CODE_IDENTITY_NOT_FOUND -> HttpStatus.UNAUTHORIZED;
             case AuthFlowException.CODE_ACCOUNT_DISABLED,
-                 AuthFlowException.CODE_ACCOUNT_LOCKED,
                  AuthFlowException.CODE_TENANT_ACCESS_DENIED,
                  AuthFlowException.CODE_NO_TENANT_ASSOCIATION -> HttpStatus.FORBIDDEN;
+              case AuthFlowException.CODE_PENDING_SETUP -> HttpStatus.UNPROCESSABLE_ENTITY;
+              case AuthFlowException.CODE_ACCOUNT_LOCKED -> HttpStatus.LOCKED;
             case AuthFlowException.CODE_OLD_PASSWORD_MISMATCH,
                  AuthFlowException.CODE_PASSWORD_POLICY_VIOLATION -> HttpStatus.BAD_REQUEST;
             case AuthFlowException.CODE_CAPABILITY_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;

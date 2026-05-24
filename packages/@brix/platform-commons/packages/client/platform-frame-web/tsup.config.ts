@@ -25,7 +25,7 @@ export default defineConfig({
     'i18n/index': 'src/i18n/index.ts',
   },
   format: ['esm'],
-  dts: false,
+  dts: true,
   splitting: false,
   sourcemap: true,
   clean: true,

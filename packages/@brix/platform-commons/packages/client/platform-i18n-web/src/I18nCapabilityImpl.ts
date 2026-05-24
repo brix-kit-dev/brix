@@ -43,7 +43,7 @@ import type {
   Unsubscribe,
 } from '@brix-sdk/runtime-sdk-api-web';
 import type { I18nCapabilityConfig } from '@brix-sdk/runtime-sdk-api-web';
-import { I18nStore, type I18nStoreConfig } from './I18nStore';
+import { I18nStore } from './I18nStore';
 
 // Re-export contract-layer type for backward compatibility
 export type { I18nCapabilityConfig };
@@ -95,11 +95,18 @@ export class I18nCapabilityImpl implements I18nCapability {
    */
   constructor(config: I18nCapabilityConfig = {}) {
     // Use shared i18n store or create new one
-    if (config.i18nStore) {
+    if (config.i18nStore instanceof I18nStore) {
       this.i18nStore = config.i18nStore;
       this.ownsI18nStore = false;
     } else {
-      this.i18nStore = new I18nStore(config);
+      this.i18nStore = new I18nStore({
+        defaultLocale: config.defaultLocale,
+        fallbackLocale: config.fallbackLocale,
+        supportedLocales: config.supportedLocales,
+        persist: config.persist,
+        storageKey: config.storageKey,
+        initialBundles: config.initialBundles,
+      });
       this.ownsI18nStore = true;
     }
   }

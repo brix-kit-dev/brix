@@ -45,7 +45,7 @@ import type {
 import type { LayoutCapabilityConfig } from '@brix-sdk/runtime-sdk-api-web';
 import { LayoutStore } from './LayoutStore';
 import { GovernancePolicyHandler } from './GovernancePolicy';
-import type { LayoutConfig, LayoutGovernancePolicy, LayoutChangeRequest } from './layout-types';
+import type { LayoutGovernancePolicy, LayoutChangeRequest, LayoutChangeSet } from './layout-types';
 
 // Re-export contract-layer type for backward compatibility
 export type { LayoutCapabilityConfig };
@@ -107,11 +107,23 @@ export class LayoutCapabilityImpl implements LayoutCapability {
     this.pluginId = config.pluginId;
     
     // Use shared layout store or create new one
-    if (config.layoutStore) {
+    if (config.layoutStore instanceof LayoutStore) {
       this.layoutStore = config.layoutStore;
       this.ownsLayoutStore = false;
     } else {
-      this.layoutStore = new LayoutStore(config);
+      this.layoutStore = new LayoutStore({
+        defaultSidebarVisible: config.defaultSidebarVisible,
+        defaultSidebarCollapsed: config.defaultSidebarCollapsed,
+        defaultHeaderVisible: config.defaultHeaderVisible,
+        defaultFooterVisible: config.defaultFooterVisible,
+        layoutMode: config.layoutMode,
+        breakpoints: config.breakpoints,
+        sidebarWidth: config.sidebarWidth,
+        sidebarCollapsedWidth: config.sidebarCollapsedWidth,
+        headerHeight: config.headerHeight,
+        footerHeight: config.footerHeight,
+        governancePolicy: config.governancePolicy,
+      });
       this.ownsLayoutStore = true;
     }
     
@@ -178,6 +190,12 @@ export class LayoutCapabilityImpl implements LayoutCapability {
     const result = await this.requestLayoutChange({ sidebarCollapsed: false });
     return result.success;
   }
+
+  async requestToggleSidebar(): Promise<boolean> {
+    return this.isSidebarCollapsed()
+      ? this.requestExpandSidebar()
+      : this.requestCollapseSidebar();
+  }
   
   /**
    * Request hide header
@@ -198,6 +216,16 @@ export class LayoutCapabilityImpl implements LayoutCapability {
     const result = await this.requestLayoutChange({ headerVisible: true });
     return result.success;
   }
+
+  async requestHideFooter(): Promise<boolean> {
+    const result = await this.requestLayoutChange({ footerVisible: false });
+    return result.success;
+  }
+
+  async requestShowFooter(): Promise<boolean> {
+    const result = await this.requestLayoutChange({ footerVisible: true });
+    return result.success;
+  }
   
   /**
    * Get current layout state
@@ -206,6 +234,22 @@ export class LayoutCapabilityImpl implements LayoutCapability {
    */
   getLayoutState(): LayoutState {
     return this.layoutStore.getState();
+  }
+
+  getState(): LayoutState {
+    return this.getLayoutState();
+  }
+
+  isFullscreen(): boolean {
+    return this.getLayoutState().fullscreen;
+  }
+
+  isSidebarVisible(): boolean {
+    return this.getLayoutState().sidebarVisible;
+  }
+
+  isSidebarCollapsed(): boolean {
+    return this.getLayoutState().sidebarCollapsed;
   }
   
   /**
@@ -237,21 +281,25 @@ export class LayoutCapabilityImpl implements LayoutCapability {
     sidebarVisible?: boolean;
     sidebarCollapsed?: boolean;
     headerVisible?: boolean;
+    footerVisible?: boolean;
   }): Promise<LayoutRequestResult> {
     // Build change request
-    const changes: Partial<LayoutState> = {};
+    const changes: LayoutChangeSet = {};
     
     if (options.fullscreen !== undefined) {
-      changes.isFullscreen = options.fullscreen;
+      changes.fullscreen = options.fullscreen;
     }
     if (options.sidebarVisible !== undefined) {
-      changes.isSidebarVisible = options.sidebarVisible;
+      changes.sidebarVisible = options.sidebarVisible;
     }
     if (options.sidebarCollapsed !== undefined) {
-      changes.isSidebarCollapsed = options.sidebarCollapsed;
+      changes.sidebarCollapsed = options.sidebarCollapsed;
     }
     if (options.headerVisible !== undefined) {
-      changes.isHeaderVisible = options.headerVisible;
+      changes.headerVisible = options.headerVisible;
+    }
+    if (options.footerVisible !== undefined) {
+      changes.footerVisible = options.footerVisible;
     }
     
     // Create change request
@@ -282,7 +330,7 @@ export class LayoutCapabilityImpl implements LayoutCapability {
     if (isAlreadyInState) {
       return {
         success: true,
-        reason: 'already_in_state',
+        reason: 'already_applied',
         message: 'Already in target state',
       };
     }

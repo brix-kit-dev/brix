@@ -56,6 +56,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import type { LayoutState as RuntimeLayoutState } from '@brix-sdk/runtime-sdk-api-web';
 import { ConsoleLayout } from './ConsoleLayout';
 import { useShellNavigation, useCurrentPath } from '../router';
 
@@ -346,8 +347,22 @@ export const AppLayout: FC<AppLayoutProps> = ({
     return renderRoutes(routes, moduleLoader, permissionChecker);
   }, [routes, moduleLoader, permissionChecker]);
 
+  const consoleLayoutState = useMemo<RuntimeLayoutState>(() => ({
+    fullscreen: false,
+    sidebarVisible: layoutState.isSidebarVisible,
+    sidebarCollapsed: layoutState.isSidebarCollapsed,
+    headerVisible: layoutState.isHeaderVisible,
+    footerVisible: layoutState.isFooterVisible,
+    layoutMode: 'console',
+    breakpoint: 'lg',
+    isMobile: false,
+    sidebarWidth: 256,
+    sidebarCollapsedWidth: 80,
+    headerHeight: 64,
+  }), [layoutState]);
+
   return (
-    <ConsoleLayout layoutState={layoutState} header={header} sidebar={sidebar}>
+    <ConsoleLayout layoutState={consoleLayoutState} header={header} sidebar={sidebar}>
       <Routes>
         {/* Default redirect */}
         <Route path="/" element={<Navigate to={defaultPath} replace />} />

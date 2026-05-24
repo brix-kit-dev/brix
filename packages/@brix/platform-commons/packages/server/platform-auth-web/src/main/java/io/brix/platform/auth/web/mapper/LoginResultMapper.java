@@ -30,7 +30,7 @@ public final class LoginResultMapper {
     public static LoginResponseDto toDto(LoginResult result, String provider) {
         if (result == null) {
             return new LoginResponseDto(false, null, null, null, null, null,
-                    null, null, false, false, false);
+                    null, null, false, false);
         }
         boolean selectTenant = result.status() == LoginStatus.SELECT_TENANT;
 
@@ -59,8 +59,7 @@ public final class LoginResultMapper {
                 /* identityToken */ result.identityToken(),
                 /* tenants */ tenants,
                 /* mustChangePassword */ result.mustChangePassword(),
-                /* mfaRequired */ result.mfaRequired(),
-                /* platformAdminMode */ result.platformAdminMode()
+                /* mfaRequired */ result.mfaRequired()
         );
     }
 

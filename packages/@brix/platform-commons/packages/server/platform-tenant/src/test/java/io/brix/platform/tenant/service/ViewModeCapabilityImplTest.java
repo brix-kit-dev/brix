@@ -191,7 +191,7 @@ class ViewModeCapabilityImplTest {
                         12345L, "root@example.com", "root", "x", "ACTIVE", false, 1L)));
         when(identityTenantCapability.findActivePlatformAdmin(12345L))
                 .thenReturn(Optional.of(new PlatformAdminRecord(
-                        ADMIN_ID, 12345L, "SUPER_ADMIN", false)));
+                        ADMIN_ID, 12345L, "PLATFORM_SUPER_ADMIN", false)));
         when(jwtIssuerCapability.getAccessTokenExpirationSeconds()).thenReturn(TOKEN_TTL_SECONDS);
         when(jwtIssuerCapability.issuePlatformAdminViewToken(any()))
                 .thenReturn("hop-token");
@@ -260,7 +260,7 @@ class ViewModeCapabilityImplTest {
     private AuthenticatedUser newPlatformAdminCaller() {
         AuthenticatedUser u = new AuthenticatedUser();
         u.setUserId(String.valueOf(ADMIN_IDENTITY_ID));
-        u.setPlatformRole("SUPER_ADMIN");
+        u.setPlatformRole("PLATFORM_SUPER_ADMIN");
         return u;
     }
 
@@ -271,6 +271,6 @@ class ViewModeCapabilityImplTest {
                         "x", "ACTIVE", false, 1L)));
         when(identityTenantCapability.findActivePlatformAdmin(ADMIN_IDENTITY_ID))
                 .thenReturn(Optional.of(new PlatformAdminRecord(
-                        ADMIN_ID, ADMIN_IDENTITY_ID, "SUPER_ADMIN", false)));
+                        ADMIN_ID, ADMIN_IDENTITY_ID, "PLATFORM_SUPER_ADMIN", false)));
     }
 }

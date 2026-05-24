@@ -133,6 +133,7 @@ export const MuiModal: FC<ModalProps> = ({
   footer,
   confirmText = 'OK',
   cancelText = 'Cancel',
+  showCancel = true,
   confirmLoading = false,
   onClose,
   onConfirm,
@@ -193,13 +194,15 @@ export const MuiModal: FC<ModalProps> = ({
   // Build default footer if not custom provided
   const defaultFooter = (
     <>
-      <Button
-        onClick={handleCancel}
-        color="inherit"
-        data-testid={dataTestId ? `${dataTestId}-cancel` : undefined}
-      >
-        {cancelText}
-      </Button>
+      {showCancel && (
+        <Button
+          onClick={handleCancel}
+          color="inherit"
+          data-testid={dataTestId ? `${dataTestId}-cancel` : undefined}
+        >
+          {cancelText}
+        </Button>
+      )}
       {onConfirm && (
         <Button
           onClick={onConfirm}

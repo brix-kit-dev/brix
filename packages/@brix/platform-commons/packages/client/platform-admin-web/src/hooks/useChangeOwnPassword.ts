@@ -16,8 +16,7 @@ export interface UseChangeOwnPasswordResult {
 }
 
 /**
- * Self-service password change. The only endpoint callable while
- * `forcePasswordChange=true` (SSOT §8.5).
+ * Self-service password change with current TOTP verification (SSOT §8.5).
  */
 export function useChangeOwnPassword(): UseChangeOwnPasswordResult {
   const { admin } = useRepositories();

@@ -45,27 +45,7 @@ import type { PluginEntry, PluginLifecycle } from '@brix-sdk/runtime-sdk-api-web
  * @throws Error if loading fails or loader type is unsupported
  */
 export async function executeLoad(entry: PluginEntry): Promise<PluginLifecycle> {
-  const { loader, entry: entryPoint } = entry;
-  
-  // Execute loading based on loader type
-  if (loader === 'esm') {
-    // ESM dynamic import (recommended)
-    // webpackIgnore: true suppresses "Critical dependency: request is an expression" warning
-    // This is intentional for dynamic Module Federation plugin loading (v3.0.7 Blueprint)
-    const module = await import(/* webpackIgnore: true */ entryPoint);
-    return module.default || module;
-  } else if (loader === 'cjs') {
-    // CommonJS loading (requires special handling)
-    throw new Error('CommonJS loader not yet supported');
-  } else if (loader === 'script') {
-    // Script tag loading
-    return await loadScript(entryPoint);
-  } else if (loader === 'iife') {
-    // IIFE loading
-    throw new Error('IIFE loader not yet supported');
-  } else {
-    throw new Error(`Unsupported loader type: ${loader}`);
-  }
+  return entry.loader();
 }
 
 /**
@@ -89,12 +69,12 @@ export function loadScript(url: string): Promise<PluginLifecycle> {
     
     script.onload = () => {
       // Assume plugin exposes via global variable
-      const globalPlugin = (window as Record<string, unknown>).__BRIX_PLUGIN__;
+      const globalPlugin = (window as unknown as Record<string, unknown>).__BRIX_PLUGIN__;
       
       if (globalPlugin) {
         resolve(globalPlugin as PluginLifecycle);
         // Clean up global variable
-        delete (window as Record<string, unknown>).__BRIX_PLUGIN__;
+        delete (window as unknown as Record<string, unknown>).__BRIX_PLUGIN__;
       } else {
         reject(new Error(`Plugin instance not found after loading script "${url}"`));
       }

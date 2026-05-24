@@ -142,10 +142,10 @@ export function PortalLayout({
     top: 0,
     height: `${headerHeight}px`,
     zIndex: 100,
-    display: layoutState.isHeaderVisible ? 'block' : 'none',
+    display: layoutState.headerVisible ? 'block' : 'none',
     backgroundColor: 'var(--brix-bg-header, #fff)',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-  }), [headerHeight, layoutState.isHeaderVisible]);
+  }), [headerHeight, layoutState.headerVisible]);
   
   // Header content container style (centered)
   const headerContentStyle = useMemo<CSSProperties>(() => ({
@@ -174,10 +174,10 @@ export function PortalLayout({
   // Footer style
   const footerStyle = useMemo<CSSProperties>(() => ({
     minHeight: `${footerHeight}px`,
-    display: layoutState.isFooterVisible ? 'block' : 'none',
+    display: layoutState.footerVisible ? 'block' : 'none',
     backgroundColor: 'var(--brix-bg-footer, #001529)',
     color: 'var(--brix-text-footer, rgba(255, 255, 255, 0.65))',
-  }), [footerHeight, layoutState.isFooterVisible]);
+  }), [footerHeight, layoutState.footerVisible]);
   
   // Footer content container style (centered)
   const footerContentStyle = useMemo<CSSProperties>(() => ({
@@ -187,7 +187,7 @@ export function PortalLayout({
   }), [centerContent, maxContentWidth]);
   
   // Special handling for fullscreen mode
-  const isFullscreen = layoutState.isFullscreen;
+  const isFullscreen = layoutState.fullscreen;
   
   if (isFullscreen) {
     // Fullscreen mode only shows content area

@@ -18,6 +18,7 @@ import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,15 +90,21 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_PERMISSIONS = "permissions";
     private static final String CLAIM_PLATFORM_ROLE = "platform_role";
+    private static final String CLAIM_SCOPE = "scope";
+    private static final String CLAIM_MFA = "mfa";
     /** Phase 2 / C-4 — claim recording the platform-admin identity that initiated impersonation. */
     private static final String CLAIM_ORIGINAL_SUB = "original_sub";
 
     private static final String TOKEN_TYPE_ACCESS = "access";
     private static final String TOKEN_TYPE_IDENTITY = "identity";
+    private static final String TOKEN_TYPE_BOOTSTRAP_SETUP = "BOOTSTRAP_SETUP";
+    private static final String TOKEN_TYPE_MFA_CHALLENGE = "mfa_challenge";
 
     private static final String ROLE_ACTOR = "actor";
     private static final String ROLE_SUBJECT = "subject";
     private static final String ROLE_PLATFORM_ADMIN = "platform-admin";
+    private static final String ROLE_BOOTSTRAP = "bootstrap";
+    private static final String PLATFORM_ROLE_BOOTSTRAP = "BOOTSTRAP";
 
     private static final List<String> IDENTITY_TOKEN_ACTIONS =
             List.of("select-tenant", "register-tenant");
@@ -171,6 +178,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
                 request.tokenVersion());
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
         claims.put(CLAIM_ROLE, ROLE_PLATFORM_ADMIN);
+        claims.put(CLAIM_SCOPE, "PLATFORM");
         // Platform admin tokens deliberately omit tenant_id / mid / pid:
         // - tenant_id absent → cross-tenant authority enforced by AdminGuard
         // - mid/pid absent → not subject to TenantSqlGuardInterceptor
@@ -180,14 +188,57 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         // Extracted by JwtValidator into AuthenticatedUser.platformRole.
         claims.put(CLAIM_PLATFORM_ROLE, request.adminRole());
         claims.put(CLAIM_ROLES, List.of(request.adminRole()));
-        // P0-2: permissions must never be empty for platform admin tokens.
-        // Caller (AuthFlowCapabilityImpl) is responsible for passing the correct
-        // list via PlatformPermissions.defaultPermissionsFor(adminRole).
+        claims.put(CLAIM_MFA, "TOTP");
+        claims.put(CLAIM_PERMISSIONS, filterFrontendPermissions(request.permissions()));
+        return signToken(claims, properties.getAccessTokenExpirationSeconds());
+    }
+
+    @Override
+    public String issuePlatformMfaChallengeToken(PlatformMfaChallengeTokenRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("PlatformMfaChallengeTokenRequest must not be null");
+        }
+        Map<String, Object> claims = buildBaseClaims(
+                String.valueOf(request.identityId()), request.username(), request.email(),
+                request.tokenVersion());
+        claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_MFA_CHALLENGE);
+        claims.put(CLAIM_ROLE, ROLE_PLATFORM_ADMIN);
+        claims.put(CLAIM_SCOPE, "PLATFORM");
+        claims.put("admin_id", String.valueOf(request.adminId()));
+        claims.put("admin_role", request.adminRole());
+        claims.put(CLAIM_PLATFORM_ROLE, request.adminRole());
+        claims.put(CLAIM_MFA, "PENDING");
+        claims.put(CLAIM_ROLES, List.of(request.adminRole()));
+        claims.put(CLAIM_PERMISSIONS, List.of());
+        return signToken(claims, properties.getIdentityTokenExpirationSeconds());
+    }
+
+    @Override
+    public String issueBootstrapSetupToken(BootstrapSetupTokenRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("BootstrapSetupTokenRequest must not be null");
+        }
+        if (request.jti() == null || request.jti().isBlank()) {
+            throw new IllegalArgumentException("bootstrap setup token jti is required");
+        }
+        long ttlSeconds = Math.max(30L, request.expiresInSeconds());
+        Map<String, Object> claims = buildBaseClaims(
+                String.valueOf(request.identityId()), request.username(), request.email(),
+                request.tokenVersion());
+        claims.put("jti", request.jti());
+        claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_BOOTSTRAP_SETUP);
+        claims.put(CLAIM_ROLE, ROLE_BOOTSTRAP);
+        claims.put(CLAIM_SCOPE, PLATFORM_ROLE_BOOTSTRAP);
+        claims.put("admin_id", String.valueOf(request.bootstrapAdminId()));
+        claims.put("admin_role", PLATFORM_ROLE_BOOTSTRAP);
+        claims.put(CLAIM_PLATFORM_ROLE, PLATFORM_ROLE_BOOTSTRAP);
+        claims.put(CLAIM_MFA, "NONE");
+        claims.put(CLAIM_ROLES, List.of(PLATFORM_ROLE_BOOTSTRAP));
         claims.put(CLAIM_PERMISSIONS,
                 request.permissions() != null && !request.permissions().isEmpty()
                         ? request.permissions()
                         : List.of());
-        return signToken(claims, properties.getAccessTokenExpirationSeconds());
+        return signToken(claims, ttlSeconds);
     }
 
     @Override
@@ -228,14 +279,12 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
                 request.tokenVersion());
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
         claims.put(CLAIM_ROLE, ROLE_PLATFORM_ADMIN);
+        claims.put(CLAIM_SCOPE, "PLATFORM");
         claims.put("admin_id", String.valueOf(request.adminId()));
         claims.put("admin_role", request.adminRole());
         claims.put(CLAIM_PLATFORM_ROLE, request.adminRole());
         claims.put(CLAIM_ROLES, List.of(request.adminRole()));
-        claims.put(CLAIM_PERMISSIONS,
-                request.permissions() != null && !request.permissions().isEmpty()
-                        ? request.permissions()
-                        : List.of());
+        claims.put(CLAIM_PERMISSIONS, filterFrontendPermissions(request.permissions()));
         // C-4 specifics — tenant context + originalSub marker.
         claims.put(CLAIM_TENANT_ID, String.valueOf(request.viewTenantId()));
         claims.put(CLAIM_ORIGINAL_SUB, request.originalSub());
@@ -243,6 +292,19 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         log.info("[JwtIssuerCapability] platform-admin view token issued: originalSub={}, viewTenantId={}, adminRole={}",
                 request.originalSub(), request.viewTenantId(), request.adminRole());
         return signToken(claims, properties.getAccessTokenExpirationSeconds());
+    }
+
+    static List<String> filterFrontendPermissions(List<String> permissions) {
+        if (permissions == null || permissions.isEmpty()) {
+            return List.of();
+        }
+        List<String> filtered = new ArrayList<>(permissions.size());
+        for (String permission : permissions) {
+            if (permission != null && !"platform:bypass".equals(permission)) {
+                filtered.add(permission);
+            }
+        }
+        return List.copyOf(filtered);
     }
 
     // ==================== Internals ====================

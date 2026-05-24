@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * NoStringRoleLiteralRule positive / smoke tests.
  *
- * <p>SSOT §11 R-3 — role identifiers must come from {@code RoleCode}
+ * <p>SSOT v2.0 §4 / §11 R-3 — role identifiers must come from {@code RoleCode}
  * constants, never as bare string literals. This test class verifies the
  * rule is well-formed and that the architecture-guard library itself is
  * compliant.</p>
@@ -57,12 +57,10 @@ class NoStringRoleLiteralRuleTest {
         }
 
         @Test
-        @DisplayName("KNOWN_ROLE_CODES contains the canonical four roles")
+        @DisplayName("KNOWN_ROLE_CODES contains the v2 platform roles")
         void knownRolesAreCanonical() {
-            assertTrue(NoStringRoleLiteralRule.KNOWN_ROLE_CODES.contains("SUPER_ADMIN"));
-            assertTrue(NoStringRoleLiteralRule.KNOWN_ROLE_CODES.contains("PLATFORM_ADMIN"));
-            assertTrue(NoStringRoleLiteralRule.KNOWN_ROLE_CODES.contains("SUPPORT_ADMIN"));
-            assertTrue(NoStringRoleLiteralRule.KNOWN_ROLE_CODES.contains("AUDITOR"));
+            assertTrue(NoStringRoleLiteralRule.KNOWN_ROLE_CODES.contains("PLATFORM_SUPER_ADMIN"));
+            assertTrue(NoStringRoleLiteralRule.KNOWN_ROLE_CODES.contains("BOOTSTRAP"));
         }
     }
 

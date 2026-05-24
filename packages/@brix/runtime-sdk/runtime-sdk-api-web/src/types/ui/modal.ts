@@ -127,6 +127,14 @@ export interface ModalProps {
   cancelText?: string;
 
   /**
+   * Show Cancel Button
+   *
+   * When false, the cancel button is hidden. Useful for single-action dialogs.
+   * @default true
+   */
+  showCancel?: boolean;
+
+  /**
    * Confirm Button Loading
    *
    * When true, the confirm button shows loading state.

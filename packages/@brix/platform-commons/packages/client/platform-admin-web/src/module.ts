@@ -40,12 +40,29 @@ import {
 } from 'react';
 
 import { PLATFORM_ADMIN_ROUTES } from './constants';
-import type { PlatformLoginResponse } from './types';
+import type { PlatformLoginTotpResponse } from './types';
+import { BootstrapOnlyGuard, PlatformAuthGuard, SetupOnlyGuard } from './guards';
 
 // ── Internal lazy loaders — NEVER re-exported ────────────────────────────────
 
 const _PlatformLoginPage = lazy(() =>
   import('./pages/PlatformLoginPage').then(m => ({ default: m.PlatformLoginPage })),
+);
+
+const _PlatformLoginTotpPage = lazy(() =>
+  import('./pages/PlatformLoginTotpPage').then(m => ({ default: m.PlatformLoginTotpPage })),
+);
+
+const _PlatformSetupPage = lazy(() =>
+  import('./pages/PlatformSetupPage').then(m => ({ default: m.PlatformSetupPage })),
+);
+
+const _PlatformBootstrapPage = lazy(() =>
+  import('./pages/PlatformBootstrapPage').then(m => ({ default: m.PlatformBootstrapPage })),
+);
+
+const _PlatformBootstrapSentPage = lazy(() =>
+  import('./pages/PlatformBootstrapSentPage').then(m => ({ default: m.PlatformBootstrapSentPage })),
 );
 
 const _PlatformDashboardPage = lazy(() =>
@@ -175,14 +192,31 @@ function withSuspense(
   C: ComponentType,
   routeLabel: string,
 ): ReactNode {
+  return withSuspenseElement(createElement(C), routeLabel);
+}
+
+function withSuspenseElement(
+  element: ReactNode,
+  routeLabel: string,
+): ReactNode {
   const suspended = createElement(
     Suspense,
     { fallback: createElement(LoadingFallback) },
-    createElement(C),
+    element,
   );
   return createElement(
     RouteErrorBoundary,
     { routeLabel, children: suspended },
+  );
+}
+
+function withPlatformAuth(
+  C: ComponentType,
+  routeLabel: string,
+): ReactNode {
+  return withSuspenseElement(
+    createElement(PlatformAuthGuard, null, createElement(C)),
+    routeLabel,
   );
 }
 
@@ -221,7 +255,7 @@ export interface PlatformAdminRouteEntry {
 }
 
 export interface PlatformAdminRouteOptions {
-  readonly onLoginSuccess?: (res: PlatformLoginResponse, loginId: string) => void;
+  readonly onLoginSuccess?: (res: PlatformLoginTotpResponse, loginId: string) => void;
 }
 
 // ── Menu descriptor ───────────────────────────────────────────────────────────
@@ -290,12 +324,34 @@ export function createPlatformAdminPublicRoutes(
   return [
     {
       path: PLATFORM_ADMIN_ROUTES.LOGIN,
-      element: withSuspense(
-        () => createElement(_PlatformLoginPage, {
+      element: withSuspense(_PlatformLoginPage, PLATFORM_ADMIN_ROUTES.LOGIN),
+    },
+    {
+      path: PLATFORM_ADMIN_ROUTES.LOGIN_TOTP,
+      element: withSuspenseElement(
+        createElement(_PlatformLoginTotpPage, {
           onLoginSuccess: options.onLoginSuccess,
         }),
-        PLATFORM_ADMIN_ROUTES.LOGIN,
+        PLATFORM_ADMIN_ROUTES.LOGIN_TOTP,
       ),
+    },
+    {
+      path: PLATFORM_ADMIN_ROUTES.SETUP,
+      element: withSuspenseElement(
+        createElement(SetupOnlyGuard, null, createElement(_PlatformSetupPage)),
+        PLATFORM_ADMIN_ROUTES.SETUP,
+      ),
+    },
+    {
+      path: PLATFORM_ADMIN_ROUTES.BOOTSTRAP,
+      element: withSuspenseElement(
+        createElement(BootstrapOnlyGuard, null, createElement(_PlatformBootstrapPage)),
+        PLATFORM_ADMIN_ROUTES.BOOTSTRAP,
+      ),
+    },
+    {
+      path: PLATFORM_ADMIN_ROUTES.BOOTSTRAP_SENT,
+      element: withSuspense(_PlatformBootstrapSentPage, PLATFORM_ADMIN_ROUTES.BOOTSTRAP_SENT),
     },
   ];
 }
@@ -312,22 +368,22 @@ export const platformAdminPublicRoutes: ReadonlyArray<PlatformAdminRouteEntry> =
 export const platformAdminProtectedRoutes: ReadonlyArray<PlatformAdminRouteEntry> = [
   {
     path: PLATFORM_ADMIN_ROUTES.DASHBOARD,
-    element: withSuspense(_PlatformDashboardPage, PLATFORM_ADMIN_ROUTES.DASHBOARD),
+    element: withPlatformAuth(_PlatformDashboardPage, PLATFORM_ADMIN_ROUTES.DASHBOARD),
   },
   {
     path: PLATFORM_ADMIN_ROUTES.ADMINS,
-    element: withSuspense(_SuperAdminListPage, PLATFORM_ADMIN_ROUTES.ADMINS),
+    element: withPlatformAuth(_SuperAdminListPage, PLATFORM_ADMIN_ROUTES.ADMINS),
   },
   {
     path: PLATFORM_ADMIN_ROUTES.TENANTS,
-    element: withSuspense(_PlatformTenantListPage, PLATFORM_ADMIN_ROUTES.TENANTS),
+    element: withPlatformAuth(_PlatformTenantListPage, PLATFORM_ADMIN_ROUTES.TENANTS),
   },
   {
     path: PLATFORM_ADMIN_ROUTES.AUDIT,
-    element: withSuspense(_AuditLogPage, PLATFORM_ADMIN_ROUTES.AUDIT),
+    element: withPlatformAuth(_AuditLogPage, PLATFORM_ADMIN_ROUTES.AUDIT),
   },
   {
     path: PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD,
-    element: withSuspense(_ChangeOwnPasswordPage, PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD),
+    element: withPlatformAuth(_ChangeOwnPasswordPage, PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD),
   },
 ];

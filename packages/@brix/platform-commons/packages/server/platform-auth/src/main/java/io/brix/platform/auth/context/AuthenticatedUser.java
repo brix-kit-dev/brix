@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import io.brix.platform.auth.RoleCode;
 import io.brix.platform.auth.enums.TokenRole;
 import io.brix.platform.auth.enums.TokenType;
 
@@ -70,6 +71,12 @@ public class AuthenticatedUser implements Serializable {
      * Token version number, used for forced invalidation
      */
     private Long tokenVersion;
+
+    /** JWT ID (jti claim). */
+    private String jti;
+
+    /** Token scope claim, used by Bootstrap Setup tokens. */
+    private String scope;
 
     /**
      * Role list (RBAC roles)
@@ -132,7 +139,7 @@ public class AuthenticatedUser implements Serializable {
     private List<String> allowedActions = new ArrayList<>();
 
     /**
-     * Platform admin role code (platform_role claim) — e.g. {@code "SUPER_ADMIN"}.
+    * Platform admin role code (platform_role claim) — e.g. {@code "PLATFORM_SUPER_ADMIN"}.
      *
      * <p>Non-null only for Platform Admin tokens. Sourced from
      * {@code sys_platform_admin.role} via the {@code platform_role} JWT claim.
@@ -194,6 +201,22 @@ public class AuthenticatedUser implements Serializable {
 
     public void setTokenVersion(Long tokenVersion) {
         this.tokenVersion = tokenVersion;
+    }
+
+    public String getJti() {
+        return jti;
+    }
+
+    public void setJti(String jti) {
+        this.jti = jti;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public void setScope(String scope) {
+        this.scope = scope;
     }
 
     public List<String> getRoles() {
@@ -291,10 +314,10 @@ public class AuthenticatedUser implements Serializable {
     /**
      * Check if this is a Platform Admin token (any platform admin role).
      *
-     * @return {@code true} if the {@code platform_role} claim is present
+      * @return {@code true} for formal platform-admin access tokens
      */
     public boolean isPlatformAdmin() {
-        return platformRole != null;
+            return platformRole != null && (tokenType == null || tokenType == TokenType.ACCESS);
     }
 
     /**
@@ -302,12 +325,12 @@ public class AuthenticatedUser implements Serializable {
      *
      * <p>Evaluated against the {@code platform_role} JWT claim, not a role-name
      * string in the generic {@code roles} list. This eliminates the former ambiguity
-     * between {@code "SUPER_ADMIN"} and {@code "ROLE_SUPER_ADMIN"} literals.
+      * between role names in the generic {@code roles} list.
      *
-     * @return {@code true} only when {@code platform_role == "SUPER_ADMIN"}
+      * @return {@code true} only when {@code platform_role == "PLATFORM_SUPER_ADMIN"}
      */
     public boolean isSuperAdmin() {
-        return "SUPER_ADMIN".equals(platformRole);
+          return RoleCode.PLATFORM_SUPER_ADMIN.equals(platformRole);
     }
 
     // ========== Phase 3 — Platform Admin ==========
@@ -439,6 +462,10 @@ public class AuthenticatedUser implements Serializable {
      */
     public boolean isIdentityToken() {
         return tokenType == TokenType.IDENTITY;
+    }
+
+    public boolean isBootstrapSetupToken() {
+        return tokenType == TokenType.BOOTSTRAP_SETUP && tokenRole == TokenRole.BOOTSTRAP;
     }
 
     /**

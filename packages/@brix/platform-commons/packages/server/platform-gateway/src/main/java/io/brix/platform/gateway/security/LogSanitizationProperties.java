@@ -138,7 +138,13 @@ public class LogSanitizationProperties {
                     // API Key patterns
                     "api[_-]?key\\s*[=:]\\s*[\"']?[A-Za-z0-9-_]+[\"']?",
                     // Secret patterns
-                    "secret\\s*[=:]\\s*[\"']?[A-Za-z0-9-_]+[\"']?"
+                    "secret\\s*[=:]\\s*[\"']?[A-Za-z0-9-_]+[\"']?",
+                    // MFA and TOTP one-time code patterns
+                    "mfa[_-]?secret\\s*[=:]\\s*[\"']?[A-Za-z0-9-_]+[\"']?",
+                    "totp(?:Code)?\\s*[=:]\\s*[\"']?[0-9]{6}[\"']?",
+                    "otp(?:Code)?\\s*[=:]\\s*[\"']?[0-9]{6}[\"']?",
+                    "code\\s*[=:]\\s*[\"']?[0-9]{6}[\"']?",
+                    "(?<!\\d)[0-9]{6}(?!\\d)"
             ));
         }
 

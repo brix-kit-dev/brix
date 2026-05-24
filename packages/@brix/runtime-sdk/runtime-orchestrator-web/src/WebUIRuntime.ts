@@ -52,13 +52,13 @@ import type {
   CapabilityRuntimeInfo,
   PluginStatus,
   CapabilityRegistry,
-  RouterCapability,
+  NavigationCapability,
   AuthCapability,
   EventBusCapability,
   PluginStateCapability,
 } from '@brix-sdk/runtime-sdk-api-web';
 import {
-  RouterCapabilityType,
+  NavigationCapabilityType,
   AuthCapabilityType,
   EventBusCapabilityType,
   PluginStateCapabilityType,
@@ -214,29 +214,29 @@ export class WebUIRuntime {
   /**
    * Get router capability
    */
-  get router(): RouterCapability | undefined {
-    return this._registry.get(RouterCapabilityType);
+  get router(): NavigationCapability | undefined {
+    return this._registry.get<NavigationCapability>(NavigationCapabilityType);
   }
 
   /**
    * Get authentication capability
    */
   get auth(): AuthCapability | undefined {
-    return this._registry.get(AuthCapabilityType);
+    return this._registry.get<AuthCapability>(AuthCapabilityType);
   }
 
   /**
    * Get event bus capability
    */
   get eventBus(): EventBusCapability | undefined {
-    return this._registry.get(EventBusCapabilityType);
+    return this._registry.get<EventBusCapability>(EventBusCapabilityType);
   }
 
   /**
    * Get state management capability
    */
   get state(): PluginStateCapability | undefined {
-    return this._registry.get(PluginStateCapabilityType);
+    return this._registry.get<PluginStateCapability>(PluginStateCapabilityType);
   }
 
   // ========== Extended API ==========
@@ -283,9 +283,7 @@ export class WebUIRuntime {
   ): void {
     this._registry.register(capabilityType, provider, options);
 
-    if (this.config.debug) {
-      const id = typeof capabilityType === 'symbol' ? capabilityType.toString() : capabilityType.id;
-    }
+    if (this.config.debug) {}
   }
 
   /**
@@ -295,9 +293,7 @@ export class WebUIRuntime {
   unregisterCapability<T>(capabilityType: CapabilityType<T> | symbol): boolean {
     const result = this._registry.unregister(capabilityType);
 
-    if (this.config.debug && result) {
-      const id = typeof capabilityType === 'symbol' ? capabilityType.toString() : capabilityType.id;
-    }
+    if (this.config.debug && result) {}
 
     return result;
   }

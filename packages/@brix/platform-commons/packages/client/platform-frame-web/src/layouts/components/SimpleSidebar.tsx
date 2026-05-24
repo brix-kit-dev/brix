@@ -41,6 +41,7 @@
 
 import { useState, type FC, type CSSProperties, type ReactNode } from 'react';
 import { useUIOptional } from '@brix-sdk/runtime-sdk-react';
+import type { IconProps } from '@brix-sdk/runtime-sdk-api-web';
 import { getMenuIcon } from './menuIcons';
 
 // ============================================================================
@@ -106,7 +107,7 @@ const SUBMENU_BG_COLOR = 'rgba(0, 0, 0, 0.2)';
  * @param Icon - Icon component from UIAdapter (may be undefined)
  * @returns ReactNode for the icon
  */
-function renderIcon(iconName: string, Icon?: FC<{ name: string; size?: string }>): ReactNode {
+function renderIcon(iconName: string, Icon?: FC<IconProps>): ReactNode {
   if (Icon) {
     // Use UIAdapter Icon component with inline SVG
     return <Icon name={iconName} size="small" />;
@@ -191,7 +192,7 @@ interface MenuItemRendererProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   /** Icon component from UIAdapter (optional, falls back to emoji) */
-  IconComponent?: FC<{ name: string; size?: string }>;
+  IconComponent?: FC<IconProps>;
   onMenuClick: (menuId: string, path: string) => void;
 }
 

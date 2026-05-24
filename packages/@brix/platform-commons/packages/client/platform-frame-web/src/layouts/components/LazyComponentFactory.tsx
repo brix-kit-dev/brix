@@ -73,7 +73,7 @@ export type { AggregatedRoute };
 export type ModuleLoader = (
   remoteEntry: string,
   exposePath: string
-) => Promise<{ default: ComponentType<unknown> }>;
+) => Promise<{ default: ComponentType }>;
 
 // ============================================================================
 // Component Cache
@@ -88,7 +88,7 @@ export type ModuleLoader = (
  * Caching avoids redundant creation of React.lazy wrappers,
  * but actual JS bundle caching is managed by the browser and Module Federation runtime.
  */
-const componentCache = new Map<string, LazyExoticComponent<ComponentType<unknown>>>();
+const componentCache = new Map<string, LazyExoticComponent<ComponentType>>();
 
 // ============================================================================
 // Factory Functions
@@ -154,7 +154,7 @@ export function createLazyComponent(
  * @returns Wrapped FC component
  */
 function createWrappedComponent(
-  LazyComp: LazyExoticComponent<ComponentType<unknown>>,
+  LazyComp: LazyExoticComponent<ComponentType>,
   route: AggregatedRoute
 ): FC {
   const WrappedComponent: FC = () => (

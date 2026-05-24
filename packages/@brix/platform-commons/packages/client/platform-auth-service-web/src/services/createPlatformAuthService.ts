@@ -52,17 +52,7 @@ export interface LoginResult {
   token?: string;
   error?: string;
   /**
-   * Platform admin mode flag. When {@code true} the caller MUST redirect the
-   * user to the platform admin console instead of the default dashboard.
-   *
-   * @since 3.2.0
-   */
-  platformAdminMode?: boolean;
-  /**
-    * Optional redirect path. Set to the configured platform-admin home path when
-   * {@link platformAdminMode} is {@code true} so that navigation layers that
-   * consume {@code result.redirectTo} (e.g. createLoginPage) route platform
-   * admins to the admin console automatically.
+   * Optional redirect path returned by the generic auth endpoint.
    *
    * @since 3.2.0
    */
@@ -96,7 +86,7 @@ export interface PlatformAuthServiceOptions {
   storageMode?: 'memory' | 'session' | 'cookie';
   /** OAuth configuration (provider => config) */
   oauthProviders?: Record<string, OAuthConfig>;
-  /** Platform-admin landing path used when backend marks the login as platform-admin mode. */
+  /** Explicit platform-admin landing path used by callers that own a separate platform login flow. */
   platformAdminRedirectPath?: string;
 }
 
@@ -200,7 +190,6 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
     apiBaseUrl = '/api',
     storageMode = 'memory',
     oauthProviders = {},
-    platformAdminRedirectPath,
   } = options;
 
   const secureStorage = createSecureStorage(storageMode);
@@ -240,10 +229,7 @@ export function createPlatformAuthService(options: PlatformAuthServiceOptions = 
             success: true,
             user: data.user,
             token: data.token,
-            platformAdminMode: data.platformAdminMode === true,
-            redirectTo: data.platformAdminMode === true
-              ? platformAdminRedirectPath
-              : data.redirectTo,
+            redirectTo: data.redirectTo,
           };
         }
         return { success: false, error: data.message || 'Login failed' };

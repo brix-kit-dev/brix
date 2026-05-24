@@ -30,7 +30,16 @@ import type {
   ThemeConfig,
   ThemeColors,
   ThemeChangeEvent,
+  ThemeState,
 } from '@brix-sdk/runtime-sdk-api-web';
+
+function getThemeState(theme: ThemeCapability): ThemeState {
+  return theme.getState?.() ?? {
+    mode: theme.getMode(),
+    resolvedMode: theme.getResolvedMode(),
+    config: theme.getConfig(),
+  };
+}
 
 /**
  * Theme Hook Return Type
@@ -101,15 +110,19 @@ export interface UseThemeResult {
  * @returns Theme state and control methods
  */
 export function useTheme(theme: ThemeCapability): UseThemeResult {
-  const [state, setState] = useState(() => theme.getState());
+  const [state, setState] = useState<ThemeState>(() => getThemeState(theme));
   
   // Subscribe to theme state changes
   useEffect(() => {
-    const unsubscribe = theme.onThemeChange((event: ThemeChangeEvent) => {
-      setState(event.newState);
+    const unsubscribe = theme.onThemeChange?.((event: ThemeChangeEvent) => {
+      setState({
+        mode: event.mode,
+        resolvedMode: event.resolvedMode,
+        config: event.config,
+      });
     });
     
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, [theme]);
   
   // Set theme mode

@@ -59,7 +59,6 @@
  */
 
 import {
-  lazy,
   Suspense,
   Component,
   type ComponentType,

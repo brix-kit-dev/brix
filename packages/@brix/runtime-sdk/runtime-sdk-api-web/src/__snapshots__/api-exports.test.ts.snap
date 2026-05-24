@@ -21,12 +21,17 @@ exports[`API Export Stability Tests (Golden File) > should export all expected m
   "PluginLoadError",
   "PluginLoaderCapabilityType",
   "PluginStateCapabilityType",
+  "RouterCapabilityType",
   "SYSTEM_HTTP_ERROR_EVENT",
   "StateStoreCapabilityType",
   "TenantCapabilityType",
   "TenantConfigCapabilityType",
   "ThemeCapabilityType",
   "UICapabilityType",
+  "VIEW_MODE_PLATFORM_ADMIN",
+  "VIEW_MODE_TENANT_ACTOR",
+  "VIEW_MODE_TENANT_SUBJECT",
+  "ViewModeCapabilityType",
   "createCapabilityType",
 ]
 `;

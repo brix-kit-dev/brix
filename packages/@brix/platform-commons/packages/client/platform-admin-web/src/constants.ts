@@ -7,8 +7,8 @@
  * Centralised constants for `@brix-sdk/platform-admin-web`.
  *
  * Mirrors the backend Java constants:
- *   - `io.brix.platform.auth.PlatformPermissions`
- *   - `io.brix.platform.auth.RoleCode`
+ *   - `io.brix.platform.auth.api.PermissionCode`
+ *   - `io.brix.platform.auth.api.RoleCode`
  *   - `io.brix.platform.auth.AuditAction`
  *
  * Architectural rule (SSOT §11 R-3):
@@ -32,11 +32,9 @@
  *
  * @remarks
  * `BYPASS` is intentionally NOT exposed to UI gating logic.
- * Per SSOT §4.1, `platform:bypass` MAY appear in the JWT permission list of
- * SUPER_ADMIN/PLATFORM_ADMIN, but UI components MUST gate on the specific
- * fine-grained codes (e.g. `ADMIN_CREATE`), not on `bypass`. The constant
- * is exported only so the audit/login flow can detect bypass holders for
- * defensive logging.
+ * Per SSOT §4.1, `platform:bypass` is a server-internal permission and MUST
+ * NOT be used to show or hide UI controls. UI components gate on specific
+ * fine-grained codes such as `ADMIN_CREATE`.
  */
 export const PLATFORM_ADMIN_PERMISSIONS = Object.freeze({
   /** `platform:bypass` — see SSOT §4.1 usage rules. NOT for UI gating. */
@@ -44,12 +42,13 @@ export const PLATFORM_ADMIN_PERMISSIONS = Object.freeze({
 
   /** Tenant management */
   TENANT_READ: 'platform:tenant:read',
+  TENANT_CREATE: 'platform:tenant:create',
   TENANT_UPDATE_STATUS: 'platform:tenant:update-status',
 
   /** Admin lifecycle */
   ADMIN_READ: 'platform:admin:read',
   ADMIN_CREATE: 'platform:admin:create',
-  ADMIN_DISABLE: 'platform:admin:disable',
+  ADMIN_REVOKE: 'platform:admin:revoke',
   ADMIN_RESET_PASSWORD: 'platform:admin:reset-password',
   ADMIN_CHANGE_OWN_PASSWORD: 'platform:admin:change-own-password',
 
@@ -65,10 +64,8 @@ export type PlatformAdminPermission =
  * ======================================================================== */
 
 export const PLATFORM_ROLE_CODE = Object.freeze({
-  SUPER_ADMIN: 'SUPER_ADMIN',
-  PLATFORM_ADMIN: 'PLATFORM_ADMIN',
-  SUPPORT_ADMIN: 'SUPPORT_ADMIN',
-  AUDITOR: 'AUDITOR',
+  PLATFORM_SUPER_ADMIN: 'PLATFORM_SUPER_ADMIN',
+  BOOTSTRAP: 'BOOTSTRAP',
 } as const);
 
 export type PlatformRoleCode =
@@ -83,9 +80,19 @@ export const PLATFORM_AUDIT_ACTIONS = Object.freeze({
   SUPER_ADMIN_LOGIN_FAILED: 'SUPER_ADMIN_LOGIN_FAILED',
   SUPER_ADMIN_LOGOUT: 'SUPER_ADMIN_LOGOUT',
   SUPER_ADMIN_CREATED: 'SUPER_ADMIN_CREATED',
-  SUPER_ADMIN_DISABLED: 'SUPER_ADMIN_DISABLED',
+  SUPER_ADMIN_REVOKED: 'SUPER_ADMIN_REVOKED',
   SUPER_ADMIN_PASSWORD_RESET: 'SUPER_ADMIN_PASSWORD_RESET',
   SUPER_ADMIN_PASSWORD_CHANGED: 'SUPER_ADMIN_PASSWORD_CHANGED',
+  SETUP_TOKEN_ISSUED: 'SETUP_TOKEN_ISSUED',
+  SETUP_TOKEN_USED: 'SETUP_TOKEN_USED',
+  SETUP_TOKEN_INVALID: 'SETUP_TOKEN_INVALID',
+  IDENTITY_PASSWORD_SET: 'IDENTITY_PASSWORD_SET',
+  TOTP_BOUND: 'TOTP_BOUND',
+  IDENTITY_ACTIVATED: 'IDENTITY_ACTIVATED',
+  IDENTITY_DISABLED: 'IDENTITY_DISABLED',
+  IDENTITY_LOCKED: 'IDENTITY_LOCKED',
+  BOOTSTRAP_ADMIN_CREATED: 'BOOTSTRAP_ADMIN_CREATED',
+  BOOTSTRAP_ADMIN_DEACTIVATED: 'BOOTSTRAP_ADMIN_DEACTIVATED',
   TENANT_STATUS_CHANGED: 'TENANT_STATUS_CHANGED',
 } as const);
 
@@ -122,7 +129,7 @@ export const PLATFORM_TENANT_TRANSITIONABLE_STATUS: readonly PlatformTenantStatu
 
 export const PLATFORM_ADMIN_STATUS = Object.freeze({
   ACTIVE: 'ACTIVE',
-  DISABLED: 'DISABLED',
+  REVOKED: 'REVOKED',
 } as const);
 
 export type PlatformAdminStatus =
@@ -138,6 +145,10 @@ export type PlatformAdminStatus =
 
 export const PLATFORM_ADMIN_ROUTES = Object.freeze({
   LOGIN: '/platform/login',
+  LOGIN_TOTP: '/platform/login/totp',
+  SETUP: '/platform/setup',
+  BOOTSTRAP: '/platform/bootstrap',
+  BOOTSTRAP_SENT: '/platform/bootstrap/sent',
   DASHBOARD: '/platform',
   ADMINS: '/platform/admins',
   AUDIT: '/platform/audit',
@@ -155,9 +166,16 @@ export type PlatformAdminRoute =
 
 export const PLATFORM_ADMIN_API = Object.freeze({
   AUTH_LOGIN: '/platform/auth/login',
+  AUTH_LOGIN_TOTP: '/platform/auth/login/totp',
   AUTH_LOGOUT: '/platform/auth/logout',
+  SETUP_VALIDATE: '/platform/auth/setup/validate',
+  SETUP_TOTP_INIT: '/platform/auth/setup/totp/init',
+  SETUP_COMPLETE: '/platform/auth/setup/complete',
+  BOOTSTRAP_STATUS: '/platform/bootstrap/status',
+  BOOTSTRAP_SESSION: '/platform/bootstrap/session',
+  BOOTSTRAP_CREATE_FIRST_ADMIN: '/platform/bootstrap/create-first-admin',
   ADMINS: '/platform/admins',
-  ADMIN_DISABLE: (id: string | number) => `/platform/admins/${id}/disable`,
+  ADMIN_REVOKE: (id: string | number) => `/platform/admins/${id}/revoke`,
   ADMIN_RESET_PASSWORD: (id: string | number) =>
     `/platform/admins/${id}/reset-password`,
   ADMIN_CHANGE_OWN_PASSWORD: '/platform/admins/me/change-password',
@@ -174,5 +192,5 @@ export const PLATFORM_ADMIN_API = Object.freeze({
 export const PLATFORM_ADMIN_EVENT_TOPICS = Object.freeze({
   TENANT_STATUS_CHANGED: 'platform.tenant.status_changed',
   SUPER_ADMIN_CREATED: 'platform.admin.created',
-  SUPER_ADMIN_DISABLED: 'platform.admin.disabled',
+  SUPER_ADMIN_REVOKED: 'platform.admin.revoked',
 } as const);

@@ -23,6 +23,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { LayoutCapability, LayoutState } from '@brix-sdk/runtime-sdk-api-web';
 
+interface ResponsiveState {
+  breakpoint: LayoutState['breakpoint'];
+  viewportWidth: number;
+  viewportHeight: number;
+}
+
+function getViewportSize(): Pick<ResponsiveState, 'viewportWidth' | 'viewportHeight'> {
+  if (typeof window === 'undefined') {
+    return { viewportWidth: 1200, viewportHeight: 800 };
+  }
+
+  return {
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  };
+}
+
 /**
  * Responsive Hook Return Type
  */
@@ -114,10 +131,11 @@ export interface UseResponsiveResult {
  * @returns Responsive state
  */
 export function useResponsive(layout: LayoutCapability): UseResponsiveResult {
-  const [state, setState] = useState(() => {
+  const [state, setState] = useState<ResponsiveState>(() => {
     const layoutState = layout.getState();
     return {
       breakpoint: layoutState.breakpoint,
+      ...getViewportSize(),
     };
   });
   
@@ -127,6 +145,7 @@ export function useResponsive(layout: LayoutCapability): UseResponsiveResult {
       if (event.type === 'breakpoint') {
         setState({
           breakpoint: event.state.breakpoint,
+          ...getViewportSize(),
         });
       }
     });

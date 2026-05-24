@@ -91,6 +91,14 @@ export function useThemeMode(): ThemeModeContextValue {
  * @returns MUI Theme object
  */
 export function createMuiTheme(tokens: ThemeTokens, mode: 'light' | 'dark'): Theme {
+  const outlinedLabelXOffset = 14;
+  const outlinedLabelShrinkYOffset = -9;
+  const inputLabelLineHeightRatio = 1.4375;
+  const mediumInputLabelYOffset =
+    (tokens.controlHeightMedium - tokens.fontSizeMedium * inputLabelLineHeightRatio) / 2;
+  const smallInputLabelYOffset =
+    (tokens.controlHeightSmall - tokens.fontSizeSmall * inputLabelLineHeightRatio) / 2;
+
   return createTheme({
     palette: {
       mode,
@@ -170,10 +178,34 @@ export function createMuiTheme(tokens: ThemeTokens, mode: 'light' | 'dark'): The
           size: 'medium',
         },
       },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            fontSize: tokens.fontSizeMedium,
+          },
+          sizeSmall: {
+            fontSize: tokens.fontSizeSmall,
+          },
+          outlined: {
+            lineHeight: inputLabelLineHeightRatio,
+            transform: `translate(${outlinedLabelXOffset}px, ${mediumInputLabelYOffset}px) scale(1)`,
+            '&.MuiInputLabel-sizeSmall': {
+              transform: `translate(${outlinedLabelXOffset}px, ${smallInputLabelYOffset}px) scale(1)`,
+            },
+            '&.MuiInputLabel-shrink': {
+              transform: `translate(${outlinedLabelXOffset}px, ${outlinedLabelShrinkYOffset}px) scale(0.75)`,
+            },
+            '&.MuiInputLabel-shrink.MuiInputLabel-sizeSmall': {
+              transform: `translate(${outlinedLabelXOffset}px, ${outlinedLabelShrinkYOffset}px) scale(0.75)`,
+            },
+          },
+        },
+      },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
             borderRadius: tokens.borderRadiusMedium,
+            alignItems: 'center',
             // Default (medium) density
             minHeight: tokens.controlHeightMedium,
             fontSize: tokens.fontSizeMedium,
@@ -181,13 +213,28 @@ export function createMuiTheme(tokens: ThemeTokens, mode: 'light' | 'dark'): The
               minHeight: tokens.controlHeightSmall,
               fontSize: tokens.fontSizeSmall,
             },
+            '&.MuiInputBase-multiline': {
+              alignItems: 'flex-start',
+              paddingTop: 10,
+              paddingBottom: 10,
+            },
           },
           input: {
-            // Vertical padding so the input visually fills minHeight
             paddingTop: 0,
             paddingBottom: 0,
-            height: '100%',
+            height: tokens.controlHeightMedium,
+            lineHeight: `${tokens.controlHeightMedium}px`,
             boxSizing: 'border-box',
+            '&.MuiInputBase-inputSizeSmall': {
+              height: tokens.controlHeightSmall,
+              lineHeight: `${tokens.controlHeightSmall}px`,
+            },
+            '&.MuiInputBase-inputMultiline': {
+              height: 'auto',
+              lineHeight: 1.5,
+              paddingTop: 0,
+              paddingBottom: 0,
+            },
           },
         },
       },
@@ -195,6 +242,12 @@ export function createMuiTheme(tokens: ThemeTokens, mode: 'light' | 'dark'): The
         styleOverrides: {
           root: {
             fontSize: tokens.fontSizeMedium,
+            alignItems: 'center',
+          },
+          input: {
+            '&::placeholder': {
+              lineHeight: 'inherit',
+            },
           },
         },
       },

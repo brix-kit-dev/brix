@@ -54,4 +54,8 @@ if [ -n "$BLOCKED_FILES" ]; then
 fi
 
 echo "✅ [Pre-commit] No security-sensitive files detected."
+
+echo "[Pre-commit] Checking banned platform-admin tokens..."
+node scripts/check-banned-tokens.mjs || exit 1
+
 exit 0

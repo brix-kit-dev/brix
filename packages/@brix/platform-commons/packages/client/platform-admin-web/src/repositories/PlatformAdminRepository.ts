@@ -16,10 +16,10 @@ import type {
   ChangeOwnPasswordRequest,
   CreatePlatformAdminRequest,
   CreatePlatformAdminResponse,
-  DisableAdminRequest,
   Page,
   PageRequest,
   PlatformAdminDto,
+  RevokeAdminRequest,
   ResetPasswordResponse,
 } from '../types';
 
@@ -28,7 +28,7 @@ export interface PlatformAdminRepository {
   create(
     req: CreatePlatformAdminRequest,
   ): Promise<CreatePlatformAdminResponse>;
-  disable(id: string, req: DisableAdminRequest): Promise<PlatformAdminDto>;
+  revoke(id: string, req: RevokeAdminRequest): Promise<void>;
   resetPassword(id: string): Promise<ResetPasswordResponse>;
   changeOwnPassword(req: ChangeOwnPasswordRequest): Promise<void>;
 }
@@ -38,22 +38,24 @@ export function createPlatformAdminRepository(
 ): PlatformAdminRepository {
   return {
     async list(query) {
+      // Admin-management data must always be authoritative: bypass the HTTP-layer
+      // GET cache so explicit Refresh and post-mutation reloads see server state.
+      const queryObj = (query as Record<string, unknown> | undefined) ?? {};
       const response = await http.get<unknown>(
         PLATFORM_ADMIN_API.ADMINS,
-        query as Record<string, unknown> | undefined,
+        { ...queryObj, headers: { 'Cache-Control': 'no-cache' } },
       );
       return normalizeAdminPage(response, query);
     },
     async create(req) {
-      // Backend returns the one-shot tempPassword exactly once (SSOT §8.4).
       return http.post<CreatePlatformAdminResponse>(
         PLATFORM_ADMIN_API.ADMINS,
         req,
       );
     },
-    async disable(id, req) {
-      return http.post<PlatformAdminDto>(
-        PLATFORM_ADMIN_API.ADMIN_DISABLE(id),
+    async revoke(id, req) {
+      await http.patch<void>(
+        PLATFORM_ADMIN_API.ADMIN_REVOKE(id),
         req,
       );
     },
@@ -119,12 +121,12 @@ function normalizeAdminDto(admin: BackendPlatformAdminDto): PlatformAdminDto {
     displayName: admin.displayName ?? null,
     role: admin.role as PlatformAdminDto['role'],
     status: admin.status as PlatformAdminDto['status'],
-    forcePasswordChange: admin.forcePasswordChange ?? false,
+    identityStatus: admin.identityStatus,
     createdAt: normalizeTimestamp(admin.createdAt),
     createdBy: admin.createdBy ?? null,
-    disabledAt: admin.disabledAt ?? null,
-    disabledBy: admin.disabledBy ?? null,
-    disableReason: admin.disableReason ?? null,
+    revokedAt: admin.revokedAt ?? null,
+    revokedBy: admin.revokedBy ?? null,
+    revokeReason: admin.revokeReason ?? null,
     lastLoginAt: admin.lastLoginAt ?? null,
     lastLoginIp: admin.lastLoginIp ?? null,
   };

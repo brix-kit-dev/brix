@@ -15,7 +15,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useI18n, useTheme } from '@brix-sdk/runtime-sdk-react';
 import type { DesignTokens } from '@brix-sdk/runtime-sdk-api-web';
-import { useUIStrict } from '../internal/ui-kit';
+import { AdminPageShell, useUIStrict } from '../internal/ui-kit';
 import {
   PLATFORM_ADMIN_PERMISSIONS,
   PLATFORM_ADMIN_ROUTES,
@@ -99,19 +99,23 @@ export function PlatformDashboardPage(): JSX.Element {
 
   const panelRadius = `calc(${t.shape.lg} + ${t.space.xs})`;
   const softBorder = `color-mix(in srgb, ${t.colors.border.default} 48%, transparent)`;
-  // 劳模模式：卡片与分割线使用品牌主色 35% 透明边，在 surface.elevated 背景上清晰可辨（R-6：零硬编码）。
   const primaryBorder = `color-mix(in srgb, ${t.colors.brand.primary} 35%, transparent)`;
   const softTextShadow = 'none';
 
   return (
-    <div
-      style={{
-        minHeight: '100%',
-        background: 'transparent',
-        padding: `${t.space.xl} ${t.space.xl}`,
-      }}
-    >
-      <div style={{ maxWidth: 1160, margin: '0 auto' }}>
+    <AdminPageShell>
+        <style>
+          {`
+            .platform-dashboard-card {
+              transition: transform ${t.motion.durationStandard} ${t.motion.easing},
+                box-shadow ${t.motion.durationStandard} ${t.motion.easing};
+            }
+            .platform-dashboard-card:hover {
+              transform: translateY(-4px);
+              box-shadow: ${t.shadows.xl} !important;
+            }
+          `}
+        </style>
         <header
           aria-labelledby="platform-dashboard-title"
           style={{
@@ -120,8 +124,8 @@ export function PlatformDashboardPage(): JSX.Element {
             justifyContent: 'space-between',
             gap: t.space.md,
             flexWrap: 'wrap',
-            paddingBottom: t.space.xl,
-            marginBottom: t.space.xl,
+            paddingBottom: t.space.md,
+            marginBottom: t.space.lg,
             borderBottom: `1px solid ${primaryBorder}`,
           }}
         >
@@ -131,9 +135,9 @@ export function PlatformDashboardPage(): JSX.Element {
               style={{
                 margin: 0,
                 color: t.colors.text.primary,
-                fontSize: '2rem',
+                fontSize: t.typography.titleLarge.fontSize,
                 fontWeight: 750,
-                lineHeight: 1.18,
+                lineHeight: t.typography.titleLarge.lineHeight,
                 textShadow: softTextShadow,
               }}
             >
@@ -175,7 +179,7 @@ export function PlatformDashboardPage(): JSX.Element {
                 fontWeight: 700,
                 lineHeight: t.typography.labelSmall.lineHeight,
                 whiteSpace: 'nowrap',
-                boxShadow: 'none',
+                boxShadow: t.shadows.none,
               }}
             >
               {roleLabel}
@@ -219,9 +223,9 @@ export function PlatformDashboardPage(): JSX.Element {
               style={{
                 margin: 0,
                 color: t.colors.text.primary,
-                fontSize: '1.125rem',
+                fontSize: t.typography.titleSmall.fontSize,
                 fontWeight: 700,
-                lineHeight: 1.35,
+                lineHeight: t.typography.titleSmall.lineHeight,
               }}
             >
               {tt(I18N_KEYS.dashboard.sectionTitle)}
@@ -250,12 +254,13 @@ export function PlatformDashboardPage(): JSX.Element {
               return (
                 <Card
                   key={card.key}
-                  elevation={0}
+                  elevation={4}
+                  className="platform-dashboard-card"
                   style={{
                     background: t.colors.surface.elevated,
-                    border: `1px solid ${primaryBorder}`,
+                    border: 'none',
                     borderRadius: panelRadius,
-                    boxShadow: 'none',
+                    boxShadow: t.shadows.lg,
                     minHeight: 196,
                     overflow: 'hidden',
                   }}
@@ -319,9 +324,9 @@ export function PlatformDashboardPage(): JSX.Element {
                         style={{
                           margin: 0,
                           color: t.colors.text.primary,
-                          fontSize: '1.18rem',
+                          fontSize: t.typography.titleSmall.fontSize,
                           fontWeight: 750,
-                          lineHeight: 1.32,
+                          lineHeight: t.typography.titleSmall.lineHeight,
                         }}
                       >
                         {card.label}
@@ -332,7 +337,7 @@ export function PlatformDashboardPage(): JSX.Element {
                           color: t.colors.text.secondary,
                           fontSize: t.typography.bodySmall.fontSize,
                           fontWeight: t.typography.bodySmall.fontWeight,
-                          lineHeight: 1.65,
+                          lineHeight: t.typography.bodySmall.lineHeight,
                         }}
                       >
                         {card.description}
@@ -359,7 +364,6 @@ export function PlatformDashboardPage(): JSX.Element {
             })}
           </div>
         </section>
-      </div>
-    </div>
+    </AdminPageShell>
   );
 }

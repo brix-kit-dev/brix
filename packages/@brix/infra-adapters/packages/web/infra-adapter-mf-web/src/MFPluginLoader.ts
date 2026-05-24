@@ -393,9 +393,18 @@ export class MFPluginLoader implements PluginLoader {
   /**
    * Get all loaded plugins
    * 
+   * @returns Loaded plugin instances
+   */
+  getLoaded(): PluginInstance[] {
+    return Array.from(this.loadedPlugins.values());
+  }
+
+  /**
+   * Get loaded plugins as a map keyed by plugin ID.
+   *
    * @returns Map of plugin ID to instance
    */
-  getLoaded(): Map<string, PluginInstance> {
+  getLoadedMap(): Map<string, PluginInstance> {
     return new Map(this.loadedPlugins);
   }
   

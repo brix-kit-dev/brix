@@ -86,6 +86,9 @@ const brixArchPlugin = {
     'no-direct-design-tokens-import': require('./rules/no-direct-design-tokens-import'),
     'no-mui-in-plugins': require('./rules/no-mui-in-plugins'),
     'no-role-string-literal': require('./rules/no-role-string-literal'),
+    'no-temp-password-in-response-type': require('./rules/no-temp-password-in-response-type'),
+    'no-platform-admin-mode-flag': require('./rules/no-platform-admin-mode-flag'),
+    'no-permission-or-true': require('./rules/no-permission-or-true'),
     'require-testid-on-action': require('./rules/require-testid-on-action'),
   },
 };
@@ -502,6 +505,25 @@ const baseRules = [
     },
     rules: {
       '@brix-architecture/require-testid-on-action': 'error',
+    },
+  },
+
+  // ============================================================================
+  // Platform Super-Admin v2.0 Red Lines
+  // ============================================================================
+  // SSOT v2.0 R-12/R-14/R-3: response contracts must not expose legacy
+  // credential fields, platform identity must be derived from token scope, and
+  // permission checks must not retain unconditional true fallbacks.
+  {
+    name: 'brix/architecture-guard/platform-admin-v2-redlines',
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    plugins: {
+      '@brix-architecture': brixArchPlugin,
+    },
+    rules: {
+      '@brix-architecture/no-temp-password-in-response-type': 'error',
+      '@brix-architecture/no-platform-admin-mode-flag': 'error',
+      '@brix-architecture/no-permission-or-true': 'error',
     },
   },
 

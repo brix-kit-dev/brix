@@ -34,7 +34,7 @@ import io.runtime.sdk.annotation.Since;
  *         <li>0 关联 → 错误</li>
  *         <li>1 关联 → 直接签发 Access Token（{@link LoginStatus#COMPLETE}）</li>
  *         <li>多关联 → 签发 Identity Token + 租户列表（{@link LoginStatus#SELECT_TENANT}）</li>
- *         <li>平台管理员 → 直接签发 Platform Admin Token（{@link LoginStatus#COMPLETE} + {@code platformAdminMode=true}）</li>
+ *         <li>平台管理员 → 必须通过 {@link #loginPlatformAdmin(LoginCommand)} 使用独立入口登录</li>
  *       </ul>
  *   </li>
  *   <li><b>Stage 2 - selectTenant</b>: 凭 Identity Token + tenantId 完成 Access Token 签发</li>
@@ -63,6 +63,21 @@ public interface AuthFlowCapability {
      * @throws AuthFlowException 凭证错误 / 账户禁用 / 无租户关联等
      */
     LoginResult login(LoginCommand command);
+
+    /**
+     * Platform administrator login through the isolated platform entry point.
+     *
+     * <p>This method is intentionally separate from {@link #login(LoginCommand)} so
+     * the tenant login endpoint can never issue a PLATFORM-scoped token. The
+     * implementation must validate credentials, verify that the identity is an
+     * active platform administrator, and issue a token whose scope is determined
+     * by the token claims rather than by any boolean response flag.</p>
+     *
+     * @param command login command
+     * @return platform login result
+     * @throws AuthFlowException when credentials are invalid or the identity is not an active platform administrator
+     */
+    LoginResult loginPlatformAdmin(LoginCommand command);
 
     /**
      * 多租户选择（Stage 2）。
@@ -205,7 +220,6 @@ public interface AuthFlowCapability {
      * @param permissions         权限列表
      * @param mustChangePassword  是否要求改密
      * @param mfaRequired         是否要求 MFA
-     * @param platformAdminMode   是否为平台管理员模式（无租户上下文）
      */
     record LoginResult(
             LoginStatus status,
@@ -221,8 +235,7 @@ public interface AuthFlowCapability {
             List<String> roles,
             List<String> permissions,
             boolean mustChangePassword,
-            boolean mfaRequired,
-            boolean platformAdminMode
+                boolean mfaRequired
     ) {}
 
     /**
@@ -258,10 +271,12 @@ public interface AuthFlowCapability {
 
         /** 错误码常量：凭证无效（用户名 / 密码错误，统一返回避免账号枚举）。 */
         public static final String CODE_INVALID_CREDENTIALS = "AUTH_INVALID_CREDENTIALS";
-        /** 错误码常量：账户被禁用 / 锁定 / 状态非 ACTIVE。 */
+        /** 错误码常量：账户被禁用 / 状态非 ACTIVE。 */
         public static final String CODE_ACCOUNT_DISABLED = "AUTH_ACCOUNT_DISABLED";
         /** 错误码常量：账户因连续失败被临时锁定。 */
         public static final String CODE_ACCOUNT_LOCKED = "AUTH_ACCOUNT_LOCKED";
+        /** 错误码常量：身份存在但尚未完成 setup，不能走标准登录。 */
+        public static final String CODE_PENDING_SETUP = "AUTH_PENDING_SETUP";
         /** 错误码常量：身份存在但无任何活跃租户关联。 */
         public static final String CODE_NO_TENANT_ASSOCIATION = "AUTH_NO_TENANT_ASSOCIATION";
         /** 错误码常量：所选租户无访问权限。 */

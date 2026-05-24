@@ -29,6 +29,7 @@ on:
       - 'packages/**/pom.xml'
       - 'packages/**/vitest.config.*'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
+      - 'scripts/check-banned-tokens.mjs'
       - 'package.json'
       - 'pom.xml'
       - 'pnpm-lock.yaml'
@@ -41,6 +42,7 @@ on:
       - 'packages/**/package.json'
       - 'packages/**/pom.xml'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
+      - 'scripts/check-banned-tokens.mjs'
       - 'package.json'
       - 'pom.xml'
       - 'pnpm-lock.yaml'
@@ -103,6 +105,9 @@ jobs:
       # ----------------------------------------------------------------------
       - name: Maven dependency analysis
         run: mvn -q -DskipTests -DfailOnWarning=true dependency:analyze-only
+
+      - name: Platform admin redline scan
+        run: node scripts/check-banned-tokens.mjs
 
       # ----------------------------------------------------------------------
       # Step: Lint — every package must define a `lint` script.

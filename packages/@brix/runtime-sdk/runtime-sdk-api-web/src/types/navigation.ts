@@ -319,6 +319,15 @@ export interface NavigationCapability {
 }
 
 /**
+ * Compatibility alias for older shell code that still refers to Router as the
+ * concrete navigation capability. The canonical contract is NavigationCapability.
+ */
+export const RouterCapabilityType = NavigationCapabilityType;
+
+/** Compatibility alias for NavigationCapability. */
+export type RouterCapability = NavigationCapability;
+
+/**
  * Navigation Options (Compatibility Alias)
  */
 export type NavigationOptions = NavigateOptions;

@@ -157,9 +157,9 @@ export function useLayout(layout: LayoutCapability): UseLayoutResult {
   // Toggle sidebar collapsed state
   const toggleSidebarCollapsed = useCallback(async () => {
     if (layoutState.sidebarCollapsed) {
-      return layout.requestExpandSidebar?.();
+      return layout.requestExpandSidebar?.() ?? false;
     } else {
-      return layout.requestCollapseSidebar?.();
+      return layout.requestCollapseSidebar?.() ?? false;
     }
   }, [layout, layoutState.sidebarCollapsed]);
   

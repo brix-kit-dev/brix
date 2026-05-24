@@ -35,7 +35,8 @@
  * ? Obtain plugin loader through PluginLoaderCapability or usePluginLoader hook
  */
 
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType } from 'react';
+import type { RemoteLoaderProps } from './mf/remote-loader';
 
 // =========================================
 // Remote Component Props
@@ -56,22 +57,7 @@ import type { ComponentType, ReactNode } from 'react';
  * };
  * ```
  */
-export interface RemoteComponentProps {
-  /** Remote entry URL (Module Federation entry point) */
-  remoteEntry: string;
-
-  /** Exposed component path (e.g., './ComponentName') */
-  exposePath: string;
-
-  /** Loading fallback component */
-  fallback?: ReactNode;
-
-  /** Error fallback component */
-  errorFallback?: ReactNode;
-
-  /** Props to pass to the remote component */
-  props?: Record<string, unknown>;
-}
+export type RemoteComponentProps = RemoteLoaderProps;
 
 // =========================================
 // Plugin Loader Capability

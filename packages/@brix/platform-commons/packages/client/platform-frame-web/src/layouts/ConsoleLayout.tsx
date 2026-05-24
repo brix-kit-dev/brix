@@ -155,11 +155,11 @@ export function ConsoleLayout({
 }: ConsoleLayoutProps): ReactNode {
   // Calculate actual sidebar width
   const actualSidebarWidth = useMemo(() => {
-    if (!layoutState.isSidebarVisible) return 0;
-    return layoutState.isSidebarCollapsed ? sidebarCollapsedWidth : sidebarWidth;
+    if (!layoutState.sidebarVisible) return 0;
+    return layoutState.sidebarCollapsed ? sidebarCollapsedWidth : sidebarWidth;
   }, [
-    layoutState.isSidebarVisible,
-    layoutState.isSidebarCollapsed,
+    layoutState.sidebarVisible,
+    layoutState.sidebarCollapsed,
     sidebarWidth,
     sidebarCollapsedWidth,
   ]);
@@ -181,20 +181,20 @@ export function ConsoleLayout({
     right: 0,
     height: `${headerHeight}px`,
     zIndex: 100,
-    display: layoutState.isHeaderVisible ? 'block' : 'none',
+    display: layoutState.headerVisible ? 'block' : 'none',
     backgroundColor: 'var(--brix-bg-header, #001529)',
     boxShadow: '0 1px 4px rgba(0, 21, 41, 0.08)',
-  }), [headerHeight, layoutState.isHeaderVisible]);
+  }), [headerHeight, layoutState.headerVisible]);
   
   // Body area style
   const bodyStyle = useMemo<CSSProperties>(() => ({
     display: 'flex',
     flex: 1,
-    marginTop: layoutState.isHeaderVisible ? `${headerHeight}px` : 0,
-    marginBottom: layoutState.isFooterVisible ? `${footerHeight}px` : 0,
+    marginTop: layoutState.headerVisible ? `${headerHeight}px` : 0,
+    marginBottom: layoutState.footerVisible ? `${footerHeight}px` : 0,
   }), [
-    layoutState.isHeaderVisible,
-    layoutState.isFooterVisible,
+    layoutState.headerVisible,
+    layoutState.footerVisible,
     headerHeight,
     footerHeight,
   ]);
@@ -202,19 +202,19 @@ export function ConsoleLayout({
   // Sidebar style
   const sidebarStyle = useMemo<CSSProperties>(() => ({
     position: 'fixed',
-    top: layoutState.isHeaderVisible ? `${headerHeight}px` : 0,
+    top: layoutState.headerVisible ? `${headerHeight}px` : 0,
     left: 0,
-    bottom: layoutState.isFooterVisible ? `${footerHeight}px` : 0,
+    bottom: layoutState.footerVisible ? `${footerHeight}px` : 0,
     width: `${actualSidebarWidth}px`,
     backgroundColor: 'var(--brix-bg-sidebar, #001529)',
     overflow: 'auto',
     transition: 'width 0.2s ease-in-out',
     zIndex: 99,
-    display: layoutState.isSidebarVisible ? 'block' : 'none',
+    display: layoutState.sidebarVisible ? 'block' : 'none',
   }), [
-    layoutState.isHeaderVisible,
-    layoutState.isFooterVisible,
-    layoutState.isSidebarVisible,
+    layoutState.headerVisible,
+    layoutState.footerVisible,
+    layoutState.sidebarVisible,
     actualSidebarWidth,
     headerHeight,
     footerHeight,
@@ -239,13 +239,13 @@ export function ConsoleLayout({
     right: 0,
     height: `${footerHeight}px`,
     zIndex: 100,
-    display: layoutState.isFooterVisible && footerHeight > 0 ? 'block' : 'none',
+    display: layoutState.footerVisible && footerHeight > 0 ? 'block' : 'none',
     backgroundColor: 'var(--brix-bg-footer, #fff)',
     borderTop: '1px solid var(--brix-border-color, #f0f0f0)',
-  }), [footerHeight, layoutState.isFooterVisible]);
+  }), [footerHeight, layoutState.footerVisible]);
   
   // Special handling for fullscreen mode
-  const isFullscreen = layoutState.isFullscreen;
+  const isFullscreen = layoutState.fullscreen;
   
   if (isFullscreen) {
     // Fullscreen mode only shows content area

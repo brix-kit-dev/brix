@@ -17,19 +17,8 @@ package io.brix.platform.admin.dto;
 
 import jakarta.validation.constraints.Size;
 
-/**
- * Request DTO for disabling a platform administrator account.
- *
- * <h3>Security (SSOT §10 R-10)</h3>
- * <p>The {@code reason} field MUST NOT contain passwords, tokens, secrets,
- * or any other sensitive material. Validation rejects blank reasons to
- * encourage meaningful audit trails.
- *
- * @param reason human-readable reason for disabling the account (max 512 chars)
- * @author Brix Platform Team
- * @since 3.2.0
- */
-public record DisableAdminRequest(
+/** Request DTO for revoking a platform administrator grant. */
+public record RevokeAdminRequest(
         @Size(max = 512, message = "reason must not exceed 512 characters")
         String reason
 ) {}

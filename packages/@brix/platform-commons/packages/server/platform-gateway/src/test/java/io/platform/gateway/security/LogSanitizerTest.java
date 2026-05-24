@@ -109,6 +109,18 @@ class LogSanitizerTest {
     }
 
     @Test
+    @DisplayName("Should sanitize MFA and six digit one-time code patterns in text")
+    void shouldSanitizeMfaAndOneTimeCodePatterns() {
+        String text = "mfa_secret=ABCDEF&totpCode=123456&note=ok";
+
+        String sanitized = logSanitizer.sanitizeText(text);
+
+        assertFalse(sanitized.contains("ABCDEF"));
+        assertFalse(sanitized.contains("123456"));
+        assertTrue(sanitized.contains("note=ok"));
+    }
+
+    @Test
     @DisplayName("Should fully mask short values")
     void shouldFullyMaskShortValues() {
         String shortValue = "abc";

@@ -26,6 +26,8 @@ package io.brix.platform.auth.enums;
  *   <li>{@link #ACCESS} — 完整访问令牌，含 tid/mid 或 pid，可访问业务 API</li>
  *   <li>{@link #IDENTITY} — 临时身份令牌（5min），仅含 sub，用于租户选择阶段</li>
  *   <li>{@link #REFRESH} — 刷新令牌，用于轮转换发新 Access Token</li>
+ *   <li>{@link #BOOTSTRAP_SETUP} — dedicated first-admin setup token</li>
+ *   <li>{@link #MFA_CHALLENGE} — password-verified platform MFA challenge token</li>
  * </ul>
  *
  * @author Brix Platform Team
@@ -54,7 +56,13 @@ public enum TokenType {
      *
      * <p>绑定 device_id，支持 Family 机制检测重放攻击。
      */
-    REFRESH("refresh");
+    REFRESH("refresh"),
+
+    /** Dedicated Bootstrap Setup token, not a PLATFORM login token. */
+    BOOTSTRAP_SETUP("BOOTSTRAP_SETUP"),
+
+    /** Short-lived platform-admin MFA challenge token. */
+    MFA_CHALLENGE("mfa_challenge");
 
     private final String value;
 

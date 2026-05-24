@@ -25,22 +25,15 @@ package io.brix.platform.auth;
  *
  * <h3>Design Rules (SSOT §11 Red-Line R-3)</h3>
  * <ul>
- *   <li>Application code MUST reference these constants — bare strings like
- *       {@code "SUPER_ADMIN"} are prohibited outside of this class,
- *       RBAC seed SQL, and unit-test assertions.</li>
+ *   <li>Application code MUST reference these constants instead of bare role strings.</li>
  *   <li>Codes are immutable once the first admin account exists; renaming requires
  *       a coordinated DB migration + token rotation.</li>
  * </ul>
  *
- * <h3>Role Hierarchy</h3>
+ * <h3>Roles</h3>
  * <pre>
- * PLATFORM_SUPER_ADMIN  (highest — full system access)
- *       │
- * PLATFORM_ADMIN        (day-to-day platform operations)
- *       │
- * SUPPORT_ADMIN         (customer support, limited access)
- *       │
- * PLATFORM_AUDITOR      (read-only compliance monitoring)
+ * PLATFORM_SUPER_ADMIN  formal platform super administrator
+ * BOOTSTRAP             passwordless first-admin setup anchor
  * </pre>
  *
  * @author Brix Platform Team
@@ -50,28 +43,16 @@ package io.brix.platform.auth;
 public final class RoleCode {
 
     /**
-     * Super Administrator — full system access.
-     * <p>Matches {@code PlatformAdminRole.SUPER_ADMIN.name()}.
+    * Formal platform super administrator.
+    * <p>Matches {@code PlatformAdminRole.PLATFORM_SUPER_ADMIN.name()}.
      */
-    public static final String PLATFORM_SUPER_ADMIN = "SUPER_ADMIN";
+    public static final String PLATFORM_SUPER_ADMIN = "PLATFORM_SUPER_ADMIN";
 
     /**
-     * Platform Administrator — manages tenants and other admin accounts.
-     * <p>Matches {@code PlatformAdminRole.PLATFORM_ADMIN.name()}.
+    * Passwordless bootstrap setup anchor.
+    * <p>Matches {@code PlatformAdminRole.BOOTSTRAP.name()}.
      */
-    public static final String PLATFORM_ADMIN = "PLATFORM_ADMIN";
-
-    /**
-     * Support Administrator — customer support operations.
-     * <p>Matches {@code PlatformAdminRole.SUPPORT_ADMIN.name()}.
-     */
-    public static final String SUPPORT_ADMIN = "SUPPORT_ADMIN";
-
-    /**
-     * Platform Auditor — read-only compliance and monitoring.
-     * <p>Matches {@code PlatformAdminRole.AUDITOR.name()}.
-     */
-    public static final String PLATFORM_AUDITOR = "AUDITOR";
+    public static final String BOOTSTRAP = "BOOTSTRAP";
 
     // Utility class — no instances.
     private RoleCode() {}

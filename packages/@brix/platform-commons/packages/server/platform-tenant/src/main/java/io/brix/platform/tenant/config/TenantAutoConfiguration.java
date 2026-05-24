@@ -43,6 +43,7 @@ import io.brix.platform.tenant.core.SnowflakeIdGenerator;
 import io.brix.platform.tenant.decorator.TenantTaskDecorator;
 import io.brix.platform.tenant.filter.IdentityValidationFilter;
 import io.brix.platform.tenant.repository.AuditLogRepository;
+import io.brix.platform.tenant.repository.BootstrapStateRepository;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
@@ -58,7 +59,6 @@ import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
 import io.brix.platform.tenant.service.TenantSettingsService;
 import io.brix.platform.tenant.service.TenantSettingsServiceImpl;
-import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.TenantCapability;
 import io.runtime.sdk.capability.TenantConfigCapability;
 
@@ -462,24 +462,22 @@ public class TenantAutoConfiguration {
     }
 
     /**
-     * Registers the {@link SuperAdminBootstrapRunner} when the operator opts in via
-     * {@code brix.platform.bootstrap.super-admin.enabled=true} and a
-     * {@link PasswordCapability} bean is available on the context.
+    * Registers the {@link SuperAdminBootstrapRunner} when the operator opts in via
+    * {@code brix.platform.bootstrap.super-admin.enabled=true}.
      *
      * <p>The runner is intentionally idempotent and refuses to overwrite an
-     * existing operator-managed SUPER_ADMIN account; see
+    * closed bootstrap state; see
      * {@link SuperAdminBootstrapRunner} for the full contract.</p>
      *
      * @param properties              bootstrap configuration sourced from secret store
      * @param identityRepository      repository for {@code sys_identity}
      * @param platformAdminRepository repository for {@code sys_platform_admin}
-     * @param passwordCapability      Layer 2A password hashing capability
+         * @param bootstrapStateRepository repository for {@code sys_bootstrap_state}
      * @param idGenerator             Snowflake ID generator
      * @return the configured one-shot bootstrap runner
      */
     @Bean
     @ConditionalOnMissingBean(SuperAdminBootstrapRunner.class)
-    @ConditionalOnBean(PasswordCapability.class)
     @ConditionalOnProperty(
             prefix = "brix.platform.bootstrap.super-admin",
             name = "enabled",
@@ -488,14 +486,14 @@ public class TenantAutoConfiguration {
             SuperAdminBootstrapProperties properties,
             IdentityRepository identityRepository,
             PlatformAdminRepository platformAdminRepository,
-            PasswordCapability passwordCapability,
+            BootstrapStateRepository bootstrapStateRepository,
             IdGenerator idGenerator) {
         log.info("Registering SuperAdminBootstrapRunner (brix.platform.bootstrap.super-admin.enabled=true)");
         return new SuperAdminBootstrapRunner(
                 properties,
                 identityRepository,
                 platformAdminRepository,
-                passwordCapability,
+                bootstrapStateRepository,
                 idGenerator);
     }
 }

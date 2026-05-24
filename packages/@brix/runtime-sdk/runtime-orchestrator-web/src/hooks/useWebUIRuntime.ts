@@ -328,7 +328,7 @@ export function useWebUIRuntime(
    * Log output (debug mode only)
    */
   const log = useCallback(
-    (message: string, ...args: unknown[]) => {
+    (_message: string, ..._args: unknown[]) => {
       if (debug) {
         // Use warn to avoid ESLint console.log rule
       }

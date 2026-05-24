@@ -20,7 +20,7 @@
  * @version 3.0.0
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { 
   I18nCapability, 
   LocaleCode,
@@ -94,11 +94,11 @@ export function useI18n(i18n: I18nCapability): UseI18nResult {
   
   // Subscribe to locale changes
   useEffect(() => {
-    const unsubscribe = i18n.onLocaleChange((event: LocaleChangeEvent) => {
-      setLocaleState(event.newLocale);
+    const unsubscribe = i18n.onLocaleChange?.((event: LocaleChangeEvent) => {
+      setLocaleState(event.locale);
     });
     
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, [i18n]);
   
   // Translation function
@@ -116,20 +116,20 @@ export function useI18n(i18n: I18nCapability): UseI18nResult {
   // Format date
   const formatDate = useCallback(
     (date: Date | number, options?: { dateStyle?: 'full' | 'long' | 'medium' | 'short' }) => 
-      i18n.formatDate(date, options),
+      i18n.formatDate?.(date, options) ?? new Intl.DateTimeFormat(locale, options).format(date),
     [i18n, locale]
   );
   
   // Format number
   const formatNumber = useCallback(
     (value: number, options?: { style?: 'decimal' | 'currency' | 'percent' }) => 
-      i18n.formatNumber(value, options),
+      i18n.formatNumber?.(value, options) ?? new Intl.NumberFormat(locale, options).format(value),
     [i18n, locale]
   );
   
   // Format relative time
   const formatRelativeTime = useCallback(
-    (date: Date | number) => i18n.formatRelativeTime(date),
+    (date: Date | number) => i18n.formatRelativeTime?.(date) ?? formatDate(date),
     [i18n, locale]
   );
   

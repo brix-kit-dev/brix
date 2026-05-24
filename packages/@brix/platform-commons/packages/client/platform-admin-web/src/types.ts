@@ -46,7 +46,7 @@ export interface Page<T> {
 }
 
 /* ======================================================================== *
- * Auth — POST /api/platform/auth/login
+ * Auth — POST /api/platform/auth/login + /login/totp
  * ======================================================================== */
 
 export interface PlatformLoginRequest {
@@ -55,22 +55,26 @@ export interface PlatformLoginRequest {
 }
 
 export interface PlatformLoginResponse {
-  status?: 'COMPLETE' | 'PASSWORD_MUST_CHANGE' | 'MFA_REQUIRED';
+  mfaRequired: true;
+  mfaChallengeToken: string;
+  expiresInSeconds?: number;
+}
+
+export interface PlatformLoginTotpRequest {
+  mfaChallengeToken: string;
+  totpCode: string;
+}
+
+export interface PlatformLoginTotpResponse {
   accessToken: string;
   refreshToken?: string;
   tokenType?: 'Bearer';
   expiresInSeconds?: number;
   expiresIn?: number;
-  /**
-   * If true, the client MUST navigate to the change-password page.
-   * SSOT §8.5: until cleared, only `/admins/me/change-password` is callable.
-   */
-  forcePasswordChange?: boolean;
-  mustChangePassword?: boolean;
   platformRole: PlatformRoleCode;
   /** Platform permission codes embedded in the JWT (already de-duplicated). */
   permissions: readonly string[];
-  identityId?: string | number;
+  identityId?: string;
   username?: string;
   email?: string;
   displayName?: string | null;
@@ -88,12 +92,12 @@ export interface PlatformAdminDto {
   displayName: string | null;
   role: PlatformRoleCode;
   status: PlatformAdminStatus;
-  forcePasswordChange: boolean;
+  identityStatus?: 'PENDING_SETUP' | 'ACTIVE' | 'LOCKED' | 'REVOKED';
   createdAt: string;
   createdBy: string | null;
-  disabledAt: string | null;
-  disabledBy: string | null;
-  disableReason: string | null;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  revokeReason: string | null;
   lastLoginAt: string | null;
   lastLoginIp: string | null;
 }
@@ -107,32 +111,90 @@ export interface CreatePlatformAdminRequest {
 }
 
 export interface CreatePlatformAdminResponse {
-  admin: PlatformAdminDto;
-  /**
-   * Plaintext temporary password.
-   *
-   * SECURITY (SSOT §8.4): this value is returned EXACTLY ONCE in this response
-   * and MUST be displayed to the operator immediately and discarded —
-   * never persisted, never logged, never written to localStorage/sessionStorage.
-   */
-  tempPassword: string;
-  /** ISO-8601 timestamp; the temp password expires at this instant. */
-  tempPasswordExpiresAt: string;
+  id: string;
+  identityId: string;
+  setupLinkSent: boolean;
 }
 
-export interface DisableAdminRequest {
+export interface RevokeAdminRequest {
   reason: string;
 }
 
 export interface ResetPasswordResponse {
-  /** Same one-shot semantics as {@link CreatePlatformAdminResponse.tempPassword}. */
-  tempPassword: string;
-  tempPasswordExpiresAt: string;
+  setupLinkSent: boolean;
 }
 
 export interface ChangeOwnPasswordRequest {
   oldPassword: string;
   newPassword: string;
+  totpCode: string;
+}
+
+/* ======================================================================== *
+ * Setup — /api/platform/auth/setup/**
+ * ======================================================================== */
+
+export interface PlatformSetupValidateResponse {
+  valid: boolean;
+  identityId?: string;
+  loginId?: string;
+  username?: string;
+  email?: string | null;
+  displayName?: string | null;
+  purpose?: 'INITIAL_SETUP' | 'PASSWORD_RESET' | string;
+  expiresAt?: string;
+}
+
+export interface PlatformSetupTotpInitResponse {
+  challengeId: string;
+  otpauthUri: string;
+  qrCodeDataUri?: string;
+  issuer?: string;
+  accountName?: string;
+}
+
+export interface PlatformSetupCompleteRequest {
+  token: string;
+  challengeId: string;
+  password: string;
+  totpCode: string;
+}
+
+export interface PlatformSetupCompleteResponse {
+  activated: boolean;
+}
+
+/* ======================================================================== *
+ * Bootstrap — /api/platform/bootstrap/**
+ * ======================================================================== */
+
+export interface PlatformBootstrapStatusResponse {
+  open: boolean;
+  setupCodeExpiresAt?: string | null;
+  completedAt?: string | null;
+  message?: string;
+}
+
+export interface PlatformBootstrapSessionRequest {
+  setupCode: string;
+}
+
+export interface PlatformBootstrapSessionResponse {
+  tokenType?: string;
+  accessToken: string;
+  expiresIn?: number;
+}
+
+export interface CreateFirstPlatformAdminRequest {
+  username: string;
+  email: string;
+  displayName?: string;
+}
+
+export interface BootstrapCreateFirstAdminResponse {
+  id?: string;
+  identityId?: string;
+  setupLinkSent: boolean;
 }
 
 /* ======================================================================== *
@@ -190,4 +252,18 @@ export interface TenantQuery extends PageRequest {
 export interface UpdateTenantStatusRequest {
   status: PlatformTenantStatus;
   reason: string;
+}
+
+/**
+ * Request body for POST /api/platform/tenants.
+ *
+ * - `code` must match `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` (2–64 chars).
+ * - `name` is the human-readable display name (1–256 chars).
+ *
+ * Tenant is created in PENDING_ACTIVATION status; use
+ * UpdateTenantStatusRequest to activate it.
+ */
+export interface CreatePlatformTenantRequest {
+  code: string;
+  name: string;
 }

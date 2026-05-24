@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useState, useEffect } from 'react';
-import type { I18nCapability, TranslateOptions, LocaleChangeEvent } from '@brix-sdk/runtime-sdk-api-web';
+import type { I18nCapability, TranslateOptions } from '@brix-sdk/runtime-sdk-api-web';
 
 /**
  * Translation Hook return value
@@ -70,11 +70,11 @@ export function useTranslation(
   
   // Subscribe to locale changes
   useEffect(() => {
-    const unsubscribe = i18n.onLocaleChange(() => {
+    const unsubscribe = i18n.onLocaleChange?.(() => {
       setUpdateCount(c => c + 1);
     });
     
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, [i18n]);
   
   // Translation function

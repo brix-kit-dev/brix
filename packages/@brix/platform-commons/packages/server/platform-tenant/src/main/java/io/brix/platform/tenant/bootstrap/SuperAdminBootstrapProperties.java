@@ -18,8 +18,8 @@ package io.brix.platform.tenant.bootstrap;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration properties that drive the first-time {@code SUPER_ADMIN}
- * bootstrap performed by {@link SuperAdminBootstrapRunner}.
+ * Configuration properties that drive the first-time bootstrap anchor
+ * performed by {@link SuperAdminBootstrapRunner}.
  *
  * <h3>Architectural Position</h3>
  * <p>Layer 2C (platform-tenant). Hosts (Layer 3) only contribute the values
@@ -27,23 +27,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * class. This honours the Host-Ultra-Thin constraint (constraint&nbsp;6).</p>
  *
  * <h3>Security</h3>
- * <ul>
- *   <li>Credentials must be supplied via {@link ConfigStoreCapability}-backed
- *       configuration (env vars, secret manager, mounted secret file). They
- *       must <b>never</b> be hard-coded into source or committed YAML.</li>
- *   <li>Bootstrap is idempotent and runs only when no active SUPER_ADMIN
- *       exists.</li>
- *   <li>The created identity is flagged for forced password change on first
- *       login and MFA enrolment, per blueprint security red-line.</li>
- * </ul>
+ * <p>The runner creates a passwordless {@code BOOTSTRAP} anchor in
+ * {@code PENDING_SETUP}. It never accepts or stores a bootstrap password. The
+ * short-lived setup code is used only to open a dedicated bootstrap session.</p>
  *
  * <h3>Properties</h3>
  * <ul>
  *   <li>{@code brix.platform.bootstrap.super-admin.enabled} (default {@code false})</li>
  *   <li>{@code brix.platform.bootstrap.super-admin.email} (required when enabled)</li>
- *   <li>{@code brix.platform.bootstrap.super-admin.password} (required when enabled)</li>
  *   <li>{@code brix.platform.bootstrap.super-admin.username} (default {@code "Super Admin"})</li>
- *   <li>{@code brix.platform.bootstrap.super-admin.require-mfa} (default {@code true})</li>
+ *   <li>{@code brix.platform.bootstrap.super-admin.setup-code} (required when enabled)</li>
+ *   <li>{@code brix.platform.bootstrap.super-admin.setup-code-ttl-seconds} (default {@code 900})</li>
  * </ul>
  *
  * @author Brix Platform Team
@@ -58,18 +52,17 @@ public class SuperAdminBootstrapProperties {
     /** Globally unique email used as the bootstrap identity login. */
     private String email;
 
-    /** Plaintext password supplied via secret store; hashed before persistence. */
-    private String password;
-
     /** Display name applied to the bootstrap identity. */
-    private String username = "Super Admin";
+    private String username = "Bootstrap Setup";
 
-    /**
-     * Whether the created PlatformAdmin record requires MFA. Default {@code true}
-     * to comply with the security red-line; only flip to {@code false} for
-     * isolated CI runs that have no MFA service.
-     */
-    private boolean requireMfa = true;
+    /** One-time setup code used to open the dedicated bootstrap setup session. */
+    private String setupCode;
+
+    /** Setup-code TTL in seconds. */
+    private long setupCodeTtlSeconds = 900L;
+
+    /** Bootstrap setup JWT session TTL in seconds. */
+    private long bootstrapSessionTtlSeconds = 300L;
 
     public boolean isEnabled() {
         return enabled;
@@ -87,14 +80,6 @@ public class SuperAdminBootstrapProperties {
         this.email = email;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
     public String getUsername() {
         return username;
     }
@@ -103,11 +88,27 @@ public class SuperAdminBootstrapProperties {
         this.username = username;
     }
 
-    public boolean isRequireMfa() {
-        return requireMfa;
+    public String getSetupCode() {
+        return setupCode;
     }
 
-    public void setRequireMfa(boolean requireMfa) {
-        this.requireMfa = requireMfa;
+    public void setSetupCode(String setupCode) {
+        this.setupCode = setupCode;
+    }
+
+    public long getSetupCodeTtlSeconds() {
+        return setupCodeTtlSeconds;
+    }
+
+    public void setSetupCodeTtlSeconds(long setupCodeTtlSeconds) {
+        this.setupCodeTtlSeconds = setupCodeTtlSeconds;
+    }
+
+    public long getBootstrapSessionTtlSeconds() {
+        return bootstrapSessionTtlSeconds;
+    }
+
+    public void setBootstrapSessionTtlSeconds(long bootstrapSessionTtlSeconds) {
+        this.bootstrapSessionTtlSeconds = bootstrapSessionTtlSeconds;
     }
 }

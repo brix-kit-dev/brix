@@ -78,6 +78,11 @@ import jakarta.persistence.UniqueConstraint;
 )
 public class Tenant {
 
+    private static final String DEFAULT_ALLOWED_LOGIN_METHODS_JSON = "[\"phone_sms\", \"email_password\"]";
+    private static final String DEFAULT_PASSWORD_POLICY_JSON = "{\"minLength\":8,\"requireUppercase\":false,\"requireLowercase\":true,\"requireNumbers\":true,\"requireSpecialChars\":false,\"maxAgeDays\":0,\"historyCount\":0}";
+    private static final String DEFAULT_NOTIFICATION_CHANNELS_JSON = "[\"in_app\"]";
+    private static final String DEFAULT_EMPTY_JSON_OBJECT = "{}";
+
     /**
      * Primary key - Snowflake-generated unique identifier.
      *
@@ -155,25 +160,25 @@ public class Tenant {
     @Column(name = "mfa_policy", length = 20)
     private MfaPolicy mfaPolicy = MfaPolicy.OPTIONAL;
 
-    @Column(name = "allowed_login_methods", columnDefinition = "JSONB")
+    @Column(name = "allowed_login_methods", nullable = false, columnDefinition = "JSONB")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String allowedLoginMethods = "[\"phone_sms\", \"email_password\"]";
+    private String allowedLoginMethods = DEFAULT_ALLOWED_LOGIN_METHODS_JSON;
 
-    @Column(name = "password_policy", columnDefinition = "JSONB")
+    @Column(name = "password_policy", nullable = false, columnDefinition = "JSONB")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String passwordPolicy;
+    private String passwordPolicy = DEFAULT_PASSWORD_POLICY_JSON;
 
-    @Column(name = "notification_channels", columnDefinition = "JSONB")
+    @Column(name = "notification_channels", nullable = false, columnDefinition = "JSONB")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String notificationChannels = "[\"in_app\"]";
+    private String notificationChannels = DEFAULT_NOTIFICATION_CHANNELS_JSON;
 
-    @Column(name = "business_hours", columnDefinition = "JSONB")
+    @Column(name = "business_hours", nullable = false, columnDefinition = "JSONB")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String businessHours;
+    private String businessHours = DEFAULT_EMPTY_JSON_OBJECT;
 
-    @Column(name = "settings", columnDefinition = "JSONB")
+    @Column(name = "settings", nullable = false, columnDefinition = "JSONB")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String settings;
+    private String settings = DEFAULT_EMPTY_JSON_OBJECT;
 
     // ========================================================================
     // Branding Fields (V010)
@@ -276,6 +281,7 @@ public class Tenant {
      */
     @PrePersist
     protected void onCreate() {
+        applyJsonDefaults();
         this.createdAt = OffsetDateTime.now();
     }
 
@@ -284,7 +290,26 @@ public class Tenant {
      */
     @PreUpdate
     protected void onUpdate() {
+        applyJsonDefaults();
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    private void applyJsonDefaults() {
+        if (allowedLoginMethods == null) {
+            allowedLoginMethods = DEFAULT_ALLOWED_LOGIN_METHODS_JSON;
+        }
+        if (passwordPolicy == null) {
+            passwordPolicy = DEFAULT_PASSWORD_POLICY_JSON;
+        }
+        if (notificationChannels == null) {
+            notificationChannels = DEFAULT_NOTIFICATION_CHANNELS_JSON;
+        }
+        if (businessHours == null) {
+            businessHours = DEFAULT_EMPTY_JSON_OBJECT;
+        }
+        if (settings == null) {
+            settings = DEFAULT_EMPTY_JSON_OBJECT;
+        }
     }
 
     // ========================================================================

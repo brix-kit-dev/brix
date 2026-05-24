@@ -63,6 +63,8 @@ export interface UsePluginDiscoveryOptions {
   manifestTimeout?: number;
   /** Local plugin registry (declarative configuration) */
   localPlugins?: LocalPluginConfig[];
+  /** Remote entry health check timeout (ms), default 5000 */
+  healthCheckTimeout?: number;
   /** Health check polling interval (ms). 0 = no polling. Default 30000 */
   healthCheckInterval?: number;
 }
@@ -100,52 +102,32 @@ const EMPTY_ARRAY: readonly never[] = [] as const;
 /**
  * Check if a plugin's remoteEntry.js is accessible (health check).
  *
- * Uses HEAD request to minimize bandwidth. Falls back to GET only when HEAD
- * returns an unexpected status (e.g., 405 Method Not Allowed) — network errors
- * (connection refused, DNS failure) fail fast without retry since a GET would
- * encounter the same network-level failure.
+ * Uses a range GET instead of HEAD: browser fetch can report successful HEAD
+ * probes as aborted in DevTools/Playwright, which pollutes runtime health
+ * telemetry. Reading a one-byte range keeps the probe lightweight while leaving
+ * the request in a completed state.
  *
  * @param remoteEntry - Remote entry URL
  * @param timeout - Request timeout in milliseconds
  * @returns true if accessible, false otherwise
  */
-export async function checkPluginHealth(remoteEntry: string, timeout: number = 1500): Promise<boolean> {
-  const requestRemoteEntry = async (method: 'HEAD' | 'GET'): Promise<Response> => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-    try {
-      return await fetch(remoteEntry, {
-        method,
-        signal: controller.signal,
-        cache: 'no-cache',
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  };
+export async function checkPluginHealth(remoteEntry: string, timeout: number = 5000): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const response = await requestRemoteEntry('HEAD');
-    if (response.ok) return true;
-    if (response.status !== 405 && response.status !== 501) return false;
-  } catch (headError) {
-    // Fail fast on network errors — GET would fail the same way.
-    if (headError instanceof TypeError) {
-      return false;
-    }
-    if (headError instanceof DOMException && headError.name === 'AbortError') {
-      return false;
-    }
-
-    // Unexpected error — try GET as final fallback.
-  }
-
-  try {
-    const response = await requestRemoteEntry('GET');
+    const response = await fetch(remoteEntry, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
+      signal: controller.signal,
+      cache: 'no-cache',
+    });
+    await response.arrayBuffer();
     return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -176,12 +158,14 @@ export function usePluginDiscovery(
     discoveryTimeout = 5000,
     manifestTimeout = 5000,
     localPlugins = EMPTY_ARRAY as unknown as LocalPluginConfig[],
+    healthCheckTimeout = 5000,
     healthCheckInterval = 30000,
   } = options;
 
   // Stabilize array reference via ref to avoid infinite effect cycles
   const localPluginsRef = useRef(localPlugins);
   localPluginsRef.current = localPlugins;
+  const healthCheckPromiseRef = useRef<Promise<LocalPluginConfig[] | undefined> | null>(null);
   const localPluginsLength = localPlugins.length;
 
   // ========== State ==========
@@ -199,41 +183,57 @@ export function usePluginDiscovery(
    * Check health of all local plugins and update online status.
    */
   const checkLocalPluginsHealth = useCallback(async () => {
+    if (healthCheckPromiseRef.current) {
+      return healthCheckPromiseRef.current;
+    }
+
     const currentLocalPlugins = localPluginsRef.current;
     if (currentLocalPlugins.length === 0) return;
 
-    const healthChecks = await Promise.all(
-      currentLocalPlugins.map(async (plugin) => {
-        const isOnline = await checkPluginHealth(plugin.remoteEntry, 1500);
-        return { plugin, isOnline };
-      })
-    );
+    const healthCheckPromise = (async () => {
+      const healthChecks = await Promise.all(
+        currentLocalPlugins.map(async (plugin) => {
+          const isOnline = await checkPluginHealth(plugin.remoteEntry, healthCheckTimeout);
+          return { plugin, isOnline };
+        })
+      );
 
-    const onlinePlugins = healthChecks
-      .filter(({ isOnline }) => isOnline)
-      .map(({ plugin }) => plugin);
+      const onlinePlugins = healthChecks
+        .filter(({ isOnline }) => isOnline)
+        .map(({ plugin }) => plugin);
 
-    // Build plugin state map from health check results
-    const newPluginStates = new Map<string, PluginState>();
-    for (const { plugin, isOnline } of healthChecks) {
-      newPluginStates.set(plugin.id, {
-        status: isOnline ? 'active' : 'error',
-        activatedAt: isOnline ? Date.now() : undefined,
-        healthStatus: isOnline ? 'healthy' : 'unhealthy',
-      });
-    }
-
-    setOnlineLocalPlugins(onlinePlugins);
-    setPluginStates(prev => {
-      const merged = new Map(prev);
-      for (const [id, state] of newPluginStates) {
-        merged.set(id, state);
+      // Build plugin state map from health check results
+      const newPluginStates = new Map<string, PluginState>();
+      for (const { plugin, isOnline } of healthChecks) {
+        newPluginStates.set(plugin.id, {
+          status: isOnline ? 'active' : 'error',
+          activatedAt: isOnline ? Date.now() : undefined,
+          healthStatus: isOnline ? 'healthy' : 'unhealthy',
+        });
       }
-      return merged;
-    });
 
-    return onlinePlugins;
-  }, []);
+      setOnlineLocalPlugins(onlinePlugins);
+      setPluginStates(prev => {
+        const merged = new Map(prev);
+        for (const [id, state] of newPluginStates) {
+          merged.set(id, state);
+        }
+        return merged;
+      });
+
+      return onlinePlugins;
+    })();
+
+    healthCheckPromiseRef.current = healthCheckPromise;
+
+    try {
+      return await healthCheckPromise;
+    } finally {
+      if (healthCheckPromiseRef.current === healthCheckPromise) {
+        healthCheckPromiseRef.current = null;
+      }
+    }
+  }, [healthCheckTimeout]);
 
   // ========== Core Discovery & Loading ==========
 
@@ -298,7 +298,7 @@ export function usePluginDiscovery(
       const healthChecks = await Promise.all(
         plugins.map(async (plugin) => ({
           plugin,
-          isOnline: await checkPluginHealth(plugin.remoteEntry, 1500),
+          isOnline: await checkPluginHealth(plugin.remoteEntry, healthCheckTimeout),
         }))
       );
 
@@ -439,7 +439,7 @@ export function usePluginDiscovery(
     } finally {
       setLoading(false);
     }
-  }, [skipDiscovery, discoveryUrl, discoveryTimeout, manifestTimeout, localPluginsLength, checkLocalPluginsHealth]);
+  }, [skipDiscovery, discoveryUrl, discoveryTimeout, manifestTimeout, healthCheckTimeout, localPluginsLength, checkLocalPluginsHealth]);
 
   // ========== Auto Load ==========
   useEffect(() => {

@@ -55,10 +55,39 @@ import type {
   ThemeCapabilityConfig,
 } from '@brix-sdk/runtime-sdk-api-web';
 import type { DesignTokenResolver } from '@brix-sdk/runtime-sdk-api-web';
-import { ThemeStore, type ThemeStoreConfig } from './ThemeStore';
+import { ThemeStore } from './ThemeStore';
+import type { StorageAdapter } from '../storage';
 
 // Re-export contract-layer type for backward compatibility
 export type { ThemeCapabilityConfig };
+
+function createThemeStorageAdapter(
+  storage: NonNullable<ThemeCapabilityConfig['storage']>
+): StorageAdapter {
+  return {
+    get<T>(key: string): T | null {
+      const value = storage.getItem(key);
+      if (value === null) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(value) as T;
+      } catch {
+        return value as T;
+      }
+    },
+    set<T>(key: string, value: T): void {
+      storage.setItem(key, JSON.stringify(value));
+    },
+    remove(key: string): void {
+      storage.removeItem(key);
+    },
+    has(key: string): boolean {
+      return storage.getItem(key) !== null;
+    },
+  };
+}
 
 /**
  * Theme Capability Implementation
@@ -116,11 +145,18 @@ export class ThemeCapabilityImpl implements ThemeCapability {
    */
   constructor(config: ThemeCapabilityConfig = {}) {
     // Use shared theme store or create new one
-    if (config.themeStore) {
+    if (config.themeStore instanceof ThemeStore) {
       this.themeStore = config.themeStore;
       this.ownsThemeStore = false;
     } else {
-      this.themeStore = new ThemeStore(config);
+      this.themeStore = new ThemeStore({
+        defaultMode: config.defaultMode,
+        initialPresetId: config.initialPresetId,
+        persist: config.persist,
+        storageKey: config.storageKey,
+        presets: config.presets,
+        storage: config.storage ? createThemeStorageAdapter(config.storage) : undefined,
+      });
       this.ownsThemeStore = true;
     }
 
@@ -216,8 +252,8 @@ export class ThemeCapabilityImpl implements ThemeCapability {
    *
    * @param presetId - Preset ID
    */
-  applyPreset(presetId: string): void {
-    this.themeStore.applyPreset(presetId);
+  applyPreset(presetId: string): boolean {
+    return this.themeStore.applyPreset(presetId);
   }
   
   /**

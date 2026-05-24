@@ -1,26 +1,25 @@
 # Changelog — @brix-sdk/platform-admin-web
 
 All notable changes to this package are documented here.
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0] — 2026-05-08
+## [3.2.0] — 2026-05
 
-### Added — Initial release (P-8 of SSOT v1.0 §13)
-* `PlatformAuthRepository` / `PlatformAdminRepository` / `PlatformAuditRepository` /
-  `PlatformTenantRepository` — pure data layer, depend only on `HttpCapability`.
-* React hooks: `usePlatformLogin`, `useSuperAdminList`, `useCreateSuperAdmin`,
-  `useDisableSuperAdmin`, `useResetPassword`, `useChangeOwnPassword`,
-  `useAuditLog`, `usePlatformTenantList`, `useUpdateTenantStatus`.
-* Pages: `PlatformLoginPage`, `PlatformDashboardPage`, `SuperAdminListPage`,
-  `CreateSuperAdminDialog`, `ResetPasswordDialog`, `ChangeOwnPasswordPage`,
-  `AuditLogPage`, `PlatformTenantListPage`, `UpdateTenantStatusDialog`.
-* Constants: `PLATFORM_ADMIN_PERMISSIONS`, `PLATFORM_ADMIN_ROUTES`,
-  `PLATFORM_AUDIT_ACTIONS`, `PLATFORM_TENANT_STATUS`, `PLATFORM_ROLE_CODE`.
+### Added — Platform Super-Admin Web v2.0
 
-### Architectural Compliance
-* All HTTP traffic goes through `HttpCapability` — no direct `fetch` / `axios`.
-* All UI rendering uses `useUI()` + `useTheme().tokens` — no direct UI library imports.
-* No `enterprise-*` imports (SSOT §11 R-1).
-* All permission gating reads from `AuthCapability.hasPermission(...)` — no string-literal
-  role checks (SSOT §11 R-3).
+- Repositories for platform auth, TOTP login, setup, bootstrap, admins, tenants, and audit.
+- Hooks for platform login, TOTP login, setup, bootstrap, super-admin list/create/revoke/reset, own-password change, tenant lifecycle, and audit queries.
+- Pages for `/platform/login`, `/platform/login/totp`, `/platform/setup`, `/platform/bootstrap`, `/platform/bootstrap/sent`, dashboard, admins, tenants, audit, and own-password change.
+- Guards for platform-authenticated routes, setup-only routes, bootstrap-only routes, and tenant route separation.
+
+### Security
+
+- Create and reset flows never render or copy plaintext credentials.
+- Bootstrap create-first-admin never reads setup tokens from API responses or builds setup URLs client-side.
+- Permission gating uses `PLATFORM_ADMIN_PERMISSIONS` and has no `|| true` bypass.
+
+### Architecture
+
+- View → Hook → Repository layering is preserved.
+- All HTTP calls go through `HttpCapability`.
+- All UI rendering goes through `useUI()` and `useTheme().tokens`.
+- No direct dependency on concrete UI libraries or enterprise plugins.

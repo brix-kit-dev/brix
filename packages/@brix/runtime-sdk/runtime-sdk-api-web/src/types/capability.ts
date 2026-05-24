@@ -143,6 +143,15 @@ export interface CapabilityType<T = unknown> extends CapabilityMeta {
 }
 
 /**
+ * Capability lookup key accepted by the runtime registry.
+ *
+ * Capability constants in this package are exported as stable symbols for
+ * runtime identity, while richer integrations may pass a full CapabilityType
+ * object carrying metadata. The registry contract supports both forms.
+ */
+export type CapabilityKey<T = unknown> = CapabilityType<T> | CapabilityId;
+
+/**
  * Create Capability Type Identifier
  *
  * @param meta - Capability meta information
@@ -255,29 +264,29 @@ export interface CapabilityRuntimeInfo {
  */
 export interface CapabilityRegistry {
   /** Get capability instance */
-  get<T>(capabilityType: CapabilityType<T>): T | undefined;
+  get<T>(capabilityType: CapabilityKey<T>): T | undefined;
 
   /** Get required capability (throws exception if not found) */
-  getRequired<T>(capabilityType: CapabilityType<T>): T;
+  getRequired<T>(capabilityType: CapabilityKey<T>): T;
 
   /** Register capability */
   register<T>(
-    capabilityType: CapabilityType<T>,
+    capabilityType: CapabilityKey<T>,
     provider: CapabilityProvider<T>,
     options?: CapabilityRegisterOptions
   ): void;
 
   /** Unregister capability */
-  unregister<T>(capabilityType: CapabilityType<T>): boolean;
+  unregister<T>(capabilityType: CapabilityKey<T>): boolean;
 
   /** Check if capability is registered */
-  has<T>(capabilityType: CapabilityType<T>): boolean;
+  has<T>(capabilityType: CapabilityKey<T>): boolean;
 
   /** Check if capability is ready */
-  isReady<T>(capabilityType: CapabilityType<T>): boolean;
+  isReady<T>(capabilityType: CapabilityKey<T>): boolean;
 
   /** Get capability runtime information */
-  getInfo<T>(capabilityType: CapabilityType<T>): CapabilityRuntimeInfo | undefined;
+  getInfo<T>(capabilityType: CapabilityKey<T>): CapabilityRuntimeInfo | undefined;
 
   /** Get all registered capability IDs */
   getRegisteredIds(): CapabilityId[];

@@ -133,10 +133,15 @@ function mergeSharedConfig(
     return { ...DEFAULT_SHARED_CONFIG };
   }
 
-  return {
-    ...DEFAULT_SHARED_CONFIG,
-    ...customShared,
-  };
+  const merged: SharedDependencies = { ...DEFAULT_SHARED_CONFIG };
+
+  for (const [name, config] of Object.entries(customShared)) {
+    if (config) {
+      merged[name] = config;
+    }
+  }
+
+  return merged;
 }
 
 // ============================================================================

@@ -22,9 +22,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 /**
  * No String Role-Literal Rule.
  *
- * <p>Enforces SSOT v1.0 §11 R-3: production code must reference platform
+ * <p>Enforces SSOT v2.0 §4 / §11 R-3: production code must reference platform
  * role codes through the {@code RoleCode} constants (or an equivalent
- * enum), never as bare string literals such as {@code "SUPER_ADMIN"}.</p>
+ * enum), never as bare string literals such as {@code "PLATFORM_SUPER_ADMIN"}.</p>
  *
  * <h2>Why?</h2>
  * <p>String literals are invisible to refactoring tools and bypass the
@@ -67,10 +67,8 @@ public final class NoStringRoleLiteralRule {
 
     /** Canonical role codes mirrored from {@code io.brix.platform.auth.RoleCode}. */
     public static final Set<String> KNOWN_ROLE_CODES = new HashSet<>(Arrays.asList(
-            "SUPER_ADMIN",
-            "PLATFORM_ADMIN",
-            "SUPPORT_ADMIN",
-            "AUDITOR"
+            "PLATFORM_SUPER_ADMIN",
+            "BOOTSTRAP"
     ));
 
     /** Whitelisted class FQNs / package prefixes. */

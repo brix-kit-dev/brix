@@ -87,6 +87,10 @@ const DEFAULT_CONFIG: Required<CapabilityAssemblerConfig> = {
   initTimeout: 10000,
 };
 
+function capabilityIdLabel(id: CapabilityId): string {
+  return String(id);
+}
+
 /**
  * Capability assembly entry
  * 
@@ -227,7 +231,7 @@ export class CapabilityAssembler {
         await this.assembleEntry(entry, deps);
       } catch (error) {
         console.error(
-          `Failed to assemble capability "${entry.capabilityType.id}":`,
+          `Failed to assemble capability "${capabilityIdLabel(entry.capabilityType.id)}":`,
           error
         );
         
@@ -251,13 +255,13 @@ export class CapabilityAssembler {
       
       // Check if assembled
       if (!this.assembled.has(id)) {
-        errors.push(`Capability "${id}" not assembled`);
+        errors.push(`Capability "${capabilityIdLabel(id)}" not assembled`);
         continue;
       }
       
       // Check if retrievable
       if (!this.registry.has(entry.capabilityType)) {
-        errors.push(`Capability "${id}" assembled but not found in registry`);
+        errors.push(`Capability "${capabilityIdLabel(id)}" assembled but not found in registry`);
         continue;
       }
       
@@ -266,7 +270,7 @@ export class CapabilityAssembler {
         const instance = this.registry.get(entry.capabilityType);
         
         if (!instance) {
-          errors.push(`Capability "${id}" instance is null`);
+          errors.push(`Capability "${capabilityIdLabel(id)}" instance is null`);
         }
       }
     }
@@ -316,9 +320,9 @@ export class CapabilityAssembler {
     
     // Check if dependencies are assembled
     for (const depId of entry.dependencies) {
-      if (!this.assembled.has(depId) && !this.registry.has({ id: depId, __type: undefined as unknown })) {
+      if (!this.assembled.has(depId) && !this.registry.has(depId)) {
         throw new Error(
-          `Dependency "${depId}" of capability "${id}" not yet assembled`
+          `Dependency "${capabilityIdLabel(depId)}" of capability "${capabilityIdLabel(id)}" not yet assembled`
         );
       }
     }
@@ -335,7 +339,7 @@ export class CapabilityAssembler {
       // Use provider directly
       provider = entry.provider;
     } else {
-      throw new Error(`Capability "${id}" has no factory or provider`);
+      throw new Error(`Capability "${capabilityIdLabel(id)}" has no factory or provider`);
     }
     
     // Register to registry
@@ -383,7 +387,7 @@ export class CapabilityAssembler {
       }
       
       if (visiting.has(id)) {
-        throw new Error(`Circular dependency detected: ${id}`);
+        throw new Error(`Circular dependency detected: ${capabilityIdLabel(id)}`);
       }
       
       const entry = entryMap.get(id);

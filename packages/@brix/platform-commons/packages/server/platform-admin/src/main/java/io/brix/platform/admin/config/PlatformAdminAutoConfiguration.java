@@ -16,8 +16,22 @@
 package io.brix.platform.admin.config;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration;
+import org.springframework.context.annotation.Condition;
+import org.springframework.context.annotation.ConditionContext;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Conditional;
+import org.springframework.core.env.Environment;
+import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.mail.javamail.JavaMailSender;
+
+import io.brix.platform.admin.service.EmailSetupLinkNotifier;
+import io.brix.platform.admin.service.LoggingNotificationCapability;
+import io.runtime.sdk.capability.NotificationCapability;
 
 /**
  * Auto-configuration for the Platform Admin module.
@@ -40,10 +54,62 @@ import org.springframework.context.annotation.ComponentScan;
  * @author Brix Platform Team
  * @since 3.2.0
  */
-@AutoConfiguration
+@AutoConfiguration(after = MailSenderAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ComponentScan(basePackages = "io.brix.platform.admin")
 public class PlatformAdminAutoConfiguration {
-    // All beans are discovered via @ComponentScan.
-    // Bean-level @ConditionalOnMissingBean guards can be added here if needed in the future.
+
+    /**
+     * SMTP-backed setup-link delivery.
+     *
+     * <p>This bean is declared in auto-configuration instead of relying on
+     * component-scan conditions so it is evaluated after Spring Boot mail
+     * auto-configuration has had a chance to provide {@link JavaMailSender}.</p>
+     */
+    @Bean
+    @Conditional(NonBlankSmtpHostCondition.class)
+    @ConditionalOnMissingBean(NotificationCapability.class)
+    public NotificationCapability emailSetupLinkNotifier(
+            JavaMailSender mailSender,
+            PlatformAdminSetupProperties setupProperties) {
+        String mailFrom = trimToNull(setupProperties.getMailFrom());
+        if (mailFrom == null) {
+            throw new IllegalStateException(
+                    "brix.platform.admin.setup.mail-from is required for SMTP setup-link delivery");
+        }
+        return new EmailSetupLinkNotifier(mailSender, setupProperties);
+    }
+
+    static final class NonBlankSmtpHostCondition implements Condition {
+        @Override
+        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+            return trimToNull(context.getEnvironment().getProperty("spring.mail.host")) != null;
+        }
+    }
+
+    /**
+     * Explicit development-only setup-link delivery fallback.
+     *
+     * <p>Production deployments must provide a real {@link NotificationCapability}
+     * bean (for example SMTP). This fallback is opt-in so a misconfigured
+     * standalone deployment cannot report {@code setupLinkSent=true} while only
+     * writing the setup URL to server logs.</p>
+     */
+    @Bean
+    @ConditionalOnProperty(
+            prefix = "brix.platform.admin.setup",
+            name = "logging-notification-enabled",
+            havingValue = "true")
+    @ConditionalOnMissingBean(NotificationCapability.class)
+    public NotificationCapability loggingNotificationCapability(Environment environment) {
+        return new LoggingNotificationCapability(environment);
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
 }

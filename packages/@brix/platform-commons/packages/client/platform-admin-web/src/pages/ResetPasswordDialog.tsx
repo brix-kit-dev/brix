@@ -4,13 +4,9 @@
  */
 
 /**
- * @file ResetPasswordDialog — issues a one-shot replacement temp password.
- *
- * Mirrors the same one-shot reveal flow as `CreateSuperAdminDialog` —
- * keeps the security model uniform (SSOT §8.4).
+ * @file ResetPasswordDialog — requests setup-link based credential reset.
  */
 
-import { useEffect } from 'react';
 import { useI18n, useTheme } from '@brix-sdk/runtime-sdk-react';
 import type { DesignTokens } from '@brix-sdk/runtime-sdk-api-web';
 import { useUIStrict } from '../internal/ui-kit';
@@ -34,43 +30,39 @@ export function ResetPasswordDialog(
 
   const { reset, acknowledge, loading, error, result } = useResetPassword();
 
-  // Auto-trigger on open: SSOT §6 endpoint #5 has no payload — clicking
-  // "Reset" in the parent table is itself the user intent.
-  useEffect(() => {
-    if (props.open && !result && !loading) {
-      void reset(props.admin.id).catch((e) => {
-        message.error?.(e instanceof Error ? e.message : String(e));
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.open, props.admin.id]);
-
   function handleClose() {
     if (loading) return;
     acknowledge();
     props.onClose();
   }
 
-  async function copy() {
-    if (!result) return;
+  async function handleConfirm() {
+    if (loading || result) return;
     try {
-      await navigator.clipboard.writeText(result.tempPassword);
-      message.success?.(tt(I18N_KEYS.common.copied));
-    } catch {
-      message.error?.('Clipboard unavailable');
+      await reset(props.admin.id);
+    } catch (err) {
+      message.error?.(err instanceof Error ? err.message : String(err));
     }
   }
 
   return (
     <Modal
       open={props.open}
-      title={tt(I18N_KEYS.admin.tempPasswordTitle)}
+      title={
+        result
+          ? tt(I18N_KEYS.admin.setupLinkTitle)
+          : tt(I18N_KEYS.admin.actionResetPassword)
+      }
       onClose={handleClose}
-      showCloseButton={false}
+      onConfirm={result ? undefined : handleConfirm}
+      confirmLoading={loading}
+      confirmText={tt(I18N_KEYS.admin.actionResetPassword)}
+      cancelText={tt(I18N_KEYS.common.cancel)}
+      showCloseButton={!loading}
       closeOnEscape={!loading}
       closeOnOverlayClick={false}
       data-testid="super-admin-reset-password-dialog"
-      footer={
+      footer={result ? (
         <Button
           onClick={handleClose}
           disabled={loading}
@@ -78,86 +70,102 @@ export function ResetPasswordDialog(
         >
           {tt(I18N_KEYS.common.close)}
         </Button>
-      }
+      ) : undefined}
     >
-      {loading ? (
-        <p style={{ color: t.colors.text.secondary }}>
-          {tt(I18N_KEYS.common.loading)}
-        </p>
-      ) : error ? (
-        <div
-          role="alert"
-          style={{
-            padding: t.space.sm,
-            borderRadius: t.shape.sm,
-            background: t.colors.status.error,
-            color: t.colors.brand.primaryContrast,
-          }}
-        >
-          {error.message}
+      {!result ? (
+        <div style={{ display: 'grid', gap: t.space.md }}>
+          <div
+            role="alert"
+            style={{
+              padding: t.space.md,
+              borderRadius: t.shape.md,
+              border: `1px solid color-mix(in srgb, ${t.colors.status.warning} 42%, ${t.colors.border.default})`,
+              background: `color-mix(in srgb, ${t.colors.status.warning} 10%, ${t.colors.surface.elevated})`,
+              color: t.colors.text.primary,
+            }}
+          >
+            <strong style={{ display: 'block', marginBottom: t.space.xs }}>
+              {tt(I18N_KEYS.admin.resetConfirm, {
+                name: props.admin.username,
+              })}
+            </strong>
+            <span style={{ color: t.colors.text.secondary }}>
+              {tt(I18N_KEYS.admin.setupLinkInfo)}
+            </span>
+          </div>
+          <dl
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'max-content minmax(0, 1fr)',
+              gap: `${t.space.xs} ${t.space.md}`,
+              margin: 0,
+              color: t.colors.text.secondary,
+              fontSize: t.typography.bodySmall.fontSize,
+            }}
+          >
+            <dt>{tt(I18N_KEYS.admin.colUsername)}</dt>
+            <dd style={{ margin: 0, color: t.colors.text.primary }}>
+              {props.admin.username}
+            </dd>
+            <dt>{tt(I18N_KEYS.admin.colEmail)}</dt>
+            <dd style={{ margin: 0, color: t.colors.text.primary }}>
+              {props.admin.email ?? '—'}
+            </dd>
+            <dt>{tt(I18N_KEYS.admin.colRole)}</dt>
+            <dd style={{ margin: 0, color: t.colors.text.primary }}>
+              {props.admin.role}
+            </dd>
+          </dl>
+          {loading ? (
+            <p style={{ margin: 0, color: t.colors.text.secondary }}>
+              {tt(I18N_KEYS.common.loading)}
+            </p>
+          ) : null}
+          {error ? (
+            <div
+              role="alert"
+              style={{
+                padding: t.space.sm,
+                borderRadius: t.shape.sm,
+                background: `color-mix(in srgb, ${t.colors.status.error} 12%, ${t.colors.surface.elevated})`,
+                color: t.colors.status.error,
+                border: `1px solid color-mix(in srgb, ${t.colors.status.error} 36%, ${t.colors.border.default})`,
+                fontSize: t.typography.bodySmall.fontSize,
+              }}
+            >
+              {error.message}
+            </div>
+          ) : null}
         </div>
-      ) : result ? (
+      ) : (
         <>
-          <p style={{ color: t.colors.text.primary, marginTop: 0 }}>
-            {tt(I18N_KEYS.admin.resetConfirm, { name: props.admin.username })}
-          </p>
           <div
             role="alert"
             style={{
               padding: t.space.sm,
               borderRadius: t.shape.sm,
-              background: t.colors.status.warning,
-              color: t.colors.brand.primaryContrast,
+              background: `color-mix(in srgb, ${t.colors.status.warning} 12%, ${t.colors.surface.elevated})`,
+              color: t.colors.status.warning,
+              border: `1px solid color-mix(in srgb, ${t.colors.status.warning} 36%, ${t.colors.border.default})`,
               marginBottom: t.space.md,
-              fontSize: '0.875rem',
+              fontSize: t.typography.bodySmall.fontSize,
             }}
           >
-            {tt(I18N_KEYS.admin.tempPasswordWarning)}
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: t.space.sm,
-              padding: t.space.md,
-              background: t.colors.surface.elevated,
-              borderRadius: t.shape.md,
-              border: `1px solid ${t.colors.border.default}`,
-            }}
-          >
-            <code
-              style={{
-                flex: 1,
-                fontFamily: 'monospace',
-                fontSize: '1rem',
-                wordBreak: 'break-all',
-                color: t.colors.text.primary,
-              }}
-            >
-              {result.tempPassword}
-            </code>
-            <Button
-              size="small"
-              variant="secondary"
-              onClick={copy}
-              data-testid="super-admin-reset-password-copy"
-            >
-              {tt(I18N_KEYS.common.copy)}
-            </Button>
+            {result.setupLinkSent
+              ? tt(I18N_KEYS.admin.setupLinkSent)
+              : tt(I18N_KEYS.admin.setupLinkPending)}
           </div>
           <p
             style={{
               marginTop: t.space.md,
               color: t.colors.text.secondary,
-              fontSize: '0.875rem',
+              fontSize: t.typography.bodySmall.fontSize,
             }}
           >
-            {tt(I18N_KEYS.admin.tempPasswordExpires, {
-              when: new Date(result.tempPasswordExpiresAt).toLocaleString(),
-            })}
+            {tt(I18N_KEYS.admin.setupLinkInfo)}
           </p>
         </>
-      ) : null}
+      )}
     </Modal>
   );
 }

@@ -16,6 +16,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
 import io.brix.platform.auth.internal.RbacResolver;
@@ -53,6 +54,7 @@ import io.runtime.sdk.capability.RefreshTokenCapability;
 // same jar and will fail-fast at bean autowiring time if absent — which is the
 // desired behavior since they are mandatory for AuthFlow to function.
 @ConditionalOnClass(name = "io.brix.platform.tenant.service.IdentityTenantCapabilityImpl")
+@EnableConfigurationProperties(PlatformLoginLockoutProperties.class)
 public class AuthFlowAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(AuthFlowAutoConfiguration.class);
@@ -72,7 +74,9 @@ public class AuthFlowAutoConfiguration {
             PasswordCapability passwordCapability,
             JwtIssuerCapability jwtIssuerCapability,
             ObjectProvider<RbacResolver> rbacResolverProvider,
-            ObjectProvider<RefreshTokenCapability> refreshTokenProvider) {
+                        ObjectProvider<RefreshTokenCapability> refreshTokenProvider,
+                        ObjectProvider<MfaLoginSupport> mfaLoginSupportProvider,
+            PlatformLoginLockoutProperties lockoutProperties) {
         RbacResolver resolver = rbacResolverProvider.getIfAvailable();
         RefreshTokenCapability refreshTokenCapability = refreshTokenProvider.getIfAvailable();
         log.info("Registering default AuthFlowCapability (multi-tenant) " +
@@ -80,6 +84,7 @@ public class AuthFlowAutoConfiguration {
                 resolver == null ? "ABSENT" : resolver.getClass().getSimpleName(),
                 refreshTokenCapability == null ? "ABSENT (A2 disabled)" : refreshTokenCapability.getClass().getSimpleName());
         return new AuthFlowCapabilityImpl(identityTenantCapability, passwordCapability,
-                jwtIssuerCapability, resolver, refreshTokenCapability);
+                jwtIssuerCapability, resolver, refreshTokenCapability, mfaLoginSupportProvider::getIfAvailable,
+                lockoutProperties);
     }
 }

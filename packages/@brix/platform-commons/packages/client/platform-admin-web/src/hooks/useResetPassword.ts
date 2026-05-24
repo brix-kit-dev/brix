@@ -16,8 +16,7 @@ export interface UseResetPasswordResult {
 }
 
 /**
- * Generate a new temp password for an existing platform admin.
- * Same one-shot semantics as {@link useCreateSuperAdmin} — see SSOT §8.4.
+ * Requests a setup-link reset for an existing platform admin.
  */
 export function useResetPassword(): UseResetPasswordResult {
   const { admin } = useRepositories();

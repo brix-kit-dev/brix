@@ -114,9 +114,10 @@ export function UpdateTenantStatusDialog(
             marginTop: t.space.md,
             padding: t.space.sm,
             borderRadius: t.shape.sm,
-            background: t.colors.status.error,
-            color: t.colors.brand.primaryContrast,
-            fontSize: '0.875rem',
+            background: `color-mix(in srgb, ${t.colors.status.error} 12%, ${t.colors.surface.elevated})`,
+            color: t.colors.status.error,
+            border: `1px solid color-mix(in srgb, ${t.colors.status.error} 36%, ${t.colors.border.default})`,
+            fontSize: t.typography.bodySmall.fontSize,
           }}
         >
           {error.message}

@@ -21,7 +21,7 @@ export default defineConfig({
     'src/hooks/index.ts',
   ],
   format: ['esm'],
-  dts: false,
+  dts: true,
   clean: true,
   sourcemap: true,
   external: ['react', 'react-dom'],

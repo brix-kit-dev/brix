@@ -18,9 +18,12 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
-  // Temporarily disable DTS generation due to pre-existing type issues
-  // TODO: Fix type errors in MFPluginLoader.ts
-  dts: false,
+  dts: {
+    compilerOptions: {
+      composite: false,
+      incremental: false,
+    },
+  },
   clean: true,
   outDir: 'dist',
   splitting: true,

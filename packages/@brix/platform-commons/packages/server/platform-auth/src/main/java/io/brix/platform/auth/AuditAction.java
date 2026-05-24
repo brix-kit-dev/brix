@@ -66,18 +66,27 @@ public final class AuditAction {
     public static final String SUPER_ADMIN_CREATED = "SUPER_ADMIN_CREATED";
 
     /**
-     * A platform administrator account was disabled.
-     * <p>Target type: {@code PLATFORM_ADMIN}. Target ID: disabled admin's identity_id.
+    * A platform administrator grant was revoked.
+    * <p>Target type: {@code PLATFORM_ADMIN}. Target ID: revoked admin's identity_id.
      */
-    public static final String SUPER_ADMIN_DISABLED = "SUPER_ADMIN_DISABLED";
+    public static final String SUPER_ADMIN_REVOKED = "SUPER_ADMIN_REVOKED";
+
+    /** Bootstrap session opened from a valid one-time setup code. */
+    public static final String BOOTSTRAP_SESSION_OPENED = "BOOTSTRAP_SESSION_OPENED";
+
+    /** First formal platform super administrator was created from bootstrap. */
+    public static final String BOOTSTRAP_ADMIN_CREATED = "BOOTSTRAP_ADMIN_CREATED";
+
+    /** Passwordless bootstrap anchor was deactivated after setup completion. */
+    public static final String BOOTSTRAP_ADMIN_DEACTIVATED = "BOOTSTRAP_ADMIN_DEACTIVATED";
 
     // ===== Password =====
 
     /**
-     * An administrator's password was reset by another admin (temporary password issued).
+    * An administrator's password setup was reset by another admin.
      * <p>Target type: {@code PLATFORM_ADMIN}. Target ID: target admin's identity_id.
-     * <p><b>Security:</b> the {@code reason} field MUST only state "Password has been reset";
-     * never include the actual password (plaintext or hash).
+    * <p><b>Security:</b> the {@code reason} field MUST never include secrets,
+    * setup tokens, URLs, plaintext credentials, or hashes.
      */
     public static final String SUPER_ADMIN_PASSWORD_RESET = "SUPER_ADMIN_PASSWORD_RESET";
 
@@ -87,7 +96,39 @@ public final class AuditAction {
      */
     public static final String SUPER_ADMIN_PASSWORD_CHANGED = "SUPER_ADMIN_PASSWORD_CHANGED";
 
+    // ===== Setup / Identity Security =====
+
+    /** A one-time platform setup token was issued. */
+    public static final String SETUP_TOKEN_ISSUED = "SETUP_TOKEN_ISSUED";
+
+    /** A one-time platform setup token was consumed successfully. */
+    public static final String SETUP_TOKEN_USED = "SETUP_TOKEN_USED";
+
+    /** A one-time platform setup token validation failed. */
+    public static final String SETUP_TOKEN_INVALID = "SETUP_TOKEN_INVALID";
+
+    /** A platform identity password was set through setup or reset completion. */
+    public static final String IDENTITY_PASSWORD_SET = "IDENTITY_PASSWORD_SET";
+
+    /** A platform identity successfully bound a TOTP authenticator. */
+    public static final String TOTP_BOUND = "TOTP_BOUND";
+
+    /** A platform identity transitioned to ACTIVE after setup completion. */
+    public static final String IDENTITY_ACTIVATED = "IDENTITY_ACTIVATED";
+
+    /** A platform identity was disabled by a security lifecycle transition. */
+    public static final String IDENTITY_DISABLED = "IDENTITY_DISABLED";
+
+    /** A platform identity was locked after repeated failed login attempts. */
+    public static final String IDENTITY_LOCKED = "IDENTITY_LOCKED";
+
     // ===== Tenant =====
+
+    /**
+     * A new tenant was created by a platform admin via the super-admin console.
+     * <p>Target type: {@code TENANT}. Target ID: newly created tenant's ID.
+     */
+    public static final String TENANT_CREATED = "TENANT_CREATED";
 
     /**
      * A tenant's lifecycle status was changed by a platform admin.

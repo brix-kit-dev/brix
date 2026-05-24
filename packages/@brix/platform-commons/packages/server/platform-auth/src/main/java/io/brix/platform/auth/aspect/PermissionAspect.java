@@ -99,9 +99,8 @@ public class PermissionAspect {
         AuthenticatedUser user = securityContextHolder.getCurrentUser()
                 .orElseThrow(() -> new PermissionDeniedException("User not authenticated"));
 
-        // P0-3: Capability-based bypass — platform admins carry BYPASS_PERMISSION_CHECK
-        // in their JWT permissions claim. This replaces the former role-name identity check
-        // (isSuperAdmin()) with a verifiable capability that flows through the token.
+        // Internal break-glass bypass. Default platform-admin and bootstrap JWTs do not
+        // carry this permission; normal requests are checked against concrete permissions.
         if (user.hasPermission(PlatformPermissions.BYPASS_PERMISSION_CHECK)) {
             // P2-9: Audit-grade log — bypass is a security-significant event.
             logger.warn("[AUDIT] Platform admin bypass applied: userId={}, platformRole={}, endpoint={}",
@@ -144,7 +143,7 @@ public class PermissionAspect {
         AuthenticatedUser user = securityContextHolder.getCurrentUser()
                 .orElseThrow(() -> new PermissionDeniedException("User not authenticated"));
 
-        // P0-3: Same capability-based bypass for role checks.
+        // Same internal break-glass bypass for role checks.
         if (user.hasPermission(PlatformPermissions.BYPASS_PERMISSION_CHECK)) {
             logger.warn("[AUDIT] Platform admin bypass applied: userId={}, platformRole={}, endpoint={}",
                     user.getUserId(), user.getPlatformRole(), joinPoint.getSignature());

@@ -74,9 +74,9 @@ export function calculateLoadOrder(plugins: Map<string, PluginRuntime>): string[
 
     // Visit dependencies first
     if (runtime.entry.dependencies) {
-      for (const dep of runtime.entry.dependencies) {
-        if (!dep.optional || plugins.has(dep.pluginId)) {
-          visit(dep.pluginId);
+      for (const depId of runtime.entry.dependencies) {
+        if (plugins.has(depId)) {
+          visit(depId);
         }
       }
     }
@@ -119,20 +119,13 @@ export function checkDependencies(
     return;
   }
 
-  for (const dep of dependencies) {
-    const depRuntime = plugins.get(dep.pluginId);
+  for (const depId of dependencies) {
+    const depRuntime = plugins.get(depId);
 
     if (!depRuntime) {
-      if (!dep.optional) {
-        throw new Error(
-          `Plugin "${entry.id}" depends on plugin "${dep.pluginId}" which is not registered`
-        );
-      }
-      continue;
-    }
-
-    // Check version compatibility (simplified implementation)
-    if (dep.version && depRuntime.entry.version !== dep.version) {
+      throw new Error(
+        `Plugin "${entry.id}" depends on plugin "${depId}" which is not registered`
+      );
     }
   }
 }

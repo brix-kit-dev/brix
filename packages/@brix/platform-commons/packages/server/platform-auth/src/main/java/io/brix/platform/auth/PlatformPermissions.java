@@ -31,16 +31,14 @@ import java.util.List;
  *   <li>JWT {@code permissions} claim — populated by
  *       {@link #defaultPermissionsFor(String)} at login time.</li>
  *   <li>{@code @RequirePermission} annotations — protect platform management endpoints.</li>
- *   <li>{@link io.brix.platform.auth.aspect.PermissionAspect} — grants capability-based bypass
- *       to any token that carries {@link #BYPASS_PERMISSION_CHECK}.</li>
+ *   <li>{@link io.brix.platform.auth.aspect.PermissionAspect} — evaluates the concrete
+ *       permission list carried by the token.</li>
  * </ul>
  *
  * <h3>Role → Permission Mapping</h3>
  * <pre>
- * SUPER_ADMIN    → bypass + all platform permissions
- * PLATFORM_ADMIN → bypass + tenant manage + audit
- * SUPPORT_ADMIN  → tenant view + audit view
- * AUDITOR        → audit view only
+ * PLATFORM_SUPER_ADMIN → platform management permissions
+ * BOOTSTRAP            → bootstrap status + first-admin creation only
  * </pre>
  *
  * @author Brix Platform Authors
@@ -55,7 +53,8 @@ public final class PlatformPermissions {
      * Wildcard bypass for permission and role checks.
      *
      * <p>Any token carrying this permission bypasses {@code @RequirePermission} and
-     * {@code @RequireRole} guards entirely. Granted to SUPER_ADMIN and PLATFORM_ADMIN.
+    * {@code @RequireRole} guards entirely. This is kept as a break-glass internal
+    * permission code and is not emitted into default platform-admin JWTs.
      *
      * <p><b>Security note:</b> This replaces the former role-name identity check
      * {@code isSuperAdmin()} with a capability-based bypass that flows through the JWT
@@ -92,6 +91,14 @@ public final class PlatformPermissions {
      */
     public static final String TENANT_UPDATE_STATUS = "platform:tenant:update-status";
 
+    /**
+     * Create a new tenant via the platform super-admin console.
+     *
+     * <p>Fine-grained code aligning with SSOT §6 endpoint
+     * ({@code POST /api/platform/tenants}).
+     */
+    public static final String TENANT_CREATE = "platform:tenant:create";
+
     // ========== Platform Admin Management ==========
 
     /** Create or manage platform administrator accounts (coarse-grained, kept for backward compat). */
@@ -112,12 +119,12 @@ public final class PlatformPermissions {
     public static final String ADMIN_CREATE = "platform:admin:create";
 
     /**
-     * Disable an existing platform administrator account.
+    * Revoke an existing platform administrator grant.
      *
      * <p>Fine-grained code aligning with SSOT §6 endpoint #5
-     * ({@code PATCH /api/platform/admins/{id}/disable}).
+    * ({@code PATCH /api/platform/admins/{id}/revoke}).
      */
-    public static final String ADMIN_DISABLE = "platform:admin:disable";
+    public static final String ADMIN_REVOKE = "platform:admin:revoke";
 
     /**
      * Reset the password of another platform administrator.
@@ -132,9 +139,17 @@ public final class PlatformPermissions {
      *
      * <p>Fine-grained code aligning with SSOT §6 endpoint #7
      * ({@code POST /api/platform/admins/me/change-password}).
-     * Granted to all platform admin roles (SUPER_ADMIN, PLATFORM_ADMIN, SUPPORT_ADMIN, AUDITOR).
+    * Granted to formal platform super administrators.
      */
     public static final String ADMIN_CHANGE_OWN_PASSWORD = "platform:admin:change-own-password";
+
+    // ========== Bootstrap Setup ==========
+
+    /** Read bootstrap status. */
+    public static final String BOOTSTRAP_READ = "platform:bootstrap:read";
+
+    /** Create the first formal platform super administrator during Stage A. */
+    public static final String BOOTSTRAP_CREATE_FIRST_ADMIN = "platform:bootstrap:create-first-admin";
 
     // ========== Audit ==========
 
@@ -150,10 +165,10 @@ public final class PlatformPermissions {
 
     // ========== System ==========
 
-    /** Access and modify system-level configuration. Restricted to SUPER_ADMIN. */
+    /** Access and modify system-level configuration. Restricted to formal super admins. */
     public static final String SYSTEM_CONFIG = "platform:system:config";
 
-    /** Perform data recovery and maintenance operations. Restricted to SUPER_ADMIN. */
+    /** Perform data recovery and maintenance operations. Restricted to formal super admins. */
     public static final String DATA_RECOVERY = "platform:data:recovery";
 
     // ========== Factory ==========
@@ -163,7 +178,7 @@ public final class PlatformPermissions {
      *
      * <p>Called at login time to populate the JWT {@code permissions} claim.
      * The {@code adminRole} parameter must match the enum name of
-     * {@code io.brix.platform.tenant.enums.PlatformAdminRole} (e.g. {@code "SUPER_ADMIN"}).
+    * {@code io.brix.platform.tenant.enums.PlatformAdminRole}.
      *
      * @param adminRole platform admin role enum name, never {@code null}
      * @return immutable, non-null list of permission codes
@@ -172,45 +187,19 @@ public final class PlatformPermissions {
         if (adminRole == null) {
             return List.of();
         }
-        // Fine-grained codes are returned for each role so that JWT tokens carry
-        // the exact permission set required by @RequirePermission guards on every endpoint.
-        // Coarse codes (TENANT_MANAGE, ADMIN_MANAGE, AUDIT_VIEW) are kept for backward
-        // compat with older token-holders that predate the fine-grained expansion.
         return switch (adminRole) {
-            case "SUPER_ADMIN" -> List.of(
-                    BYPASS_PERMISSION_CHECK,
+            case RoleCode.PLATFORM_SUPER_ADMIN -> List.of(
                     // tenant
-                    TENANT_MANAGE, TENANT_VIEW, TENANT_READ, TENANT_UPDATE_STATUS,
+                    TENANT_MANAGE, TENANT_VIEW, TENANT_READ, TENANT_CREATE, TENANT_UPDATE_STATUS,
                     // admin management
-                    ADMIN_MANAGE, ADMIN_READ, ADMIN_CREATE, ADMIN_DISABLE,
+                ADMIN_MANAGE, ADMIN_READ, ADMIN_CREATE, ADMIN_REVOKE,
                     ADMIN_RESET_PASSWORD, ADMIN_CHANGE_OWN_PASSWORD,
                     // audit
                     AUDIT_VIEW, AUDIT_READ,
                     // system
                     SYSTEM_CONFIG, DATA_RECOVERY
             );
-            case "PLATFORM_ADMIN" -> List.of(
-                    BYPASS_PERMISSION_CHECK,
-                    // tenant
-                    TENANT_MANAGE, TENANT_VIEW, TENANT_READ, TENANT_UPDATE_STATUS,
-                    // admin management (can create/disable/reset, not system config)
-                    ADMIN_MANAGE, ADMIN_READ, ADMIN_CREATE, ADMIN_DISABLE,
-                    ADMIN_RESET_PASSWORD, ADMIN_CHANGE_OWN_PASSWORD,
-                    // audit
-                    AUDIT_VIEW, AUDIT_READ
-            );
-            case "SUPPORT_ADMIN" -> List.of(
-                    TENANT_VIEW, TENANT_READ,
-                    ADMIN_READ,
-                    ADMIN_CHANGE_OWN_PASSWORD,
-                    AUDIT_VIEW, AUDIT_READ
-            );
-            case "AUDITOR" -> List.of(
-                    TENANT_READ,
-                    ADMIN_READ,
-                    ADMIN_CHANGE_OWN_PASSWORD,
-                    AUDIT_VIEW, AUDIT_READ
-            );
+            case RoleCode.BOOTSTRAP -> List.of(BOOTSTRAP_READ, BOOTSTRAP_CREATE_FIRST_ADMIN);
             default -> List.of();
         };
     }

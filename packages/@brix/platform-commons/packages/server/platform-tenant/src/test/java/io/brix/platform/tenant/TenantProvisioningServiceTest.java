@@ -15,6 +15,26 @@
  */
 package io.brix.platform.tenant;
 
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
 import io.brix.platform.tenant.entity.Organization;
@@ -30,21 +50,6 @@ import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
 import jakarta.persistence.EntityNotFoundException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for {@link TenantProvisioningService}.
@@ -139,6 +144,11 @@ class TenantProvisioningServiceTest {
             assertEquals("acme-corp", result.getCode());
             assertEquals("Acme Corporation", result.getName());
             assertEquals(TenantStatus.PENDING_ACTIVATION, result.getStatus());
+            assertEquals("[\"phone_sms\", \"email_password\"]", result.getAllowedLoginMethods());
+            assertNotNull(result.getPasswordPolicy());
+            assertEquals("[\"in_app\"]", result.getNotificationChannels());
+            assertEquals("{}", result.getBusinessHours());
+            assertEquals("{}", result.getSettings());
 
             // Verify tenant member created
             ArgumentCaptor<TenantMember> memberCaptor = ArgumentCaptor.forClass(TenantMember.class);

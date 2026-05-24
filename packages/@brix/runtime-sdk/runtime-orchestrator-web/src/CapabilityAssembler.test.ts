@@ -343,70 +343,25 @@ describe('CapabilityAssembler.validate()', () => {
 });
 
 // ============================================================================
-// createContext() Test Suite
+// getStats() Test Suite
 // ============================================================================
 
-describe('CapabilityAssembler.createContext()', () => {
+describe('CapabilityAssembler.getStats()', () => {
   let assembler: CapabilityAssembler;
 
   beforeEach(() => {
     assembler = new CapabilityAssembler(createMockRegistry());
   });
 
-  it('should create plugin context', () => {
+  it('should return zero counts initially', () => {
     // Act
-    const context = assembler.createContext('test-plugin');
+    const stats = assembler.getStats();
 
     // Assert
-    expect(context).toBeDefined();
-    expect(context.pluginId).toBe('test-plugin');
+    expect(stats).toEqual({ total: 0, assembled: 0, pending: 0 });
   });
 
-  it('context should contain registry', () => {
-    // Act
-    const context = assembler.createContext('test-plugin');
-
-    // Assert
-    expect(context.registry).toBeDefined();
-  });
-
-  it('context should provide get() method', () => {
-    // Act
-    const context = assembler.createContext('test-plugin');
-
-    // Assert
-    expect(context.get).toBeTypeOf('function');
-  });
-
-  it('context should provide getRequired() method', () => {
-    // Act
-    const context = assembler.createContext('test-plugin');
-
-    // Assert
-    expect(context.getRequired).toBeTypeOf('function');
-  });
-});
-
-// ============================================================================
-// getAssembledCapabilities() Test Suite
-// ============================================================================
-
-describe('CapabilityAssembler.getAssembledCapabilities()', () => {
-  let assembler: CapabilityAssembler;
-
-  beforeEach(() => {
-    assembler = new CapabilityAssembler(createMockRegistry());
-  });
-
-  it('should return empty array initially', () => {
-    // Act
-    const capabilities = assembler.getAssembledCapabilities();
-
-    // Assert
-    expect(capabilities).toEqual([]);
-  });
-
-  it('should return all assembled capability IDs after assembly', async () => {
+  it('should return assembly counts after assembly', async () => {
     // Arrange
     const cap1 = createTestCapabilityType('assembled-1');
     const cap2 = createTestCapabilityType('assembled-2');
@@ -416,11 +371,10 @@ describe('CapabilityAssembler.getAssembledCapabilities()', () => {
     await assembler.assemble();
 
     // Act
-    const capabilities = assembler.getAssembledCapabilities();
+    const stats = assembler.getStats();
 
     // Assert
-    expect(capabilities).toContain('assembled-1');
-    expect(capabilities).toContain('assembled-2');
+    expect(stats).toEqual({ total: 2, assembled: 2, pending: 0 });
   });
 });
 

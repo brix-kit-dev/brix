@@ -37,24 +37,26 @@ import type { DiscoveredPlugin } from './plugin-discovery';
 // ============================================================================
 
 /**
- * Check if a plugin is reachable by testing its remoteEntry.js
- * Uses a short timeout to quickly filter unavailable plugins
+ * Check if a plugin is reachable by testing its remoteEntry.js.
+ * Uses a short range GET timeout to quickly filter unavailable plugins without
+ * producing false browser request-failed telemetry from HEAD probes.
  * 
  * @param remoteEntry - Plugin remote entry URL
  * @param timeout - Request timeout in milliseconds (default 2000ms)
  * @returns true if the plugin is reachable, false otherwise
  */
-async function checkPluginReachable(remoteEntry: string, timeout = 2000): Promise<boolean> {
+export async function checkPluginReachable(remoteEntry: string, timeout = 5000): Promise<boolean> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // HEAD request is lightweight and sufficient for availability check
     const response = await fetch(remoteEntry, {
-      method: 'HEAD',
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
       signal: controller.signal,
       cache: 'no-cache',
     });
+    await response.arrayBuffer();
     clearTimeout(timeoutId);
     return response.ok;
   } catch {
@@ -171,6 +173,10 @@ function convertBackendManifest(backend: BackendPluginManifest, pluginId: string
 
     const prefix = match[1];
     const rawName = match[2];
+
+    if (!rawName) {
+      return component;
+    }
 
     if (/Page(?:V\d+)?$/.test(rawName)) {
       return component;

@@ -22,6 +22,14 @@
 
 import type { LayoutState, LayoutChangeEvent, LayoutRequestResult } from '@brix-sdk/runtime-sdk-api-web';
 
+export type LayoutChangeSet = Partial<{
+  fullscreen: boolean;
+  sidebarVisible: boolean;
+  sidebarCollapsed: boolean;
+  headerVisible: boolean;
+  footerVisible: boolean;
+}>;
+
 /**
  * Layout Configuration
  */
@@ -151,12 +159,7 @@ export interface LayoutChangeRequest {
   /**
    * Requested changes
    */
-  changes: Partial<Pick<LayoutState, 
-    'isFullscreen' | 
-    'isSidebarVisible' | 
-    'isSidebarCollapsed' | 
-    'isHeaderVisible'
-  >>;
+  changes: LayoutChangeSet;
   
   /**
    * Request timestamp

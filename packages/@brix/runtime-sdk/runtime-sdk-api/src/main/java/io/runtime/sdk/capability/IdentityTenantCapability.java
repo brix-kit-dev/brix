@@ -150,6 +150,41 @@ public interface IdentityTenantCapability {
      */
     long getTokenVersion(Long identityId);
 
+        /**
+         * Records one failed password verification attempt for a global identity.
+         *
+         * <p>Implementations must increment the consecutive failure counter and,
+         * once {@code maxAttempts} is reached, transition the identity to a locked
+         * state until {@code now + lockMinutes}.</p>
+         *
+         * @param identityId identity ID
+         * @param maxAttempts number of consecutive failures that triggers lockout
+         * @param lockMinutes lockout duration in minutes
+         * @param clientIp remote client IP, if known
+         * @return resulting failure counter and lock state
+         * @since 3.2.1
+         */
+        LoginFailureRecord recordFailedLogin(Long identityId, int maxAttempts, int lockMinutes, String clientIp);
+
+        /**
+         * Records a successful password verification and clears the failure counter.
+         *
+         * @param identityId identity ID
+         * @param clientIp remote client IP, if known
+         * @since 3.2.1
+         */
+        void recordSuccessfulLogin(Long identityId, String clientIp);
+
+        /**
+         * Unlocks an identity when its temporary lockout deadline has elapsed.
+         *
+         * @param identityId identity ID
+         * @param now current time supplied by the caller
+         * @return true when the identity was unlocked by this call
+         * @since 3.2.1
+         */
+        boolean unlockExpiredLoginLock(Long identityId, Instant now);
+
     /**
      * 查询指定身份是否为活跃的平台管理员（S3 — PlatformAdmin 登录路径）。
      *
@@ -208,6 +243,17 @@ public interface IdentityTenantCapability {
                     + ", tokenVersion=" + tokenVersion + "}";
         }
     }
+
+        /**
+         * Result of recording a failed password verification attempt.
+         *
+         * @param failedLoginCount consecutive failed password count after the update
+         * @param locked whether the identity is locked after the update
+         * @param lockedUntil temporary lock deadline, null when not locked
+         * @since 3.2.1
+         */
+        record LoginFailureRecord(int failedLoginCount, boolean locked, Instant lockedUntil) {
+        }
 
     /**
      * 租户成员关系记录（B 端 Actor）。

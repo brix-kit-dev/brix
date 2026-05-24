@@ -15,10 +15,7 @@
  */
 package io.brix.platform.admin.service;
 
-import java.time.OffsetDateTime;
 import java.util.List;
-
-import jakarta.persistence.EntityNotFoundException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,22 +25,27 @@ import org.springframework.transaction.annotation.Transactional;
 import io.brix.platform.admin.dto.ChangeOwnPasswordRequest;
 import io.brix.platform.admin.dto.CreatePlatformAdminRequest;
 import io.brix.platform.admin.dto.CreatePlatformAdminResponse;
-import io.brix.platform.admin.dto.DisableAdminRequest;
 import io.brix.platform.admin.dto.PlatformAdminDto;
+import io.brix.platform.admin.dto.RevokeAdminRequest;
 import io.brix.platform.admin.dto.ResetPasswordResponse;
 import io.brix.platform.auth.AuditAction;
-import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.AuditEvent;
 import io.brix.platform.tenant.entity.Identity;
 import io.brix.platform.tenant.entity.PlatformAdmin;
-import io.brix.platform.tenant.enums.MemberStatus;
+import io.brix.platform.tenant.enums.IdentityStatus;
 import io.brix.platform.tenant.enums.PlatformAdminRole;
+import io.brix.platform.tenant.enums.PlatformAdminStatus;
+import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.PlatformAdminRepository;
 import io.brix.platform.tenant.service.AuditService;
 import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.capability.IdentityTenantCapability;
+import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.PasswordCapability;
+import io.runtime.sdk.capability.SecretEncryptionCapability;
+import io.runtime.sdk.capability.TotpCapability;
+import jakarta.persistence.EntityNotFoundException;
 
 /**
  * Production implementation of {@link PlatformAdminService}.
@@ -53,10 +55,8 @@ import io.runtime.sdk.capability.PasswordCapability;
  *   <li>{@link PlatformAdminRepository} — persists/loads {@code sys_platform_admin}</li>
  *   <li>{@link IdentityRepository} — persists/loads {@code sys_identity}</li>
  *   <li>{@link AuditService} — MUST be used for all audit writes (never bypass)</li>
- *   <li>{@link PasswordGeneratorService} — cryptographically secure temp-password generation</li>
  *   <li>{@link PasswordCapability} — BCrypt hash/verify</li>
  *   <li>{@link IdentityTenantCapability} — token_version management</li>
- *   <li>{@link IdGenerator} — Snowflake ID generation for new entities</li>
  * </ul>
  *
  * @author Brix Platform Team
@@ -68,38 +68,41 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
 
     private static final Logger log = LoggerFactory.getLogger(PlatformAdminServiceImpl.class);
 
-    /** Temporary password validity window after an admin reset. */
-    private static final int TEMP_PASSWORD_VALIDITY_HOURS = 24;
-
-    /** Maximum failed-login attempts before account lockout. */
-    private static final int MAX_FAILED_ATTEMPTS = 5;
-
-    /** Lockout duration in minutes. */
-    private static final int LOCK_DURATION_MINUTES = 15;
-
     private final PlatformAdminRepository adminRepository;
     private final IdentityRepository identityRepository;
     private final AuditService auditService;
-    private final PasswordGeneratorService passwordGenerator;
     private final PasswordCapability passwordCapability;
     private final IdentityTenantCapability identityTenantCapability;
-    private final IdGenerator idGenerator;
+        private final SetupTokenService setupTokenService;
+        private final NotificationCapability notificationCapability;
+        private final IdGenerator idGenerator;
+        private final io.brix.platform.admin.config.PlatformAdminSetupProperties setupProperties;
+        private final TotpCapability totpCapability;
+        private final SecretEncryptionCapability secretEncryptionCapability;
 
     public PlatformAdminServiceImpl(
             PlatformAdminRepository adminRepository,
             IdentityRepository identityRepository,
             AuditService auditService,
-            PasswordGeneratorService passwordGenerator,
             PasswordCapability passwordCapability,
-            IdentityTenantCapability identityTenantCapability,
-            IdGenerator idGenerator) {
+                        IdentityTenantCapability identityTenantCapability,
+                        SetupTokenService setupTokenService,
+                        NotificationCapability notificationCapability,
+                        IdGenerator idGenerator,
+                        io.brix.platform.admin.config.PlatformAdminSetupProperties setupProperties,
+                        TotpCapability totpCapability,
+                        SecretEncryptionCapability secretEncryptionCapability) {
         this.adminRepository = adminRepository;
         this.identityRepository = identityRepository;
         this.auditService = auditService;
-        this.passwordGenerator = passwordGenerator;
         this.passwordCapability = passwordCapability;
         this.identityTenantCapability = identityTenantCapability;
-        this.idGenerator = idGenerator;
+                this.setupTokenService = setupTokenService;
+                this.notificationCapability = notificationCapability;
+                this.idGenerator = idGenerator;
+                this.setupProperties = setupProperties;
+                this.totpCapability = totpCapability;
+                this.secretEncryptionCapability = secretEncryptionCapability;
     }
 
     // ========================================================================
@@ -127,74 +130,57 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     @Transactional
     public CreatePlatformAdminResponse createAdmin(CreatePlatformAdminRequest request,
                                                    Long operatorIdentityId) {
-        // Guard: email uniqueness
         if (identityRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException(
-                    "An identity with email '" + request.email() + "' already exists.");
+            throw new IllegalArgumentException("Identity email already exists");
         }
 
-        // Generate temp password FIRST — R-10: never store in logs or audit reason
-        String tempPassword = passwordGenerator.generate();
-
-        // Create the Identity record
         Identity identity = new Identity(request.email(), request.username());
         identity.setId(idGenerator.nextId());
-        identity.setPasswordHash(passwordCapability.hash(tempPassword));
-        identity.verifyEmail();          // starts as ACTIVE; no email confirmation for admin accounts
-        identity.requirePasswordChange(); // operator must rotate on first login
-        identityRepository.save(identity);
+        identity.setStatus(IdentityStatus.PENDING_SETUP);
+        identity.setPasswordHash(null);
+        identity.setMfaEnabled(false);
+        identityRepository.saveAndFlush(identity);
 
-        // Create the PlatformAdmin record
-        PlatformAdminRole role = PlatformAdminRole.valueOf(request.role());
-        PlatformAdmin admin = new PlatformAdmin(identity.getId(), role);
+        PlatformAdmin admin = new PlatformAdmin(identity.getId(), PlatformAdminRole.PLATFORM_SUPER_ADMIN);
         admin.setId(idGenerator.nextId());
-        admin.setStatus(MemberStatus.ACTIVE);
-        admin.setNotes(request.notes());
+        admin.setStatus(PlatformAdminStatus.ACTIVE);
+        admin.setMfaEnabled(false);
         admin.setCreatedBy(operatorIdentityId);
-        admin.markTempPasswordIssued(OffsetDateTime.now().plusHours(TEMP_PASSWORD_VALIDITY_HOURS));
-        adminRepository.save(admin);
+        admin.setNotes(request.notes());
+        adminRepository.saveAndFlush(admin);
 
-        // Audit — R-10: description MUST NOT mention the password value
+        SetupTokenService.IssuedSetupToken setupToken = setupTokenService.issue(
+                identity.getId(), SetupTokenService.PURPOSE_INITIAL_SETUP, operatorIdentityId);
+        sendSetupLinkOrFail(identity.getEmail(), setupToken);
+
         auditService.log(AuditEvent.builder()
                 .createdBy(operatorIdentityId)
                 .action(AuditAction.SUPER_ADMIN_CREATED)
                 .resourceType("PLATFORM_ADMIN")
                 .resourceId(String.valueOf(admin.getId()))
-                .description("Created platform admin account for email: " + request.email()
-                        + " with role: " + request.role())
+                .description("Platform administrator setup link issued.")
                 .success(true)
                 .build());
 
-        log.info("Platform admin account created: adminId={}, identityId={}, role={}, createdBy={}",
-                admin.getId(), identity.getId(), request.role(), operatorIdentityId);
-
-        return new CreatePlatformAdminResponse(
-                admin.getId(),
-                identity.getId(),
-                request.username(),
-                request.email(),
-                request.role(),
-                tempPassword   // R-10: sole disclosure point
-        );
+        return new CreatePlatformAdminResponse(admin.getId(), identity.getId(), true);
     }
 
     @Override
     @Transactional
-    public void disableAdmin(Long adminId, DisableAdminRequest request, Long operatorIdentityId) {
+        public void revokeAdmin(Long adminId, RevokeAdminRequest request, Long operatorIdentityId) {
         PlatformAdmin admin = loadAdmin(adminId);
 
-        // Guard: cannot disable the last active SUPER_ADMIN
-        if (admin.getRole() == PlatformAdminRole.SUPER_ADMIN) {
+                // Guard: cannot revoke the last active formal platform super admin.
+                if (admin.getRole() == PlatformAdminRole.PLATFORM_SUPER_ADMIN) {
             long activeSuperAdmins = adminRepository.findActiveSuperAdmins().size();
             if (activeSuperAdmins <= 1) {
                 throw new IllegalStateException(
-                        "Cannot disable the last active SUPER_ADMIN account. " +
-                        "Promote another admin to SUPER_ADMIN first.");
+                                                "Cannot revoke the last active PLATFORM_SUPER_ADMIN account. " +
+                                                "Create another formal super admin first.");
             }
         }
 
-        // Perform the disable
-        admin.disable(operatorIdentityId, request.reason());
+                admin.revoke(operatorIdentityId, request.reason());
         adminRepository.save(admin);
 
         // Invalidate outstanding JWTs by incrementing token_version
@@ -203,49 +189,48 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
         // Audit
         auditService.log(AuditEvent.builder()
                 .createdBy(operatorIdentityId)
-                .action(AuditAction.SUPER_ADMIN_DISABLED)
+                .action(AuditAction.SUPER_ADMIN_REVOKED)
                 .resourceType("PLATFORM_ADMIN")
                 .resourceId(String.valueOf(adminId))
-                .description("Disabled platform admin account. Reason: " + sanitizeReason(request.reason()))
+                .description("Revoked platform admin grant. Reason: " + sanitizeReason(request.reason()))
                 .success(true)
                 .build());
 
-        log.info("Platform admin disabled: adminId={}, disabledBy={}", adminId, operatorIdentityId);
+        log.info("Platform admin revoked: adminId={}, revokedBy={}", adminId, operatorIdentityId);
     }
 
     @Override
     @Transactional
     public ResetPasswordResponse resetPassword(Long adminId, Long operatorIdentityId) {
         PlatformAdmin admin = loadAdmin(adminId);
-        Long identityId = admin.getIdentityId();
+        Identity identity = identityRepository.findById(admin.getIdentityId())
+                .orElseThrow(() -> new EntityNotFoundException("Identity not found: " + admin.getIdentityId()));
 
-        // Generate temp password — R-10: never log this value
-        String tempPassword = passwordGenerator.generate();
-        String newHash = passwordCapability.hash(tempPassword);
-
-        // Update password hash and force change-on-next-login
-        identityTenantCapability.updatePasswordHash(identityId, newHash);
-
-        // Record temp password expiry on the admin record
-        admin.markTempPasswordIssued(OffsetDateTime.now().plusHours(TEMP_PASSWORD_VALIDITY_HOURS));
+        setupTokenService.invalidatePreviousFor(identity.getId());
+        identity.setStatus(IdentityStatus.PENDING_SETUP);
+        identity.setPasswordHash(null);
+        identity.setMfaEnabled(false);
+        identity.setMfaSecretEncrypted(null);
+        identity.setMfaBoundAt(null);
+        identityRepository.save(identity);
+        admin.setMfaEnabled(false);
         adminRepository.save(admin);
+        identityTenantCapability.incrementTokenVersion(identity.getId());
 
-        // Invalidate outstanding JWTs
-        identityTenantCapability.incrementTokenVersion(identityId);
+        SetupTokenService.IssuedSetupToken setupToken = setupTokenService.issue(
+                identity.getId(), SetupTokenService.PURPOSE_PASSWORD_RESET, operatorIdentityId);
+        sendSetupLinkOrFail(identity.getEmail(), setupToken);
 
-        // Audit — R-10: description MUST NOT mention the password value
         auditService.log(AuditEvent.builder()
                 .createdBy(operatorIdentityId)
                 .action(AuditAction.SUPER_ADMIN_PASSWORD_RESET)
                 .resourceType("PLATFORM_ADMIN")
                 .resourceId(String.valueOf(adminId))
-                .description("Temporary password issued for platform admin account.")
+                .description("Platform administrator password reset setup link issued.")
                 .success(true)
                 .build());
 
-        log.info("Password reset for platform admin: adminId={}, resetBy={}", adminId, operatorIdentityId);
-
-        return new ResetPasswordResponse(tempPassword); // R-10: sole disclosure point
+        return new ResetPasswordResponse(true);
     }
 
     @Override
@@ -255,25 +240,31 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Identity not found: " + identityId));
 
-        // Verify old password
         if (!passwordCapability.verify(request.oldPassword(), identity.getPasswordHash())) {
             throw new AuthFlowCapability.AuthFlowException(
                     AuthFlowCapability.AuthFlowException.CODE_OLD_PASSWORD_MISMATCH,
                     "Current password is incorrect.");
         }
+        if (!identity.isMfaEnabled() || identity.getMfaSecretEncrypted() == null) {
+            throw new AuthFlowCapability.AuthFlowException(
+                    AuthFlowCapability.AuthFlowException.CODE_MFA_SETUP_REQUIRED,
+                    "TOTP MFA is required.");
+        }
+        String secret = secretEncryptionCapability.decryptSecret(identity.getMfaSecretEncrypted());
+        if (!totpCapability.validateCode(secret, request.totpCode())) {
+            throw new AuthFlowCapability.AuthFlowException(
+                    AuthFlowCapability.AuthFlowException.CODE_MFA_REQUIRED,
+                    "TOTP code is invalid.");
+        }
 
-        // Update password hash and clear force-change flag
+        PlatformPasswordPolicy.requireCompliant(request.newPassword());
         String newHash = passwordCapability.hash(request.newPassword());
-        identityTenantCapability.updatePasswordHash(identityId, newHash);
+        identity.setPasswordHash(newHash);
+        identity.setPasswordMustChange(false);
+        identityRepository.saveAndFlush(identity);
 
         // Invalidate outstanding JWTs
         identityTenantCapability.incrementTokenVersion(identityId);
-
-        // Clear temp-password expiry if applicable
-        adminRepository.findByIdentityId(identityId).ifPresent(admin -> {
-            admin.clearTempPassword();
-            adminRepository.save(admin);
-        });
 
         // Audit
         auditService.log(AuditEvent.builder()
@@ -321,6 +312,17 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
                         admin.isMfaEnabled(),
                         admin.getNotes(),
                         admin.getCreatedAt()));
+    }
+
+    private void sendSetupLinkOrFail(String email, SetupTokenService.IssuedSetupToken setupToken) {
+        try {
+            notificationCapability.sendSetupLink(email,
+                    setupProperties.buildSetupUrl(setupToken.token()), setupToken.purpose());
+        } catch (RuntimeException ex) {
+            log.warn("Platform admin setup-link delivery failed for email={}, purpose={}",
+                    email, setupToken.purpose(), ex);
+            throw new SetupLinkDeliveryException(ex);
+        }
     }
 
     /**

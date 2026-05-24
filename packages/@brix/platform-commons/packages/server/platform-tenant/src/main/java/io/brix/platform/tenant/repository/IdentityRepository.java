@@ -16,7 +16,7 @@
 package io.brix.platform.tenant.repository;
 
 import io.brix.platform.tenant.entity.Identity;
-import io.brix.platform.tenant.enums.MemberStatus;
+import io.brix.platform.tenant.enums.IdentityStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -77,7 +77,7 @@ public interface IdentityRepository extends JpaRepository<Identity, Long> {
      * @param status the status to filter by
      * @return list of identities with the specified status
      */
-    List<Identity> findByStatus(MemberStatus status);
+    List<Identity> findByStatus(IdentityStatus status);
 
     /**
      * Finds active identities with unverified email.
@@ -149,7 +149,7 @@ public interface IdentityRepository extends JpaRepository<Identity, Long> {
      * @param status the status to count
      * @return number of identities with the specified status
      */
-    long countByStatus(MemberStatus status);
+    long countByStatus(IdentityStatus status);
 
     /**
      * Searches identities by email or username.

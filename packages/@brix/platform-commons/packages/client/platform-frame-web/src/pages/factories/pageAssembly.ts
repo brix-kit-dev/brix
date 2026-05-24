@@ -70,6 +70,7 @@ import {
 import type {
   LoginFormBranding,
   LoginFormResult,
+  RegisterFormData,
   RegisterFormResult,
 } from '@brix-sdk/platform-auth-web';
 import { createSimpleDashboardPage } from '../DashboardPage';
@@ -114,13 +115,13 @@ export interface PageAuthService {
   /** Log out the current user */
   logout: () => void;
   /** Register a new user */
-  register: (data: unknown) => Promise<void>;
+  register: (data: RegisterFormData) => Promise<RegisterFormResult>;
   /** Retrieve the current authenticated user info */
   getUser: () => { name?: string } | null;
   /** Initiate an OAuth login flow for the given provider */
   initiateOAuthLogin: (providerId: string) => void;
   /** Handle the OAuth callback after redirect */
-  handleOAuthCallback: (provider: string, code: string, state?: string) => Promise<void>;
+  handleOAuthCallback: (provider: string, code: string, state: string) => Promise<LoginFormResult>;
   /** Check whether the current session is authenticated */
   isAuthenticated: () => boolean;
 }
@@ -261,10 +262,9 @@ export function createRegisterPageFactory(deps: PageFactoryDeps): React.Componen
   const { authService, navigationService, branding } = deps;
 
   return createSimpleRegisterPage({
-    onRegister: async (data: Record<string, unknown>): Promise<RegisterFormResult> => {
+    onRegister: async (data: RegisterFormData): Promise<RegisterFormResult> => {
       try {
-        await authService.register(data);
-        return { success: true };
+        return await authService.register(data);
       } catch (error) {
         return {
           success: false,

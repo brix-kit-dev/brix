@@ -6,9 +6,9 @@
 /**
  * @file SuperAdminListPage — paginated list of platform super-admins.
  *
- * Composes {@link useSuperAdminList} (read), {@link useDisableSuperAdmin}
+ * Composes {@link useSuperAdminList} (read), {@link useRevokeSuperAdmin}
  * (mutation), and the two dialogs `CreateSuperAdminDialog` /
- * `ResetPasswordDialog` (one-shot temp-password flows).
+ * `ResetPasswordDialog` (setup-link flows).
  *
  * Permission gating uses bare permission codes from
  * {@link PLATFORM_ADMIN_PERMISSIONS}; never string literals.
@@ -25,9 +25,10 @@ import {
   TriState,
   DataTable,
   StatusBadge,
+  IconActionButton,
 } from '../internal/ui-kit';
 import { useSuperAdminList } from '../hooks/useSuperAdminList';
-import { useDisableSuperAdmin } from '../hooks/useDisableSuperAdmin';
+import { useRevokeSuperAdmin } from '../hooks/useRevokeSuperAdmin';
 import { CreateSuperAdminDialog } from './CreateSuperAdminDialog';
 import { ResetPasswordDialog } from './ResetPasswordDialog';
 import {
@@ -40,7 +41,7 @@ import type { PlatformAdminDto } from '../types';
 type DialogState =
   | { kind: 'none' }
   | { kind: 'create' }
-  | { kind: 'disable'; admin: PlatformAdminDto }
+  | { kind: 'revoke'; admin: PlatformAdminDto }
   | { kind: 'reset'; admin: PlatformAdminDto };
 
 export function SuperAdminListPage(): JSX.Element {
@@ -51,13 +52,13 @@ export function SuperAdminListPage(): JSX.Element {
   const { hasPermission } = useAuth();
 
   const list = useSuperAdminList();
-  const disable = useDisableSuperAdmin();
+  const revoke = useRevokeSuperAdmin();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
-  const [disableReason, setDisableReason] = useState('');
+  const [revokeReason, setRevokeReason] = useState('');
   const [reasonTouched, setReasonTouched] = useState(false);
 
   const canCreate = hasPermission(PLATFORM_ADMIN_PERMISSIONS.ADMIN_CREATE);
-  const canDisable = hasPermission(PLATFORM_ADMIN_PERMISSIONS.ADMIN_DISABLE);
+  const canRevoke = hasPermission(PLATFORM_ADMIN_PERMISSIONS.ADMIN_REVOKE);
   const canReset = hasPermission(
     PLATFORM_ADMIN_PERMISSIONS.ADMIN_RESET_PASSWORD,
   );
@@ -65,22 +66,22 @@ export function SuperAdminListPage(): JSX.Element {
   const activeCount = adminsOnPage.filter(
     (admin) => admin.status === PLATFORM_ADMIN_STATUS.ACTIVE,
   ).length;
-  const disabledCount = adminsOnPage.filter(
-    (admin) => admin.status === PLATFORM_ADMIN_STATUS.DISABLED,
+  const revokedCount = adminsOnPage.filter(
+    (admin) => admin.status === PLATFORM_ADMIN_STATUS.REVOKED,
   ).length;
 
-  function openDisable(admin: PlatformAdminDto) {
-    setDisableReason('');
+  function openRevoke(admin: PlatformAdminDto) {
+    setRevokeReason('');
     setReasonTouched(false);
-    setDialog({ kind: 'disable', admin });
+    setDialog({ kind: 'revoke', admin });
   }
 
-  async function confirmDisable() {
-    if (dialog.kind !== 'disable') return;
+  async function confirmRevoke() {
+    if (dialog.kind !== 'revoke') return;
     setReasonTouched(true);
-    if (!disableReason.trim()) return;
+    if (!revokeReason.trim()) return;
     try {
-      await disable.disable(dialog.admin.id, { reason: disableReason.trim() });
+      await revoke.revoke(dialog.admin.id, { reason: revokeReason.trim() });
       message.success?.('OK');
       setDialog({ kind: 'none' });
       await list.refresh();
@@ -96,13 +97,7 @@ export function SuperAdminListPage(): JSX.Element {
         subtitle={tt(I18N_KEYS.admin.listSubtitle)}
         actions={
           <>
-            <Button
-              variant="secondary"
-              onClick={() => list.refresh()}
-              data-testid="super-admin-refresh"
-            >
-              {tt(I18N_KEYS.common.refresh)}
-            </Button>
+
             {canCreate ? (
               <Button
                 onClick={() => setDialog({ kind: 'create' })}
@@ -111,6 +106,13 @@ export function SuperAdminListPage(): JSX.Element {
                 {tt(I18N_KEYS.admin.create)}
               </Button>
             ) : null}
+            <Button
+              variant="secondary"
+              onClick={() => list.refresh()}
+              data-testid="super-admin-refresh"
+            >
+              {tt(I18N_KEYS.common.refresh)}
+            </Button>
           </>
         }
       />
@@ -131,9 +133,9 @@ export function SuperAdminListPage(): JSX.Element {
             tone: 'success',
           },
           {
-            label: tt(I18N_KEYS.admin.summaryDisabled),
-            value: disabledCount,
-            tone: disabledCount > 0 ? 'warning' : 'neutral',
+            label: tt(I18N_KEYS.admin.summaryRevoked),
+            value: revokedCount,
+            tone: revokedCount > 0 ? 'warning' : 'neutral',
           },
         ]}
       />
@@ -155,7 +157,7 @@ export function SuperAdminListPage(): JSX.Element {
                 key: 'username',
                 header: tt(I18N_KEYS.admin.colUsername),
                 render: (r) => (
-                  <div style={{ display: 'grid', gap: 2 }}>
+                  <div style={{ display: 'grid', gap: t.space.xs }}>
                     <strong style={{ fontWeight: 700 }}>
                       {r.displayName ?? r.username}
                     </strong>
@@ -187,7 +189,7 @@ export function SuperAdminListPage(): JSX.Element {
                     </StatusBadge>
                   ) : (
                     <StatusBadge kind="neutral">
-                      {tt(I18N_KEYS.admin.statusDisabled)}
+                      {tt(I18N_KEYS.admin.statusRevoked)}
                     </StatusBadge>
                   ),
               },
@@ -205,29 +207,28 @@ export function SuperAdminListPage(): JSX.Element {
                 key: 'actions',
                 header: tt(I18N_KEYS.common.actions),
                 render: (r) => (
-                  <div style={{ display: 'flex', gap: t.space.xs, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: t.space.xs, flexWrap: 'nowrap', justifyContent: 'center' }}>
                     {canReset && r.status === PLATFORM_ADMIN_STATUS.ACTIVE ? (
-                      <Button
-                        size="small"
-                        variant="secondary"
+                      <IconActionButton
+                        icon="vpn_key"
+                        label={tt(I18N_KEYS.admin.actionResetPassword)}
                         onClick={() => setDialog({ kind: 'reset', admin: r })}
                         data-testid="super-admin-row-reset-password"
-                      >
-                        {tt(I18N_KEYS.admin.actionResetPassword)}
-                      </Button>
+                      />
                     ) : null}
-                    {canDisable && r.status === PLATFORM_ADMIN_STATUS.ACTIVE ? (
-                      <Button
-                        size="small"
-                        variant="danger"
-                        onClick={() => openDisable(r)}
-                        data-testid="super-admin-row-disable"
-                      >
-                        {tt(I18N_KEYS.admin.actionDisable)}
-                      </Button>
+                    {canRevoke && r.status === PLATFORM_ADMIN_STATUS.ACTIVE ? (
+                      <IconActionButton
+                        icon="block"
+                        label={tt(I18N_KEYS.admin.actionRevoke)}
+                        tone="danger"
+                        onClick={() => openRevoke(r)}
+                        data-testid="super-admin-row-revoke"
+                      />
                     ) : null}
                   </div>
                 ),
+                align: 'center',
+                width: '92px',
               },
             ]}
           />
@@ -250,39 +251,74 @@ export function SuperAdminListPage(): JSX.Element {
         />
       ) : null}
 
-      {dialog.kind === 'disable' ? (
+      {dialog.kind === 'revoke' ? (
         <Modal
           open
-          title={tt(I18N_KEYS.admin.disableDialogTitle)}
-          onClose={() => setDialog({ kind: 'none' })}
-          onConfirm={confirmDisable}
-          confirmLoading={disable.loading}
-          confirmText={tt(I18N_KEYS.common.confirm)}
+          title={tt(I18N_KEYS.admin.revokeDialogTitle)}
+          onClose={() => {
+            if (!revoke.loading) setDialog({ kind: 'none' });
+          }}
+          onConfirm={confirmRevoke}
+          confirmLoading={revoke.loading}
+          confirmText={tt(I18N_KEYS.admin.actionRevoke)}
           cancelText={tt(I18N_KEYS.common.cancel)}
-          data-testid="super-admin-disable-dialog"
+          closeOnEscape={!revoke.loading}
+          closeOnOverlayClick={false}
+          data-testid="super-admin-revoke-dialog"
         >
-          <p>
-            {tt(I18N_KEYS.admin.disableConfirm, {
-              name: dialog.admin.username,
-            })}
-          </p>
-          <Input
-            type="text"
-            multiline
-            rows={3}
-            label={tt(I18N_KEYS.admin.disableReason)}
-            value={disableReason}
-            required
-            fullWidth
-            onChange={(e) => setDisableReason(e.target.value)}
-            error={reasonTouched && !disableReason.trim()}
-            helperText={
-              reasonTouched && !disableReason.trim()
-                ? tt(I18N_KEYS.admin.requiredField)
-                : ''
-            }
-            data-testid="super-admin-disable-reason"
-          />
+          <div style={{ display: 'grid', gap: t.space.md }}>
+            <div
+              role="alert"
+              style={{
+                padding: t.space.md,
+                borderRadius: t.shape.md,
+                border: `1px solid color-mix(in srgb, ${t.colors.status.error} 36%, ${t.colors.border.default})`,
+                background: `color-mix(in srgb, ${t.colors.status.error} 8%, ${t.colors.surface.elevated})`,
+                color: t.colors.text.primary,
+              }}
+            >
+              <strong style={{ display: 'block', marginBottom: t.space.xs }}>
+                {tt(I18N_KEYS.admin.revokeConfirm, {
+                  name: dialog.admin.username,
+                })}
+              </strong>
+              <span style={{ color: t.colors.text.secondary }}>
+                {dialog.admin.email ?? dialog.admin.role}
+              </span>
+            </div>
+            <Input
+              type="text"
+              multiline
+              rows={3}
+              label={tt(I18N_KEYS.admin.revokeReason)}
+              value={revokeReason}
+              required
+              fullWidth
+              onChange={(e) => setRevokeReason(e.target.value)}
+              error={reasonTouched && !revokeReason.trim()}
+              helperText={
+                reasonTouched && !revokeReason.trim()
+                  ? tt(I18N_KEYS.admin.requiredField)
+                  : ''
+              }
+              data-testid="super-admin-revoke-reason"
+            />
+            {revoke.error ? (
+              <div
+                role="alert"
+                style={{
+                  padding: t.space.sm,
+                  borderRadius: t.shape.sm,
+                  background: `color-mix(in srgb, ${t.colors.status.error} 12%, ${t.colors.surface.elevated})`,
+                  color: t.colors.status.error,
+                  border: `1px solid color-mix(in srgb, ${t.colors.status.error} 36%, ${t.colors.border.default})`,
+                  fontSize: t.typography.bodySmall.fontSize,
+                }}
+              >
+                {revoke.error.message}
+              </div>
+            ) : null}
+          </div>
         </Modal>
       ) : null}
     </AdminPageShell>

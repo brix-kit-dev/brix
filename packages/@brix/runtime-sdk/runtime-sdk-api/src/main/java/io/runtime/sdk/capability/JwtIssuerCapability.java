@@ -87,6 +87,32 @@ public interface JwtIssuerCapability {
      */
     String issuePlatformAdminToken(PlatformAdminTokenRequest request);
 
+        /**
+         * Signs a short-lived MFA challenge token for platform-admin login.
+         *
+         * <p>The token proves that password verification succeeded but must not be
+         * accepted as a PLATFORM access token. It is valid only for the dedicated
+         * platform TOTP verification endpoint.</p>
+         *
+         * @param request MFA challenge token request
+         * @return signed JWT string
+         * @since 3.2.0
+         */
+        String issuePlatformMfaChallengeToken(PlatformMfaChallengeTokenRequest request);
+
+        /**
+         * Signs a short-lived Bootstrap Setup token.
+         *
+         * <p>This token is not a PLATFORM login token. It is valid only for the
+         * dedicated bootstrap setup endpoints and must carry the restricted
+         * bootstrap permission set.</p>
+         *
+         * @param request bootstrap setup token request
+         * @return signed JWT string
+         * @since 3.2.0
+         */
+        String issueBootstrapSetupToken(BootstrapSetupTokenRequest request);
+
     /**
      * 返回 Access Token 的默认有效期（秒）。
      *
@@ -171,7 +197,7 @@ public interface JwtIssuerCapability {
      * @param identityId   关联身份 ID（可为 {@code null}，若管理员有 sys_identity 记录）
      * @param email        管理员邮箱
      * @param username     管理员用户名
-     * @param adminRole    平台角色（SUPER_ADMIN / OPS / SECURITY 等）
+        * @param adminRole    平台角色（PLATFORM_SUPER_ADMIN）
      * @param permissions  权限编码列表（不可为 {@code null}，可为空）
      * @param tokenVersion 令牌版本号（A3，写入 {@code tv} claim）
      */
@@ -183,6 +209,48 @@ public interface JwtIssuerCapability {
             String adminRole,
             List<String> permissions,
             long tokenVersion
+    ) {}
+
+    /**
+     * Platform-admin MFA challenge token signing request.
+     *
+     * @param adminId platform-admin ID
+     * @param identityId associated identity ID
+     * @param email identity email
+     * @param username identity display name
+     * @param adminRole platform role code
+     * @param tokenVersion current token version
+     */
+    record PlatformMfaChallengeTokenRequest(
+            Long adminId,
+            Long identityId,
+            String email,
+            String username,
+            String adminRole,
+            long tokenVersion
+    ) {}
+
+    /**
+     * Bootstrap Setup token signing request.
+     *
+     * @param bootstrapAdminId platform-admin ID for the BOOTSTRAP grant
+     * @param identityId       passwordless bootstrap identity ID
+     * @param email            bootstrap identity email
+     * @param username         bootstrap display name
+     * @param permissions      restricted bootstrap permissions
+     * @param tokenVersion     current bootstrap identity token version
+     * @param expiresInSeconds token TTL in seconds
+     * @param jti              one-time bootstrap session identifier
+     */
+    record BootstrapSetupTokenRequest(
+            Long bootstrapAdminId,
+            Long identityId,
+            String email,
+            String username,
+            List<String> permissions,
+            long tokenVersion,
+            long expiresInSeconds,
+            String jti
     ) {}
 
     // ========== Phase 2 / C-4 ViewMode — Platform-Admin Viewing Token ==========
@@ -217,7 +285,7 @@ public interface JwtIssuerCapability {
      * @param identityId    associated identity ID
      * @param email         admin email
      * @param username      admin username
-     * @param adminRole     platform role (SUPER_ADMIN / OPS / SECURITY ...)
+        * @param adminRole     platform role (PLATFORM_SUPER_ADMIN)
      * @param permissions   permission codes (non-null, possibly empty)
      * @param tokenVersion  current token version
      * @param viewTenantId  target tenant being viewed (non-null)

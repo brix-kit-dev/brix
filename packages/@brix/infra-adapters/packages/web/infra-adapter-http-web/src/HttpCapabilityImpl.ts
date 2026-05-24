@@ -337,9 +337,19 @@ export class HttpCapabilityImpl implements HttpCapability {
       }
     }
 
-    // Check cache for GET requests
+    // Check cache for GET requests.
+    // Honor Cache-Control: no-cache / no-store request headers per RFC 7234 §5.2.1:
+    // callers that require fresh data (e.g. explicit refresh, post-mutation reload)
+    // set this header so the cached entry is bypassed.
     const method = processedConfig.method ?? 'GET';
-    if (method === 'GET') {
+    const cacheControlHeader = processedConfig.headers?.['Cache-Control'] ?? '';
+    const skipCache =
+      cacheControlHeader === 'no-cache' ||
+      cacheControlHeader === 'no-store' ||
+      cacheControlHeader.includes('no-cache') ||
+      cacheControlHeader.includes('no-store');
+
+    if (method === 'GET' && !skipCache) {
       const cacheKey = generateCacheKey(
         this.buildUrl(processedConfig.url, processedConfig.params),
         processedConfig.params ?? {},
@@ -383,8 +393,15 @@ export class HttpCapabilityImpl implements HttpCapability {
       response = (await interceptor.onResponse(response)) as HttpResponse<T>;
     }
 
-    // Cache GET responses
-    if (method === 'GET' && response.status >= 200 && response.status < 300) {
+    // Mutating requests (POST/PATCH/PUT/DELETE) must invalidate the GET cache
+    // so that subsequent list() calls return the server-authoritative state.
+    // This prevents stale-read after write (e.g. disable admin → refresh list).
+    if (method !== 'GET' && response.status >= 200 && response.status < 300) {
+      this.cache.clear();
+    }
+
+    // Cache GET responses (skip when Cache-Control: no-cache/no-store was requested).
+    if (method === 'GET' && !skipCache && response.status >= 200 && response.status < 300) {
       const cacheKey = generateCacheKey(
         this.buildUrl(processedConfig.url, processedConfig.params),
         processedConfig.params ?? {},

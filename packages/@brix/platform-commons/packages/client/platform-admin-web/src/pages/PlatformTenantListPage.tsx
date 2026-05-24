@@ -12,7 +12,8 @@
  */
 
 import { useState } from 'react';
-import { useAuth, useI18n } from '@brix-sdk/runtime-sdk-react';
+import { useAuth, useI18n, useTheme } from '@brix-sdk/runtime-sdk-react';
+import type { DesignTokens } from '@brix-sdk/runtime-sdk-api-web';
 import {
   useUIStrict,
   AdminPageShell,
@@ -22,9 +23,11 @@ import {
   TriState,
   DataTable,
   StatusBadge,
+  IconActionButton,
 } from '../internal/ui-kit';
 import { usePlatformTenantList } from '../hooks/usePlatformTenantList';
 import { UpdateTenantStatusDialog } from './UpdateTenantStatusDialog';
+import { CreateTenantDialog } from './CreateTenantDialog';
 import {
   PLATFORM_ADMIN_PERMISSIONS,
   PLATFORM_TENANT_STATUS,
@@ -56,16 +59,20 @@ function badgeKind(status: PlatformTenantStatus) {
 
 export function PlatformTenantListPage(): JSX.Element {
   const { Button, Input, Select } = useUIStrict();
+  const { tokens } = useTheme();
+  const t = tokens as DesignTokens;
   const tt = makeT(useI18n(I18N_NAMESPACE).t);
   const { hasPermission } = useAuth();
 
   const list = usePlatformTenantList();
   const [editing, setEditing] = useState<PlatformTenantDto | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
 
   const canUpdate = hasPermission(
     PLATFORM_ADMIN_PERMISSIONS.TENANT_UPDATE_STATUS,
   );
+  const canCreate = hasPermission(PLATFORM_ADMIN_PERMISSIONS.TENANT_CREATE);
   const tenantsOnPage = list.data?.content ?? [];
   const activeCount = tenantsOnPage.filter(
     (tenant) => tenant.status === PLATFORM_TENANT_STATUS.ACTIVE,
@@ -88,13 +95,24 @@ export function PlatformTenantListPage(): JSX.Element {
         title={tt(I18N_KEYS.tenant.listTitle)}
         subtitle={tt(I18N_KEYS.tenant.listSubtitle)}
         actions={
-          <Button
-            variant="secondary"
-            onClick={() => list.refresh()}
-            data-testid="platform-tenant-refresh"
-          >
-            {tt(I18N_KEYS.common.refresh)}
-          </Button>
+          <div style={{ display: 'flex', gap: t.space.xs }}>
+            {canCreate && (
+              <Button
+                variant="primary"
+                onClick={() => setCreateOpen(true)}
+                data-testid="platform-tenant-create"
+              >
+                {tt(I18N_KEYS.tenant.createBtn)}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => list.refresh()}
+              data-testid="platform-tenant-refresh"
+            >
+              {tt(I18N_KEYS.common.refresh)}
+            </Button>
+          </div>
         }
       />
 
@@ -208,17 +226,17 @@ export function PlatformTenantListPage(): JSX.Element {
                 header: tt(I18N_KEYS.common.actions),
                 render: (r) =>
                   canUpdate ? (
-                    <Button
-                      size="small"
-                      variant="secondary"
+                    <IconActionButton
+                      icon="edit"
+                      label={tt(I18N_KEYS.tenant.actionUpdateStatus)}
                       onClick={() => setEditing(r)}
                       data-testid="platform-tenant-row-update-status"
-                    >
-                      {tt(I18N_KEYS.tenant.actionUpdateStatus)}
-                    </Button>
+                    />
                   ) : (
                     '—'
                   ),
+                align: 'center',
+                width: '72px',
               },
             ]}
           />
@@ -236,6 +254,15 @@ export function PlatformTenantListPage(): JSX.Element {
           }}
         />
       ) : null}
+
+      <CreateTenantDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          setCreateOpen(false);
+          void list.refresh();
+        }}
+      />
     </AdminPageShell>
   );
 }

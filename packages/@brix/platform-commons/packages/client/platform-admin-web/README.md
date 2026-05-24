@@ -1,73 +1,40 @@
 # @brix-sdk/platform-admin-web
 
-> Platform Super-Admin Web SDK — Pages, Hooks and Repositories for the
-> [`platform-admin`](../../server/platform-admin) backend module.
->
-> Implements **§9 Frontend Page Design** of
-> [`v1.0-平台超管最小实现-唯一真相来源.md`](../../../../../../../docs/v1.0-平台超管最小实现-唯一真相来源.md)
-> (SSOT v1.1, frozen).
+Platform Super-Admin Web SDK: pages, hooks, route guards, and repositories for
+the `platform-admin` backend module.
 
----
+This package implements the v2.0 super-admin web flow from
+`docs/v2.0-平台超管功能最小实现-设计蓝图.md`.
 
-## Architectural Position (Layer 2C — Client Mirror)
+## Architecture
 
-```
-@brix-sdk/platform-admin-web   ←  this package
-        │ peerDependencies
-        ▼
-@brix-sdk/runtime-sdk-react   →  hooks: useHttp, useUI, useAuth, useTheme, …
-@brix-sdk/runtime-sdk-api-web →  HttpCapability / AuthCapability / UIAdapter contracts
+`platform-admin-web` is the client mirror of a Layer 2C platform capability. It
+lives in `platform-commons`, not in `enterprise-solutions`.
+
+The layering is:
+
+```text
+View / Page -> Hook -> Repository -> HttpCapability
 ```
 
-This package is published from the `brix` (open-source) monorepo. It belongs to
-**platform-commons**, NOT to `enterprise-solutions/*`. Business plugins MUST NOT
-depend on this package, and this package MUST NOT depend on any
-`enterprise-*` package (SSOT §11 R-1 / R-2).
-
----
+Business plugins must not depend on this package, and this package must not
+depend on any `enterprise-*` package.
 
 ## Public Surface
 
 | Sub-export | Contents |
-|------------|----------|
-| `@brix-sdk/platform-admin-web`              | Convenience barrel (re-exports below) |
-| `@brix-sdk/platform-admin-web/constants`    | `PLATFORM_ADMIN_PERMISSIONS`, `PLATFORM_ADMIN_ROUTES`, `PLATFORM_AUDIT_ACTIONS` |
-| `@brix-sdk/platform-admin-web/repositories` | Repository factories (no React deps) |
-| `@brix-sdk/platform-admin-web/hooks`        | React hooks (require `RuntimeContextProvider`) |
-| `@brix-sdk/platform-admin-web/pages`        | Page components (require `UIAdapter` + `react-router-dom`) |
+| --- | --- |
+| `@brix-sdk/platform-admin-web` | Convenience barrel |
+| `@brix-sdk/platform-admin-web/module` | Runtime module definition and route contributions |
+| `@brix-sdk/platform-admin-web/constants` | Routes, permissions, API paths, audit actions |
+| `@brix-sdk/platform-admin-web/repositories` | Repository factories |
+| `@brix-sdk/platform-admin-web/hooks` | React view-model hooks |
+| `@brix-sdk/platform-admin-web/pages` | Page components |
 
----
+## Red Lines
 
-## Architectural Red Lines (enforced by ESLint plugin `@brix-sdk/eslint-plugin-brix`)
-
-* ❌ Direct `fetch` / `axios` / `window.fetch` — **always** go through `Repository → HttpCapability`.
-* ❌ Direct imports of `antd` / `@mui/material` / any concrete UI library — use `useUI()` and `useTheme().tokens`.
-* ❌ Hard-coded role strings (`"SUPER_ADMIN"`) — use `RoleCode` constants re-exported from `@brix-sdk/platform-admin-web/constants`.
-* ❌ Hard-coded route paths — use `PLATFORM_ADMIN_ROUTES`.
-
----
-
-## Quick Start
-
-```tsx
-import {
-  PlatformLoginPage,
-  SuperAdminListPage,
-  PlatformDashboardPage,
-} from '@brix-sdk/platform-admin-web/pages';
-import { PLATFORM_ADMIN_ROUTES } from '@brix-sdk/platform-admin-web/constants';
-import { Routes, Route } from 'react-router-dom';
-
-export const PlatformAdminRouter = () => (
-  <Routes>
-    <Route path={PLATFORM_ADMIN_ROUTES.LOGIN}     element={<PlatformLoginPage />} />
-    <Route path={PLATFORM_ADMIN_ROUTES.DASHBOARD} element={<PlatformDashboardPage />} />
-    <Route path={PLATFORM_ADMIN_ROUTES.ADMINS}    element={<SuperAdminListPage />} />
-    {/* ... */}
-  </Routes>
-);
-```
-
-## License
-
-Apache-2.0 © Brix Platform Authors
+- No direct `fetch`, `axios`, or `window.fetch`; use Repository -> `HttpCapability`.
+- No direct `antd`, `@mui/material`, or concrete UI library imports; use `useUI()`.
+- No platform auth decisions from legacy response booleans; use token scope and permissions.
+- No plaintext credentials, setup token, setup URL, or MFA secret in UI state, API response handling, or logs.
+- No permission fallback such as `permissions.canX || true`.

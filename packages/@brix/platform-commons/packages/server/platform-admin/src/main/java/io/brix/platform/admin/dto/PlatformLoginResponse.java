@@ -18,6 +18,8 @@ package io.brix.platform.admin.dto;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 /**
  * Platform admin login response.
@@ -34,13 +36,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * @param accessToken       signed JWT (null for MFA_REQUIRED / PASSWORD_MUST_CHANGE)
  * @param refreshToken      opaque refresh token (null for non-COMPLETE statuses)
  * @param expiresIn         access token TTL in seconds
- * @param platformRole      role string (SUPER_ADMIN / PLATFORM_ADMIN / SUPPORT_ADMIN / AUDITOR)
+ * @param platformRole      role string (PLATFORM_SUPER_ADMIN)
  * @param permissions       permission code list embedded in the JWT
  * @param identityId        authenticated identity id
  * @param email             authenticated identity email
  * @param displayName       authenticated identity display name
  * @param mustChangePassword true if the admin must rotate their password before continuing
- * @param identityToken     short-lived token for MFA challenge (non-null only when MFA_REQUIRED)
+ * @param mfaChallengeToken short-lived token for TOTP verification (non-null only when MFA_REQUIRED)
  * @author Brix Platform Team
  * @since 3.2.0
  */
@@ -52,9 +54,10 @@ public record PlatformLoginResponse(
         long expiresIn,
         String platformRole,
         List<String> permissions,
+        @JsonSerialize(using = ToStringSerializer.class)
         Long identityId,
         String email,
         String displayName,
         Boolean mustChangePassword,
-        String identityToken
+        String mfaChallengeToken
 ) {}

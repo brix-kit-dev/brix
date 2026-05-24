@@ -36,7 +36,6 @@ import type {
   PluginContext,
   CapabilityRegistry,
 } from '@brix-sdk/runtime-sdk-api-web';
-import { EventBusCapabilityType } from '@brix-sdk/runtime-sdk-api-web';
 import type { PluginContribution } from './plugin-manager-types';
 
 /**
@@ -74,69 +73,23 @@ export function createPluginContext(
   const { registry, recordContribution } = deps;
   
   return {
-    // Plugin meta information
     pluginId: entry.id,
-    pluginVersion: entry.version,
-    
-    // Capability access
-    getCapability: <T>(capabilityType: { id: string }): T | undefined => {
-      return registry.get(capabilityType as { id: string; __type: T }) as T | undefined;
-    },
-    
-    // Capability registration
-    registerCapability: <T>(
-      capabilityType: { id: string },
-      provider: { provide: () => T }
-    ): void => {
-      registry.register(
-        capabilityType as { id: string; __type: T },
-        provider as { provide: () => T }
-      );
-      
-      // Record contribution for cleanup tracking
-      recordContribution(entry.id, {
-        type: 'capability',
-        id: capabilityType.id,
-        cleanup: () => {
-          registry.unregister(capabilityType as { id: string; __type: T });
-        },
-      });
-    },
-    
-    // Event publishing
-    emit: (eventType, payload): void => {
-      const eventBus = registry.get(EventBusCapabilityType);
-      
-      if (eventBus) {
-        eventBus.emit({
-          type: eventType,
-          payload,
-          source: entry.id,
-          timestamp: Date.now(),
-        });
-      }
-    },
-    
-    // Event subscription
-    subscribe: <T>(eventType: string, handler: (payload: T) => void) => {
-      const eventBus = registry.get(EventBusCapabilityType);
-      
-      if (eventBus) {
-        eventBus.on(eventType, handler);
-        
-        // Record contribution for cleanup tracking
+    registry,
+    contributeRoutes: (routes) => {
+      for (const route of routes) {
         recordContribution(entry.id, {
-          type: 'eventHandler',
-          id: `${eventType}-${Date.now()}`,
-          cleanup: () => {
-            eventBus.off(eventType, handler);
-          },
+          type: 'route',
+          id: route.path,
         });
       }
-      
-      return () => {
-        eventBus?.off(eventType, handler);
-      };
+    },
+    contributeMenus: (menus) => {
+      for (const menu of menus) {
+        recordContribution(entry.id, {
+          type: 'menu',
+          id: menu.id,
+        });
+      }
     },
   };
 }

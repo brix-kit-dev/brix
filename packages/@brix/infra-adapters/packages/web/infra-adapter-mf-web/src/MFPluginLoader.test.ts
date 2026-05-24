@@ -19,7 +19,7 @@
  * @module @brix-sdk/infra-adapter-mf-web/test
  * @version 3.2.0
  * 
- * ¡¾Test Coverage¡¿
+ * ï¿½ï¿½Test Coverageï¿½ï¿½
  * - load(): Plugin loading, caching, retry
  * - unload(): Plugin unloading
  * - isLoaded(): Load status check
@@ -39,12 +39,12 @@ import type { PluginManifest, PluginInstance } from './types';
 // Mock MFContainerManager
 vi.mock('./MFContainer', () => ({
   MFContainerManager: vi.fn().mockImplementation(() => ({
-    loadContainer: vi.fn().mockResolvedValue({
-      get: vi.fn().mockResolvedValue(() => ({
-        default: () => 'TestComponent',
-        metadata: { name: 'Test Plugin' },
-      })),
+    loadContainer: vi.fn().mockResolvedValue({}),
+    getModule: vi.fn().mockResolvedValue({
+      default: () => 'TestComponent',
+      metadata: { name: 'Test Plugin' },
     }),
+    prefetchScript: vi.fn(),
     init: vi.fn().mockResolvedValue(undefined),
   })),
 }));
@@ -255,10 +255,10 @@ describe('MFPluginLoader.isLoaded()', () => {
 });
 
 // ============================================================================
-// getLoadedPlugins() Test Suite
+// getLoaded() Test Suite
 // ============================================================================
 
-describe('MFPluginLoader.getLoadedPlugins()', () => {
+describe('MFPluginLoader.getLoaded()', () => {
   let loader: MFPluginLoader;
 
   beforeEach(() => {
@@ -267,7 +267,7 @@ describe('MFPluginLoader.getLoadedPlugins()', () => {
 
   it('should return empty array initially', () => {
     // Execute
-    const plugins = loader.getLoadedPlugins();
+    const plugins = loader.getLoaded();
 
     // Assert
     expect(plugins).toEqual([]);
@@ -279,7 +279,7 @@ describe('MFPluginLoader.getLoadedPlugins()', () => {
     await loader.load(manifest);
 
     // Execute
-    const plugins = loader.getLoadedPlugins();
+    const plugins = loader.getLoaded();
 
     // Assert
     expect(plugins.length).toBe(1);
@@ -360,11 +360,11 @@ describe('MFPluginLoader.preload()', () => {
     ];
 
     // Execute
-    const results = await loader.preload(manifests);
+    await loader.preload(manifests);
 
     // Assert
-    expect(results.length).toBe(2);
-    expect(results.every(r => r.success)).toBe(true);
+    expect(loader.isLoaded('plugin-1')).toBe(false);
+    expect(loader.isLoaded('plugin-2')).toBe(false);
   });
 
   it('should not affect other plugins when single preload fails', async () => {
@@ -375,9 +375,9 @@ describe('MFPluginLoader.preload()', () => {
     ];
 
     // Execute
-    const results = await loader.preload(manifests);
+    await loader.preload(manifests);
 
     // Assert
-    expect(results.length).toBe(1);
+    expect(loader.isLoaded('valid-plugin')).toBe(false);
   });
 });

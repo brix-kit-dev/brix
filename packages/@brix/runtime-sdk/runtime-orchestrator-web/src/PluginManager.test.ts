@@ -76,7 +76,7 @@ function createTestPluginEntry(overrides?: Partial<PluginEntry>): PluginEntry {
     id: 'test-plugin',
     name: 'Test Plugin',
     version: '1.0.0',
-    load: vi.fn().mockResolvedValue(createMockPluginLifecycle()),
+    loader: vi.fn().mockResolvedValue(createMockPluginLifecycle()),
     ...overrides,
   };
 }
@@ -234,7 +234,7 @@ describe('PluginManager.load()', () => {
 
     // Assert
     expect(instance).toBeDefined();
-    expect(entry.load).toHaveBeenCalled();
+    expect(entry.loader).toHaveBeenCalled();
   });
 
   it('plugin status should be loaded after loading', async () => {
@@ -258,7 +258,7 @@ describe('PluginManager.load()', () => {
     // Arrange
     const entry = createTestPluginEntry({
       id: 'will-fail',
-      load: vi.fn().mockRejectedValue(new Error('Load failed')),
+      loader: vi.fn().mockRejectedValue(new Error('Load failed')),
     });
     manager.register(entry);
 
@@ -299,7 +299,7 @@ describe('PluginManager.loadAll()', () => {
     // Arrange
     const entry1 = createTestPluginEntry({
       id: 'will-fail',
-      load: vi.fn().mockRejectedValue(new Error('Failed')),
+      loader: vi.fn().mockRejectedValue(new Error('Failed')),
     });
     const entry2 = createTestPluginEntry({ id: 'will-succeed' });
     manager.registerAll([entry1, entry2]);
@@ -429,7 +429,7 @@ describe('PluginManager Strict Mode', () => {
 
     const entry1 = createTestPluginEntry({
       id: 'will-fail',
-      load: vi.fn().mockRejectedValue(new Error('Failed')),
+      loader: vi.fn().mockRejectedValue(new Error('Failed')),
     });
     const entry2 = createTestPluginEntry({ id: 'should-not-load' });
     manager.registerAll([entry1, entry2]);

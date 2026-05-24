@@ -16,6 +16,7 @@
 package io.brix.platform.tenant.service;
 
 import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.tenant.annotation.CrossTenantAccess;
+import io.brix.platform.auth.AuditAction;
+import io.brix.platform.tenant.dto.AuditEvent;
 import io.brix.platform.tenant.entity.Identity;
 import io.brix.platform.tenant.entity.PlatformAdmin;
 import io.brix.platform.tenant.entity.Tenant;
@@ -62,17 +65,20 @@ public class IdentityTenantCapabilityImpl implements IdentityTenantCapability {
     private final TenantPrincipalRepository principalRepository;
     private final TenantRepository tenantRepository;
     private final PlatformAdminRepository platformAdminRepository;
+    private final AuditService auditService;
 
     public IdentityTenantCapabilityImpl(IdentityRepository identityRepository,
                                         TenantMemberRepository memberRepository,
                                         TenantPrincipalRepository principalRepository,
                                         TenantRepository tenantRepository,
-                                        PlatformAdminRepository platformAdminRepository) {
+                                        PlatformAdminRepository platformAdminRepository,
+                                        AuditService auditService) {
         this.identityRepository = identityRepository;
         this.memberRepository = memberRepository;
         this.principalRepository = principalRepository;
         this.tenantRepository = tenantRepository;
         this.platformAdminRepository = platformAdminRepository;
+        this.auditService = auditService;
     }
 
     @Override
@@ -302,5 +308,68 @@ public class IdentityTenantCapabilityImpl implements IdentityTenantCapability {
         return identityRepository.findById(identityId)
                 .map(Identity::getTokenVersion)
                 .orElseThrow(() -> new IllegalArgumentException("Identity not found: id=" + identityId));
+    }
+
+    @Override
+    @Transactional
+    public LoginFailureRecord recordFailedLogin(Long identityId, int maxAttempts, int lockMinutes, String clientIp) {
+        if (identityId == null) {
+            throw new IllegalArgumentException("identityId is required");
+        }
+        Identity identity = identityRepository.findById(identityId)
+                .orElseThrow(() -> new IllegalArgumentException("Identity not found: id=" + identityId));
+        boolean wasLocked = identity.getStatus() == io.brix.platform.tenant.enums.IdentityStatus.LOCKED;
+        identity.recordFailedLogin(maxAttempts, lockMinutes);
+        boolean isLocked = identity.getStatus() == io.brix.platform.tenant.enums.IdentityStatus.LOCKED;
+        if (isLocked && !wasLocked) {
+            identity.setTokenVersion(identity.getTokenVersion() + 1);
+        }
+        identityRepository.save(identity);
+        if (isLocked && !wasLocked) {
+            auditService.log(AuditEvent.builder()
+                    .createdBy(identity.getId())
+                    .action(AuditAction.IDENTITY_LOCKED)
+                    .resourceType("IDENTITY")
+                    .resourceId(String.valueOf(identity.getId()))
+                    .description("Identity locked after repeated failed platform login attempts.")
+                    .clientIp(clientIp)
+                    .success(true)
+                    .build());
+        }
+        Instant lockedUntil = identity.getLockedUntil() != null ? identity.getLockedUntil().toInstant() : null;
+        return new LoginFailureRecord(identity.getFailedLoginCount(), isLocked, lockedUntil);
+    }
+
+    @Override
+    @Transactional
+    public void recordSuccessfulLogin(Long identityId, String clientIp) {
+        if (identityId == null) {
+            throw new IllegalArgumentException("identityId is required");
+        }
+        Identity identity = identityRepository.findById(identityId)
+                .orElseThrow(() -> new IllegalArgumentException("Identity not found: id=" + identityId));
+        identity.recordSuccessfulLogin(clientIp);
+        identityRepository.save(identity);
+    }
+
+    @Override
+    @Transactional
+    public boolean unlockExpiredLoginLock(Long identityId, Instant now) {
+        if (identityId == null) {
+            throw new IllegalArgumentException("identityId is required");
+        }
+        Identity identity = identityRepository.findById(identityId)
+                .orElseThrow(() -> new IllegalArgumentException("Identity not found: id=" + identityId));
+        if (identity.getStatus() != io.brix.platform.tenant.enums.IdentityStatus.LOCKED
+                || identity.getLockedUntil() == null
+                || now == null
+                || now.isBefore(identity.getLockedUntil().toInstant())) {
+            return false;
+        }
+        identity.setStatus(io.brix.platform.tenant.enums.IdentityStatus.ACTIVE);
+        identity.setFailedLoginCount(0);
+        identity.setLockedUntil(null);
+        identityRepository.save(identity);
+        return true;
     }
 }

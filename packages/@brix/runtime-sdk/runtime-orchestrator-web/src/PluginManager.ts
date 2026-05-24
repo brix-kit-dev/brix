@@ -40,6 +40,7 @@ import type {
   PluginLifecycle,
   PluginStatus,
   CapabilityRegistry,
+  EventBusCapability,
 } from '@brix-sdk/runtime-sdk-api-web';
 import { EventBusCapabilityType } from '@brix-sdk/runtime-sdk-api-web';
 import type { CapabilityAssembler } from './CapabilityAssembler';
@@ -68,9 +69,6 @@ export class PluginManager {
   /** Capability registry reference */
   private readonly registry: CapabilityRegistry;
   
-  /** Capability assembler reference */
-  private readonly assembler: CapabilityAssembler;
-  
   /** Configuration */
   private readonly config: Required<PluginManagerConfig>;
   
@@ -86,11 +84,10 @@ export class PluginManager {
    */
   constructor(
     registry: CapabilityRegistry,
-    assembler: CapabilityAssembler,
+    _assembler: CapabilityAssembler,
     config: PluginManagerConfig = {}
   ) {
     this.registry = registry;
-    this.assembler = assembler;
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
   
@@ -227,10 +224,7 @@ export class PluginManager {
         recordContribution: (id, contribution) => this.recordContribution(id, contribution),
       });
       
-      // Call onActivate lifecycle hook
-      if (runtime.instance?.onActivate) {
-        await runtime.instance.onActivate(context);
-      }
+      await runtime.instance?.activate(context);
       
       runtime.status = 'active';
       runtime.activatedAt = Date.now();
@@ -291,10 +285,7 @@ export class PluginManager {
       runtime.status = 'deactivating';
       this.emitEvent('plugin:deactivating', { pluginId });
       
-      // Call onDeactivate lifecycle hook
-      if (runtime.instance?.onDeactivate) {
-        await runtime.instance.onDeactivate();
-      }
+      await runtime.instance?.deactivate?.();
       
       // Clean up plugin contributions
       this.cleanupContributions(runtime);
@@ -356,14 +347,6 @@ export class PluginManager {
       await this.deactivate(pluginId);
     }
     
-    // Call onDispose lifecycle hook
-    if (runtime.instance?.onDispose) {
-      try {
-        await runtime.instance.onDispose();
-      } catch (error) {
-      }
-    }
-    
     this.plugins.delete(pluginId);
     this.emitEvent('plugin:unregistered', { pluginId });
     
@@ -395,6 +378,16 @@ export class PluginManager {
       status: runtime.status,
       error: runtime.error,
     }));
+  }
+
+  getPlugin(pluginId: string): PluginRuntime | undefined {
+    return this.plugins.get(pluginId);
+  }
+
+  getLoadedPlugins(): PluginRuntime[] {
+    return Array.from(this.plugins.values()).filter(
+      (runtime) => runtime.status === 'loaded' || runtime.status === 'active'
+    );
   }
   
   /**
@@ -437,12 +430,11 @@ export class PluginManager {
    * Emit event
    */
   private emitEvent(type: string, payload: Record<string, unknown>): void {
-    const eventBus = this.registry.get(EventBusCapabilityType);
+    const eventBus = this.registry.get<EventBusCapability>(EventBusCapabilityType);
     
     if (eventBus) {
-      eventBus.emit({
-        type,
-        payload,
+      eventBus.emit(type, {
+        ...payload,
         source: 'PluginManager',
         timestamp: Date.now(),
       });

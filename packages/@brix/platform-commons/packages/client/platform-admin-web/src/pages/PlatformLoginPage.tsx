@@ -6,12 +6,8 @@
 /**
  * @file PlatformLoginPage — Platform Super-Admin entry point.
  *
- * Routing contract: on success the page navigates to either
- * {@link PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD} (when
- * `forcePasswordChange === true`) or {@link PLATFORM_ADMIN_ROUTES.DASHBOARD}.
- * The host shell is responsible for persisting `accessToken` —
- * we surface the response and submitted loginId via {@link onLoginSuccess}
- * so a host can hook in.
+ * Routing contract: password verification only. On success the page routes to
+ * the TOTP step with the MFA challenge carried in router state.
  */
 
 import { useState, type CSSProperties, type FormEvent } from 'react';
@@ -22,20 +18,12 @@ import { useUIStrict } from '../internal/ui-kit';
 import { usePlatformLogin } from '../hooks/usePlatformLogin';
 import { I18N_KEYS, I18N_NAMESPACE, makeT } from '../i18n';
 import { PLATFORM_ADMIN_ROUTES } from '../constants';
-import type { PlatformLoginResponse } from '../types';
 import shinwaLogoUrl from '../assets/shinwa.png';
 
-export interface PlatformLoginPageProps {
-  /**
-   * Optional callback invoked after a successful login.
-   * Hosts typically use this to persist `accessToken` and update the
-   * AuthCapability state.
-   */
-  onLoginSuccess?: (res: PlatformLoginResponse, loginId: string) => void;
-}
+export interface PlatformLoginPageProps {}
 
-export function PlatformLoginPage(props: PlatformLoginPageProps): JSX.Element {
-  const { Button, Input, Card, Icon, message } = useUIStrict();
+export function PlatformLoginPage(_props: PlatformLoginPageProps): JSX.Element {
+  const { Button, Input, Card, Icon } = useUIStrict();
   const { tokens } = useTheme();
   const t = tokens as DesignTokens;
   const tt = makeT(useI18n(I18N_NAMESPACE).t);
@@ -46,6 +34,7 @@ export function PlatformLoginPage(props: PlatformLoginPageProps): JSX.Element {
   const [password, setPassword] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const usernameError = submitted && !username.trim();
   const passwordError = submitted && !password;
@@ -70,14 +59,19 @@ export function PlatformLoginPage(props: PlatformLoginPageProps): JSX.Element {
     if (!username.trim() || !password) return;
 
     try {
+      setSubmitError(null);
       const res = await login({ loginId: username.trim(), password });
-      props.onLoginSuccess?.(res, username.trim());
-      if (res.forcePasswordChange ?? res.mustChangePassword) {
-        message.warning?.(tt(I18N_KEYS.login.forcePasswordChange));
-        navigate(PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD, { replace: true });
-      } else {
-        navigate(PLATFORM_ADMIN_ROUTES.DASHBOARD, { replace: true });
+      if (!res.mfaChallengeToken) {
+        setSubmitError(tt(I18N_KEYS.login.mfaChallengeMissing));
+        return;
       }
+      navigate(PLATFORM_ADMIN_ROUTES.LOGIN_TOTP, {
+        replace: true,
+        state: {
+          mfaChallengeToken: res.mfaChallengeToken,
+          loginId: username.trim(),
+        },
+      });
     } catch {
       // error already captured by hook; surface via inline alert below
     }
@@ -386,7 +380,7 @@ export function PlatformLoginPage(props: PlatformLoginPageProps): JSX.Element {
               </button>
             </div>
 
-            {error ? (
+            {error || submitError ? (
               <div
                 role="alert"
                 style={{
@@ -401,7 +395,7 @@ export function PlatformLoginPage(props: PlatformLoginPageProps): JSX.Element {
                   lineHeight: t.typography.bodySmall.lineHeight,
                 }}
               >
-                {error.message || tt(I18N_KEYS.login.invalidCreds)}
+                {submitError ?? error?.message ?? tt(I18N_KEYS.login.invalidCreds)}
               </div>
             ) : null}
 
