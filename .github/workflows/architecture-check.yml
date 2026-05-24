@@ -144,6 +144,15 @@ jobs:
         env:
           CI: true
 
+      - name: Build TypeScript type dependencies
+        run: |
+          pnpm --filter @brix-sdk/runtime-sdk-api-web run build
+          pnpm --filter @brix-sdk/runtime-sdk-react run build
+          pnpm --filter @brix-sdk/shared-runtime-web run build
+          pnpm --filter @brix-sdk/runtime-manifest-web run build
+        env:
+          CI: true
+
       # ----------------------------------------------------------------------
       # Step: Typecheck — fail-at-end so that a single broken package does
       # not hide unrelated regressions.
