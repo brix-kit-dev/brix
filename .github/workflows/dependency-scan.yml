@@ -5,6 +5,7 @@
 # Phase 4.5 — CI dependency vulnerability scanning.
 #
 # This workflow performs two complementary scans:
+# Workflow changes are included in push paths so scanner behavior is validated.
 #
 # 1. **OWASP Dependency-Check** (scheduled + push)
 #    - Scans all Maven dependencies against the NVD (National Vulnerability

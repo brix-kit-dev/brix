@@ -7,7 +7,7 @@
 # Enforces three architectural invariants on every PR / push to main:
 #   1. Lint passes across all SDK packages (no rule disabled silently).
 #   2. TypeScript type-checks across all SDK packages.
-#   3. Vitest suite passes across all SDK packages.
+#   3. Architecture guard unit tests pass.
 #
 # This workflow intentionally does NOT include @brix-sdk/enterprise-*
 # packages — those live in the brix-enterprise repository and are gated
@@ -34,7 +34,6 @@ on:
       - 'package.json'
       - 'pom.xml'
       - 'pnpm-lock.yaml'
-      - '.github/workflows/architecture-check.yml'
   push:
     branches: [main, develop]
     paths:
@@ -44,6 +43,7 @@ on:
       - 'packages/**/pom.xml'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
       - 'scripts/check-banned-tokens.mjs'
+      - '.github/workflows/architecture-check.yml'
       - 'package.json'
       - 'pom.xml'
       - 'pnpm-lock.yaml'
