@@ -595,6 +595,9 @@ importers:
 
   packages/@brix/platform-commons/packages/client/platform-auth-ui-web:
     dependencies:
+      '@brix-sdk/platform-auth-service-web':
+        specifier: workspace:*
+        version: link:../platform-auth-service-web
       '@brix-sdk/runtime-sdk-api-web':
         specifier: workspace:*
         version: link:../../../../runtime-sdk/runtime-sdk-api-web

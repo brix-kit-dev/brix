@@ -30,7 +30,7 @@ import {
   type GoogleAuthResult,
   type GoogleUserInfo,
   type OAuthError,
-} from '@brix-sdk/platform-auth-web';
+} from '@brix-sdk/platform-auth-service-web';
 
 // ============================================================================
 // Storage Adapter (minimal interface — avoids cross-package dependency)
