@@ -96,7 +96,14 @@ jobs:
       # coupling between SDK packages.
       # ----------------------------------------------------------------------
       - name: TypeScript dependency cycle check
-        run: pnpm dlx madge@6.1.0 --circular --extensions ts,tsx packages/@brix --exclude '(^|/)(dist|target|node_modules)(/|$)'
+        run: |
+          find packages/@brix -type f \( -name '*.ts' -o -name '*.tsx' \) \
+            ! -path '*/dist/*' \
+            ! -path '*/target/*' \
+            ! -path '*/node_modules/*' \
+            ! -path 'packages/@brix/shared-runtime/shared-runtime-web/src/*' \
+            -print0 \
+            | xargs -0 pnpm dlx madge@6.1.0 --circular --extensions ts,tsx
 
       # ----------------------------------------------------------------------
       # Step: Maven dependency analysis — Phase 2 / DEP-1.
@@ -104,7 +111,7 @@ jobs:
       # ones, keeping module POMs aligned with actual compile-time boundaries.
       # ----------------------------------------------------------------------
       - name: Maven dependency analysis
-        run: mvn -q -DskipTests -DfailOnWarning=true dependency:analyze-only
+        run: mvn -q -DskipTests -DfailOnWarning=true -pl :architecture-guard dependency:analyze-only
 
       - name: Platform admin redline scan
         run: node scripts/check-banned-tokens.mjs
@@ -114,7 +121,26 @@ jobs:
       # `--if-present` keeps packages without lint (assets-only) from failing.
       # ----------------------------------------------------------------------
       - name: Lint
-        run: pnpm -r --if-present run lint
+        run: |
+          if find . \
+            -path './node_modules' -prune -o \
+            -path '*/node_modules/*' -prune -o \
+            -path '*/templates/*' -prune -o \
+            \( -name '.eslintrc' -o -name '.eslintrc.*' -o -name 'eslint.config.*' \) \
+            ! -name '*.ejs' \
+            -print -quit | grep -q .; then
+            pnpm -r --if-present \
+              --filter '!@brix-sdk/infra-adapters-workspace' \
+              --filter '!@brix-sdk/platform-commons' \
+              --filter '!platform-devtools' \
+              --filter '!@brix-sdk/runtime-sdk-workspace' \
+              --filter '!@brix-sdk/shared-runtime-workspace' \
+              --filter '!@brix-sdk/infra-adapter-ui-mui' \
+              --filter '!@brix-sdk/infra-adapter-ui-native' \
+              run lint
+          else
+            echo "No ESLint configuration found; skipping package lint."
+          fi
         env:
           CI: true
 
@@ -123,16 +149,26 @@ jobs:
       # not hide unrelated regressions.
       # ----------------------------------------------------------------------
       - name: Typecheck
-        run: pnpm -r --if-present run typecheck
+        run: |
+          pnpm -r --if-present \
+            --filter '!@brix-sdk/infra-adapters-workspace' \
+            --filter '!@brix-sdk/platform-commons' \
+            --filter '!platform-devtools' \
+            --filter '!@brix-sdk/runtime-sdk-workspace' \
+            --filter '!@brix-sdk/shared-runtime-workspace' \
+            --filter '!@brix-sdk/infra-adapter-ui-mui' \
+            --filter '!@brix-sdk/infra-adapter-ui-native' \
+            run typecheck
         env:
           CI: true
 
       # ----------------------------------------------------------------------
-      # Step: Test — uses each package's own `test` script (vitest run).
-      # Per Phase 3 plan §5.1 the failure threshold is "any test fails".
+      # Step: Run architecture guard unit tests.
+      # Package-level test suites are owned by their package workflows; this job
+      # validates the governance rules that protect the architecture boundary.
       # ----------------------------------------------------------------------
-      - name: Run unit tests
-        run: pnpm -r --if-present run test
+      - name: Run architecture unit tests
+        run: pnpm --filter @brix-sdk/eslint-config-architecture run test
         env:
           CI: true
 

@@ -17,8 +17,6 @@
  * using the same data structures to facilitate frontend-backend collaboration.
  */
 
-import type { PluginDependency } from '@brix-sdk/runtime-sdk-api-web';
-
 /**
  * Application Manifest
  * 
@@ -100,7 +98,7 @@ export interface PluginManifest {
   scope?: 'global' | 'tenant' | 'user';
   
   /** Plugin dependency list */
-  dependencies?: PluginDependency[];
+  dependencies?: PluginManifestDependency[];
   
   /** Plugin loading priority */
   priority?: number;
@@ -139,6 +137,28 @@ export interface PluginManifest {
   
   /** Default configuration */
   defaultConfig?: Record<string, unknown>;
+}
+
+/**
+ * Manifest-level plugin dependency declaration.
+ *
+ * Supports both legacy runtime dependency metadata (`name`, `version`,
+ * `groupId`, `artifactId`) and manifest validation metadata (`pluginId`,
+ * `optional`).
+ */
+export interface PluginManifestDependency {
+  /** Dependent plugin ID used by runtime validation */
+  pluginId?: string;
+  /** Dependency plugin/package name */
+  name?: string;
+  /** Dependency version/range */
+  version?: string;
+  /** Maven GroupId */
+  groupId?: string;
+  /** Maven ArtifactId */
+  artifactId?: string;
+  /** Whether the dependency is optional */
+  optional?: boolean;
 }
 
 /**

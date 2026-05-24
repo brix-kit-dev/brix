@@ -236,11 +236,9 @@ describe('ConfigCapabilityImpl', () => {
       // Initial call + first refresh
       expect(httpCapability.get).toHaveBeenCalledTimes(1);
 
-      // Fast-forward 1 minute
-      vi.advanceTimersByTime(60000);
-      
-      // Should trigger refresh
-      await vi.runAllTimersAsync();
+      // Fast-forward one interval only; runAllTimersAsync would keep advancing
+      // the repeating interval until Vitest aborts.
+      await vi.advanceTimersByTimeAsync(60000);
       expect(httpCapability.get).toHaveBeenCalledTimes(2);
     });
 
@@ -253,8 +251,7 @@ describe('ConfigCapabilityImpl', () => {
       await configCapability.initialize();
       expect(httpCapability.get).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime(60000);
-      await vi.runAllTimersAsync();
+      await vi.advanceTimersByTimeAsync(60000);
       
       // Should not have additional calls
       expect(httpCapability.get).toHaveBeenCalledTimes(1);
@@ -271,8 +268,7 @@ describe('ConfigCapabilityImpl', () => {
       await configCapability.initialize();
       configCapability.destroy();
 
-      vi.advanceTimersByTime(120000);
-      await vi.runAllTimersAsync();
+      await vi.advanceTimersByTimeAsync(120000);
 
       // Should only have initial call
       expect(httpCapability.get).toHaveBeenCalledTimes(1);

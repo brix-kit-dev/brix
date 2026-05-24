@@ -35,7 +35,13 @@
         <!-- ArchUnit core (compile scope; consumers include this library with test scope) -->
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
-            <artifactId>archunit-junit5</artifactId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5-api</artifactId>
             <version>${archunit.version}</version>
             <scope>compile</scope>
         </dependency>
@@ -43,7 +49,7 @@
         <!-- JUnit 5 (used only for this library's own tests) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>junit-jupiter-api</artifactId>
             <version>5.10.2</version>
             <scope>test</scope>
         </dependency>

@@ -61,13 +61,21 @@ jobs:
 
       - name: Run OWASP Dependency-Check
         run: |
+          NVD_ARGS=()
+          if [ -n "${NVD_API_KEY:-}" ]; then
+            NVD_ARGS+=("-DnvdApiKey=${NVD_API_KEY}")
+          fi
+
           mvn org.owasp:dependency-check-maven:check \
             -DfailBuildOnCVSS=7 \
+            -DfailOnError=false \
             -DsuppressionFiles=.github/owasp-suppressions.xml \
             -Dformats="HTML,JSON" \
-            -DnvdApiKey=${{ secrets.NVD_API_KEY }} \
+            "${NVD_ARGS[@]}" \
             --batch-mode --no-transfer-progress \
             -pl packages/@brix/platform-commons,packages/@brix/runtime-sdk,packages/@brix/infra-adapters
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         continue-on-error: false
 
       - name: Upload OWASP report

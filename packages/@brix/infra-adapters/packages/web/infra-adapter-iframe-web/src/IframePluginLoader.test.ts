@@ -44,6 +44,8 @@ vi.mock('./IframeBridge', () => ({
     send: vi.fn().mockResolvedValue({}),
     onMessage: vi.fn(() => vi.fn()),
     isConnected: vi.fn().mockReturnValue(true),
+    startListening: vi.fn(),
+    stopListening: vi.fn(),
   })),
 }));
 
@@ -53,7 +55,8 @@ const mockIframe = {
     postMessage: vi.fn(),
   },
   src: '',
-  sandbox: { add: vi.fn() },
+  sandbox: { add: vi.fn(), value: '' },
+  dataset: {},
   style: {},
   addEventListener: vi.fn((event: string, callback: () => void) => {
     if (event === 'load') {
@@ -63,6 +66,12 @@ const mockIframe = {
   }),
   removeEventListener: vi.fn(),
   remove: vi.fn(),
+  set onload(callback: () => void) {
+    setTimeout(callback, 10);
+  },
+  set onerror(_callback: () => void) {
+    // The happy-path tests do not simulate iframe load errors.
+  },
 };
 
 // @ts-expect-error - Mock createElement
@@ -72,6 +81,8 @@ document.createElement = vi.fn((tagName: string) => {
   }
   return document.implementation.createHTMLDocument().createElement(tagName);
 });
+
+vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
 
 // ============================================================================
 // Test Factories and Helper Functions
@@ -213,7 +224,7 @@ describe('IframePluginLoader.load()', () => {
 
       // Assert
       // Verify sandbox attributes are set
-      expect(mockIframe.sandbox.add).toHaveBeenCalled();
+      expect(mockIframe.sandbox.value).toContain('allow-scripts');
     });
   });
 
@@ -353,7 +364,7 @@ describe('IframePluginLoader.getLoadedPlugins()', () => {
 
   it('should return empty array initially', () => {
     // Execute
-    const plugins = loader.getLoadedPlugins();
+    const plugins = Array.from(loader.getLoaded().values());
 
     // Assert
     expect(plugins).toEqual([]);
@@ -365,7 +376,7 @@ describe('IframePluginLoader.getLoadedPlugins()', () => {
     await loader.load(manifest);
 
     // Execute
-    const plugins = loader.getLoadedPlugins();
+    const plugins = Array.from(loader.getLoaded().values());
 
     // Assert
     expect(plugins.length).toBe(1);

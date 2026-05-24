@@ -26,13 +26,27 @@
  * - Plugin entries -> PluginEntry objects
  */
 
-import type { PluginEntry } from '@brix-sdk/runtime-sdk-api-web';
 import type {
   AppManifest,
   PluginManifest,
   RouteContribution,
   MenuContribution,
 } from './types/Manifest';
+
+/**
+ * Plugin entry extracted from a static manifest.
+ */
+export interface ManifestPluginEntry {
+  id: string;
+  version: string;
+  entry: string;
+  loader: 'esm' | 'cjs' | 'script' | 'iife';
+  scope?: 'global' | 'tenant' | 'user';
+  dependencies?: string[];
+  priority?: number;
+  disabled?: boolean;
+  config?: Record<string, unknown>;
+}
 
 /**
  * Transformed Route Configuration
@@ -143,7 +157,7 @@ export class ManifestTransformer {
    * @param manifest - Application manifest
    * @returns Plugin entry array
    */
-  extractPluginEntries(manifest: AppManifest): PluginEntry[] {
+  extractPluginEntries(manifest: AppManifest): ManifestPluginEntry[] {
     if (!manifest.plugins) {
       return [];
     }
@@ -157,14 +171,16 @@ export class ManifestTransformer {
    * @param plugin - Plugin manifest
    * @returns Plugin entry object
    */
-  transformPluginManifest(plugin: PluginManifest): PluginEntry {
+  transformPluginManifest(plugin: PluginManifest): ManifestPluginEntry {
     return {
       id: plugin.id,
       version: plugin.version,
       entry: this.resolveComponentPath(plugin.entry),
       loader: plugin.loader || 'esm',
       scope: plugin.scope,
-      dependencies: plugin.dependencies,
+      dependencies: plugin.dependencies
+        ?.map(dep => dep.pluginId ?? dep.name)
+        .filter((dep): dep is string => Boolean(dep)),
       priority: plugin.priority,
       disabled: plugin.disabled,
       config: plugin.defaultConfig,

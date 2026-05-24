@@ -40,7 +40,7 @@ import {
   type DiscoveredPlugin,
   type LoadedPluginConfig,
 } from '../services';
-import type { LocalPluginConfig } from './usePluginSystem';
+import type { LocalPluginConfig } from './plugin-system-types';
 import type { PluginState } from './usePluginLifecycle';
 
 // ============================================================================

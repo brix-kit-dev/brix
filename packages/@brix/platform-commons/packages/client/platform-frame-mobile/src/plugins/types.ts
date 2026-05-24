@@ -21,7 +21,22 @@
  */
 
 import type { RouteConfig } from '../navigation/types';
-import type { PluginRegistry } from './PluginRegistry';
+
+/**
+ * Structural registry contract exposed to plugin initialization.
+ *
+ * Defined here instead of importing PluginRegistry to keep the type module
+ * acyclic and lightweight.
+ */
+export interface PluginRegistryLike {
+  register(manifest: PluginManifest, module: PluginModule): void;
+  unregister(id: string): boolean;
+  get(id: string): PluginRegistryEntry | undefined;
+  has(id: string): boolean;
+  getAll(): PluginRegistryEntry[];
+  getRoutes(): RouteConfig[];
+  readonly size: number;
+}
 
 /**
  * Plugin Manifest
@@ -73,7 +88,7 @@ export interface PluginModule {
  */
 export interface PluginInitContext {
   /** Plugin registry for inter-plugin communication */
-  registry: PluginRegistry;
+  registry: PluginRegistryLike;
   /** Plugin-specific configuration */
   config: Record<string, unknown>;
 }

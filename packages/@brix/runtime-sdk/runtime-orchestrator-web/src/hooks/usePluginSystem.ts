@@ -61,10 +61,17 @@ import { usePluginDiscovery } from './usePluginDiscovery';
 import { usePluginLifecycle, type PluginSystemLifecyclePhase, type PluginState } from './usePluginLifecycle';
 import { usePluginMenu, type AggregatedMenuItem, type AggregatedRoute } from './usePluginMenu';
 import type { LoadedPluginConfig } from '../services';
+import type { HostMenuConfig, LocalPluginConfig } from './plugin-system-types';
 
 // Re-export types from sub-hooks so barrel consumers get everything from one place
 export type { PluginSystemLifecyclePhase, PluginState } from './usePluginLifecycle';
 export type { AggregatedMenuItem, AggregatedRoute } from './usePluginMenu';
+export type {
+  HostMenuConfig,
+  LocalPluginConfig,
+  LocalPluginMenu,
+  LocalPluginRoute,
+} from './plugin-system-types';
 
 // Stable empty array reference - prevents infinite re-render loops
 // when callers omit localPlugins or hostCoreMenus.
@@ -145,57 +152,6 @@ export interface UsePluginSystemOptions {
    * @default 30000 (30 seconds)
    */
   healthCheckInterval?: number;
-}
-
-/**
- * Local plugin configuration (declarative registration)
- *
- * Defines a plugin's metadata, remote entry, menus, and routes without backend dependency.
- */
-export interface LocalPluginConfig {
-  /** Plugin unique identifier */
-  id: string;
-  /** Plugin display name (optional, defaults to `id`) */
-  name?: string;
-  /** Remote entry URL (remoteEntry.js) */
-  remoteEntry: string;
-  /** Module Federation scope name (must match plugin's rspack.config.ts) */
-  scope: string;
-  /** Manifest URL - when provided, menus/routes come from ui-manifest.json */
-  manifestUrl?: string;
-  /** Plugin menus (required when manifestUrl is not set) */
-  menus?: LocalPluginMenu[];
-  /** Plugin routes (required when manifestUrl is not set) */
-  routes?: LocalPluginRoute[];
-}
-
-/** Local plugin menu configuration */
-export interface LocalPluginMenu {
-  id: string;
-  title: string;
-  icon?: string;
-  path: string;
-  order: number;
-  permission?: string;
-  children?: LocalPluginMenu[];
-}
-
-/** Local plugin route configuration */
-export interface LocalPluginRoute {
-  path: string;
-  pageId: string;
-  title: string;
-  component: string;
-  permission?: string;
-}
-
-/** Host menu configuration (for Host Layer to pass in) */
-export interface HostMenuConfig {
-  id: string;
-  title: string;
-  icon?: string;
-  path: string;
-  order: number;
 }
 
 // ============================================================================

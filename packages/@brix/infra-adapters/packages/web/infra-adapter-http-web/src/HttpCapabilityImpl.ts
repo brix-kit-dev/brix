@@ -49,7 +49,7 @@ import type {
 } from '@brix-sdk/runtime-sdk-api-web';
 import { withRetry, type RetryOptions, DEFAULT_RETRY_OPTIONS } from './retry';
 import { SimpleCache, generateCacheKey, type CacheOptions, DEFAULT_CACHE_OPTIONS } from './cache';
-import { HttpError, HttpErrorCode, type RequestConfig } from './interface';
+import { HttpError, HttpErrorCode, type HttpResponseInterceptor, type RequestConfig } from './interface';
 import { createErrorEventInterceptor } from './interceptors/error';
 
 /**
@@ -71,27 +71,6 @@ export interface HttpRequestInterceptor {
    * @returns Rethrow error or return modified config for retry
    */
   onRequestError?(error: unknown): HttpRequestConfig | Promise<never>;
-}
-
-/**
- * Response Interceptor
- */
-export interface HttpResponseInterceptor {
-  /**
-   * Intercept response after receiving
-   *
-   * @param response - Response object
-   * @returns Modified response
-   */
-  onResponse<T>(response: HttpResponse<T>): HttpResponse<T> | Promise<HttpResponse<T>>;
-
-  /**
-   * Handle response error
-   *
-   * @param error - Error object
-   * @returns Rethrow error or return modified response for recovery
-   */
-  onResponseError?(error: unknown): HttpResponse<unknown> | Promise<HttpResponse<unknown>>;
 }
 
 /**

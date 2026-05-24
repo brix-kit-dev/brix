@@ -36,6 +36,8 @@
  * providing common interface definitions decoupled from specific HTTP libraries.
  */
 
+import type { HttpResponse } from '@brix-sdk/runtime-sdk-api-web';
+
 // ============================================================
 // Request Configuration
 // ============================================================
@@ -222,6 +224,21 @@ export interface ResponseInterceptor<T = unknown> {
    * @returns Processed error (can be a Promise)
    */
   onResponseError?: (error: HttpError) => HttpError | Promise<HttpError>;
+}
+
+/**
+ * Runtime HTTP response interceptor used by HttpCapabilityImpl.
+ *
+ * Kept in this shared interface module so built-in interceptors can depend on
+ * the contract without importing the concrete HttpCapabilityImpl class.
+ */
+export interface HttpResponseInterceptor {
+  onResponse<T>(
+    response: HttpResponse<T>
+  ): HttpResponse<T> | Promise<HttpResponse<T>>;
+  onResponseError?(
+    error: unknown
+  ): HttpResponse<unknown> | Promise<HttpResponse<unknown>>;
 }
 
 /**

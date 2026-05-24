@@ -435,10 +435,11 @@ export class ManifestValidator {
       }
       
       for (const dep of plugin.dependencies) {
-        if (!dep.optional && !allIds.has(dep.pluginId)) {
+        const dependencyId = dep.pluginId ?? dep.name;
+        if (dependencyId && !dep.optional && !allIds.has(dependencyId)) {
           errors.push({
             code: 'MISSING_DEPENDENCY',
-            message: `Dependency ${dep.pluginId} of plugin ${plugin.id} not found`,
+            message: `Dependency ${dependencyId} of plugin ${plugin.id} not found`,
             path: `$.plugins[${i}].dependencies`,
             severity: 'error',
           });

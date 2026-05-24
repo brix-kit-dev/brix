@@ -50,6 +50,7 @@ export {
   // Interceptor interfaces
   type RequestInterceptor,
   type ResponseInterceptor,
+  type HttpResponseInterceptor,
   type InterceptorManager,
   // Error class
   HttpError,
@@ -108,7 +109,6 @@ export {
   type HttpCapabilityImplOptions,
   // Interceptor types
   type HttpRequestInterceptor,
-  type HttpResponseInterceptor,
 } from './HttpCapabilityImpl';
 
 // ============================================================

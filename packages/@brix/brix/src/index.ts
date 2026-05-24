@@ -47,7 +47,6 @@ export {
 
 export type {
   RuntimeContext,
-  PluginDefinition,
   CapabilityType,
   CapabilityRegistry,
   AuthCapability,

@@ -36,7 +36,7 @@
 
 import { useMemo } from 'react';
 import type { DiscoveredPlugin, LoadedPluginConfig, UIPluginManifest } from '../services';
-import type { LocalPluginConfig, LocalPluginMenu, HostMenuConfig } from './usePluginSystem';
+import type { HostMenuConfig, LocalPluginConfig, LocalPluginMenu } from './plugin-system-types';
 
 // Cache-bust parameter for Module Federation remoteEntry URLs
 const REMOTE_ENTRY_CACHE_BUST = Date.now().toString();

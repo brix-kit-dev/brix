@@ -32,8 +32,7 @@ import type {
   SystemHttpErrorPayload,
 } from '@brix-sdk/runtime-sdk-api-web';
 import { SYSTEM_HTTP_ERROR_EVENT } from '@brix-sdk/runtime-sdk-api-web';
-import type { HttpResponseInterceptor } from '../HttpCapabilityImpl';
-import { HttpError, HttpErrorCode, type RequestConfig } from '../interface';
+import { HttpError, HttpErrorCode, type HttpResponseInterceptor, type RequestConfig } from '../interface';
 
 // ============================================================================
 // HTTP Status → SystemHttpErrorKind classification thresholds

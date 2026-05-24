@@ -18,6 +18,11 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  define: {
+    __RESOLVED_MUI_MATERIAL_VERSION__: 'undefined',
+    __RESOLVED_MUI_ICONS_VERSION__: 'undefined',
+  },
+
   /**
    * Disable CSS processing to avoid PostCSS config search issues.
    * This package re-exports libraries but doesn't process CSS directly.
