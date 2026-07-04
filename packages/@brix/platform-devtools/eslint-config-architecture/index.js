@@ -89,6 +89,7 @@ const brixArchPlugin = {
     'no-temp-password-in-response-type': require('./rules/no-temp-password-in-response-type'),
     'no-platform-admin-mode-flag': require('./rules/no-platform-admin-mode-flag'),
     'no-permission-or-true': require('./rules/no-permission-or-true'),
+    'no-legacy-tenant-switch': require('./rules/no-legacy-tenant-switch'),
     'require-testid-on-action': require('./rules/require-testid-on-action'),
   },
 };
@@ -524,6 +525,31 @@ const baseRules = [
       '@brix-architecture/no-temp-password-in-response-type': 'error',
       '@brix-architecture/no-platform-admin-mode-flag': 'error',
       '@brix-architecture/no-permission-or-true': 'error',
+    },
+  },
+
+  // ============================================================================
+  // v3.1.3 Multi-Tenant Phase 0: Context switch contract freeze
+  // ============================================================================
+  // The frozen tenant blueprint replaces tenantId-based switching with Actor
+  // contextId switching. UI code must keep Page -> Hook -> Repository ->
+  // HttpCapability layering and must not call the old switchTenant(tenantId)
+  // flow from pages, components, hooks, or repositories.
+  {
+    name: 'brix/architecture-guard/v313-no-legacy-tenant-switch',
+    files: [
+      '**/pages/**/*.{ts,tsx,js,jsx}',
+      '**/views/**/*.{ts,tsx,js,jsx}',
+      '**/components/**/*.{ts,tsx,js,jsx}',
+      '**/hooks/**/*.{ts,tsx,js,jsx}',
+      '**/repositories/**/*.{ts,tsx,js,jsx}',
+      '**/repository/**/*.{ts,tsx,js,jsx}',
+    ],
+    plugins: {
+      '@brix-architecture': brixArchPlugin,
+    },
+    rules: {
+      '@brix-architecture/no-legacy-tenant-switch': 'error',
     },
   },
 

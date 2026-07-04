@@ -21,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.brix.platform.auth.internal.RbacResolver;
+import io.brix.platform.auth.ticket.ContextSelectionTicketService;
+import io.brix.platform.auth.ticket.ContextSelectionTicketService.InvalidTicketException;
 import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
 import io.runtime.sdk.capability.IdentityTenantCapability;
@@ -31,6 +33,7 @@ import io.runtime.sdk.capability.IdentityTenantCapability.TenantPrincipalRecord;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.RefreshTokenCapability;
+import io.runtime.sdk.capability.TenantCapability;
 
 /**
  * <h2>Auth Flow Capability — Default Multi-Tenant Implementation</h2>
@@ -75,6 +78,8 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
     private final RefreshTokenCapability refreshTokenCapability;
         private final Supplier<MfaLoginSupport> mfaLoginSupportSupplier;
         private final PlatformLoginLockoutProperties lockoutProperties;
+        private final ContextSelectionTicketService contextSelectionTicketService;
+        private final TenantCapability tenantCapability;
 
     public AuthFlowCapabilityImpl(IdentityTenantCapability identityTenantCapability,
                                   PasswordCapability passwordCapability,
@@ -109,6 +114,19 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                                   RefreshTokenCapability refreshTokenCapability,
                                   Supplier<MfaLoginSupport> mfaLoginSupportSupplier,
                                   PlatformLoginLockoutProperties lockoutProperties) {
+        this(identityTenantCapability, passwordCapability, jwtIssuerCapability, rbacResolver,
+                refreshTokenCapability, mfaLoginSupportSupplier, lockoutProperties, null, null);
+    }
+
+    public AuthFlowCapabilityImpl(IdentityTenantCapability identityTenantCapability,
+                                  PasswordCapability passwordCapability,
+                                  JwtIssuerCapability jwtIssuerCapability,
+                                  RbacResolver rbacResolver,
+                                  RefreshTokenCapability refreshTokenCapability,
+                                  Supplier<MfaLoginSupport> mfaLoginSupportSupplier,
+                                  PlatformLoginLockoutProperties lockoutProperties,
+                                  ContextSelectionTicketService contextSelectionTicketService,
+                                  TenantCapability tenantCapability) {
         this.identityTenantCapability = identityTenantCapability;
         this.passwordCapability = passwordCapability;
         this.jwtIssuerCapability = jwtIssuerCapability;
@@ -116,6 +134,8 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         this.refreshTokenCapability = refreshTokenCapability;
         this.mfaLoginSupportSupplier = mfaLoginSupportSupplier != null ? mfaLoginSupportSupplier : () -> null;
         this.lockoutProperties = lockoutProperties != null ? lockoutProperties : new PlatformLoginLockoutProperties();
+        this.contextSelectionTicketService = contextSelectionTicketService;
+        this.tenantCapability = tenantCapability;
     }
 
     // ==================== AuthFlowCapability ====================
@@ -155,10 +175,12 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         }
 
         // ≥2 associations → SELECT_TENANT
+        String identityTokenJti = UUID.randomUUID().toString();
         String identityToken = jwtIssuerCapability.issueIdentityToken(
                 new JwtIssuerCapability.IdentityTokenRequest(
-                        identity.id(), identity.email(), identity.username()));
-        List<TenantOption> tenantOptions = buildTenantOptions(memberships, principalships);
+                        identity.id(), identity.email(), identity.username(), identityTokenJti));
+        List<TenantOption> tenantOptions = buildTenantOptions(
+                memberships, principalships, identity.id(), identityTokenJti);
         log.info("[AuthFlow] SELECT_TENANT: identity={}, tenants={}", identity.id(), total);
 
         return new LoginResult(
@@ -176,6 +198,47 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                 /* permissions */ Collections.emptyList(),
                 /* mustChangePassword */ identity.passwordMustChange(),
                 /* mfaRequired */ false);
+    }
+
+    @Override
+    public LoginResult loginActor(LoginCommand command) {
+        IdentityRecord identity = authenticateIdentity(command);
+        List<TenantMembershipRecord> memberships =
+                identityTenantCapability.getActiveMemberships(identity.id());
+        if (memberships.isEmpty()) {
+            throw new AuthFlowException(
+                    AuthFlowException.CODE_NO_TENANT_ASSOCIATION,
+                    "No active Actor tenant memberships.");
+        }
+        if (memberships.size() == 1) {
+            TenantMembershipRecord membership = memberships.get(0);
+            identityTenantCapability.touchMemberAccess(membership.memberId());
+            return buildActorLoginResult(identity, membership);
+        }
+        String identityTokenJti = UUID.randomUUID().toString();
+        String identityToken = jwtIssuerCapability.issueIdentityToken(
+                new JwtIssuerCapability.IdentityTokenRequest(
+                        identity.id(), identity.email(), identity.username(), identityTokenJti));
+        return new LoginResult(
+                LoginStatus.SELECT_TENANT,
+                null, null, 0L, identityToken,
+                buildTenantOptions(memberships, List.of(), identity.id(), identityTokenJti),
+                identity.id(), null, identity.email(), null,
+                Collections.emptyList(), Collections.emptyList(),
+                identity.passwordMustChange(), false);
+    }
+
+    @Override
+    public LoginResult loginSubject(LoginCommand command) {
+        IdentityRecord identity = authenticateIdentity(command);
+        Long currentTenantId = currentTenantIdForSubjectLogin();
+        TenantPrincipalRecord principal = identityTenantCapability
+                .findPrincipalship(identity.id(), currentTenantId)
+                .orElseThrow(() -> new AuthFlowException(
+                        AuthFlowException.CODE_NO_TENANT_ASSOCIATION,
+                        "No active Subject context in the current tenant."));
+        identityTenantCapability.touchPrincipalAccess(principal.principalId());
+        return buildSubjectLoginResult(identity, principal);
     }
 
     @Override
@@ -234,6 +297,54 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         throw new AuthFlowException(
                 AuthFlowException.CODE_TENANT_ACCESS_DENIED,
                 "You do not have access to the selected tenant");
+    }
+
+    @Override
+    public LoginResult selectContext(Long identityId, SelectContextCommand command) {
+        if (contextSelectionTicketService == null) {
+            throw new AuthFlowException(
+                    AuthFlowException.CODE_CAPABILITY_UNAVAILABLE,
+                    "Context selection ticket capability is unavailable.");
+        }
+        try {
+            ContextSelectionTicketService.Selection selection =
+                    contextSelectionTicketService.consume(
+                            command == null ? null : command.selectionTicket(),
+                            identityId,
+                            command == null ? null : command.identityTokenJti());
+            IdentityRecord identity = identityTenantCapability.findIdentityById(identityId)
+                    .orElseThrow(() -> new AuthFlowException(
+                            AuthFlowException.CODE_IDENTITY_NOT_FOUND, "Identity not found"));
+            if (ROLE_TYPE_ACTOR.equals(selection.roleType())) {
+                TenantMembershipRecord membership = identityTenantCapability
+                        .findMembership(identityId, selection.tenantId())
+                        .filter(m -> selection.refId().equals(m.memberId()))
+                        .filter(m -> selection.contextId().equals(m.contextId()))
+                        .orElseThrow(() -> new AuthFlowException(
+                                AuthFlowException.CODE_TENANT_ACCESS_DENIED,
+                                "Actor context is no longer available."));
+                identityTenantCapability.touchMemberAccess(membership.memberId());
+                return buildActorLoginResult(identity, membership);
+            }
+            if (ROLE_TYPE_SUBJECT.equals(selection.roleType())) {
+                TenantPrincipalRecord principal = identityTenantCapability
+                        .findPrincipalship(identityId, selection.tenantId())
+                        .filter(p -> selection.refId().equals(p.principalId()))
+                        .filter(p -> selection.contextId().equals(p.contextId()))
+                        .orElseThrow(() -> new AuthFlowException(
+                                AuthFlowException.CODE_TENANT_ACCESS_DENIED,
+                                "Subject context is no longer available."));
+                identityTenantCapability.touchPrincipalAccess(principal.principalId());
+                return buildSubjectLoginResult(identity, principal);
+            }
+            throw new AuthFlowException(
+                    AuthFlowException.CODE_CONTEXT_SELECTION_TICKET_INVALID,
+                    "Context selection ticket is invalid.");
+        } catch (InvalidTicketException e) {
+            throw new AuthFlowException(
+                    AuthFlowException.CODE_CONTEXT_SELECTION_TICKET_INVALID,
+                    e.getMessage(), e);
+        }
     }
 
     @Override
@@ -400,7 +511,9 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                         m.memberType(),
                         roles,
                         permissions,
-                        identity.tokenVersion()  // A3
+                        identity.tokenVersion(),
+                        m.contextId(),
+                        m.authzVersion()
                 ));
 
         // A2: persist refresh token so it can be revoked on password change.
@@ -511,7 +624,9 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                         p.principalId(),
                         p.principalType(),
                         p.displayName(),
-                        identity.tokenVersion()  // A3
+                        identity.tokenVersion(),
+                        p.contextId(),
+                        p.authzVersion()
                 ));
 
         // A2: persist refresh token.
@@ -643,8 +758,29 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         }
     }
 
-    private static List<TenantOption> buildTenantOptions(List<TenantMembershipRecord> memberships,
-                                                         List<TenantPrincipalRecord> principalships) {
+    private Long currentTenantIdForSubjectLogin() {
+        if (tenantCapability == null) {
+            throw new AuthFlowException(
+                    AuthFlowException.CODE_CAPABILITY_UNAVAILABLE,
+                    "Tenant capability is required for Subject login.");
+        }
+        String tenantId = tenantCapability.resolveTenantId()
+                .orElseThrow(() -> new AuthFlowException(
+                        AuthFlowException.CODE_NO_TENANT_ASSOCIATION,
+                        "Subject login requires current tenant context."));
+        try {
+            return Long.parseLong(tenantId);
+        } catch (NumberFormatException e) {
+            throw new AuthFlowException(
+                    AuthFlowException.CODE_TENANT_ACCESS_DENIED,
+                    "Current tenant context is invalid.", e);
+        }
+    }
+
+    private List<TenantOption> buildTenantOptions(List<TenantMembershipRecord> memberships,
+                                                  List<TenantPrincipalRecord> principalships,
+                                                  Long identityId,
+                                                  String identityTokenJti) {
         List<TenantOption> options = new ArrayList<>(memberships.size() + principalships.size());
         for (TenantMembershipRecord m : memberships) {
             options.add(new TenantOption(
@@ -653,7 +789,9 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                     m.tenantName(),
                     ROLE_TYPE_ACTOR,
                     m.memberType(),
-                    /* lastAccessAt */ null));
+                    /* lastAccessAt */ null,
+                    issueSelectionTicket(identityId, identityTokenJti, ROLE_TYPE_ACTOR,
+                            m.tenantId(), m.memberId(), m.contextId())));
         }
         for (TenantPrincipalRecord p : principalships) {
             options.add(new TenantOption(
@@ -662,8 +800,19 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                     p.tenantName(),
                     ROLE_TYPE_SUBJECT,
                     p.principalType(),
-                    p.lastAccessAt() != null ? p.lastAccessAt().toString() : null));
+                    p.lastAccessAt() != null ? p.lastAccessAt().toString() : null,
+                    issueSelectionTicket(identityId, identityTokenJti, ROLE_TYPE_SUBJECT,
+                            p.tenantId(), p.principalId(), p.contextId())));
         }
         return options;
+    }
+
+    private String issueSelectionTicket(Long identityId, String identityTokenJti, String roleType,
+                                        Long tenantId, Long refId, String contextId) {
+        if (contextSelectionTicketService == null) {
+            return null;
+        }
+        return contextSelectionTicketService.issue(
+                identityId, identityTokenJti, roleType, tenantId, refId, contextId);
     }
 }

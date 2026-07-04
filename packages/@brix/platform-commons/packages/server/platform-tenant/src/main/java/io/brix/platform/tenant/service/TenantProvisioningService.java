@@ -43,6 +43,7 @@ import io.brix.platform.tenant.entity.Tenant;
  *   <li>{@link #createTenant} - Creates tenant with all related entities atomically</li>
  *   <li>{@link #suspendTenant} - Updates tenant status within transaction</li>
  *   <li>{@link #activateTenant} - Updates tenant status within transaction</li>
+ *   <li>{@link #terminateTenant} - Terminates tenant within transaction</li>
  * </ul>
  *
  * <h3>State Transitions</h3>
@@ -185,4 +186,17 @@ public interface TenantProvisioningService {
      * @throws IllegalStateException if tenant cannot be activated (e.g., TERMINATED)
      */
     void activateTenant(Long tenantId);
+
+    /**
+     * Terminates a tenant.
+     *
+     * <p>Termination is irreversible. If the tenant was active, the
+     * installation-level active tenant quota usage is released in the same
+     * transaction.</p>
+     *
+     * @param tenantId the ID of the tenant to terminate
+     * @throws IllegalArgumentException if tenantId is null
+     * @throws jakarta.persistence.EntityNotFoundException if tenant not found
+     */
+    void terminateTenant(Long tenantId);
 }

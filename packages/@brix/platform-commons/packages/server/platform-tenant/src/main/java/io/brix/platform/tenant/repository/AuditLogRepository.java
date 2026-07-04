@@ -15,7 +15,9 @@
  */
 package io.brix.platform.tenant.repository;
 
-import io.brix.platform.tenant.entity.AuditLog;
+import java.time.OffsetDateTime;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,8 +25,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.OffsetDateTime;
-import java.util.List;
+import io.brix.platform.tenant.entity.AuditLog;
 
 /**
  * Repository for AuditLog entity operations.
@@ -176,6 +177,32 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
      */
     @Query("SELECT a FROM AuditLog a WHERE a.tenantId IS NULL ORDER BY a.createdAt DESC")
     Page<AuditLog> findSystemLogs(Pageable pageable);
+
+       /**
+        * Finds platform-scoped audit logs with optional filters.
+        *
+        * @param action optional action code
+        * @param createdBy optional operator identity ID
+        * @param success optional result flag
+        * @param fromTime optional inclusive lower timestamp bound
+        * @param toTime optional exclusive upper timestamp bound
+        * @param pageable pagination parameters
+        * @return page of platform-scoped audit logs
+        */
+       @Query("SELECT a FROM AuditLog a WHERE a.tenantId IS NULL " +
+                 "AND (:action IS NULL OR a.action = :action) " +
+                 "AND (:createdBy IS NULL OR a.createdBy = :createdBy) " +
+                 "AND (:success IS NULL OR a.success = :success) " +
+                 "AND (:fromTime IS NULL OR a.createdAt >= :fromTime) " +
+                 "AND (:toTime IS NULL OR a.createdAt < :toTime)")
+       Page<AuditLog> findPlatformLogs(
+              @Param("action") String action,
+              @Param("createdBy") Long createdBy,
+              @Param("success") Boolean success,
+              @Param("fromTime") OffsetDateTime fromTime,
+              @Param("toTime") OffsetDateTime toTime,
+              Pageable pageable
+       );
 
     /**
      * Finds audit logs by owner member.

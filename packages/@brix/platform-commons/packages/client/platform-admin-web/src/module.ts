@@ -81,6 +81,10 @@ const _AuditLogPage = lazy(() =>
   import('./pages/AuditLogPage').then(m => ({ default: m.AuditLogPage })),
 );
 
+const _LicenseQuotaPage = lazy(() =>
+  import('./pages/LicenseQuotaPage').then(m => ({ default: m.LicenseQuotaPage })),
+);
+
 const _ChangeOwnPasswordPage = lazy(() =>
   import('./pages/ChangeOwnPasswordPage').then(m => ({ default: m.ChangeOwnPasswordPage })),
 );
@@ -301,12 +305,20 @@ export const platformAdminMenus: ReadonlyArray<PlatformAdminMenuEntry> = [
         order: 3,
       },
       {
+        key: 'license-quota',
+        id: 'license-quota',
+        title: 'License / 配额',
+        icon: 'shield',
+        path: PLATFORM_ADMIN_ROUTES.LICENSE,
+        order: 4,
+      },
+      {
         key: 'change-password',
         id: 'change-password',
         title: '修改密码',
         icon: 'lock',
         path: PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD,
-        order: 4,
+        order: 5,
       },
     ],
   },
@@ -381,6 +393,10 @@ export const platformAdminProtectedRoutes: ReadonlyArray<PlatformAdminRouteEntry
   {
     path: PLATFORM_ADMIN_ROUTES.AUDIT,
     element: withPlatformAuth(_AuditLogPage, PLATFORM_ADMIN_ROUTES.AUDIT),
+  },
+  {
+    path: PLATFORM_ADMIN_ROUTES.LICENSE,
+    element: withPlatformAuth(_LicenseQuotaPage, PLATFORM_ADMIN_ROUTES.LICENSE),
   },
   {
     path: PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD,

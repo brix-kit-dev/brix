@@ -37,13 +37,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
+import io.brix.platform.tenant.entity.BizUserProfile;
+import io.brix.platform.tenant.entity.InstallationQuota;
 import io.brix.platform.tenant.entity.Organization;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantMember;
 import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.enums.TenantStatus;
 import io.brix.platform.tenant.exception.InvalidReferenceException;
+import io.brix.platform.tenant.exception.QuotaExceededException;
+import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.IdentityRepository;
+import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
@@ -84,7 +89,13 @@ class TenantProvisioningServiceTest {
     private TenantMemberRepository tenantMemberRepository;
 
     @Mock
+    private InstallationQuotaRepository installationQuotaRepository;
+
+    @Mock
     private OrganizationRepository organizationRepository;
+
+    @Mock
+    private BizUserProfileRepository bizUserProfileRepository;
 
     @Mock
     private IdentityRepository identityRepository;
@@ -99,7 +110,9 @@ class TenantProvisioningServiceTest {
         service = new TenantProvisioningServiceImpl(
             tenantRepository,
             tenantMemberRepository,
+            installationQuotaRepository,
             organizationRepository,
+            bizUserProfileRepository,
             identityRepository,
             idGenerator
         );
@@ -119,6 +132,7 @@ class TenantProvisioningServiceTest {
             // Given
             Long tenantId = 1001L;
             Long memberId = 2001L;
+            Long profileId = 2501L;
             Long orgId = 3001L;
             Long ownerIdentityId = 100L;
 
@@ -130,9 +144,10 @@ class TenantProvisioningServiceTest {
 
             when(tenantRepository.existsByCode("acme-corp")).thenReturn(false);
             when(identityRepository.existsById(ownerIdentityId)).thenReturn(true);
-            when(idGenerator.nextId()).thenReturn(tenantId, memberId, orgId);
+            when(idGenerator.nextId()).thenReturn(tenantId, memberId, profileId, orgId);
             when(tenantRepository.save(any(Tenant.class))).thenAnswer(inv -> inv.getArgument(0));
             when(tenantMemberRepository.save(any(TenantMember.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(bizUserProfileRepository.save(any(BizUserProfile.class))).thenAnswer(inv -> inv.getArgument(0));
             when(organizationRepository.save(any(Organization.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -158,6 +173,15 @@ class TenantProvisioningServiceTest {
             assertEquals(tenantId, savedMember.getTenantId());
             assertEquals(ownerIdentityId, savedMember.getIdentityId());
             assertEquals(TenantMemberType.OWNER, savedMember.getMemberType());
+
+            // Verify owner profile created
+            ArgumentCaptor<BizUserProfile> profileCaptor = ArgumentCaptor.forClass(BizUserProfile.class);
+            verify(bizUserProfileRepository).save(profileCaptor.capture());
+            BizUserProfile savedProfile = profileCaptor.getValue();
+            assertEquals(profileId, savedProfile.getId());
+            assertEquals(tenantId, savedProfile.getTenantId());
+            assertEquals(memberId, savedProfile.getMemberId());
+            assertEquals("{}", savedProfile.getPreferences());
 
             // Verify organization created
             ArgumentCaptor<Organization> orgCaptor = ArgumentCaptor.forClass(Organization.class);
@@ -226,16 +250,17 @@ class TenantProvisioningServiceTest {
 
             when(tenantRepository.existsByCode(any())).thenReturn(false);
             when(identityRepository.existsById(any())).thenReturn(true);
-            when(idGenerator.nextId()).thenReturn(1L, 2L, 3L); // Three different IDs
+            when(idGenerator.nextId()).thenReturn(1L, 2L, 3L, 4L); // Four different IDs
             when(tenantRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             when(tenantMemberRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(bizUserProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             when(organizationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             // When
             service.createTenant(request);
 
-            // Then - idGenerator.nextId() should be called exactly 3 times
-            verify(idGenerator, times(3)).nextId();
+            // Then - idGenerator.nextId() should be called exactly 4 times
+            verify(idGenerator, times(4)).nextId();
         }
     }
 
@@ -340,8 +365,12 @@ class TenantProvisioningServiceTest {
             // Given
             Long tenantId = 1L;
             Tenant tenant = createActiveTenant(tenantId, "test-tenant");
+                InstallationQuota quota = createQuota(3, 1);
 
             when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+                when(installationQuotaRepository.findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID))
+                    .thenReturn(Optional.of(quota));
+                when(installationQuotaRepository.save(any(InstallationQuota.class))).thenAnswer(inv -> inv.getArgument(0));
             when(tenantRepository.save(any(Tenant.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -351,6 +380,7 @@ class TenantProvisioningServiceTest {
             ArgumentCaptor<Tenant> captor = ArgumentCaptor.forClass(Tenant.class);
             verify(tenantRepository).save(captor.capture());
             assertEquals(TenantStatus.SUSPENDED, captor.getValue().getStatus());
+            assertEquals(0, quota.getUsed());
         }
 
         @Test
@@ -408,8 +438,12 @@ class TenantProvisioningServiceTest {
             // Given
             Long tenantId = 1L;
             Tenant tenant = createPendingTenant(tenantId, "pending-tenant");
+                InstallationQuota quota = createQuota(3, 0);
 
             when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+                when(installationQuotaRepository.findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID))
+                    .thenReturn(Optional.of(quota));
+                when(installationQuotaRepository.save(any(InstallationQuota.class))).thenAnswer(inv -> inv.getArgument(0));
             when(tenantRepository.save(any(Tenant.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -419,6 +453,7 @@ class TenantProvisioningServiceTest {
             ArgumentCaptor<Tenant> captor = ArgumentCaptor.forClass(Tenant.class);
             verify(tenantRepository).save(captor.capture());
             assertEquals(TenantStatus.ACTIVE, captor.getValue().getStatus());
+            assertEquals(1, quota.getUsed());
         }
 
         @Test
@@ -427,8 +462,12 @@ class TenantProvisioningServiceTest {
             // Given
             Long tenantId = 1L;
             Tenant tenant = createSuspendedTenant(tenantId, "suspended-tenant");
+                InstallationQuota quota = createQuota(3, 0);
 
             when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+                when(installationQuotaRepository.findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID))
+                    .thenReturn(Optional.of(quota));
+                when(installationQuotaRepository.save(any(InstallationQuota.class))).thenAnswer(inv -> inv.getArgument(0));
             when(tenantRepository.save(any(Tenant.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -438,6 +477,29 @@ class TenantProvisioningServiceTest {
             ArgumentCaptor<Tenant> captor = ArgumentCaptor.forClass(Tenant.class);
             verify(tenantRepository).save(captor.capture());
             assertEquals(TenantStatus.ACTIVE, captor.getValue().getStatus());
+            assertEquals(1, quota.getUsed());
+        }
+
+        @Test
+        @DisplayName("should reject activation when installation quota is full")
+        void shouldRejectActivationWhenInstallationQuotaIsFull() {
+            // Given
+            Long tenantId = 1L;
+            Tenant tenant = createPendingTenant(tenantId, "pending-tenant");
+            InstallationQuota quota = createQuota(3, 3);
+
+            when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+            when(installationQuotaRepository.findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID))
+                    .thenReturn(Optional.of(quota));
+
+            // When & Then
+            assertThrows(
+                QuotaExceededException.class,
+                () -> service.activateTenant(tenantId)
+            );
+
+            assertEquals(TenantStatus.PENDING_ACTIVATION, tenant.getStatus());
+            verify(tenantRepository, never()).save(any(Tenant.class));
         }
 
         @Test
@@ -495,5 +557,9 @@ class TenantProvisioningServiceTest {
         Tenant tenant = createActiveTenant(id, code);
         tenant.suspend(); // Transition to SUSPENDED
         return tenant;
+    }
+
+    private InstallationQuota createQuota(int quota, int used) {
+        return new InstallationQuota(InstallationQuota.DEFAULT_INSTALLATION_ID, quota, used);
     }
 }

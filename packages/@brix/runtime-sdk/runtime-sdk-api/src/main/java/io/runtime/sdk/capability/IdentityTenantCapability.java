@@ -103,6 +103,17 @@ public interface IdentityTenantCapability {
     Optional<TenantMembershipRecord> findMembership(Long identityId, Long tenantId);
 
     /**
+     * Finds an active Actor membership by immutable context ID.
+     *
+     * @param contextId immutable {@code sys_tenant_member.context_id}
+     * @return membership record if present and active
+     * @since 3.2.2
+     */
+    default Optional<TenantMembershipRecord> findMembershipByContextId(String contextId) {
+        return Optional.empty();
+    }
+
+    /**
      * 查找指定身份在指定租户的主体关系。
      *
      * @param identityId 身份 ID
@@ -110,6 +121,17 @@ public interface IdentityTenantCapability {
      * @return 主体关系记录，不存在时返回空
      */
     Optional<TenantPrincipalRecord> findPrincipalship(Long identityId, Long tenantId);
+
+    /**
+     * Finds an active Subject principalship by immutable context ID.
+     *
+     * @param contextId immutable {@code sys_tenant_principal.context_id}
+     * @return principal record if present and active
+     * @since 3.2.2
+     */
+    default Optional<TenantPrincipalRecord> findPrincipalshipByContextId(String contextId) {
+        return Optional.empty();
+    }
 
     /**
      * 更新指定身份的密码哈希（S3 — 改密 / 强制改密回执）。
@@ -275,8 +297,17 @@ public interface IdentityTenantCapability {
             Long identityId,
             String memberType,
             String status,
-            Instant joinedAt
-    ) {}
+            Instant joinedAt,
+            String contextId,
+            long authzVersion
+    ) {
+        public TenantMembershipRecord(Long memberId, Long tenantId, String tenantCode,
+                                      String tenantName, Long identityId, String memberType,
+                                      String status, Instant joinedAt) {
+            this(memberId, tenantId, tenantCode, tenantName, identityId, memberType,
+                    status, joinedAt, null, 1L);
+        }
+    }
 
     /**
      * 租户主体关系记录（C 端 Subject）。
@@ -300,8 +331,17 @@ public interface IdentityTenantCapability {
             String principalType,
             String displayName,
             String status,
-            Instant lastAccessAt
-    ) {}
+            Instant lastAccessAt,
+            String contextId,
+            long authzVersion
+    ) {
+        public TenantPrincipalRecord(Long principalId, Long tenantId, String tenantCode,
+                                     String tenantName, Long identityId, String principalType,
+                                     String displayName, String status, Instant lastAccessAt) {
+            this(principalId, tenantId, tenantCode, tenantName, identityId, principalType,
+                    displayName, status, lastAccessAt, null, 1L);
+        }
+    }
 
     /**
      * 平台管理员记录 — 由 {@link #findActivePlatformAdmin(Long)} 返回。

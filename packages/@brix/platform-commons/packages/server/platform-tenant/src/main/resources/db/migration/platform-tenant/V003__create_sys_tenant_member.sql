@@ -12,13 +12,13 @@
 -- - Each row represents one identity's membership in one tenant
 -- - An identity can be a member of multiple tenants with different roles
 -- - member_type determines the privilege level within the tenant
--- - Each tenant MUST have exactly one OWNER
+-- - Each tenant MUST keep at least one active OWNER
 --
 -- Membership Model:
--- - OWNER: Full control, can delete tenant (exactly one per tenant)
+-- - OWNER: Full control, can delete tenant (at least one active owner per tenant)
 -- - ADMIN: Can manage members and settings
 -- - MEMBER: Standard access based on permissions
--- - GUEST: Limited read-only access
+-- - Subject roles are stored in sys_tenant_principal
 --
 -- Referential Integrity:
 -- - tenant_id references sys_tenant.id
@@ -28,6 +28,8 @@
 -- @since 3.1.0
 -- @author Brix Platform Team
 -- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Create sys_tenant_member table
 CREATE TABLE IF NOT EXISTS sys_tenant_member (
@@ -39,9 +41,15 @@ CREATE TABLE IF NOT EXISTS sys_tenant_member (
     
     -- Foreign key: Reference to the identity (user)
     identity_id     BIGINT          NOT NULL,
+
+    -- Stable Actor context identifier. This value is used as the JWT cid.
+    context_id      UUID            NOT NULL DEFAULT gen_random_uuid(),
+
+    -- Authorization version snapshot used by Actor tokens as mver.
+    authz_version   INTEGER         NOT NULL DEFAULT 1,
     
     -- Member type/role within this tenant
-    -- Valid values: OWNER, ADMIN, MEMBER, GUEST
+    -- Valid values: OWNER, ADMIN, MEMBER
     -- @see io.brix.platform.tenant.enums.TenantMemberType
     member_type     VARCHAR(32)     NOT NULL DEFAULT 'MEMBER',
     
@@ -70,7 +78,15 @@ CREATE TABLE IF NOT EXISTS sys_tenant_member (
     -- Unique constraint: one membership per identity-tenant pair
     -- Prevents duplicate memberships
     CONSTRAINT uk_sys_tenant_member_tenant_identity 
-        UNIQUE (tenant_id, identity_id)
+        UNIQUE (tenant_id, identity_id),
+
+    -- Stable context identifiers are globally unique.
+    CONSTRAINT uk_member_context_id
+        UNIQUE (context_id),
+
+    -- Composite unique key used by biz_user_profile composite foreign keys.
+    CONSTRAINT uk_member_tenant_id
+        UNIQUE (tenant_id, id)
 );
 
 -- Index for tenant-based queries (list all members of a tenant)
@@ -94,6 +110,8 @@ COMMENT ON TABLE sys_tenant_member IS 'Association table for identity-tenant mem
 COMMENT ON COLUMN sys_tenant_member.id IS 'Primary key (Snowflake ID)';
 COMMENT ON COLUMN sys_tenant_member.tenant_id IS 'Foreign key to sys_tenant';
 COMMENT ON COLUMN sys_tenant_member.identity_id IS 'Foreign key to sys_identity';
+COMMENT ON COLUMN sys_tenant_member.context_id IS 'Stable Actor context identifier used as JWT cid';
+COMMENT ON COLUMN sys_tenant_member.authz_version IS 'Authorization version used as Actor token mver snapshot';
 COMMENT ON COLUMN sys_tenant_member.member_type IS 'Role within tenant (TenantMemberType enum)';
 COMMENT ON COLUMN sys_tenant_member.status IS 'Membership status (MemberStatus enum)';
 COMMENT ON COLUMN sys_tenant_member.joined_at IS 'When the member joined this tenant';

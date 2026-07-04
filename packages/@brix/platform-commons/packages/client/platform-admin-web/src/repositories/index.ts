@@ -24,6 +24,10 @@ export {
   type PlatformAuditRepository,
 } from './PlatformAuditRepository';
 export {
+  createPlatformLicenseRepository,
+  type PlatformLicenseRepository,
+} from './PlatformLicenseRepository';
+export {
   createPlatformTenantRepository,
   type PlatformTenantRepository,
 } from './PlatformTenantRepository';

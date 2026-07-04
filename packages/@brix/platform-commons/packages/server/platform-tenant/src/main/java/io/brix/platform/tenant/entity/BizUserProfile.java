@@ -42,25 +42,26 @@ import jakarta.persistence.UniqueConstraint;
  * <p>Layer 2C: Platform Commons entity — used by TenantSettingsService
  * for user preference reads/writes.</p>
  *
- * <h3>Polymorphic Reference Model</h3>
+ * <h3>Actor/Subject Reference Model</h3>
  * <pre>
- * ref_type = 'MEMBER'    → ref_id references sys_tenant_member.id
- * ref_type = 'PRINCIPAL' → ref_id references sys_tenant_principal.id
+ * member_id    references sys_tenant_member.id
+ * principal_id references sys_tenant_principal.id
  * </pre>
  *
  * @author Brix Platform Team
  * @since 3.1.0
- * @see io.brix.platform.tenant.enums.ProfileRefType
  */
 @Entity
 @Table(
     name = "biz_user_profile",
     uniqueConstraints = {
-        @UniqueConstraint(name = "uk_profile_tenant_ref", columnNames = {"tenant_id", "ref_type", "ref_id"})
+        @UniqueConstraint(name = "uk_profile_member", columnNames = {"tenant_id", "member_id"}),
+        @UniqueConstraint(name = "uk_profile_principal", columnNames = {"tenant_id", "principal_id"})
     },
     indexes = {
         @Index(name = "idx_user_profile_tenant", columnList = "tenant_id"),
-        @Index(name = "idx_user_profile_ref", columnList = "ref_type, ref_id")
+        @Index(name = "idx_user_profile_member", columnList = "tenant_id, member_id"),
+        @Index(name = "idx_user_profile_principal", columnList = "tenant_id, principal_id")
     }
 )
 public class BizUserProfile {
@@ -72,11 +73,11 @@ public class BizUserProfile {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @Column(name = "ref_type", nullable = false, length = 20)
-    private String refType;
+    @Column(name = "member_id")
+    private Long memberId;
 
-    @Column(name = "ref_id", nullable = false)
-    private Long refId;
+    @Column(name = "principal_id")
+    private Long principalId;
 
     @Column(name = "nickname", length = 100)
     private String nickname;
@@ -89,11 +90,11 @@ public class BizUserProfile {
 
     @Column(name = "preferences", columnDefinition = "JSONB")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String preferences;
+    private String preferences = "{}";
 
     @Column(name = "extended", columnDefinition = "JSONB")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String extended;
+    private String extended = "{}";
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -115,6 +116,12 @@ public class BizUserProfile {
     @PrePersist
     protected void onCreate() {
         this.createdAt = OffsetDateTime.now();
+        if (this.preferences == null) {
+            this.preferences = "{}";
+        }
+        if (this.extended == null) {
+            this.extended = "{}";
+        }
     }
 
     @PreUpdate
@@ -142,20 +149,20 @@ public class BizUserProfile {
         this.tenantId = tenantId;
     }
 
-    public String getRefType() {
-        return refType;
+    public Long getMemberId() {
+        return memberId;
     }
 
-    public void setRefType(String refType) {
-        this.refType = refType;
+    public void setMemberId(Long memberId) {
+        this.memberId = memberId;
     }
 
-    public Long getRefId() {
-        return refId;
+    public Long getPrincipalId() {
+        return principalId;
     }
 
-    public void setRefId(Long refId) {
-        this.refId = refId;
+    public void setPrincipalId(Long principalId) {
+        this.principalId = principalId;
     }
 
     public String getNickname() {
@@ -236,8 +243,8 @@ public class BizUserProfile {
         return "BizUserProfile{" +
                "id=" + id +
                ", tenantId=" + tenantId +
-               ", refType='" + refType + '\'' +
-               ", refId=" + refId +
+             ", memberId=" + memberId +
+             ", principalId=" + principalId +
                '}';
     }
 }

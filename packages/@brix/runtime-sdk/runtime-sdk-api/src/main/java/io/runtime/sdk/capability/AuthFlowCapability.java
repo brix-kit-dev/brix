@@ -65,6 +65,38 @@ public interface AuthFlowCapability {
     LoginResult login(LoginCommand command);
 
     /**
+     * B-side Actor login entry point.
+     *
+     * <p>Actor login may enumerate active tenant memberships for the authenticated
+     * identity and return context selection tickets when more than one membership
+     * is available. It must not include C-side Subject contexts.</p>
+     *
+     * @param command login command
+     * @return login result
+     * @throws AuthFlowException when authentication fails or no active Actor context exists
+     * @since 3.2.2
+     */
+    default LoginResult loginActor(LoginCommand command) {
+        return login(command);
+    }
+
+    /**
+     * C-side Subject login entry point.
+     *
+     * <p>Subject login is tenant-bound. Implementations must only discover the
+     * Subject context in the current tenant context and must not enumerate Actor
+     * memberships or cross-tenant Subject contexts.</p>
+     *
+     * @param command login command
+     * @return login result
+     * @throws AuthFlowException when authentication fails or no active Subject context exists
+     * @since 3.2.2
+     */
+    default LoginResult loginSubject(LoginCommand command) {
+        return login(command);
+    }
+
+    /**
      * Platform administrator login through the isolated platform entry point.
      *
      * <p>This method is intentionally separate from {@link #login(LoginCommand)} so
@@ -88,6 +120,25 @@ public interface AuthFlowCapability {
      * @throws AuthFlowException 无目标租户访问权限等
      */
     LoginResult selectTenant(Long identityId, SelectTenantCommand command);
+
+    /**
+     * Selects a tenant context using an opaque one-time selection ticket.
+     *
+     * <p>The ticket is produced during {@link #loginActor(LoginCommand)} or the
+     * legacy multi-context login flow. It is bound to the Identity Token {@code jti}
+     * and is consumed exactly once.</p>
+     *
+     * @param identityId authenticated identity ID from the Identity Token
+     * @param command selection command carrying the one-time ticket and identity token jti
+     * @return completed login result
+     * @throws AuthFlowException when the ticket is expired, replayed, or belongs to another identity token
+     * @since 3.2.2
+     */
+    default LoginResult selectContext(Long identityId, SelectContextCommand command) {
+        throw new AuthFlowException(
+                AuthFlowException.CODE_CONTEXT_SELECTION_TICKET_INVALID,
+                "Context selection ticket is not supported by this auth flow implementation");
+    }
 
     /**
      * 刷新 Access Token。
@@ -151,6 +202,15 @@ public interface AuthFlowCapability {
      * @param tenantId 目标租户 ID
      */
     record SelectTenantCommand(Long tenantId) {}
+
+    /**
+     * Context selection command.
+     *
+     * @param selectionTicket opaque one-time ticket returned in {@link TenantOption#selectionTicket()}
+     * @param identityTokenJti JWT ID of the Identity Token used to authorize the selection
+     * @since 3.2.2
+     */
+    record SelectContextCommand(String selectionTicket, String identityTokenJti) {}
 
     /**
      * 刷新令牌命令。
@@ -254,8 +314,14 @@ public interface AuthFlowCapability {
             String tenantName,
             String roleType,
             String role,
-            String lastAccessAt
-    ) {}
+            String lastAccessAt,
+            String selectionTicket
+    ) {
+        public TenantOption(Long tenantId, String tenantCode, String tenantName,
+                            String roleType, String role, String lastAccessAt) {
+            this(tenantId, tenantCode, tenantName, roleType, role, lastAccessAt, null);
+        }
+    }
 
     // ========== 异常 ==========
 
@@ -295,6 +361,10 @@ public interface AuthFlowCapability {
         public static final String CODE_MFA_REQUIRED = "AUTH_MFA_REQUIRED";
         /** 错误码常量：账户要求 MFA 但尚未完成 MFA 注册 — 需先完成 MFA 设置。 */
         public static final String CODE_MFA_SETUP_REQUIRED = "AUTH_MFA_SETUP_REQUIRED";
+        /** Error code for an expired, replayed, malformed, or cross-token context selection ticket. */
+        public static final String CODE_CONTEXT_SELECTION_TICKET_INVALID = "AUTH_CONTEXT_SELECTION_TICKET_INVALID";
+        /** Error code for a token whose membership/principal authorization version is stale. */
+        public static final String CODE_STALE_AUTHZ_VERSION = "STALE_AUTHZ_VERSION";
 
         private final String errorCode;
 

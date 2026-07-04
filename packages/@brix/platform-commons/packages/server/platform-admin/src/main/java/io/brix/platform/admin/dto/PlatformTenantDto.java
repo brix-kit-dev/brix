@@ -32,6 +32,13 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
  * @param name      display name
  * @param status    tenant lifecycle status (PENDING_ACTIVATION / ACTIVE / SUSPENDED / TERMINATED)
  * @param createdAt tenant creation timestamp
+ * @param updatedAt tenant update timestamp
+ * @param quotaUsed installation quota currently used
+ * @param quotaLimit installation quota limit
+ * @param licenseStatus installation license state summary
+ * @param defaultLocale tenant default locale
+ * @param defaultTimezone tenant default timezone
+ * @param defaultTheme tenant default theme
  * @author Brix Platform Team
  * @since 3.2.0
  */
@@ -41,5 +48,12 @@ public record PlatformTenantDto(
         String code,
         String name,
         String status,
-        OffsetDateTime createdAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
+        Integer quotaUsed,
+        Integer quotaLimit,
+        String licenseStatus,
+        String defaultLocale,
+        String defaultTimezone,
+        String defaultTheme
 ) {}

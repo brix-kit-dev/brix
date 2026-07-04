@@ -218,6 +218,23 @@ public class TenantCapabilityImpl implements TenantCapability {
         return user.getRoles().isEmpty() ? null : user.getRoles().get(0);
     }
 
+    @Override
+    public String getCurrentRefId() {
+        AuthenticatedUser user = requireAuthenticatedUser("getCurrentRefId");
+        if (user.isActor()) {
+            return user.getMemberId();
+        }
+        if (user.isSubject()) {
+            return user.getPrincipalId();
+        }
+        return null;
+    }
+
+    @Override
+    public String getCurrentUserId() {
+        return requireAuthenticatedUser("getCurrentUserId").getUserId();
+    }
+
     /**
      * {@inheritDoc}
      *

@@ -48,6 +48,15 @@ import io.runtime.sdk.annotation.Since;
 @Since("3.2.0")
 public interface JwtIssuerCapability {
 
+    /** Actor access-token audience. */
+    String AUDIENCE_ACTOR = "brix-actor";
+    /** Subject access-token audience. */
+    String AUDIENCE_SUBJECT = "brix-subject";
+    /** Identity-token audience. */
+    String AUDIENCE_IDENTITY = "brix-identity";
+    /** Refresh-token audience. */
+    String AUDIENCE_REFRESH = "brix-refresh";
+
     /**
      * 签发 B 端 Actor Access Token。
      *
@@ -151,8 +160,18 @@ public interface JwtIssuerCapability {
             String memberType,
             List<String> roles,
             List<String> permissions,
-            long tokenVersion
-    ) {}
+            long tokenVersion,
+            String contextId,
+            long authzVersion
+    ) {
+        public ActorTokenRequest(Long identityId, String email, String username,
+                                 Long tenantId, Long memberId, String memberType,
+                                 List<String> roles, List<String> permissions,
+                                 long tokenVersion) {
+            this(identityId, email, username, tenantId, memberId, memberType,
+                    roles, permissions, tokenVersion, null, 1L);
+        }
+    }
 
     /**
      * Subject (C 端) Access Token 签发请求。
@@ -174,8 +193,17 @@ public interface JwtIssuerCapability {
             Long principalId,
             String principalType,
             String displayName,
-            long tokenVersion
-    ) {}
+            long tokenVersion,
+            String contextId,
+            long authzVersion
+    ) {
+        public SubjectTokenRequest(Long identityId, String email, String username,
+                                   Long tenantId, Long principalId, String principalType,
+                                   String displayName, long tokenVersion) {
+            this(identityId, email, username, tenantId, principalId, principalType,
+                    displayName, tokenVersion, null, 1L);
+        }
+    }
 
     /**
      * Identity Token 签发请求（多租户选择阶段使用）。
@@ -187,8 +215,13 @@ public interface JwtIssuerCapability {
     record IdentityTokenRequest(
             Long identityId,
             String email,
-            String username
-    ) {}
+            String username,
+            String jti
+    ) {
+        public IdentityTokenRequest(Long identityId, String email, String username) {
+            this(identityId, email, username, null);
+        }
+    }
 
     /**
      * 平台管理员令牌签发请求（无租户上下文）。

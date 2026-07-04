@@ -112,6 +112,34 @@ public interface TenantCapability {
     boolean hasTenantContext();
 
     /**
+     * Returns the current tenant view when a tenant context is present.
+     *
+     * @return current tenant view, or empty when no tenant context is available
+     * @since 3.2.2
+     */
+    @Since("3.2.2")
+    default Optional<TenantView> getCurrentTenant() {
+        return resolveTenantId().map(id -> new TenantView(id, null, null, null));
+    }
+
+    /**
+     * Requires an active tenant context.
+     *
+     * @return current tenant view
+     * @throws TenantResolutionException when no tenant context exists or the tenant is not active
+     * @since 3.2.2
+     */
+    @Since("3.2.2")
+    default TenantView requireActiveTenant() {
+        TenantView tenant = getCurrentTenant()
+                .orElseThrow(() -> new TenantResolutionException("No tenant context available"));
+        if (tenant.status() != null && !"ACTIVE".equalsIgnoreCase(tenant.status())) {
+            throw new TenantResolutionException("Tenant is not active: " + tenant.id());
+        }
+        return tenant;
+    }
+
+    /**
      * Explicitly sets the tenant context for the current request thread.
      *
      * <p>This method is designed for <strong>unauthenticated request paths</strong> where
@@ -162,6 +190,41 @@ public interface TenantCapability {
         throw new UnsupportedOperationException(
                 "getCurrentRole() must be implemented by platform-tenant. " +
                 "Ensure platform-tenant module is on the classpath.");
+    }
+
+    /**
+     * Returns the current role type within the active context.
+     *
+     * @return current role type
+     * @since 3.2.2
+     */
+    @Since("3.2.2")
+    default String getCurrentRoleType() {
+        return getCurrentRole();
+    }
+
+    /**
+     * Returns the current Actor member ID or Subject principal ID.
+     *
+     * @return current reference ID
+     * @since 3.2.2
+     */
+    @Since("3.2.2")
+    default String getCurrentRefId() {
+        throw new UnsupportedOperationException(
+                "getCurrentRefId() must be implemented by platform-tenant.");
+    }
+
+    /**
+     * Returns the current global identity ID.
+     *
+     * @return current identity ID
+     * @since 3.2.2
+     */
+    @Since("3.2.2")
+    default String getCurrentUserId() {
+        throw new UnsupportedOperationException(
+                "getCurrentUserId() must be implemented by platform-tenant.");
     }
 
     /**
@@ -227,4 +290,15 @@ public interface TenantCapability {
             super(message, cause);
         }
     }
+
+    /**
+     * Read-only current tenant view exposed by the capability contract.
+     *
+     * @param id tenant ID
+     * @param code tenant code, when known
+     * @param name tenant display name, when known
+     * @param status tenant lifecycle status, when known
+     * @since 3.2.2
+     */
+    record TenantView(String id, String code, String name, String status) {}
 }

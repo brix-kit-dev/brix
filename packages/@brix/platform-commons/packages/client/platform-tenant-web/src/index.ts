@@ -63,6 +63,18 @@ export { useTenantSwitch, type UseTenantSwitchResult } from './useTenantSwitch';
 export { useLastTenant, type UseLastTenantResult } from './useLastTenant';
 export { TenantSelector, type TenantSelectorProps } from './TenantSelector';
 export { TenantSwitcher, type TenantSwitcherProps } from './TenantSwitcher';
+export {
+  TenantConfigEditor,
+  type TenantConfigEditorProps,
+} from './TenantConfigEditor';
+export {
+  ActorContextSwitcher,
+  type ActorContextSwitcherProps,
+} from './ActorContextSwitcher';
+export {
+  TenantAccessGuard,
+  type TenantAccessGuardProps,
+} from './TenantAccessGuard';
 
 // Capability Implementation (v3.1.0 Phase 1.4)
 export {

@@ -17,6 +17,7 @@ package io.brix.platform.tenant.service;
 
 import io.brix.platform.tenant.dto.TenantUsageSummary;
 import io.brix.platform.tenant.exception.QuotaExceededException;
+import io.runtime.sdk.capability.TenantQuotaCapability.InstallationQuotaSnapshot;
 
 /**
  * Service for tenant quota enforcement and usage tracking.
@@ -81,4 +82,15 @@ public interface TenantQuotaService {
      * @throws IllegalArgumentException if tenant not found
      */
     TenantUsageSummary getUsageSummary(Long tenantId);
+
+    /**
+     * Returns the deployment installation quota and license admission snapshot.
+     *
+     * <p>The open-core baseline uses a single installation row with a default
+     * quota of three tenants. Commercial license implementations can override
+     * the same capability without changing callers.</p>
+     *
+     * @return installation quota snapshot
+     */
+    InstallationQuotaSnapshot getInstallationQuota();
 }

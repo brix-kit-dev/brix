@@ -39,13 +39,7 @@ import io.brix.platform.tenant.entity.BizUserProfile;
 @Repository
 public interface BizUserProfileRepository extends JpaRepository<BizUserProfile, Long> {
 
-    /**
-     * Finds a user profile by tenant ID and polymorphic reference.
-     *
-     * @param tenantId the tenant ID
-     * @param refType  the reference type ("MEMBER" or "PRINCIPAL")
-     * @param refId    the reference ID
-     * @return the user profile if found
-     */
-    Optional<BizUserProfile> findByTenantIdAndRefTypeAndRefId(Long tenantId, String refType, Long refId);
+    Optional<BizUserProfile> findByTenantIdAndMemberId(Long tenantId, Long memberId);
+
+    Optional<BizUserProfile> findByTenantIdAndPrincipalId(Long tenantId, Long principalId);
 }

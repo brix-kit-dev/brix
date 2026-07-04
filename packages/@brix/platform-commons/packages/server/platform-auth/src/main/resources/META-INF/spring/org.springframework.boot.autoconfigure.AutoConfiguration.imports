@@ -3,4 +3,5 @@ io.brix.platform.auth.mfa.MfaAutoConfiguration
 io.brix.platform.auth.jwt.JwtIssuerAutoConfiguration
 io.brix.platform.auth.flow.AuthFlowAutoConfiguration
 io.brix.platform.auth.refresh.RefreshTokenAutoConfiguration
+io.brix.platform.auth.ticket.ContextSelectionTicketAutoConfiguration
 io.brix.platform.auth.oauth2.OAuth2FederationAutoConfiguration

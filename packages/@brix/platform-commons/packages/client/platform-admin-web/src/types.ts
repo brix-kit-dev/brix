@@ -229,6 +229,21 @@ export interface AuditLogQuery extends PageRequest {
 }
 
 /* ======================================================================== *
+ * License / Quota — GET /api/platform/license/quota
+ * ======================================================================== */
+
+export interface InstallationQuotaDto {
+  installationId: string;
+  quota: number;
+  used: number;
+  licenseStatus: string;
+  expiresAt: string | null;
+  canCreateTenant: boolean;
+  refusalReason: string | null;
+  updatedAt: string | null;
+}
+
+/* ======================================================================== *
  * Tenant — GET /api/platform/tenants & PATCH /status
  * ======================================================================== */
 
@@ -241,6 +256,18 @@ export interface PlatformTenantDto {
   updatedAt: string;
   ownerIdentityId: string | null;
   memberCount: number;
+  /** Installation or tenant quota currently used, when exposed by backend. */
+  quotaUsed: number | null;
+  /** Installation or tenant quota limit, when exposed by backend. */
+  quotaLimit: number | null;
+  /** License state summary for tenant creation/operation, when exposed. */
+  licenseStatus: string | null;
+  /** Effective tenant default locale, when exposed. */
+  defaultLocale: string | null;
+  /** Effective tenant default timezone, when exposed. */
+  defaultTimezone: string | null;
+  /** Effective tenant default theme, when exposed. */
+  defaultTheme: string | null;
 }
 
 export interface TenantQuery extends PageRequest {

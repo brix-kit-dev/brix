@@ -40,6 +40,8 @@
 -- @author Brix Platform Team
 -- ============================================================================
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Create sys_tenant_principal table
 CREATE TABLE IF NOT EXISTS sys_tenant_principal (
     -- Primary key: Snowflake-generated unique identifier
@@ -50,6 +52,12 @@ CREATE TABLE IF NOT EXISTS sys_tenant_principal (
 
     -- Foreign key: Reference to the identity (user)
     identity_id     BIGINT          NOT NULL,
+
+    -- Stable Subject context identifier. This value is used as the JWT cid.
+    context_id      UUID            NOT NULL DEFAULT gen_random_uuid(),
+
+    -- Authorization version snapshot used by Subject tokens as pver.
+    authz_version   INTEGER         NOT NULL DEFAULT 1,
 
     -- Principal type within this tenant
     -- Valid values: CUSTOMER, GUEST
@@ -81,6 +89,14 @@ CREATE TABLE IF NOT EXISTS sys_tenant_principal (
     CONSTRAINT uk_principal_tenant_identity
         UNIQUE (tenant_id, identity_id),
 
+    -- Stable context identifiers are globally unique.
+    CONSTRAINT uk_principal_context_id
+        UNIQUE (context_id),
+
+    -- Composite unique key used by biz_user_profile composite foreign keys.
+    CONSTRAINT uk_principal_tenant_id
+        UNIQUE (tenant_id, id),
+
     -- Foreign key: tenant must exist
     CONSTRAINT fk_principal_tenant
         FOREIGN KEY (tenant_id) REFERENCES sys_tenant(id)
@@ -94,7 +110,11 @@ CREATE TABLE IF NOT EXISTS sys_tenant_principal (
     -- CHECK constraint: principal_type must be a valid Subject role
     -- Actor roles (OWNER/ADMIN/MEMBER) belong to sys_tenant_member
     CONSTRAINT chk_principal_type
-        CHECK (principal_type IN ('CUSTOMER', 'GUEST'))
+        CHECK (principal_type IN ('CUSTOMER', 'GUEST')),
+
+    -- CHECK constraint: principal status must be a valid Subject lifecycle state
+    CONSTRAINT chk_principal_status
+        CHECK (status IN ('ACTIVE', 'DISABLED', 'REVOKED'))
 );
 
 -- Index for tenant-based queries (list all principals of a tenant)
@@ -114,6 +134,8 @@ COMMENT ON TABLE sys_tenant_principal IS 'B2B2C Subject table: stores C-side (cu
 COMMENT ON COLUMN sys_tenant_principal.id IS 'Primary key (Snowflake ID)';
 COMMENT ON COLUMN sys_tenant_principal.tenant_id IS 'Foreign key to sys_tenant';
 COMMENT ON COLUMN sys_tenant_principal.identity_id IS 'Foreign key to sys_identity';
+COMMENT ON COLUMN sys_tenant_principal.context_id IS 'Stable Subject context identifier used as JWT cid';
+COMMENT ON COLUMN sys_tenant_principal.authz_version IS 'Authorization version used as Subject token pver snapshot';
 COMMENT ON COLUMN sys_tenant_principal.principal_type IS 'Subject role type (PrincipalType enum: CUSTOMER, GUEST)';
 COMMENT ON COLUMN sys_tenant_principal.status IS 'Principal status (PrincipalStatus enum: ACTIVE, DISABLED, REVOKED)';
 COMMENT ON COLUMN sys_tenant_principal.display_name IS 'Display name within tenant context';

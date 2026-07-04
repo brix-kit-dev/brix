@@ -10,8 +10,10 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 
+import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.auth.web.advice.AuthFlowExceptionAdvice;
 import io.brix.platform.auth.web.controller.AuthController;
 import io.brix.platform.auth.web.controller.OAuth2FederationController;
@@ -45,9 +47,11 @@ public class AuthWebAutoConfiguration {
     @Bean
     @ConditionalOnBean({ AuthFlowCapability.class, AuthContextCapability.class })
     @ConditionalOnMissingBean(AuthController.class)
-    public AuthController authController(AuthFlowCapability authFlow, AuthContextCapability authContext) {
+    public AuthController authController(AuthFlowCapability authFlow,
+                                         AuthContextCapability authContext,
+                                         ObjectProvider<SecurityContextHolder> securityContextHolderProvider) {
         log.info("Registering platform-auth-web AuthController on /api/auth");
-        return new AuthController(authFlow, authContext);
+        return new AuthController(authFlow, authContext, securityContextHolderProvider.getIfAvailable());
     }
 
     @Bean

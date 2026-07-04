@@ -29,16 +29,19 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
  * {@code ownerMemberId} and {@code ownerOrgId} are excluded as they are not
  * meaningful in the platform-admin context.
  *
- * @param id           audit log ID
- * @param action       action code (e.g. SUPER_ADMIN_LOGIN_SUCCESS)
- * @param resourceType type of resource affected (e.g. PLATFORM_ADMIN, TENANT, SELF)
- * @param resourceId   ID of the affected resource (may be null)
- * @param description  human-readable description
- * @param actorId      identity_id of the actor who performed the action
- * @param clientIp     remote IP address (may be null)
- * @param success      whether the action succeeded
- * @param errorMessage error message if the action failed (may be null)
- * @param createdAt    timestamp when the event was recorded
+ * @param id              audit log ID
+ * @param actorIdentityId identity ID of the actor who performed the action
+ * @param actorUsername   actor display name when available
+ * @param action          action code
+ * @param targetType      type of resource affected
+ * @param targetId        ID of the affected resource
+ * @param tenantId        tenant ID; always null for platform-scoped audit rows
+ * @param ip              remote IP address
+ * @param userAgent       user agent string
+ * @param result          SUCCESS or FAILURE
+ * @param reason          audit description or failure reason
+ * @param requestId       correlation ID
+ * @param createdAt       timestamp when the event was recorded
  * @author Brix Platform Team
  * @since 3.2.0
  */
@@ -46,14 +49,18 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 public record PlatformAuditLogDto(
         @JsonSerialize(using = ToStringSerializer.class)
         Long id,
-        String action,
-        String resourceType,
-        String resourceId,
-        String description,
         @JsonSerialize(using = ToStringSerializer.class)
-        Long actorId,
-        String clientIp,
-        boolean success,
-        String errorMessage,
+        Long actorIdentityId,
+        String actorUsername,
+        String action,
+        String targetType,
+        String targetId,
+        @JsonSerialize(using = ToStringSerializer.class)
+        Long tenantId,
+        String ip,
+        String userAgent,
+        String result,
+        String reason,
+        String requestId,
         OffsetDateTime createdAt
 ) {}

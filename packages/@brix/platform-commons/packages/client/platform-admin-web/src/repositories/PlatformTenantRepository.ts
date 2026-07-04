@@ -65,6 +65,17 @@ interface BackendPlatformTenantDto {
   updatedAt?: string | number | null;
   ownerIdentityId?: string | null;
   memberCount?: number;
+  quotaUsed?: number | null;
+  usedQuota?: number | null;
+  quotaLimit?: number | null;
+  tenantQuota?: number | null;
+  licenseStatus?: string | null;
+  defaultLocale?: string | null;
+  locale?: string | null;
+  defaultTimezone?: string | null;
+  timezone?: string | null;
+  defaultTheme?: string | null;
+  theme?: string | null;
 }
 
 function normalizeTenantPage(
@@ -117,6 +128,12 @@ function normalizeTenantDto(tenant: BackendPlatformTenantDto): PlatformTenantDto
     updatedAt: normalizeTimestamp(tenant.updatedAt) || createdAt,
     ownerIdentityId: tenant.ownerIdentityId ?? null,
     memberCount: tenant.memberCount ?? 0,
+    quotaUsed: normalizeNullableNumber(tenant.quotaUsed ?? tenant.usedQuota),
+    quotaLimit: normalizeNullableNumber(tenant.quotaLimit ?? tenant.tenantQuota),
+    licenseStatus: tenant.licenseStatus ?? null,
+    defaultLocale: tenant.defaultLocale ?? tenant.locale ?? null,
+    defaultTimezone: tenant.defaultTimezone ?? tenant.timezone ?? null,
+    defaultTheme: tenant.defaultTheme ?? tenant.theme ?? null,
   };
 }
 
@@ -124,4 +141,8 @@ function normalizeTimestamp(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') return new Date(value * 1000).toISOString();
   return value;
+}
+
+function normalizeNullableNumber(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

@@ -24,6 +24,7 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -44,6 +45,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import io.runtime.sdk.capability.IdentityTenantCapability;
+import io.runtime.sdk.capability.JwtIssuerCapability;
 
 /**
  * JWT Validator
@@ -94,8 +96,6 @@ public class JwtValidator {
             Claims claims = Jwts.parser()
                     .verifyWith(publicKey)
                     .requireIssuer(properties.getIssuer())
-                    // P1 Fix: Add Audience validation
-                    .requireAudience(properties.getAudience())
                     .clockSkewSeconds(properties.getClockSkewSeconds())
                     .build()
                     .parseSignedClaims(token)
@@ -161,6 +161,7 @@ public class JwtValidator {
         // Token role (向后兼容：无 role 的旧 Token 视为 ACTOR)
         String roleStr = claims.get("role", String.class);
         user.setTokenRole(TokenRole.fromValue(roleStr));
+        validateAudience(claims, user.getTokenType(), user.getTokenRole());
 
         // Actor claims (mid/mtype)
         String mid = claims.get("mid", String.class);
@@ -228,9 +229,103 @@ public class JwtValidator {
                             JwtValidationException.Reason.INVALID);
                 }
             }
+            validateContextAuthzVersion(claims, user);
         }
 
         return user;
+    }
+
+    private void validateAudience(Claims claims, TokenType tokenType, TokenRole tokenRole)
+            throws JwtValidationException {
+        String audience = readAudience(claims);
+        if (tokenType == TokenType.IDENTITY) {
+            requireAudience(audience, JwtIssuerCapability.AUDIENCE_IDENTITY, "Identity token audience mismatch");
+            return;
+        }
+        if (tokenType == TokenType.ACCESS && tokenRole == TokenRole.ACTOR) {
+            requireAudience(audience, JwtIssuerCapability.AUDIENCE_ACTOR, "Actor token audience mismatch");
+            requireClaim(claims, "scope", "actor");
+            return;
+        }
+        if (tokenType == TokenType.ACCESS && tokenRole == TokenRole.SUBJECT) {
+            requireAudience(audience, JwtIssuerCapability.AUDIENCE_SUBJECT, "Subject token audience mismatch");
+            requireClaim(claims, "scope", "subject");
+            return;
+        }
+        if (!properties.getAudience().equals(audience)) {
+            throw new JwtValidationException("Token audience mismatch", JwtValidationException.Reason.INVALID);
+        }
+    }
+
+    private void validateContextAuthzVersion(Claims claims, AuthenticatedUser user)
+            throws JwtValidationException {
+        if (user.getTokenType() != TokenType.ACCESS) {
+            return;
+        }
+        String contextId = claims.get("cid", String.class);
+        if (contextId == null || contextId.isBlank()) {
+            return;
+        }
+        if (user.getTokenRole() == TokenRole.ACTOR) {
+            long mver = readLongClaim(claims, "mver");
+            IdentityTenantCapability.TenantMembershipRecord membership =
+                    identityTenantCapability.findMembershipByContextId(contextId)
+                            .orElseThrow(() -> staleAuthz("Actor context is no longer active"));
+            if (!String.valueOf(membership.identityId()).equals(user.getUserId())
+                    || !String.valueOf(membership.memberId()).equals(user.getMemberId())
+                    || mver != membership.authzVersion()) {
+                throw staleAuthz("Actor authorization version is stale");
+            }
+        } else if (user.getTokenRole() == TokenRole.SUBJECT) {
+            long pver = readLongClaim(claims, "pver");
+            IdentityTenantCapability.TenantPrincipalRecord principal =
+                    identityTenantCapability.findPrincipalshipByContextId(contextId)
+                            .orElseThrow(() -> staleAuthz("Subject context is no longer active"));
+            if (!String.valueOf(principal.identityId()).equals(user.getUserId())
+                    || !String.valueOf(principal.principalId()).equals(user.getPrincipalId())
+                    || pver != principal.authzVersion()) {
+                throw staleAuthz("Subject authorization version is stale");
+            }
+        }
+    }
+
+    private static String readAudience(Claims claims) {
+        Object value = claims.get("aud");
+        if (value instanceof String s) {
+            return s;
+        }
+        if (value instanceof Collection<?> values && !values.isEmpty()) {
+            Object first = values.iterator().next();
+            return first == null ? null : String.valueOf(first);
+        }
+        return null;
+    }
+
+    private static void requireAudience(String actual, String expected, String message)
+            throws JwtValidationException {
+        if (!expected.equals(actual)) {
+            throw new JwtValidationException(message, JwtValidationException.Reason.INVALID);
+        }
+    }
+
+    private static void requireClaim(Claims claims, String name, String expected)
+            throws JwtValidationException {
+        String actual = claims.get(name, String.class);
+        if (!expected.equals(actual)) {
+            throw new JwtValidationException("Token " + name + " mismatch", JwtValidationException.Reason.INVALID);
+        }
+    }
+
+    private static long readLongClaim(Claims claims, String name) throws JwtValidationException {
+        Object value = claims.get(name);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        throw new JwtValidationException("Missing " + name + " claim", JwtValidationException.Reason.INVALID);
+    }
+
+    private static JwtValidationException staleAuthz(String message) {
+        return new JwtValidationException(message, JwtValidationException.Reason.REVOKED);
     }
 
     /**

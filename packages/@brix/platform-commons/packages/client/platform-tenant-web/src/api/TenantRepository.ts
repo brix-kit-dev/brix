@@ -167,6 +167,23 @@ export class TenantRepository {
   }
 
   /**
+   * Switch to a different actor context by stable context id.
+   *
+   * This is the Phase 3 replacement for tenant-id based switching. The backend
+   * re-signs tokens for the target actor context and rejects subject sessions.
+   *
+   * @param contextId - Target actor context id
+   * @returns Promise resolving to the new Tenant
+   */
+  async switchContext(contextId: string): Promise<Tenant> {
+    const response = await this.httpClient.post<ApiResponse<Tenant>>(
+      `${this.baseUrl}/switch-context`,
+      { contextId }
+    );
+    return response.data;
+  }
+
+  /**
    * Check if a feature is enabled for a tenant.
    * 
    * Convenience method that fetches features and checks for specific key.
@@ -184,63 +201,23 @@ export class TenantRepository {
 }
 
 /**
- * Default HTTP Client using fetch API
- * 
- * A basic implementation that can be used when no custom HTTP client
- * is provided. In production, prefer using the HttpCapability from
- * runtime-sdk-api-web for consistent error handling and interceptors.
+ * Default HTTP Client.
+ *
+ * Phase 3 removes the previous fetch-based fallback. Callers must inject a
+ * TenantHttpClient backed by HttpCapability so auth, tenant context and
+ * observability headers stay under Runtime Shell control.
  */
 export class DefaultTenantHttpClient implements TenantHttpClient {
-  private readonly getAuthToken: () => string | null;
-
-  constructor(getAuthToken: () => string | null = () => null) {
-    this.getAuthToken = getAuthToken;
-  }
-
   async get<T>(url: string): Promise<T> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    
-    const token = this.getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Tenant API error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    throw new Error(
+      `HttpCapability-backed TenantHttpClient is required for GET ${url}.`,
+    );
   }
 
   async post<T>(url: string, data?: unknown): Promise<T> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    
-    const token = this.getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: data ? JSON.stringify(data) : undefined,
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Tenant API error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    void data;
+    throw new Error(
+      `HttpCapability-backed TenantHttpClient is required for POST ${url}.`,
+    );
   }
 }

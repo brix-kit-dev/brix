@@ -26,6 +26,7 @@ import io.brix.architecture.guard.rules.NoDirectHttpClientsRule;
 import io.brix.architecture.guard.rules.NoDirectPluginDependencyRule;
 import io.brix.architecture.guard.rules.NoInfraAdapterRule;
 import io.brix.architecture.guard.rules.NoMiddlewareClientsRule;
+import io.brix.architecture.guard.rules.NoPlatformTenantRelationshipAccessRule;
 import io.brix.architecture.guard.rules.NoRestControllerInCoreRule;
 import io.brix.architecture.guard.rules.NoSpringContainerApiRule;
 import io.brix.architecture.guard.rules.OnlyRuntimeSdkApiRule;
@@ -184,6 +185,10 @@ public class PluginProfile {
     /** Plugins must not access other plugins' repositories */
     @ArchTest
     static final ArchRule noCrossPluginRepositoryAccess = DataOwnershipRule.noCrossPluginRepositoryAccess();
+
+    /** Plugins must not import platform tenant relationship internals */
+    @ArchTest
+    static final ArchRule noPlatformTenantRelationshipAccess = NoPlatformTenantRelationshipAccessRule.rule();
 
     // ==================== Rule 12: No Cyclic Dependencies (Red Line 11) ====================
 

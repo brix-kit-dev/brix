@@ -25,6 +25,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Repository for TenantPrincipal entity operations.
@@ -93,6 +94,14 @@ public interface TenantPrincipalRepository extends JpaRepository<TenantPrincipal
      * @return optional containing the principal relationship
      */
     Optional<TenantPrincipal> findByTenantIdAndIdentityId(Long tenantId, Long identityId);
+
+    /**
+     * Finds a principal by immutable context ID.
+     *
+     * @param contextId immutable context ID
+     * @return principal if present
+     */
+    Optional<TenantPrincipal> findByContextId(UUID contextId);
 
     /**
      * Checks if an identity is a principal of a tenant.

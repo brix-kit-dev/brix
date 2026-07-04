@@ -1,36 +1,30 @@
 -- ============================================================================
--- V009: Create biz_user_profile with ref_type/ref_id polymorphic reference
+-- V009: Create biz_user_profile with strong Actor/Subject references
 -- ============================================================================
 -- Description: Creates the biz_user_profile table with the B2B2C-compatible
---              polymorphic reference model (ref_type + ref_id) instead of the
---              originally planned member_id foreign key.
---
---              The ref_type/ref_id design allows a single profile to reference
---              either a sys_tenant_member (Actor) or sys_tenant_principal
---              (Subject), supporting both B-side and C-side users.
+--              dual nullable reference model. Each profile references either
+--              a sys_tenant_member (Actor) or a sys_tenant_principal (Subject),
+--              and the database verifies that the referenced context belongs
+--              to the same tenant.
 --
 -- Architecture Layer: Layer 2C - Platform Commons (platform-tenant module)
 --
 -- Design Notes:
--- - This table was defined in v1.0 design but never migrated to the database.
---   Since there is no existing table and no legacy data, we create it with
---   the final target schema directly (no ALTER TABLE required).
--- - ref_type: 'MEMBER' or 'PRINCIPAL' (polymorphic discriminator)
--- - ref_id: the id from sys_tenant_member or sys_tenant_principal
--- - The old member_id column from v1.0 design is intentionally omitted
--- - Unique constraint (tenant_id, ref_type, ref_id) ensures one profile
---   per actor/subject per tenant
+-- - member_id references sys_tenant_member for Actor profiles.
+-- - principal_id references sys_tenant_principal for Subject profiles.
+-- - Exactly one of member_id/principal_id must be non-null.
+-- - Composite foreign keys guarantee tenant_id consistency.
 --
 -- Reference Model:
---   ref_type='MEMBER'    + ref_id → sys_tenant_member.id    (Actor/B-side)
---   ref_type='PRINCIPAL' + ref_id → sys_tenant_principal.id (Subject/C-side)
+--   member_id    -> sys_tenant_member.id    (Actor/B-side)
+--   principal_id -> sys_tenant_principal.id (Subject/C-side)
 --
 -- @since 3.2.0
 -- @see v1.2-多租户基础功能完整设计方案.md Section 10.5
 -- @author Brix Platform Team
 -- ============================================================================
 
--- Create biz_user_profile table with polymorphic reference
+-- Create biz_user_profile table with strong references
 CREATE TABLE IF NOT EXISTS biz_user_profile (
     -- Primary key: Snowflake-generated unique identifier
     id              BIGINT          PRIMARY KEY,
@@ -38,13 +32,11 @@ CREATE TABLE IF NOT EXISTS biz_user_profile (
     -- Foreign key: Reference to the tenant
     tenant_id       BIGINT          NOT NULL,
 
-    -- Polymorphic reference type: which table does ref_id point to
-    -- Valid values: MEMBER (sys_tenant_member), PRINCIPAL (sys_tenant_principal)
-    -- @see io.brix.platform.tenant.enums.ProfileRefType
-    ref_type        VARCHAR(20)     NOT NULL,
+    -- Actor profile reference. Exactly one of member_id/principal_id is non-null.
+    member_id       BIGINT,
 
-    -- Polymorphic reference id: the row id in the table indicated by ref_type
-    ref_id          BIGINT          NOT NULL,
+    -- Subject profile reference. Exactly one of member_id/principal_id is non-null.
+    principal_id    BIGINT,
 
     -- User's preferred nickname within this tenant context
     nickname        VARCHAR(100),
@@ -70,29 +62,44 @@ CREATE TABLE IF NOT EXISTS biz_user_profile (
         FOREIGN KEY (tenant_id) REFERENCES sys_tenant(id)
         ON DELETE CASCADE,
 
-    -- Unique constraint: one profile per ref_type+ref_id per tenant
-    CONSTRAINT uk_profile_tenant_ref
-        UNIQUE (tenant_id, ref_type, ref_id),
+    -- Composite foreign keys guarantee that the referenced context belongs to this tenant.
+    CONSTRAINT fk_profile_member
+        FOREIGN KEY (tenant_id, member_id) REFERENCES sys_tenant_member(tenant_id, id),
 
-    -- CHECK constraint: ref_type must be a valid discriminator
-    CONSTRAINT chk_profile_ref_type
-        CHECK (ref_type IN ('MEMBER', 'PRINCIPAL'))
+    CONSTRAINT fk_profile_principal
+        FOREIGN KEY (tenant_id, principal_id) REFERENCES sys_tenant_principal(tenant_id, id),
+
+    -- One profile per Actor/Subject context in a tenant.
+    CONSTRAINT uk_profile_member
+        UNIQUE (tenant_id, member_id),
+
+    CONSTRAINT uk_profile_principal
+        UNIQUE (tenant_id, principal_id),
+
+    -- Exactly one reference must be present.
+    CONSTRAINT chk_profile_ref_exclusive CHECK (
+        (member_id IS NOT NULL AND principal_id IS NULL)
+     OR (member_id IS NULL     AND principal_id IS NOT NULL)
+    )
 );
 
 -- Index for tenant-based profile queries
 CREATE INDEX IF NOT EXISTS idx_user_profile_tenant
     ON biz_user_profile(tenant_id);
 
--- Index for polymorphic lookups (find profile by reference)
-CREATE INDEX IF NOT EXISTS idx_user_profile_ref
-    ON biz_user_profile(ref_type, ref_id);
+-- Indexes for context lookups
+CREATE INDEX IF NOT EXISTS idx_user_profile_member
+    ON biz_user_profile(tenant_id, member_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_profile_principal
+    ON biz_user_profile(tenant_id, principal_id);
 
 -- Comments for documentation
-COMMENT ON TABLE biz_user_profile IS 'User profile within a tenant context, with polymorphic reference to member or principal';
+COMMENT ON TABLE biz_user_profile IS 'User profile within a tenant context, with strong reference to member or principal';
 COMMENT ON COLUMN biz_user_profile.id IS 'Primary key (Snowflake ID)';
 COMMENT ON COLUMN biz_user_profile.tenant_id IS 'Foreign key to sys_tenant';
-COMMENT ON COLUMN biz_user_profile.ref_type IS 'Polymorphic discriminator: MEMBER or PRINCIPAL';
-COMMENT ON COLUMN biz_user_profile.ref_id IS 'Foreign key to sys_tenant_member.id or sys_tenant_principal.id based on ref_type';
+COMMENT ON COLUMN biz_user_profile.member_id IS 'Actor profile reference to sys_tenant_member.id';
+COMMENT ON COLUMN biz_user_profile.principal_id IS 'Subject profile reference to sys_tenant_principal.id';
 COMMENT ON COLUMN biz_user_profile.nickname IS 'User nickname within this tenant';
 COMMENT ON COLUMN biz_user_profile.avatar_url IS 'URL to user avatar image';
 COMMENT ON COLUMN biz_user_profile.display_name IS 'Formal display name within this tenant';

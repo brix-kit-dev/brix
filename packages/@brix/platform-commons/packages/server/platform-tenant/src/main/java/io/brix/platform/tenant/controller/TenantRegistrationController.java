@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
 import io.brix.platform.tenant.dto.RegisterTenantRequest;
 import io.brix.platform.tenant.entity.Tenant;
-import io.brix.platform.tenant.enums.TenantMemberType;
+import io.brix.platform.tenant.exception.QuotaExceededException;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.service.TenantProvisioningService;
@@ -50,7 +50,7 @@ import jakarta.validation.Valid;
  * <h3>Registration Flow</h3>
  * <ol>
  *   <li>Validate the registration request (code format, uniqueness, identity existence)</li>
- *   <li>Check rate limits (per-identity and global tenant limits)</li>
+ *   <li>Check rate limits (per-identity and installation-level tenant quota)</li>
  *   <li>Create tenant via {@link TenantProvisioningService} (PENDING_ACTIVATION)</li>
  *   <li>Activate the tenant immediately (self-service flow)</li>
  *   <li>Return the created tenant information</li>
@@ -60,8 +60,7 @@ import jakarta.validation.Valid;
  * <ul>
  *   <li>Per-identity: maximum {@code brix.tenant.registration.max-per-identity} tenants
  *       owned by a single identity (default: 2)</li>
- *   <li>Global (OSS): maximum {@code brix.tenant.registration.max-global} tenants
- *       across the entire platform (default: 3 for OSS edition)</li>
+ *   <li>Installation: enforced by {@code sys_installation_quota} with row locking</li>
  * </ul>
  *
  * <h3>Security</h3>
@@ -96,13 +95,6 @@ public class TenantRegistrationController {
     @Value("${brix.tenant.registration.max-per-identity:2}")
     private int maxTenantsPerIdentity;
 
-    /**
-     * Global maximum number of tenants for the OSS edition.
-     * Default: 3. Set to 0 to disable the global limit.
-     */
-    @Value("${brix.tenant.registration.max-global:3}")
-    private int maxGlobalTenants;
-
     public TenantRegistrationController(TenantProvisioningService provisioningService,
                                          TenantMemberRepository tenantMemberRepository,
                                          TenantRepository tenantRepository) {
@@ -134,10 +126,7 @@ public class TenantRegistrationController {
         // Rate Limit Check: Per-Identity Limit
         // =====================================================================
         long ownedTenants = tenantMemberRepository
-                .findByIdentityId(request.getOwnerIdentityId())
-                .stream()
-                .filter(m -> m.getMemberType() == TenantMemberType.OWNER)
-                .count();
+                .countNonTerminatedOwnedTenants(request.getOwnerIdentityId());
 
         if (ownedTenants >= maxTenantsPerIdentity) {
             log.warn("Identity {} has reached the tenant ownership limit ({})",
@@ -151,23 +140,6 @@ public class TenantRegistrationController {
         }
 
         // =====================================================================
-        // Rate Limit Check: Global Tenant Limit (OSS edition)
-        // =====================================================================
-        if (maxGlobalTenants > 0) {
-            long totalTenants = tenantRepository.count();
-            if (totalTenants >= maxGlobalTenants) {
-                log.warn("Global tenant limit reached: current={}, max={}",
-                        totalTenants, maxGlobalTenants);
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                        .body(Map.of(
-                                "code", "TENANT_LIMIT_GLOBAL",
-                                "message", "The platform has reached the maximum number of tenants (" +
-                                           maxGlobalTenants + ") allowed"
-                        ));
-            }
-        }
-
-        // =====================================================================
         // Create Tenant via Provisioning Service
         // =====================================================================
         try {
@@ -178,10 +150,19 @@ public class TenantRegistrationController {
             );
 
             Tenant tenant = provisioningService.createTenant(createRequest);
+                        Long createdTenantId = tenant.getId();
+                        if (createdTenantId == null) {
+                                throw new IllegalStateException("Created tenant ID cannot be null");
+                        }
 
             // Self-service registration: activate immediately
-            provisioningService.activateTenant(tenant.getId());
-            tenant = tenantRepository.findById(tenant.getId()).orElse(tenant);
+                        try {
+                                provisioningService.activateTenant(createdTenantId);
+                        } catch (QuotaExceededException e) {
+                                provisioningService.terminateTenant(createdTenantId);
+                                throw e;
+                        }
+                        tenant = tenantRepository.findById(createdTenantId).orElse(tenant);
 
             log.info("Tenant registered successfully: id={}, code={}",
                     tenant.getId(), tenant.getCode());
@@ -194,6 +175,15 @@ public class TenantRegistrationController {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
+        } catch (QuotaExceededException e) {
+            log.warn("Tenant registration rejected by installation quota: current={}, max={}",
+                    e.getCurrentUsage(), e.getMaxAllowed());
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of(
+                            "code", "TENANT_LIMIT_GLOBAL",
+                            "message", "The platform has reached the maximum number of active tenants (" +
+                                       e.getMaxAllowed() + ") allowed"
+                    ));
         } catch (IllegalStateException e) {
             // Duplicate tenant code
             log.warn("Tenant registration failed: {}", e.getMessage());

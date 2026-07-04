@@ -15,7 +15,6 @@
  */
 package io.brix.platform.admin.controller;
 
-import java.security.Principal;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -41,14 +40,17 @@ import io.brix.platform.admin.dto.UpdateTenantStatusRequest;
 import io.brix.platform.auth.AuditAction;
 import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.annotation.RequirePermission;
+import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.AuditEvent;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.enums.TenantStatus;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.service.AuditService;
-import io.runtime.sdk.capability.AuthContextCapability;
+import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
+import io.runtime.sdk.capability.TenantQuotaCapability;
+import io.runtime.sdk.capability.TenantQuotaCapability.InstallationQuotaSnapshot;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 
@@ -85,17 +87,23 @@ public class PlatformTenantController {
 
     private final TenantRepository tenantRepository;
     private final AuditService auditService;
-    private final AuthContextCapability authContext;
+    private final TenantProvisioningService tenantProvisioningService;
+    private final SecurityContextHolder securityContextHolder;
+    private final TenantQuotaCapability tenantQuotaCapability;
     private final IdGenerator idGenerator;
 
     public PlatformTenantController(
             TenantRepository tenantRepository,
             AuditService auditService,
-            AuthContextCapability authContext,
+            TenantProvisioningService tenantProvisioningService,
+            SecurityContextHolder securityContextHolder,
+            TenantQuotaCapability tenantQuotaCapability,
             IdGenerator idGenerator) {
         this.tenantRepository = tenantRepository;
         this.auditService = auditService;
-        this.authContext = authContext;
+        this.tenantProvisioningService = tenantProvisioningService;
+        this.securityContextHolder = securityContextHolder;
+        this.tenantQuotaCapability = tenantQuotaCapability;
         this.idGenerator = idGenerator;
     }
 
@@ -130,7 +138,8 @@ public class PlatformTenantController {
             result = tenantRepository.findAll(pageable);
         }
 
-        List<PlatformTenantDto> content = result.stream().map(this::toDto).toList();
+        InstallationQuotaSnapshot quota = tenantQuotaCapability.getInstallationQuota();
+        List<PlatformTenantDto> content = result.stream().map(tenant -> toDto(tenant, quota)).toList();
         return ResponseEntity.ok(new PageResponse<>(content, safePage, safeSize, result.getTotalElements()));
     }
 
@@ -152,7 +161,8 @@ public class PlatformTenantController {
     public ResponseEntity<PlatformTenantDto> createTenant(
             @Valid @RequestBody CreatePlatformTenantRequest request) {
 
-        Long operatorId = requireIdentityId();
+        long operatorId = requireIdentityId();
+        tenantQuotaCapability.requireCanCreateTenant();
 
         if (tenantRepository.existsByCode(request.code())) {
             throw new IllegalArgumentException("Tenant code already exists: " + request.code());
@@ -201,15 +211,24 @@ public class PlatformTenantController {
             @PathVariable("id") Long tenantId,
             @Valid @RequestBody UpdateTenantStatusRequest request) {
 
-        Long operatorId = requireIdentityId();
+        long operatorId = requireIdentityId();
 
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
 
-        String previousStatus = tenant.getStatus().name();
+        TenantStatus previousStatus = tenant.getStatus();
         TenantStatus targetStatus = parseTenantStatus(request.status());
-        tenant.setStatus(targetStatus);
-        tenantRepository.save(tenant);
+        if (previousStatus != targetStatus) {
+            switch (targetStatus) {
+            case ACTIVE -> tenantProvisioningService.activateTenant(tenantId);
+            case SUSPENDED -> tenantProvisioningService.suspendTenant(tenantId);
+            case TERMINATED -> tenantProvisioningService.terminateTenant(tenantId);
+            case PENDING_ACTIVATION -> throw new IllegalStateException(
+                "Cannot transition tenant back to PENDING_ACTIVATION");
+            }
+            tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new EntityNotFoundException("Tenant not found after status update: " + tenantId));
+        }
 
         // Audit the status change
         auditService.log(AuditEvent.builder()
@@ -217,13 +236,13 @@ public class PlatformTenantController {
                 .action(AuditAction.TENANT_STATUS_CHANGED)
                 .resourceType("TENANT")
                 .resourceId(String.valueOf(tenantId))
-                .description("Tenant status changed from " + previousStatus + " to " + request.status()
+            .description("Tenant status changed from " + previousStatus.name() + " to " + request.status()
                         + ". Reason: " + sanitize(request.reason()))
                 .success(true)
                 .build());
 
         log.info("Tenant status updated: tenantId={}, from={}, to={}, operatorId={}",
-                tenantId, previousStatus, request.status(), operatorId);
+            tenantId, previousStatus.name(), request.status(), operatorId);
 
         return ResponseEntity.ok(toDto(tenant));
     }
@@ -233,12 +252,23 @@ public class PlatformTenantController {
     // ========================================================================
 
     private PlatformTenantDto toDto(Tenant tenant) {
+        return toDto(tenant, tenantQuotaCapability.getInstallationQuota());
+    }
+
+    private PlatformTenantDto toDto(Tenant tenant, InstallationQuotaSnapshot quota) {
         return new PlatformTenantDto(
                 tenant.getId(),
                 tenant.getCode(),
                 tenant.getName(),
                 tenant.getStatus().name(),
-                tenant.getCreatedAt()
+                tenant.getCreatedAt(),
+                tenant.getUpdatedAt(),
+                quota.used(),
+                quota.quota(),
+                quota.licenseStatus(),
+                tenant.getDefaultLocale(),
+                tenant.getDefaultTimezone(),
+                tenant.getDefaultTheme() != null ? tenant.getDefaultTheme().name() : null
         );
     }
 
@@ -250,16 +280,16 @@ public class PlatformTenantController {
         }
     }
 
-    private Long requireIdentityId() {
-        Principal principal = authContext.getCurrentPrincipal();
-        if (principal == null || principal.getName() == null) {
+    private long requireIdentityId() {
+        String userId = securityContextHolder.getCurrentUserId().orElse(null);
+        if (userId == null || userId.isBlank()) {
             throw new AuthFlowException(AuthFlowException.CODE_IDENTITY_NOT_FOUND,
                     "Authentication required.");
         }
         try {
-            return Long.parseLong(principal.getName());
+            return Long.parseLong(userId);
         } catch (NumberFormatException e) {
-            log.warn("[PlatformTenant] Non-numeric principal: {}", principal.getName());
+            log.warn("[PlatformTenant] Non-numeric principal: {}", userId);
             throw new AuthFlowException(AuthFlowException.CODE_IDENTITY_NOT_FOUND,
                     "Invalid identity token (non-numeric subject).");
         }

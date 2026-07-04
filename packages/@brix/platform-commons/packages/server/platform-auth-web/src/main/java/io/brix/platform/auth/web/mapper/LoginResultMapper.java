@@ -70,7 +70,8 @@ public final class LoginResultMapper {
                 opt.tenantName(),
                 opt.roleType(),
                 opt.role(),
-                opt.lastAccessAt());
+                opt.lastAccessAt(),
+                opt.selectionTicket());
     }
 
     private static <T> List<T> nullSafe(List<T> list) {

@@ -107,6 +107,11 @@ export {
   type UseLoginCoordinatorOptions,
   type UseLoginCoordinatorReturn,
 } from './hooks/useLoginCoordinator';
+export {
+  useTenantLoginFlow,
+  type UseTenantLoginFlowOptions,
+  type UseTenantLoginFlowResult,
+} from './hooks/useTenantLoginFlow';
 
 // ============================================================================
 // Pre-assembled Page Exports
@@ -117,6 +122,12 @@ export {
   createSimpleLoginPage,
   createSimpleRegisterPage,
   OAuthCallbackPage,
+  ActorLoginPage,
+  SubjectLoginPage,
+  ActorContextSelectorPage,
+  InvitationAcceptPage,
+  SubjectNoTenantState,
+  TENANT_ACCESS_ROUTES,
   type OAuthCallbackPageProps,
   type LoginPageConfig,
   type SimpleLoginPageConfig,
@@ -124,6 +135,10 @@ export {
   type AuthService,
   type NavigationService,
   type LoginPageRoutes,
+  type TenantAccessPageConfig,
+  type ActorContextSelectorPageProps,
+  type SubjectNoTenantStateProps,
+  type InvitationAcceptPageProps,
 } from './pages';
 export {
   createGoogleCallbackPage,

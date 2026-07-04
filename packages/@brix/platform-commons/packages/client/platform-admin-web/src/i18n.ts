@@ -188,6 +188,12 @@ export const I18N_KEYS = Object.freeze({
       'dashboard.cardAuditDescription',
       'Security-sensitive actions and platform operation history.',
     ],
+    cardLicense: ['dashboard.cardLicense', 'License / Quota'],
+    cardLicenseArea: ['dashboard.cardLicenseArea', 'Delivery'],
+    cardLicenseDescription: [
+      'dashboard.cardLicenseDescription',
+      'Installation tenant quota, license state and tenant admission readiness.',
+    ],
     cardChangePassword: ['dashboard.cardChangePassword', 'Change My Password'],
     cardChangePasswordArea: ['dashboard.cardChangePasswordArea', 'Account'],
     cardChangePasswordDescription: [
@@ -306,6 +312,22 @@ export const I18N_KEYS = Object.freeze({
     filterResult: ['audit.filterResult', 'Filter by result'],
     resultSuccess: ['audit.resultSuccess', 'SUCCESS'],
     resultFailure: ['audit.resultFailure', 'FAILURE'],
+  },
+  // License / quota
+  license: {
+    title: ['license.title', 'License / Quota'],
+    subtitle: [
+      'license.subtitle',
+      'Installation-level tenant quota and license admission status.',
+    ],
+    installationId: ['license.installationId', 'Installation'],
+    quotaUsage: ['license.quotaUsage', 'Tenant quota'],
+    licenseStatus: ['license.licenseStatus', 'License status'],
+    expiresAt: ['license.expiresAt', 'Expires at'],
+    updatedAt: ['license.updatedAt', 'Updated'],
+    admissionState: ['license.admissionState', 'Tenant admission'],
+    canCreate: ['license.canCreate', 'Can create tenant'],
+    cannotCreate: ['license.cannotCreate', 'Creation blocked'],
   },
   // Tenant
   tenant: {

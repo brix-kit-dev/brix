@@ -63,7 +63,7 @@ import io.brix.platform.tenant.repository.TenantRepository;
  * <h3>Platform Defaults</h3>
  * <p>Platform-level defaults are loaded from {@code application.yml} properties
  * with prefix {@code brix.tenant.defaults.*}. If not configured, sensible
- * built-in defaults are used (zh-CN, Asia/Shanghai, etc.).</p>
+ * built-in defaults are used (zh-CN, UTC, etc.).</p>
  *
  * @author Brix Platform Team
  * @since 3.1.0
@@ -86,7 +86,7 @@ public class TenantSettingsServiceImpl implements TenantSettingsService {
     @Value("${brix.tenant.defaults.locale:zh-CN}")
     private String platformDefaultLocale;
 
-    @Value("${brix.tenant.defaults.timezone:Asia/Shanghai}")
+    @Value("${brix.tenant.defaults.timezone:UTC}")
     private String platformDefaultTimezone;
 
     @Value("${brix.tenant.defaults.date-format:YYYY-MM-DD}")

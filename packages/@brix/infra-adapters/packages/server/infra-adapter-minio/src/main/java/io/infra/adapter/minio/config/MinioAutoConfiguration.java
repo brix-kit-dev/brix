@@ -111,6 +111,9 @@ public class MinioAutoConfiguration {
     @ConditionalOnMissingBean(FileStorageCapability.class)
     public MinioFileStorageCapability fileStorageCapability(MinioClient minioClient, MinioProperties properties) {
         log.info("[MinIO] Registering file storage capability: bucket={}", properties.getBucketName());
-        return new MinioFileStorageCapability(minioClient, properties.getBucketName());
+        return new MinioFileStorageCapability(
+                minioClient,
+                properties.getBucketName(),
+                properties.isInitializeBucketOnStartup());
     }
 }

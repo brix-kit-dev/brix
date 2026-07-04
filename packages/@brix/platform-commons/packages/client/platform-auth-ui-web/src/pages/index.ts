@@ -44,3 +44,15 @@ export {
   type GoogleCallbackPageConfig,
   type GoogleCallbackPageProps,
 } from './GoogleCallbackPage';
+export {
+  ActorLoginPage,
+  SubjectLoginPage,
+  ActorContextSelectorPage,
+  InvitationAcceptPage,
+  SubjectNoTenantState,
+  TENANT_ACCESS_ROUTES,
+  type TenantAccessPageConfig,
+  type ActorContextSelectorPageProps,
+  type SubjectNoTenantStateProps,
+  type InvitationAcceptPageProps,
+} from './TenantAccessPages';

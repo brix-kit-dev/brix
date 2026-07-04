@@ -16,7 +16,7 @@
 -- 3. Add CHECK constraint to enforce Actor-only member types
 --
 -- Design Notes:
--- - ON CONFLICT DO NOTHING ensures idempotent migration
+-- - Conflicts are detected before insert and fail the migration with details
 -- - sys_tenant_member does not have display_name or last_access_at columns,
 --   so those are set to NULL in the target principal table
 -- - CHECK constraint name "chk_member_type" aligns with design document
@@ -31,25 +31,59 @@
 -- @author Brix Platform Team
 -- ============================================================================
 
+-- Step 0: Detect conflicts before moving CUSTOMER/GUEST rows.
+DO $$
+DECLARE
+    conflict_report JSONB;
+BEGIN
+    SELECT jsonb_agg(jsonb_build_object(
+        'member_id', m.id,
+        'tenant_id', m.tenant_id,
+        'identity_id', m.identity_id,
+        'member_type', m.member_type,
+        'conflicting_principal_id', COALESCE(p_by_id.id, p_by_tenant_identity.id),
+        'conflict_reason', CASE
+            WHEN p_by_id.id IS NOT NULL THEN 'principal_id_already_exists'
+            WHEN p_by_tenant_identity.id IS NOT NULL THEN 'principal_tenant_identity_already_exists'
+            ELSE 'unknown'
+        END
+    ))
+    INTO conflict_report
+    FROM sys_tenant_member m
+    LEFT JOIN sys_tenant_principal p_by_id
+        ON p_by_id.id = m.id
+    LEFT JOIN sys_tenant_principal p_by_tenant_identity
+        ON p_by_tenant_identity.tenant_id = m.tenant_id
+       AND p_by_tenant_identity.identity_id = m.identity_id
+    WHERE m.member_type IN ('CUSTOMER', 'GUEST')
+      AND (p_by_id.id IS NOT NULL OR p_by_tenant_identity.id IS NOT NULL);
+
+    IF conflict_report IS NOT NULL THEN
+        RAISE EXCEPTION 'V008 cannot migrate CUSTOMER/GUEST member rows because principal conflicts exist: %', conflict_report;
+    END IF;
+END;
+$$;
+
 -- Step 1: Migrate CUSTOMER/GUEST rows to sys_tenant_principal (if any exist)
 -- Note: sys_tenant_member does not have display_name or last_access_at,
 -- so those default to NULL in the target principal table.
 INSERT INTO sys_tenant_principal (
-    id, tenant_id, identity_id, principal_type, status,
+    id, tenant_id, identity_id, principal_type, status, context_id, authz_version,
     display_name, joined_at, last_access_at, created_at, updated_at
 )
 SELECT
     id, tenant_id, identity_id,
     CASE WHEN member_type = 'CUSTOMER' THEN 'CUSTOMER' ELSE 'GUEST' END,
-    status,
+    CASE WHEN status = 'ACTIVE' THEN 'ACTIVE' ELSE 'DISABLED' END,
+    gen_random_uuid(),
+    COALESCE(authz_version, 1),
     NULL,                -- display_name: not present in sys_tenant_member
     joined_at,
     NULL,                -- last_access_at: not present in sys_tenant_member
     created_at,
     updated_at
 FROM sys_tenant_member
-WHERE member_type IN ('CUSTOMER', 'GUEST')
-ON CONFLICT DO NOTHING;
+WHERE member_type IN ('CUSTOMER', 'GUEST');
 
 -- Step 2: Delete migrated CUSTOMER/GUEST records from sys_tenant_member
 DELETE FROM sys_tenant_member

@@ -20,6 +20,7 @@ import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -36,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
+import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapRunner;
 import io.brix.platform.tenant.core.IdGenerator;
@@ -43,9 +45,10 @@ import io.brix.platform.tenant.core.SnowflakeIdGenerator;
 import io.brix.platform.tenant.decorator.TenantTaskDecorator;
 import io.brix.platform.tenant.filter.IdentityValidationFilter;
 import io.brix.platform.tenant.repository.AuditLogRepository;
-import io.brix.platform.tenant.repository.BootstrapStateRepository;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
+import io.brix.platform.tenant.repository.BootstrapStateRepository;
 import io.brix.platform.tenant.repository.IdentityRepository;
+import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
 import io.brix.platform.tenant.repository.PlatformAdminRepository;
 import io.brix.platform.tenant.repository.TenantConfigRepository;
@@ -224,9 +227,10 @@ public class TenantAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(TenantCapability.class)
     public TenantCapability tenantCapability(
-            @Value("${brix.tenant.default-id:default}") String defaultTenantId) {
+            @Value("${brix.tenant.default-id:default}") String defaultTenantId,
+            ObjectProvider<SecurityContextHolder> securityContextHolderProvider) {
         log.info("Registering TenantCapabilityImpl: defaultTenantId={}", defaultTenantId);
-        return new TenantCapabilityImpl(defaultTenantId);
+        return new TenantCapabilityImpl(defaultTenantId, securityContextHolderProvider.getIfAvailable());
     }
 
     /**
@@ -307,14 +311,18 @@ public class TenantAutoConfiguration {
     public TenantProvisioningService tenantProvisioningService(
             TenantRepository tenantRepository,
             TenantMemberRepository tenantMemberRepository,
+            InstallationQuotaRepository installationQuotaRepository,
             OrganizationRepository organizationRepository,
+            BizUserProfileRepository bizUserProfileRepository,
             IdentityRepository identityRepository,
             IdGenerator idGenerator) {
         log.debug("Registering TenantProvisioningService");
         return new TenantProvisioningServiceImpl(
             tenantRepository,
             tenantMemberRepository,
+            installationQuotaRepository,
             organizationRepository,
+            bizUserProfileRepository,
             identityRepository,
             idGenerator
         );

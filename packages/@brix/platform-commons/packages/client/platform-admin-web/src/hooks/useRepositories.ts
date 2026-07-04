@@ -21,12 +21,14 @@ import {
   createPlatformAuditRepository,
   createPlatformAuthRepository,
   createPlatformBootstrapRepository,
+  createPlatformLicenseRepository,
   createPlatformSetupRepository,
   createPlatformTenantRepository,
   type PlatformAdminRepository,
   type PlatformAuditRepository,
   type PlatformAuthRepository,
   type PlatformBootstrapRepository,
+  type PlatformLicenseRepository,
   type PlatformSetupRepository,
   type PlatformTenantRepository,
 } from '../repositories';
@@ -37,6 +39,7 @@ export interface PlatformAdminRepositoryBundle {
   bootstrap: PlatformBootstrapRepository;
   admin: PlatformAdminRepository;
   audit: PlatformAuditRepository;
+  license: PlatformLicenseRepository;
   tenant: PlatformTenantRepository;
 }
 
@@ -52,6 +55,7 @@ export function useRepositories(): PlatformAdminRepositoryBundle {
       bootstrap: createPlatformBootstrapRepository(cap),
       admin: createPlatformAdminRepository(cap),
       audit: createPlatformAuditRepository(cap),
+      license: createPlatformLicenseRepository(cap),
       tenant: createPlatformTenantRepository(cap),
     };
   }, [http]);

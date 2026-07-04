@@ -10,7 +10,9 @@
       "@brix-sdk/runtime-sdk-react": ["../../../../runtime-sdk/runtime-sdk-react/src"],
       "@brix-sdk/runtime-sdk-react/*": ["../../../../runtime-sdk/runtime-sdk-react/src/*"],
       "@brix-sdk/platform-auth-web": ["../platform-auth-web/src"],
-      "@brix-sdk/platform-auth-web/*": ["../platform-auth-web/src/*"]
+      "@brix-sdk/platform-auth-web/*": ["../platform-auth-web/src/*"],
+      "@brix-sdk/platform-auth-service-web": ["../platform-auth-service-web/src"],
+      "@brix-sdk/platform-auth-service-web/*": ["../platform-auth-service-web/src/*"]
     }
   },
   "include": ["src/**/*"],

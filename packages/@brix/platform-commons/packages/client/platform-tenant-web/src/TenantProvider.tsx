@@ -34,13 +34,13 @@ import {
 interface TenantProviderInternalProps extends TenantProviderProps {
   /**
    * Custom HTTP client for API calls.
-   * If not provided, uses DefaultTenantHttpClient.
+   * Must be backed by HttpCapability in production.
    */
   httpClient?: TenantHttpClient;
   
   /**
    * Function to get current auth token.
-   * Used by DefaultTenantHttpClient if no custom httpClient provided.
+   * @deprecated Token injection belongs to HttpCapability.
    */
   getAuthToken?: () => string | null;
   
@@ -141,7 +141,8 @@ export function TenantProvider({
 
   // Create repository instance
   const repository = useMemo(() => {
-    const client = httpClient ?? new DefaultTenantHttpClient(getAuthToken);
+    void getAuthToken;
+    const client = httpClient ?? new DefaultTenantHttpClient();
     return new TenantRepository(client, apiBaseUrl);
   }, [httpClient, getAuthToken, apiBaseUrl]);
 

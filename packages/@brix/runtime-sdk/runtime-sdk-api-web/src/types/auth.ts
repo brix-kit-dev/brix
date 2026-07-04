@@ -226,10 +226,14 @@ export interface TenantOption {
   readonly tenantName: string;
   /** 'actor' = B 端从业者；'subject' = C 端服务对象 */
   readonly roleType: 'actor' | 'subject';
+  /** Backend role field: memberType or principalType. */
+  readonly role?: string;
   /** 业务子角色（可选，例如 OWNER / ADMIN / MEMBER） */
   readonly subRole?: string;
   /** 最近一次访问该租户的 ISO8601 时间（可选） */
   readonly lastAccessAt?: string;
+  /** Opaque one-time context selection ticket. */
+  readonly selectionTicket?: string;
 }
 
 /**

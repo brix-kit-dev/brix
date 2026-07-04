@@ -138,7 +138,7 @@ public class Tenant {
     private String defaultLocale = "zh-CN";
 
     @Column(name = "default_timezone", length = 50)
-    private String defaultTimezone = "Asia/Shanghai";
+    private String defaultTimezone = "UTC";
 
     @Column(name = "default_date_format", length = 20)
     private String defaultDateFormat = "YYYY-MM-DD";

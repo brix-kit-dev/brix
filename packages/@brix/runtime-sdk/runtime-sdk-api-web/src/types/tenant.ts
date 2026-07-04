@@ -99,6 +99,82 @@ export interface TenantInfo {
 }
 
 // =========================================
+// Tenant Access Context
+// =========================================
+
+/**
+ * Access-context role track.
+ *
+ * Actor is the B-side organizational member track. Subject is the C-side
+ * customer/guest track. The two tracks are intentionally separated so UI code
+ * cannot accidentally expose actor-only context switching to subject sessions.
+ */
+export type TenantAccessRole = 'actor' | 'subject';
+
+/**
+ * Tenant-scoped role type.
+ *
+ * Actor contexts commonly use OWNER / ADMIN / MEMBER. Subject contexts
+ * commonly use CUSTOMER / GUEST. The string extension keeps the web contract
+ * forward-compatible with new role codes added by backend policy.
+ */
+export type TenantContextRoleType =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'MEMBER'
+  | 'CUSTOMER'
+  | 'GUEST'
+  | (string & {});
+
+/**
+ * Stable tenant access context bound into a signed token.
+ *
+ * `contextId` is the only frontend switching identifier. UI code must not use
+ * `tenantId` as an authorization or context-switching parameter.
+ */
+export interface TenantAccessContext {
+  /** Actor or subject track. */
+  readonly role: TenantAccessRole;
+  /** Stable backend context id (`cid` claim). */
+  readonly contextId: string;
+  /** Tenant id of this access context. */
+  readonly tenantId: string;
+  /** Tenant summary for display only. */
+  readonly tenant: TenantInfo;
+  /** Tenant-scoped role type, e.g. OWNER / ADMIN / MEMBER / CUSTOMER / GUEST. */
+  readonly roleType: TenantContextRoleType;
+  /** Member id for actor, principal id for subject. */
+  readonly refId: string;
+  /** Global identity/user id. */
+  readonly userId: string;
+  /** Display name resolved for this tenant context. */
+  readonly displayName: string;
+  /** Last time this context was used, if available. */
+  readonly lastAccessAt?: string;
+  /** Additional non-authoritative display metadata. */
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * Actor access context. Only actor contexts are switchable from the frontend.
+ */
+export interface ActorTenantAccessContext extends TenantAccessContext {
+  readonly role: 'actor';
+}
+
+/**
+ * Subject access context. Subject sessions are single-context and not
+ * switchable from the frontend.
+ */
+export interface SubjectTenantAccessContext extends TenantAccessContext {
+  readonly role: 'subject';
+}
+
+export type CurrentTenantAccessContext =
+  | ActorTenantAccessContext
+  | SubjectTenantAccessContext;
+
+// =========================================
 // Tenant Feature Flag
 // =========================================
 
@@ -175,6 +251,16 @@ export interface TenantCapability {
   getCurrentTenant(): TenantInfo | null;
 
   /**
+   * Get the current actor/subject access context.
+   *
+   * Returns null before a tenant-scoped token is selected. Implementations that
+   * still expose only the legacy tenant API may omit this method during a
+   * compatibility window; React hooks derive a display-only actor context from
+   * the legacy tenant snapshot in that case.
+   */
+  getCurrentContext?(): CurrentTenantAccessContext | null;
+
+  /**
    * Get the list of tenants available to the current user.
    *
    * For users with multi-tenant access, returns all tenants they can
@@ -183,6 +269,14 @@ export interface TenantCapability {
    * @returns array of available tenants
    */
   getAvailableTenants(): readonly TenantInfo[];
+
+  /**
+   * Get switchable actor contexts.
+   *
+   * Subject sessions must return an empty array. The UI must never expose these
+   * values for subject sessions.
+   */
+  getAvailableContexts?(): readonly ActorTenantAccessContext[];
 
   /**
    * Check if a specific feature is enabled for the current tenant.
@@ -203,6 +297,14 @@ export interface TenantCapability {
    * @throws Error if the user doesn't have access or tenant doesn't exist
    */
   switchTenant(tenantId: string): Promise<void>;
+
+  /**
+   * Switch to another actor context by stable context id.
+   *
+   * The backend must re-sign tokens and invalidate the previous token family as
+   * needed. The frontend must clear tenant-scoped caches after this completes.
+   */
+  switchContext?(contextId: string): Promise<void>;
 
   /**
    * Subscribe to tenant context changes.
@@ -232,6 +334,9 @@ export interface TenantChangeEvent {
 
   /** New tenant info (null if tenant context cleared) */
   readonly tenant: TenantInfo | null;
+
+  /** New actor/subject context, null when cleared. */
+  readonly context?: CurrentTenantAccessContext | null;
 
   /** Change timestamp (epoch milliseconds) */
   readonly timestamp: number;

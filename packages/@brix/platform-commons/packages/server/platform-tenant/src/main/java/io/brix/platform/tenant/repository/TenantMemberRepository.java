@@ -15,16 +15,18 @@
  */
 package io.brix.platform.tenant.repository;
 
-import io.brix.platform.tenant.entity.TenantMember;
-import io.brix.platform.tenant.enums.MemberStatus;
-import io.brix.platform.tenant.enums.TenantMemberType;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import io.brix.platform.tenant.entity.TenantMember;
+import io.brix.platform.tenant.enums.MemberStatus;
+import io.brix.platform.tenant.enums.TenantMemberType;
 
 /**
  * Repository for TenantMember entity operations.
@@ -93,6 +95,14 @@ public interface TenantMemberRepository extends JpaRepository<TenantMember, Long
     Optional<TenantMember> findByTenantIdAndIdentityId(Long tenantId, Long identityId);
 
     /**
+     * Finds a membership by immutable context ID.
+     *
+     * @param contextId immutable context ID
+     * @return membership if present
+     */
+    Optional<TenantMember> findByContextId(UUID contextId);
+
+    /**
      * Checks if an identity is a member of a tenant.
      *
      * @param tenantId the tenant ID
@@ -159,4 +169,14 @@ public interface TenantMemberRepository extends JpaRepository<TenantMember, Long
      */
     @Query("SELECT COUNT(tm) FROM TenantMember tm WHERE tm.tenantId = :tenantId AND tm.status = 'ACTIVE'")
     long countActiveMembers(@Param("tenantId") Long tenantId);
+
+       /**
+        * Counts non-terminated tenants owned by an identity.
+        *
+        * @param identityId the identity ID
+        * @return count of owned tenants that are not terminated
+        */
+       @Query("SELECT COUNT(tm) FROM TenantMember tm JOIN Tenant t ON t.id = tm.tenantId " +
+                 "WHERE tm.identityId = :identityId AND tm.memberType = 'OWNER' AND t.status <> 'TERMINATED'")
+       long countNonTerminatedOwnedTenants(@Param("identityId") Long identityId);
 }

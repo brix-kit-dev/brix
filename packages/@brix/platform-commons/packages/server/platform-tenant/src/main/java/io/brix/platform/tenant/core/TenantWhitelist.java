@@ -36,14 +36,13 @@ import java.util.Set;
  *
  * <h3>Whitelisted Table Categories</h3>
  * <ol>
- *   <li><b>System Tables (sys_*):</b> Platform-level tables without tenant scope</li>
- *   <li><b>Configuration Tables:</b> Global configuration tables</li>
+ *   <li><b>Platform-global Tables:</b> Explicitly listed tables without tenant scope</li>
  *   <li><b>Infrastructure Tables:</b> Flyway history, etc.</li>
  * </ol>
  *
  * <h3>Table Naming Convention</h3>
  * <ul>
- *   <li><code>sys_*</code> - System tables (no tenant_id)</li>
+ *   <li><code>sys_*</code> - Platform tables; only explicit global tables are whitelisted</li>
  *   <li><code>biz_*</code> - Business tables (require tenant_id)</li>
  *   <li><code>cfg_*</code> - Configuration tables (may or may not have tenant_id)</li>
  * </ul>
@@ -101,6 +100,22 @@ public final class TenantWhitelist {
         tables.add("sys_platform_admin");
 
         /*
+         * sys_platform_config: platform-wide configuration without tenant_id.
+         */
+        tables.add("sys_platform_config");
+
+        /*
+         * sys_installation_quota: instance-level quota table without tenant_id.
+         */
+        tables.add("sys_installation_quota");
+
+        /*
+         * sys_platform_audit_log: platform audit records may span tenants and
+         * store affected_tenants instead of a single tenant_id.
+         */
+        tables.add("sys_platform_audit_log");
+
+        /*
          * auth_refresh_token: Platform identity-scoped token table.
          * It has no tenant_id column by design, so it is explicitly exempt.
          */
@@ -134,17 +149,6 @@ public final class TenantWhitelist {
          */
         tables.add("hibernate_sequence");
         tables.add("hibernate_sequences");
-        
-        // ==================================================================
-        // Global Configuration Tables
-        // ==================================================================
-        
-        /*
-         * System-wide configuration.
-         * Values apply to all tenants.
-         */
-        tables.add("sys_config");
-        tables.add("sys_feature_flags");
         
         WHITELISTED_TABLES = Collections.unmodifiableSet(tables);
     }

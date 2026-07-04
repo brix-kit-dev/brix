@@ -20,8 +20,9 @@ import io.brix.platform.common.exception.BusinessException;
 /**
  * Exception thrown when a tenant quota limit is exceeded.
  *
- * <p>Indicates that the requested operation would exceed the tenant's
- * configured hard limit for members (B-side) or principals (C-side).</p>
+ * <p>Indicates that the requested operation would exceed a configured hard
+ * limit, including tenant-internal member/principal quotas or the
+ * installation-level tenant count quota.</p>
  *
  * <h3>Architecture Layer</h3>
  * <p>Layer 2C: Platform Commons — quota enforcement exception.</p>
@@ -30,6 +31,7 @@ import io.brix.platform.common.exception.BusinessException;
  * <ul>
  *   <li><b>maxUsers:</b> Maximum B-side Actor members in sys_tenant_member</li>
  *   <li><b>maxPrincipals:</b> Maximum C-side Subject principals in sys_tenant_principal</li>
+ *   <li><b>installationTenants:</b> Maximum active tenants for this deployment instance</li>
  * </ul>
  *
  * <h3>HTTP Mapping</h3>
@@ -49,7 +51,7 @@ public class QuotaExceededException extends BusinessException {
     /**
      * Creates a QuotaExceededException.
      *
-     * @param quotaDimension the quota dimension that was exceeded (e.g., "maxUsers", "maxPrincipals")
+    * @param quotaDimension the quota dimension that was exceeded
      * @param currentUsage   the current usage count
      * @param maxAllowed     the maximum allowed count
      */
@@ -65,7 +67,7 @@ public class QuotaExceededException extends BusinessException {
     /**
      * Returns the quota dimension that was exceeded.
      *
-     * @return "maxUsers" or "maxPrincipals"
+    * @return the exceeded quota dimension
      */
     public String getQuotaDimension() {
         return quotaDimension;

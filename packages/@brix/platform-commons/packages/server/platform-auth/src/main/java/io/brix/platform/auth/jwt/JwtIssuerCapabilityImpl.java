@@ -81,6 +81,10 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private static final String CLAIM_TOKEN_TYPE = "token_type";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_TENANT_ID = "tenant_id";
+    private static final String CLAIM_TID = "tid";
+    private static final String CLAIM_CONTEXT_ID = "cid";
+    private static final String CLAIM_MEMBER_AUTHZ_VERSION = "mver";
+    private static final String CLAIM_PRINCIPAL_AUTHZ_VERSION = "pver";
     private static final String CLAIM_MEMBER_ID = "mid";
     private static final String CLAIM_MEMBER_TYPE = "mtype";
     private static final String CLAIM_PRINCIPAL_ID = "pid";
@@ -107,7 +111,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private static final String PLATFORM_ROLE_BOOTSTRAP = "BOOTSTRAP";
 
     private static final List<String> IDENTITY_TOKEN_ACTIONS =
-            List.of("select-tenant", "register-tenant");
+            List.of("select_context", "register_tenant");
 
     private final JwtProperties properties;
     private final ObjectMapper objectMapper;
@@ -130,12 +134,16 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     public String issueActorAccessToken(ActorTokenRequest request) {
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
-                request.tokenVersion());
+                request.tokenVersion(), JwtIssuerCapability.AUDIENCE_ACTOR, null);
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
         claims.put(CLAIM_ROLE, ROLE_ACTOR);
+        claims.put(CLAIM_SCOPE, ROLE_ACTOR);
         claims.put(CLAIM_TENANT_ID, String.valueOf(request.tenantId()));
+        claims.put(CLAIM_TID, String.valueOf(request.tenantId()));
+        claims.put(CLAIM_CONTEXT_ID, request.contextId());
         claims.put(CLAIM_MEMBER_ID, String.valueOf(request.memberId()));
         claims.put(CLAIM_MEMBER_TYPE, request.memberType());
+        claims.put(CLAIM_MEMBER_AUTHZ_VERSION, request.authzVersion());
         claims.put(CLAIM_ROLES, request.roles() != null ? request.roles() : Collections.emptyList());
         claims.put(CLAIM_PERMISSIONS,
                 request.permissions() != null ? request.permissions() : Collections.emptyList());
@@ -146,12 +154,16 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     public String issueSubjectAccessToken(SubjectTokenRequest request) {
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
-                request.tokenVersion());
+                request.tokenVersion(), JwtIssuerCapability.AUDIENCE_SUBJECT, null);
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
         claims.put(CLAIM_ROLE, ROLE_SUBJECT);
+        claims.put(CLAIM_SCOPE, ROLE_SUBJECT);
         claims.put(CLAIM_TENANT_ID, String.valueOf(request.tenantId()));
+        claims.put(CLAIM_TID, String.valueOf(request.tenantId()));
+        claims.put(CLAIM_CONTEXT_ID, request.contextId());
         claims.put(CLAIM_PRINCIPAL_ID, String.valueOf(request.principalId()));
         claims.put(CLAIM_PRINCIPAL_TYPE, request.principalType());
+        claims.put(CLAIM_PRINCIPAL_AUTHZ_VERSION, request.authzVersion());
         if (request.displayName() != null) {
             claims.put(CLAIM_DISPLAY_NAME, request.displayName());
         }
@@ -165,8 +177,9 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         // Identity token is a short-lived challenge token; no per-user tv validation.
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
-                properties.getTokenVersion());
+                properties.getTokenVersion(), JwtIssuerCapability.AUDIENCE_IDENTITY, request.jti());
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_IDENTITY);
+        claims.put(CLAIM_SCOPE, TOKEN_TYPE_IDENTITY);
         claims.put(CLAIM_ALLOWED_ACTIONS, IDENTITY_TOKEN_ACTIONS);
         return signToken(claims, properties.getIdentityTokenExpirationSeconds());
     }
@@ -175,7 +188,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     public String issuePlatformAdminToken(PlatformAdminTokenRequest request) {
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
-                request.tokenVersion());
+                request.tokenVersion(), properties.getAudience(), null);
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
         claims.put(CLAIM_ROLE, ROLE_PLATFORM_ADMIN);
         claims.put(CLAIM_SCOPE, "PLATFORM");
@@ -200,7 +213,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         }
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
-                request.tokenVersion());
+                request.tokenVersion(), properties.getAudience(), null);
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_MFA_CHALLENGE);
         claims.put(CLAIM_ROLE, ROLE_PLATFORM_ADMIN);
         claims.put(CLAIM_SCOPE, "PLATFORM");
@@ -224,7 +237,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         long ttlSeconds = Math.max(30L, request.expiresInSeconds());
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
-                request.tokenVersion());
+                request.tokenVersion(), properties.getAudience(), null);
         claims.put("jti", request.jti());
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_BOOTSTRAP_SETUP);
         claims.put(CLAIM_ROLE, ROLE_BOOTSTRAP);
@@ -276,7 +289,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
 
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
-                request.tokenVersion());
+                request.tokenVersion(), properties.getAudience(), null);
         claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
         claims.put(CLAIM_ROLE, ROLE_PLATFORM_ADMIN);
         claims.put(CLAIM_SCOPE, "PLATFORM");
@@ -310,23 +323,24 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     // ==================== Internals ====================
 
     private Map<String, Object> buildBaseClaims(String sub, String username, String email,
-                                                 long tokenVersion) {
+                                                 long tokenVersion, String audience, String jti) {
         Map<String, Object> claims = new LinkedHashMap<>();
         claims.put("sub", sub);
         claims.put("username", username);
         claims.put("iss", properties.getIssuer());
-        claims.put("aud", properties.getAudience());
+        claims.put("aud", audience != null ? audience : properties.getAudience());
         claims.put("email", email != null ? email : "");
         // A3: per-user token version — JWT is rejected if DB value has been incremented
         //     (e.g. after password change). Replaces the old static global config value.
         claims.put("tv", tokenVersion);
-        claims.put("jti", UUID.randomUUID().toString());
+        claims.put("jti", jti != null && !jti.isBlank() ? jti : UUID.randomUUID().toString());
         return claims;
     }
 
     private String signToken(Map<String, Object> claims, long expirationSecs) {
         long now = System.currentTimeMillis() / 1000L;
         claims.put("iat", now);
+        claims.put("nbf", now);
         claims.put("exp", now + expirationSecs);
 
         String header = base64UrlEncode("{\"alg\":\"RS256\",\"typ\":\"JWT\"}");

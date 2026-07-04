@@ -21,12 +21,14 @@ import io.brix.platform.auth.web.dto.LoginResponseDto;
 import io.brix.platform.auth.web.dto.RefreshTokenRequestDto;
 import io.brix.platform.auth.web.dto.SelectTenantRequestDto;
 import io.brix.platform.auth.web.mapper.LoginResultMapper;
+import io.brix.platform.auth.context.SecurityContextHolder;
 import io.runtime.sdk.capability.AuthContextCapability;
 import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
 import io.runtime.sdk.capability.AuthFlowCapability.ChangePasswordCommand;
 import io.runtime.sdk.capability.AuthFlowCapability.LoginCommand;
 import io.runtime.sdk.capability.AuthFlowCapability.RefreshCommand;
+import io.runtime.sdk.capability.AuthFlowCapability.SelectContextCommand;
 import io.runtime.sdk.capability.AuthFlowCapability.SelectTenantCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -68,10 +70,14 @@ public class AuthController {
 
     private final AuthFlowCapability authFlow;
     private final AuthContextCapability authContext;
+    private final SecurityContextHolder securityContextHolder;
 
-    public AuthController(AuthFlowCapability authFlow, AuthContextCapability authContext) {
+    public AuthController(AuthFlowCapability authFlow,
+                          AuthContextCapability authContext,
+                          SecurityContextHolder securityContextHolder) {
         this.authFlow = authFlow;
         this.authContext = authContext;
+        this.securityContextHolder = securityContextHolder;
     }
 
     @Operation(summary = "用户名/密码登录",
@@ -93,6 +99,24 @@ public class AuthController {
         return ResponseEntity.ok(LoginResultMapper.toDto(result, "local"));
     }
 
+    @PostMapping("/login/actor")
+    public ResponseEntity<LoginResponseDto> loginActor(@Valid @RequestBody LoginRequestDto request,
+                                                       HttpServletRequest httpRequest) {
+        String clientIp = extractClientIp(httpRequest);
+        LoginCommand cmd = new LoginCommand(request.loginId(), request.password(), clientIp);
+        var result = authFlow.loginActor(cmd);
+        return ResponseEntity.ok(LoginResultMapper.toDto(result, "local"));
+    }
+
+    @PostMapping("/login/subject")
+    public ResponseEntity<LoginResponseDto> loginSubject(@Valid @RequestBody LoginRequestDto request,
+                                                         HttpServletRequest httpRequest) {
+        String clientIp = extractClientIp(httpRequest);
+        LoginCommand cmd = new LoginCommand(request.loginId(), request.password(), clientIp);
+        var result = authFlow.loginSubject(cmd);
+        return ResponseEntity.ok(LoginResultMapper.toDto(result, "local"));
+    }
+
     @Operation(summary = "选择租户（多租户登录第二步）",
             description = "携带 Identity Token 提交目标租户 ID，换取该租户的 Access Token。")
     @ApiResponses({
@@ -104,9 +128,23 @@ public class AuthController {
     })
     @PostMapping("/select-tenant")
     public ResponseEntity<LoginResponseDto> selectTenant(@Valid @RequestBody SelectTenantRequestDto request) {
+        if (request == null || request.tenantId() == null) {
+            throw new AuthFlowException(
+                    AuthFlowException.CODE_TENANT_ACCESS_DENIED, "tenantId is required");
+        }
         Long identityId = requireIdentityId();
         SelectTenantCommand cmd = new SelectTenantCommand(request.tenantId());
         var result = authFlow.selectTenant(identityId, cmd);
+        return ResponseEntity.ok(LoginResultMapper.toDto(result, "local"));
+    }
+
+    @PostMapping("/select-context")
+    public ResponseEntity<LoginResponseDto> selectContext(@Valid @RequestBody SelectTenantRequestDto request) {
+        Long identityId = requireIdentityId();
+        SelectContextCommand cmd = new SelectContextCommand(
+                request == null ? null : request.selectionTicket(),
+                requireIdentityTokenJti());
+        var result = authFlow.selectContext(identityId, cmd);
         return ResponseEntity.ok(LoginResultMapper.toDto(result, "local"));
     }
 
@@ -158,6 +196,18 @@ public class AuthController {
             throw new AuthFlowException(AuthFlowException.CODE_IDENTITY_NOT_FOUND,
                     "Invalid identity token (non-numeric subject)");
         }
+    }
+
+    private String requireIdentityTokenJti() {
+        if (securityContextHolder == null) {
+            throw new AuthFlowException(AuthFlowException.CODE_IDENTITY_NOT_FOUND,
+                    "Identity Token required (security context unavailable)");
+        }
+        return securityContextHolder.getCurrentUser()
+                .map(user -> user.getJti())
+                .filter(jti -> jti != null && !jti.isBlank())
+                .orElseThrow(() -> new AuthFlowException(AuthFlowException.CODE_IDENTITY_NOT_FOUND,
+                        "Identity Token required (missing jti)"));
     }
 
     private static String extractClientIp(HttpServletRequest request) {

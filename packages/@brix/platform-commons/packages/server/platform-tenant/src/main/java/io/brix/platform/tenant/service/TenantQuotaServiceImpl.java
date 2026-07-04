@@ -21,11 +21,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.tenant.dto.TenantUsageSummary;
+import io.brix.platform.tenant.entity.InstallationQuota;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.exception.QuotaExceededException;
+import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
+import io.runtime.sdk.capability.TenantQuotaCapability.InstallationQuotaSnapshot;
 
 /**
  * Implementation of {@link TenantQuotaService}.
@@ -52,13 +55,16 @@ public class TenantQuotaServiceImpl implements TenantQuotaService {
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository memberRepository;
     private final TenantPrincipalRepository principalRepository;
+    private final InstallationQuotaRepository installationQuotaRepository;
 
     public TenantQuotaServiceImpl(TenantRepository tenantRepository,
                                    TenantMemberRepository memberRepository,
-                                   TenantPrincipalRepository principalRepository) {
+                                   TenantPrincipalRepository principalRepository,
+                                   InstallationQuotaRepository installationQuotaRepository) {
         this.tenantRepository = tenantRepository;
         this.memberRepository = memberRepository;
         this.principalRepository = principalRepository;
+        this.installationQuotaRepository = installationQuotaRepository;
     }
 
     @Override
@@ -114,5 +120,33 @@ public class TenantQuotaServiceImpl implements TenantQuotaService {
                 currentPrincipals,
                 tenant.getMaxPrincipals()
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InstallationQuotaSnapshot getInstallationQuota() {
+        InstallationQuota quota = installationQuotaRepository
+                .findById(InstallationQuota.DEFAULT_INSTALLATION_ID)
+                .orElseGet(() -> new InstallationQuota(
+                        InstallationQuota.DEFAULT_INSTALLATION_ID,
+                        InstallationQuota.DEFAULT_TENANT_QUOTA,
+                        0));
+
+        Integer quotaLimit = quota.getQuota();
+        Integer usedQuota = quota.getUsed();
+        int limit = quotaLimit == null ? InstallationQuota.DEFAULT_TENANT_QUOTA : quotaLimit;
+        int used = usedQuota == null ? 0 : usedQuota;
+        boolean canCreate = used < limit;
+        String refusalReason = canCreate ? null : "TENANT_QUOTA_EXCEEDED";
+
+        return new InstallationQuotaSnapshot(
+                quota.getInstallationId(),
+                limit,
+                used,
+                "OPEN_CORE_ACTIVE",
+                null,
+                canCreate,
+                refusalReason,
+                quota.getUpdatedAt());
     }
 }

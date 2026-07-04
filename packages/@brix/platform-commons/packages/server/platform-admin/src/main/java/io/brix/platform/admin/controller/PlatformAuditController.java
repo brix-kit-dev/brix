@@ -89,13 +89,17 @@ public class PlatformAuditController {
             + "Cross-tenant access is intrinsic to platform audit oversight.",
             approval = "BRIX-ARCH-3.0.9-PLATFORM-AUDIT-READ",
             readOnly = true)
-    public ResponseEntity<PageResponse<PlatformAuditLogDto>> listAuditLogs(
+        public ResponseEntity<PageResponse<PlatformAuditLogDto>> listAuditLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) Long actorId,
+            @RequestParam(required = false) Long actorIdentityId,
+            @RequestParam(required = false) String result,
             @RequestParam(required = false) OffsetDateTime startTime,
-            @RequestParam(required = false) OffsetDateTime endTime) {
+            @RequestParam(required = false) OffsetDateTime endTime,
+            @RequestParam(required = false) OffsetDateTime fromTime,
+            @RequestParam(required = false) OffsetDateTime toTime) {
 
         // Cap page size to prevent abuse
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
@@ -103,44 +107,22 @@ public class PlatformAuditController {
 
         PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        List<PlatformAuditLogDto> content;
-        long total;
+        Long operatorId = actorIdentityId != null ? actorIdentityId : actorId;
+        Boolean success = parseResult(result);
+        OffsetDateTime lowerBound = fromTime != null ? fromTime : startTime;
+        OffsetDateTime upperBound = toTime != null ? toTime : endTime;
+        String actionFilter = action == null || action.isBlank() ? null : action;
 
-        // Apply filters: only platform-scoped (tenant_id = null) events
-        if (action != null && !action.isBlank() && startTime != null && endTime != null) {
-            // Action + time range
-            Page<AuditLog> result = auditLogRepository.findByTenantIdAndTimeRange(null, startTime, endTime, pageable);
-            content = result.stream()
-                    .filter(log -> action.equals(log.getAction()))
-                    .map(this::toDto)
-                    .toList();
-            total = result.getTotalElements();
-        } else if (action != null && !action.isBlank()) {
-            // Action only
-            Page<AuditLog> result = auditLogRepository.findByTenantIdAndAction(null, action, pageable);
-            content = result.stream().map(this::toDto).toList();
-            total = result.getTotalElements();
-        } else if (actorId != null) {
-            // Actor filter
-            Page<AuditLog> result = auditLogRepository.findByCreatedBy(actorId, pageable);
-            content = result.stream()
-                    .filter(log -> log.getTenantId() == null) // platform events only
-                    .map(this::toDto)
-                    .toList();
-            total = result.getTotalElements();
-        } else if (startTime != null && endTime != null) {
-            // Time range only
-            Page<AuditLog> result = auditLogRepository.findByTenantIdAndTimeRange(null, startTime, endTime, pageable);
-            content = result.stream().map(this::toDto).toList();
-            total = result.getTotalElements();
-        } else {
-            // No filter — return all platform-level events
-            Page<AuditLog> result = auditLogRepository.findByTenantId(null, pageable);
-            content = result.stream().map(this::toDto).toList();
-            total = result.getTotalElements();
-        }
+        Page<AuditLog> auditPage = auditLogRepository.findPlatformLogs(
+                actionFilter,
+                operatorId,
+                success,
+                lowerBound,
+                upperBound,
+                pageable);
+        List<PlatformAuditLogDto> content = auditPage.stream().map(this::toDto).toList();
 
-        return ResponseEntity.ok(new PageResponse<>(content, safePage, safeSize, total));
+        return ResponseEntity.ok(new PageResponse<>(content, safePage, safeSize, auditPage.getTotalElements()));
     }
 
     // ========================================================================
@@ -150,16 +132,30 @@ public class PlatformAuditController {
     private PlatformAuditLogDto toDto(AuditLog log) {
         return new PlatformAuditLogDto(
                 log.getId(),
+                log.getCreatedBy(),
+                null,
                 log.getAction(),
                 log.getResourceType(),
                 log.getResourceId(),
-                log.getDescription(),
-                log.getCreatedBy(),
+                log.getTenantId(),
                 log.getClientIp(),
-                log.isSuccess(),
-                log.getErrorMessage(),
+                log.getUserAgent(),
+                log.isSuccess() ? "SUCCESS" : "FAILURE",
+                log.isSuccess() ? log.getDescription() : log.getErrorMessage(),
+                log.getRequestId(),
                 log.getCreatedAt()
         );
+    }
+
+    private Boolean parseResult(String result) {
+        if (result == null || result.isBlank()) {
+            return null;
+        }
+        return switch (result) {
+            case "SUCCESS" -> Boolean.TRUE;
+            case "FAILURE" -> Boolean.FALSE;
+            default -> throw new IllegalArgumentException("Invalid audit result: " + result);
+        };
     }
 
     /**

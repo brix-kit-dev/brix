@@ -14,6 +14,7 @@ export { useRevokeSuperAdmin, type UseRevokeSuperAdminResult } from './useRevoke
 export { useResetPassword, type UseResetPasswordResult } from './useResetPassword';
 export { useChangeOwnPassword, type UseChangeOwnPasswordResult } from './useChangeOwnPassword';
 export { useAuditLog, type UseAuditLogResult } from './useAuditLog';
+export { useInstallationQuota, type UseInstallationQuotaResult } from './useInstallationQuota';
 export { usePlatformTenantList, type UsePlatformTenantListResult } from './usePlatformTenantList';
 export { useUpdateTenantStatus, type UseUpdateTenantStatusResult } from './useUpdateTenantStatus';
 export { useCreatePlatformTenant, type UseCreatePlatformTenantResult } from './useCreatePlatformTenant';

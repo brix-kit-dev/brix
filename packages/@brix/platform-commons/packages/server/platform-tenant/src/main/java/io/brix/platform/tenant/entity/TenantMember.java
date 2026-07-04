@@ -15,12 +15,35 @@
  */
 package io.brix.platform.tenant.entity;
 
-import io.brix.platform.tenant.enums.MemberStatus;
-import io.brix.platform.tenant.enums.TenantMemberType;
-import jakarta.persistence.*;
-
 import java.time.OffsetDateTime;
 import java.util.Objects;
+import java.util.UUID;
+
+import io.brix.platform.tenant.enums.MemberStatus;
+import io.brix.platform.tenant.enums.TenantMemberType;
+import jakarta.persistence.Column;
+
+import io.brix.platform.tenant.enums.MemberStatus;
+import io.brix.platform.tenant.enums.TenantMemberType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 /**
  * TenantMember Entity representing membership of an identity in a tenant.
@@ -38,15 +61,14 @@ import java.util.Objects;
  *
  * <h3>Member Types</h3>
  * <ul>
- *   <li>OWNER - Full control, can delete tenant (exactly one per tenant)</li>
+ *   <li>OWNER - Full control, can delete tenant (at least one active owner per tenant)</li>
  *   <li>ADMIN - Management privileges</li>
  *   <li>MEMBER - Standard access</li>
- *   <li>GUEST - Limited read-only access</li>
  * </ul>
  *
  * <h3>Constraints</h3>
  * <ul>
- *   <li>Each tenant MUST have exactly one OWNER</li>
+ *   <li>Each tenant MUST keep at least one active OWNER</li>
  *   <li>An identity cannot have duplicate memberships in same tenant</li>
  * </ul>
  *
@@ -62,6 +84,14 @@ import java.util.Objects;
         @UniqueConstraint(
             name = "uk_sys_tenant_member_tenant_identity",
             columnNames = {"tenant_id", "identity_id"}
+        ),
+        @UniqueConstraint(
+            name = "uk_member_context_id",
+            columnNames = {"context_id"}
+        ),
+        @UniqueConstraint(
+            name = "uk_member_tenant_id",
+            columnNames = {"tenant_id", "id"}
         )
     },
     indexes = {
@@ -95,6 +125,18 @@ public class TenantMember {
      */
     @Column(name = "identity_id", nullable = false, updatable = false)
     private Long identityId;
+
+    /**
+     * Stable Actor context identifier used as JWT cid.
+     */
+    @Column(name = "context_id", nullable = false, updatable = false)
+    private UUID contextId = UUID.randomUUID();
+
+    /**
+     * Authorization version snapshot used by Actor tokens as mver.
+     */
+    @Column(name = "authz_version", nullable = false)
+    private Integer authzVersion = 1;
 
     /**
      * Member type/role within this tenant.
@@ -171,6 +213,12 @@ public class TenantMember {
     @PrePersist
     protected void onCreate() {
         this.createdAt = OffsetDateTime.now();
+        if (this.contextId == null) {
+            this.contextId = UUID.randomUUID();
+        }
+        if (this.authzVersion == null) {
+            this.authzVersion = 1;
+        }
         if (this.joinedAt == null) {
             this.joinedAt = this.createdAt;
         }
@@ -282,6 +330,22 @@ public class TenantMember {
 
     public void setIdentityId(Long identityId) {
         this.identityId = identityId;
+    }
+
+    public UUID getContextId() {
+        return contextId;
+    }
+
+    public void setContextId(UUID contextId) {
+        this.contextId = contextId;
+    }
+
+    public Integer getAuthzVersion() {
+        return authzVersion;
+    }
+
+    public void setAuthzVersion(Integer authzVersion) {
+        this.authzVersion = authzVersion;
     }
 
     public TenantMemberType getMemberType() {

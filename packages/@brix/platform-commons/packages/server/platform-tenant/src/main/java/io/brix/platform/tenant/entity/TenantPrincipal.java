@@ -15,12 +15,35 @@
  */
 package io.brix.platform.tenant.entity;
 
-import io.brix.platform.tenant.enums.PrincipalStatus;
-import io.brix.platform.tenant.enums.PrincipalType;
-import jakarta.persistence.*;
-
 import java.time.OffsetDateTime;
 import java.util.Objects;
+import java.util.UUID;
+
+import io.brix.platform.tenant.enums.PrincipalStatus;
+import io.brix.platform.tenant.enums.PrincipalType;
+import jakarta.persistence.Column;
+
+import io.brix.platform.tenant.enums.PrincipalStatus;
+import io.brix.platform.tenant.enums.PrincipalType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 /**
  * TenantPrincipal Entity representing a C-side (Subject) relationship with a tenant.
@@ -67,6 +90,14 @@ import java.util.Objects;
         @UniqueConstraint(
             name = "uk_principal_tenant_identity",
             columnNames = {"tenant_id", "identity_id"}
+        ),
+        @UniqueConstraint(
+            name = "uk_principal_context_id",
+            columnNames = {"context_id"}
+        ),
+        @UniqueConstraint(
+            name = "uk_principal_tenant_id",
+            columnNames = {"tenant_id", "id"}
         )
     },
     indexes = {
@@ -99,6 +130,18 @@ public class TenantPrincipal {
      */
     @Column(name = "identity_id", nullable = false, updatable = false)
     private Long identityId;
+
+    /**
+     * Stable Subject context identifier used as JWT cid.
+     */
+    @Column(name = "context_id", nullable = false, updatable = false)
+    private UUID contextId = UUID.randomUUID();
+
+    /**
+     * Authorization version snapshot used by Subject tokens as pver.
+     */
+    @Column(name = "authz_version", nullable = false)
+    private Integer authzVersion = 1;
 
     /**
      * Principal type within this tenant.
@@ -193,6 +236,12 @@ public class TenantPrincipal {
     @PrePersist
     protected void onCreate() {
         this.createdAt = OffsetDateTime.now();
+        if (this.contextId == null) {
+            this.contextId = UUID.randomUUID();
+        }
+        if (this.authzVersion == null) {
+            this.authzVersion = 1;
+        }
         if (this.joinedAt == null) {
             this.joinedAt = this.createdAt;
         }
@@ -294,6 +343,22 @@ public class TenantPrincipal {
 
     public void setIdentityId(Long identityId) {
         this.identityId = identityId;
+    }
+
+    public UUID getContextId() {
+        return contextId;
+    }
+
+    public void setContextId(UUID contextId) {
+        this.contextId = contextId;
+    }
+
+    public Integer getAuthzVersion() {
+        return authzVersion;
+    }
+
+    public void setAuthzVersion(Integer authzVersion) {
+        this.authzVersion = authzVersion;
     }
 
     public PrincipalType getPrincipalType() {

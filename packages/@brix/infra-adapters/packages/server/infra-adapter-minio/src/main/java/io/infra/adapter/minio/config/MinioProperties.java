@@ -73,6 +73,15 @@ public class MinioProperties {
     private String bucketName = "default";
 
     /**
+     * Whether to verify or create the bucket during application startup.
+     *
+     * <p>Defaults to {@code true} for production fail-fast behavior. Set to {@code false}
+     * only for metadata-only runtime assembly such as OpenAPI generation, where the
+     * capability contract must be present but no file operation is executed.</p>
+     */
+    private boolean initializeBucketOnStartup = true;
+
+    /**
      * MinIO region.
      * 
      * <p>Usually only needs to be configured when using AWS S3 compatible mode.</p>
@@ -119,6 +128,14 @@ public class MinioProperties {
 
     public void setBucketName(String bucketName) {
         this.bucketName = bucketName;
+    }
+
+    public boolean isInitializeBucketOnStartup() {
+        return initializeBucketOnStartup;
+    }
+
+    public void setInitializeBucketOnStartup(boolean initializeBucketOnStartup) {
+        this.initializeBucketOnStartup = initializeBucketOnStartup;
     }
 
     public String getRegion() {

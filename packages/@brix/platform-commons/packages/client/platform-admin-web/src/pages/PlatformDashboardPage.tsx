@@ -73,6 +73,16 @@ export function PlatformDashboardPage(): JSX.Element {
       permission: PLATFORM_ADMIN_PERMISSIONS.AUDIT_READ,
     },
     {
+      key: 'license',
+      label: tt(I18N_KEYS.dashboard.cardLicense),
+      area: tt(I18N_KEYS.dashboard.cardLicenseArea),
+      description: tt(I18N_KEYS.dashboard.cardLicenseDescription),
+      route: PLATFORM_ADMIN_ROUTES.LICENSE,
+      icon: 'verified_user',
+      tone: 'info',
+      permission: PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ,
+    },
+    {
       key: 'change-pw',
       label: tt(I18N_KEYS.dashboard.cardChangePassword),
       area: tt(I18N_KEYS.dashboard.cardChangePasswordArea),

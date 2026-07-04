@@ -7,16 +7,17 @@ package io.brix.platform.auth.web.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Tenant option element returned during the multi-tenant selection step.
+ * Tenant context option returned during the context selection step.
  *
- * @since 3.2.0
+ * @since 3.2.2
  */
-@Schema(name = "TenantOption", description = "多租户登录可选租户")
+@Schema(name = "TenantOption", description = "Selectable tenant context")
 public record TenantOptionDto(
-        @Schema(description = "租户 ID") Long tenantId,
-        @Schema(description = "租户编码") String tenantCode,
-        @Schema(description = "租户名称") String tenantName,
-        @Schema(description = "角色类型 (actor / subject)") String roleType,
-        @Schema(description = "B 端 memberType 或 C 端 principalType") String role,
-        @Schema(description = "最近访问时间 (ISO-8601, 可空)") String lastAccessAt
+        @Schema(description = "Tenant ID") Long tenantId,
+        @Schema(description = "Tenant code") String tenantCode,
+        @Schema(description = "Tenant display name") String tenantName,
+        @Schema(description = "Role type: actor or subject") String roleType,
+        @Schema(description = "Member type or principal type") String role,
+        @Schema(description = "Last access time in ISO-8601 format") String lastAccessAt,
+        @Schema(description = "Opaque one-time context selection ticket") String selectionTicket
 ) {}

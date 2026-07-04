@@ -26,7 +26,7 @@ ALTER TABLE sys_tenant ADD COLUMN IF NOT EXISTS default_locale
     VARCHAR(20) NOT NULL DEFAULT 'zh-CN';
 
 ALTER TABLE sys_tenant ADD COLUMN IF NOT EXISTS default_timezone
-    VARCHAR(50) NOT NULL DEFAULT 'Asia/Shanghai';
+    VARCHAR(50) NOT NULL DEFAULT 'UTC';
 
 ALTER TABLE sys_tenant ADD COLUMN IF NOT EXISTS default_date_format
     VARCHAR(20) NOT NULL DEFAULT 'YYYY-MM-DD';
@@ -88,7 +88,7 @@ ALTER TABLE sys_tenant ADD COLUMN IF NOT EXISTS login_page_bg_url
     VARCHAR(512);
 
 COMMENT ON COLUMN sys_tenant.default_locale IS 'Default locale for tenant members, e.g. zh-CN, ja-JP, en-US';
-COMMENT ON COLUMN sys_tenant.default_timezone IS 'Default timezone, e.g. Asia/Shanghai, Asia/Tokyo, UTC';
+COMMENT ON COLUMN sys_tenant.default_timezone IS 'Default timezone, stored as an IANA timezone ID; platform default is UTC';
 COMMENT ON COLUMN sys_tenant.default_date_format IS 'Default date display format, e.g. YYYY-MM-DD';
 COMMENT ON COLUMN sys_tenant.default_time_format IS 'Time format: 12h or 24h';
 COMMENT ON COLUMN sys_tenant.default_currency IS 'Default currency code, e.g. CNY, JPY, USD';

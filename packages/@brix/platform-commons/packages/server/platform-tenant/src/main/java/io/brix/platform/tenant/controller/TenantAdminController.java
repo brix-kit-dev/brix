@@ -15,23 +15,32 @@
  */
 package io.brix.platform.tenant.controller;
 
-import io.brix.platform.auth.PlatformPermissions;
-import io.brix.platform.auth.annotation.RequirePermission;
-import io.brix.platform.tenant.entity.Tenant;
-import io.brix.platform.tenant.enums.TenantStatus;
-import io.brix.platform.tenant.repository.TenantRepository;
-import io.brix.platform.tenant.service.TenantProvisioningService;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import io.brix.platform.auth.PlatformPermissions;
+import io.brix.platform.auth.annotation.RequirePermission;
+import io.brix.platform.tenant.entity.Tenant;
+import io.brix.platform.tenant.enums.TenantStatus;
+import io.brix.platform.tenant.exception.QuotaExceededException;
+import io.brix.platform.tenant.repository.TenantRepository;
+import io.brix.platform.tenant.service.TenantProvisioningService;
+import jakarta.persistence.EntityNotFoundException;
 
 /**
  * 租户管理 REST 控制器
@@ -137,6 +146,9 @@ public class TenantAdminController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<?> getTenant(@PathVariable Long id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Tenant id is required"));
+        }
         return tenantRepository.findById(id)
                 .map(tenant -> ResponseEntity.ok(toTenantDTO(tenant)))
                 .orElse(ResponseEntity.notFound().build());
@@ -151,7 +163,10 @@ public class TenantAdminController {
         try {
             provisioningService.activateTenant(id);
             return ResponseEntity.ok(Map.of("success", true));
-        } catch (IllegalStateException e) {
+        } catch (QuotaExceededException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        } catch (EntityNotFoundException | IllegalStateException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "message", e.getMessage()));
         }
@@ -166,7 +181,7 @@ public class TenantAdminController {
         try {
             provisioningService.suspendTenant(id);
             return ResponseEntity.ok(Map.of("success", true));
-        } catch (IllegalStateException e) {
+        } catch (EntityNotFoundException | IllegalStateException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "message", e.getMessage()));
         }
@@ -179,12 +194,9 @@ public class TenantAdminController {
     @RequirePermission(PlatformPermissions.TENANT_MANAGE)
     public ResponseEntity<?> terminateTenant(@PathVariable Long id) {
         try {
-            Tenant tenant = tenantRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Tenant not found: " + id));
-            tenant.terminate();
-            tenantRepository.save(tenant);
+            provisioningService.terminateTenant(id);
             return ResponseEntity.ok(Map.of("success", true));
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (EntityNotFoundException | IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "message", e.getMessage()));
         }

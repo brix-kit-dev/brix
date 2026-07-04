@@ -92,17 +92,40 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     private final String bucketName;
 
     /**
+     * Tracks whether bucket availability has already been verified.
+     */
+    private volatile boolean bucketReady;
+
+    /**
      * Constructor.
      * 
      * @param minioClient MinIO client instance
      * @param bucketName  Default bucket name
      */
     public MinioFileStorageCapability(MinioClient minioClient, String bucketName) {
+        this(minioClient, bucketName, true);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param minioClient               MinIO client instance
+     * @param bucketName                Default bucket name
+     * @param initializeBucketOnStartup whether to verify/create bucket during startup
+     */
+    public MinioFileStorageCapability(
+            MinioClient minioClient,
+            String bucketName,
+            boolean initializeBucketOnStartup) {
         this.minioClient = Objects.requireNonNull(minioClient, "minioClient cannot be null");
         this.bucketName = Objects.requireNonNull(bucketName, "bucketName cannot be null");
 
-        // Ensure bucket exists
-        ensureBucketExists();
+        if (initializeBucketOnStartup) {
+            ensureBucketExists();
+            bucketReady = true;
+        } else {
+            log.info("[MinIO] Deferred bucket initialization until first file operation: bucket={}", bucketName);
+        }
 
         log.info("[MinIO] File storage capability initialized: bucket={}", bucketName);
     }
@@ -128,6 +151,19 @@ public class MinioFileStorageCapability implements FileStorageCapability {
         }
     }
 
+    private void ensureBucketReady() {
+        if (bucketReady) {
+            return;
+        }
+
+        synchronized (this) {
+            if (!bucketReady) {
+                ensureBucketExists();
+                bucketReady = true;
+            }
+        }
+    }
+
     /**
      * {@inheritDoc}
      * 
@@ -137,6 +173,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     public String upload(String storagePath, InputStream inputStream, String contentType, long fileSize) {
         Objects.requireNonNull(storagePath, "storagePath cannot be null");
         Objects.requireNonNull(inputStream, "inputStream cannot be null");
+        ensureBucketReady();
 
         try {
             minioClient.putObject(
@@ -161,6 +198,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     @Override
     public InputStream download(String storagePath) {
         Objects.requireNonNull(storagePath, "storagePath cannot be null");
+        ensureBucketReady();
 
         try {
             return minioClient.getObject(
@@ -180,6 +218,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     @Override
     public void delete(String storagePath) {
         Objects.requireNonNull(storagePath, "storagePath cannot be null");
+        ensureBucketReady();
 
         try {
             minioClient.removeObject(
@@ -200,6 +239,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     @Override
     public boolean exists(String storagePath) {
         Objects.requireNonNull(storagePath, "storagePath cannot be null");
+        ensureBucketReady();
 
         try {
             minioClient.statObject(
@@ -222,6 +262,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     public String generateSignedUrl(String storagePath, Duration expiration) {
         Objects.requireNonNull(storagePath, "storagePath cannot be null");
         Objects.requireNonNull(expiration, "expiration cannot be null");
+        ensureBucketReady();
 
         try {
             return minioClient.getPresignedObjectUrl(
@@ -246,6 +287,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     public String generatePresignedUploadUrl(String storagePath, Duration expiration) {
         Objects.requireNonNull(storagePath, "storagePath cannot be null");
         Objects.requireNonNull(expiration, "expiration cannot be null");
+        ensureBucketReady();
 
         try {
             return minioClient.getPresignedObjectUrl(
@@ -276,6 +318,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     public void copy(String sourcePath, String targetPath) {
         Objects.requireNonNull(sourcePath, "sourcePath cannot be null");
         Objects.requireNonNull(targetPath, "targetPath cannot be null");
+        ensureBucketReady();
 
         try {
             minioClient.copyObject(
@@ -300,6 +343,7 @@ public class MinioFileStorageCapability implements FileStorageCapability {
     @Override
     public long getFileSize(String storagePath) {
         Objects.requireNonNull(storagePath, "storagePath cannot be null");
+        ensureBucketReady();
 
         try {
             StatObjectResponse stat = minioClient.statObject(

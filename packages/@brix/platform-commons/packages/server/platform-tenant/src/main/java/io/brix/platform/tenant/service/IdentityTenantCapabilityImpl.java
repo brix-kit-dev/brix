@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -129,7 +130,9 @@ public class IdentityTenantCapabilityImpl implements IdentityTenantCapability {
                     m.getIdentityId(),
                     m.getMemberType().name(),
                     m.getStatus().name(),
-                    m.getJoinedAt() != null ? m.getJoinedAt().toInstant() : null
+                    m.getJoinedAt() != null ? m.getJoinedAt().toInstant() : null,
+                    m.getContextId() != null ? m.getContextId().toString() : null,
+                    m.getAuthzVersion() != null ? m.getAuthzVersion() : 1L
             ));
         }
         return records;
@@ -170,7 +173,9 @@ public class IdentityTenantCapabilityImpl implements IdentityTenantCapability {
                     p.getPrincipalType().name(),
                     p.getDisplayName(),
                     p.getStatus().name(),
-                    p.getLastAccessAt() != null ? p.getLastAccessAt().toInstant() : null
+                    p.getLastAccessAt() != null ? p.getLastAccessAt().toInstant() : null,
+                    p.getContextId() != null ? p.getContextId().toString() : null,
+                    p.getAuthzVersion() != null ? p.getAuthzVersion() : 1L
             ));
         }
         return records;
@@ -189,7 +194,9 @@ public class IdentityTenantCapabilityImpl implements IdentityTenantCapability {
                     return new TenantMembershipRecord(
                             m.getId(), m.getTenantId(), tenant.getCode(), tenant.getName(),
                             m.getIdentityId(), m.getMemberType().name(), m.getStatus().name(),
-                            m.getJoinedAt() != null ? m.getJoinedAt().toInstant() : null
+                            m.getJoinedAt() != null ? m.getJoinedAt().toInstant() : null,
+                            m.getContextId() != null ? m.getContextId().toString() : null,
+                            m.getAuthzVersion() != null ? m.getAuthzVersion() : 1L
                     );
                 });
     }
@@ -208,9 +215,29 @@ public class IdentityTenantCapabilityImpl implements IdentityTenantCapability {
                             p.getId(), p.getTenantId(), tenant.getCode(), tenant.getName(),
                             p.getIdentityId(), p.getPrincipalType().name(), p.getDisplayName(),
                             p.getStatus().name(),
-                            p.getLastAccessAt() != null ? p.getLastAccessAt().toInstant() : null
+                            p.getLastAccessAt() != null ? p.getLastAccessAt().toInstant() : null,
+                            p.getContextId() != null ? p.getContextId().toString() : null,
+                            p.getAuthzVersion() != null ? p.getAuthzVersion() : 1L
                     );
                 });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<TenantMembershipRecord> findMembershipByContextId(String contextId) {
+        return parseUuid(contextId)
+                .flatMap(memberRepository::findByContextId)
+                .filter(TenantMember::isActive)
+                .flatMap(m -> findMembership(m.getIdentityId(), m.getTenantId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<TenantPrincipalRecord> findPrincipalshipByContextId(String contextId) {
+        return parseUuid(contextId)
+                .flatMap(principalRepository::findByContextId)
+                .filter(TenantPrincipal::isActive)
+                .flatMap(p -> findPrincipalship(p.getIdentityId(), p.getTenantId()));
     }
 
     @Override
@@ -281,6 +308,17 @@ public class IdentityTenantCapabilityImpl implements IdentityTenantCapability {
                 identity.isPasswordMustChange(),
                 identity.getTokenVersion()
         );
+    }
+
+    private static Optional<UUID> parseUuid(String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(UUID.fromString(value));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     /**

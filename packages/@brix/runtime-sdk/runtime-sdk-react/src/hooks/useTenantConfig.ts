@@ -72,6 +72,9 @@ export interface UseTenantConfigResult {
   /** Whether configuration data is being loaded */
   isLoading: boolean;
 
+  /** Last configuration load/update error */
+  error: Error | null;
+
   /** Update tenant settings (PATCH semantics) */
   updateSettings: (settings: Partial<TenantSettings>) => Promise<void>;
 
@@ -83,6 +86,15 @@ export interface UseTenantConfigResult {
 
   /** Refresh all configuration data */
   refresh: () => Promise<void>;
+
+  /** Format a date with the effective locale, timezone and date format */
+  formatDate: (value: Date | string | number) => string;
+
+  /** Format a time with the effective locale, timezone and time format */
+  formatTime: (value: Date | string | number) => string;
+
+  /** Format a currency value with the effective locale and currency */
+  formatCurrency: (value: number, currency?: string) => string;
 }
 
 // ============================================================================
@@ -141,9 +153,11 @@ export function useTenantConfig(): UseTenantConfigResult {
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [branding, setBranding] = useState<TenantBranding | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const loadAll = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const [effective, settings, prefs, brand] = await Promise.all([
         configCapability.getEffectiveConfig(),
@@ -156,7 +170,7 @@ export function useTenantConfig(): UseTenantConfigResult {
       setUserPreferences(prefs);
       setBranding(brand);
     } catch (error) {
-      console.error('[useTenantConfig] Failed to load configuration:', error);
+      setError(error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsLoading(false);
     }
@@ -181,15 +195,49 @@ export function useTenantConfig(): UseTenantConfigResult {
     await loadAll();
   }, [configCapability, loadAll]);
 
+  const toDate = useCallback((value: Date | string | number): Date => {
+    return value instanceof Date ? value : new Date(value);
+  }, []);
+
+  const formatDate = useCallback((value: Date | string | number): string => {
+    const config = effectiveConfig;
+    const date = toDate(value);
+    return new Intl.DateTimeFormat(config?.locale ?? 'en-US', {
+      timeZone: config?.timezone,
+      dateStyle: config?.dateFormat === 'short' ? 'short' : 'medium',
+    }).format(date);
+  }, [effectiveConfig, toDate]);
+
+  const formatTime = useCallback((value: Date | string | number): string => {
+    const config = effectiveConfig;
+    const date = toDate(value);
+    return new Intl.DateTimeFormat(config?.locale ?? 'en-US', {
+      timeZone: config?.timezone,
+      timeStyle: config?.timeFormat === 'short' ? 'short' : 'medium',
+    }).format(date);
+  }, [effectiveConfig, toDate]);
+
+  const formatCurrency = useCallback((value: number, currency?: string): string => {
+    const config = effectiveConfig;
+    return new Intl.NumberFormat(config?.locale ?? 'en-US', {
+      style: 'currency',
+      currency: currency ?? config?.currency ?? 'USD',
+    }).format(value);
+  }, [effectiveConfig]);
+
   return {
     effectiveConfig,
     tenantSettings,
     userPreferences,
     branding,
     isLoading,
+    error,
     updateSettings,
     updatePreferences,
     updateBranding,
     refresh: loadAll,
+    formatDate,
+    formatTime,
+    formatCurrency,
   };
 }

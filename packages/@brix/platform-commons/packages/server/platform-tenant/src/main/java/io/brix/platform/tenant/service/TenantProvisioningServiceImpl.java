@@ -15,24 +15,30 @@
  */
 package io.brix.platform.tenant.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
+
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
+import io.brix.platform.tenant.entity.BizUserProfile;
+import io.brix.platform.tenant.entity.InstallationQuota;
 import io.brix.platform.tenant.entity.Organization;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantMember;
 import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.enums.TenantStatus;
 import io.brix.platform.tenant.exception.InvalidReferenceException;
+import io.brix.platform.tenant.exception.QuotaExceededException;
+import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.IdentityRepository;
+import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import jakarta.persistence.EntityNotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.Assert;
 
 /**
  * Implementation of {@link TenantProvisioningService} for tenant lifecycle management.
@@ -106,7 +112,9 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
 
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository tenantMemberRepository;
+    private final InstallationQuotaRepository installationQuotaRepository;
     private final OrganizationRepository organizationRepository;
+    private final BizUserProfileRepository bizUserProfileRepository;
     private final IdentityRepository identityRepository;
     private final IdGenerator idGenerator;
 
@@ -126,12 +134,16 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
     public TenantProvisioningServiceImpl(
             TenantRepository tenantRepository,
             TenantMemberRepository tenantMemberRepository,
+            InstallationQuotaRepository installationQuotaRepository,
             OrganizationRepository organizationRepository,
+            BizUserProfileRepository bizUserProfileRepository,
             IdentityRepository identityRepository,
             IdGenerator idGenerator) {
         this.tenantRepository = tenantRepository;
         this.tenantMemberRepository = tenantMemberRepository;
+        this.installationQuotaRepository = installationQuotaRepository;
         this.organizationRepository = organizationRepository;
+        this.bizUserProfileRepository = bizUserProfileRepository;
         this.identityRepository = identityRepository;
         this.idGenerator = idGenerator;
     }
@@ -192,10 +204,13 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
         Assert.notNull(request, "CreateTenantRequest cannot be null");
         Assert.hasText(request.getCode(), "Tenant code cannot be empty");
         Assert.hasText(request.getName(), "Tenant name cannot be empty");
-        Assert.notNull(request.getOwnerIdentityId(), "Owner identity ID cannot be null");
+        Long ownerIdentityId = request.getOwnerIdentityId();
+        if (ownerIdentityId == null) {
+            throw new IllegalArgumentException("Owner identity ID cannot be null");
+        }
 
         log.info("Starting tenant provisioning: code={}, name={}, ownerIdentityId={}",
-                request.getCode(), request.getName(), request.getOwnerIdentityId());
+            request.getCode(), request.getName(), ownerIdentityId);
 
         // Validate tenant code uniqueness
         if (tenantRepository.existsByCode(request.getCode())) {
@@ -204,10 +219,10 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
         }
 
         // Validate owner identity exists in sys_identity
-        if (!identityRepository.existsById(request.getOwnerIdentityId())) {
-            log.warn("Owner identity not found: {}", request.getOwnerIdentityId());
+        if (!identityRepository.existsById(ownerIdentityId)) {
+            log.warn("Owner identity not found: {}", ownerIdentityId);
             throw new InvalidReferenceException(
-                "Owner identity not found: " + request.getOwnerIdentityId()
+                "Owner identity not found: " + ownerIdentityId
             );
         }
 
@@ -228,17 +243,31 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
         // =====================================================================
         TenantMember ownerMember = new TenantMember(
             tenant.getId(),
-            request.getOwnerIdentityId(),
+            ownerIdentityId,
             TenantMemberType.OWNER
         );
         ownerMember.setId(idGenerator.nextId());
         
         tenantMemberRepository.save(ownerMember);
         log.debug("Created owner membership: id={}, tenantId={}, identityId={}",
-                ownerMember.getId(), tenant.getId(), request.getOwnerIdentityId());
+            ownerMember.getId(), tenant.getId(), ownerIdentityId);
 
         // =====================================================================
-        // Phase 4: Create Default Organization
+        // Phase 4: Create Owner Profile
+        // =====================================================================
+        BizUserProfile ownerProfile = new BizUserProfile();
+        ownerProfile.setId(idGenerator.nextId());
+        ownerProfile.setTenantId(tenant.getId());
+        ownerProfile.setMemberId(ownerMember.getId());
+        ownerProfile.setPreferences("{}");
+        ownerProfile.setExtended("{}");
+
+        bizUserProfileRepository.save(ownerProfile);
+        log.debug("Created owner profile: id={}, tenantId={}, memberId={}",
+            ownerProfile.getId(), tenant.getId(), ownerMember.getId());
+
+        // =====================================================================
+        // Phase 5: Create Default Organization
         // Every tenant starts with a root organization named after the tenant.
         // This provides the initial organizational structure for the tenant.
         // =====================================================================
@@ -278,15 +307,23 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
     @Override
     @Transactional
     public void suspendTenant(Long tenantId) {
-        Assert.notNull(tenantId, "Tenant ID cannot be null");
+        if (tenantId == null) {
+            throw new IllegalArgumentException("Tenant ID cannot be null");
+        }
 
         log.info("Suspending tenant: id={}", tenantId);
 
         Tenant tenant = tenantRepository.findById(tenantId)
             .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
 
+        TenantStatus previousStatus = tenant.getStatus();
+
         // Delegate state transition to entity - enforces business rules
         tenant.suspend();
+
+        if (previousStatus == TenantStatus.ACTIVE) {
+            releaseInstallationTenantSlot();
+        }
 
         tenantRepository.save(tenant);
         log.info("Tenant suspended successfully: id={}, code={}", tenantId, tenant.getCode());
@@ -314,17 +351,77 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
     @Override
     @Transactional
     public void activateTenant(Long tenantId) {
-        Assert.notNull(tenantId, "Tenant ID cannot be null");
+        if (tenantId == null) {
+            throw new IllegalArgumentException("Tenant ID cannot be null");
+        }
 
         log.info("Activating tenant: id={}", tenantId);
 
         Tenant tenant = tenantRepository.findById(tenantId)
             .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
 
+        TenantStatus previousStatus = tenant.getStatus();
+
+        if (!tenant.canBeActivated()) {
+            tenant.activate();
+        }
+
+        if (previousStatus != TenantStatus.ACTIVE) {
+            reserveInstallationTenantSlot();
+        }
+
         // Delegate state transition to entity - enforces business rules
         tenant.activate();
 
         tenantRepository.save(tenant);
         log.info("Tenant activated successfully: id={}, code={}", tenantId, tenant.getCode());
+    }
+
+    @Override
+    @Transactional
+    public void terminateTenant(Long tenantId) {
+        if (tenantId == null) {
+            throw new IllegalArgumentException("Tenant ID cannot be null");
+        }
+
+        log.info("Terminating tenant: id={}", tenantId);
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + tenantId));
+
+        TenantStatus previousStatus = tenant.getStatus();
+        tenant.terminate();
+
+        if (previousStatus == TenantStatus.ACTIVE) {
+            releaseInstallationTenantSlot();
+        }
+
+        tenantRepository.save(tenant);
+        log.info("Tenant terminated successfully: id={}, code={}", tenantId, tenant.getCode());
+    }
+
+    private void reserveInstallationTenantSlot() {
+        InstallationQuota quota = lockInstallationQuota();
+        if (!quota.hasAvailableSlot()) {
+            throw new QuotaExceededException("installationTenants", quota.getUsed(), quota.getQuota());
+        }
+        quota.reserveSlot();
+        installationQuotaRepository.save(quota);
+    }
+
+    private void releaseInstallationTenantSlot() {
+        InstallationQuota quota = lockInstallationQuota();
+        quota.releaseSlot();
+        installationQuotaRepository.save(quota);
+    }
+
+    private InstallationQuota lockInstallationQuota() {
+        return installationQuotaRepository
+            .findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID)
+            .orElseGet(() -> installationQuotaRepository.saveAndFlush(new InstallationQuota(
+                InstallationQuota.DEFAULT_INSTALLATION_ID,
+                InstallationQuota.DEFAULT_TENANT_QUOTA,
+                0
+            )));
     }
 }

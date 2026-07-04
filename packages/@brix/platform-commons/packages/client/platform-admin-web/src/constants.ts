@@ -54,6 +54,9 @@ export const PLATFORM_ADMIN_PERMISSIONS = Object.freeze({
 
   /** Audit */
   AUDIT_READ: 'platform:audit:read',
+
+  /** License / quota */
+  LICENSE_READ: 'platform:license:read',
 } as const);
 
 export type PlatformAdminPermission =
@@ -152,6 +155,7 @@ export const PLATFORM_ADMIN_ROUTES = Object.freeze({
   DASHBOARD: '/platform',
   ADMINS: '/platform/admins',
   AUDIT: '/platform/audit',
+  LICENSE: '/platform/license',
   TENANTS: '/platform/tenants',
   CHANGE_OWN_PASSWORD: '/platform/me/password',
 } as const);
@@ -180,6 +184,7 @@ export const PLATFORM_ADMIN_API = Object.freeze({
     `/platform/admins/${id}/reset-password`,
   ADMIN_CHANGE_OWN_PASSWORD: '/platform/admins/me/change-password',
   AUDIT_LOGS: '/platform/audit-logs',
+  LICENSE_QUOTA: '/platform/license/quota',
   TENANTS: '/platform/tenants',
   TENANT_STATUS: (id: string | number) => `/platform/tenants/${id}/status`,
 } as const);

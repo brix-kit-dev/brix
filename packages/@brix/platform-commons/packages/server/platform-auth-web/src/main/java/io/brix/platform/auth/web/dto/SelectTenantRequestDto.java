@@ -5,18 +5,22 @@
 package io.brix.platform.auth.web.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
 
 /**
- * Tenant selection request — submitted with an Identity Token after the
- * login endpoint returns {@code step=SELECT_TENANT}.
+ * Context selection request submitted with an Identity Token.
  *
- * @since 3.2.0
+ * <p>The legacy {@code /api/auth/select-tenant} endpoint uses {@code tenantId}.
+ * The Phase 2 {@code /api/auth/select-context} endpoint uses
+ * {@code selectionTicket} and does not expose stable context IDs.</p>
+ *
+ * @since 3.2.2
  */
-@Schema(name = "SelectTenantRequest", description = "多租户登录第二步：选择目标租户")
+@Schema(name = "SelectTenantRequest", description = "Tenant or context selection request")
 public record SelectTenantRequestDto(
 
-        @Schema(description = "目标租户 ID", example = "1001", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotNull(message = "tenantId 不能为空")
-        Long tenantId
+        @Schema(description = "Legacy target tenant ID", example = "1001")
+        Long tenantId,
+
+        @Schema(description = "Opaque one-time context selection ticket")
+        String selectionTicket
 ) {}

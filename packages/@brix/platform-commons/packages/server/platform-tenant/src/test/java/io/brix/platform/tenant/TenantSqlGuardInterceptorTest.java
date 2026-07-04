@@ -16,8 +16,11 @@
 package io.brix.platform.tenant;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,26 @@ class TenantSqlGuardInterceptorTest {
     void tenantMembershipTablesAreNotGloballyWhitelisted() {
         assertFalse(TenantWhitelist.isWhitelisted("sys_tenant_member"));
         assertFalse(TenantWhitelist.isWhitelisted("sys_tenant_principal"));
+    }
+
+    @Test
+    void sysPrefixIsNotBlanketWhitelisted() {
+        Set<String> expectedSysWhitelist = Set.of(
+                "sys_tenant",
+                "sys_identity",
+                "sys_platform_admin",
+                "sys_platform_config",
+                "sys_installation_quota",
+                "sys_platform_audit_log");
+
+        Set<String> actualSysWhitelist = TenantWhitelist.getWhitelistedTables().stream()
+                .filter(table -> table.startsWith("sys_"))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+
+        assertEquals(expectedSysWhitelist, actualSysWhitelist);
+        assertFalse(TenantWhitelist.isWhitelisted("sys_tenant_config"));
+        assertFalse(TenantWhitelist.isWhitelisted("sys_config"));
+        assertFalse(TenantWhitelist.isWhitelisted("sys_feature_flags"));
     }
 
     @Test

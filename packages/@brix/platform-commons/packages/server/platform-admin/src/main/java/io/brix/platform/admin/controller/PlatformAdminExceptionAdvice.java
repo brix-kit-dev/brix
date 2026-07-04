@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 import io.brix.platform.admin.dto.PlatformAdminErrorResponse;
 import io.brix.platform.admin.service.PlatformAdminProvisioningUnavailableException;
 import io.brix.platform.admin.service.SetupLinkDeliveryException;
+import io.runtime.sdk.capability.TenantQuotaCapability.QuotaAdmissionException;
 
 /**
  * Exception mapping for platform administrator lifecycle endpoints.
@@ -74,6 +75,19 @@ public class PlatformAdminExceptionAdvice {
     }
 
     /**
+     * Maps fail-closed license/quota admission denials to a stable response.
+     *
+     * @param ex quota admission exception
+     * @return 403 response with a stable reason code
+     */
+    @ExceptionHandler(QuotaAdmissionException.class)
+    public ResponseEntity<PlatformAdminErrorResponse> handleQuotaAdmission(QuotaAdmissionException ex) {
+        String reason = ex.reason();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new PlatformAdminErrorResponse(reason, reason));
+    }
+
+    /**
      * Preserves explicit platform-admin HTTP failure semantics.
      *
      * <p>Service-layer bootstrap/setup guards intentionally raise
@@ -88,9 +102,10 @@ public class PlatformAdminExceptionAdvice {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<PlatformAdminErrorResponse> handleResponseStatusException(
             ResponseStatusException ex) {
-        String reason = ex.getReason() == null || ex.getReason().isBlank()
+        String exceptionReason = ex.getReason();
+        String reason = exceptionReason == null || exceptionReason.isBlank()
                 ? ex.getStatusCode().toString()
-                : ex.getReason();
+                : exceptionReason;
         return ResponseEntity.status(ex.getStatusCode())
                 .body(new PlatformAdminErrorResponse(reason, reason));
     }

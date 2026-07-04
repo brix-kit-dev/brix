@@ -55,6 +55,7 @@ export interface LoginCoordinatorState {
 
 export interface UseLoginCoordinatorOptions {
   readonly authApi: AuthApi;
+  readonly loginTrack?: 'actor' | 'subject' | 'legacy';
   /** 完成态回调，可在此持久化 token / 跳转。 */
   readonly onComplete?: (result: LoginResult) => void | Promise<void>;
 }
@@ -64,7 +65,7 @@ export interface UseLoginCoordinatorReturn extends LoginCoordinatorState {
   submitCredentials: (payload: LoginRequestPayload) => Promise<void>;
   /** 第二阶段：在 SELECT_TENANT 步骤选择租户。 */
   selectTenant: (
-    payload: SelectTenantPayload | { tenantId: string },
+    payload: SelectTenantPayload | { tenantId: string } | { selectionTicket: string },
   ) => Promise<void>;
   /** 重置回 CREDENTIALS 初始态。 */
   reset: () => void;
@@ -96,6 +97,7 @@ export function useLoginCoordinator(
   options: UseLoginCoordinatorOptions,
 ): UseLoginCoordinatorReturn {
   const { authApi, onComplete } = options;
+  const loginTrack = options.loginTrack ?? 'actor';
   const [state, setState] = useState<LoginCoordinatorState>(INITIAL_STATE);
   /** 第一阶段返回的 identityToken，用于 SELECT_TENANT bearer。 */
   const identityTokenRef = useRef<string | null>(null);
@@ -127,7 +129,12 @@ export function useLoginCoordinator(
     async (payload: LoginRequestPayload) => {
       setState((s) => ({ ...s, loading: true, error: null }));
       try {
-        const result = await authApi.login(payload);
+        const result =
+          loginTrack === 'actor'
+            ? await authApi.loginActor(payload)
+            : loginTrack === 'subject'
+              ? await authApi.loginSubject(payload)
+              : await authApi.login(payload);
         if (result.status === 'SELECT_TENANT') {
           identityTokenRef.current = result.identityToken ?? null;
           if (!identityTokenRef.current) {
@@ -158,11 +165,13 @@ export function useLoginCoordinator(
         });
       }
     },
-    [authApi, finishComplete],
+    [authApi, finishComplete, loginTrack],
   );
 
   const selectTenant = useCallback(
-    async (payload: SelectTenantPayload | { tenantId: string }) => {
+    async (
+      payload: SelectTenantPayload | { tenantId: string } | { selectionTicket: string },
+    ) => {
       const token = identityTokenRef.current;
       if (!token) {
         setState((s) => ({
@@ -174,10 +183,10 @@ export function useLoginCoordinator(
       }
       setState((s) => ({ ...s, loading: true, error: null }));
       try {
-        const result = await authApi.selectTenant(
-          payload as SelectTenantPayload,
-          token,
-        );
+        const selection = payload as SelectTenantPayload;
+        const result = selection.selectionTicket
+          ? await authApi.selectContext(selection, token)
+          : await authApi.selectTenant(selection, token);
         await finishComplete(result);
       } catch (e) {
         setState((s) => ({

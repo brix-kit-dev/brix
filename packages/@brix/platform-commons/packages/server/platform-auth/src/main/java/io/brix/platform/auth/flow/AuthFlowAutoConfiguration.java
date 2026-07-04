@@ -22,11 +22,13 @@ import org.springframework.context.annotation.Bean;
 import io.brix.platform.auth.internal.RbacResolver;
 import io.brix.platform.auth.jwt.JwtIssuerAutoConfiguration;
 import io.brix.platform.auth.password.PasswordCapabilityAutoConfiguration;
+import io.brix.platform.auth.ticket.ContextSelectionTicketService;
 import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.capability.IdentityTenantCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.RefreshTokenCapability;
+import io.runtime.sdk.capability.TenantCapability;
 
 /**
  * Auto-configuration that exposes the {@link AuthFlowCapability} contract
@@ -76,15 +78,21 @@ public class AuthFlowAutoConfiguration {
             ObjectProvider<RbacResolver> rbacResolverProvider,
                         ObjectProvider<RefreshTokenCapability> refreshTokenProvider,
                         ObjectProvider<MfaLoginSupport> mfaLoginSupportProvider,
+            ObjectProvider<ContextSelectionTicketService> contextSelectionTicketProvider,
+            ObjectProvider<TenantCapability> tenantCapabilityProvider,
             PlatformLoginLockoutProperties lockoutProperties) {
         RbacResolver resolver = rbacResolverProvider.getIfAvailable();
         RefreshTokenCapability refreshTokenCapability = refreshTokenProvider.getIfAvailable();
+        ContextSelectionTicketService contextSelectionTicketService =
+                contextSelectionTicketProvider.getIfAvailable();
+        TenantCapability tenantCapability = tenantCapabilityProvider.getIfAvailable();
         log.info("Registering default AuthFlowCapability (multi-tenant) " +
-                        "rbacResolver={}, refreshTokenCapability={}",
+                        "rbacResolver={}, refreshTokenCapability={}, contextSelectionTicket={}",
                 resolver == null ? "ABSENT" : resolver.getClass().getSimpleName(),
-                refreshTokenCapability == null ? "ABSENT (A2 disabled)" : refreshTokenCapability.getClass().getSimpleName());
+                refreshTokenCapability == null ? "ABSENT (A2 disabled)" : refreshTokenCapability.getClass().getSimpleName(),
+                contextSelectionTicketService == null ? "ABSENT" : contextSelectionTicketService.getClass().getSimpleName());
         return new AuthFlowCapabilityImpl(identityTenantCapability, passwordCapability,
                 jwtIssuerCapability, resolver, refreshTokenCapability, mfaLoginSupportProvider::getIfAvailable,
-                lockoutProperties);
+                lockoutProperties, contextSelectionTicketService, tenantCapability);
     }
 }

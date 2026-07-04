@@ -37,8 +37,10 @@ export interface TenantSelectorLabels {
 export interface TenantSelectorProps {
   /** 后端 `/api/auth/login` 返回的 `tenantOptions`。 */
   readonly options: readonly TenantOption[];
-  /** 用户选择某个租户后的回调，参数为该租户 id。 */
+  /** Legacy tenant-id selection callback. Used only when no selectionTicket exists. */
   readonly onSelect: (tenantId: string, option: TenantOption) => void;
+  /** Phase 3 context-ticket selection callback. Preferred when selectionTicket exists. */
+  readonly onSelectContext?: (selectionTicket: string, option: TenantOption) => void;
   /** 选择正在提交时禁用列表（典型为 `/select-tenant` 请求 in-flight）。 */
   readonly loading?: boolean;
   /** 上一次选择失败的错误消息（由上层透传，用于在头部展示）。 */
@@ -65,6 +67,7 @@ const DEFAULT_LABELS: Required<TenantSelectorLabels> = {
 export const TenantSelector: React.FC<TenantSelectorProps> = ({
   options,
   onSelect,
+  onSelectContext,
   loading = false,
   error,
   labels,
@@ -75,9 +78,13 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
   const handleSelect = useCallback(
     (option: TenantOption) => {
       if (loading) return;
+      if (option.selectionTicket && onSelectContext) {
+        onSelectContext(option.selectionTicket, option);
+        return;
+      }
       onSelect(option.tenantId, option);
     },
-    [loading, onSelect],
+    [loading, onSelect, onSelectContext],
   );
 
   if (options.length === 0) {
@@ -145,7 +152,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
                   >
                     {roleLabel}
                   </span>
-                  {opt.subRole ? <span>{opt.subRole}</span> : null}
+                  {opt.role ?? opt.subRole ? <span>{opt.role ?? opt.subRole}</span> : null}
                   {opt.lastAccessAt ? (
                     <span style={{ float: 'right' }}>
                       {new Date(opt.lastAccessAt).toLocaleString()}

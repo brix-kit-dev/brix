@@ -46,6 +46,8 @@
  */
 
 import type {
+  ActorTenantAccessContext,
+  CurrentTenantAccessContext,
   TenantCapability,
   TenantInfo,
   TenantChangeEvent,
@@ -116,6 +118,15 @@ export class TenantCapabilityImpl implements TenantCapability {
   }
 
   /**
+   * Returns the current actor/subject access context.
+   *
+   * @returns the current access context, or null before context selection
+   */
+  getCurrentContext(): CurrentTenantAccessContext | null {
+    return this.config.getCurrentContext?.() ?? null;
+  }
+
+  /**
    * Returns all tenants available to the current user.
    *
    * For users with multi-tenant access, returns the complete list.
@@ -126,6 +137,17 @@ export class TenantCapabilityImpl implements TenantCapability {
    */
   getAvailableTenants(): readonly TenantInfo[] {
     return this.config.getAvailableTenants();
+  }
+
+  /**
+   * Returns actor contexts that the current identity may switch to.
+   *
+   * Subject sessions must not expose switchable contexts.
+   *
+   * @returns switchable actor contexts
+   */
+  getAvailableContexts(): readonly ActorTenantAccessContext[] {
+    return this.config.getAvailableContexts?.() ?? [];
   }
 
   /**
@@ -163,6 +185,37 @@ export class TenantCapabilityImpl implements TenantCapability {
       tenantId,
       previousTenantId,
       tenant: this.getCurrentTenant(),
+      context: this.getCurrentContext(),
+      timestamp: Date.now(),
+    };
+    this.notifyListeners(event);
+  }
+
+  /**
+   * Switches to a different actor context by stable context id.
+   *
+   * @param contextId - target actor context id
+   * @throws Error if context switching is not provided by the Host
+   */
+  async switchContext(contextId: string): Promise<void> {
+    if (!contextId) {
+      throw new Error('[TenantCapabilityImpl] Context ID is required for switching.');
+    }
+    if (!this.config.switchContext) {
+      throw new Error(
+        '[TenantCapabilityImpl] switchContext is not configured. ' +
+        'Provide a Phase 3 context-switch callback during bootstrap.',
+      );
+    }
+
+    const previousTenantId = this.getCurrentTenantId();
+    await this.config.switchContext(contextId);
+
+    const event: TenantChangeEvent = {
+      tenantId: this.getCurrentTenantId(),
+      previousTenantId,
+      tenant: this.getCurrentTenant(),
+      context: this.getCurrentContext(),
       timestamp: Date.now(),
     };
     this.notifyListeners(event);
@@ -213,6 +266,10 @@ export class TenantCapabilityImpl implements TenantCapability {
       try {
         listener(event);
       } catch (error) {
+        // Listener failures must be visible; one broken subscriber must not
+        // prevent the rest of the runtime from receiving the context change.
+        // eslint-disable-next-line no-console
+        console.error('[TenantCapabilityImpl] tenant change listener failed:', error);
       }
     }
   }

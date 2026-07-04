@@ -57,6 +57,16 @@ function badgeKind(status: PlatformTenantStatus) {
   }
 }
 
+function formatNullable(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+}
+
+function formatQuota(tenant: PlatformTenantDto): string {
+  if (tenant.quotaUsed === null && tenant.quotaLimit === null) return '—';
+  return `${formatNullable(tenant.quotaUsed)} / ${formatNullable(tenant.quotaLimit)}`;
+}
+
 export function PlatformTenantListPage(): JSX.Element {
   const { Button, Input, Select } = useUIStrict();
   const { tokens } = useTheme();
@@ -84,6 +94,17 @@ export function PlatformTenantListPage(): JSX.Element {
     (total, tenant) => total + tenant.memberCount,
     0,
   );
+  const quotaLimit = tenantsOnPage.reduce(
+    (total, tenant) => total + (tenant.quotaLimit ?? 0),
+    0,
+  );
+  const quotaUsed = tenantsOnPage.reduce(
+    (total, tenant) => total + (tenant.quotaUsed ?? 0),
+    0,
+  );
+  const licenseCount = tenantsOnPage.filter(
+    (tenant) => tenant.licenseStatus,
+  ).length;
 
   function applySearch() {
     list.setQuery({ ...list.query, q: searchText.trim() || undefined, page: 0 });
@@ -137,6 +158,16 @@ export function PlatformTenantListPage(): JSX.Element {
             label: tt(I18N_KEYS.tenant.summaryMembers),
             value: memberCount,
             tone: 'info',
+          },
+          {
+            label: '配额使用',
+            value: quotaLimit > 0 ? `${quotaUsed} / ${quotaLimit}` : '—',
+            tone: quotaLimit > 0 && quotaUsed >= quotaLimit ? 'warning' : 'neutral',
+          },
+          {
+            label: 'License 状态',
+            value: licenseCount > 0 ? licenseCount : '—',
+            tone: licenseCount > 0 ? 'info' : 'neutral',
           },
         ]}
       />
@@ -215,6 +246,27 @@ export function PlatformTenantListPage(): JSX.Element {
                 key: 'members',
                 header: tt(I18N_KEYS.tenant.colMembers),
                 render: (r) => r.memberCount,
+              },
+              {
+                key: 'quota',
+                header: '配额',
+                render: (r) => formatQuota(r),
+              },
+              {
+                key: 'license',
+                header: 'License',
+                render: (r) => formatNullable(r.licenseStatus),
+              },
+              {
+                key: 'defaults',
+                header: '默认配置',
+                render: (r) => (
+                  <div style={{ display: 'grid', gap: 2, minWidth: 160 }}>
+                    <span>Locale: {formatNullable(r.defaultLocale)}</span>
+                    <span>Timezone: {formatNullable(r.defaultTimezone)}</span>
+                    <span>Theme: {formatNullable(r.defaultTheme)}</span>
+                  </div>
+                ),
               },
               {
                 key: 'createdAt',

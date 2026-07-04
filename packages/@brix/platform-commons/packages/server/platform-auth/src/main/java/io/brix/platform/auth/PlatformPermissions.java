@@ -168,6 +168,9 @@ public final class PlatformPermissions {
     /** Access and modify system-level configuration. Restricted to formal super admins. */
     public static final String SYSTEM_CONFIG = "platform:system:config";
 
+    /** Read installation license and tenant quota status. */
+    public static final String LICENSE_READ = "platform:license:read";
+
     /** Perform data recovery and maintenance operations. Restricted to formal super admins. */
     public static final String DATA_RECOVERY = "platform:data:recovery";
 
@@ -196,8 +199,8 @@ public final class PlatformPermissions {
                     ADMIN_RESET_PASSWORD, ADMIN_CHANGE_OWN_PASSWORD,
                     // audit
                     AUDIT_VIEW, AUDIT_READ,
-                    // system
-                    SYSTEM_CONFIG, DATA_RECOVERY
+                        // system
+                        SYSTEM_CONFIG, LICENSE_READ, DATA_RECOVERY
             );
             case RoleCode.BOOTSTRAP -> List.of(BOOTSTRAP_READ, BOOTSTRAP_CREATE_FIRST_ADMIN);
             default -> List.of();

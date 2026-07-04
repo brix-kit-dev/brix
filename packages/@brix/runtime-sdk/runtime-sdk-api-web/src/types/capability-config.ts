@@ -51,7 +51,11 @@ import type {
   AuthChangeEvent,
   DataScope,
 } from './auth';
-import type { TenantInfo } from './tenant';
+import type {
+  ActorTenantAccessContext,
+  CurrentTenantAccessContext,
+  TenantInfo,
+} from './tenant';
 import type { HttpCapability } from './http';
 import type {
   BackpressureConfig,
@@ -448,12 +452,18 @@ export interface TenantCapabilityConfig {
   getCurrentTenantId: () => string | null;
   /** Returns the full tenant information object */
   getCurrentTenant: () => TenantInfo | null;
+  /** Returns the current actor/subject access context */
+  getCurrentContext?: () => CurrentTenantAccessContext | null;
   /** Returns the list of tenants available to the current user */
   getAvailableTenants: () => readonly TenantInfo[];
+  /** Returns actor contexts that the current identity may switch to */
+  getAvailableContexts?: () => readonly ActorTenantAccessContext[];
   /** Checks whether a tenant-specific feature is enabled */
   isFeatureEnabled: (featureKey: string) => boolean;
   /** Switches the active tenant context (handles token refresh internally) */
   switchTenant: (tenantId: string) => Promise<void>;
+  /** Switches the active actor context by stable context id */
+  switchContext?: (contextId: string) => Promise<void>;
 }
 
 // ============================================================================

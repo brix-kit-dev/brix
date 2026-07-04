@@ -78,6 +78,7 @@ export {
   
   // Tenant Hook (v3.1.0 Phase 1.4 TenantCapability chain)
   useTenant,
+  useTenantConfig,
 
   // ViewMode Hook (Stability Reform v1.0 — C-4)
   useViewMode,
@@ -107,6 +108,7 @@ export {
   type UsePluginLoaderResult,
   type UseI18nResult,
   type UseTenantResult,
+  type UseTenantConfigResult,
   type UseViewModeResult,
 
   // Page-state hook types (Stability Reform v1.0 — C-3)

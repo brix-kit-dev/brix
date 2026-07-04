@@ -23,6 +23,7 @@ export {
   type ChangeOwnPasswordPageProps,
 } from './ChangeOwnPasswordPage';
 export { AuditLogPage } from './AuditLogPage';
+export { LicenseQuotaPage } from './LicenseQuotaPage';
 export { PlatformTenantListPage } from './PlatformTenantListPage';
 export {
   UpdateTenantStatusDialog,
