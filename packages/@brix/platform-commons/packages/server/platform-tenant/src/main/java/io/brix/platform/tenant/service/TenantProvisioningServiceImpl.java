@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
+import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
 import io.brix.platform.tenant.entity.BizUserProfile;
@@ -197,6 +198,9 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      */
     @Override
     @Transactional
+        @CrossTenantAccess(
+            reason = "Platform tenant provisioning creates the initial tenant boundary and its first OWNER/Profile before a tenant-scoped context exists.",
+            approval = "BRIX-ARCH-3.1.3-TENANT-PROVISIONING")
     public Tenant createTenant(CreateTenantRequest request) {
         // =====================================================================
         // Phase 1: Request Validation

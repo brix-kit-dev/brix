@@ -30,21 +30,21 @@ export function useAuditLog(
   initial: AuditLogQuery = { page: 0, size: 50, sort: 'createdAt,desc' },
 ): UseAuditLogResult {
   const { audit } = useRepositories();
-  const page = usePageState<Page<PlatformAuditLogDto>>();
+  const { data, isLoading, error, run } = usePageState<Page<PlatformAuditLogDto>>();
   const [query, setQuery] = useState<AuditLogQuery>(initial);
 
   const load = useCallback(async (): Promise<void> => {
-    await page.run(() => audit.query(query));
-  }, [audit, page, query]);
+    await run(() => audit.query(query));
+  }, [audit, query, run]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   return {
-    data: page.data,
-    loading: page.isLoading,
-    error: page.error,
+    data,
+    loading: isLoading,
+    error,
     query,
     setQuery,
     refresh: load,

@@ -41,7 +41,6 @@ import io.brix.platform.auth.AuditAction;
 import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.annotation.RequirePermission;
 import io.brix.platform.auth.context.SecurityContextHolder;
-import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.AuditEvent;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.enums.TenantStatus;
@@ -49,6 +48,9 @@ import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.service.AuditService;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
+import io.runtime.sdk.capability.TenantProvisioningCapability;
+import io.runtime.sdk.capability.TenantProvisioningCapability.CreateTenantCommand;
+import io.runtime.sdk.capability.TenantProvisioningCapability.TenantRecord;
 import io.runtime.sdk.capability.TenantQuotaCapability;
 import io.runtime.sdk.capability.TenantQuotaCapability.InstallationQuotaSnapshot;
 import jakarta.persistence.EntityNotFoundException;
@@ -90,7 +92,7 @@ public class PlatformTenantController {
     private final TenantProvisioningService tenantProvisioningService;
     private final SecurityContextHolder securityContextHolder;
     private final TenantQuotaCapability tenantQuotaCapability;
-    private final IdGenerator idGenerator;
+    private final TenantProvisioningCapability tenantProvisioningCapability;
 
     public PlatformTenantController(
             TenantRepository tenantRepository,
@@ -98,13 +100,13 @@ public class PlatformTenantController {
             TenantProvisioningService tenantProvisioningService,
             SecurityContextHolder securityContextHolder,
             TenantQuotaCapability tenantQuotaCapability,
-            IdGenerator idGenerator) {
+            TenantProvisioningCapability tenantProvisioningCapability) {
         this.tenantRepository = tenantRepository;
         this.auditService = auditService;
         this.tenantProvisioningService = tenantProvisioningService;
         this.securityContextHolder = securityContextHolder;
         this.tenantQuotaCapability = tenantQuotaCapability;
-        this.idGenerator = idGenerator;
+        this.tenantProvisioningCapability = tenantProvisioningCapability;
     }
 
     // ========================================================================
@@ -168,25 +170,28 @@ public class PlatformTenantController {
             throw new IllegalArgumentException("Tenant code already exists: " + request.code());
         }
 
-        Tenant tenant = new Tenant(request.code(), request.name());
-        tenant.setId(idGenerator.nextId());
-        tenant.setStatus(TenantStatus.PENDING_ACTIVATION);
-        tenant = tenantRepository.save(tenant);
+        TenantRecord tenant = tenantProvisioningCapability.createTenant(
+            new CreateTenantCommand(request.code(), request.name(), operatorId));
+        Long createdTenantId = tenant.id();
+        if (createdTenantId == null) {
+            throw new IllegalStateException("Tenant provisioning returned an empty tenant id");
+        }
+        Tenant createdTenant = tenantRepository.findById(createdTenantId)
+            .orElseThrow(() -> new EntityNotFoundException("Tenant not found after creation: " + createdTenantId));
 
         auditService.log(AuditEvent.builder()
                 .createdBy(operatorId)
                 .action(AuditAction.TENANT_CREATED)
                 .resourceType("TENANT")
-                .resourceId(String.valueOf(tenant.getId()))
-                .description("Tenant created by platform admin: code=" + tenant.getCode()
-                        + ", name=" + tenant.getName())
+                .resourceId(String.valueOf(tenant.id()))
+                .description("Tenant created by platform admin")
                 .success(true)
                 .build());
 
         log.info("Tenant created: id={}, code={}, operatorId={}",
-                tenant.getId(), tenant.getCode(), operatorId);
+                tenant.id(), tenant.code(), operatorId);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(tenant));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(createdTenant));
     }
 
     // ========================================================================

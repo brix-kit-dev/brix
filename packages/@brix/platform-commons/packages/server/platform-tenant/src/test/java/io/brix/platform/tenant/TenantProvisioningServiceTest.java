@@ -15,9 +15,11 @@
  */
 package io.brix.platform.tenant;
 
+import java.lang.reflect.Method;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
 import io.brix.platform.tenant.entity.BizUserProfile;
@@ -125,6 +128,18 @@ class TenantProvisioningServiceTest {
     @Nested
     @DisplayName("Create Tenant Tests")
     class CreateTenantTests {
+
+        @Test
+        @DisplayName("createTenant should declare reviewed cross-tenant provisioning scope")
+        void createTenantShouldDeclareCrossTenantProvisioningScope() throws NoSuchMethodException {
+            Method method = TenantProvisioningServiceImpl.class.getMethod("createTenant", CreateTenantRequest.class);
+            CrossTenantAccess annotation = method.getAnnotation(CrossTenantAccess.class);
+
+            assertNotNull(annotation);
+            assertEquals("BRIX-ARCH-3.1.3-TENANT-PROVISIONING", annotation.approval());
+            assertFalse(annotation.readOnly());
+            assertTrue(annotation.reason().contains("first OWNER/Profile"));
+        }
 
         @Test
         @DisplayName("should create tenant with all related entities")

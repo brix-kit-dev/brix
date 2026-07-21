@@ -256,9 +256,9 @@ export interface PlatformTenantDto {
   updatedAt: string;
   ownerIdentityId: string | null;
   memberCount: number;
-  /** Installation or tenant quota currently used, when exposed by backend. */
+  /** Installation-level tenant quota currently used, when exposed by backend. */
   quotaUsed: number | null;
-  /** Installation or tenant quota limit, when exposed by backend. */
+  /** Installation-level tenant quota limit, when exposed by backend. */
   quotaLimit: number | null;
   /** License state summary for tenant creation/operation, when exposed. */
   licenseStatus: string | null;

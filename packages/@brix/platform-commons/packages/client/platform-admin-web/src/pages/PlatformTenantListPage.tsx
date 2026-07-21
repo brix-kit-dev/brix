@@ -25,6 +25,7 @@ import {
   StatusBadge,
   IconActionButton,
 } from '../internal/ui-kit';
+import { useInstallationQuota } from '../hooks/useInstallationQuota';
 import { usePlatformTenantList } from '../hooks/usePlatformTenantList';
 import { UpdateTenantStatusDialog } from './UpdateTenantStatusDialog';
 import { CreateTenantDialog } from './CreateTenantDialog';
@@ -34,7 +35,7 @@ import {
   type PlatformTenantStatus,
 } from '../constants';
 import { I18N_KEYS, I18N_NAMESPACE, makeT } from '../i18n';
-import type { PlatformTenantDto } from '../types';
+import type { InstallationQuotaDto, PlatformTenantDto } from '../types';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: '— Any —' },
@@ -67,6 +68,18 @@ function formatQuota(tenant: PlatformTenantDto): string {
   return `${formatNullable(tenant.quotaUsed)} / ${formatNullable(tenant.quotaLimit)}`;
 }
 
+export function formatInstallationQuotaUsage(
+  quota: InstallationQuotaDto | null | undefined,
+): string {
+  return quota && quota.quota > 0 ? `${quota.used} / ${quota.quota}` : '—';
+}
+
+export function isInstallationQuotaFull(
+  quota: InstallationQuotaDto | null | undefined,
+): boolean {
+  return Boolean(quota && quota.quota > 0 && quota.used >= quota.quota);
+}
+
 export function PlatformTenantListPage(): JSX.Element {
   const { Button, Input, Select } = useUIStrict();
   const { tokens } = useTheme();
@@ -75,6 +88,7 @@ export function PlatformTenantListPage(): JSX.Element {
   const { hasPermission } = useAuth();
 
   const list = usePlatformTenantList();
+  const installationQuota = useInstallationQuota();
   const [editing, setEditing] = useState<PlatformTenantDto | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -94,14 +108,8 @@ export function PlatformTenantListPage(): JSX.Element {
     (total, tenant) => total + tenant.memberCount,
     0,
   );
-  const quotaLimit = tenantsOnPage.reduce(
-    (total, tenant) => total + (tenant.quotaLimit ?? 0),
-    0,
-  );
-  const quotaUsed = tenantsOnPage.reduce(
-    (total, tenant) => total + (tenant.quotaUsed ?? 0),
-    0,
-  );
+  const quotaUsage = formatInstallationQuotaUsage(installationQuota.data);
+  const quotaFull = isInstallationQuotaFull(installationQuota.data);
   const licenseCount = tenantsOnPage.filter(
     (tenant) => tenant.licenseStatus,
   ).length;
@@ -161,8 +169,8 @@ export function PlatformTenantListPage(): JSX.Element {
           },
           {
             label: '配额使用',
-            value: quotaLimit > 0 ? `${quotaUsed} / ${quotaLimit}` : '—',
-            tone: quotaLimit > 0 && quotaUsed >= quotaLimit ? 'warning' : 'neutral',
+            value: quotaUsage,
+            tone: quotaFull ? 'warning' : 'neutral',
           },
           {
             label: 'License 状态',
