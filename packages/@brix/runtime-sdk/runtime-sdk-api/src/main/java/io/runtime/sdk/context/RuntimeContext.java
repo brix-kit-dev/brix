@@ -31,11 +31,16 @@ import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 
 /**
- * Runtime Context
+ * Legacy Runtime Context.
  * 
- * <p>Runtime Context is the single entry point for modules to access all capabilities,
- * serving as the core interface of the Runtime Shell architecture.
- * Modules access various platform-provided capabilities through this interface throughout their lifecycle.</p>
+ * <p>This interface is the v3.0.9 compatibility entry point for modules to access
+ * Runtime Shell capabilities. Under the v3.0.10 Runtime Shell baseline, newly migrated
+ * plugins must use {@link io.runtime.sdk.plugin.BrixPlugin} and
+ * {@link io.runtime.sdk.plugin.PluginContext} instead of adding new dependencies on this
+ * interface.</p>
+ *
+ * <p>The interface remains source and binary compatible so existing modules can continue
+ * to compile while the migration proceeds one plugin at a time.</p>
  * 
  * <h3>Core Responsibilities</h3>
  * <ul>
@@ -60,7 +65,7 @@ import io.runtime.sdk.capability.registry.CapabilityRegistry;
  * 
  * <h3>Design Principles</h3>
  * <ul>
- *   <li><b>Single Entry Point</b>: All capabilities accessed through RuntimeContext</li>
+ *   <li><b>Compatibility Entry Point</b>: Existing v3.0.9 modules access capabilities through RuntimeContext</li>
  *   <li><b>Capability Isolation</b>: Different capabilities implemented independently</li>
  *   <li><b>Optional Capability Safety</b>: Optional capabilities return Optional to avoid null pointers</li>
  * </ul>
@@ -105,7 +110,7 @@ import io.runtime.sdk.capability.registry.CapabilityRegistry;
  * }</pre>
  * 
  * <h3>Implementation Notes</h3>
- * <p>RuntimeContext is implemented by the Host layer. Different Hosts provide different capability combinations:</p>
+ * <p>RuntimeContext is provided by the runtime compatibility layer. Different Hosts provide different capability combinations:</p>
  * <ul>
  *   <li>Full Product Host: Provides complete implementation of all capabilities</li>
  *   <li>Embedded Host: Provides core capabilities; optional capabilities configured based on customer environment</li>
@@ -113,6 +118,8 @@ import io.runtime.sdk.capability.registry.CapabilityRegistry;
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
+ * @deprecated since 3.0.10 for new plugin migrations. Existing modules may continue to use this
+ *             compatibility API until they are moved to the v3.0.10 plugin SPI.
  * @see EventBusCapability
  * @see StateStoreCapability
  * @see AuthContextCapability
@@ -120,6 +127,7 @@ import io.runtime.sdk.capability.registry.CapabilityRegistry;
  * @see ConfigStoreCapability
  * @see LifecycleCapability
  */
+@Deprecated(since = "3.0.10", forRemoval = false)
 public interface RuntimeContext {
 
     // ==================== Capability Registry (Core API) ====================

@@ -13,7 +13,12 @@
 # packages — those live in the brix-enterprise repository and are gated
 # by `architecture-check.yml` there.
 #
+# v3.0.10 Runtime Shell Phase 0 adds an OSS guard for the shared contract and
+# manifest baseline only. The concrete tenant-only Host/profile gate is owned by
+# brix-enterprise because app-tenant is not part of this repository.
+#
 # @see docs-dev/前端稳定性改造计划-v1.0.md §5 (Phase 3 — 防回归底座)
+# @see docs/runtime-shell/v3.0.10-phase-0-baseline.md
 # ============================================================================
 
 name: Architecture Check
@@ -27,9 +32,14 @@ on:
       - 'packages/**/package.json'
       - 'packages/**/tsconfig.json'
       - 'packages/**/pom.xml'
+      - 'packages/@brix/platform-devtools/schemas/**'
+      - 'docs/runtime-shell/**'
       - 'packages/**/vitest.config.*'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
       - 'scripts/check-banned-tokens.mjs'
+      - 'scripts/validate_architecture_context.py'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
       - '.github/workflows/architecture-check.yml'
       - 'package.json'
       - 'pom.xml'
@@ -41,8 +51,13 @@ on:
       - 'packages/**/*.tsx'
       - 'packages/**/package.json'
       - 'packages/**/pom.xml'
+      - 'packages/@brix/platform-devtools/schemas/**'
+      - 'docs/runtime-shell/**'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
       - 'scripts/check-banned-tokens.mjs'
+      - 'scripts/validate_architecture_context.py'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
       - '.github/workflows/architecture-check.yml'
       - 'package.json'
       - 'pom.xml'
@@ -54,6 +69,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  architecture-context-pointer:
+    name: Architecture Context AI Pointers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate ChatGPT and Claude pointers
+        run: python3 scripts/validate_architecture_context.py
+
+  runtime-shell-v3-0-10-phase-0:
+    name: Runtime Shell v3.0.10 Phase 0 Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java (17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Validate OSS runtime contract baseline
+        run: mvn -q -pl packages/@brix/runtime-sdk/runtime-sdk-api test
+
+      - name: Validate Phase 0 legacy inventory
+        run: |
+          set -euo pipefail
+          grep -RIn '@Deprecated(since = "3.0.10", forRemoval = false)' \
+            packages/@brix/runtime-sdk/runtime-sdk-api/src/main/java/io/runtime/sdk/context/RuntimeContext.java \
+            packages/@brix/runtime-sdk/runtime-sdk-api/src/main/java/io/runtime/sdk/support/AbstractModule.java \
+            packages/@brix/runtime-sdk/runtime-sdk-api/src/main/java/io/runtime/sdk/capability/LifecycleCapability.java
+          grep -RIn 'brix.runtime-shell.model=3.0.10' docs/runtime-shell/v3.0.10-phase-0-baseline.md
+          grep -RIn 'compatibility schema only' packages/@brix/platform-devtools/schemas/plugin-manifest.schema.json
+
   # ==========================================================================
   # Job: Lint + Typecheck + Test
   #

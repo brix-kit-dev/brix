@@ -47,3 +47,5 @@ coverage/
 .cache/
 .parcel-cache/
 .turbo/
+__pycache__/
+*.py[cod]

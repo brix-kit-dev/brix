@@ -34,17 +34,20 @@
         Runtime Shell Capability Contract Interface Definitions and Development Support
         
         This module defines all contract interfaces between modules and the Runtime Shell, including:
+        - v3.0.10 plugin SPI contracts (BrixPlugin, PluginContext, PluginBootstrapContext)
         - Core capability interfaces (EventBus, StateStore, AuthContext, etc.)
         - Event base classes (DomainEvent, IntegrationEvent)
-        - Runtime context (RuntimeContext)
+        - Legacy runtime context compatibility API (RuntimeContext)
         - Host abstract interface
         - Module annotations (@Module, @EventHandler)
-        - Convenience wrappers (AbstractModule, ModuleState)
+        - Legacy convenience wrappers (AbstractModule, ModuleState)
         
         [Design Principles]
         - This module is the contract definition layer; it contains no infrastructure implementations
         - Modules (Plugins) only need to depend on this module
-        - Convenience wrappers (support package) only wrap RuntimeContext calls, not capability implementations
+        - BrixPlugin and PluginContext are the v3.0.10 plugin entry contracts
+        - YAML plugin-manifest.yaml remains the declarative source of truth; Java SPI does not expose manifest()
+        - RuntimeContext, AbstractModule, and LifecycleCapability are v3.0.9 compatibility APIs under the v3.0.10 Runtime Shell baseline
         - Importing Kafka/Redis/MySQL or other infrastructure dependencies is prohibited
     </description>
 

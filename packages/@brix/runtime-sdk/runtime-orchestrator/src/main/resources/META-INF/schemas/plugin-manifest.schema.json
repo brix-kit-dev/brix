@@ -1,154 +1,403 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://brix.io/schemas/plugin-manifest.schema.json",
-  "title": "Brix Plugin Manifest",
-  "description": "JSON Schema for META-INF/plugin-manifest.json — the server-side plugin declaration used by the Runtime Shell to discover and register plugins. Bundled copy used by io.runtime.orchestrator.manifest.UIManifestLoader for fail-fast validation. The canonical authoring copy lives at packages/@brix/platform-devtools/schemas/plugin-manifest.schema.json and MUST be kept byte-equivalent to this file.",
+  "title": "Brix v3.0.10 Plugin Manifest",
+  "description": "Strict schema for the active YAML plugin manifest at META-INF/brix/plugin-manifest.yaml. YAML is the declarative source of truth; Java SPI implementations must not duplicate manifest metadata.",
   "type": "object",
-  "required": ["name", "pluginId", "version"],
+  "required": ["apiVersion", "kind", "metadata", "runtime", "modules", "capabilities", "queries", "commands", "events"],
   "properties": {
-    "name": {
-      "type": "string",
-      "description": "Short plugin name (lowercase, used as namespace prefix).",
-      "pattern": "^[a-z][a-z0-9-]*$"
+    "apiVersion": {
+      "const": "brix.io/v1"
     },
-    "pluginId": {
-      "type": "string",
-      "description": "Globally unique plugin identifier (e.g. 'brix-app-partners').",
-      "pattern": "^[a-z][a-z0-9-]*$"
-    },
-    "version": {
-      "type": "string",
-      "description": "SemVer version string (e.g. '3.0.0-SNAPSHOT')."
-    },
-    "displayName": {
-      "type": "string",
-      "description": "Human-readable display name."
-    },
-    "description": {
-      "type": "string",
-      "description": "Brief description of the plugin's purpose."
-    },
-    "ui": {
-      "type": "object",
-      "description": "UI platform configuration.",
-      "properties": {
-        "web": {
-          "$ref": "#/definitions/uiPlatformConfig"
-        },
-        "mobile": {
-          "$ref": "#/definitions/uiPlatformConfig"
-        }
-      },
-      "additionalProperties": false
-    },
-    "capabilities": {
-      "type": "object",
-      "description": "Runtime capabilities required/optional by this plugin.",
-      "properties": {
-        "required": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Capabilities that MUST be available for the plugin to function."
-        },
-        "optional": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Capabilities the plugin can use if available."
-        }
-      },
-      "additionalProperties": false
-    },
-    "events": {
-      "type": "object",
-      "description": "Integration events this plugin publishes and subscribes to.",
-      "properties": {
-        "publish": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Event types this plugin may emit."
-        },
-        "subscribe": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Event types this plugin listens to."
-        }
-      },
-      "additionalProperties": false
+    "kind": {
+      "const": "Plugin"
     },
     "metadata": {
-      "type": "object",
-      "description": "Extensible metadata (category, vendor, license, etc.).",
-      "properties": {
-        "category": {
-          "type": "string",
-          "enum": ["business", "platform", "infrastructure"]
-        },
-        "vendor": { "type": "string" },
-        "license": { "type": "string" },
-        "minRuntimeVersion": {
-          "type": "string",
-          "description": "Minimum Runtime SDK version this plugin is compatible with."
-        }
+      "$ref": "#/definitions/metadata"
+    },
+    "runtime": {
+      "$ref": "#/definitions/runtime"
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/module"
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/route"
       },
-      "additionalProperties": true
+      "default": []
+    },
+    "capabilities": {
+      "$ref": "#/definitions/capabilitySection"
+    },
+    "queries": {
+      "$ref": "#/definitions/contractSection"
+    },
+    "commands": {
+      "$ref": "#/definitions/contractSection"
+    },
+    "events": {
+      "$ref": "#/definitions/eventSection"
+    },
+    "externalServices": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/externalService"
+      },
+      "default": []
+    },
+    "data": {
+      "$ref": "#/definitions/dataSection"
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/permission"
+      },
+      "default": []
+    },
+    "config": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/configEntry"
+      },
+      "default": []
+    },
+    "ui": {
+      "$ref": "#/definitions/uiSection"
     }
   },
   "additionalProperties": false,
   "definitions": {
-    "uiPlatformConfig": {
+    "metadata": {
+      "type": "object",
+      "required": ["pluginId", "name", "version", "vendor", "license"],
+      "properties": {
+        "pluginId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "$ref": "#/definitions/semver"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "vendor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attestationIdentity": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["compiledAgainst", "supportedRange"],
+      "properties": {
+        "compiledAgainst": {
+          "$ref": "#/definitions/semver"
+        },
+        "supportedRange": {
+          "$ref": "#/definitions/range"
+        }
+      },
+      "additionalProperties": false
+    },
+    "module": {
+      "type": "object",
+      "required": ["groupId", "artifactId", "version", "moduleKind"],
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifactId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "$ref": "#/definitions/semver"
+        },
+        "moduleKind": {
+          "type": "string",
+          "enum": ["plugin-api", "plugin-core", "plugin-server", "shared-contract", "ui-web", "ui-mobile", "platform-capability", "runtime-capability", "adapter", "host"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "route": {
+      "type": "object",
+      "required": ["id", "path", "method"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        },
+        "handler": {
+          "type": "string"
+        },
+        "accessPolicy": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilitySection": {
+      "type": "object",
+      "required": ["required", "optional"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/capabilityRef"
+          },
+          "default": []
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/capabilityRef"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilityRef": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "$ref": "#/definitions/range"
+        }
+      },
+      "additionalProperties": false
+    },
+    "contractSection": {
+      "type": "object",
+      "required": ["provides", "consumes"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/contractRef"
+          },
+          "default": []
+        },
+        "consumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/contractRef"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "eventSection": {
+      "type": "object",
+      "required": ["publishes", "subscribes"],
+      "properties": {
+        "publishes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/contractRef"
+          },
+          "default": []
+        },
+        "subscribes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/contractRef"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "contractRef": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema": {
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/definitions/semver"
+        },
+        "handler": {
+          "type": "string"
+        },
+        "availability": {
+          "type": "string",
+          "enum": ["required", "optional"]
+        },
+        "idempotency": {
+          "type": "string"
+        },
+        "authorization": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "externalService": {
+      "type": "object",
+      "required": ["id", "baseUrlRef"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseUrlRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authPolicyRef": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataSection": {
+      "type": "object",
+      "required": ["storageId"],
+      "properties": {
+        "storageId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,30}$"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "migrationLocation": {
+          "type": "string"
+        },
+        "outbox": {
+          "type": "string"
+        },
+        "inbox": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "permission": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "configEntry": {
+      "type": "object",
+      "required": ["key", "type", "sensitivity"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "integer", "boolean", "decimal", "duration", "uri"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": {},
+        "sensitivity": {
+          "type": "string",
+          "enum": ["public", "internal", "secret", "pii", "financial", "health"]
+        }
+      },
+      "additionalProperties": false,
+      "not": {
+        "properties": {
+          "sensitivity": {
+            "const": "secret"
+          }
+        },
+        "required": ["sensitivity", "default"]
+      }
+    },
+    "uiSection": {
       "type": "object",
       "properties": {
-        "enabled": { "type": "boolean" },
+        "web": {
+          "$ref": "#/definitions/uiPlatform"
+        },
+        "mobile": {
+          "$ref": "#/definitions/uiPlatform"
+        }
+      },
+      "additionalProperties": false
+    },
+    "uiPlatform": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
         "manifestUrl": {
           "type": "string",
-          "description": "URL to the ui-manifest file."
+          "pattern": "^/"
         },
-        "scope": {
-          "type": "string",
-          "description": "Module Federation scope name."
-        },
-        "routes": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/routeConfig" }
-        },
-        "menus": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/menuConfig" }
+        "runtimeRange": {
+          "$ref": "#/definitions/range"
         }
       },
       "additionalProperties": false
     },
-    "routeConfig": {
-      "type": "object",
-      "required": ["path", "component"],
-      "properties": {
-        "path": { "type": "string" },
-        "component": { "type": "string" },
-        "exact": { "type": "boolean" },
-        "menu": {
-          "type": "object",
-          "properties": {
-            "title": { "type": "string" },
-            "icon": { "type": "string" },
-            "order": { "type": "integer" },
-            "parentId": { "type": "string" },
-            "hidden": { "type": "boolean" }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
+    "semver": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\\+[0-9A-Za-z][0-9A-Za-z.-]*)?$"
     },
-    "menuConfig": {
-      "type": "object",
-      "required": ["id", "title"],
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "icon": { "type": "string" },
-        "order": { "type": "integer" }
-      },
-      "additionalProperties": false
+    "range": {
+      "type": "string",
+      "pattern": "^(?:(?:>=|>|<=|<|=)?\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?)(?:\\s+(?:>=|>|<=|<|=)?\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?)*$"
     }
   }
 }

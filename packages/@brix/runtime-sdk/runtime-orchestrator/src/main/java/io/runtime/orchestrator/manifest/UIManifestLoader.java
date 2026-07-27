@@ -33,6 +33,7 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import jakarta.annotation.PostConstruct;
 
@@ -41,14 +42,15 @@ import jakarta.annotation.PostConstruct;
  *
  * <p>Implements Dependency-Driven Discovery pattern:</p>
  * <ul>
- *   <li>Scans classpath*:META-INF/plugin-manifest.json at runtime</li>
+ *   <li>Scans classpath*:META-INF/brix/plugin-manifest.yaml at runtime</li>
  *   <li>Only plugins declared as dependencies in Host pom.xml are discovered</li>
  *   <li>Zero configuration in Host layer - discovery driven purely by dependency declarations</li>
  * </ul>
  *
  * <h3>Declarative Architecture</h3>
  * <ul>
- *   <li>Each plugin declares manifest at {name}-server/src/main/resources/META-INF/plugin-manifest.json</li>
+ *   <li>Each plugin declares manifest at
+ *       {name}-server/src/main/resources/META-INF/brix/plugin-manifest.yaml</li>
  *   <li>Runtime classpath scanning for automatic discovery</li>
  *   <li>No build-time aggregation needed - true runtime dynamic discovery</li>
  * </ul>
@@ -91,9 +93,15 @@ public class UIManifestLoader {
     private static final Logger log = LoggerFactory.getLogger(UIManifestLoader.class);
 
     /**
-     * Plugin manifest file path pattern for classpath scanning.
+     * Active plugin manifest file path pattern for classpath scanning.
      */
-    private static final String PLUGIN_MANIFEST_PATTERN = "classpath*:META-INF/plugin-manifest.json";
+    private static final String PLUGIN_MANIFEST_PATTERN = "classpath*:"
+        + io.runtime.manifest.validation.PluginManifestValidator.ACTIVE_MANIFEST_RESOURCE;
+
+    /**
+     * Legacy JSON manifest file path pattern for read-only compatibility.
+     */
+    private static final String LEGACY_PLUGIN_MANIFEST_PATTERN = "classpath*:META-INF/plugin-manifest.json";
 
     /** Top-level field carrying the plugin's globally unique identifier. */
     private static final String FIELD_PLUGIN_ID = "pluginId";
@@ -104,6 +112,9 @@ public class UIManifestLoader {
     /** Nested key inside {@code plugin} object holding the identifier. */
     private static final String FIELD_ID = "id";
 
+    /** Nested key inside {@code metadata} object holding the v3.0.10 identifier. */
+    private static final String FIELD_METADATA = "metadata";
+
     /** Top-level field grouping required and optional capability lists. */
     private static final String FIELD_CAPABILITIES = "capabilities";
 
@@ -111,6 +122,7 @@ public class UIManifestLoader {
     private static final String FIELD_REQUIRED = "required";
 
     private final ObjectMapper objectMapper;
+    private final ObjectMapper yamlMapper;
     private final ResourcePatternResolver resourceResolver;
     private final PluginManifestValidator validator;
     private Map<String, Map<String, Object>> manifests = Collections.emptyMap();
@@ -126,13 +138,14 @@ public class UIManifestLoader {
 
     /**
      * Creates a loader with an externally-supplied validator. Primarily useful for unit tests
-     * that wish to substitute a mock validator.
+     * that wish to substitute a controlled validator.
      *
      * @param objectMapper Jackson mapper used for manifest parsing
      * @param validator    schema validator instance; must not be {@code null}
      */
     public UIManifestLoader(ObjectMapper objectMapper, PluginManifestValidator validator) {
         this.objectMapper = objectMapper;
+        this.yamlMapper = new ObjectMapper(new YAMLFactory());
         this.resourceResolver = new PathMatchingResourcePatternResolver();
         if (validator == null) {
             throw new IllegalArgumentException("PluginManifestValidator must not be null");
@@ -161,8 +174,10 @@ public class UIManifestLoader {
     private void loadManifestsFromClasspath() {
         Map<String, Map<String, Object>> discoveredManifests = new HashMap<>();
         Resource[] resources;
+        Resource[] legacyResources;
         try {
             resources = resourceResolver.getResources(PLUGIN_MANIFEST_PATTERN);
+            legacyResources = resourceResolver.getResources(LEGACY_PLUGIN_MANIFEST_PATTERN);
         } catch (IOException e) {
             // Classpath scanning itself failed — this is an environment-level error,
             // not a single bad manifest. Surface as IllegalStateException so Spring
@@ -178,29 +193,34 @@ public class UIManifestLoader {
                 loadSingleManifest(resource, discoveredManifests);
             }
         }
+        for (Resource resource : legacyResources) {
+            if (resource.isReadable()) {
+                loadLegacyManifest(resource, discoveredManifests);
+            }
+        }
 
         this.manifests = discoveredManifests;
         log.info("[UIManifestLoader] Discovered {} plugin manifests via classpath scanning", manifests.size());
     }
 
     /**
-     * Loads a single plugin's manifest file with full schema validation.
+     * Loads a single plugin's active YAML manifest file with full schema validation.
      *
      * <p>Pipeline: read bytes → parse to {@link JsonNode} → validate against bundled schema →
      * convert to {@code Map} → de-duplicate by {@code pluginId} → store.</p>
      *
-     * @param resource Spring resource pointing at one classpath {@code plugin-manifest.json}
+     * @param resource Spring resource pointing at one classpath {@code plugin-manifest.yaml}
      * @param target   accumulator map to store the parsed manifest
-     * @throws PluginManifestValidationException if JSON parse or schema validation fails
+     * @throws PluginManifestValidationException if YAML parse or schema validation fails
      */
     private void loadSingleManifest(Resource resource, Map<String, Map<String, Object>> target) {
         String description = resource.getDescription();
         JsonNode manifestNode;
         try (InputStream is = resource.getInputStream()) {
-            manifestNode = objectMapper.readTree(is);
+            manifestNode = yamlMapper.readTree(is);
         } catch (IOException e) {
             throw new PluginManifestValidationException(
-                description, "Failed to read or parse manifest JSON", e);
+                description, "Failed to read or parse manifest YAML", e);
         }
 
         // Schema validation — fails fast on any structural defect.
@@ -210,34 +230,65 @@ public class UIManifestLoader {
         Map<String, Object> manifest = objectMapper.convertValue(
             manifestNode, new TypeReference<Map<String, Object>>() {});
 
+        registerManifest(description, manifest, target, true);
+    }
+
+    /**
+     * Loads a legacy JSON manifest without treating it as an active v3.0.10 source.
+     *
+     * @param resource Spring resource pointing at one legacy {@code plugin-manifest.json}
+     * @param target accumulator map
+     */
+    private void loadLegacyManifest(Resource resource, Map<String, Map<String, Object>> target) {
+        String description = resource.getDescription();
+        Map<String, Object> manifest;
+        try (InputStream is = resource.getInputStream()) {
+            JsonNode manifestNode = objectMapper.readTree(is);
+            manifest = objectMapper.convertValue(manifestNode, new TypeReference<Map<String, Object>>() {});
+        } catch (IOException e) {
+            throw new PluginManifestValidationException(
+                description, "Failed to read or parse legacy manifest JSON", e);
+        }
+        registerManifest(description, manifest, target, false);
+    }
+
+    private void registerManifest(
+            String description,
+            Map<String, Object> manifest,
+            Map<String, Map<String, Object>> target,
+            boolean active) {
         String pluginId = extractPluginId(manifest);
         if (pluginId == null) {
-            // Schema enforces required pluginId, so this branch is defensive only.
             throw new PluginManifestValidationException(
                 description,
-                Collections.singletonList("Manifest passed schema but extracted pluginId is null — "
-                    + "schema and extraction logic are out of sync"));
+                Collections.singletonList("Manifest plugin id is missing or schema extraction is out of sync"));
         }
-
         if (target.containsKey(pluginId)) {
-            log.warn("[UIManifestLoader] Duplicate pluginId '{}', overwriting from: {}",
-                pluginId, description);
+            throw new PluginManifestValidationException(
+                description,
+                Collections.singletonList("Duplicate pluginId discovered: " + pluginId));
         }
-
         target.put(pluginId, manifest);
-        log.debug("[UIManifestLoader] Loaded manifest for plugin '{}' from {}",
-            pluginId, description);
+        log.debug("[UIManifestLoader] Loaded {}manifest for plugin '{}' from {}",
+            active ? "" : "legacy compatibility ", pluginId, description);
     }
     
     /**
      * Extracts pluginId from manifest.
      *
      * Supports two formats:
-     * 1. Top-level pluginId field
-     * 2. Nested plugin.id field
+     * 1. metadata.pluginId field
+     * 2. Top-level pluginId field
+     * 3. Nested plugin.id field
      */
     @SuppressWarnings("unchecked")
     private String extractPluginId(Map<String, Object> manifest) {
+        if (manifest.containsKey(FIELD_METADATA) && manifest.get(FIELD_METADATA) instanceof Map) {
+            Map<String, Object> metadata = (Map<String, Object>) manifest.get(FIELD_METADATA);
+            if (metadata.containsKey(FIELD_PLUGIN_ID)) {
+                return (String) metadata.get(FIELD_PLUGIN_ID);
+            }
+        }
         // Check top-level pluginId first
         if (manifest.containsKey(FIELD_PLUGIN_ID)) {
             return (String) manifest.get(FIELD_PLUGIN_ID);
@@ -288,6 +339,11 @@ public class UIManifestLoader {
             for (Object cap : requiredList) {
                 if (cap instanceof String && !capabilityAvailable.test((String) cap)) {
                     missing.add((String) cap);
+                } else if (cap instanceof Map) {
+                    Object id = ((Map<String, Object>) cap).get(FIELD_ID);
+                    if (id instanceof String && !capabilityAvailable.test((String) id)) {
+                        missing.add((String) id);
+                    }
                 }
             }
             if (!missing.isEmpty()) {

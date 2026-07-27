@@ -20,10 +20,15 @@ import io.runtime.sdk.context.RuntimeContext;
 import io.runtime.sdk.annotation.Since;
 
 /**
- * Lifecycle Capability Contract
+ * Legacy lifecycle capability contract.
  * 
- * <p>Defines the complete lifecycle callback interface for modules, called by Runtime Shell at appropriate times.
- * Modules implement this interface to respond to lifecycle events and perform initialization, startup, stop, and destroy operations.</p>
+ * <p>Defines the v3.0.9 lifecycle callback interface for modules, called by Runtime Shell
+ * compatibility code at appropriate times. Modules implement this interface to respond to
+ * lifecycle events and perform initialization, startup, stop, and destroy operations.</p>
+ *
+ * <p>Under the v3.0.10 Runtime Shell baseline, newly migrated plugins must use
+ * {@link io.runtime.sdk.plugin.BrixPlugin}. This contract remains available so
+ * existing modules keep compiling during the staged migration.</p>
  * 
  * <h3>Lifecycle State Machine</h3>
  * <pre>{@code
@@ -87,11 +92,14 @@ import io.runtime.sdk.annotation.Since;
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
+ * @deprecated since 3.0.10 for new plugin migrations. Existing modules may continue to use this
+ *             compatibility lifecycle contract until they are moved to the v3.0.10 plugin SPI.
  * @see RuntimeContext
  * @see HealthStatus
  * @see ModuleMetadata
  */
 @Since("3.0.0")
+@Deprecated(since = "3.0.10", forRemoval = false)
 public interface LifecycleCapability {
 
     /**

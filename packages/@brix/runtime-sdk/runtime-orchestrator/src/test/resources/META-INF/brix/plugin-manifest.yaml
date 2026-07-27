@@ -1,0 +1,33 @@
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: service-loaded-test
+  name: service-loaded-test
+  version: 3.0.10
+  displayName: Service Loaded Test Plugin
+  vendor: Brix
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.0.10
+  supportedRange: ">=3.0.10 <4.0.0"
+modules:
+  - groupId: io.brix
+    artifactId: service-loaded-test
+    version: 3.0.10
+    moduleKind: plugin-server
+capabilities:
+  required:
+    - id: TestCapability
+      version: ">=3.0.10 <4.0.0"
+  optional:
+    - id: OptionalCapability
+      version: ">=3.0.10 <4.0.0"
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes: []
+  subscribes: []

@@ -67,6 +67,19 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <!--
+          Spring Boot Actuator (optional dependency)
+
+          Used only when a Spring Boot Host includes actuator and wants
+          Runtime Shell readiness to contribute to the readiness health group.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator</artifactId>
+            <version>${spring-boot.version}</version>
+            <optional>true</optional>
+        </dependency>
         
         <!--
           Spring Web (optional dependency)
@@ -79,6 +92,14 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Servlet API for the Spring Web Runtime Shell endpoint bridge. -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>6.0.0</version>
             <optional>true</optional>
         </dependency>
         

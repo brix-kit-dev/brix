@@ -33,11 +33,15 @@ import io.runtime.sdk.capability.StateStoreCapability;
 import io.runtime.sdk.context.RuntimeContext;
 
 /**
- * Module Abstract Base Class
+ * Legacy module abstract base class.
  * 
- * <p>Provides foundational implementation for module development, encapsulating lifecycle
- * management and common capability access.
- * All modules are recommended to extend this class for a consistent development experience.</p>
+ * <p>Provides the v3.0.9 module lifecycle support implementation, encapsulating lifecycle
+ * management and common capability access through {@link RuntimeContext}.</p>
+ *
+ * <p>Under the v3.0.10 Runtime Shell baseline, newly migrated plugins must expose
+ * {@link io.runtime.sdk.plugin.BrixPlugin} instead of extending this class.
+ * This class remains available so existing modules keep compiling during the staged
+ * migration.</p>
  * 
  * <h3>Core Features</h3>
  * <ul>
@@ -96,9 +100,12 @@ import io.runtime.sdk.context.RuntimeContext;
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
+ * @deprecated since 3.0.10 for new plugin migrations. Existing modules may continue to use this
+ *             compatibility base class until they are moved to the v3.0.10 plugin SPI.
  * @see Module
  * @see LifecycleCapability
  */
+@Deprecated(since = "3.0.10", forRemoval = false)
 public abstract class AbstractModule implements LifecycleCapability {
 
     /**
