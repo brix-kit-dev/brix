@@ -23,6 +23,13 @@ import java.util.List;
 public interface OutboxMessageStore {
 
     /**
+     * Appends a canonical message in the caller's active Owner transaction.
+     *
+     * @param message canonical message to append
+     */
+    void append(CanonicalOutboxMessage message);
+
+    /**
      * Atomically claims due messages for a relay owner.
      *
      * @param relayOwner stable relay instance identity

@@ -51,7 +51,7 @@ public interface PluginBootstrapContext {
      * @param manifestCommandId command id from the YAML manifest
      * @param handler command handler
      */
-    void bindCommandHandler(String manifestCommandId, CommandHandler<?, ?> handler);
+    void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler);
 
     /**
      * Binds a manifest-declared event subscription.

@@ -15,6 +15,8 @@
  */
 package io.runtime.sdk.plugin;
 
+import java.util.concurrent.CompletionStage;
+
 /**
  * Handler contract for a manifest-declared typed command provider.
  *
@@ -24,13 +26,13 @@ package io.runtime.sdk.plugin;
  * @since 3.0.10
  */
 @FunctionalInterface
-public interface CommandHandler<C, R> {
+public interface CommandHandler<C> {
 
     /**
-     * Handles a command accepted by the Runtime Shell.
+     * Handles a command invocation accepted by the Runtime Shell.
      *
-     * @param command command request
-     * @return command result
+     * @param invocation immutable command invocation
+     * @return command handling completion
      */
-    R handle(C command);
+    CompletionStage<Void> handle(CommandInvocation<C> invocation);
 }

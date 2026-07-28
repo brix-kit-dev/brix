@@ -1,3 +1,4 @@
+io.runtime.orchestrator.autoconfigure.CommandCapabilityAutoConfiguration
 io.runtime.orchestrator.autoconfigure.CapabilityAutoConfiguration
 io.runtime.orchestrator.autoconfigure.PluginRegistryAutoConfiguration
 io.runtime.orchestrator.bootstrap.RuntimeShellBootstrapAutoConfiguration

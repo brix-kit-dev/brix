@@ -61,6 +61,39 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
     }
 
     @Override
+    public void append(CanonicalOutboxMessage message) {
+        Objects.requireNonNull(message, "message must not be null");
+        jdbcTemplate.update("""
+            INSERT INTO %s (
+                message_id, event_id, message_kind, message_type, schema_version,
+                reliability, producer_plugin_id, scope, tenant_id, partition_key,
+                occurred_at, correlation_id, causation_id, traceparent, tracestate,
+                payload, status, available_at, attempt_count, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.formatted(tableName),
+            message.messageId(),
+            message.eventId(),
+            message.messageKind(),
+            message.messageType(),
+            message.schemaVersion(),
+            message.reliability(),
+            message.producerPluginId(),
+            message.scope(),
+            message.tenantId(),
+            message.partitionKey(),
+            timestamp(message.occurredAt()),
+            message.correlationId(),
+            message.causationId(),
+            message.traceparent(),
+            message.tracestate(),
+            message.payload(),
+            STATUS_PENDING,
+            timestamp(message.occurredAt()),
+            0,
+            timestamp(message.occurredAt()));
+    }
+
+    @Override
     public List<CanonicalOutboxMessage> claimDue(
             String relayOwner,
             OffsetDateTime now,

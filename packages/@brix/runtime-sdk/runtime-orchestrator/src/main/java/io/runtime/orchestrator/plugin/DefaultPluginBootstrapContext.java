@@ -44,7 +44,7 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
     private final PluginRuntimeDescriptor descriptor;
     private final Map<String, EndpointHandler<?, ?>> endpoints = new LinkedHashMap<>();
     private final Map<String, QueryHandler<?, ?>> queryHandlers = new LinkedHashMap<>();
-    private final Map<String, CommandHandler<?, ?>> commandHandlers = new LinkedHashMap<>();
+    private final Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>();
     private final Map<String, EventHandler<?>> eventHandlers = new LinkedHashMap<>();
     private final Map<String, ManagedTask> tasks = new LinkedHashMap<>();
 
@@ -79,7 +79,7 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
      * {@inheritDoc}
      */
     @Override
-    public void bindCommandHandler(String manifestCommandId, CommandHandler<?, ?> handler) {
+    public void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler) {
         descriptor.requireCommandHandler(manifestCommandId);
         putUnique(commandHandlers, manifestCommandId, handler, "command handler");
     }
@@ -125,7 +125,7 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
      *
      * @return immutable command handler binding map
      */
-    public Map<String, CommandHandler<?, ?>> commandHandlers() {
+    public Map<String, CommandHandler<?>> commandHandlers() {
         return Map.copyOf(commandHandlers);
     }
 

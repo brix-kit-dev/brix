@@ -95,6 +95,14 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring transaction synchronization for durable command receipts. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <version>6.1.3</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Servlet API for the Spring Web Runtime Shell endpoint bridge. -->
         <dependency>
             <groupId>jakarta.servlet</groupId>

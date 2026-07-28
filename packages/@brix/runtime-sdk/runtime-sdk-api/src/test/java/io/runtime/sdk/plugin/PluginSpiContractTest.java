@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Test;
 
@@ -103,6 +104,17 @@ class PluginSpiContractTest {
         assertEquals("sample.task", bootstrap.taskId);
     }
 
+    @Test
+    void commandHandlerUsesFrozenInvocationAbi() throws NoSuchMethodException {
+        Method handle = CommandHandler.class.getMethod("handle", CommandInvocation.class);
+
+        assertEquals("handle", handle.getName());
+        assertEquals("java.util.concurrent.CompletionStage", handle.getReturnType().getName());
+        assertEquals(1L, Arrays.stream(CommandHandler.class.getMethods())
+            .filter(method -> "handle".equals(method.getName()))
+            .count());
+    }
+
     private static final class SampleCapability {
     }
 
@@ -136,7 +148,7 @@ class PluginSpiContractTest {
         public void configure(PluginBootstrapContext bootstrap) {
             bootstrap.bindEndpoint("sample.endpoint", request -> "ok");
             bootstrap.bindQueryHandler("sample.query", query -> "answer");
-            bootstrap.bindCommandHandler("sample.command", command -> "accepted");
+            bootstrap.bindCommandHandler("sample.command", invocation -> CompletableFuture.completedFuture(null));
             bootstrap.bindEventHandler("sample.subscription", event -> { });
             bootstrap.bindTask("sample.task", () -> { });
         }
@@ -174,7 +186,7 @@ class PluginSpiContractTest {
         }
 
         @Override
-        public void bindCommandHandler(String manifestCommandId, CommandHandler<?, ?> handler) {
+        public void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler) {
             this.commandId = manifestCommandId;
         }
 

@@ -1,1 +1,2 @@
+io.infra.adapter.outbox.config.CommandPersistenceAutoConfiguration
 io.infra.adapter.outbox.config.OutboxRelayPersistenceAutoConfiguration

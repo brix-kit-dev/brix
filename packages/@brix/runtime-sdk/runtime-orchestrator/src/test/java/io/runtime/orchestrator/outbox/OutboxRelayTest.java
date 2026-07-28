@@ -180,6 +180,11 @@ class OutboxRelayTest {
         }
 
         @Override
+        public void append(CanonicalOutboxMessage message) {
+            records.put(message.messageId(), new StoredMessage(message));
+        }
+
+        @Override
         public List<CanonicalOutboxMessage> claimDue(
                 String relayOwner,
                 OffsetDateTime now,
