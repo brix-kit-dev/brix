@@ -33,3 +33,7 @@ export {
   CreateTenantDialog,
   type CreateTenantDialogProps,
 } from './CreateTenantDialog';
+export {
+  FirstOwnerInvitationDialog,
+  type FirstOwnerInvitationDialogProps,
+} from './FirstOwnerInvitationDialog';

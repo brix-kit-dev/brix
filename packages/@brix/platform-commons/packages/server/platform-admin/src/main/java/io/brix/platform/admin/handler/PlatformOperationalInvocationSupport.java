@@ -55,4 +55,20 @@ final class PlatformOperationalInvocationSupport {
         }
         return null;
     }
+
+    static String requiredBearerToken(EndpointInvocation<?> invocation) {
+        return invocation.headers().getOrDefault("authorization", java.util.List.of()).stream()
+            .filter(value -> value != null && value.regionMatches(true, 0, "Bearer ", 0, 7))
+            .map(value -> value.substring(7).trim())
+            .filter(value -> !value.isBlank())
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("bearer token is required"));
+    }
+
+    static String requiredQueryParameter(EndpointInvocation<?> invocation, String name) {
+        return invocation.queryParameters().getOrDefault(name, java.util.List.of()).stream()
+            .filter(value -> value != null && !value.isBlank())
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException(name + " is required"));
+    }
 }

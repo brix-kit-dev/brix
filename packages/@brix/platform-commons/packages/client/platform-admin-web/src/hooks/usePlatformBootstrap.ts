@@ -62,7 +62,7 @@ export function usePlatformBootstrap(autoLoad = true): UsePlatformBootstrapResul
         {
           username: req.username,
           email: req.email,
-          displayName: req.displayName,
+          notes: req.notes,
         },
         session.accessToken,
       );

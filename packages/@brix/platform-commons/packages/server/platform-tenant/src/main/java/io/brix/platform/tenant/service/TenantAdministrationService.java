@@ -6,6 +6,8 @@
  */
 package io.brix.platform.tenant.service;
 
+import java.util.Optional;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.tenant.dto.CreateTenantRequest;
@@ -57,6 +59,12 @@ public class TenantAdministrationService implements TenantAdministration {
             tenant.getCode(),
             tenant.getName(),
             tenant.getStatus().name());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(Long tenantId) {
+        return firstOwnerInvitationService.latest(tenantId);
     }
 
     @Override

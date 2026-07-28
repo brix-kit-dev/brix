@@ -134,6 +134,30 @@ public class FirstOwnerInvitationService {
     }
 
     /**
+     * Returns the latest FIRST_OWNER invitation without exposing token material.
+     *
+     * @param tenantId tenant identifier
+     * @return latest invitation view when one exists
+     */
+    @Transactional(readOnly = true)
+    public Optional<FirstOwnerInvitationView> latest(Long tenantId) {
+        if (tenantId == null) {
+            throw new IllegalArgumentException("tenantId is required");
+        }
+        tenantRepository.findById(tenantId)
+            .orElseThrow(() -> new TenantAdministrationException(
+                "TENANT_NOT_FOUND",
+                "Tenant not found"));
+        return invitationRepository.findLatestByTenantAndPurpose(
+                tenantId,
+                InvitationPurpose.FIRST_OWNER,
+                PageRequest.of(0, 1))
+            .stream()
+            .findFirst()
+            .map(FirstOwnerInvitationService::view);
+    }
+
+    /**
      * Revokes the current pending FIRST_OWNER invitation and sends a replacement.
      *
      * @param command resend command

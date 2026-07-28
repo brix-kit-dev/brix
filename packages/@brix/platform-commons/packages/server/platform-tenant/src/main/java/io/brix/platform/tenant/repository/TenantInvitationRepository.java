@@ -46,4 +46,15 @@ public interface TenantInvitationRepository extends JpaRepository<TenantInvitati
             @Param("purpose") InvitationPurpose purpose,
             @Param("status") InvitationStatus status,
             Pageable pageable);
+
+    @Query("""
+            SELECT i FROM TenantInvitation i
+            WHERE i.tenantId = :tenantId
+              AND i.invitationPurpose = :purpose
+            ORDER BY i.createdAt DESC
+            """)
+    java.util.List<TenantInvitation> findLatestByTenantAndPurpose(
+            @Param("tenantId") Long tenantId,
+            @Param("purpose") InvitationPurpose purpose,
+            Pageable pageable);
 }

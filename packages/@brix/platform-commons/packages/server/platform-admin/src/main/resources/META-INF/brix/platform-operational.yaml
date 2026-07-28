@@ -15,11 +15,137 @@ internalContracts:
       versionRange: ">=1.0.0 <2.0.0"
       required: true
       privilegeAllowlistRef: platform-admin.tenant-administration
+    - contractId: brix.internal.platform.bootstrap-administration
+      contractType: io.brix.platform.tenant.internal.PlatformBootstrapAdministration
+      versionRange: ">=1.0.0 <2.0.0"
+      required: true
+      privilegeAllowlistRef: platform-admin.bootstrap-administration
+    - contractId: brix.internal.platform.identity-administration
+      contractType: io.brix.platform.tenant.internal.PlatformIdentityAdministration
+      versionRange: ">=1.0.0 <2.0.0"
+      required: true
+      privilegeAllowlistRef: platform-admin.identity-administration
 privileges:
   allowlist:
     - platform-admin.tenant-administration
+    - platform-admin.bootstrap-administration
+    - platform-admin.identity-administration
 endpoints:
   provides:
+    - endpointId: platform.bootstrap.status.v1
+      transport: http
+      method: GET
+      path: /api/platform/bootstrap/status
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/bootstrap-status/1.0.0
+      handlerId: platform.bootstrap.status
+      authentication:
+        mode: anonymous
+      authorization:
+        policyRef: bootstrap:status
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
+    - endpointId: platform.bootstrap.session.v1
+      transport: http
+      method: POST
+      path: /api/platform/bootstrap/session
+      request:
+        schemaRef: brix://schemas/platform-admin/bootstrap-session-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/bootstrap-session-response/1.0.0
+      handlerId: platform.bootstrap.session
+      authentication:
+        mode: anonymous
+      authorization:
+        policyRef: bootstrap:session
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
+    - endpointId: platform.bootstrap.create-first-admin.v1
+      transport: http
+      method: POST
+      path: /api/platform/bootstrap/create-first-admin
+      request:
+        schemaRef: brix://schemas/platform-admin/create-first-admin-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/create-platform-admin-response/1.0.0
+      handlerId: platform.bootstrap.create-first-admin
+      authentication:
+        mode: bootstrap-setup
+      authorization:
+        policyRef: bootstrap:create-first-admin
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
+    - endpointId: platform.auth.setup.validate.v1
+      transport: http
+      method: GET
+      path: /api/platform/auth/setup/validate
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-setup-validate-response/1.0.0
+      handlerId: platform.auth.setup.validate
+      authentication:
+        mode: setup-token
+      authorization:
+        policyRef: setup:validate
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
+    - endpointId: platform.auth.setup.totp.init.v1
+      transport: http
+      method: POST
+      path: /api/platform/auth/setup/totp/init
+      request:
+        schemaRef: brix://schemas/platform-admin/platform-setup-totp-init-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-setup-totp-init-response/1.0.0
+      handlerId: platform.auth.setup.totp.init
+      authentication:
+        mode: setup-token
+      authorization:
+        policyRef: setup:totp-init
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
+    - endpointId: platform.auth.setup.complete.v1
+      transport: http
+      method: POST
+      path: /api/platform/auth/setup/complete
+      request:
+        schemaRef: brix://schemas/platform-admin/platform-setup-complete-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-setup-complete-response/1.0.0
+      handlerId: platform.auth.setup.complete
+      authentication:
+        mode: setup-token
+      authorization:
+        policyRef: setup:complete
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
     - endpointId: platform.tenants.create.v1
       transport: http
       method: POST
@@ -58,6 +184,25 @@ endpoints:
         policyRef: interactive-write
       idempotency:
         mode: required
+    - endpointId: platform.tenants.first-owner-invitations.current.v1
+      transport: http
+      method: GET
+      path: /api/platform/tenants/{tenantId}/first-owner-invitations/current
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/first-owner-invitation/1.0.0
+      handlerId: platform.tenants.first-owner-invitations.current
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:tenant:first-owner-invite
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
     - endpointId: platform.tenants.first-owner-invitations.resend.v1
       transport: http
       method: POST

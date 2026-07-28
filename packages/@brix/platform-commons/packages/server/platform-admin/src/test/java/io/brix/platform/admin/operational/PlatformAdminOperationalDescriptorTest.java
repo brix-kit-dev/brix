@@ -30,15 +30,19 @@ class PlatformAdminOperationalDescriptorTest {
         assertEquals("platform-admin", descriptor.identity().moduleId());
         assertEquals("platform-commons", descriptor.identity().owner());
         assertEquals(">=3.0.10 <4.0.0", descriptor.runtimeRange());
-        assertEquals(4, descriptor.endpoints().size());
+        assertEquals(11, descriptor.endpoints().size());
         assertTrue(descriptor.endpoints().values().stream()
             .allMatch(endpoint -> endpoint.path().startsWith("/api/platform/")));
 
-        assertEquals(1, descriptor.requiredContracts().size());
+        assertEquals(3, descriptor.requiredContracts().size());
         var tenantContract = descriptor.requiredContracts().get(0);
         assertEquals("brix.internal.tenant.administration", tenantContract.contractId());
         assertEquals("io.brix.platform.tenant.internal.TenantAdministration", tenantContract.contractType());
         assertEquals("platform-admin.tenant-administration", tenantContract.privilegeAllowlistRef());
+        assertTrue(descriptor.requiredContracts().stream()
+            .anyMatch(contract -> "brix.internal.platform.bootstrap-administration".equals(contract.contractId())));
+        assertTrue(descriptor.requiredContracts().stream()
+            .anyMatch(contract -> "brix.internal.platform.identity-administration".equals(contract.contractId())));
     }
 
     @Test

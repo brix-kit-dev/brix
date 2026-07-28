@@ -4,7 +4,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { PLATFORM_ADMIN_ROUTES } from '../constants';
 
 export interface SetupOnlyGuardProps {
@@ -12,10 +12,27 @@ export interface SetupOnlyGuardProps {
 }
 
 export function SetupOnlyGuard(props: SetupOnlyGuardProps): JSX.Element {
+  const location = useLocation();
   const [params] = useSearchParams();
   const token = params.get('token')?.trim();
-  if (!token) {
+  const stateToken = readSetupTokenState(location.state);
+  if (token) {
+    return (
+      <Navigate
+        to={PLATFORM_ADMIN_ROUTES.SETUP}
+        replace
+        state={{ setupToken: token }}
+      />
+    );
+  }
+  if (!stateToken) {
     return <Navigate to={PLATFORM_ADMIN_ROUTES.LOGIN} replace />;
   }
   return <>{props.children}</>;
+}
+
+function readSetupTokenState(state: unknown): string | null {
+  if (!state || typeof state !== 'object') return null;
+  const token = (state as { setupToken?: unknown }).setupToken;
+  return typeof token === 'string' && token.trim() ? token.trim() : null;
 }

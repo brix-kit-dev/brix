@@ -188,7 +188,7 @@ export interface PlatformBootstrapSessionResponse {
 export interface CreateFirstPlatformAdminRequest {
   username: string;
   email: string;
-  displayName?: string;
+  notes?: string;
 }
 
 export interface BootstrapCreateFirstAdminResponse {
@@ -293,4 +293,23 @@ export interface UpdateTenantStatusRequest {
 export interface CreatePlatformTenantRequest {
   code: string;
   name: string;
+}
+
+export interface FirstOwnerInvitationDto {
+  invitationId: string;
+  tenantId: string;
+  inviteeEmail: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED' | string;
+  expiresAt: string | null;
+}
+
+export interface CreateFirstOwnerInvitationRequest {
+  inviteeEmail: string;
+  inviteBaseUrl: string;
+  locale?: string;
+}
+
+export interface ResendFirstOwnerInvitationRequest {
+  inviteBaseUrl: string;
+  locale?: string;
 }

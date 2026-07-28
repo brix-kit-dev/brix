@@ -38,6 +38,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *   <li>{@code brix.platform.bootstrap.super-admin.username} (default {@code "Super Admin"})</li>
  *   <li>{@code brix.platform.bootstrap.super-admin.setup-code} (required when enabled)</li>
  *   <li>{@code brix.platform.bootstrap.super-admin.setup-code-ttl-seconds} (default {@code 900})</li>
+ *   <li>{@code brix.platform.bootstrap.super-admin.setup-base-url} (required for link notification)</li>
  * </ul>
  *
  * @author Brix Platform Team
@@ -63,6 +64,9 @@ public class SuperAdminBootstrapProperties {
 
     /** Bootstrap setup JWT session TTL in seconds. */
     private long bootstrapSessionTtlSeconds = 300L;
+
+    /** Base URL for the platform setup page, without the token query parameter. */
+    private String setupBaseUrl;
 
     public boolean isEnabled() {
         return enabled;
@@ -110,5 +114,13 @@ public class SuperAdminBootstrapProperties {
 
     public void setBootstrapSessionTtlSeconds(long bootstrapSessionTtlSeconds) {
         this.bootstrapSessionTtlSeconds = bootstrapSessionTtlSeconds;
+    }
+
+    public String getSetupBaseUrl() {
+        return setupBaseUrl;
+    }
+
+    public void setSetupBaseUrl(String setupBaseUrl) {
+        this.setupBaseUrl = setupBaseUrl;
     }
 }

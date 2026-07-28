@@ -20,7 +20,13 @@ export function isPlatformAccessToken(token: string | null | undefined): boolean
 export function isTenantAccessToken(token: string | null | undefined): boolean {
   const payload = decodeJwtPayload(token);
   if (!payload) return false;
-  return payload.scope !== 'PLATFORM';
+  const scope = payload.scope;
+  const tenantId = payload.tenant_id ?? payload.tenantId;
+  return (
+    (scope === 'actor' || scope === 'subject') &&
+    typeof tenantId === 'string' &&
+    tenantId.trim().length > 0
+  );
 }
 
 export function currentAccessToken(auth: AuthCapability): string | null {

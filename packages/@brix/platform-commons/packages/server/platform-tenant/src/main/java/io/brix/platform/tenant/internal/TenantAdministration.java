@@ -6,6 +6,8 @@
  */
 package io.brix.platform.tenant.internal;
 
+import java.util.Optional;
+
 /**
  * Internal contract for platform-scoped tenant administration.
  *
@@ -31,6 +33,14 @@ public interface TenantAdministration {
      * @return tenant view
      */
     TenantAdministrationTenant createPendingTenant(CreatePendingTenantCommand command);
+
+    /**
+     * Returns the latest FIRST_OWNER invitation status for a tenant.
+     *
+     * @param tenantId tenant identifier
+     * @return latest invitation view when one exists
+     */
+    Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(Long tenantId);
 
     /**
      * Creates a FIRST_OWNER invitation and sends the managed notification.

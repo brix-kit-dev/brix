@@ -9,6 +9,7 @@ import { useI18n, useTheme } from '@brix-sdk/runtime-sdk-react';
 import type { DesignTokens } from '@brix-sdk/runtime-sdk-api-web';
 import { AdminPageShell, PageHeader, useUIStrict } from '../internal/ui-kit';
 import { usePlatformBootstrap } from '../hooks/usePlatformBootstrap';
+import { useNoReferrerPolicy } from '../hooks/useNoReferrerPolicy';
 import { PLATFORM_ADMIN_ROUTES } from '../constants';
 import { I18N_KEYS, I18N_NAMESPACE, makeT } from '../i18n';
 
@@ -16,6 +17,7 @@ const USERNAME_RE = /^[A-Za-z0-9._-]{3,64}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function PlatformBootstrapPage(): JSX.Element {
+  useNoReferrerPolicy();
   const { Card, Input, Button, message } = useUIStrict();
   const { tokens } = useTheme();
   const t = tokens as DesignTokens;
@@ -25,7 +27,7 @@ export function PlatformBootstrapPage(): JSX.Element {
   const [setupCode, setSetupCode] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const setupCodeMissing = !setupCode.trim();
@@ -41,7 +43,7 @@ export function PlatformBootstrapPage(): JSX.Element {
         setupCode: setupCode.trim(),
         username,
         email,
-        displayName: displayName.trim() || undefined,
+        notes: notes.trim() || undefined,
       });
       if (!res.setupLinkSent) {
         throw new Error(tt(I18N_KEYS.admin.setupLinkPending));
@@ -49,7 +51,7 @@ export function PlatformBootstrapPage(): JSX.Element {
       setSetupCode('');
       setUsername('');
       setEmail('');
-      setDisplayName('');
+      setNotes('');
       navigate(PLATFORM_ADMIN_ROUTES.BOOTSTRAP_SENT, { replace: true });
     } catch (err) {
       message.error?.(err instanceof Error ? err.message : String(err));
@@ -113,13 +115,13 @@ export function PlatformBootstrapPage(): JSX.Element {
             <Input
               type="text"
               label={tt(I18N_KEYS.bootstrap.displayName)}
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               fullWidth
-              maxLength={120}
+              maxLength={1000}
               autoComplete="off"
               disabled={bootstrap.loading}
-              data-testid="platform-bootstrap-display-name"
+              data-testid="platform-bootstrap-notes"
             />
           </div>
           {bootstrap.error ? (

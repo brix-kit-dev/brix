@@ -8,10 +8,17 @@ package io.brix.platform.admin.operational;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.brix.platform.admin.handler.CompletePlatformSetupHandler;
 import io.brix.platform.admin.handler.CreateFirstOwnerInvitationHandler;
+import io.brix.platform.admin.handler.CreateFirstAdminHandler;
 import io.brix.platform.admin.handler.CreatePlatformTenantHandler;
+import io.brix.platform.admin.handler.GetBootstrapStatusHandler;
+import io.brix.platform.admin.handler.GetFirstOwnerInvitationStatusHandler;
+import io.brix.platform.admin.handler.InitPlatformSetupTotpHandler;
+import io.brix.platform.admin.handler.OpenBootstrapSessionHandler;
 import io.brix.platform.admin.handler.ResendFirstOwnerInvitationHandler;
 import io.brix.platform.admin.handler.RevokeFirstOwnerInvitationHandler;
+import io.brix.platform.admin.handler.ValidatePlatformSetupHandler;
 import io.runtime.orchestrator.operational.OperationalBootstrapContext;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.orchestrator.operational.PlatformOperationalModule;
@@ -35,11 +42,32 @@ public final class PlatformAdminOperationalModule implements PlatformOperational
     @Override
     public void configure(OperationalBootstrapContext bootstrap) {
         bootstrap.bindEndpointHandlerFactory(
+            "platform.bootstrap.status",
+            GetBootstrapStatusHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.bootstrap.session",
+            OpenBootstrapSessionHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.bootstrap.create-first-admin",
+            CreateFirstAdminHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.auth.setup.validate",
+            ValidatePlatformSetupHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.auth.setup.totp.init",
+            InitPlatformSetupTotpHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.auth.setup.complete",
+            CompletePlatformSetupHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
             "platform.tenants.create",
             CreatePlatformTenantHandler::new);
         bootstrap.bindEndpointHandlerFactory(
             "platform.tenants.first-owner-invitations.create",
             CreateFirstOwnerInvitationHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.tenants.first-owner-invitations.current",
+            GetFirstOwnerInvitationStatusHandler::new);
         bootstrap.bindEndpointHandlerFactory(
             "platform.tenants.first-owner-invitations.resend",
             ResendFirstOwnerInvitationHandler::new);

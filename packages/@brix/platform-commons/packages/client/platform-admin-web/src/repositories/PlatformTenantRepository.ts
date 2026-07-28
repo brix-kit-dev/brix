@@ -14,9 +14,12 @@
 import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
 import { PLATFORM_ADMIN_API } from '../constants';
 import type {
+  CreateFirstOwnerInvitationRequest,
   CreatePlatformTenantRequest,
+  FirstOwnerInvitationDto,
   Page,
   PlatformTenantDto,
+  ResendFirstOwnerInvitationRequest,
   TenantQuery,
   UpdateTenantStatusRequest,
 } from '../types';
@@ -28,6 +31,21 @@ export interface PlatformTenantRepository {
     id: string,
     req: UpdateTenantStatusRequest,
   ): Promise<PlatformTenantDto>;
+  createFirstOwnerInvitation(
+    tenantId: string,
+    req: CreateFirstOwnerInvitationRequest,
+  ): Promise<FirstOwnerInvitationDto>;
+  currentFirstOwnerInvitation(
+    tenantId: string,
+  ): Promise<FirstOwnerInvitationDto | null>;
+  resendFirstOwnerInvitation(
+    tenantId: string,
+    req: ResendFirstOwnerInvitationRequest,
+  ): Promise<FirstOwnerInvitationDto>;
+  revokeFirstOwnerInvitation(
+    tenantId: string,
+    invitationId: string,
+  ): Promise<void>;
 }
 
 export function createPlatformTenantRepository(
@@ -51,6 +69,42 @@ export function createPlatformTenantRepository(
         req,
       );
       return normalizeTenantDto(response as BackendPlatformTenantDto);
+    },
+    async createFirstOwnerInvitation(tenantId, req) {
+      const response = await http.post<unknown>(
+        PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATIONS(tenantId),
+        req,
+      );
+      return normalizeFirstOwnerInvitationDto(
+        response as BackendFirstOwnerInvitationDto,
+      );
+    },
+    async currentFirstOwnerInvitation(tenantId) {
+      const response = await http.get<unknown>(
+        PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATIONS_CURRENT(tenantId),
+      );
+      return response
+        ? normalizeFirstOwnerInvitationDto(
+            response as BackendFirstOwnerInvitationDto,
+          )
+        : null;
+    },
+    async resendFirstOwnerInvitation(tenantId, req) {
+      const response = await http.post<unknown>(
+        PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATIONS_RESEND(tenantId),
+        req,
+      );
+      return normalizeFirstOwnerInvitationDto(
+        response as BackendFirstOwnerInvitationDto,
+      );
+    },
+    async revokeFirstOwnerInvitation(tenantId, invitationId) {
+      await http.delete<void>(
+        PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATION(
+          tenantId,
+          invitationId,
+        ),
+      );
     },
   };
 }
@@ -76,6 +130,15 @@ interface BackendPlatformTenantDto {
   timezone?: string | null;
   defaultTheme?: string | null;
   theme?: string | null;
+}
+
+interface BackendFirstOwnerInvitationDto {
+  id?: string | number;
+  invitationId?: string | number;
+  tenantId?: string | number;
+  inviteeEmail?: string;
+  status?: string;
+  expiresAt?: string | number | null;
 }
 
 function normalizeTenantPage(
@@ -134,6 +197,18 @@ function normalizeTenantDto(tenant: BackendPlatformTenantDto): PlatformTenantDto
     defaultLocale: tenant.defaultLocale ?? tenant.locale ?? null,
     defaultTimezone: tenant.defaultTimezone ?? tenant.timezone ?? null,
     defaultTheme: tenant.defaultTheme ?? tenant.theme ?? null,
+  };
+}
+
+function normalizeFirstOwnerInvitationDto(
+  invitation: BackendFirstOwnerInvitationDto,
+): FirstOwnerInvitationDto {
+  return {
+    invitationId: String(invitation.invitationId ?? invitation.id ?? ''),
+    tenantId: String(invitation.tenantId ?? ''),
+    inviteeEmail: invitation.inviteeEmail ?? '',
+    status: invitation.status ?? '',
+    expiresAt: normalizeTimestamp(invitation.expiresAt) || null,
   };
 }
 

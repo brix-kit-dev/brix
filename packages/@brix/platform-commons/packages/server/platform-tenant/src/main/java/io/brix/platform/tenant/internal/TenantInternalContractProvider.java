@@ -27,5 +27,13 @@ public final class TenantInternalContractProvider implements InternalContractPro
             TenantAdministration.CONTRACT_ID,
             TenantAdministration.class,
             context -> context.requireOwnerCapability(TenantAdministration.class));
+        bootstrap.bind(
+            PlatformBootstrapAdministration.CONTRACT_ID,
+            PlatformBootstrapAdministration.class,
+            context -> context.requireOwnerCapability(PlatformBootstrapAdministration.class));
+        bootstrap.bind(
+            PlatformIdentityAdministration.CONTRACT_ID,
+            PlatformIdentityAdministration.class,
+            context -> context.requireOwnerCapability(PlatformIdentityAdministration.class));
     }
 }

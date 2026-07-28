@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useI18n, useTheme } from "@brix-sdk/runtime-sdk-react";
 import type { DesignTokens } from "@brix-sdk/runtime-sdk-api-web";
 import QRCode from "qrcode";
@@ -18,6 +18,7 @@ import {
   useUIStrict,
 } from "../internal/ui-kit";
 import { usePlatformSetup } from "../hooks/usePlatformSetup";
+import { useNoReferrerPolicy } from "../hooks/useNoReferrerPolicy";
 import { PLATFORM_ADMIN_ROUTES } from "../constants";
 import { I18N_KEYS, I18N_NAMESPACE, makeT } from "../i18n";
 
@@ -26,13 +27,16 @@ const STRONG_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/;
 type SetupStep = "password" | "totp" | "done";
 
 export function PlatformSetupPage(): JSX.Element {
+  useNoReferrerPolicy();
   const { Card, Input, Button, Icon, message } = useUIStrict();
   const { tokens } = useTheme();
   const t = tokens as DesignTokens;
   const tt = makeT(useI18n(I18N_NAMESPACE).t);
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
-  const token = params.get("token")?.trim() ?? "";
+  const token =
+    readSetupTokenState(location.state) ?? params.get("token")?.trim() ?? "";
   const setup = usePlatformSetup();
   const [step, setStep] = useState<SetupStep>("password");
   const [password, setPassword] = useState("");
@@ -687,6 +691,12 @@ export function PlatformSetupPage(): JSX.Element {
       </Card>
     </AdminPageShell>
   );
+}
+
+function readSetupTokenState(state: unknown): string | null {
+  if (!state || typeof state !== "object") return null;
+  const token = (state as { setupToken?: unknown }).setupToken;
+  return typeof token === "string" && token.trim() ? token.trim() : null;
 }
 
 function extractTotpSecret(otpauthUri?: string): string | null {

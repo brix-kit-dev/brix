@@ -29,13 +29,18 @@ import { useInstallationQuota } from '../hooks/useInstallationQuota';
 import { usePlatformTenantList } from '../hooks/usePlatformTenantList';
 import { UpdateTenantStatusDialog } from './UpdateTenantStatusDialog';
 import { CreateTenantDialog } from './CreateTenantDialog';
+import { FirstOwnerInvitationDialog } from './FirstOwnerInvitationDialog';
 import {
   PLATFORM_ADMIN_PERMISSIONS,
   PLATFORM_TENANT_STATUS,
   type PlatformTenantStatus,
 } from '../constants';
 import { I18N_KEYS, I18N_NAMESPACE, makeT } from '../i18n';
-import type { InstallationQuotaDto, PlatformTenantDto } from '../types';
+import type {
+  FirstOwnerInvitationDto,
+  InstallationQuotaDto,
+  PlatformTenantDto,
+} from '../types';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: '— Any —' },
@@ -68,6 +73,15 @@ function formatQuota(tenant: PlatformTenantDto): string {
   return `${formatNullable(tenant.quotaUsed)} / ${formatNullable(tenant.quotaLimit)}`;
 }
 
+function firstOwnerStatusLabel(
+  tenant: PlatformTenantDto,
+  invitation?: FirstOwnerInvitationDto,
+): string {
+  if (tenant.status !== PLATFORM_TENANT_STATUS.PENDING_ACTIVATION) return '—';
+  if (invitation?.status) return `FIRST_OWNER ${invitation.status}`;
+  return 'awaiting first owner';
+}
+
 export function formatInstallationQuotaUsage(
   quota: InstallationQuotaDto | null | undefined,
 ): string {
@@ -90,6 +104,10 @@ export function PlatformTenantListPage(): JSX.Element {
   const list = usePlatformTenantList();
   const installationQuota = useInstallationQuota();
   const [editing, setEditing] = useState<PlatformTenantDto | null>(null);
+  const [inviting, setInviting] = useState<PlatformTenantDto | null>(null);
+  const [firstOwnerInvitations, setFirstOwnerInvitations] = useState<
+    Record<string, FirstOwnerInvitationDto>
+  >({});
   const [createOpen, setCreateOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
 
@@ -97,6 +115,9 @@ export function PlatformTenantListPage(): JSX.Element {
     PLATFORM_ADMIN_PERMISSIONS.TENANT_UPDATE_STATUS,
   );
   const canCreate = hasPermission(PLATFORM_ADMIN_PERMISSIONS.TENANT_CREATE);
+  const canInviteFirstOwner = hasPermission(
+    PLATFORM_ADMIN_PERMISSIONS.TENANT_FIRST_OWNER_INVITE,
+  );
   const tenantsOnPage = list.data?.content ?? [];
   const activeCount = tenantsOnPage.filter(
     (tenant) => tenant.status === PLATFORM_TENANT_STATUS.ACTIVE,
@@ -247,7 +268,20 @@ export function PlatformTenantListPage(): JSX.Element {
                 key: 'status',
                 header: tt(I18N_KEYS.tenant.colStatus),
                 render: (r) => (
-                  <StatusBadge kind={badgeKind(r.status)}>{r.status}</StatusBadge>
+                  <div style={{ display: 'grid', gap: 4, minWidth: 150 }}>
+                    <StatusBadge kind={badgeKind(r.status)}>{r.status}</StatusBadge>
+                    {r.status === PLATFORM_TENANT_STATUS.PENDING_ACTIVATION ? (
+                      <span
+                        style={{
+                          color: t.colors.text.secondary,
+                          fontSize: t.typography.labelSmall.fontSize,
+                          lineHeight: t.typography.labelSmall.lineHeight,
+                        }}
+                      >
+                        {firstOwnerStatusLabel(r, firstOwnerInvitations[r.id])}
+                      </span>
+                    ) : null}
+                  </div>
                 ),
               },
               {
@@ -284,19 +318,49 @@ export function PlatformTenantListPage(): JSX.Element {
               {
                 key: 'actions',
                 header: tt(I18N_KEYS.common.actions),
-                render: (r) =>
-                  canUpdate ? (
-                    <IconActionButton
-                      icon="edit"
-                      label={tt(I18N_KEYS.tenant.actionUpdateStatus)}
-                      onClick={() => setEditing(r)}
-                      data-testid="platform-tenant-row-update-status"
-                    />
+                render: (r) => {
+                  const actions = [];
+                  if (
+                    canInviteFirstOwner &&
+                    r.status === PLATFORM_TENANT_STATUS.PENDING_ACTIVATION
+                  ) {
+                    actions.push(
+                      <IconActionButton
+                        key="first-owner"
+                        icon="person_add"
+                        label="FIRST_OWNER invitation"
+                        onClick={() => setInviting(r)}
+                        data-testid="platform-tenant-row-first-owner"
+                      />,
+                    );
+                  }
+                  if (canUpdate) {
+                    actions.push(
+                      <IconActionButton
+                        key="status"
+                        icon="edit"
+                        label={tt(I18N_KEYS.tenant.actionUpdateStatus)}
+                        onClick={() => setEditing(r)}
+                        data-testid="platform-tenant-row-update-status"
+                      />,
+                    );
+                  }
+                  return actions.length > 0 ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: t.space.xs,
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {actions}
+                    </div>
                   ) : (
                     '—'
-                  ),
+                  );
+                },
                 align: 'center',
-                width: '72px',
+                width: '112px',
               },
             ]}
           />
@@ -310,6 +374,27 @@ export function PlatformTenantListPage(): JSX.Element {
           onClose={() => setEditing(null)}
           onUpdated={() => {
             setEditing(null);
+            void list.refresh();
+          }}
+        />
+      ) : null}
+
+      {inviting ? (
+        <FirstOwnerInvitationDialog
+          open
+          tenant={inviting}
+          currentInvitation={firstOwnerInvitations[inviting.id] ?? null}
+          onClose={() => setInviting(null)}
+          onChanged={(invitation) => {
+            setFirstOwnerInvitations((current) => {
+              const next = { ...current };
+              if (invitation) {
+                next[inviting.id] = invitation;
+              } else {
+                delete next[inviting.id];
+              }
+              return next;
+            });
             void list.refresh();
           }}
         />

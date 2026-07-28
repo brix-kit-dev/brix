@@ -29,6 +29,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.task.TaskDecorator;
@@ -40,7 +41,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
 import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapProperties;
-import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapRunner;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.core.SnowflakeIdGenerator;
 import io.brix.platform.tenant.decorator.TenantTaskDecorator;
@@ -56,6 +56,7 @@ import io.brix.platform.tenant.repository.PlatformAdminRepository;
 import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
 import io.brix.platform.tenant.repository.PlatformTenantInboxRepository;
 import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
+import io.brix.platform.tenant.repository.SetupTokenRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantConfigRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
@@ -64,9 +65,12 @@ import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.service.AuditService;
 import io.brix.platform.tenant.service.AuditServiceImpl;
+import io.brix.platform.tenant.service.BootstrapCompletionListener;
 import io.brix.platform.tenant.service.FirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
+import io.brix.platform.tenant.service.PlatformBootstrapAdministrationService;
+import io.brix.platform.tenant.service.PlatformIdentityAdministrationService;
 import io.brix.platform.tenant.service.TenantAdministrationService;
 import io.brix.platform.tenant.service.TenantConfigCapabilityImpl;
 import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
@@ -75,9 +79,13 @@ import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
 import io.brix.platform.tenant.service.TenantSettingsService;
 import io.brix.platform.tenant.service.TenantSettingsServiceImpl;
 import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.JwtIssuerCapability;
+import io.runtime.sdk.capability.PasswordCapability;
+import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TenantCapability;
 import io.runtime.sdk.capability.TenantConfigCapability;
 import io.runtime.sdk.capability.NotificationCapability;
+import io.runtime.sdk.capability.TotpCapability;
 
 /**
  * Auto-configuration for multi-tenant infrastructure.
@@ -443,6 +451,64 @@ public class TenantAutoConfiguration {
     }
 
     /**
+     * Registers the Bootstrap administration internal contract implementation.
+     *
+     * @return internal contract implementation
+     */
+    @Bean
+    @ConditionalOnMissingBean(io.brix.platform.tenant.internal.PlatformBootstrapAdministration.class)
+    public io.brix.platform.tenant.internal.PlatformBootstrapAdministration platformBootstrapAdministration(
+            SuperAdminBootstrapProperties properties,
+            BootstrapStateRepository bootstrapStateRepository,
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            SetupTokenRepository setupTokenRepository,
+            IdGenerator idGenerator,
+            ObjectProvider<JwtIssuerCapability> jwtIssuerCapabilityProvider,
+            ObjectProvider<NotificationCapability> notificationCapabilityProvider,
+            AuditService auditService) {
+        return new PlatformBootstrapAdministrationService(
+                properties,
+                bootstrapStateRepository,
+                identityRepository,
+                platformAdminRepository,
+                setupTokenRepository,
+                idGenerator,
+                Optional.ofNullable(jwtIssuerCapabilityProvider.getIfAvailable()),
+                Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
+                auditService);
+    }
+
+    /**
+     * Registers the platform identity setup internal contract implementation.
+     *
+     * @return internal contract implementation
+     */
+    @Bean
+    @ConditionalOnMissingBean(io.brix.platform.tenant.internal.PlatformIdentityAdministration.class)
+    public io.brix.platform.tenant.internal.PlatformIdentityAdministration platformIdentityAdministration(
+            SetupTokenRepository setupTokenRepository,
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            ObjectProvider<PasswordCapability> passwordCapabilityProvider,
+            ObjectProvider<TotpCapability> totpCapabilityProvider,
+            ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider,
+            BootstrapCompletionListener bootstrapCompletionListener,
+            ApplicationEventPublisher eventPublisher,
+            AuditService auditService) {
+        return new PlatformIdentityAdministrationService(
+                setupTokenRepository,
+                identityRepository,
+                platformAdminRepository,
+                Optional.ofNullable(passwordCapabilityProvider.getIfAvailable()),
+                Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
+                Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()),
+                bootstrapCompletionListener,
+                eventPublisher,
+                auditService);
+    }
+
+    /**
      * Creates the AuditService bean.
      *
      * <p>This service handles synchronous audit logging to the biz_audit_log table.
@@ -583,39 +649,4 @@ public class TenantAutoConfiguration {
                 tenantPrincipalRepository);
     }
 
-    /**
-    * Registers the {@link SuperAdminBootstrapRunner} when the operator opts in via
-    * {@code brix.platform.bootstrap.super-admin.enabled=true}.
-     *
-     * <p>The runner is intentionally idempotent and refuses to overwrite an
-    * closed bootstrap state; see
-     * {@link SuperAdminBootstrapRunner} for the full contract.</p>
-     *
-     * @param properties              bootstrap configuration sourced from secret store
-     * @param identityRepository      repository for {@code sys_identity}
-     * @param platformAdminRepository repository for {@code sys_platform_admin}
-         * @param bootstrapStateRepository repository for {@code sys_bootstrap_state}
-     * @param idGenerator             Snowflake ID generator
-     * @return the configured one-shot bootstrap runner
-     */
-    @Bean
-    @ConditionalOnMissingBean(SuperAdminBootstrapRunner.class)
-    @ConditionalOnProperty(
-            prefix = "brix.platform.bootstrap.super-admin",
-            name = "enabled",
-            havingValue = "true")
-    public SuperAdminBootstrapRunner superAdminBootstrapRunner(
-            SuperAdminBootstrapProperties properties,
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
-            BootstrapStateRepository bootstrapStateRepository,
-            IdGenerator idGenerator) {
-        log.info("Registering SuperAdminBootstrapRunner (brix.platform.bootstrap.super-admin.enabled=true)");
-        return new SuperAdminBootstrapRunner(
-                properties,
-                identityRepository,
-                platformAdminRepository,
-                bootstrapStateRepository,
-                idGenerator);
-    }
 }

@@ -31,19 +31,15 @@
  * persisted in `auth_permission` and embedded in JWTs.
  *
  * @remarks
- * `BYPASS` is intentionally NOT exposed to UI gating logic.
- * Per SSOT §4.1, `platform:bypass` is a server-internal permission and MUST
- * NOT be used to show or hide UI controls. UI components gate on specific
- * fine-grained codes such as `ADMIN_CREATE`.
+ * UI components gate on specific fine-grained codes such as `ADMIN_CREATE`.
+ * Generic bypass semantics are intentionally absent from the platform UI.
  */
 export const PLATFORM_ADMIN_PERMISSIONS = Object.freeze({
-  /** `platform:bypass` — see SSOT §4.1 usage rules. NOT for UI gating. */
-  BYPASS: 'platform:bypass',
-
   /** Tenant management */
   TENANT_READ: 'platform:tenant:read',
   TENANT_CREATE: 'platform:tenant:create',
   TENANT_UPDATE_STATUS: 'platform:tenant:update-status',
+  TENANT_FIRST_OWNER_INVITE: 'platform:tenant:first-owner-invite',
 
   /** Admin lifecycle */
   ADMIN_READ: 'platform:admin:read',
@@ -187,6 +183,16 @@ export const PLATFORM_ADMIN_API = Object.freeze({
   LICENSE_QUOTA: '/platform/license/quota',
   TENANTS: '/platform/tenants',
   TENANT_STATUS: (id: string | number) => `/platform/tenants/${id}/status`,
+  TENANT_FIRST_OWNER_INVITATIONS_CURRENT: (id: string | number) =>
+    `/platform/tenants/${id}/first-owner-invitations/current`,
+  TENANT_FIRST_OWNER_INVITATIONS: (id: string | number) =>
+    `/platform/tenants/${id}/first-owner-invitations`,
+  TENANT_FIRST_OWNER_INVITATIONS_RESEND: (id: string | number) =>
+    `/platform/tenants/${id}/first-owner-invitations/resend`,
+  TENANT_FIRST_OWNER_INVITATION: (
+    id: string | number,
+    invitationId: string | number,
+  ) => `/platform/tenants/${id}/first-owner-invitations/${invitationId}`,
 } as const);
 
 /* ======================================================================== *
