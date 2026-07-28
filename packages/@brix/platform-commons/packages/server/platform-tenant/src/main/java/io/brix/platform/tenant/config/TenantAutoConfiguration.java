@@ -41,6 +41,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
 import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapProperties;
+import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapRunner;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.core.SnowflakeIdGenerator;
 import io.brix.platform.tenant.decorator.TenantTaskDecorator;
@@ -506,6 +507,27 @@ public class TenantAutoConfiguration {
                 bootstrapCompletionListener,
                 eventPublisher,
                 auditService);
+    }
+
+    /**
+     * Registers the one-shot bootstrap anchor runner.
+     *
+     * @return bootstrap anchor runner
+     */
+    @Bean
+    @ConditionalOnMissingBean(SuperAdminBootstrapRunner.class)
+    public SuperAdminBootstrapRunner superAdminBootstrapRunner(
+            SuperAdminBootstrapProperties properties,
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            BootstrapStateRepository bootstrapStateRepository,
+            IdGenerator idGenerator) {
+        return new SuperAdminBootstrapRunner(
+            properties,
+            identityRepository,
+            platformAdminRepository,
+            bootstrapStateRepository,
+            idGenerator);
     }
 
     /**

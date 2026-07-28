@@ -19,6 +19,7 @@ import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.orchestrator.operational.OperationalModuleIdentity;
 import io.runtime.orchestrator.operational.OperationalRuntimeException;
+import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 
 class InternalContractBinderTest {
@@ -36,6 +37,27 @@ class InternalContractBinderTest {
         contract.run();
         assertEquals(
             "owner-module",
+            registry.getInternalContract("test.contract", Runnable.class)
+                .orElseThrow()
+                .ownerIdentity()
+                .moduleId());
+    }
+
+    @Test
+    void bindsAndResolvesPluginDeclaredProvider() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        Runnable ownerCapability = () -> { };
+        registry.register(Runnable.class, ownerCapability);
+        InternalContractBinder binder =
+            new InternalContractBinder(registry, registry, getClass().getClassLoader());
+        binder.bindPlugin(pluginDescriptor(), ownerCapabilityProvider(), Set.of(Runnable.class));
+        binder.activateAndFreeze();
+
+        Runnable contract = binder.require(requirement(">=1.0.0 <2.0.0"), Runnable.class);
+
+        assertEquals(ownerCapability, contract);
+        assertEquals(
+            "owner-plugin",
             registry.getInternalContract("test.contract", Runnable.class)
                 .orElseThrow()
                 .ownerIdentity()
@@ -84,6 +106,25 @@ class InternalContractBinderTest {
 
     private InternalContractProvider provider() {
         return bootstrap -> bootstrap.bind("test.contract", Runnable.class, context -> () -> { });
+    }
+
+    private InternalContractProvider ownerCapabilityProvider() {
+        return bootstrap -> bootstrap.bind(
+            "test.contract",
+            Runnable.class,
+            context -> context.requireOwnerCapability(Runnable.class));
+    }
+
+    private PluginRuntimeDescriptor pluginDescriptor() {
+        return PluginRuntimeDescriptor.builder("owner-plugin")
+            .version("3.2.0")
+            .providedInternalContract(
+                "test.contract",
+                Runnable.class.getName(),
+                "1.1.0",
+                "test.provider",
+                "owner-plugin")
+            .build();
     }
 
     private OperationalModuleDescriptor providerDescriptor() {

@@ -97,8 +97,8 @@ import io.runtime.sdk.context.RuntimeContext;
 @AutoConfiguration(afterName = {
     "io.infra.adapter.fallback.FallbackCapabilitiesAutoConfiguration",
     "io.infra.adapter.otel.autoconfigure.OTelAdapterAutoConfiguration",
-    "io.infra.adapter.kafka.autoconfigure.KafkaAdapterAutoConfiguration",
-    "io.infra.adapter.redis.autoconfigure.RedisAdapterAutoConfiguration"
+    "io.infra.adapter.kafka.config.KafkaAutoConfiguration",
+    "io.infra.adapter.redis.config.RedisAutoConfiguration"
 })
 @ConditionalOnClass(RuntimeContext.class)
 @ConditionalOnProperty(prefix = "brix.capability", name = "enabled", havingValue = "true", matchIfMissing = true)

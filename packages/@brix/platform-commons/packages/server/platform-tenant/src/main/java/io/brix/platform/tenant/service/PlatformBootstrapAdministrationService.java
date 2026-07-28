@@ -163,6 +163,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         identity.setMfaEnabled(false);
         identity.verifyEmail();
         identity = identityRepository.save(identity);
+        identityRepository.flush();
 
         PlatformAdmin admin = new PlatformAdmin(identity.getId(), PlatformAdminRole.PLATFORM_SUPER_ADMIN);
         admin.setId(idGenerator.nextId());
@@ -170,6 +171,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         admin.setMfaEnabled(false);
         admin.setNotes(command.notes());
         admin = platformAdminRepository.save(admin);
+        platformAdminRepository.flush();
 
         TokenPair token = issueSetupToken(identity.getId(), null);
         String setupUrl = UriComponentsBuilder.fromUriString(setupBaseUrl)

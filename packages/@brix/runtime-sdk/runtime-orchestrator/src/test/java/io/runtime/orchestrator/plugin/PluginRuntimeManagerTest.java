@@ -28,10 +28,14 @@ import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.internalcontract.InternalContractBinder;
+import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.event.IntegrationEvent;
+import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
@@ -290,6 +294,39 @@ class PluginRuntimeManagerTest {
         assertTrue(plugin.configured);
     }
 
+    @Test
+    void prepareBindsPluginProvidedInternalContract() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        Runnable ownerCapability = () -> { };
+        registry.register(Runnable.class, ownerCapability);
+        InternalContractBinder binder =
+            new InternalContractBinder(registry, registry, getClass().getClassLoader());
+        PluginRuntimeManager manager = new PluginRuntimeManager(
+            () -> List.of(plugin),
+            candidate -> Optional.of(PluginRuntimeDescriptor.builder("plugin-a")
+                .version("3.2.0")
+                .providedInternalContract(
+                    "test.contract",
+                    Runnable.class.getName(),
+                    "1.0.0",
+                    "test.provider",
+                    "plugin-a")
+                .build()),
+            registry,
+            List.of("plugin-a"),
+            PluginEndpointDispatcher.none(),
+            ignored -> {
+            },
+            () -> List.of(ownerCapabilityProvider()),
+            binder);
+
+        manager.prepare();
+        binder.activateAndFreeze();
+
+        assertEquals(ownerCapability, binder.require(requirement(), Runnable.class));
+    }
+
     private PluginRuntimeManager manager(
             List<BrixPlugin> plugins,
             Map<BrixPlugin, PluginRuntimeDescriptor> descriptors,
@@ -300,6 +337,22 @@ class PluginRuntimeManagerTest {
             plugin -> Optional.ofNullable(descriptors.get(plugin)),
             registry,
             requiredPlugins);
+    }
+
+    private InternalContractProvider ownerCapabilityProvider() {
+        return bootstrap -> bootstrap.bind(
+            "test.contract",
+            Runnable.class,
+            context -> context.requireOwnerCapability(Runnable.class));
+    }
+
+    private OperationalModuleDescriptor.RequiredInternalContract requirement() {
+        return new OperationalModuleDescriptor.RequiredInternalContract(
+            "test.contract",
+            Runnable.class.getName(),
+            ">=1.0.0 <2.0.0",
+            true,
+            "contract.test");
     }
 
     interface TestCapability {

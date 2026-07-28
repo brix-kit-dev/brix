@@ -42,6 +42,7 @@ import io.runtime.sdk.plugin.PluginIdentity;
 public final class PluginRuntimeDescriptor {
 
     private final PluginIdentity identity;
+    private final String version;
     private final Set<String> requiredCapabilities;
     private final Set<String> optionalCapabilities;
     private final Map<String, EndpointDeclaration> endpoints;
@@ -52,9 +53,11 @@ public final class PluginRuntimeDescriptor {
     private final DataDeclaration data;
     private final Map<String, EventPublication> eventPublications;
     private final Map<String, EventSubscription> eventSubscriptions;
+    private final Map<String, ProvidedInternalContract> providedInternalContracts;
 
     private PluginRuntimeDescriptor(Builder builder) {
         this.identity = Objects.requireNonNull(builder.identity, "identity must not be null");
+        this.version = requireText(builder.version, "version");
         this.requiredCapabilities = copy(builder.requiredCapabilities);
         this.optionalCapabilities = copy(builder.optionalCapabilities);
         this.endpoints = Map.copyOf(builder.endpoints);
@@ -65,6 +68,7 @@ public final class PluginRuntimeDescriptor {
         this.data = builder.data;
         this.eventPublications = Map.copyOf(builder.eventPublications);
         this.eventSubscriptions = Map.copyOf(builder.eventSubscriptions);
+        this.providedInternalContracts = Map.copyOf(builder.providedInternalContracts);
     }
 
     /**
@@ -84,6 +88,15 @@ public final class PluginRuntimeDescriptor {
      */
     public PluginIdentity identity() {
         return identity;
+    }
+
+    /**
+     * Returns the plugin manifest version.
+     *
+     * @return plugin version
+     */
+    public String version() {
+        return version;
     }
 
     /**
@@ -199,6 +212,15 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
+     * Returns internal contracts provided by this plugin artifact.
+     *
+     * @return immutable internal contract declarations keyed by contract id
+     */
+    public Map<String, ProvidedInternalContract> providedInternalContracts() {
+        return providedInternalContracts;
+    }
+
+    /**
      * Validates that a manifest task id is declared.
      *
      * @param id task id
@@ -251,6 +273,13 @@ public final class PluginRuntimeDescriptor {
         return Set.copyOf(normalized);
     }
 
+    private static String requireText(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
+        return value;
+    }
+
     /**
      * Mutable builder for {@link PluginRuntimeDescriptor}.
      */
@@ -267,6 +296,8 @@ public final class PluginRuntimeDescriptor {
         private DataDeclaration data = new DataDeclaration("", "", "");
         private final Map<String, EventPublication> eventPublications = new LinkedHashMap<>();
         private final Map<String, EventSubscription> eventSubscriptions = new LinkedHashMap<>();
+        private final Map<String, ProvidedInternalContract> providedInternalContracts = new LinkedHashMap<>();
+        private String version = "0.0.0";
 
         private Builder(PluginIdentity identity) {
             this.identity = identity;
@@ -280,6 +311,19 @@ public final class PluginRuntimeDescriptor {
          */
         public Builder requiredCapabilities(Collection<String> declarations) {
             addAll(requiredCapabilities, declarations);
+            return this;
+        }
+
+        /**
+         * Sets the plugin version from the manifest.
+         *
+         * @param declaration plugin version
+         * @return this builder
+         */
+        public Builder version(String declaration) {
+            if (declaration != null && !declaration.isBlank()) {
+                this.version = declaration;
+            }
             return this;
         }
 
@@ -420,6 +464,33 @@ public final class PluginRuntimeDescriptor {
         }
 
         /**
+         * Adds a provided internal contract declaration.
+         *
+         * @param contractId stable internal contract id
+         * @param contractType internal contract Java type
+         * @param contractVersion semantic contract version
+         * @param providerId stable provider id
+         * @param owner owning plugin id
+         * @return this builder
+         */
+        public Builder providedInternalContract(
+                String contractId,
+                String contractType,
+                String contractVersion,
+                String providerId,
+                String owner) {
+            if (contractId != null && !contractId.isBlank()) {
+                providedInternalContracts.put(contractId, new ProvidedInternalContract(
+                    contractId,
+                    contractType,
+                    contractVersion,
+                    providerId,
+                    owner));
+            }
+            return this;
+        }
+
+        /**
          * Adds declared managed task ids.
          *
          * @param ids managed task ids
@@ -547,6 +618,34 @@ public final class PluginRuntimeDescriptor {
             handlerId = handlerId == null ? "" : handlerId.trim();
             retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
             idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
+        }
+    }
+
+    /**
+     * Manifest-declared plugin-owned internal contract.
+     *
+     * @param contractId stable internal contract id
+     * @param contractType internal contract Java type
+     * @param contractVersion semantic contract version
+     * @param providerId stable provider id
+     * @param owner owning plugin id
+     */
+    public record ProvidedInternalContract(
+            String contractId,
+            String contractType,
+            String contractVersion,
+            String providerId,
+            String owner) {
+
+        /**
+         * Creates an internal contract declaration.
+         */
+        public ProvidedInternalContract {
+            contractId = requireText(contractId, "contractId");
+            contractType = requireText(contractType, "contractType");
+            contractVersion = requireText(contractVersion, "contractVersion");
+            providerId = requireText(providerId, "providerId");
+            owner = requireText(owner, "owner");
         }
     }
 }

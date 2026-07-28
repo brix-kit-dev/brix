@@ -1,6 +1,6 @@
 package io.brix.platform.tenant.bootstrap;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.Arrays;
@@ -12,8 +12,8 @@ import io.brix.platform.tenant.config.TenantAutoConfiguration;
 class SuperAdminBootstrapRunnerTest {
 
     @Test
-    void autoConfigurationDoesNotRegisterStartupBootstrapRunner() {
-        assertFalse(Arrays.stream(TenantAutoConfiguration.class.getDeclaredMethods())
+    void autoConfigurationRegistersStartupBootstrapRunner() {
+        assertTrue(Arrays.stream(TenantAutoConfiguration.class.getDeclaredMethods())
                 .anyMatch(method -> method.getReturnType().equals(SuperAdminBootstrapRunner.class)));
     }
 

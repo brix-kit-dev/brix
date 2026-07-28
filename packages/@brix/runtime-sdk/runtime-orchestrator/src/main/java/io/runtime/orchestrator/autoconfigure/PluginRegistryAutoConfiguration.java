@@ -176,6 +176,7 @@ public class PluginRegistryAutoConfiguration {
         String simpleName = type.getSimpleName();
         if (simpleName.endsWith("Capability")) {
             sink.add(simpleName);
+            sink.add(type.getName());
         }
         for (Class<?> iface : type.getInterfaces()) {
             collectCapabilitySupertypes(iface, sink);

@@ -7,6 +7,12 @@
 package io.runtime.orchestrator.operational;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLStreamHandler;
 
 import org.junit.jupiter.api.Test;
 
@@ -19,5 +25,27 @@ class ServiceLoaderOperationalModuleDiscoveryTest {
         assertEquals(1, discovered.size());
         assertEquals("runtime-test-operational", discovered.get(0).descriptor().identity().moduleId());
         assertEquals(ServiceLoadedTestOperationalModule.class, discovered.get(0).provider().getClass());
+    }
+
+    @Test
+    void treatsSpringBootNestedJarDescriptorAsSameArtifact()
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Method method = ServiceLoaderOperationalModuleDiscovery.class.getDeclaredMethod(
+            "belongsToCodeSource", URL.class, URL.class);
+        method.setAccessible(true);
+
+        URL codeSource = url("jar:nested:/app/app.jar/!BOOT-INF/lib/platform-admin-3.2.0.jar!/");
+        URL descriptor = url("jar:nested:/app/app.jar/!BOOT-INF/lib/platform-admin-3.2.0.jar!/META-INF/brix/platform-operational.yaml");
+
+        assertTrue((Boolean) method.invoke(null, descriptor, codeSource));
+    }
+
+    private static URL url(String value) {
+        try {
+            return new URL(null, value, new URLStreamHandler() {
+            });
+        } catch (java.net.MalformedURLException e) {
+            throw new IllegalArgumentException(value, e);
+        }
     }
 }

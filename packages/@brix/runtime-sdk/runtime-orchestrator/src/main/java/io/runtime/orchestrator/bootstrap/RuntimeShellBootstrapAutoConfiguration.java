@@ -16,6 +16,7 @@
 package io.runtime.orchestrator.bootstrap;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -98,6 +99,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
      * @param discovery ServiceLoader discovery
      * @param descriptorResolver classpath descriptor resolver
      * @param capabilityRegistry optional capability registry
+     * @param internalContracts internal contract binder
+     * @param beanFactory Spring bean factory used only to initialize ServiceLoader providers
      * @param properties bootstrap properties
      * @return plugin runtime manager
      */
@@ -108,6 +111,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
             ClasspathPluginRuntimeDescriptorResolver descriptorResolver,
             ObjectProvider<CapabilityRegistry> capabilityRegistry,
             PluginEndpointDispatcher endpointDispatcher,
+            ObjectProvider<InternalContractBinder> internalContracts,
+            AutowireCapableBeanFactory beanFactory,
             RuntimeShellBootstrapProperties properties) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable(DefaultCapabilityRegistry::new);
         return new PluginRuntimeManager(
@@ -115,7 +120,14 @@ public class RuntimeShellBootstrapAutoConfiguration {
             descriptorResolver,
             registry,
             properties.getRequiredPlugins(),
-            endpointDispatcher);
+            endpointDispatcher,
+            beanFactory::autowireBean,
+            () -> new ServiceLoaderInternalContractProviderDiscovery(
+                Thread.currentThread().getContextClassLoader()).discover().stream()
+                .map(ServiceLoaderInternalContractProviderDiscovery
+                    .DiscoveredInternalContractProvider::provider)
+                .toList(),
+            internalContracts.getIfAvailable());
     }
 
     /**
@@ -144,6 +156,26 @@ public class RuntimeShellBootstrapAutoConfiguration {
     }
 
     /**
+     * Creates the L2B internal contract binder shared by plugin-owned providers
+     * and operational consumers.
+     *
+     * @param capabilityRegistry capability registry with the internal namespace implementation
+     * @return internal contract binder
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public InternalContractBinder internalContractBinder(CapabilityRegistry capabilityRegistry) {
+        if (!(capabilityRegistry instanceof DefaultCapabilityRegistry defaultRegistry)) {
+            throw new IllegalStateException(
+                "Operational Runtime requires the L2B DefaultCapabilityRegistry internal namespace");
+        }
+        return new InternalContractBinder(
+            defaultRegistry,
+            capabilityRegistry,
+            Thread.currentThread().getContextClassLoader());
+    }
+
+    /**
      * Creates the O0-O8 operational module manager.
      *
      * @param discovery operational module discovery
@@ -157,16 +189,13 @@ public class RuntimeShellBootstrapAutoConfiguration {
     public OperationalModuleRuntimeManager operationalModuleRuntimeManager(
             ServiceLoaderOperationalModuleDiscovery discovery,
             CapabilityRegistry capabilityRegistry,
+            InternalContractBinder internalContracts,
             HostRuntimeOperationalView runtimeView,
             RuntimeShellBootstrapProperties properties) {
-        if (!(capabilityRegistry instanceof DefaultCapabilityRegistry defaultRegistry)) {
+        if (!(capabilityRegistry instanceof DefaultCapabilityRegistry)) {
             throw new IllegalStateException(
                 "Operational Runtime requires the L2B DefaultCapabilityRegistry internal namespace");
         }
-        InternalContractBinder binder = new InternalContractBinder(
-            defaultRegistry,
-            capabilityRegistry,
-            Thread.currentThread().getContextClassLoader());
         return new OperationalModuleRuntimeManager(
             discovery::discover,
             () -> new ServiceLoaderInternalContractProviderDiscovery(
@@ -174,7 +203,7 @@ public class RuntimeShellBootstrapAutoConfiguration {
                 .map(ServiceLoaderInternalContractProviderDiscovery
                     .DiscoveredInternalContractProvider::provider)
                 .toList(),
-            binder,
+            internalContracts,
             runtimeView,
             properties.getRequiredOperationalModules(),
             properties.getRuntimeVersion());

@@ -15,6 +15,8 @@
  */
 package io.runtime.orchestrator.plugin;
 
+import java.net.URL;
+import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -30,9 +32,11 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
+import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.EndpointHandler;
@@ -64,6 +68,8 @@ public final class PluginRuntimeManager {
     private final Set<String> requiredPluginIds;
     private final PluginEndpointDispatcher endpointDispatcher;
     private final Consumer<BrixPlugin> pluginInitializer;
+    private final Supplier<List<InternalContractProvider>> internalProviderDiscovery;
+    private final InternalContractBinder internalContracts;
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
     private boolean prepared;
     private boolean started;
@@ -121,12 +127,48 @@ public final class PluginRuntimeManager {
             Collection<String> requiredPluginIds,
             PluginEndpointDispatcher endpointDispatcher,
             Consumer<BrixPlugin> pluginInitializer) {
+        this(
+            discovery,
+            descriptorResolver,
+            capabilityRegistry,
+            requiredPluginIds,
+            endpointDispatcher,
+            pluginInitializer,
+            List::of,
+            null);
+    }
+
+    /**
+     * Creates a runtime manager with plugin-owned internal contract binding.
+     *
+     * @param discovery plugin discovery supplier
+     * @param descriptorResolver descriptor resolver
+     * @param capabilityRegistry capability registry
+     * @param requiredPluginIds composition-required plugin ids
+     * @param endpointDispatcher Runtime Shell endpoint dispatcher
+     * @param pluginInitializer Runtime-owned provider initializer
+     * @param internalProviderDiscovery internal contract provider discovery
+     * @param internalContracts internal contract binder
+     */
+    public PluginRuntimeManager(
+            Supplier<List<BrixPlugin>> discovery,
+            PluginRuntimeDescriptorResolver descriptorResolver,
+            CapabilityRegistry capabilityRegistry,
+            Collection<String> requiredPluginIds,
+            PluginEndpointDispatcher endpointDispatcher,
+            Consumer<BrixPlugin> pluginInitializer,
+            Supplier<List<InternalContractProvider>> internalProviderDiscovery,
+            InternalContractBinder internalContracts) {
         this.discovery = Objects.requireNonNull(discovery, "discovery must not be null");
         this.descriptorResolver = Objects.requireNonNull(descriptorResolver, "descriptorResolver must not be null");
         this.capabilityRegistry = Objects.requireNonNull(capabilityRegistry, "capabilityRegistry must not be null");
         this.requiredPluginIds = normalize(requiredPluginIds);
         this.endpointDispatcher = Objects.requireNonNull(endpointDispatcher, "endpointDispatcher must not be null");
         this.pluginInitializer = Objects.requireNonNull(pluginInitializer, "pluginInitializer must not be null");
+        this.internalProviderDiscovery = Objects.requireNonNull(
+            internalProviderDiscovery,
+            "internalProviderDiscovery must not be null");
+        this.internalContracts = internalContracts;
     }
 
     /**
@@ -170,6 +212,7 @@ public final class PluginRuntimeManager {
         for (ManagedPlugin plugin : new ArrayList<>(plugins.values())) {
             resolvePlugin(plugin);
         }
+        bindProvidedInternalContracts(internalProviderDiscovery.get());
         return states();
     }
 
@@ -413,6 +456,59 @@ public final class PluginRuntimeManager {
                     + "' declares incomplete event subscription policy");
             }
         }
+    }
+
+    private void bindProvidedInternalContracts(List<InternalContractProvider> providers) {
+        List<InternalContractProvider> available = providers == null ? List.of() : List.copyOf(providers);
+        for (ManagedPlugin plugin : plugins.values()) {
+            boolean provides = !plugin.descriptor.providedInternalContracts().isEmpty();
+            List<InternalContractProvider> sameArtifact = available.stream()
+                .filter(provider -> codeSource(plugin.provider.getClass()).equals(codeSource(provider.getClass())))
+                .toList();
+            if (provides && internalContracts == null) {
+                throw new PluginRuntimeException(
+                    "Plugin '" + plugin.id() + "' provides internal contracts without an L2B binder");
+            }
+            if (provides && sameArtifact.size() != 1) {
+                throw new PluginRuntimeException(sameArtifact.isEmpty()
+                    ? "Providing plugin artifact must publish exactly one InternalContractProvider"
+                    : "Providing plugin artifact published duplicate InternalContractProvider instances");
+            }
+            if (!provides && !sameArtifact.isEmpty()) {
+                throw new PluginRuntimeException("Non-providing plugin artifact published an InternalContractProvider");
+            }
+            if (provides) {
+                internalContracts.bindPlugin(
+                    plugin.descriptor,
+                    sameArtifact.get(0),
+                    providedInternalContractTypes(plugin));
+            }
+        }
+    }
+
+    private Set<Class<?>> providedInternalContractTypes(ManagedPlugin plugin) {
+        Set<Class<?>> types = new LinkedHashSet<>();
+        ClassLoader loader = plugin.provider.getClass().getClassLoader();
+        for (PluginRuntimeDescriptor.ProvidedInternalContract declaration
+                : plugin.descriptor.providedInternalContracts().values()) {
+            try {
+                types.add(Class.forName(declaration.contractType(), false, loader));
+            } catch (ClassNotFoundException e) {
+                throw new PluginRuntimeException(
+                    "Plugin '" + plugin.id() + "' internal contract type is unavailable: "
+                        + declaration.contractType(),
+                    e);
+            }
+        }
+        return Set.copyOf(types);
+    }
+
+    private static URL codeSource(Class<?> providerType) {
+        CodeSource source = providerType.getProtectionDomain().getCodeSource();
+        if (source == null || source.getLocation() == null) {
+            throw new PluginRuntimeException("Provider has no code source: " + providerType.getName());
+        }
+        return source.getLocation();
     }
 
     private boolean capabilityAvailable(String declaration) {

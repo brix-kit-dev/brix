@@ -164,6 +164,9 @@ public final class ClasspathPluginRuntimeDescriptorResolver
         String manifest = manifestUrl.toExternalForm();
         String source = codeSource.toExternalForm();
         if (manifest.startsWith("jar:")) {
+            if (source.startsWith("jar:")) {
+                return manifest.startsWith(jarCodeSourcePrefix(source));
+            }
             return manifest.startsWith("jar:" + source + "!");
         }
         if (!"file".equals(manifestUrl.getProtocol()) || !"file".equals(codeSource.getProtocol())) {
@@ -180,10 +183,21 @@ public final class ClasspathPluginRuntimeDescriptorResolver
         }
     }
 
+    private static String jarCodeSourcePrefix(String source) {
+        if (source.endsWith("!/")) {
+            return source;
+        }
+        if (source.endsWith("!")) {
+            return source + "/";
+        }
+        return source + "!/";
+    }
+
     private PluginRuntimeDescriptor loadActiveDescriptor(URL manifestUrl) {
         try (InputStream inputStream = manifestUrl.openStream()) {
             PluginManifest manifest = pluginManifestLoader.load(inputStream);
             PluginRuntimeDescriptor.Builder builder = PluginRuntimeDescriptor.builder(manifest.pluginId())
+                .version(manifest.version())
                 .requiredCapabilities(capabilityIds(manifest.getCapabilities() != null
                     ? manifest.getCapabilities().getRequired() : List.of()))
                 .optionalCapabilities(capabilityIds(manifest.getCapabilities() != null
@@ -211,6 +225,17 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         subscribe.getHandlerId(),
                         subscribe.getRetryPolicyRef(),
                         subscribe.getIdempotencyPolicyRef());
+                }
+            }
+            if (manifest.getInternalContracts() != null) {
+                for (PluginManifest.ProvidedInternalContract contract
+                        : manifest.getInternalContracts().getProvides()) {
+                    builder.providedInternalContract(
+                        contract.getContractId(),
+                        contract.getContractType(),
+                        contract.getContractVersion(),
+                        contract.getProviderId(),
+                        contract.getOwner());
                 }
             }
             for (PluginManifest.Route route : manifest.getRoutes()) {

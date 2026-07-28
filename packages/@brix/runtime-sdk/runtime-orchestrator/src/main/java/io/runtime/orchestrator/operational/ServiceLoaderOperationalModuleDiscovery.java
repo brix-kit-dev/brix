@@ -124,6 +124,9 @@ public final class ServiceLoaderOperationalModuleDiscovery {
         String resourceValue = resource.toExternalForm();
         String codeSourceValue = codeSource.toExternalForm();
         if (resourceValue.startsWith("jar:")) {
+            if (codeSourceValue.startsWith("jar:")) {
+                return resourceValue.startsWith(jarCodeSourcePrefix(codeSourceValue));
+            }
             return resourceValue.startsWith("jar:" + codeSourceValue + "!");
         }
         if (!"file".equals(resource.getProtocol()) || !"file".equals(codeSource.getProtocol())) {
@@ -138,6 +141,16 @@ public final class ServiceLoaderOperationalModuleDiscovery {
         } catch (URISyntaxException e) {
             return false;
         }
+    }
+
+    private static String jarCodeSourcePrefix(String codeSourceValue) {
+        if (codeSourceValue.endsWith("!/")) {
+            return codeSourceValue;
+        }
+        if (codeSourceValue.endsWith("!")) {
+            return codeSourceValue + "/";
+        }
+        return codeSourceValue + "!/";
     }
 
     /**

@@ -16,22 +16,63 @@
 package io.runtime.orchestrator.autoconfigure;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.ApplicationContext;
 
+import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.ObservabilityCapability;
 
 class CapabilityAutoConfigurationTest {
+
+    @Test
+    void capabilityRegistryRunsAfterCurrentAdapterAutoConfigurations() {
+        AutoConfiguration annotation = CapabilityAutoConfiguration.class.getAnnotation(AutoConfiguration.class);
+        List<String> afterNames = Arrays.asList(annotation.afterName());
+
+        assertTrue(afterNames.contains("io.infra.adapter.kafka.config.KafkaAutoConfiguration"));
+        assertTrue(afterNames.contains("io.infra.adapter.redis.config.RedisAutoConfiguration"));
+        assertFalse(afterNames.contains("io.infra.adapter.kafka.autoconfigure.KafkaAdapterAutoConfiguration"));
+        assertFalse(afterNames.contains("io.infra.adapter.redis.autoconfigure.RedisAdapterAutoConfiguration"));
+    }
+
+    @Test
+    void pluginCapabilityVerifierAcceptsSimpleAndFullyQualifiedCapabilityNames()
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Method collector = PluginRegistryAutoConfiguration.class.getDeclaredMethod(
+                "collectCapabilitySupertypes", Class.class, Set.class);
+        collector.setAccessible(true);
+
+        Set<String> identifiers = new HashSet<>();
+        collector.invoke(null, EventBusCapability.class, identifiers);
+
+        assertTrue(identifiers.contains("EventBusCapability"));
+        assertTrue(identifiers.contains("io.runtime.sdk.capability.EventBusCapability"));
+    }
+
+    @Test
+    void runtimeShellEndpointControllerAllowsSpringInfrastructureProxying() {
+        assertFalse(Modifier.isFinal(RuntimeShellEndpointController.class.getModifiers()));
+    }
 
     @Test
     void requiredCapabilityWithMissingClassFailsStartup() {

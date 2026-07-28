@@ -18,6 +18,10 @@ package io.runtime.orchestrator.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLStreamHandler;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -35,5 +39,29 @@ class ClasspathPluginRuntimeDescriptorResolverTest {
         assertEquals("service-loaded-test", descriptor.get().identity().pluginId());
         assertTrue(descriptor.get().requiredCapabilities().contains("TestCapability"));
         assertTrue(descriptor.get().optionalCapabilities().contains("OptionalCapability"));
+    }
+
+    @Test
+    void treatsSpringBootNestedJarManifestAsSameArtifact()
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        ClasspathPluginRuntimeDescriptorResolver resolver =
+            new ClasspathPluginRuntimeDescriptorResolver(Thread.currentThread().getContextClassLoader());
+        Method method = ClasspathPluginRuntimeDescriptorResolver.class.getDeclaredMethod(
+            "belongsToCodeSource", URL.class, URL.class);
+        method.setAccessible(true);
+
+        URL codeSource = url("jar:nested:/app/app.jar/!BOOT-INF/lib/platform-tenant-3.2.0.jar!/");
+        URL manifest = url("jar:nested:/app/app.jar/!BOOT-INF/lib/platform-tenant-3.2.0.jar!/META-INF/brix/plugin-manifest.yaml");
+
+        assertTrue((Boolean) method.invoke(resolver, manifest, codeSource));
+    }
+
+    private static URL url(String value) {
+        try {
+            return new URL(null, value, new URLStreamHandler() {
+            });
+        } catch (java.net.MalformedURLException e) {
+            throw new IllegalArgumentException(value, e);
+        }
     }
 }

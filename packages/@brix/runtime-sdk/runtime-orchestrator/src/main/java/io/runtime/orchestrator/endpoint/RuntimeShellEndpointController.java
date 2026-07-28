@@ -46,7 +46,7 @@ import io.runtime.sdk.plugin.EndpointResponse;
  * @since 3.0.10
  */
 @RestController
-public final class RuntimeShellEndpointController {
+public class RuntimeShellEndpointController {
 
     private final PluginEndpointDispatcher dispatcher;
 

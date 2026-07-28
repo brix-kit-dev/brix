@@ -14,6 +14,7 @@ import java.util.Set;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.orchestrator.operational.OperationalRuntimeException;
+import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.internalcontract.InternalContractProviderBootstrap;
@@ -70,48 +71,66 @@ public final class InternalContractBinder {
         RecordingBootstrap bootstrap = new RecordingBootstrap();
         provider.configure(bootstrap);
 
-        Map<String, OperationalModuleDescriptor.ProvidedInternalContract> declarations = new LinkedHashMap<>();
+        Map<String, InternalContractDeclaration> declarations = new LinkedHashMap<>();
         for (OperationalModuleDescriptor.ProvidedInternalContract declaration : descriptor.providedContracts()) {
-            declarations.put(declaration.contractId(), declaration);
+            declarations.put(declaration.contractId(), new InternalContractDeclaration(
+                declaration.contractId(),
+                declaration.contractType(),
+                declaration.contractVersion(),
+                declaration.providerId(),
+                declaration.owner()));
         }
-        if (!bootstrap.factories.keySet().equals(declarations.keySet())) {
-            throw new OperationalRuntimeException(
-                "internal_contract.binding_mismatch",
-                "Internal contract descriptor and provider bindings differ for "
-                    + descriptor.identity().moduleId());
-        }
-
-        RuntimeModuleIdentity ownerIdentity = new RuntimeModuleIdentity(
+        bindDeclarations(
             descriptor.identity().moduleId(),
-            "platform-operational",
-            descriptor.identity().moduleVersion());
-        ProviderContext context = new ProviderContext(
-            ownerIdentity,
-            ownerCapabilities,
-            allowedOwnerCapabilities == null ? Set.of() : Set.copyOf(allowedOwnerCapabilities));
-        for (Map.Entry<String, OperationalModuleDescriptor.ProvidedInternalContract> entry
-                : declarations.entrySet()) {
-            OperationalModuleDescriptor.ProvidedInternalContract declaration = entry.getValue();
-            if (!declaration.owner().equals(descriptor.identity().owner())) {
-                throw new OperationalRuntimeException(
-                    "internal_contract.owner_mismatch",
-                    "Internal contract owner does not match its descriptor artifact: "
-                        + declaration.contractId());
-            }
-            Binding<?> binding = bootstrap.factories.get(entry.getKey());
-            Class<?> declaredType = loadType(declaration.contractType());
-            if (!binding.contractType.equals(declaredType)) {
-                throw new OperationalRuntimeException(
-                    "internal_contract.type_mismatch",
-                    "Internal contract type mismatch for " + declaration.contractId());
-            }
-            PendingBinding pending = new PendingBinding(declaration, binding, context, ownerIdentity);
-            if (pendingBindings.putIfAbsent(declaration.contractId(), pending) != null) {
-                throw new OperationalRuntimeException(
-                    "internal_contract.provider_duplicate",
-                    "Duplicate internal contract provider: " + declaration.contractId());
-            }
+            descriptor.identity().owner(),
+            new RuntimeModuleIdentity(
+                descriptor.identity().moduleId(),
+                "platform-operational",
+                descriptor.identity().moduleVersion()),
+            declarations,
+            bootstrap,
+            allowedOwnerCapabilities);
+    }
+
+    /**
+     * Validates and binds every internal contract declared by one plugin artifact.
+     *
+     * @param descriptor plugin runtime descriptor
+     * @param provider provider SPI instance
+     * @param allowedOwnerCapabilities owner capability types declared by the descriptor
+     */
+    public void bindPlugin(
+            PluginRuntimeDescriptor descriptor,
+            InternalContractProvider provider,
+            Set<Class<?>> allowedOwnerCapabilities) {
+        Objects.requireNonNull(descriptor, "descriptor must not be null");
+        Objects.requireNonNull(provider, "provider must not be null");
+        if (activated) {
+            throw new IllegalStateException("Internal contract namespace is frozen");
         }
+        RecordingBootstrap bootstrap = new RecordingBootstrap();
+        provider.configure(bootstrap);
+
+        Map<String, InternalContractDeclaration> declarations = new LinkedHashMap<>();
+        for (PluginRuntimeDescriptor.ProvidedInternalContract declaration
+                : descriptor.providedInternalContracts().values()) {
+            declarations.put(declaration.contractId(), new InternalContractDeclaration(
+                declaration.contractId(),
+                declaration.contractType(),
+                declaration.contractVersion(),
+                declaration.providerId(),
+                declaration.owner()));
+        }
+        bindDeclarations(
+            descriptor.identity().pluginId(),
+            descriptor.identity().pluginId(),
+            new RuntimeModuleIdentity(
+                descriptor.identity().pluginId(),
+                "plugin-server",
+                descriptor.version()),
+            declarations,
+            bootstrap,
+            allowedOwnerCapabilities);
     }
 
     /**
@@ -160,7 +179,7 @@ public final class InternalContractBinder {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void register(
-            OperationalModuleDescriptor.ProvidedInternalContract declaration,
+            InternalContractDeclaration declaration,
             Binding binding,
             ProviderContext context,
             RuntimeModuleIdentity ownerIdentity) {
@@ -201,6 +220,47 @@ public final class InternalContractBinder {
                 "internal_contract.type_missing",
                 "Internal contract type is unavailable: " + typeName,
                 e);
+        }
+    }
+
+    private void bindDeclarations(
+            String artifactId,
+            String artifactOwner,
+            RuntimeModuleIdentity ownerIdentity,
+            Map<String, InternalContractDeclaration> declarations,
+            RecordingBootstrap bootstrap,
+            Set<Class<?>> allowedOwnerCapabilities) {
+        if (!bootstrap.factories.keySet().equals(declarations.keySet())) {
+            throw new OperationalRuntimeException(
+                "internal_contract.binding_mismatch",
+                "Internal contract descriptor and provider bindings differ for " + artifactId);
+        }
+
+        ProviderContext context = new ProviderContext(
+            ownerIdentity,
+            ownerCapabilities,
+            allowedOwnerCapabilities == null ? Set.of() : Set.copyOf(allowedOwnerCapabilities));
+        for (Map.Entry<String, InternalContractDeclaration> entry : declarations.entrySet()) {
+            InternalContractDeclaration declaration = entry.getValue();
+            if (!declaration.owner().equals(artifactOwner)) {
+                throw new OperationalRuntimeException(
+                    "internal_contract.owner_mismatch",
+                    "Internal contract owner does not match its descriptor artifact: "
+                        + declaration.contractId());
+            }
+            Binding<?> binding = bootstrap.factories.get(entry.getKey());
+            Class<?> declaredType = loadType(declaration.contractType());
+            if (!binding.contractType.equals(declaredType)) {
+                throw new OperationalRuntimeException(
+                    "internal_contract.type_mismatch",
+                    "Internal contract type mismatch for " + declaration.contractId());
+            }
+            PendingBinding pending = new PendingBinding(declaration, binding, context, ownerIdentity);
+            if (pendingBindings.putIfAbsent(declaration.contractId(), pending) != null) {
+                throw new OperationalRuntimeException(
+                    "internal_contract.provider_duplicate",
+                    "Duplicate internal contract provider: " + declaration.contractId());
+            }
         }
     }
 
@@ -261,8 +321,16 @@ public final class InternalContractBinder {
     private record Binding<C>(Class<C> contractType, InternalContractProviderFactory<C> factory) {
     }
 
+    private record InternalContractDeclaration(
+            String contractId,
+            String contractType,
+            String contractVersion,
+            String providerId,
+            String owner) {
+    }
+
     private record PendingBinding(
-            OperationalModuleDescriptor.ProvidedInternalContract declaration,
+            InternalContractDeclaration declaration,
             Binding<?> binding,
             ProviderContext context,
             RuntimeModuleIdentity ownerIdentity) {
