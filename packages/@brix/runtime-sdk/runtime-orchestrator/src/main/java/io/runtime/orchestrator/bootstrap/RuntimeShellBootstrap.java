@@ -15,13 +15,13 @@
  */
 package io.runtime.orchestrator.bootstrap;
 
-import java.util.List;
 import java.util.Objects;
 
 import org.springframework.context.ConfigurableApplicationContext;
 
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.plugin.PluginRuntimeState;
+import io.runtime.orchestrator.operational.OperationalModuleRuntimeState;
 
 /**
  * Host-facing Runtime Shell bootstrap API.
@@ -36,6 +36,8 @@ import io.runtime.orchestrator.plugin.PluginRuntimeState;
 public final class RuntimeShellBootstrap {
 
     private final PluginRuntimeManager pluginRuntimeManager;
+    private final HostBootstrapCoordinator coordinator;
+    private RuntimeShellBootstrapHandle handle;
 
     /**
      * Creates a bootstrap API backed by a plugin runtime manager.
@@ -46,6 +48,17 @@ public final class RuntimeShellBootstrap {
         this.pluginRuntimeManager = Objects.requireNonNull(
             pluginRuntimeManager,
             "pluginRuntimeManager must not be null");
+        this.coordinator = null;
+    }
+
+    /**
+     * Creates the production bootstrap API backed by the Host coordinator.
+     *
+     * @param coordinator Host bootstrap coordinator
+     */
+    public RuntimeShellBootstrap(HostBootstrapCoordinator coordinator) {
+        this.pluginRuntimeManager = null;
+        this.coordinator = Objects.requireNonNull(coordinator, "coordinator must not be null");
     }
 
     /**
@@ -58,7 +71,7 @@ public final class RuntimeShellBootstrap {
      * @param applicationContext Spring application context
      * @return plugin runtime states after startup
      */
-    public static List<PluginRuntimeState> start(ConfigurableApplicationContext applicationContext) {
+    public static RuntimeShellBootstrapHandle start(ConfigurableApplicationContext applicationContext) {
         Objects.requireNonNull(applicationContext, "applicationContext must not be null");
         try {
             return applicationContext.getBean(RuntimeShellBootstrap.class).start();
@@ -73,15 +86,28 @@ public final class RuntimeShellBootstrap {
      *
      * @return plugin runtime states after startup
      */
-    public List<PluginRuntimeState> start() {
-        return pluginRuntimeManager.start();
+    public synchronized RuntimeShellBootstrapHandle start() {
+        if (coordinator != null) {
+            handle = coordinator.start();
+            return handle;
+        }
+        pluginRuntimeManager.start();
+        handle = new RuntimeShellBootstrapHandle(pluginRuntimeManager::ready, pluginRuntimeManager::stop);
+        if (pluginRuntimeManager.ready()) {
+            handle.completeReady();
+        }
+        return handle;
     }
 
     /**
      * Stops the Runtime Shell plugin chain.
      */
     public void stop() {
-        pluginRuntimeManager.stop();
+        if (handle != null) {
+            handle.shutdown();
+        } else if (pluginRuntimeManager != null) {
+            pluginRuntimeManager.stop();
+        }
     }
 
     /**
@@ -90,7 +116,10 @@ public final class RuntimeShellBootstrap {
      * @return true when every required plugin is ready
      */
     public boolean ready() {
-        return pluginRuntimeManager.ready();
+        if (handle != null) {
+            return handle.ready();
+        }
+        return coordinator != null ? coordinator.ready() : pluginRuntimeManager.ready();
     }
 
     /**
@@ -98,7 +127,16 @@ public final class RuntimeShellBootstrap {
      *
      * @return immutable plugin states
      */
-    public List<PluginRuntimeState> pluginStates() {
-        return pluginRuntimeManager.states();
+    public java.util.List<PluginRuntimeState> pluginStates() {
+        return pluginRuntimeManager != null ? pluginRuntimeManager.states() : coordinator.pluginStates();
+    }
+
+    /**
+     * Returns runtime operational module states.
+     *
+     * @return immutable operational states
+     */
+    public java.util.List<OperationalModuleRuntimeState> operationalStates() {
+        return coordinator != null ? coordinator.operationalStates() : java.util.List.of();
     }
 }

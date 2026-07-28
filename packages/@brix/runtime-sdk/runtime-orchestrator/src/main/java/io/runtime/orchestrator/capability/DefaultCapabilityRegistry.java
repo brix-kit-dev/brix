@@ -33,6 +33,7 @@ import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityNotFoundException;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
+import io.runtime.sdk.internalcontract.RuntimeModuleIdentity;
 
 /**
  * Default Capability Registry Implementation.
@@ -108,6 +109,15 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
 
     /** Capability alias mapping: alias string -> primary interface type (allows lookup by alias) */
     private final Map<String, Class<?>> aliases = new ConcurrentHashMap<>();
+
+    /**
+     * Isolated L2B internal-contract namespace.
+     *
+     * <p>This map is intentionally absent from the L2A {@link CapabilityRegistry}
+     * interface and is never exposed through PluginContext.</p>
+     */
+    private final Map<String, InternalContractBinding<?>> internalContracts = new ConcurrentHashMap<>();
+    private volatile boolean internalContractsFrozen;
 
     /** Registry frozen flag, all write operations are prohibited after freezing */
     private volatile boolean frozen = false;
@@ -337,6 +347,98 @@ public class DefaultCapabilityRegistry implements CapabilityRegistry {
     }
 
     // ==================== Extension Methods ====================
+
+    /**
+     * Registers one validated internal contract in the isolated L2B namespace.
+     *
+     * @param contractId stable contract identifier
+     * @param contractType contract Java type
+     * @param contractVersion exact contract version
+     * @param ownerIdentity immutable descriptor owner
+     * @param instance contract implementation
+     * @param <C> contract type
+     * @throws IllegalStateException when the namespace is frozen or duplicate
+     */
+    public <C> void registerInternalContract(
+            String contractId,
+            Class<C> contractType,
+            String contractVersion,
+            RuntimeModuleIdentity ownerIdentity,
+            C instance) {
+        if (internalContractsFrozen) {
+            throw new IllegalStateException("Internal contract namespace is frozen");
+        }
+        InternalContractBinding<C> binding = new InternalContractBinding<>(
+            contractId,
+            contractType,
+            contractVersion,
+            ownerIdentity,
+            instance);
+        if (internalContracts.putIfAbsent(contractId, binding) != null) {
+            throw new IllegalStateException("Duplicate internal contract: " + contractId);
+        }
+    }
+
+    /**
+     * Resolves an internal contract from the isolated L2B namespace.
+     *
+     * @param contractId stable contract identifier
+     * @param contractType expected Java type
+     * @param <C> contract type
+     * @return internal binding when identifier and type both match
+     */
+    public <C> Optional<InternalContractBinding<C>> getInternalContract(
+            String contractId,
+            Class<C> contractType) {
+        Objects.requireNonNull(contractType, "contractType must not be null");
+        InternalContractBinding<?> binding = internalContracts.get(contractId);
+        if (binding == null || !binding.contractType().equals(contractType)) {
+            return Optional.empty();
+        }
+        @SuppressWarnings("unchecked")
+        InternalContractBinding<C> typed = (InternalContractBinding<C>) binding;
+        return Optional.of(typed);
+    }
+
+    /**
+     * Freezes the isolated internal-contract namespace after H3 binding.
+     */
+    public void freezeInternalContracts() {
+        internalContractsFrozen = true;
+    }
+
+    /**
+     * Immutable internal-contract binding kept outside the plugin-visible API.
+     *
+     * @param contractId stable contract identifier
+     * @param contractType Java contract type
+     * @param contractVersion exact contract version
+     * @param ownerIdentity immutable owner identity
+     * @param instance contract implementation
+     * @param <C> contract type
+     */
+    public record InternalContractBinding<C>(
+            String contractId,
+            Class<C> contractType,
+            String contractVersion,
+            RuntimeModuleIdentity ownerIdentity,
+            C instance) {
+
+        /**
+         * Validates internal binding fields.
+         */
+        public InternalContractBinding {
+            if (contractId == null || contractId.isBlank()) {
+                throw new IllegalArgumentException("contractId must not be blank");
+            }
+            if (contractVersion == null || contractVersion.isBlank()) {
+                throw new IllegalArgumentException("contractVersion must not be blank");
+            }
+            Objects.requireNonNull(contractType, "contractType must not be null");
+            Objects.requireNonNull(ownerIdentity, "ownerIdentity must not be null");
+            Objects.requireNonNull(instance, "instance must not be null");
+        }
+    }
 
     /**
      * Gets capability instance by alias.

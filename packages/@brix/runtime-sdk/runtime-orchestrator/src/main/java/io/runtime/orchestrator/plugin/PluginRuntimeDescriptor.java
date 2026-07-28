@@ -24,6 +24,7 @@ import java.util.Set;
 
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
+import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.PluginIdentity;
 
 /**
@@ -48,6 +49,9 @@ public final class PluginRuntimeDescriptor {
     private final Set<String> commandHandlers;
     private final Set<String> eventHandlers;
     private final Set<String> tasks;
+    private final DataDeclaration data;
+    private final Map<String, EventPublication> eventPublications;
+    private final Map<String, EventSubscription> eventSubscriptions;
 
     private PluginRuntimeDescriptor(Builder builder) {
         this.identity = Objects.requireNonNull(builder.identity, "identity must not be null");
@@ -58,6 +62,9 @@ public final class PluginRuntimeDescriptor {
         this.commandHandlers = copy(builder.commandHandlers);
         this.eventHandlers = copy(builder.eventHandlers);
         this.tasks = copy(builder.tasks);
+        this.data = builder.data;
+        this.eventPublications = Map.copyOf(builder.eventPublications);
+        this.eventSubscriptions = Map.copyOf(builder.eventSubscriptions);
     }
 
     /**
@@ -138,6 +145,15 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
+     * Returns plugin data declaration used by startup policy gates.
+     *
+     * @return data declaration, possibly empty
+     */
+    public DataDeclaration data() {
+        return data;
+    }
+
+    /**
      * Validates that a manifest query handler id is declared.
      *
      * @param id query handler id
@@ -162,6 +178,24 @@ public final class PluginRuntimeDescriptor {
      */
     public void requireEventHandler(String id) {
         requireDeclared("event handler", id, eventHandlers);
+    }
+
+    /**
+     * Returns manifest-declared published events keyed by event id.
+     *
+     * @return immutable event publication declarations
+     */
+    public Map<String, EventPublication> eventPublications() {
+        return eventPublications;
+    }
+
+    /**
+     * Returns manifest-declared event subscriptions keyed by handler id.
+     *
+     * @return immutable event subscription declarations
+     */
+    public Map<String, EventSubscription> eventSubscriptions() {
+        return eventSubscriptions;
     }
 
     /**
@@ -230,6 +264,9 @@ public final class PluginRuntimeDescriptor {
         private final Set<String> commandHandlers = new LinkedHashSet<>();
         private final Set<String> eventHandlers = new LinkedHashSet<>();
         private final Set<String> tasks = new LinkedHashSet<>();
+        private DataDeclaration data = new DataDeclaration("", "", "");
+        private final Map<String, EventPublication> eventPublications = new LinkedHashMap<>();
+        private final Map<String, EventSubscription> eventSubscriptions = new LinkedHashMap<>();
 
         private Builder(PluginIdentity identity) {
             this.identity = identity;
@@ -322,6 +359,67 @@ public final class PluginRuntimeDescriptor {
         }
 
         /**
+         * Adds plugin data ownership metadata.
+         *
+         * @param storageId storage id
+         * @param outbox canonical outbox table
+         * @param inbox canonical inbox table
+         * @return this builder
+         */
+        public Builder data(String storageId, String outbox, String inbox) {
+            this.data = new DataDeclaration(storageId, outbox, inbox);
+            return this;
+        }
+
+        /**
+         * Adds a published event declaration.
+         *
+         * @param id event contract id
+         * @param version event schema version
+         * @param reliability manifest reliability declaration
+         * @return this builder
+         */
+        public Builder eventPublication(String id, String version, EventReliability reliability) {
+            EventPublication publication = new EventPublication(id, version, reliability);
+            if (!publication.id().isBlank()) {
+                eventPublications.put(publication.id(), publication);
+            }
+            return this;
+        }
+
+        /**
+         * Adds an event subscription declaration.
+         *
+         * @param subscriptionId subscription id
+         * @param eventType event contract id
+         * @param schemaRange accepted schema range
+         * @param handlerId handler id bound by {@code configure()}
+         * @param retryPolicyRef retry policy reference
+         * @param idempotencyPolicyRef idempotency policy reference
+         * @return this builder
+         */
+        public Builder eventSubscription(
+                String subscriptionId,
+                String eventType,
+                String schemaRange,
+                String handlerId,
+                String retryPolicyRef,
+                String idempotencyPolicyRef) {
+            EventSubscription subscription = new EventSubscription(
+                subscriptionId,
+                eventType,
+                schemaRange,
+                handlerId,
+                retryPolicyRef,
+                idempotencyPolicyRef);
+            if (!subscription.handlerId().isBlank()) {
+                eventSubscriptions.put(subscription.handlerId(), subscription);
+                eventHandlers.add(subscription.handlerId());
+            }
+            return this;
+        }
+
+        /**
          * Adds declared managed task ids.
          *
          * @param ids managed task ids
@@ -371,6 +469,84 @@ public final class PluginRuntimeDescriptor {
             method = method == null ? "" : method.trim();
             path = path == null ? "" : path.trim();
             accessPolicy = accessPolicy == null ? "" : accessPolicy.trim();
+        }
+    }
+
+    /**
+     * Manifest-declared data ownership metadata for reliable message gates.
+     *
+     * @param storageId immutable storage id
+     * @param outbox canonical outbox table
+     * @param inbox canonical inbox table
+     */
+    public record DataDeclaration(String storageId, String outbox, String inbox) {
+
+        /**
+         * Creates a data declaration.
+         */
+        public DataDeclaration {
+            storageId = storageId == null ? "" : storageId.trim();
+            outbox = outbox == null ? "" : outbox.trim();
+            inbox = inbox == null ? "" : inbox.trim();
+        }
+    }
+
+    /**
+     * Manifest-declared published event contract.
+     *
+     * @param id event contract id
+     * @param version schema version
+     * @param reliability reliability policy
+     */
+    public record EventPublication(String id, String version, EventReliability reliability) {
+
+        /**
+         * Creates an event publication declaration.
+         */
+        public EventPublication {
+            id = id == null ? "" : id.trim();
+            version = version == null ? "" : version.trim();
+            Objects.requireNonNull(reliability, "reliability must not be null");
+        }
+
+        /**
+         * Returns whether this event requires durable outbox startup gates.
+         *
+         * @return true for CRITICAL and STANDARD
+         */
+        public boolean requiresPersistentDelivery() {
+            return reliability == EventReliability.CRITICAL || reliability == EventReliability.STANDARD;
+        }
+    }
+
+    /**
+     * Manifest-declared event subscription contract.
+     *
+     * @param subscriptionId subscription id
+     * @param eventType event contract id
+     * @param schemaRange accepted schema range
+     * @param handlerId handler id
+     * @param retryPolicyRef retry policy reference
+     * @param idempotencyPolicyRef idempotency policy reference
+     */
+    public record EventSubscription(
+            String subscriptionId,
+            String eventType,
+            String schemaRange,
+            String handlerId,
+            String retryPolicyRef,
+            String idempotencyPolicyRef) {
+
+        /**
+         * Creates an event subscription declaration.
+         */
+        public EventSubscription {
+            subscriptionId = subscriptionId == null ? "" : subscriptionId.trim();
+            eventType = eventType == null ? "" : eventType.trim();
+            schemaRange = schemaRange == null ? "" : schemaRange.trim();
+            handlerId = handlerId == null ? "" : handlerId.trim();
+            retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
+            idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
         }
     }
 }

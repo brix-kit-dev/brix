@@ -16,7 +16,6 @@
 package io.runtime.orchestrator.bootstrap;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -24,6 +23,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.ObjectProvider;
 
 import io.runtime.orchestrator.autoconfigure.CapabilityAutoConfiguration;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
@@ -33,6 +33,10 @@ import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
 import io.runtime.orchestrator.plugin.ClasspathPluginRuntimeDescriptorResolver;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.plugin.ServiceLoaderPluginDiscovery;
+import io.runtime.orchestrator.operational.OperationalModuleRuntimeManager;
+import io.runtime.orchestrator.operational.ServiceLoaderOperationalModuleDiscovery;
+import io.runtime.orchestrator.internalcontract.InternalContractBinder;
+import io.runtime.orchestrator.internalcontract.ServiceLoaderInternalContractProviderDiscovery;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.plugin.BrixPlugin;
 
@@ -104,7 +108,6 @@ public class RuntimeShellBootstrapAutoConfiguration {
             ClasspathPluginRuntimeDescriptorResolver descriptorResolver,
             ObjectProvider<CapabilityRegistry> capabilityRegistry,
             PluginEndpointDispatcher endpointDispatcher,
-            AutowireCapableBeanFactory beanFactory,
             RuntimeShellBootstrapProperties properties) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable(DefaultCapabilityRegistry::new);
         return new PluginRuntimeManager(
@@ -112,8 +115,108 @@ public class RuntimeShellBootstrapAutoConfiguration {
             descriptorResolver,
             registry,
             properties.getRequiredPlugins(),
-            endpointDispatcher,
-            beanFactory::autowireBean);
+            endpointDispatcher);
+    }
+
+    /**
+     * Creates the operational ServiceLoader discovery.
+     *
+     * @return operational discovery
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public ServiceLoaderOperationalModuleDiscovery serviceLoaderOperationalModuleDiscovery() {
+        return new ServiceLoaderOperationalModuleDiscovery();
+    }
+
+    /**
+     * Creates the read-only Host Runtime operational view.
+     *
+     * @param properties bootstrap properties
+     * @return Runtime view
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public HostRuntimeOperationalView hostRuntimeOperationalView(RuntimeShellBootstrapProperties properties) {
+        java.util.List<String> required = new java.util.ArrayList<>(properties.getRequiredPlugins());
+        required.addAll(properties.getRequiredOperationalModules());
+        return new HostRuntimeOperationalView(required);
+    }
+
+    /**
+     * Creates the O0-O8 operational module manager.
+     *
+     * @param discovery operational module discovery
+     * @param capabilityRegistry capability registry
+     * @param runtimeView read-only Host Runtime view
+     * @param properties bootstrap properties
+     * @return operational manager
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public OperationalModuleRuntimeManager operationalModuleRuntimeManager(
+            ServiceLoaderOperationalModuleDiscovery discovery,
+            CapabilityRegistry capabilityRegistry,
+            HostRuntimeOperationalView runtimeView,
+            RuntimeShellBootstrapProperties properties) {
+        if (!(capabilityRegistry instanceof DefaultCapabilityRegistry defaultRegistry)) {
+            throw new IllegalStateException(
+                "Operational Runtime requires the L2B DefaultCapabilityRegistry internal namespace");
+        }
+        InternalContractBinder binder = new InternalContractBinder(
+            defaultRegistry,
+            capabilityRegistry,
+            Thread.currentThread().getContextClassLoader());
+        return new OperationalModuleRuntimeManager(
+            discovery::discover,
+            () -> new ServiceLoaderInternalContractProviderDiscovery(
+                Thread.currentThread().getContextClassLoader()).discover().stream()
+                .map(ServiceLoaderInternalContractProviderDiscovery
+                    .DiscoveredInternalContractProvider::provider)
+                .toList(),
+            binder,
+            runtimeView,
+            properties.getRequiredOperationalModules(),
+            properties.getRuntimeVersion());
+    }
+
+    /**
+     * Creates the H0-H4/B0-B3 Host coordinator.
+     *
+     * @param plugins plugin manager
+     * @param operationalModules operational manager
+     * @param dispatcher single L2B dispatcher
+     * @param runtimeView read-only Runtime view
+     * @param properties bootstrap properties
+     * @return Host coordinator
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public HostBootstrapCoordinator hostBootstrapCoordinator(
+            PluginRuntimeManager plugins,
+            OperationalModuleRuntimeManager operationalModules,
+            PluginEndpointDispatcher dispatcher,
+            HostRuntimeOperationalView runtimeView,
+            RuntimeShellBootstrapProperties properties,
+            ObjectProvider<RuntimeShellFatalAction> fatalActionProvider) {
+        if (properties.getFatalExitCode() <= 0) {
+            throw new IllegalStateException("brix.runtime-shell.fatal-exit-code must be positive");
+        }
+        RuntimeShellFatalAction fatalAction = fatalActionProvider.getIfAvailable();
+        if (fatalAction == null
+                && properties.getHostMode() != RuntimeShellBootstrapProperties.HostMode.EMBEDDED) {
+            throw new IllegalStateException(
+                "Standalone and Local Hosts must provide a Host-owned RuntimeShellFatalAction");
+        }
+        if (fatalAction == null) {
+            fatalAction = ignored -> { };
+        }
+        return new HostBootstrapCoordinator(
+            plugins,
+            operationalModules,
+            dispatcher,
+            runtimeView,
+            fatalAction);
     }
 
     /**
@@ -124,8 +227,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public RuntimeShellBootstrap runtimeShellBootstrap(PluginRuntimeManager pluginRuntimeManager) {
-        return new RuntimeShellBootstrap(pluginRuntimeManager);
+    public RuntimeShellBootstrap runtimeShellBootstrap(HostBootstrapCoordinator coordinator) {
+        return new RuntimeShellBootstrap(coordinator);
     }
 
     /**

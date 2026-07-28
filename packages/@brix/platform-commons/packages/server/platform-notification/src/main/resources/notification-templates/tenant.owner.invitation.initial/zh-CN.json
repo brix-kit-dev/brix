@@ -1,0 +1,5 @@
+{
+  "subject": "接受 Brix 租户所有者邀请",
+  "body": "您好，\n\n请使用以下链接接受租户所有者邀请：\n{{inviteUrl}}\n\n该链接只能使用一次，并会在短时间后过期。",
+  "variables": ["inviteUrl"]
+}

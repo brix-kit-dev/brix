@@ -23,8 +23,8 @@ import jakarta.validation.constraints.Size;
  * Request DTO for creating a new tenant via the platform super-admin console.
  *
  * <h3>Architecture Position</h3>
- * <p>Layer 2C ({@code platform-admin} module). Consumed exclusively by
- * {@code PlatformTenantController#createTenant}.</p>
+ * <p>L2B {@code platform-admin} operational module. Consumed by the
+ * descriptor-declared tenant creation handler.</p>
  *
  * <h3>Tenant Code Format</h3>
  * <pre>

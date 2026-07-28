@@ -85,6 +85,7 @@
         
         <!-- 测试 -->
         <testcontainers.version>1.20.4</testcontainers.version>
+        <maven-surefire-plugin.version>3.2.3</maven-surefire-plugin.version>
         
         <!-- OpenAPI 文档生成 — springdoc 2.3.0 for Spring Boot 3.2.x (Spring Framework 6.1.x) -->
         <springdoc-openapi.version>2.3.0</springdoc-openapi.version>
@@ -113,6 +114,7 @@
         <module>packages/server/platform-auth-web</module>
         <module>packages/server/platform-observability</module>
         <module>packages/server/platform-config</module>
+        <module>packages/server/platform-notification</module>
         <!-- 平台超管服务模块（Phase P-2 — 超管 CRUD / 审计 / 租户视图） -->
         <module>packages/server/platform-admin</module>
     </modules>
@@ -215,6 +217,11 @@
             <dependency>
                 <groupId>io.brix.platform</groupId>
                 <artifactId>platform-config</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-notification</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -336,6 +343,11 @@
                             </manifest>
                         </archive>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>

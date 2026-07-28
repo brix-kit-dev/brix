@@ -134,6 +134,16 @@ public interface TenantMemberRepository extends JpaRepository<TenantMember, Long
     Optional<TenantMember> findOwnerByTenantId(@Param("tenantId") Long tenantId);
 
     /**
+     * Checks whether a tenant already has an active OWNER.
+     *
+     * @param tenantId tenant id
+     * @return true when an active OWNER exists
+     */
+    @Query("SELECT CASE WHEN COUNT(tm) > 0 THEN true ELSE false END FROM TenantMember tm "
+            + "WHERE tm.tenantId = :tenantId AND tm.memberType = 'OWNER' AND tm.status = 'ACTIVE'")
+    boolean existsActiveOwnerByTenantId(@Param("tenantId") Long tenantId);
+
+    /**
      * Finds all admins of a tenant (OWNER and ADMIN types).
      *
      * @param tenantId the tenant ID

@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brix.io/schemas/platform-operational.schema.json",
+  "title": "Brix Platform Operational Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "moduleKind", "runtime", "internalContracts", "privileges", "endpoints", "tasks"],
+  "properties": {
+    "apiVersion": { "const": "brix.io/platform-operational/v1" },
+    "kind": { "const": "PlatformOperationalModule" },
+    "moduleKind": { "const": "platform-operational" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "owner"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$" },
+        "version": { "$ref": "#/$defs/semver" },
+        "owner": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supportedRange"],
+      "properties": {
+        "supportedRange": { "$ref": "#/$defs/brixRange" }
+      }
+    },
+    "internalContracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provides", "requires"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/providedContract" }
+        },
+        "requires": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/requiredContract" }
+        }
+      }
+    },
+    "privileges": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowlist"],
+      "properties": {
+        "allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{2,127}$" }
+        }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provides"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/endpoint" }
+        }
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provides"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/task" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "brixRange": {
+      "type": "string",
+      "pattern": "^(?:[0-9]+\\.[0-9]+\\.[0-9]+|(?:>=|>)[0-9]+\\.[0-9]+\\.[0-9]+ (?:<|<=)[0-9]+\\.[0-9]+\\.[0-9]+)$"
+    },
+    "providedContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractId", "contractType", "contractVersion", "providerId", "owner"],
+      "properties": {
+        "contractId": { "type": "string", "minLength": 1 },
+        "contractType": { "type": "string", "pattern": "^[A-Za-z_$][A-Za-z0-9_$.]*$" },
+        "contractVersion": { "$ref": "#/$defs/semver" },
+        "providerId": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 }
+      }
+    },
+    "requiredContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractId", "contractType", "versionRange", "required", "privilegeAllowlistRef"],
+      "properties": {
+        "contractId": { "type": "string", "minLength": 1 },
+        "contractType": { "type": "string", "pattern": "^[A-Za-z_$][A-Za-z0-9_$.]*$" },
+        "versionRange": { "$ref": "#/$defs/brixRange" },
+        "required": { "type": "boolean" },
+        "privilegeAllowlistRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "schemaRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaRef"],
+      "properties": { "schemaRef": { "type": "string", "minLength": 1 } }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpointId", "transport", "method", "path", "request", "response", "handlerId", "authentication", "authorization", "tenantContext", "timeout", "idempotency"],
+      "properties": {
+        "endpointId": { "type": "string", "minLength": 1 },
+        "transport": { "const": "http" },
+        "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+        "path": { "type": "string", "pattern": "^/api/platform(?:/.*)?$" },
+        "request": { "$ref": "#/$defs/schemaRef" },
+        "response": { "$ref": "#/$defs/schemaRef" },
+        "handlerId": { "type": "string", "minLength": 1 },
+        "authentication": { "$ref": "#/$defs/policy" },
+        "authorization": { "$ref": "#/$defs/policy" },
+        "tenantContext": { "$ref": "#/$defs/policy" },
+        "timeout": { "$ref": "#/$defs/policy" },
+        "idempotency": { "$ref": "#/$defs/policy" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": ["string", "boolean", "array"] }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "handlerId", "scopePolicyRef", "executionIdentityPolicyRef", "triggerPolicyRef", "timeoutPolicyRef", "concurrencyPolicyRef", "retryPolicyRef", "idempotencyPolicyRef"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "handlerId": { "type": "string", "minLength": 1 },
+        "scopePolicyRef": { "type": "string", "minLength": 1 },
+        "executionIdentityPolicyRef": { "type": "string", "minLength": 1 },
+        "triggerPolicyRef": { "type": "string", "minLength": 1 },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "concurrencyPolicyRef": { "type": "string", "minLength": 1 },
+        "retryPolicyRef": { "type": "string", "minLength": 1 },
+        "idempotencyPolicyRef": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

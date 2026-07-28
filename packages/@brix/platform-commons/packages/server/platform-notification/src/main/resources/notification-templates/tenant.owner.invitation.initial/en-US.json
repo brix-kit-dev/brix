@@ -1,0 +1,5 @@
+{
+  "subject": "Accept your Brix tenant owner invitation",
+  "body": "Hello,\n\nUse the link below to accept the tenant owner invitation:\n{{inviteUrl}}\n\nThis link is single-use and expires shortly.",
+  "variables": ["inviteUrl"]
+}

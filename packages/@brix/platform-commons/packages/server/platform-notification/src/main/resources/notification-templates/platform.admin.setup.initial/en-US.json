@@ -1,0 +1,5 @@
+{
+  "subject": "Complete your Brix platform admin setup",
+  "body": "Hello,\n\nUse the link below to set your password and bind MFA:\n{{setupUrl}}\n\nThis link is single-use and expires shortly.",
+  "variables": ["setupUrl"]
+}

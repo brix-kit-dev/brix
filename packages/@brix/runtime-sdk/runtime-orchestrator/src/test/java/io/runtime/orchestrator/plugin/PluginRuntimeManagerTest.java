@@ -28,6 +28,10 @@ import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
+import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.event.EventReliability;
+import io.runtime.sdk.event.IntegrationEvent;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
@@ -97,6 +101,85 @@ class PluginRuntimeManagerTest {
         assertThrows(PluginRuntimeException.class, manager::start);
         assertFalse(manager.ready());
         assertEquals(PluginLifecycleState.STOPPED, manager.states().get(0).lifecycleState());
+    }
+
+    @Test
+    void reliableEventPublisherWithoutOutboxFailsBeforeStart() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        DefaultCapabilityRegistry registry = eventBusRegistry();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .requiredCapabilities(List.of(EventBusCapability.class.getName()))
+                .eventPublication("TenantFirstOwnerAccepted", "1.0.0", EventReliability.CRITICAL)
+                .build()),
+            registry,
+            List.of("plugin-a"));
+
+        assertThrows(PluginRuntimeException.class, manager::start);
+        assertFalse(plugin.started);
+        assertFalse(manager.ready());
+    }
+
+    @Test
+    void reliableEventPublisherRequiresEventBusCapabilityDeclaration() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        DefaultCapabilityRegistry registry = eventBusRegistry();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("platform_tenant", "platform_tenant_outbox", "platform_tenant_inbox")
+                .eventPublication("TenantFirstOwnerAccepted", "1.0.0", EventReliability.CRITICAL)
+                .build()),
+            registry,
+            List.of("plugin-a"));
+
+        assertThrows(PluginRuntimeException.class, manager::start);
+        assertFalse(plugin.started);
+        assertFalse(manager.ready());
+    }
+
+    @Test
+    void reliableEventPublisherStartsWhenPolicyAndCapabilityAreReady() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        DefaultCapabilityRegistry registry = eventBusRegistry();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .requiredCapabilities(List.of(EventBusCapability.class.getName()))
+                .data("platform_tenant", "platform_tenant_outbox", "platform_tenant_inbox")
+                .eventPublication("TenantFirstOwnerAccepted", "1.0.0", EventReliability.CRITICAL)
+                .build()),
+            registry,
+            List.of("plugin-a"));
+
+        manager.start();
+
+        assertTrue(plugin.started);
+        assertTrue(manager.ready());
+    }
+
+    @Test
+    void eventSubscriberWithoutInboxFailsBeforeStart() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("platform_tenant", "platform_tenant_outbox", "")
+                .eventSubscription(
+                    "tenant-first-owner-projection",
+                    "TenantFirstOwnerAccepted",
+                    ">=1.0.0 <2.0.0",
+                    "tenant-first-owner-projection.v1",
+                    "event-standard",
+                    "persistent-inbox")
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        assertThrows(PluginRuntimeException.class, manager::start);
+        assertFalse(plugin.started);
+        assertFalse(manager.ready());
     }
 
     @Test
@@ -187,6 +270,26 @@ class PluginRuntimeManagerTest {
         assertEquals("ok", dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of()));
     }
 
+    @Test
+    void pluginHandlerBindingWaitsUntilAfterHostB2Preparation() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.endpointId = "tenant.list";
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .endpoint("tenant.list", "GET", "/api/v1/tenants", "tenant:admin:read")
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        manager.prepare();
+
+        assertFalse(plugin.configured);
+        assertEquals(1, manager.preparedRouteDeclarations().size());
+        manager.startPrepared();
+        assertTrue(plugin.configured);
+    }
+
     private PluginRuntimeManager manager(
             List<BrixPlugin> plugins,
             Map<BrixPlugin, PluginRuntimeDescriptor> descriptors,
@@ -202,9 +305,24 @@ class PluginRuntimeManagerTest {
     interface TestCapability {
     }
 
+    private static DefaultCapabilityRegistry eventBusRegistry() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        registry.register(EventBusCapability.class, new EventBusCapability() {
+            @Override
+            public void publish(DomainEvent event) {
+            }
+
+            @Override
+            public void publishIntegration(IntegrationEvent event) {
+            }
+        });
+        return registry;
+    }
+
     static final class RecordingPlugin implements BrixPlugin {
 
         private boolean started;
+        private boolean configured;
         private boolean stopped;
         private boolean failOnStart;
         private BrixHealth health = BrixHealth.up();
@@ -212,6 +330,7 @@ class PluginRuntimeManagerTest {
 
         @Override
         public void configure(PluginBootstrapContext bootstrap) {
+            configured = true;
             if (endpointId != null) {
                 bootstrap.bindEndpoint(endpointId, request -> "ok");
             }

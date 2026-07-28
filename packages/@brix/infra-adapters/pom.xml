@@ -78,6 +78,7 @@
         <jackson.version>2.16.1</jackson.version>
         <slf4j.version>2.0.9</slf4j.version>
         <flyway.version>11.8.0</flyway.version>
+        <maven-surefire-plugin.version>3.2.3</maven-surefire-plugin.version>
     </properties>
 
     <modules>
@@ -94,6 +95,7 @@
         <module>packages/server/infra-adapter-dataaccess</module>
         <module>packages/server/infra-adapter-config</module>
         <module>packages/server/infra-adapter-resilience</module>
+        <module>packages/server/infra-adapter-email-smtp</module>
     </modules>
 
     <dependencyManagement>
@@ -146,6 +148,16 @@
             <dependency>
                 <groupId>io.brix</groupId>
                 <artifactId>infra-adapter-resilience</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>infra-adapter-email-smtp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-notification</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -204,6 +216,11 @@
                             </goals>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>

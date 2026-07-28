@@ -1,0 +1,58 @@
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: platform-tenant
+  name: platform-tenant
+  version: 3.2.0
+  displayName: Platform Tenant Data Owner
+  vendor: Brix Platform
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.2.0
+  supportedRange: ">=3.0.10 <4.0.0"
+modules:
+  - groupId: io.brix.platform
+    artifactId: platform-tenant
+    version: 3.2.0
+    moduleKind: plugin-server
+routes: []
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.EventBusCapability
+      version: ">=3.0.10 <4.0.0"
+  optional:
+    - id: io.runtime.sdk.capability.NotificationCapability
+      version: ">=3.2.0 <4.0.0"
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes:
+    - id: TenantFirstOwnerAccepted
+      version: 1.0.0
+      reliability: CRITICAL
+  subscribes: []
+internalContracts:
+  provides:
+    - contractId: brix.internal.tenant.administration
+      contractType: io.brix.platform.tenant.internal.TenantAdministration
+      contractVersion: 1.0.0
+      providerId: platform-tenant.internal.tenant-administration
+      owner: platform-tenant
+  requires: []
+data:
+  storageId: platform_tenant
+  schema: platform-tenant
+  migrationLocation: db/migration/platform-tenant
+  outbox: platform_tenant_outbox
+  inbox: platform_tenant_inbox
+permissions:
+  - id: platform:tenant:create
+  - id: platform:tenant:first-owner-invite
+config: []
+ui:
+  web:
+    enabled: false

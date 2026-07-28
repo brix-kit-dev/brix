@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.manifest.validation.PluginManifestValidator;
+import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.BrixPlugin;
 
 /**
@@ -190,9 +191,28 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                 .queryHandlers(contractIds(manifest.getQueries() != null
                     ? manifest.getQueries().getProvides() : List.of()))
                 .commandHandlers(contractIds(manifest.getCommands() != null
-                    ? manifest.getCommands().getProvides() : List.of()))
-                .eventHandlers(contractIds(manifest.getEvents() != null
-                    ? manifest.getEvents().getSubscribes() : List.of()));
+                    ? manifest.getCommands().getProvides() : List.of()));
+            if (manifest.getData() != null) {
+                builder.data(
+                    manifest.getData().getStorageId(),
+                    manifest.getData().getOutbox(),
+                    manifest.getData().getInbox());
+            }
+            if (manifest.getEvents() != null) {
+                for (PluginManifest.EventPublish publish : manifest.getEvents().getPublishes()) {
+                    builder.eventPublication(publish.getId(), publish.getVersion(),
+                        EventReliability.valueOf(publish.getReliability()));
+                }
+                for (PluginManifest.EventSubscribe subscribe : manifest.getEvents().getSubscribes()) {
+                    builder.eventSubscription(
+                        subscribe.getSubscriptionId(),
+                        subscribe.getEventType(),
+                        subscribe.getSchemaRange(),
+                        subscribe.getHandlerId(),
+                        subscribe.getRetryPolicyRef(),
+                        subscribe.getIdempotencyPolicyRef());
+                }
+            }
             for (PluginManifest.Route route : manifest.getRoutes()) {
                 if (route != null && route.getId() != null && !route.getId().isBlank()) {
                     builder.endpoint(route.getId(), route.getMethod(), route.getPath(), route.getAccessPolicy());

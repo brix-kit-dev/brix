@@ -36,6 +36,10 @@ public class RuntimeShellBootstrapProperties {
      * Composition-required backend plugin ids.
      */
     private List<String> requiredPlugins = new ArrayList<>();
+    private List<String> requiredOperationalModules = new ArrayList<>();
+    private String runtimeVersion = "3.2.0";
+    private HostMode hostMode = HostMode.EMBEDDED;
+    private int fatalExitCode = 70;
 
     /**
      * Maximum endpoint handling duration in milliseconds.
@@ -61,6 +65,80 @@ public class RuntimeShellBootstrapProperties {
     }
 
     /**
+     * Returns Composition-required platform operational module ids.
+     *
+     * @return required operational module ids
+     */
+    public List<String> getRequiredOperationalModules() {
+        return requiredOperationalModules;
+    }
+
+    /**
+     * Sets Composition-required platform operational module ids.
+     *
+     * @param requiredOperationalModules required operational module ids
+     */
+    public void setRequiredOperationalModules(List<String> requiredOperationalModules) {
+        this.requiredOperationalModules = requiredOperationalModules != null
+            ? requiredOperationalModules
+            : new ArrayList<>();
+    }
+
+    /**
+     * Returns the exact L2B Runtime version used for descriptor matching.
+     *
+     * @return Runtime version
+     */
+    public String getRuntimeVersion() {
+        return runtimeVersion;
+    }
+
+    /**
+     * Sets the exact L2B Runtime version.
+     *
+     * @param runtimeVersion Runtime version
+     */
+    public void setRuntimeVersion(String runtimeVersion) {
+        this.runtimeVersion = runtimeVersion;
+    }
+
+    /**
+     * Returns the Host execution mode.
+     *
+     * @return Host mode
+     */
+    public HostMode getHostMode() {
+        return hostMode;
+    }
+
+    /**
+     * Sets the Host execution mode.
+     *
+     * @param hostMode Host mode
+     */
+    public void setHostMode(HostMode hostMode) {
+        this.hostMode = hostMode;
+    }
+
+    /**
+     * Returns the non-zero Standalone/Local fatal exit code.
+     *
+     * @return fatal exit code
+     */
+    public int getFatalExitCode() {
+        return fatalExitCode;
+    }
+
+    /**
+     * Sets the Standalone/Local fatal exit code.
+     *
+     * @param fatalExitCode non-zero exit code
+     */
+    public void setFatalExitCode(int fatalExitCode) {
+        this.fatalExitCode = fatalExitCode;
+    }
+
+    /**
      * Returns maximum endpoint handling duration.
      *
      * @return endpoint deadline in milliseconds
@@ -76,5 +154,17 @@ public class RuntimeShellBootstrapProperties {
      */
     public void setEndpointDeadlineMillis(long endpointDeadlineMillis) {
         this.endpointDeadlineMillis = endpointDeadlineMillis;
+    }
+
+    /**
+     * Supported Host process ownership modes.
+     */
+    public enum HostMode {
+        /** Standalone process owned by the Runtime Shell wrapper. */
+        STANDALONE,
+        /** Embedded container whose owner observes the fatal future. */
+        EMBEDDED,
+        /** Local developer process with Standalone fatal semantics. */
+        LOCAL
     }
 }

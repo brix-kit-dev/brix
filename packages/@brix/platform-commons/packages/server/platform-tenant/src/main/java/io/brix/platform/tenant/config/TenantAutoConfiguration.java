@@ -15,6 +15,7 @@
  */
 package io.brix.platform.tenant.config;
 
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
@@ -51,12 +52,17 @@ import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
 import io.brix.platform.tenant.repository.PlatformAdminRepository;
+import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
+import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantConfigRepository;
+import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.service.AuditService;
 import io.brix.platform.tenant.service.AuditServiceImpl;
+import io.brix.platform.tenant.service.FirstOwnerInvitationService;
+import io.brix.platform.tenant.service.TenantAdministrationService;
 import io.brix.platform.tenant.service.TenantConfigCapabilityImpl;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
@@ -64,6 +70,7 @@ import io.brix.platform.tenant.service.TenantSettingsService;
 import io.brix.platform.tenant.service.TenantSettingsServiceImpl;
 import io.runtime.sdk.capability.TenantCapability;
 import io.runtime.sdk.capability.TenantConfigCapability;
+import io.runtime.sdk.capability.NotificationCapability;
 
 /**
  * Auto-configuration for multi-tenant infrastructure.
@@ -326,6 +333,63 @@ public class TenantAutoConfiguration {
             identityRepository,
             idGenerator
         );
+    }
+
+    /**
+     * Creates the FIRST_OWNER invitation workflow service.
+     *
+     * @param invitationRepository tenant invitation repository
+     * @param tenantRepository tenant repository
+     * @param tenantMemberRepository tenant member repository
+     * @param installationQuotaRepository installation quota repository
+     * @param bizUserProfileRepository profile repository
+     * @param outboxRepository canonical outbox repository
+     * @param notificationCapabilityProvider managed notification capability provider
+     * @param idGenerator ID generator
+     * @return configured FIRST_OWNER invitation service
+     */
+    @Bean
+    @ConditionalOnMissingBean(FirstOwnerInvitationService.class)
+    public FirstOwnerInvitationService firstOwnerInvitationService(
+            TenantInvitationRepository invitationRepository,
+            TenantRepository tenantRepository,
+            TenantMemberRepository tenantMemberRepository,
+            InstallationQuotaRepository installationQuotaRepository,
+            BizUserProfileRepository bizUserProfileRepository,
+            PlatformTenantOutboxRepository outboxRepository,
+            TenantAuditLogRepository auditLogRepository,
+            ObjectProvider<NotificationCapability> notificationCapabilityProvider,
+            IdGenerator idGenerator,
+            ObjectMapper objectMapper) {
+        return new FirstOwnerInvitationService(
+            invitationRepository,
+            tenantRepository,
+            tenantMemberRepository,
+            installationQuotaRepository,
+            bizUserProfileRepository,
+            outboxRepository,
+            auditLogRepository,
+            Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
+            idGenerator,
+            objectMapper);
+    }
+
+    /**
+     * Registers the TenantAdministration internal contract implementation owned
+     * by platform-tenant.
+     *
+     * @param tenantProvisioningService tenant provisioning service
+     * @param firstOwnerInvitationService FIRST_OWNER invitation service
+     * @return internal contract implementation
+     */
+    @Bean
+    @ConditionalOnMissingBean(io.brix.platform.tenant.internal.TenantAdministration.class)
+    public io.brix.platform.tenant.internal.TenantAdministration tenantAdministration(
+            TenantProvisioningService tenantProvisioningService,
+            FirstOwnerInvitationService firstOwnerInvitationService) {
+        return new TenantAdministrationService(
+            tenantProvisioningService,
+            firstOwnerInvitationService);
     }
 
     /**

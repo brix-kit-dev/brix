@@ -22,15 +22,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks an {@link IntegrationEvent} subclass as <em>critical</em>, indicating that
- * it requires guaranteed delivery via the Outbox pattern.
+ * Legacy marker for an {@link IntegrationEvent} subclass that documents a critical
+ * delivery intent.
  *
- * <p>When an event class is annotated with {@code @CriticalEvent}, the infrastructure
- * layer's AOP aspect automatically routes calls to
- * {@link io.runtime.sdk.capability.EventBusCapability#publishIntegration(IntegrationEvent)}
- * through the transactional Outbox publisher instead of the default Kafka fire-and-forget
- * path.  This ensures at-least-once delivery with full data-consistency guarantees
- * (business data and event record are committed in the same database transaction).</p>
+ * <p>This annotation is not the source of truth for reliable delivery. Under the
+ * v3.0.10 Runtime Shell baseline, CRITICAL/STANDARD/BEST_EFFORT is declared in
+ * {@code META-INF/brix/plugin-manifest.yaml} and enforced by L2B Runtime startup
+ * validation. Adapter or AOP behavior must not infer reliability from this
+ * annotation alone.</p>
  *
  * <h3>Usage</h3>
  * <pre>{@code
@@ -41,16 +40,15 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <h3>Architecture Alignment</h3>
- * <p>This annotation resides in <em>Layer 2A — Contract Layer</em>
- * ({@code runtime-sdk-api}).  The AOP interception that honours it lives in
- * <em>Layer 2C — Infra Adapter</em> ({@code infra-adapter-kafka-outbox}).
- * Plugins only need to annotate their event classes; no direct dependency on
- * the Outbox module is required (R13.4 compliance).</p>
+ * <p>This annotation resides in <em>Layer 2A - Contract Layer</em>
+ * ({@code runtime-sdk-api}) for backward compatibility. Plugins must still
+ * publish through {@link io.runtime.sdk.capability.EventBusCapability} and must
+ * not depend on Outbox, Relay, broker, or adapter implementation types.</p>
  *
  * <h3>Incremental Adoption</h3>
- * <p>Existing events that are <strong>not</strong> annotated remain unaffected and
- * continue to use the default publish path.  Teams can adopt {@code @CriticalEvent}
- * incrementally by annotating business-critical events one at a time.</p>
+ * <p>Existing events that are <strong>not</strong> annotated remain unaffected.
+ * Teams must adopt reliable delivery by updating the plugin manifest and the
+ * Runtime-managed publish path.</p>
  *
  * @author Brix Platform Team
  * @since 3.2.0
@@ -62,10 +60,10 @@ import java.lang.annotation.Target;
 public @interface CriticalEvent {
 
     /**
-     * Whether this event must go through the Outbox pattern for guaranteed delivery.
+     * Whether this event documents an outbox requirement.
      *
-     * <p>Defaults to {@code true}.  Setting to {@code false} effectively disables
-     * Outbox routing while keeping the annotation as documentation intent.</p>
+     * <p>Defaults to {@code true}. This value is compatibility metadata only and
+     * must not override the active plugin manifest reliability declaration.</p>
      *
      * @return {@code true} if Outbox routing is required
      */

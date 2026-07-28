@@ -40,14 +40,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
-import io.brix.platform.tenant.entity.BizUserProfile;
 import io.brix.platform.tenant.entity.InstallationQuota;
 import io.brix.platform.tenant.entity.Organization;
 import io.brix.platform.tenant.entity.Tenant;
-import io.brix.platform.tenant.entity.TenantMember;
-import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.enums.TenantStatus;
-import io.brix.platform.tenant.exception.InvalidReferenceException;
 import io.brix.platform.tenant.exception.QuotaExceededException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.IdentityRepository;
@@ -136,33 +132,26 @@ class TenantProvisioningServiceTest {
             CrossTenantAccess annotation = method.getAnnotation(CrossTenantAccess.class);
 
             assertNotNull(annotation);
-            assertEquals("BRIX-ARCH-3.1.3-TENANT-PROVISIONING", annotation.approval());
+            assertEquals("BRX-TENANT-OWNER-004-PHASE3", annotation.approval());
             assertFalse(annotation.readOnly());
-            assertTrue(annotation.reason().contains("first OWNER/Profile"));
+            assertTrue(annotation.reason().contains("FIRST_OWNER/Profile creation is deferred"));
         }
 
         @Test
-        @DisplayName("should create tenant with all related entities")
-        void shouldCreateTenantWithAllRelatedEntities() {
+        @DisplayName("should create pending tenant without owner member or profile")
+        void shouldCreatePendingTenantWithoutOwnerMemberOrProfile() {
             // Given
             Long tenantId = 1001L;
-            Long memberId = 2001L;
-            Long profileId = 2501L;
             Long orgId = 3001L;
-            Long ownerIdentityId = 100L;
 
             CreateTenantRequest request = CreateTenantRequest.builder()
                 .code("acme-corp")
                 .name("Acme Corporation")
-                .ownerIdentityId(ownerIdentityId)
                 .build();
 
             when(tenantRepository.existsByCode("acme-corp")).thenReturn(false);
-            when(identityRepository.existsById(ownerIdentityId)).thenReturn(true);
-            when(idGenerator.nextId()).thenReturn(tenantId, memberId, profileId, orgId);
+            when(idGenerator.nextId()).thenReturn(tenantId, orgId);
             when(tenantRepository.save(any(Tenant.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(tenantMemberRepository.save(any(TenantMember.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(bizUserProfileRepository.save(any(BizUserProfile.class))).thenAnswer(inv -> inv.getArgument(0));
             when(organizationRepository.save(any(Organization.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -180,23 +169,8 @@ class TenantProvisioningServiceTest {
             assertEquals("{}", result.getBusinessHours());
             assertEquals("{}", result.getSettings());
 
-            // Verify tenant member created
-            ArgumentCaptor<TenantMember> memberCaptor = ArgumentCaptor.forClass(TenantMember.class);
-            verify(tenantMemberRepository).save(memberCaptor.capture());
-            TenantMember savedMember = memberCaptor.getValue();
-            assertEquals(memberId, savedMember.getId());
-            assertEquals(tenantId, savedMember.getTenantId());
-            assertEquals(ownerIdentityId, savedMember.getIdentityId());
-            assertEquals(TenantMemberType.OWNER, savedMember.getMemberType());
-
-            // Verify owner profile created
-            ArgumentCaptor<BizUserProfile> profileCaptor = ArgumentCaptor.forClass(BizUserProfile.class);
-            verify(bizUserProfileRepository).save(profileCaptor.capture());
-            BizUserProfile savedProfile = profileCaptor.getValue();
-            assertEquals(profileId, savedProfile.getId());
-            assertEquals(tenantId, savedProfile.getTenantId());
-            assertEquals(memberId, savedProfile.getMemberId());
-            assertEquals("{}", savedProfile.getPreferences());
+            verify(tenantMemberRepository, never()).save(any());
+            verify(bizUserProfileRepository, never()).save(any());
 
             // Verify organization created
             ArgumentCaptor<Organization> orgCaptor = ArgumentCaptor.forClass(Organization.class);
@@ -215,7 +189,6 @@ class TenantProvisioningServiceTest {
             CreateTenantRequest request = CreateTenantRequest.builder()
                 .code("existing-code")
                 .name("Test Company")
-                .ownerIdentityId(100L)
                 .build();
 
             when(tenantRepository.existsByCode("existing-code")).thenReturn(true);
@@ -231,25 +204,22 @@ class TenantProvisioningServiceTest {
         }
 
         @Test
-        @DisplayName("should throw exception when owner identity not found")
-        void shouldThrowWhenOwnerIdentityNotFound() {
+        @DisplayName("should reject legacy owner identity field")
+        void shouldRejectLegacyOwnerIdentityField() {
             // Given
-            Long nonExistentIdentityId = 999L;
             CreateTenantRequest request = CreateTenantRequest.builder()
                 .code("new-tenant")
                 .name("Test Company")
-                .ownerIdentityId(nonExistentIdentityId)
+                .ownerIdentityId(999L)
                 .build();
 
-            when(tenantRepository.existsByCode("new-tenant")).thenReturn(false);
-            when(identityRepository.existsById(nonExistentIdentityId)).thenReturn(false);
-
             // When & Then
-            assertThrows(
-                InvalidReferenceException.class,
+            IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
                 () -> service.createTenant(request)
             );
 
+            assertTrue(exception.getMessage().contains("FIRST_OWNER invitation"));
             verify(tenantRepository, never()).save(any());
         }
 
@@ -260,22 +230,18 @@ class TenantProvisioningServiceTest {
             CreateTenantRequest request = CreateTenantRequest.builder()
                 .code("unique-test")
                 .name("Unique ID Test")
-                .ownerIdentityId(100L)
                 .build();
 
             when(tenantRepository.existsByCode(any())).thenReturn(false);
-            when(identityRepository.existsById(any())).thenReturn(true);
-            when(idGenerator.nextId()).thenReturn(1L, 2L, 3L, 4L); // Four different IDs
+            when(idGenerator.nextId()).thenReturn(1L, 2L);
             when(tenantRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(tenantMemberRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(bizUserProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
             when(organizationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             // When
             service.createTenant(request);
 
-            // Then - idGenerator.nextId() should be called exactly 4 times
-            verify(idGenerator, times(4)).nextId();
+            // Then - tenant and root organization each receive one generated id.
+            verify(idGenerator, times(2)).nextId();
         }
     }
 
@@ -304,7 +270,6 @@ class TenantProvisioningServiceTest {
             CreateTenantRequest request = CreateTenantRequest.builder()
                 .code(null)
                 .name("Test Company")
-                .ownerIdentityId(100L)
                 .build();
 
             // When & Then
@@ -321,7 +286,6 @@ class TenantProvisioningServiceTest {
             CreateTenantRequest request = CreateTenantRequest.builder()
                 .code("")
                 .name("Test Company")
-                .ownerIdentityId(100L)
                 .build();
 
             // When & Then
@@ -338,7 +302,6 @@ class TenantProvisioningServiceTest {
             CreateTenantRequest request = CreateTenantRequest.builder()
                 .code("test-code")
                 .name(null)
-                .ownerIdentityId(100L)
                 .build();
 
             // When & Then
@@ -348,22 +311,6 @@ class TenantProvisioningServiceTest {
             );
         }
 
-        @Test
-        @DisplayName("should throw exception for null owner identity ID")
-        void shouldThrowForNullOwnerIdentityId() {
-            // Given
-            CreateTenantRequest request = CreateTenantRequest.builder()
-                .code("test-code")
-                .name("Test Company")
-                .ownerIdentityId(null)
-                .build();
-
-            // When & Then
-            assertThrows(
-                IllegalArgumentException.class,
-                () -> service.createTenant(request)
-            );
-        }
     }
 
     // =========================================================================

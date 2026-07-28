@@ -31,7 +31,7 @@ import io.runtime.sdk.annotation.Since;
  * <ul>
  *   <li>Publish domain events (within module)</li>
  *   <li>Publish integration events (cross-module/cross-system)</li>
- *   <li>Event persistence guarantee (Outbox pattern)</li>
+ *   <li>Delegate reliability policy to Runtime Shell using the active plugin manifest</li>
  * </ul>
  *
  * <h3>Event Types</h3>
@@ -44,8 +44,11 @@ import io.runtime.sdk.annotation.Since;
  * <h3>Design Constraints</h3>
  * <ul>
  *   <li><b>No Subscribe Method</b>: Subscriptions are declared in module-manifest.yaml</li>
- *   <li><b>Infrastructure Transparent</b>: Modules don't know if events go to Kafka/HTTP/Memory</li>
- *   <li><b>At-Least-Once Delivery</b>: Consumers must implement idempotent handling</li>
+ *   <li><b>Infrastructure Transparent</b>: Modules do not know if events use outbox,
+ *       inbox, a broker, webhooks, or in-process dispatch</li>
+ *   <li><b>Manifest Driven Reliability</b>: CRITICAL/STANDARD/BEST_EFFORT is declared
+ *       in {@code META-INF/brix/plugin-manifest.yaml}, not on a Java annotation or
+ *       broker adapter</li>
  * </ul>
  *
  * <h3>Usage Example</h3>
@@ -110,13 +113,14 @@ public interface EventBusCapability {
      *
      * <h4>Delivery Guarantees</h4>
      * <ul>
-     *   <li>At-Least-Once delivery</li>
-     *   <li>Uses Outbox pattern for transactional consistency</li>
-     *   <li>Consumers must implement idempotent handling</li>
+     *   <li>CRITICAL and STANDARD events require transactional outbox and persistent inbox</li>
+     *   <li>BEST_EFFORT events may be delivered without an at-least-once promise</li>
+     *   <li>Runtime Shell must fail fast when the manifest declaration and publish path disagree</li>
      * </ul>
      *
      * <h4>Ordering Guarantees</h4>
-     * <p>Events with the same routingKey are delivered in order via Kafka Partition Key.</p>
+     * <p>Events with the same partition key may be ordered by the selected Runtime
+     * transport policy. Brix does not declare global ordering.</p>
      *
      * @param event The integration event to publish, must not be null
      * @throws IllegalArgumentException if event is null

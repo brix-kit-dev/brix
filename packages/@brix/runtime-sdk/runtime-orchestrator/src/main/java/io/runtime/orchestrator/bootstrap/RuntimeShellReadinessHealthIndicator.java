@@ -23,6 +23,7 @@ import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.health.Status;
 
 import io.runtime.orchestrator.plugin.PluginRuntimeState;
+import io.runtime.orchestrator.operational.OperationalModuleRuntimeState;
 
 /**
  * Actuator health indicator that maps Runtime Shell readiness to Host readiness.
@@ -63,6 +64,11 @@ public final class RuntimeShellReadinessHealthIndicator implements HealthIndicat
         return builder
             .withDetail("runtimeShellReady", bootstrap.ready())
             .withDetail("plugins", pluginStates)
+            .withDetail(
+                "operationalModules",
+                bootstrap.operationalStates().stream()
+                    .map(RuntimeShellReadinessHealthIndicator::operationalState)
+                    .toList())
             .build();
     }
 
@@ -73,5 +79,15 @@ public final class RuntimeShellReadinessHealthIndicator implements HealthIndicat
             "ready", state.ready(),
             "health", state.health().status().name(),
             "detail", state.detail());
+    }
+
+    private static Map<String, Object> operationalState(OperationalModuleRuntimeState state) {
+        return Map.of(
+            "moduleId", state.identity().moduleId(),
+            "lifecycle", state.lifecycleState().name(),
+            "entriesPublished", state.entriesPublished(),
+            "ready", state.ready(),
+            "health", state.health().status().name(),
+            "diagnosticCode", state.diagnosticCode());
     }
 }

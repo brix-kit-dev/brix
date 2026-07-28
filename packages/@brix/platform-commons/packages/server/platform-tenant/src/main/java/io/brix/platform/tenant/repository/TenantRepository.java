@@ -20,9 +20,12 @@ import io.brix.platform.tenant.enums.TenantStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
@@ -135,4 +138,14 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
      * @return page of matching tenants
      */
     Page<Tenant> findByStatus(TenantStatus status, Pageable pageable);
+
+    /**
+     * Locks one tenant row for lifecycle changes.
+     *
+     * @param id tenant id
+     * @return tenant when present
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Tenant t WHERE t.id = :id")
+    Optional<Tenant> findByIdForUpdate(@Param("id") Long id);
 }

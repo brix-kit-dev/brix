@@ -22,7 +22,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 /**
  * Red Line 13: Cross-Service Event Consistency (Transactional Outbox)
  * 
- * <p><b>Core Objective</b>: Prohibit plugins from bypassing {@code EventBusCapability} to directly operate messaging middleware.
+ * <p><b>Core Objective</b>: Prohibit plugins from bypassing {@code EventBusCapability}
+ * to directly operate messaging middleware or Outbox/Relay implementations.
  * 
  * <p>Ensures plugin code does not bypass the unified entry point to send messages directly, preventing the following issues:
  * <ul>
@@ -34,7 +35,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * <p>Correct approach:
  * <ul>
  *   <li>Publish events through EventBusCapability.publish()</li>
- *   <li>Host layer decides whether to use Outbox based on event annotations/configuration</li>
+ *   <li>Runtime Shell decides reliability from the active plugin manifest</li>
+ *   <li>Plugins never import Outbox repositories, Relay, broker SDKs, or adapter types</li>
  * </ul>
  * 
  * <p><b>Event Reliability Classification</b> (Outbox is not required for all scenarios):
@@ -140,6 +142,44 @@ public class OutboxConsistencyRule {
     }
 
     /**
+     * Prohibit plugins from depending on Outbox or Relay implementation packages.
+     *
+     * <p>Manifest reliability is an L2B startup policy. Plugin code may publish
+     * facts through EventBusCapability, but must not import repositories,
+     * relay workers, persistence mappers, or adapter-owned outbox types.</p>
+     */
+    public static ArchRule noDirectOutboxImplementationDependency() {
+        return noClasses()
+            .that().resideInAPackage("..core..")
+            .should().dependOnClassesThat()
+            .resideInAnyPackage(
+                "io.infra.adapter.outbox..",
+                "io.runtime.orchestrator.outbox..",
+                "io.runtime.orchestrator.event..")
+            .because("A-10/M1: plugins must not depend on Outbox, Relay, dispatcher, or adapter implementation")
+            .allowEmptyShould(true);
+    }
+
+    /**
+     * Prohibit plugins from depending on broker SDK packages.
+     */
+    public static ArchRule noBrokerSdkDependencies() {
+        return noClasses()
+            .that().resideInAPackage("..core..")
+            .should().dependOnClassesThat()
+            .resideInAnyPackage(
+                "org.apache.kafka..",
+                "org.springframework.kafka..",
+                "com.rabbitmq.client..",
+                "org.springframework.amqp.rabbit..",
+                "org.springframework.cloud.stream..",
+                "jakarta.jms..",
+                "javax.jms..")
+            .because("A-10/M1: plugins must publish through EventBusCapability and never import broker SDKs")
+            .allowEmptyShould(true);
+    }
+
+    /**
      * Validate all Outbox rules
      */
     public static void check(JavaClasses classes) {
@@ -149,5 +189,7 @@ public class OutboxConsistencyRule {
         noDirectRabbitConnectionUsage().check(classes);
         noDirectStreamBridgeUsage().check(classes);
         noDirectJmsTemplateUsage().check(classes);
+        noDirectOutboxImplementationDependency().check(classes);
+        noBrokerSdkDependencies().check(classes);
     }
 }

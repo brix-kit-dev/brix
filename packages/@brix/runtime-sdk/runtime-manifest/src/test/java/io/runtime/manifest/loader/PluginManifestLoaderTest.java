@@ -57,6 +57,41 @@ class PluginManifestLoaderTest {
             .hasMessageContaining("Secret config entries must not declare defaults");
     }
 
+    @Test
+    void loadsReliableEventPublishDeclaration() {
+        var manifest = loader.loadFromString(reliablePublisherManifest());
+
+        assertThat(manifest.getEvents().getPublishes())
+            .extracting("id")
+            .containsExactly("TenantFirstOwnerAccepted");
+        assertThat(manifest.getEvents().getPublishes().get(0).getReliability())
+            .isEqualTo("CRITICAL");
+    }
+
+    @Test
+    void rejectsPublishedEventWithoutReliability() {
+        assertThatThrownBy(() -> loader.loadFromString(reliablePublisherManifest()
+                .replace("      reliability: CRITICAL\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("events.publishes[0].reliability");
+    }
+
+    @Test
+    void rejectsReliablePublishedEventWithoutOutbox() {
+        assertThatThrownBy(() -> loader.loadFromString(reliablePublisherManifest()
+                .replace("  outbox: platform_tenant_outbox\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("CRITICAL/STANDARD event publishers must declare data.outbox");
+    }
+
+    @Test
+    void rejectsSubscribedEventWithoutInbox() {
+        assertThatThrownBy(() -> loader.loadFromString(subscriberManifest()
+                .replace("  inbox: platform_tenant_inbox\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("Event subscribers must declare data.inbox");
+    }
+
     private String validManifest() {
         return """
             apiVersion: brix.io/v1
@@ -90,5 +125,42 @@ class PluginManifestLoaderTest {
               publishes: []
               subscribes: []
             """;
+    }
+
+    private String reliablePublisherManifest() {
+        return validManifest().replace(
+            "events:\n  publishes: []\n  subscribes: []\n",
+            """
+            events:
+              publishes:
+                - id: TenantFirstOwnerAccepted
+                  version: 1.0.0
+                  reliability: CRITICAL
+              subscribes: []
+            data:
+              storageId: platform_tenant
+              outbox: platform_tenant_outbox
+              inbox: platform_tenant_inbox
+            """);
+    }
+
+    private String subscriberManifest() {
+        return validManifest().replace(
+            "events:\n  publishes: []\n  subscribes: []\n",
+            """
+            events:
+              publishes: []
+              subscribes:
+                - subscriptionId: tenant-first-owner-projection
+                  eventType: TenantFirstOwnerAccepted
+                  schemaRange: ">=1.0.0 <2.0.0"
+                  handlerId: tenant-first-owner-projection.v1
+                  retryPolicyRef: event-standard
+                  idempotencyPolicyRef: persistent-inbox
+            data:
+              storageId: platform_tenant
+              outbox: platform_tenant_outbox
+              inbox: platform_tenant_inbox
+            """);
     }
 }

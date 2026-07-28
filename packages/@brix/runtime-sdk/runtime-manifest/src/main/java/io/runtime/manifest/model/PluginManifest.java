@@ -43,6 +43,7 @@ public class PluginManifest {
     private ContractSection queries;
     private ContractSection commands;
     private EventSection events;
+    private InternalContractSection internalContracts;
     private List<ExternalService> externalServices = new ArrayList<>();
     private DataSection data;
     private List<Permission> permissions = new ArrayList<>();
@@ -127,6 +128,14 @@ public class PluginManifest {
 
     public void setEvents(EventSection events) {
         this.events = events;
+    }
+
+    public InternalContractSection getInternalContracts() {
+        return internalContracts;
+    }
+
+    public void setInternalContracts(InternalContractSection internalContracts) {
+        this.internalContracts = internalContracts;
     }
 
     public List<ExternalService> getExternalServices() {
@@ -508,23 +517,125 @@ public class PluginManifest {
      * Event declarations.
      */
     public static class EventSection {
-        private List<ContractRef> publishes = new ArrayList<>();
-        private List<ContractRef> subscribes = new ArrayList<>();
+        private List<EventPublish> publishes = new ArrayList<>();
+        private List<EventSubscribe> subscribes = new ArrayList<>();
 
-        public List<ContractRef> getPublishes() {
+        public List<EventPublish> getPublishes() {
             return publishes;
         }
 
-        public void setPublishes(List<ContractRef> publishes) {
+        public void setPublishes(List<EventPublish> publishes) {
             this.publishes = publishes != null ? publishes : new ArrayList<>();
         }
 
-        public List<ContractRef> getSubscribes() {
+        public List<EventSubscribe> getSubscribes() {
             return subscribes;
         }
 
-        public void setSubscribes(List<ContractRef> subscribes) {
+        public void setSubscribes(List<EventSubscribe> subscribes) {
             this.subscribes = subscribes != null ? subscribes : new ArrayList<>();
+        }
+    }
+
+    /**
+     * Published integration event declaration.
+     */
+    public static class EventPublish {
+        private String id;
+        private String schema;
+        private String version;
+        private String reliability;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public String getSchema() {
+            return schema;
+        }
+
+        public void setSchema(String schema) {
+            this.schema = schema;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public void setVersion(String version) {
+            this.version = version;
+        }
+
+        public String getReliability() {
+            return reliability;
+        }
+
+        public void setReliability(String reliability) {
+            this.reliability = reliability;
+        }
+    }
+
+    /**
+     * Subscribed integration event declaration.
+     */
+    public static class EventSubscribe {
+        private String subscriptionId;
+        private String eventType;
+        private String schemaRange;
+        private String handlerId;
+        private String retryPolicyRef;
+        private String idempotencyPolicyRef;
+
+        public String getSubscriptionId() {
+            return subscriptionId;
+        }
+
+        public void setSubscriptionId(String subscriptionId) {
+            this.subscriptionId = subscriptionId;
+        }
+
+        public String getEventType() {
+            return eventType;
+        }
+
+        public void setEventType(String eventType) {
+            this.eventType = eventType;
+        }
+
+        public String getSchemaRange() {
+            return schemaRange;
+        }
+
+        public void setSchemaRange(String schemaRange) {
+            this.schemaRange = schemaRange;
+        }
+
+        public String getHandlerId() {
+            return handlerId;
+        }
+
+        public void setHandlerId(String handlerId) {
+            this.handlerId = handlerId;
+        }
+
+        public String getRetryPolicyRef() {
+            return retryPolicyRef;
+        }
+
+        public void setRetryPolicyRef(String retryPolicyRef) {
+            this.retryPolicyRef = retryPolicyRef;
+        }
+
+        public String getIdempotencyPolicyRef() {
+            return idempotencyPolicyRef;
+        }
+
+        public void setIdempotencyPolicyRef(String idempotencyPolicyRef) {
+            this.idempotencyPolicyRef = idempotencyPolicyRef;
         }
     }
 
@@ -609,6 +720,132 @@ public class PluginManifest {
 
         public void setInbox(String inbox) {
             this.inbox = inbox;
+        }
+    }
+
+    /**
+     * Internal contract declarations for Data Owner providers.
+     */
+    public static class InternalContractSection {
+        private List<ProvidedInternalContract> provides = new ArrayList<>();
+        private List<RequiredInternalContract> requires = new ArrayList<>();
+
+        public List<ProvidedInternalContract> getProvides() {
+            return provides;
+        }
+
+        public void setProvides(List<ProvidedInternalContract> provides) {
+            this.provides = provides != null ? provides : new ArrayList<>();
+        }
+
+        public List<RequiredInternalContract> getRequires() {
+            return requires;
+        }
+
+        public void setRequires(List<RequiredInternalContract> requires) {
+            this.requires = requires != null ? requires : new ArrayList<>();
+        }
+    }
+
+    /**
+     * Provided internal contract declaration.
+     */
+    public static class ProvidedInternalContract {
+        private String contractId;
+        private String contractType;
+        private String contractVersion;
+        private String providerId;
+        private String owner;
+
+        public String getContractId() {
+            return contractId;
+        }
+
+        public void setContractId(String contractId) {
+            this.contractId = contractId;
+        }
+
+        public String getContractType() {
+            return contractType;
+        }
+
+        public void setContractType(String contractType) {
+            this.contractType = contractType;
+        }
+
+        public String getContractVersion() {
+            return contractVersion;
+        }
+
+        public void setContractVersion(String contractVersion) {
+            this.contractVersion = contractVersion;
+        }
+
+        public String getProviderId() {
+            return providerId;
+        }
+
+        public void setProviderId(String providerId) {
+            this.providerId = providerId;
+        }
+
+        public String getOwner() {
+            return owner;
+        }
+
+        public void setOwner(String owner) {
+            this.owner = owner;
+        }
+    }
+
+    /**
+     * Required internal contract declaration.
+     */
+    public static class RequiredInternalContract {
+        private String contractId;
+        private String contractType;
+        private String versionRange;
+        private Boolean required;
+        private String privilegeAllowlistRef;
+
+        public String getContractId() {
+            return contractId;
+        }
+
+        public void setContractId(String contractId) {
+            this.contractId = contractId;
+        }
+
+        public String getContractType() {
+            return contractType;
+        }
+
+        public void setContractType(String contractType) {
+            this.contractType = contractType;
+        }
+
+        public String getVersionRange() {
+            return versionRange;
+        }
+
+        public void setVersionRange(String versionRange) {
+            this.versionRange = versionRange;
+        }
+
+        public Boolean getRequired() {
+            return required;
+        }
+
+        public void setRequired(Boolean required) {
+            this.required = required;
+        }
+
+        public String getPrivilegeAllowlistRef() {
+            return privilegeAllowlistRef;
+        }
+
+        public void setPrivilegeAllowlistRef(String privilegeAllowlistRef) {
+            this.privilegeAllowlistRef = privilegeAllowlistRef;
         }
     }
 

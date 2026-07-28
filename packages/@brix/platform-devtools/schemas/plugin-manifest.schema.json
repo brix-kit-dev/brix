@@ -44,6 +44,9 @@
     "events": {
       "$ref": "#/definitions/eventSection"
     },
+    "internalContracts": {
+      "$ref": "#/definitions/internalContractSection"
+    },
     "externalServices": {
       "type": "array",
       "items": {
@@ -229,16 +232,74 @@
         "publishes": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/contractRef"
+            "$ref": "#/definitions/eventPublish"
           },
           "default": []
         },
         "subscribes": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/contractRef"
+            "$ref": "#/definitions/eventSubscribe"
           },
           "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "eventPublish": {
+      "type": "object",
+      "required": ["id", "version", "reliability"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema": {
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/definitions/semver"
+        },
+        "reliability": {
+          "type": "string",
+          "enum": ["CRITICAL", "STANDARD", "BEST_EFFORT"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "eventSubscribe": {
+      "type": "object",
+      "required": [
+        "subscriptionId",
+        "eventType",
+        "schemaRange",
+        "handlerId",
+        "retryPolicyRef",
+        "idempotencyPolicyRef"
+      ],
+      "properties": {
+        "subscriptionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "eventType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schemaRange": {
+          "$ref": "#/definitions/range"
+        },
+        "handlerId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryPolicyRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "idempotencyPolicyRef": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false
@@ -287,6 +348,78 @@
         },
         "authPolicyRef": {
           "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "internalContractSection": {
+      "type": "object",
+      "required": ["provides", "requires"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/providedInternalContract"
+          },
+          "default": []
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/requiredInternalContract"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "providedInternalContract": {
+      "type": "object",
+      "required": ["contractId", "contractType", "contractVersion", "providerId", "owner"],
+      "properties": {
+        "contractId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractVersion": {
+          "$ref": "#/definitions/semver"
+        },
+        "providerId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "requiredInternalContract": {
+      "type": "object",
+      "required": ["contractId", "contractType", "versionRange", "required", "privilegeAllowlistRef"],
+      "properties": {
+        "contractId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "versionRange": {
+          "$ref": "#/definitions/range"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "privilegeAllowlistRef": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false

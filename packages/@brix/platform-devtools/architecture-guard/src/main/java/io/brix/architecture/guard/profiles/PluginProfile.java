@@ -247,4 +247,13 @@ public class PluginProfile {
     /** Plugins must not use JmsTemplate directly */
     @ArchTest
     static final ArchRule noDirectJmsTemplateUsage = OutboxConsistencyRule.noDirectJmsTemplateUsage();
+
+    /** Plugins must not depend on Outbox or Relay implementation packages */
+    @ArchTest
+    static final ArchRule noDirectOutboxImplementationDependency =
+            OutboxConsistencyRule.noDirectOutboxImplementationDependency();
+
+    /** Plugins must not depend on broker SDK packages */
+    @ArchTest
+    static final ArchRule noBrokerSdkDependencies = OutboxConsistencyRule.noBrokerSdkDependencies();
 }

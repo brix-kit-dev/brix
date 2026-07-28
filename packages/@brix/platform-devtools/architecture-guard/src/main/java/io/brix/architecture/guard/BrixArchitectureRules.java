@@ -23,6 +23,7 @@ import io.brix.architecture.guard.profiles.CommonsProfile;
 import io.brix.architecture.guard.profiles.CoreProfileV2;
 import io.brix.architecture.guard.profiles.HostProfile;
 import io.brix.architecture.guard.profiles.PluginProfile;
+import io.brix.architecture.guard.profiles.OperationalProfile;
 import io.brix.architecture.guard.profiles.SdkProfile;
 
 /**
@@ -151,5 +152,14 @@ public final class BrixArchitectureRules {
      */
     public static ArchTests commonsProfile() {
         return ArchTests.in(CommonsProfile.class);
+    }
+
+    /**
+     * Platform operational module rules for A-25/A-26.
+     *
+     * @return operational rule set
+     */
+    public static ArchTests operationalProfile() {
+        return ArchTests.in(OperationalProfile.class);
     }
 }

@@ -6,30 +6,29 @@
 
     <!--
     ============================================================================
-    Platform Admin — 平台超级管理员服务模块
+    Platform Admin — 平台运维模块
     ============================================================================
 
     【模块说明 / Module Description】
-    本模块实现 v2.0 平台超管最小实现蓝图中的平台级能力：
-    独立平台登录、setup-link 初始化、TOTP 校验、超管授权管理、
-    租户生命周期视图和审计查询。
+    本模块实现 v3.0.10 运行壳基线下的 platform-admin operational entry：
+    通过 ServiceLoader<PlatformOperationalModule> 和 platform-operational.yaml
+    声明平台运维入口，业务事实写入只经 Data Owner internal contract。
 
     【架构层次 / Architecture Layer】
-    Layer 2C: 能力实现层（平台自治，无租户上下文）
+    Layer 2B: Platform Operational Module（平台运维面，无租户上下文）
 
     【架构红线 / Architectural Red Lines (SSOT §11)】
     R-1: 本模块绝对禁止依赖任何 enterprise-* 模块。
     R-2: enterprise-solutions 绝对禁止将本模块加入依赖。
-    R-3: 所有端点必须使用 @RequirePermission(PlatformPermissions.XXX)，
-         禁止使用角色名字符串进行权限判断。
+    R-3: 所有端点必须由 platform-operational.yaml 声明具体 permission policy。
     R-12: API 响应绝对禁止携带明文密码、setup token、setup URL 或 MFA secret。
 
     【Route Prefix / 路由前缀】
     所有端点统一使用 /api/platform/** 前缀，与租户业务路由隔离。
 
-    【Auto-Configuration】
-    META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
-    → io.brix.platform.admin.config.PlatformAdminAutoConfiguration
+    【Runtime Entry】
+    META-INF/services/io.runtime.orchestrator.operational.PlatformOperationalModule
+    → io.brix.platform.admin.operational.PlatformAdminOperationalModule
 
     ============================================================================
     -->
@@ -52,27 +51,9 @@
              ================================================================ -->
 
         <!--
-            platform-auth: PlatformPermissions, AuditAction, RoleCode,
-            @RequirePermission, AuthenticatedUser, SecurityContextHolder.
-        -->
-        <dependency>
-            <groupId>io.brix.platform</groupId>
-            <artifactId>platform-auth</artifactId>
-        </dependency>
-
-        <!--
-            platform-auth-servlet: SecurityContextFilter (required for
-            @RequirePermission AOP to find AuthenticatedUser in thread-local).
-        -->
-        <dependency>
-            <groupId>io.brix.platform</groupId>
-            <artifactId>platform-auth-servlet</artifactId>
-        </dependency>
-
-        <!--
-            platform-tenant: PlatformAdmin / Identity / Tenant entities,
-            PlatformAdminRepository, IdentityRepository, TenantRepository,
-            AuditService, IdentityTenantCapability.
+            platform-tenant: current repository-local home of the
+            TenantAdministration internal contract API. platform-admin main
+            code may import only io.brix.platform.tenant.internal.*.
         -->
         <dependency>
             <groupId>io.brix.platform</groupId>
@@ -80,47 +61,34 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Runtime SDK API: AuthFlowCapability (login delegation), PasswordCapability -->
+        <!-- Runtime SDK API: EndpointInvocation and BrixHealth contracts. -->
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
 
-        <!-- ================================================================
-             Spring Boot — Web & Validation
-             ================================================================ -->
-
+        <!-- Runtime Orchestrator: L2B operational SPI. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
+        <!-- DTO validation annotations. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-mail</artifactId>
-        </dependency>
-
-        <!-- Auto-configuration support -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Jackson (JSON serialization for response DTOs) -->
+        <!-- Jackson annotations and DTO tests. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- ================================================================
@@ -128,8 +96,14 @@
              ================================================================ -->
 
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
 

@@ -68,7 +68,13 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     public void replaceSnapshot(Collection<EndpointRoute> routes) {
         Objects.requireNonNull(routes, "routes must not be null");
         List<EndpointRoute> normalized = List.copyOf(routes);
-        ensureNoRouteConflicts(normalized);
+        EndpointRouteValidator.validate(normalized.stream()
+            .map(route -> new EndpointRouteDeclaration(
+                route.pluginId(),
+                route.endpointId(),
+                route.method(),
+                route.path()))
+            .toList());
         snapshot.set(normalized);
     }
 
@@ -163,29 +169,6 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             return new String[0];
         }
         return normalized.substring(1).split("/");
-    }
-
-    private static void ensureNoRouteConflicts(List<EndpointRoute> routes) {
-        Map<String, EndpointRoute> seen = new LinkedHashMap<>();
-        for (EndpointRoute route : routes) {
-            String key = route.method() + " " + canonicalTemplate(route.path());
-            EndpointRoute existing = seen.putIfAbsent(key, route);
-            if (existing != null) {
-                throw new EndpointDispatchException("Duplicate Runtime Shell endpoint route: " + key
-                    + " from " + existing.pluginId() + "/" + existing.endpointId()
-                    + " and " + route.pluginId() + "/" + route.endpointId());
-            }
-        }
-    }
-
-    private static String canonicalTemplate(String path) {
-        String[] parts = splitPath(path);
-        for (int i = 0; i < parts.length; i++) {
-            if (parts[i].startsWith("{") && parts[i].endsWith("}")) {
-                parts[i] = "{}";
-            }
-        }
-        return "/" + String.join("/", parts);
     }
 
     private static String normalizeMethod(String method) {

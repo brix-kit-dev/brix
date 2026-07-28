@@ -1,0 +1,5 @@
+{
+  "subject": "完成 Brix 平台管理员初始化",
+  "body": "您好，\n\n请使用以下链接设置密码并绑定 MFA：\n{{setupUrl}}\n\n该链接只能使用一次，并会在短时间后过期。",
+  "variables": ["setupUrl"]
+}

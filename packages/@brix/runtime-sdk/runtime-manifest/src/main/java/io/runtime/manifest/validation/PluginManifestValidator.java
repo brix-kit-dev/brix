@@ -79,10 +79,8 @@ public final class PluginManifestValidator {
             ? manifest.getCommands().getProvides() : List.of(), result);
         validateContractRefs("commands.consumes", manifest.getCommands() != null
             ? manifest.getCommands().getConsumes() : List.of(), result);
-        validateContractRefs("events.publishes", manifest.getEvents() != null
-            ? manifest.getEvents().getPublishes() : List.of(), result);
-        validateContractRefs("events.subscribes", manifest.getEvents() != null
-            ? manifest.getEvents().getSubscribes() : List.of(), result);
+        validateEvents(manifest, result);
+        validateInternalContracts(manifest.getInternalContracts(), result);
         validateRoutes(manifest, result);
         validateData(manifest.getData(), result);
         validateConfig(manifest.getConfig(), result);
@@ -171,6 +169,71 @@ public final class PluginManifestValidator {
         }
     }
 
+    private void validateEvents(PluginManifest manifest, ValidationResult result) {
+        List<PluginManifest.EventPublish> publishes = manifest.getEvents() != null
+            ? manifest.getEvents().getPublishes() : List.of();
+        List<PluginManifest.EventSubscribe> subscribes = manifest.getEvents() != null
+            ? manifest.getEvents().getSubscribes() : List.of();
+
+        boolean persistentPublisher = false;
+        Set<String> publishIds = new HashSet<>();
+        for (int i = 0; i < publishes.size(); i++) {
+            PluginManifest.EventPublish publish = publishes.get(i);
+            String prefix = "events.publishes[" + i + "]";
+            if (publish == null) {
+                result.addError(prefix, "Event publish declaration is required");
+                continue;
+            }
+            requirePresent(result, prefix + ".id", publish.getId());
+            validateSemVer(result, prefix + ".version", publish.getVersion());
+            requireReliability(result, prefix + ".reliability", publish.getReliability());
+            if (isPersistentReliability(publish.getReliability())) {
+                persistentPublisher = true;
+            }
+            if (publish.getId() != null && !publishIds.add(publish.getId())) {
+                result.addError(prefix + ".id", "Duplicate published event id: " + publish.getId());
+            }
+        }
+
+        if (persistentPublisher && !hasText(manifest.getData() != null ? manifest.getData().getOutbox() : null)) {
+            result.addError("data.outbox", "CRITICAL/STANDARD event publishers must declare data.outbox");
+        }
+        if (persistentPublisher && !hasText(manifest.getData() != null ? manifest.getData().getStorageId() : null)) {
+            result.addError("data.storageId", "CRITICAL/STANDARD event publishers must declare data.storageId");
+        }
+
+        Set<String> subscriptionIds = new HashSet<>();
+        Set<String> handlerIds = new HashSet<>();
+        for (int i = 0; i < subscribes.size(); i++) {
+            PluginManifest.EventSubscribe subscribe = subscribes.get(i);
+            String prefix = "events.subscribes[" + i + "]";
+            if (subscribe == null) {
+                result.addError(prefix, "Event subscription declaration is required");
+                continue;
+            }
+            requirePresent(result, prefix + ".subscriptionId", subscribe.getSubscriptionId());
+            requirePresent(result, prefix + ".eventType", subscribe.getEventType());
+            validateRange(result, prefix + ".schemaRange", subscribe.getSchemaRange());
+            requirePresent(result, prefix + ".handlerId", subscribe.getHandlerId());
+            requirePresent(result, prefix + ".retryPolicyRef", subscribe.getRetryPolicyRef());
+            requirePresent(result, prefix + ".idempotencyPolicyRef", subscribe.getIdempotencyPolicyRef());
+            if (subscribe.getSubscriptionId() != null && !subscriptionIds.add(subscribe.getSubscriptionId())) {
+                result.addError(prefix + ".subscriptionId",
+                    "Duplicate subscription id: " + subscribe.getSubscriptionId());
+            }
+            if (subscribe.getHandlerId() != null && !handlerIds.add(subscribe.getHandlerId())) {
+                result.addError(prefix + ".handlerId", "Duplicate event handler id: " + subscribe.getHandlerId());
+            }
+        }
+
+        if (!subscribes.isEmpty() && !hasText(manifest.getData() != null ? manifest.getData().getInbox() : null)) {
+            result.addError("data.inbox", "Event subscribers must declare data.inbox");
+        }
+        if (!subscribes.isEmpty() && !hasText(manifest.getData() != null ? manifest.getData().getStorageId() : null)) {
+            result.addError("data.storageId", "Event subscribers must declare data.storageId");
+        }
+    }
+
     private void validateRoutes(PluginManifest manifest, ValidationResult result) {
         Set<String> ids = new HashSet<>();
         for (int i = 0; i < manifest.getRoutes().size(); i++) {
@@ -218,6 +281,52 @@ public final class PluginManifestValidator {
         }
     }
 
+    private void validateInternalContracts(
+            PluginManifest.InternalContractSection contracts,
+            ValidationResult result) {
+        if (contracts == null) {
+            return;
+        }
+        Set<String> providedIds = new HashSet<>();
+        for (int i = 0; i < contracts.getProvides().size(); i++) {
+            PluginManifest.ProvidedInternalContract provided = contracts.getProvides().get(i);
+            String prefix = "internalContracts.provides[" + i + "]";
+            if (provided == null) {
+                result.addError(prefix, "Provided internal contract is required");
+                continue;
+            }
+            requirePresent(result, prefix + ".contractId", provided.getContractId());
+            requirePresent(result, prefix + ".contractType", provided.getContractType());
+            validateSemVer(result, prefix + ".contractVersion", provided.getContractVersion());
+            requirePresent(result, prefix + ".providerId", provided.getProviderId());
+            requirePresent(result, prefix + ".owner", provided.getOwner());
+            if (provided.getContractId() != null && !providedIds.add(provided.getContractId())) {
+                result.addError(prefix + ".contractId", "Duplicate internal contract id: "
+                    + provided.getContractId());
+            }
+        }
+        Set<String> requiredIds = new HashSet<>();
+        for (int i = 0; i < contracts.getRequires().size(); i++) {
+            PluginManifest.RequiredInternalContract required = contracts.getRequires().get(i);
+            String prefix = "internalContracts.requires[" + i + "]";
+            if (required == null) {
+                result.addError(prefix, "Required internal contract is required");
+                continue;
+            }
+            requirePresent(result, prefix + ".contractId", required.getContractId());
+            requirePresent(result, prefix + ".contractType", required.getContractType());
+            validateRange(result, prefix + ".versionRange", required.getVersionRange());
+            if (required.getRequired() == null) {
+                result.addError(prefix + ".required", "Value is required");
+            }
+            requirePresent(result, prefix + ".privilegeAllowlistRef", required.getPrivilegeAllowlistRef());
+            if (required.getContractId() != null && !requiredIds.add(required.getContractId())) {
+                result.addError(prefix + ".contractId", "Duplicate internal contract id: "
+                    + required.getContractId());
+            }
+        }
+    }
+
     private void requireEquals(ValidationResult result, String field, String actual, String expected) {
         if (!expected.equals(actual)) {
             result.addError(field, "Expected " + expected);
@@ -234,6 +343,16 @@ public final class PluginManifestValidator {
         requirePresent(result, field, value);
         if (value != null && !value.isBlank() && !pattern.matcher(value).matches()) {
             result.addError(field, "Invalid value: " + value);
+        }
+    }
+
+    private void requireReliability(ValidationResult result, String field, String value) {
+        requirePresent(result, field, value);
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (!"CRITICAL".equals(value) && !"STANDARD".equals(value) && !"BEST_EFFORT".equals(value)) {
+            result.addError(field, "Expected one of CRITICAL, STANDARD, BEST_EFFORT");
         }
     }
 
@@ -255,5 +374,13 @@ public final class PluginManifestValidator {
 
     private boolean isSecret(String sensitivity) {
         return sensitivity != null && sensitivity.equalsIgnoreCase("secret");
+    }
+
+    private boolean isPersistentReliability(String reliability) {
+        return "CRITICAL".equals(reliability) || "STANDARD".equals(reliability);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

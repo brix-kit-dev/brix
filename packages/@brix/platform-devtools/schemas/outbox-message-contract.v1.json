@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brix.io/runtime-shell/outbox-message-contract.v1.json",
+  "title": "Brix Runtime Shell Outbox Message Contract v1",
+  "description": "M0 frozen contract evidence for reliable Integration Event and shared message substrate work. Runtime validators are introduced by later milestones.",
+  "schemaVersion": "1.0.0",
+  "authority": {
+    "rootBlueprint": "runtime-shell-3.0.10",
+    "plan": "v3.0.10-Outbox数据可靠性最小实现改造计划.md",
+    "clauses": [
+      "BRX-RS-LAYER-006",
+      "BRX-RS-MESSAGE-017",
+      "BRX-RS-MESSAGE-018",
+      "BRX-RS-MESSAGE-019",
+      "BRX-RS-MESSAGE-020",
+      "BRX-RS-MESSAGE-021",
+      "BRX-RS-MESSAGE-022",
+      "BRX-RS-MESSAGE-023",
+      "BRX-RS-MESSAGE-024",
+      "BRX-RS-MESSAGE-025",
+      "BRX-RS-MESSAGE-026",
+      "BRX-RS-MESSAGE-027",
+      "BRX-RS-MESSAGE-028",
+      "BRX-RS-MESSAGE-029",
+      "BRX-RS-DATA-008"
+    ]
+  },
+  "reliability": {
+    "levels": [
+      "CRITICAL",
+      "STANDARD",
+      "BEST_EFFORT"
+    ],
+    "durableLevels": [
+      "CRITICAL",
+      "STANDARD"
+    ],
+    "bestEffortAtLeastOnce": false
+  },
+  "messageKinds": [
+    "EVENT",
+    "COMMAND"
+  ],
+  "envelope": {
+    "requiredFields": [
+      "eventId",
+      "eventType",
+      "schemaVersion",
+      "occurredAt",
+      "producerPluginId",
+      "scope",
+      "tenantId",
+      "correlationId",
+      "causationId",
+      "traceparent",
+      "tracestate",
+      "partitionKey",
+      "payload"
+    ],
+    "scopes": [
+      "PLATFORM",
+      "TENANT"
+    ],
+    "tenantScopeRule": "TENANT requires tenantId; PLATFORM must not invent tenantId",
+    "identityRule": "Runtime constructs producerPluginId, scope, tenantId, trace and delivery context",
+    "wireTypeRule": "eventType is the public fact type; Java FQCN is not the wire SSoT",
+    "replayIdentityRule": "Relay retry and replay preserve eventId"
+  },
+  "outboxRecord": {
+    "ownerPattern": "{storage_id}_outbox",
+    "requiredFields": [
+      "message_id",
+      "message_kind",
+      "message_type",
+      "schema_version",
+      "reliability",
+      "producer_plugin_id",
+      "scope",
+      "tenant_id",
+      "partition_key",
+      "occurred_at",
+      "correlation_id",
+      "causation_id",
+      "traceparent",
+      "tracestate",
+      "payload",
+      "status",
+      "available_at",
+      "attempt_count",
+      "claim_owner",
+      "claim_until",
+      "published_at",
+      "last_error_code",
+      "created_at"
+    ],
+    "statusValues": [
+      "PENDING",
+      "IN_FLIGHT",
+      "PUBLISHED",
+      "PARKED"
+    ],
+    "reliabilityValues": [
+      "CRITICAL",
+      "STANDARD"
+    ],
+    "transportRouteRule": "Broker topic or route is resolved by L2B from Manifest and Schema Registry and is not a business contract field"
+  },
+  "inboxRecord": {
+    "ownerPattern": "{storage_id}_inbox",
+    "requiredFields": [
+      "handler_id",
+      "message_id",
+      "message_kind",
+      "message_type",
+      "schema_version",
+      "processed_at"
+    ],
+    "primaryKey": [
+      "handler_id",
+      "message_id"
+    ],
+    "transactionRule": "Inbox insert, handler side effects and resulting Outbox records commit in the same Consumer Owner local transaction"
+  },
+  "stateMachines": {
+    "outbox": [
+      "PENDING -> IN_FLIGHT",
+      "IN_FLIGHT -> PUBLISHED",
+      "IN_FLIGHT -> PENDING",
+      "IN_FLIGHT -> PARKED",
+      "IN_FLIGHT lease expired -> PENDING",
+      "PARKED audited replay -> PENDING"
+    ],
+    "inbox": [
+      "insert handler_id/message_id before handler side effects",
+      "unique conflict skips handler side effects",
+      "handler failure rolls back inbox insert"
+    ]
+  },
+  "events": {
+    "TenantFirstOwnerAccepted": {
+      "eventType": "TenantFirstOwnerAccepted",
+      "schemaVersion": "1.0.0",
+      "reliability": "CRITICAL",
+      "producerPluginId": "platform-tenant",
+      "scope": "TENANT",
+      "storageId": "platform_tenant",
+      "partitionKey": "tenantId",
+      "payloadFields": [
+        "tenantId",
+        "memberId",
+        "profileId",
+        "acceptedByIdentityId",
+        "acceptedAt",
+        "tenantStatus"
+      ],
+      "payloadRules": [
+        "tenantId, memberId, profileId and acceptedByIdentityId are required",
+        "acceptedAt is the business acceptance time",
+        "tenantStatus is the post-acceptance tenant lifecycle status"
+      ]
+    }
+  },
+  "transport": {
+    "first": "kafka",
+    "deferred": [
+      "cdc"
+    ],
+    "adapterBoundary": "Kafka is the first L2C transport mapping only; reliable policy, Outbox ownership, Relay and Inbox idempotency remain L2B and Data Owner responsibilities"
+  }
+}

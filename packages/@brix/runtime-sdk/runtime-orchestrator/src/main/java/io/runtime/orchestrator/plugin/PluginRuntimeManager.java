@@ -30,6 +30,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.plugin.BrixHealth;
@@ -37,6 +38,8 @@ import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
+import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
+import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 
 /**
@@ -62,7 +65,9 @@ public final class PluginRuntimeManager {
     private final PluginEndpointDispatcher endpointDispatcher;
     private final Consumer<BrixPlugin> pluginInitializer;
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
+    private boolean prepared;
     private boolean started;
+    private boolean entriesPublished;
 
     /**
      * Creates a runtime manager.
@@ -131,10 +136,27 @@ public final class PluginRuntimeManager {
      * @throws PluginRuntimeException if required plugin startup cannot reach readiness
      */
     public synchronized List<PluginRuntimeState> start() {
-        if (started) {
+        prepare();
+        EndpointRouteValidator.validate(preparedRouteDeclarations());
+        startPrepared();
+        endpointDispatcher.replaceSnapshot(preparedRoutes());
+        markPublished();
+        return states();
+    }
+
+    /**
+     * Executes plugin discovery and resolution while keeping Handler bindings uncreated.
+     *
+     * <p>This is the Host coordinator entry point used to preserve the B3
+     * Plugin/Operational atomic publication boundary.</p>
+     *
+     * @return immutable runtime states before publication
+     */
+    public synchronized List<PluginRuntimeState> prepare() {
+        if (prepared) {
             throw new PluginRuntimeException("Runtime Shell bootstrap has already been started in this Host process");
         }
-        started = true;
+        prepared = true;
 
         List<BrixPlugin> discovered = discovery.get();
         if (discovered == null) {
@@ -145,28 +167,101 @@ public final class PluginRuntimeManager {
         resolveDiscoveredPlugins(discovered);
         verifyRequiredProvidersPresent();
 
-        for (ManagedPlugin plugin : plugins.values()) {
-            startPlugin(plugin);
+        for (ManagedPlugin plugin : new ArrayList<>(plugins.values())) {
+            resolvePlugin(plugin);
         }
-        endpointDispatcher.replaceSnapshot(endpointRoutes());
         return states();
+    }
+
+    /**
+     * Performs wiring and startup after the Host B2 barrier accepts all declarations.
+     *
+     * @return immutable runtime states before publication
+     */
+    public synchronized List<PluginRuntimeState> startPrepared() {
+        if (!prepared || started) {
+            throw new PluginRuntimeException("Plugin Runtime is not in the prepared state");
+        }
+        started = true;
+        for (ManagedPlugin plugin : new ArrayList<>(plugins.values())) {
+            if (plugin.state.lifecycleState() == PluginLifecycleState.RESOLVED) {
+                startPlugin(plugin);
+            }
+        }
+        return states();
+    }
+
+    /**
+     * Returns prepared plugin routes for global Host entry reservation.
+     *
+     * @return immutable routes
+     */
+    public synchronized List<EndpointRoute> preparedRoutes() {
+        return endpointRoutes();
+    }
+
+    /**
+     * Returns handler-free route declarations for the Host B2 barrier.
+     *
+     * @return immutable route declarations
+     */
+    public synchronized List<EndpointRouteDeclaration> preparedRouteDeclarations() {
+        List<EndpointRouteDeclaration> declarations = new ArrayList<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() != PluginLifecycleState.RESOLVED) {
+                continue;
+            }
+            for (PluginRuntimeDescriptor.EndpointDeclaration endpoint
+                    : plugin.descriptor.endpointDeclarations().values()) {
+                declarations.add(new EndpointRouteDeclaration(
+                    plugin.id(),
+                    endpoint.id(),
+                    endpoint.method(),
+                    endpoint.path()));
+            }
+        }
+        return List.copyOf(declarations);
+    }
+
+    /**
+     * Marks the complete plugin entry set published after a Host snapshot commit.
+     */
+    public synchronized void markPublished() {
+        if (!started || entriesPublished) {
+            throw new PluginRuntimeException("Plugin Runtime publication state is invalid");
+        }
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() != PluginLifecycleState.STARTED) {
+                continue;
+            }
+            BrixHealth health = pluginHealth(plugin);
+            plugin.state = state(plugin, PluginLifecycleState.STARTED, health.isReadyStatus(), health, health.message());
+        }
+        entriesPublished = true;
     }
 
     /**
      * Drains and stops started plugins.
      */
     public synchronized void stop() {
+        endpointDispatcher.clear();
+        entriesPublished = false;
         List<ManagedPlugin> ordered = new ArrayList<>(plugins.values());
         for (int i = ordered.size() - 1; i >= 0; i--) {
             ManagedPlugin plugin = ordered.get(i);
             if (plugin.state.lifecycleState() == PluginLifecycleState.STOPPED) {
                 continue;
             }
+            boolean runtimeResourcesCreated =
+                plugin.state.lifecycleState() == PluginLifecycleState.WIRED
+                    || plugin.state.lifecycleState() == PluginLifecycleState.STARTED
+                    || plugin.state.lifecycleState() == PluginLifecycleState.DRAINING;
             plugin.state = state(plugin, PluginLifecycleState.DRAINING, false, plugin.state.health(), "Draining plugin");
-            safeStop(plugin);
+            if (runtimeResourcesCreated) {
+                safeStop(plugin);
+            }
             plugin.state = state(plugin, PluginLifecycleState.STOPPED, false, plugin.state.health(), "Plugin stopped");
         }
-        endpointDispatcher.clear();
     }
 
     /**
@@ -175,6 +270,9 @@ public final class PluginRuntimeManager {
      * @return true when every required plugin is ready
      */
     public synchronized boolean ready() {
+        if (!entriesPublished) {
+            return requiredPluginIds.isEmpty() && plugins.isEmpty();
+        }
         for (String requiredPluginId : requiredPluginIds) {
             ManagedPlugin plugin = plugins.get(requiredPluginId);
             if (plugin == null || !plugin.state.ready()) {
@@ -223,12 +321,19 @@ public final class PluginRuntimeManager {
         }
     }
 
-    private void startPlugin(ManagedPlugin plugin) {
+    private void resolvePlugin(ManagedPlugin plugin) {
         try {
             validateRequiredCapabilities(plugin);
+            validateReliableEventDeclarations(plugin);
             plugin.state = state(plugin, PluginLifecycleState.RESOLVED, false,
                 BrixHealth.unknown("Plugin resolved"), "Plugin manifest resolved");
+        } catch (RuntimeException e) {
+            handleStartupFailure(plugin, e);
+        }
+    }
 
+    private void startPlugin(ManagedPlugin plugin) {
+        try {
             DefaultPluginBootstrapContext bootstrapContext = new DefaultPluginBootstrapContext(plugin.descriptor);
             plugin.provider.configure(bootstrapContext);
             plugin.endpointHandlers = bootstrapContext.endpoints();
@@ -237,9 +342,8 @@ public final class PluginRuntimeManager {
 
             plugin.provider.onStart(new DefaultPluginContext(plugin.descriptor, capabilityRegistry));
             BrixHealth health = pluginHealth(plugin);
-            boolean ready = health.isReadyStatus();
-            plugin.state = state(plugin, PluginLifecycleState.STARTED, ready, health, health.message());
-            if (isRequired(plugin) && !ready) {
+            plugin.state = state(plugin, PluginLifecycleState.STARTED, false, health, health.message());
+            if (isRequired(plugin) && !health.isReadyStatus()) {
                 throw new PluginRuntimeException("Required plugin '" + plugin.id()
                     + "' started but is not ready: " + health.status());
             }
@@ -258,6 +362,56 @@ public final class PluginRuntimeManager {
         if (!missing.isEmpty()) {
             throw new PluginRuntimeException("Plugin '" + plugin.id()
                 + "' is missing required capabilities: " + missing);
+        }
+    }
+
+    private void validateReliableEventDeclarations(ManagedPlugin plugin) {
+        boolean persistentPublisher = false;
+        for (PluginRuntimeDescriptor.EventPublication publication
+                : plugin.descriptor.eventPublications().values()) {
+            if (publication.id().isBlank()) {
+                throw new PluginRuntimeException("Plugin '" + plugin.id()
+                    + "' declares a blank published event id");
+            }
+            if (publication.version().isBlank()) {
+                throw new PluginRuntimeException("Plugin '" + plugin.id()
+                    + "' declares event '" + publication.id() + "' without version");
+            }
+            persistentPublisher = persistentPublisher || publication.requiresPersistentDelivery();
+        }
+
+        PluginRuntimeDescriptor.DataDeclaration data = plugin.descriptor.data();
+        if (persistentPublisher) {
+            if (data.storageId().isBlank() || data.outbox().isBlank()) {
+                throw new PluginRuntimeException("Plugin '" + plugin.id()
+                    + "' publishes CRITICAL/STANDARD events without data.storageId/data.outbox");
+            }
+            if (!plugin.descriptor.isRequiredCapability(EventBusCapability.class, capabilityRegistry)) {
+                throw new PluginRuntimeException("Plugin '" + plugin.id()
+                    + "' publishes CRITICAL/STANDARD events without required EventBusCapability declaration");
+            }
+            if (!capabilityAvailable(EventBusCapability.class.getName())) {
+                throw new PluginRuntimeException("Plugin '" + plugin.id()
+                    + "' publishes CRITICAL/STANDARD events but EventBusCapability is not registered");
+            }
+        }
+
+        if (!plugin.descriptor.eventSubscriptions().isEmpty()
+                && (data.storageId().isBlank() || data.inbox().isBlank())) {
+            throw new PluginRuntimeException("Plugin '" + plugin.id()
+                + "' subscribes to events without data.storageId/data.inbox");
+        }
+        for (PluginRuntimeDescriptor.EventSubscription subscription
+                : plugin.descriptor.eventSubscriptions().values()) {
+            if (subscription.subscriptionId().isBlank()
+                    || subscription.eventType().isBlank()
+                    || subscription.schemaRange().isBlank()
+                    || subscription.handlerId().isBlank()
+                    || subscription.retryPolicyRef().isBlank()
+                    || subscription.idempotencyPolicyRef().isBlank()) {
+                throw new PluginRuntimeException("Plugin '" + plugin.id()
+                    + "' declares incomplete event subscription policy");
+            }
         }
     }
 
@@ -284,9 +438,14 @@ public final class PluginRuntimeManager {
     }
 
     private void handleStartupFailure(ManagedPlugin plugin, RuntimeException cause) {
+        boolean providerStarted = plugin.state.lifecycleState() == PluginLifecycleState.WIRED
+            || plugin.state.lifecycleState() == PluginLifecycleState.STARTED
+            || plugin.state.lifecycleState() == PluginLifecycleState.DRAINING;
         plugin.state = state(plugin, PluginLifecycleState.FAILED, false,
             BrixHealth.down(cause.getMessage()), cause.getMessage());
-        safeStop(plugin);
+        if (providerStarted) {
+            safeStop(plugin);
+        }
         plugin.state = state(plugin, PluginLifecycleState.STOPPED, false,
             BrixHealth.down(cause.getMessage()), "Plugin stopped after startup failure");
         if (isRequired(plugin)) {

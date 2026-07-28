@@ -16,7 +16,6 @@
 package io.brix.platform.tenant.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -36,7 +35,6 @@ import java.util.Objects;
  *   <li><b>code:</b> Required, 2-64 characters, lowercase alphanumeric with hyphens,
  *       must start with letter, cannot end with hyphen</li>
  *   <li><b>name:</b> Required, 1-256 characters, display name for the tenant</li>
- *   <li><b>ownerIdentityId:</b> Required, must reference an existing identity in sys_identity</li>
  * </ul>
  *
  * <h3>Code Format Guidelines</h3>
@@ -52,8 +50,7 @@ import java.util.Objects;
  * CreateTenantRequest request = CreateTenantRequest.builder()
  *     .code("acme-corp")
  *     .name("ACME Corporation")
- *     .ownerIdentityId(12345L)
- *     .build();
+     *     .build();
  *
  * Tenant tenant = tenantProvisioningService.createTenant(request);
  * }</pre>
@@ -108,20 +105,12 @@ public class CreateTenantRequest {
     private String name;
 
     /**
-     * Identity ID of the user who will be the tenant owner.
+     * Deprecated pre-v3.0.10 owner field.
      *
-     * <p>This identity will be assigned as the OWNER member of the tenant,
-     * having full administrative privileges including:
-     * <ul>
-     *   <li>Managing tenant members</li>
-     *   <li>Configuring tenant settings</li>
-     *   <li>Creating organizations</li>
-     *   <li>Transferring ownership</li>
-     * </ul>
-     *
-     * <p>Must reference an existing record in sys_identity table.
+     * <p>New tenant creation must not create a tenant member. The first owner
+     * is established only through the FIRST_OWNER invitation workflow.
      */
-    @NotNull(message = "Owner identity ID is required")
+    @Deprecated(since = "3.2.0", forRemoval = false)
     private Long ownerIdentityId;
 
     // ========================================================================

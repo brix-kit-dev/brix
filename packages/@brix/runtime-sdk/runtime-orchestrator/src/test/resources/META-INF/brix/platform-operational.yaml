@@ -1,0 +1,37 @@
+apiVersion: brix.io/platform-operational/v1
+kind: PlatformOperationalModule
+moduleKind: platform-operational
+metadata:
+  id: runtime-test-operational
+  version: 3.2.0
+  owner: runtime-tests
+runtime:
+  supportedRange: ">=3.2.0 <4.0.0"
+internalContracts:
+  provides: []
+  requires: []
+privileges:
+  allowlist: []
+endpoints:
+  provides:
+    - endpointId: runtime.status.v1
+      transport: http
+      method: GET
+      path: /api/platform/runtime/status
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/runtime/status/1.0.0
+      handlerId: runtime.status
+      authentication:
+        mode: required
+      authorization:
+        policyRef: runtime-status-read
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
+tasks:
+  provides: []

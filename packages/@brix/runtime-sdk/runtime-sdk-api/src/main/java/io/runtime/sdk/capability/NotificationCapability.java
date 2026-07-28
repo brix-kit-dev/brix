@@ -23,4 +23,39 @@ public interface NotificationCapability {
      * @param purpose stable purpose code, for example INITIAL_SETUP or PASSWORD_RESET
      */
     void sendSetupLink(String email, String setupUrl, String purpose);
+
+    /**
+     * Sends a managed notification request.
+     *
+     * <p>The default implementation preserves binary compatibility for legacy
+     * providers that only implement {@link #sendSetupLink(String, String, String)}.
+     * It bridges the platform setup and password-reset templates to the legacy
+     * method. Providers that support the reusable notification contract should
+     * override this method.</p>
+     *
+     * @param request immutable notification request
+     */
+    default void send(NotificationRequest request) {
+        if (NotificationTemplateKeys.PLATFORM_ADMIN_SETUP_INITIAL.equals(request.templateKey())) {
+            sendSetupLink(request.recipientEmail(), requireVariable(request, "setupUrl"), "INITIAL_SETUP");
+            return;
+        }
+        if (NotificationTemplateKeys.PLATFORM_ADMIN_SETUP_PASSWORD_RESET.equals(request.templateKey())) {
+            sendSetupLink(request.recipientEmail(), requireVariable(request, "setupUrl"), "PASSWORD_RESET");
+            return;
+        }
+        throw new NotificationException(
+                NotificationException.Code.TEMPLATE_NOT_FOUND,
+                java.util.Map.of("templateKey", request.templateKey()));
+    }
+
+    private static String requireVariable(NotificationRequest request, String variableName) {
+        String value = request.variables().get(variableName);
+        if (value == null) {
+            throw new NotificationException(
+                    NotificationException.Code.REQUEST_INVALID,
+                    java.util.Map.of("field", "variables." + variableName));
+        }
+        return value;
+    }
 }

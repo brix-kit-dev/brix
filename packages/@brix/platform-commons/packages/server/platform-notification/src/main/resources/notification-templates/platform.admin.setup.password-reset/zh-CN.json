@@ -1,0 +1,5 @@
+{
+  "subject": "重置您的 Brix 平台管理员密码",
+  "body": "您好，\n\n请使用以下链接重置平台管理员密码：\n{{setupUrl}}\n\n该链接只能使用一次，并会在短时间后过期。",
+  "variables": ["setupUrl"]
+}

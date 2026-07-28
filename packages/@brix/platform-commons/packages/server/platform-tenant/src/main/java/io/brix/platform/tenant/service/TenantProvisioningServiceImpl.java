@@ -24,14 +24,10 @@ import org.springframework.util.Assert;
 import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
-import io.brix.platform.tenant.entity.BizUserProfile;
 import io.brix.platform.tenant.entity.InstallationQuota;
 import io.brix.platform.tenant.entity.Organization;
 import io.brix.platform.tenant.entity.Tenant;
-import io.brix.platform.tenant.entity.TenantMember;
-import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.enums.TenantStatus;
-import io.brix.platform.tenant.exception.InvalidReferenceException;
 import io.brix.platform.tenant.exception.QuotaExceededException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.IdentityRepository;
@@ -45,7 +41,7 @@ import jakarta.persistence.EntityNotFoundException;
  * Implementation of {@link TenantProvisioningService} for tenant lifecycle management.
  *
  * <p>This service implements the complete tenant provisioning workflow, ensuring
- * atomic creation of all required entities and proper state transitions.
+ * atomic creation of the tenant directory row and tenant-owned defaults.
  *
  * <h3>Architecture Layer</h3>
  * <p>Layer 2C: Implementation Layer - Platform Commons Service Implementation</p>
@@ -59,13 +55,9 @@ import jakarta.persistence.EntityNotFoundException;
  * <pre>
  * createTenant()
  *     │
- *     ├─► 1. Validate request (code uniqueness, owner existence)
- *     │
+ *     ├─► 1. Validate request (code uniqueness)
  *     ├─► 2. INSERT sys_tenant (status = PENDING_ACTIVATION)
- *     │
- *     ├─► 3. INSERT sys_tenant_member (member_type = OWNER)
- *     │
- *     └─► 4. INSERT sys_organization (root organization)
+ *     └─► 3. INSERT sys_organization (root organization)
  * </pre>
  *
  * <h3>ID Generation Strategy</h3>
@@ -150,7 +142,7 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
     }
 
     /**
-     * Creates a new tenant with complete provisioning workflow.
+     * Creates a new pending tenant.
      *
      * <h4>Implementation Details</h4>
      * <ol>
@@ -158,7 +150,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      *     <ul>
      *       <li>Validates request is not null</li>
      *       <li>Ensures tenant code is unique</li>
-     *       <li>Verifies owner identity exists in sys_identity</li>
      *     </ul>
      *   </li>
      *   <li><b>Tenant Creation Phase:</b>
@@ -166,13 +157,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      *       <li>Generates Snowflake ID for tenant</li>
      *       <li>Creates tenant with PENDING_ACTIVATION status</li>
      *       <li>Persists tenant entity</li>
-     *     </ul>
-     *   </li>
-     *   <li><b>Owner Membership Phase:</b>
-     *     <ul>
-     *       <li>Generates Snowflake ID for membership</li>
-     *       <li>Creates OWNER type membership linking identity to tenant</li>
-     *       <li>Persists membership entity</li>
      *     </ul>
      *   </li>
      *   <li><b>Organization Creation Phase:</b>
@@ -189,7 +173,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      * The caller should handle exceptions appropriately:
      * <ul>
      *   <li>{@code IllegalStateException} - Duplicate tenant code</li>
-     *   <li>{@code InvalidReferenceException} - Owner identity not found</li>
      *   <li>{@code DataAccessException} - Database errors</li>
      * </ul>
      *
@@ -199,8 +182,8 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
     @Override
     @Transactional
         @CrossTenantAccess(
-            reason = "Platform tenant provisioning creates the initial tenant boundary and its first OWNER/Profile before a tenant-scoped context exists.",
-            approval = "BRIX-ARCH-3.1.3-TENANT-PROVISIONING")
+            reason = "Platform tenant provisioning creates only the pending tenant boundary and root organization before a tenant-scoped context exists. FIRST_OWNER/Profile creation is deferred to the invitation acceptance transaction.",
+            approval = "BRX-TENANT-OWNER-004-PHASE3")
     public Tenant createTenant(CreateTenantRequest request) {
         // =====================================================================
         // Phase 1: Request Validation
@@ -208,26 +191,18 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
         Assert.notNull(request, "CreateTenantRequest cannot be null");
         Assert.hasText(request.getCode(), "Tenant code cannot be empty");
         Assert.hasText(request.getName(), "Tenant name cannot be empty");
-        Long ownerIdentityId = request.getOwnerIdentityId();
-        if (ownerIdentityId == null) {
-            throw new IllegalArgumentException("Owner identity ID cannot be null");
+        if (request.getOwnerIdentityId() != null) {
+            throw new IllegalArgumentException(
+                "Tenant creation no longer accepts ownerIdentityId; use FIRST_OWNER invitation");
         }
 
-        log.info("Starting tenant provisioning: code={}, name={}, ownerIdentityId={}",
-            request.getCode(), request.getName(), ownerIdentityId);
+        log.info("Starting pending tenant provisioning: code={}, name={}",
+            request.getCode(), request.getName());
 
         // Validate tenant code uniqueness
         if (tenantRepository.existsByCode(request.getCode())) {
             log.warn("Tenant code already exists: {}", request.getCode());
             throw new IllegalStateException("Tenant code already exists: " + request.getCode());
-        }
-
-        // Validate owner identity exists in sys_identity
-        if (!identityRepository.existsById(ownerIdentityId)) {
-            log.warn("Owner identity not found: {}", ownerIdentityId);
-            throw new InvalidReferenceException(
-                "Owner identity not found: " + ownerIdentityId
-            );
         }
 
         // =====================================================================
@@ -241,37 +216,7 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
         log.debug("Created tenant: id={}, code={}", tenant.getId(), tenant.getCode());
 
         // =====================================================================
-        // Phase 3: Create Owner Membership
-        // Create the OWNER membership linking the identity to the new tenant.
-        // This establishes the primary administrator relationship.
-        // =====================================================================
-        TenantMember ownerMember = new TenantMember(
-            tenant.getId(),
-            ownerIdentityId,
-            TenantMemberType.OWNER
-        );
-        ownerMember.setId(idGenerator.nextId());
-        
-        tenantMemberRepository.save(ownerMember);
-        log.debug("Created owner membership: id={}, tenantId={}, identityId={}",
-            ownerMember.getId(), tenant.getId(), ownerIdentityId);
-
-        // =====================================================================
-        // Phase 4: Create Owner Profile
-        // =====================================================================
-        BizUserProfile ownerProfile = new BizUserProfile();
-        ownerProfile.setId(idGenerator.nextId());
-        ownerProfile.setTenantId(tenant.getId());
-        ownerProfile.setMemberId(ownerMember.getId());
-        ownerProfile.setPreferences("{}");
-        ownerProfile.setExtended("{}");
-
-        bizUserProfileRepository.save(ownerProfile);
-        log.debug("Created owner profile: id={}, tenantId={}, memberId={}",
-            ownerProfile.getId(), tenant.getId(), ownerMember.getId());
-
-        // =====================================================================
-        // Phase 5: Create Default Organization
+        // Phase 3: Create Default Organization
         // Every tenant starts with a root organization named after the tenant.
         // This provides the initial organizational structure for the tenant.
         // =====================================================================

@@ -1,0 +1,100 @@
+apiVersion: brix.io/platform-operational/v1
+kind: PlatformOperationalModule
+moduleKind: platform-operational
+metadata:
+  id: platform-admin
+  version: 3.2.0
+  owner: platform-commons
+runtime:
+  supportedRange: ">=3.0.10 <4.0.0"
+internalContracts:
+  provides: []
+  requires:
+    - contractId: brix.internal.tenant.administration
+      contractType: io.brix.platform.tenant.internal.TenantAdministration
+      versionRange: ">=1.0.0 <2.0.0"
+      required: true
+      privilegeAllowlistRef: platform-admin.tenant-administration
+privileges:
+  allowlist:
+    - platform-admin.tenant-administration
+endpoints:
+  provides:
+    - endpointId: platform.tenants.create.v1
+      transport: http
+      method: POST
+      path: /api/platform/tenants
+      request:
+        schemaRef: brix://schemas/platform-admin/create-platform-tenant-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-tenant/1.0.0
+      handlerId: platform.tenants.create
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:tenant:create
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
+    - endpointId: platform.tenants.first-owner-invitations.create.v1
+      transport: http
+      method: POST
+      path: /api/platform/tenants/{tenantId}/first-owner-invitations
+      request:
+        schemaRef: brix://schemas/platform-admin/create-first-owner-invitation-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/first-owner-invitation/1.0.0
+      handlerId: platform.tenants.first-owner-invitations.create
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:tenant:first-owner-invite
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
+    - endpointId: platform.tenants.first-owner-invitations.resend.v1
+      transport: http
+      method: POST
+      path: /api/platform/tenants/{tenantId}/first-owner-invitations/resend
+      request:
+        schemaRef: brix://schemas/platform-admin/resend-first-owner-invitation-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/first-owner-invitation/1.0.0
+      handlerId: platform.tenants.first-owner-invitations.resend
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:tenant:first-owner-invite
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
+    - endpointId: platform.tenants.first-owner-invitations.revoke.v1
+      transport: http
+      method: DELETE
+      path: /api/platform/tenants/{tenantId}/first-owner-invitations/{invitationId}
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/empty/1.0.0
+      handlerId: platform.tenants.first-owner-invitations.revoke
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:tenant:first-owner-invite
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
+tasks:
+  provides: []
