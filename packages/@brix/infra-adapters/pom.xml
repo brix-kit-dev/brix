@@ -124,13 +124,6 @@
                 <version>${project.version}</version>
             </dependency>
             
-            <!-- Infra Adapter - Kafka Outbox -->
-            <dependency>
-                <groupId>io.brix</groupId>
-                <artifactId>infra-adapter-kafka-outbox</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            
             <!-- Infra Adapter - Fallback (dependency for Simple module) -->
             <dependency>
                 <groupId>io.brix</groupId>

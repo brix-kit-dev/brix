@@ -16,6 +16,8 @@
 package io.brix.architecture.guard.rules;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.lang.ArchRule;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -51,6 +53,19 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * @since 1.0.0
  */
 public class OutboxConsistencyRule {
+
+    private static final DescribedPredicate<JavaClass> LEGACY_OUTBOX_SSOT_TYPES =
+        new DescribedPredicate<>("legacy L2C Outbox SSoT types") {
+            @Override
+            public boolean test(JavaClass javaClass) {
+                String name = javaClass.getName();
+                return name.equals("io.infra.adapter.outbox.CriticalEventOutboxAspect")
+                    || name.equals("io.infra.adapter.outbox.OutboxEvent")
+                    || name.equals("io.infra.adapter.outbox.OutboxEventPublisher")
+                    || name.equals("io.infra.adapter.outbox.OutboxEventRepository")
+                    || name.equals("io.infra.adapter.outbox.config.OutboxAutoConfiguration");
+            }
+        };
 
     private OutboxConsistencyRule() {
         // Utility class
@@ -180,6 +195,18 @@ public class OutboxConsistencyRule {
     }
 
     /**
+     * Prohibit the retired Kafka Outbox AOP/global-table implementation from
+     * re-entering the production classpath.
+     */
+    public static ArchRule noLegacyL2cOutboxSsoTTypes() {
+        return noClasses()
+            .that(LEGACY_OUTBOX_SSOT_TYPES)
+            .should().resideInAnyPackage("..")
+            .because("M6 retires the Kafka AOP Outbox implementation and global table production path")
+            .allowEmptyShould(true);
+    }
+
+    /**
      * Validate all Outbox rules
      */
     public static void check(JavaClasses classes) {
@@ -191,5 +218,6 @@ public class OutboxConsistencyRule {
         noDirectJmsTemplateUsage().check(classes);
         noDirectOutboxImplementationDependency().check(classes);
         noBrokerSdkDependencies().check(classes);
+        noLegacyL2cOutboxSsoTTypes().check(classes);
     }
 }

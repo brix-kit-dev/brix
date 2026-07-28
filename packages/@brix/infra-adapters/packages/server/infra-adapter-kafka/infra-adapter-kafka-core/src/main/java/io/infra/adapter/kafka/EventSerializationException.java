@@ -19,9 +19,9 @@ package io.infra.adapter.kafka;
  * Event serialization exception.
  *
  * <p>Thrown when an event object cannot be serialized to JSON.
- * This exception is used by {@code KafkaEventBusCapability} and {@code OutboxEventPublisher}
- * during event publishing to wrap underlying Jackson serialization errors,
- * providing unified serialization failure semantics.</p>
+ * This exception is used by {@code KafkaEventBusCapability} and the canonical
+ * Kafka Outbox transport during event publishing to wrap underlying Jackson
+ * serialization errors, providing unified serialization failure semantics.</p>
  *
  * <p>Possible causes include:</p>
  * <ul>
@@ -32,8 +32,8 @@ package io.infra.adapter.kafka;
  *
  * <p>Usage locations:</p>
  * <ul>
- *   <li>{@code KafkaEventBusCapability#serializeEvent} — Kafka event publishing serialization</li>
- *   <li>{@code OutboxEventPublisher#serializePayload} — Outbox pattern event persistence serialization</li>
+ *   <li>{@code KafkaEventBusCapability#serializeEvent} - Kafka event publishing serialization</li>
+ *   <li>{@code CanonicalKafkaOutboxTransport#send} - canonical Outbox envelope serialization</li>
  * </ul>
  *
  * @author Brix Platform Team

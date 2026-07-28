@@ -31,20 +31,12 @@
 
     <name>Brix Infra Adapter - Kafka (Aggregator)</name>
     <description>
-        Kafka EventBus Adapter Aggregator Module (Open Source)
-        
-        This aggregator module contains two sub-modules:
-        - infra-adapter-kafka-core: Core Kafka EventBusCapability implementation
-        - infra-adapter-kafka-outbox: Outbox transactional event publishing extension (requires JPA)
-        
-        Architecture Notes:
-        The Outbox pattern naturally depends on Kafka publishing capability, so it is placed
-        as a sub-module of Kafka, following the "composition over isolation" pragmatic design
-        principle. Consumers can include as needed:
-        - Kafka only: include infra-adapter-kafka-core
-        - With Outbox: include infra-adapter-kafka-outbox (transitively includes core)
-        
-        Architecture Layer: Layer 2.5 - Adapter Layer (Open Source)
+        Kafka transport adapter aggregator module (Open Source).
+
+        This aggregator contains only infra-adapter-kafka-core. Transactional
+        Outbox ownership, reliability policy, relay and Inbox idempotency are
+        Runtime Shell / Owner responsibilities; Kafka remains an L2C transport
+        mapping for canonical envelopes.
     </description>
 
     <licenses>
@@ -56,7 +48,6 @@
 
     <modules>
         <module>infra-adapter-kafka-core</module>
-        <module>infra-adapter-kafka-outbox</module>
     </modules>
 
 </project>

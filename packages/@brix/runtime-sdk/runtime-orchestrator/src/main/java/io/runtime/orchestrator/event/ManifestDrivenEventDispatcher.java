@@ -60,7 +60,7 @@ import java.util.function.Function;
  * // Create dispatcher
  * ManifestDrivenEventDispatcher dispatcher = new ManifestDrivenEventDispatcher(
  *     beanFactory,      // Bean factory for getting handler instances
- *     idempotencyStore  // Idempotency store for tracking processed events
+ *     idempotencyStore  // Persistent idempotency store for processed events
  * );
  * 
  * // Register module event subscriptions
@@ -108,15 +108,6 @@ public class ManifestDrivenEventDispatcher {
             IdempotencyStore idempotencyStore) {
         this.beanFactory = Objects.requireNonNull(beanFactory, "beanFactory cannot be null");
         this.idempotencyStore = Objects.requireNonNull(idempotencyStore, "idempotencyStore cannot be null");
-    }
-
-    /**
-     * Creates a declarative event dispatcher with default in-memory idempotency store.
-     * 
-     * @param beanFactory Bean factory
-     */
-    public ManifestDrivenEventDispatcher(Function<String, Object> beanFactory) {
-        this(beanFactory, new InMemoryIdempotencyStore());
     }
 
     /**
@@ -390,21 +381,4 @@ public class ManifestDrivenEventDispatcher {
         void markProcessed(String eventId, String handlerId);
     }
 
-    /**
-     * In-Memory Idempotency Store (for testing and single-node scenarios only)
-     */
-    public static class InMemoryIdempotencyStore implements IdempotencyStore {
-        
-        private final Set<String> processedEvents = ConcurrentHashMap.newKeySet();
-        
-        @Override
-        public boolean isProcessed(String eventId, String handlerId) {
-            return processedEvents.contains(eventId + ":" + handlerId);
-        }
-        
-        @Override
-        public void markProcessed(String eventId, String handlerId) {
-            processedEvents.add(eventId + ":" + handlerId);
-        }
-    }
 }

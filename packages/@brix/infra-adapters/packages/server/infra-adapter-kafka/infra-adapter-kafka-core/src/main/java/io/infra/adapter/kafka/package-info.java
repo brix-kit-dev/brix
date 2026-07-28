@@ -15,24 +15,23 @@
  */
 
 /**
- * Kafka Event Bus Capability Implementation.
+ * Kafka Event Bus transport implementation.
  * 
- * <p>This package provides the Apache Kafka-based {@link io.runtime.sdk.capability.EventBusCapability} implementation,
- * which is one of the core components in the Runtime Shell commercial implementation layer (Layer 3: Host Layer).</p>
+ * <p>This package provides Apache Kafka based L2C adapter implementations.
+ * Kafka details stay inside this package and are not exposed to plugins.</p>
  * 
  * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.brix.runtime.kafka.KafkaEventBusCapability} - EventBus capability implementation</li>
- *   <li>{@link io.brix.runtime.kafka.EventTopicResolver} - Topic resolution</li>
- *   <li>{@link io.brix.runtime.kafka.OutboxEventPublisher} - Outbox pattern publishing</li>
- *   <li>{@link io.brix.runtime.kafka.EventConsumerRegistry} - Consumer registry</li>
+ *   <li>{@link io.infra.adapter.kafka.KafkaEventBusCapability} - EventBus capability implementation</li>
+ *   <li>{@link io.infra.adapter.kafka.EventTopicResolver} - topic resolution</li>
+ *   <li>{@link io.infra.adapter.kafka.CanonicalKafkaOutboxTransport} - canonical envelope transport</li>
  * </ul>
  * 
  * <h2>Design Principles</h2>
  * <ul>
- *   <li>Follows Runtime Shell architecture constraints, does not expose Kafka details to modules</li>
- *   <li>Supports Outbox pattern to ensure transactional consistency</li>
- *   <li>Declarative event routing based on Manifest</li>
+ *   <li>Follows Runtime Shell architecture constraints and does not expose Kafka details to modules</li>
+ *   <li>Maps canonical Outbox envelopes to Kafka records without owning reliability policy</li>
+ *   <li>Uses Manifest-derived routing supplied by Runtime Shell</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team
