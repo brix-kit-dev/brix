@@ -64,6 +64,11 @@
             <artifactId>runtime-sdk-api</artifactId>
             <version>${runtime-sdk.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${runtime-sdk.version}</version>
+        </dependency>
         <!-- ========== Spring Boot ========== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

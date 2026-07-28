@@ -89,6 +89,7 @@
         <module>packages/server/infra-adapter-minio</module>
         <module>packages/server/infra-adapter-simple</module>
         <module>packages/server/infra-adapter-webhook</module>
+        <module>packages/server/infra-adapter-outbox</module>
         <module>packages/server/infra-adapter-otel</module>
         <module>packages/server/infra-adapter-fallback</module>
         <module>packages/server/infra-adapter-idgen</module>

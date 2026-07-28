@@ -125,6 +125,11 @@
             <artifactId>runtime-sdk-api</artifactId>
             <version>3.2.0</version>
         </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-manifest</artifactId>
+            <version>3.2.0</version>
+        </dependency>
 
         <!--
         Platform Auth (optional) — used by TenantCapabilityImpl to delegate

@@ -34,7 +34,13 @@ events:
     - id: TenantFirstOwnerAccepted
       version: 1.0.0
       reliability: CRITICAL
-  subscribes: []
+  subscribes:
+    - subscriptionId: tenant-first-owner-projection
+      eventType: TenantFirstOwnerAccepted
+      schemaRange: ">=1.0.0 <2.0.0"
+      handlerId: tenant-first-owner-projection.v1
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
 internalContracts:
   provides:
     - contractId: brix.internal.tenant.administration

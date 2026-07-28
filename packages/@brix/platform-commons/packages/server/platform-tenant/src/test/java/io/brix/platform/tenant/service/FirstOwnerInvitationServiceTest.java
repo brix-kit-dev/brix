@@ -31,7 +31,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.entity.BizUserProfile;
 import io.brix.platform.tenant.entity.InstallationQuota;
-import io.brix.platform.tenant.entity.PlatformTenantOutbox;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantAuditLog;
 import io.brix.platform.tenant.entity.TenantInvitation;
@@ -42,6 +41,7 @@ import io.brix.platform.tenant.enums.InvitationPurpose;
 import io.brix.platform.tenant.enums.InvitationStatus;
 import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.enums.TenantStatus;
+import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
 import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.FirstOwnerAcceptanceResult;
@@ -49,15 +49,16 @@ import io.brix.platform.tenant.internal.FirstOwnerInvitationView;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
-import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.security.SecretHashing;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.NotificationRequest;
 import io.runtime.sdk.capability.NotificationTemplateKeys;
+import io.runtime.sdk.event.IntegrationEvent;
 
 @ExtendWith(MockitoExtension.class)
 class FirstOwnerInvitationServiceTest {
@@ -78,7 +79,7 @@ class FirstOwnerInvitationServiceTest {
     private BizUserProfileRepository profileRepository;
 
     @Mock
-    private PlatformTenantOutboxRepository outboxRepository;
+    private EventBusCapability eventBusCapability;
 
     @Mock
     private TenantAuditLogRepository auditLogRepository;
@@ -99,7 +100,7 @@ class FirstOwnerInvitationServiceTest {
             tenantMemberRepository,
             installationQuotaRepository,
             profileRepository,
-            outboxRepository,
+            eventBusCapability,
             auditLogRepository,
             Optional.of(notificationCapability),
             idGenerator,
@@ -134,7 +135,7 @@ class FirstOwnerInvitationServiceTest {
     }
 
     @Test
-    void acceptCreatesOwnerProfileActivatesTenantReservesQuotaAndWritesOutbox() {
+    void acceptCreatesOwnerProfileActivatesTenantReservesQuotaAndPublishesOwnerEvent() {
         String rawToken = "tenant-owner-token";
         TenantInvitation invitation = firstOwnerInvitation(200L, 100L, "owner@example.com", rawToken);
         Tenant tenant = pendingTenant(100L);
@@ -163,7 +164,14 @@ class FirstOwnerInvitationServiceTest {
         assertEquals(InvitationStatus.ACCEPTED, invitation.getStatus());
         verify(tenantRepository).save(tenant);
         verify(invitationRepository).save(invitation);
-        verify(outboxRepository).save(any(PlatformTenantOutbox.class));
+        ArgumentCaptor<IntegrationEvent> event = ArgumentCaptor.forClass(IntegrationEvent.class);
+        verify(eventBusCapability).publishIntegration(event.capture());
+        TenantFirstOwnerAcceptedEvent accepted = (TenantFirstOwnerAcceptedEvent) event.getValue();
+        assertEquals(100L, accepted.tenantIdValue());
+        assertEquals(300L, accepted.memberId());
+        assertEquals(400L, accepted.profileId());
+        assertEquals(200L, accepted.invitationId());
+        assertEquals("100", accepted.getRoutingKey());
         verify(auditLogRepository).save(any(TenantAuditLog.class));
     }
 
@@ -184,7 +192,7 @@ class FirstOwnerInvitationServiceTest {
         assertEquals("FIRST_OWNER_INVITATION_EMAIL_MISMATCH", failure.code());
         verify(tenantRepository, never()).save(any(Tenant.class));
         verify(tenantMemberRepository, never()).save(any(TenantMember.class));
-        verify(outboxRepository, never()).save(any(PlatformTenantOutbox.class));
+        verify(eventBusCapability, never()).publishIntegration(any(IntegrationEvent.class));
         verify(auditLogRepository, never()).save(any(TenantAuditLog.class));
     }
 

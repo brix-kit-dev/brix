@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -38,13 +39,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
-import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapRunner;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.core.SnowflakeIdGenerator;
 import io.brix.platform.tenant.decorator.TenantTaskDecorator;
 import io.brix.platform.tenant.filter.IdentityValidationFilter;
+import io.brix.platform.tenant.outbox.PlatformTenantReliableEventBusCapability;
 import io.brix.platform.tenant.repository.AuditLogRepository;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.BootstrapStateRepository;
@@ -52,6 +53,8 @@ import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
 import io.brix.platform.tenant.repository.PlatformAdminRepository;
+import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
+import io.brix.platform.tenant.repository.PlatformTenantInboxRepository;
 import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantConfigRepository;
@@ -61,13 +64,17 @@ import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.service.AuditService;
 import io.brix.platform.tenant.service.AuditServiceImpl;
+import io.brix.platform.tenant.service.FirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.FirstOwnerInvitationService;
+import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.TenantAdministrationService;
 import io.brix.platform.tenant.service.TenantConfigCapabilityImpl;
+import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
 import io.brix.platform.tenant.service.TenantSettingsService;
 import io.brix.platform.tenant.service.TenantSettingsServiceImpl;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.TenantCapability;
 import io.runtime.sdk.capability.TenantConfigCapability;
 import io.runtime.sdk.capability.NotificationCapability;
@@ -343,7 +350,7 @@ public class TenantAutoConfiguration {
      * @param tenantMemberRepository tenant member repository
      * @param installationQuotaRepository installation quota repository
      * @param bizUserProfileRepository profile repository
-     * @param outboxRepository canonical outbox repository
+     * @param platformTenantEventBusCapability owner-scoped reliable EventBus
      * @param notificationCapabilityProvider managed notification capability provider
      * @param idGenerator ID generator
      * @return configured FIRST_OWNER invitation service
@@ -356,7 +363,7 @@ public class TenantAutoConfiguration {
             TenantMemberRepository tenantMemberRepository,
             InstallationQuotaRepository installationQuotaRepository,
             BizUserProfileRepository bizUserProfileRepository,
-            PlatformTenantOutboxRepository outboxRepository,
+            @Qualifier("platformTenantEventBusCapability") EventBusCapability platformTenantEventBusCapability,
             TenantAuditLogRepository auditLogRepository,
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
             IdGenerator idGenerator,
@@ -367,11 +374,54 @@ public class TenantAutoConfiguration {
             tenantMemberRepository,
             installationQuotaRepository,
             bizUserProfileRepository,
-            outboxRepository,
+            platformTenantEventBusCapability,
             auditLogRepository,
             Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
             idGenerator,
             objectMapper);
+    }
+
+    /**
+     * Creates the owner-scoped reliable EventBus for platform-tenant producers.
+     *
+     * @param outboxRepository owner canonical outbox repository
+     * @param objectMapper JSON mapper
+     * @return owner-scoped EventBus capability
+     */
+    @Bean(name = "platformTenantEventBusCapability")
+    @ConditionalOnMissingBean(name = "platformTenantEventBusCapability")
+    public EventBusCapability platformTenantEventBusCapability(
+            PlatformTenantOutboxRepository outboxRepository,
+            ObjectMapper objectMapper) {
+        return new PlatformTenantReliableEventBusCapability(outboxRepository, objectMapper);
+    }
+
+    /**
+     * Creates the FIRST_OWNER accepted projection writer.
+     *
+     * @param projectionRepository projection side-effect repository
+     * @return projection writer
+     */
+    @Bean
+    @ConditionalOnMissingBean(FirstOwnerProjectionWriter.class)
+    public FirstOwnerProjectionWriter firstOwnerProjectionWriter(
+            PlatformTenantFirstOwnerProjectionRepository projectionRepository) {
+        return new JpaFirstOwnerProjectionWriter(projectionRepository);
+    }
+
+    /**
+     * Creates the Consumer Owner handler for {@code TenantFirstOwnerAccepted}.
+     *
+     * @param inboxRepository canonical Inbox repository
+     * @param projectionWriter projection side-effect writer
+     * @return Consumer handler service
+     */
+    @Bean
+    @ConditionalOnMissingBean(TenantFirstOwnerAcceptedProjectionService.class)
+    public TenantFirstOwnerAcceptedProjectionService tenantFirstOwnerAcceptedProjectionService(
+            PlatformTenantInboxRepository inboxRepository,
+            FirstOwnerProjectionWriter projectionWriter) {
+        return new TenantFirstOwnerAcceptedProjectionService(inboxRepository, projectionWriter);
     }
 
     /**

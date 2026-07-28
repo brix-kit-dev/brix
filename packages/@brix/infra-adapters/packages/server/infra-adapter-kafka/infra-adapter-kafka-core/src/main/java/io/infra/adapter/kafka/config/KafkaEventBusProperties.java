@@ -321,6 +321,9 @@ public class KafkaEventBusProperties {
         /** Dead-letter topic suffix appended to original topic. */
         private String dlqTopicSuffix = ".DLQ";
 
+        /** Broker publish timeout for canonical Outbox transport. */
+        private long publishTimeoutMs = 10000;
+
         // ==================== Getters & Setters ====================
 
         public int getBatchSize() { return batchSize; }
@@ -343,6 +346,9 @@ public class KafkaEventBusProperties {
 
         public String getDlqTopicSuffix() { return dlqTopicSuffix; }
         public void setDlqTopicSuffix(String dlqTopicSuffix) { this.dlqTopicSuffix = dlqTopicSuffix; }
+
+        public long getPublishTimeoutMs() { return publishTimeoutMs; }
+        public void setPublishTimeoutMs(long publishTimeoutMs) { this.publishTimeoutMs = publishTimeoutMs; }
     }
 
     /**

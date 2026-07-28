@@ -43,10 +43,12 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.infra.adapter.kafka.EventTopicResolver;
+import io.infra.adapter.kafka.CanonicalKafkaOutboxTransport;
 import io.infra.adapter.kafka.KafkaEventBusCapability;
 import io.infra.adapter.kafka.health.KafkaHealthIndicator;
 import io.infra.adapter.kafka.metrics.KafkaConsumerMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.runtime.orchestrator.outbox.OutboxTransport;
 import io.runtime.sdk.capability.EventBusCapability;
 
 /**
@@ -203,6 +205,27 @@ public class KafkaAutoConfiguration {
             @Autowired(required = false) Supplier<Optional<String>> tenantIdProvider) {
         return new KafkaEventBusCapability(
                 kafkaTemplate, topicResolver, createEventObjectMapper(), moduleId, tenantIdProvider);
+    }
+
+    /**
+     * Configures the canonical Outbox transport used by the L2B Relay.
+     *
+     * @param kafkaTemplate Kafka template
+     * @param topicResolver topic resolver
+     * @param properties Kafka configuration properties
+     * @return canonical outbox transport
+     */
+    @Bean
+    @ConditionalOnMissingBean(OutboxTransport.class)
+    public OutboxTransport kafkaOutboxTransport(
+            KafkaTemplate<String, String> kafkaTemplate,
+            EventTopicResolver topicResolver,
+            KafkaEventBusProperties properties) {
+        return new CanonicalKafkaOutboxTransport(
+            kafkaTemplate,
+            topicResolver,
+            createEventObjectMapper(),
+            java.time.Duration.ofMillis(properties.getOutbox().getPublishTimeoutMs()));
     }
 
     /**

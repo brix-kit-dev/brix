@@ -1,43 +1,28 @@
 # infra-adapter-outbox
 
-> **Status**: 🚧 WIP (Work In Progress)  
-> **Target**: v4.0  
-> **Purpose**: Transactional Outbox pattern adapter for reliable event publishing
+Broker-neutral canonical Outbox persistence mapping for Runtime Shell M3.
 
-This module will implement the **Transactional Outbox** pattern as an
-infrastructure adapter, ensuring cross-service event consistency for
-critical business events (Red Line 13 — Blueprint v3.0.9).
+## Layer
 
-## Architecture
+This module is an L2C persistence adapter. It implements the Runtime Shell
+internal `OutboxMessageStore` port with JDBC and touches only the configured
+canonical Outbox table.
 
-```text
-Plugin Domain Layer
-    ↓ publishes DomainEvent
-EventBusCapability (Layer 2A contract)
-    ↓ delegates to
-infra-adapter-outbox (this module)
-    ↓ persists to outbox table in same DB transaction
-Outbox Poller / CDC
-    ↓ relays to
-infra-adapter-kafka (Kafka producer)
-```
+## Responsibilities
 
-## Planned Implementation
+- Claim due `CRITICAL` / `STANDARD` canonical Outbox records with conditional
+  lease ownership.
+- Reclaim expired `IN_FLIGHT` leases.
+- Finalize `PUBLISHED`, release `PENDING` retries, and park exhausted or
+  permanent failures.
+- Report low-cardinality backlog, in-flight, parked, and oldest pending age
+  snapshots.
 
-- `OutboxEventPublisher` — writes events to `*_outbox` table within the
-  current transaction boundary
-- `OutboxPoller` — background task that reads unpublished events and
-  forwards them to the Kafka adapter
-- Schema: see `create-brix` template `V001__init.sql.ejs` for the
-  outbox table DDL
+## Boundaries
 
-## Dependencies
-
-- `infra-adapter-kafka` — downstream event relay
-- `infra-adapter-database` — transaction management
-- `runtime-sdk-api` — `EventBusCapability` contract
-
-## Related
-
-- Architecture Guard: `OutboxConsistencyRule.java`
-- Blueprint v3.0.9 Red Line 13: Cross-Service Event Consistency
+- Does not publish to Kafka or any broker.
+- Does not own a Data Owner schema or migration.
+- Does not read business tables.
+- Does not expose Outbox or Relay APIs to plugins.
+- Does not decide event reliability; reliability is already encoded by
+  Manifest and L2B producer policy before records are committed.

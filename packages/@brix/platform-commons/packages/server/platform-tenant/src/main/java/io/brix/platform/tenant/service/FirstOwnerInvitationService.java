@@ -13,7 +13,6 @@ import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.entity.BizUserProfile;
 import io.brix.platform.tenant.entity.InstallationQuota;
-import io.brix.platform.tenant.entity.PlatformTenantOutbox;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantAuditLog;
 import io.brix.platform.tenant.entity.TenantInvitation;
@@ -36,6 +34,7 @@ import io.brix.platform.tenant.enums.InvitationPurpose;
 import io.brix.platform.tenant.enums.InvitationStatus;
 import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.enums.TenantStatus;
+import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
 import io.brix.platform.tenant.exception.QuotaExceededException;
 import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
@@ -46,12 +45,12 @@ import io.brix.platform.tenant.internal.RevokeFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
-import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.security.SecretHashing;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.NotificationRequest;
 import io.runtime.sdk.capability.NotificationTemplateKeys;
@@ -72,7 +71,7 @@ public class FirstOwnerInvitationService {
     private final TenantMemberRepository tenantMemberRepository;
     private final InstallationQuotaRepository installationQuotaRepository;
     private final BizUserProfileRepository profileRepository;
-    private final PlatformTenantOutboxRepository outboxRepository;
+    private final EventBusCapability eventBusCapability;
     private final TenantAuditLogRepository auditLogRepository;
     private final Optional<NotificationCapability> notificationCapability;
     private final IdGenerator idGenerator;
@@ -87,7 +86,7 @@ public class FirstOwnerInvitationService {
             TenantMemberRepository tenantMemberRepository,
             InstallationQuotaRepository installationQuotaRepository,
             BizUserProfileRepository profileRepository,
-            PlatformTenantOutboxRepository outboxRepository,
+            EventBusCapability eventBusCapability,
             TenantAuditLogRepository auditLogRepository,
             Optional<NotificationCapability> notificationCapability,
             IdGenerator idGenerator,
@@ -97,7 +96,7 @@ public class FirstOwnerInvitationService {
         this.tenantMemberRepository = tenantMemberRepository;
         this.installationQuotaRepository = installationQuotaRepository;
         this.profileRepository = profileRepository;
-        this.outboxRepository = outboxRepository;
+        this.eventBusCapability = eventBusCapability;
         this.auditLogRepository = auditLogRepository;
         this.notificationCapability = notificationCapability;
         this.idGenerator = idGenerator;
@@ -235,7 +234,7 @@ public class FirstOwnerInvitationService {
         tenantRepository.save(tenant);
         invitation.accept(now);
         invitationRepository.save(invitation);
-        writeOutbox(invitation, ownerMember, profile, now);
+        publishFirstOwnerAccepted(invitation, ownerMember, profile);
         writeAudit(invitation, ownerMember, profile, now);
 
         return new FirstOwnerAcceptanceResult(
@@ -339,24 +338,15 @@ public class FirstOwnerInvitationService {
             Map.of("inviteUrl", inviteUrl)));
     }
 
-    private void writeOutbox(
+    private void publishFirstOwnerAccepted(
             TenantInvitation invitation,
             TenantMember ownerMember,
-            BizUserProfile profile,
-            OffsetDateTime now) {
-        PlatformTenantOutbox outbox = new PlatformTenantOutbox();
-        outbox.setEventId(UUID.randomUUID().toString());
-        outbox.setEventType("TenantFirstOwnerAccepted");
-        outbox.setSchemaVersion("1.0.0");
-        outbox.setTenantId(invitation.getTenantId());
-        outbox.setPartitionKey(String.valueOf(invitation.getTenantId()));
-        outbox.setOccurredAt(now);
-        outbox.setPayload(toJson(Map.of(
-            "tenantId", invitation.getTenantId(),
-            "memberId", ownerMember.getId(),
-            "profileId", profile.getId(),
-            "invitationId", invitation.getId())));
-        outboxRepository.save(outbox);
+            BizUserProfile profile) {
+        eventBusCapability.publishIntegration(new TenantFirstOwnerAcceptedEvent(
+            invitation.getTenantId(),
+            ownerMember.getId(),
+            profile.getId(),
+            invitation.getId()));
     }
 
     private void writeAudit(
