@@ -74,6 +74,9 @@ public class TenantInvitation {
     @Column(name = "platform_admin_id")
     private Long platformAdminId;
 
+    @Column(name = "platform_operator_ref", length = 128)
+    private String platformOperatorRef;
+
     @Column(name = "invitee_email", length = 255)
     private String inviteeEmail;
 
@@ -183,6 +186,14 @@ public class TenantInvitation {
 
     public void setPlatformAdminId(Long platformAdminId) {
         this.platformAdminId = platformAdminId;
+    }
+
+    public String getPlatformOperatorRef() {
+        return platformOperatorRef;
+    }
+
+    public void setPlatformOperatorRef(String platformOperatorRef) {
+        this.platformOperatorRef = platformOperatorRef;
     }
 
     public String getInviteeEmail() {

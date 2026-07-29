@@ -69,6 +69,17 @@ class PluginManifestLoaderTest {
     }
 
     @Test
+    void loadsEndpointProvidesDeclaration() {
+        var manifest = loader.loadFromString(templateEndpointManifest());
+
+        assertThat(manifest.endpointDeclarations())
+            .extracting("endpointId")
+            .containsExactly("app-booking.template.status.v1");
+        assertThat(manifest.endpointDeclarations().get(0).getHandlerId())
+            .isEqualTo("app-booking.template.status.v1");
+    }
+
+    @Test
     void rejectsPublishedEventWithoutReliability() {
         assertThatThrownBy(() -> loader.loadFromString(reliablePublisherManifest()
                 .replace("      reliability: CRITICAL\n", "")))
@@ -161,6 +172,36 @@ class PluginManifestLoaderTest {
               storageId: platform_tenant
               outbox: platform_tenant_outbox
               inbox: platform_tenant_inbox
+            """);
+    }
+
+    private String templateEndpointManifest() {
+        return validManifest().replace(
+            "capabilities:\n",
+            """
+            endpoints:
+              provides:
+                - endpointId: app-booking.template.status.v1
+                  transport: http
+                  method: GET
+                  path: /api/app-booking/v1/template/status
+                  request:
+                    schemaRef: brix://schemas/app-booking/template-status-request/1.0.0
+                  response:
+                    schemaRef: brix://schemas/app-booking/template-status-response/1.0.0
+                  handlerId: app-booking.template.status.v1
+                  authentication:
+                    mode: required
+                  authorization:
+                    permissions: [app-booking:template:read]
+                  tenantContext:
+                    mode: optional
+                  timeout:
+                    policyRef: endpoint-default
+                  idempotency:
+                    mode: not-applicable
+                  accessPolicy: app-booking-template-read
+            capabilities:
             """);
     }
 }

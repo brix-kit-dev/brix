@@ -20,7 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.io.IOException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.util.Optional;
 
@@ -59,6 +61,10 @@ class ClasspathPluginRuntimeDescriptorResolverTest {
     private static URL url(String value) {
         try {
             return new URL(null, value, new URLStreamHandler() {
+                @Override
+                protected URLConnection openConnection(URL url) throws IOException {
+                    throw new IOException("Connection is not available for synthetic test URLs");
+                }
             });
         } catch (java.net.MalformedURLException e) {
             throw new IllegalArgumentException(value, e);

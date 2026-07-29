@@ -253,7 +253,7 @@ class PlatformTenantPersistentInboxE2ETest {
             invitation.setTargetRole(TenantMemberType.OWNER);
             invitation.setInvitationPurpose(InvitationPurpose.FIRST_OWNER);
             invitation.setInviterType(InvitationInviterType.PLATFORM_ADMIN);
-            invitation.setPlatformAdminId(77L);
+            invitation.setPlatformOperatorRef("platform-identity:77");
             invitation.setInviteeEmail("owner@example.com");
             invitation.setTokenHash(SecretHashing.sha256Base64Url(rawToken));
             invitation.setStatus(InvitationStatus.PENDING);

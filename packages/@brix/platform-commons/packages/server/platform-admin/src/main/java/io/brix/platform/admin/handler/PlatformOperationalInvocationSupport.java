@@ -48,6 +48,13 @@ final class PlatformOperationalInvocationSupport {
         }
     }
 
+    static String platformOperatorRef(Long platformActorId) {
+        if (platformActorId == null || platformActorId <= 0) {
+            throw new IllegalArgumentException("platform actor is required");
+        }
+        return "platform-identity:" + platformActorId;
+    }
+
     static String optionalString(Object body, String field) {
         if (body instanceof Map<?, ?> map) {
             Object value = map.get(field);

@@ -94,7 +94,7 @@ class PlatformAdminTenantOperationalHandlerTest {
             ArgumentCaptor.forClass(CreateFirstOwnerInvitationCommand.class);
         verify(tenantAdministration).createFirstOwnerInvitation(command.capture());
         assertEquals(42L, command.getValue().tenantId());
-        assertEquals(1001L, command.getValue().platformAdminIdentityId());
+        assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
     }
 
     @Test
@@ -114,7 +114,7 @@ class PlatformAdminTenantOperationalHandlerTest {
             ArgumentCaptor.forClass(ResendFirstOwnerInvitationCommand.class);
         verify(tenantAdministration).resendFirstOwnerInvitation(command.capture());
         assertEquals(42L, command.getValue().tenantId());
-        assertEquals(1001L, command.getValue().platformAdminIdentityId());
+        assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
     }
 
     @Test
@@ -133,7 +133,7 @@ class PlatformAdminTenantOperationalHandlerTest {
         verify(tenantAdministration).revokeFirstOwnerInvitation(command.capture());
         assertEquals(42L, command.getValue().tenantId());
         assertEquals(7L, command.getValue().invitationId());
-        assertEquals(1001L, command.getValue().platformAdminIdentityId());
+        assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
     }
 
     private static <T> EndpointInvocation<T> invocation(

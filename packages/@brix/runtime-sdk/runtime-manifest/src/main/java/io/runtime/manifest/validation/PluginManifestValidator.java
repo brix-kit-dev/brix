@@ -236,18 +236,20 @@ public final class PluginManifestValidator {
 
     private void validateRoutes(PluginManifest manifest, ValidationResult result) {
         Set<String> ids = new HashSet<>();
-        for (int i = 0; i < manifest.getRoutes().size(); i++) {
-            PluginManifest.Route route = manifest.getRoutes().get(i);
-            String prefix = "routes[" + i + "]";
+        for (int i = 0; i < manifest.endpointDeclarations().size(); i++) {
+            PluginManifest.Route route = manifest.endpointDeclarations().get(i);
+            String prefix = manifest.getEndpoints() != null && !manifest.getEndpoints().getProvides().isEmpty()
+                ? "endpoints.provides[" + i + "]"
+                : "routes[" + i + "]";
             if (route == null) {
-                result.addError(prefix, "Route is required");
+                result.addError(prefix, "Endpoint declaration is required");
                 continue;
             }
-            requirePresent(result, prefix + ".id", route.getId());
+            requirePresent(result, prefix + ".endpointId", route.getEndpointId());
             requirePresent(result, prefix + ".path", route.getPath());
             requirePresent(result, prefix + ".method", route.getMethod());
-            if (route.getId() != null && !ids.add(route.getId())) {
-                result.addError(prefix + ".id", "Duplicate route id: " + route.getId());
+            if (route.getEndpointId() != null && !ids.add(route.getEndpointId())) {
+                result.addError(prefix + ".endpointId", "Duplicate endpoint id: " + route.getEndpointId());
             }
         }
     }

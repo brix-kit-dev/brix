@@ -57,6 +57,7 @@
     <!-- Aggregated Sub-modules -->
     <modules>
         <module>architecture-guard</module>
+        <module>clean-baseline-scan</module>
         <module>key-export-tool</module>
     </modules>
 </project>

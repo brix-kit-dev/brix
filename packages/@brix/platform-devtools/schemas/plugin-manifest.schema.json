@@ -32,6 +32,9 @@
       },
       "default": []
     },
+    "endpoints": {
+      "$ref": "#/definitions/endpointSection"
+    },
     "capabilities": {
       "$ref": "#/definitions/capabilitySection"
     },
@@ -146,11 +149,18 @@
     },
     "route": {
       "type": "object",
-      "required": ["id", "path", "method"],
+      "required": ["path", "method"],
       "properties": {
         "id": {
           "type": "string",
           "minLength": 1
+        },
+        "endpointId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transport": {
+          "type": "string"
         },
         "path": {
           "type": "string",
@@ -163,8 +173,50 @@
         "handler": {
           "type": "string"
         },
+        "handlerId": {
+          "type": "string"
+        },
+        "request": {
+          "type": "object"
+        },
+        "response": {
+          "type": "object"
+        },
+        "authentication": {
+          "type": "object"
+        },
+        "authorization": {
+          "type": "object"
+        },
+        "tenantContext": {
+          "type": "object"
+        },
+        "timeout": {
+          "type": "object"
+        },
+        "idempotency": {
+          "type": "object"
+        },
         "accessPolicy": {
           "type": "string"
+        }
+      },
+      "anyOf": [
+        {"required": ["id"]},
+        {"required": ["endpointId"]}
+      ],
+      "additionalProperties": false
+    },
+    "endpointSection": {
+      "type": "object",
+      "required": ["provides"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/route"
+          },
+          "default": []
         }
       },
       "additionalProperties": false

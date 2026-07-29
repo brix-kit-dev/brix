@@ -55,6 +55,16 @@ class PluginManifestSchemaTest {
         assertDoesNotThrow(() -> validator.validate("valid reliability", objectMapper.readTree(manifestWithReliability())));
     }
 
+    @Test
+    void bundledSchemaAcceptsEndpointProvides() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
+
+        assertDoesNotThrow(() -> validator.validate(
+            "valid endpoint provides",
+            objectMapper.readTree(manifestWithEndpointProvides())));
+    }
+
     private String manifestWithReliability() {
         return """
             {
@@ -107,5 +117,56 @@ class PluginManifestSchemaTest {
             """, """
                     "schema": "classpath:/events/TenantFirstOwnerAccepted.json"
             """);
+    }
+
+    private String manifestWithEndpointProvides() {
+        return """
+            {
+              "apiVersion": "brix.io/v1",
+              "kind": "Plugin",
+              "metadata": {
+                "pluginId": "app-booking",
+                "name": "app-booking",
+                "version": "3.2.0-SNAPSHOT",
+                "vendor": "Brix Enterprise",
+                "license": "Commercial"
+              },
+              "runtime": {
+                "compiledAgainst": "3.2.0",
+                "supportedRange": ">=3.0.10 <4.0.0"
+              },
+              "modules": [
+                {
+                  "groupId": "io.brix.enterprise.solutions",
+                  "artifactId": "booking-server",
+                  "version": "3.2.0-SNAPSHOT",
+                  "moduleKind": "plugin-server"
+                }
+              ],
+              "endpoints": {
+                "provides": [
+                  {
+                    "endpointId": "app-booking.template.status.v1",
+                    "transport": "http",
+                    "method": "GET",
+                    "path": "/api/app-booking/v1/template/status",
+                    "request": {"schemaRef": "brix://schemas/app-booking/template-status-request/1.0.0"},
+                    "response": {"schemaRef": "brix://schemas/app-booking/template-status-response/1.0.0"},
+                    "handlerId": "app-booking.template.status.v1",
+                    "authentication": {"mode": "required"},
+                    "authorization": {"permissions": ["app-booking:template:read"]},
+                    "tenantContext": {"mode": "optional"},
+                    "timeout": {"policyRef": "endpoint-default"},
+                    "idempotency": {"mode": "not-applicable"},
+                    "accessPolicy": "app-booking-template-read"
+                  }
+                ]
+              },
+              "capabilities": {"required": [], "optional": []},
+              "queries": {"provides": [], "consumes": []},
+              "commands": {"provides": [], "consumes": []},
+              "events": {"publishes": [], "subscribes": []}
+            }
+            """;
     }
 }

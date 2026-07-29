@@ -238,9 +238,13 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         contract.getOwner());
                 }
             }
-            for (PluginManifest.Route route : manifest.getRoutes()) {
-                if (route != null && route.getId() != null && !route.getId().isBlank()) {
-                    builder.endpoint(route.getId(), route.getMethod(), route.getPath(), route.getAccessPolicy());
+            for (PluginManifest.Route route : manifest.endpointDeclarations()) {
+                if (route != null && route.getEndpointId() != null && !route.getEndpointId().isBlank()) {
+                    builder.endpoint(
+                        route.getEndpointId(),
+                        route.getMethod(),
+                        route.getPath(),
+                        route.getAccessPolicy());
                 }
             }
             return builder.build();

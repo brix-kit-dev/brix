@@ -132,8 +132,8 @@ public class PlatformAdmin {
     /**
      * identity_id of the operator who created this admin account.
      *
-    * <p>NULL for the bootstrap anchor created by {@code SuperAdminBootstrapRunner}
-     * because no operator exists at that point.
+     * <p>NULL when the first formal platform administrator is created through
+     * the Runtime-published bootstrap endpoint because no operator exists yet.
      *
      * @since 3.2.0 (V015)
      */

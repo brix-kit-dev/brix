@@ -126,7 +126,7 @@ public class FirstOwnerInvitationService {
         TenantInvitation invitation = newFirstOwnerInvitation(
             command.tenantId(),
             command.inviteeEmail(),
-            command.platformAdminIdentityId(),
+            command.platformOperatorRef(),
             tokenPair.hash());
         invitation = invitationRepository.save(invitation);
         sendInvitation(command.tenantId(), command.inviteeEmail(), command.inviteBaseUrl(), tokenPair.raw(), command.locale());
@@ -179,7 +179,7 @@ public class FirstOwnerInvitationService {
         TenantInvitation replacement = newFirstOwnerInvitation(
             command.tenantId(),
             existing.getInviteeEmail(),
-            command.platformAdminIdentityId(),
+            command.platformOperatorRef(),
             tokenPair.hash());
         replacement = invitationRepository.save(replacement);
         sendInvitation(command.tenantId(), replacement.getInviteeEmail(), command.inviteBaseUrl(), tokenPair.raw(), command.locale());
@@ -245,6 +245,7 @@ public class FirstOwnerInvitationService {
             TenantMemberType.OWNER);
         ownerMember.setId(idGenerator.nextId());
         ownerMember = tenantMemberRepository.save(ownerMember);
+        tenantMemberRepository.flush();
 
         BizUserProfile profile = new BizUserProfile();
         profile.setId(idGenerator.nextId());
@@ -271,7 +272,7 @@ public class FirstOwnerInvitationService {
     private TenantInvitation newFirstOwnerInvitation(
             Long tenantId,
             String inviteeEmail,
-            Long platformAdminId,
+            String platformOperatorRef,
             String tokenHash) {
         TenantInvitation invitation = new TenantInvitation();
         invitation.setId(idGenerator.nextId());
@@ -280,7 +281,7 @@ public class FirstOwnerInvitationService {
         invitation.setTargetRole(TenantMemberType.OWNER);
         invitation.setInvitationPurpose(InvitationPurpose.FIRST_OWNER);
         invitation.setInviterType(InvitationInviterType.PLATFORM_ADMIN);
-        invitation.setPlatformAdminId(platformAdminId);
+        invitation.setPlatformOperatorRef(platformOperatorRef);
         invitation.setInviteeEmail(normalizeEmail(inviteeEmail));
         invitation.setTokenHash(tokenHash);
         invitation.setStatus(InvitationStatus.PENDING);

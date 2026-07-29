@@ -37,7 +37,7 @@ public final class ResendFirstOwnerInvitationHandler
         return FirstOwnerInvitationDto.from(tenantAdministration.resendFirstOwnerInvitation(
             new ResendFirstOwnerInvitationCommand(
                 tenantId,
-                actorId,
+                PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
                 request.inviteBaseUrl(),
                 request.locale())));
     }

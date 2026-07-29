@@ -18,23 +18,23 @@ package io.brix.platform.tenant.bootstrap;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration properties that drive the first-time bootstrap anchor
- * performed by {@link SuperAdminBootstrapRunner}.
+ * Configuration properties for the Runtime-published first-time bootstrap flow.
  *
  * <h3>Architectural Position</h3>
- * <p>Layer 2C (platform-tenant). Hosts (Layer 3) only contribute the values
- * via YAML / environment variables; they never instantiate or extend this
- * class. This honours the Host-Ultra-Thin constraint (constraint&nbsp;6).</p>
+ * <p>Layer 2C (platform-tenant). Hosts (Layer 3) only contribute values via
+ * YAML / environment variables. Bootstrap state changes happen only when the
+ * Runtime-published platform-admin endpoint calls the platform-tenant Owner
+ * internal contract.</p>
  *
  * <h3>Security</h3>
- * <p>The runner creates a passwordless {@code BOOTSTRAP} anchor in
- * {@code PENDING_SETUP}. It never accepts or stores a bootstrap password. The
- * short-lived setup code is used only to open a dedicated bootstrap session.</p>
+ * <p>No startup runner, Host initializer, or database Bootstrap user is created.
+ * The short-lived setup code is used only to open a dedicated bootstrap setup
+ * session after Host entry publication.</p>
  *
  * <h3>Properties</h3>
  * <ul>
  *   <li>{@code brix.platform.bootstrap.super-admin.enabled} (default {@code false})</li>
- *   <li>{@code brix.platform.bootstrap.super-admin.email} (required when enabled)</li>
+ *   <li>{@code brix.platform.bootstrap.super-admin.email} (reserved for operator context; not persisted by bootstrap)</li>
  *   <li>{@code brix.platform.bootstrap.super-admin.username} (default {@code "Super Admin"})</li>
  *   <li>{@code brix.platform.bootstrap.super-admin.setup-code} (required when enabled)</li>
  *   <li>{@code brix.platform.bootstrap.super-admin.setup-code-ttl-seconds} (default {@code 900})</li>
@@ -47,7 +47,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "brix.platform.bootstrap.super-admin")
 public class SuperAdminBootstrapProperties {
 
-    /** Whether the bootstrap runner is active. Disabled by default. */
+    /** Whether the Runtime-published bootstrap setup flow is active. */
     private boolean enabled = false;
 
     /** Globally unique email used as the bootstrap identity login. */

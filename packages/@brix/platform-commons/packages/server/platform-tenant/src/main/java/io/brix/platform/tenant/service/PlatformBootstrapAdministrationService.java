@@ -94,8 +94,9 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
     public BootstrapStatusView status() {
         BootstrapState state = bootstrapStateRepository.findById(BootstrapState.SINGLETON_ID)
                 .orElse(null);
-        boolean open = state != null
-                && !state.isCompleted()
+        boolean open = properties.isEnabled()
+                && bootstrapConfigured()
+                && (state == null || !state.isCompleted())
                 && platformAdminRepository.countCompletedFormalSuperAdmins() == 0;
         return new BootstrapStatusView(
                 open,
@@ -106,9 +107,12 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
     @Override
     @Transactional
     public BootstrapSessionView openSession(BootstrapSessionCommand command) {
-        BootstrapState state = lockSingleton();
+        BootstrapState state = lockOrCreateSingleton();
         if (state.isCompleted() || platformAdminRepository.countCompletedFormalSuperAdmins() > 0) {
             throw new IllegalStateException("bootstrap is closed");
+        }
+        if (!properties.isEnabled()) {
+            throw new IllegalStateException("bootstrap is disabled");
         }
         String configuredCode = trimToNull(properties.getSetupCode());
         if (configuredCode == null || !SecretHashing.sha256Base64Url(configuredCode)
@@ -119,6 +123,8 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         JwtIssuerCapability issuer = jwtIssuerCapability.orElseThrow(
                 () -> new IllegalStateException("JwtIssuerCapability is required"));
         long ttlSeconds = Math.max(30L, properties.getBootstrapSessionTtlSeconds());
+        long setupCodeTtlSeconds = Math.max(60L, properties.getSetupCodeTtlSeconds());
+        OffsetDateTime now = OffsetDateTime.now();
         String jti = UUID.randomUUID().toString();
         String token = issuer.issueBootstrapSetupToken(new JwtIssuerCapability.BootstrapSetupTokenRequest(
                 0L,
@@ -129,7 +135,8 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
                 1L,
                 ttlSeconds,
                 jti));
-        state.activateSession(SecretHashing.sha256Base64Url(token), OffsetDateTime.now().plusSeconds(ttlSeconds));
+        state.openSetupCode(SecretHashing.sha256Base64Url(configuredCode), now.plusSeconds(setupCodeTtlSeconds));
+        state.activateSession(SecretHashing.sha256Base64Url(token), now.plusSeconds(ttlSeconds));
         bootstrapStateRepository.save(state);
         writeAudit(null, AuditAction.BOOTSTRAP_SESSION_OPENED, "BOOTSTRAP", "Bootstrap setup session opened.", true);
         return new BootstrapSessionView("BOOTSTRAP_SETUP", token, ttlSeconds);
@@ -197,6 +204,19 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
     private BootstrapState lockSingleton() {
         return bootstrapStateRepository.findByIdForUpdate(BootstrapState.SINGLETON_ID)
                 .orElseThrow(() -> new IllegalStateException("bootstrap state singleton is missing"));
+    }
+
+    private BootstrapState lockOrCreateSingleton() {
+        return bootstrapStateRepository.findByIdForUpdate(BootstrapState.SINGLETON_ID)
+                .orElseGet(() -> {
+                    BootstrapState created = new BootstrapState();
+                    created.setId(BootstrapState.SINGLETON_ID);
+                    return created;
+                });
+    }
+
+    private boolean bootstrapConfigured() {
+        return trimToNull(properties.getSetupCode()) != null;
     }
 
     private TokenPair issueSetupToken(Long identityId, Long createdBy) {

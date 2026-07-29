@@ -17,6 +17,7 @@ package io.runtime.manifest.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -39,6 +40,7 @@ public class PluginManifest {
     private Runtime runtime;
     private List<Module> modules = new ArrayList<>();
     private List<Route> routes = new ArrayList<>();
+    private EndpointSection endpoints;
     private CapabilitySection capabilities;
     private ContractSection queries;
     private ContractSection commands;
@@ -96,6 +98,21 @@ public class PluginManifest {
 
     public void setRoutes(List<Route> routes) {
         this.routes = routes != null ? routes : new ArrayList<>();
+    }
+
+    public EndpointSection getEndpoints() {
+        return endpoints;
+    }
+
+    public void setEndpoints(EndpointSection endpoints) {
+        this.endpoints = endpoints;
+    }
+
+    public List<Route> endpointDeclarations() {
+        if (endpoints != null && !endpoints.getProvides().isEmpty()) {
+            return endpoints.getProvides();
+        }
+        return routes;
     }
 
     public CapabilitySection getCapabilities() {
@@ -326,9 +343,19 @@ public class PluginManifest {
      */
     public static class Route {
         private String id;
+        private String endpointId;
+        private String transport;
         private String path;
         private String method;
         private String handler;
+        private String handlerId;
+        private Map<String, Object> request;
+        private Map<String, Object> response;
+        private Map<String, Object> authentication;
+        private Map<String, Object> authorization;
+        private Map<String, Object> tenantContext;
+        private Map<String, Object> timeout;
+        private Map<String, Object> idempotency;
         private String accessPolicy;
 
         public String getId() {
@@ -337,6 +364,22 @@ public class PluginManifest {
 
         public void setId(String id) {
             this.id = id;
+        }
+
+        public String getEndpointId() {
+            return endpointId != null ? endpointId : id;
+        }
+
+        public void setEndpointId(String endpointId) {
+            this.endpointId = endpointId;
+        }
+
+        public String getTransport() {
+            return transport;
+        }
+
+        public void setTransport(String transport) {
+            this.transport = transport;
         }
 
         public String getPath() {
@@ -363,12 +406,91 @@ public class PluginManifest {
             this.handler = handler;
         }
 
+        public String getHandlerId() {
+            return handlerId != null ? handlerId : handler;
+        }
+
+        public void setHandlerId(String handlerId) {
+            this.handlerId = handlerId;
+        }
+
+        public Map<String, Object> getRequest() {
+            return request;
+        }
+
+        public void setRequest(Map<String, Object> request) {
+            this.request = request;
+        }
+
+        public Map<String, Object> getResponse() {
+            return response;
+        }
+
+        public void setResponse(Map<String, Object> response) {
+            this.response = response;
+        }
+
+        public Map<String, Object> getAuthentication() {
+            return authentication;
+        }
+
+        public void setAuthentication(Map<String, Object> authentication) {
+            this.authentication = authentication;
+        }
+
+        public Map<String, Object> getAuthorization() {
+            return authorization;
+        }
+
+        public void setAuthorization(Map<String, Object> authorization) {
+            this.authorization = authorization;
+        }
+
+        public Map<String, Object> getTenantContext() {
+            return tenantContext;
+        }
+
+        public void setTenantContext(Map<String, Object> tenantContext) {
+            this.tenantContext = tenantContext;
+        }
+
+        public Map<String, Object> getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Map<String, Object> timeout) {
+            this.timeout = timeout;
+        }
+
+        public Map<String, Object> getIdempotency() {
+            return idempotency;
+        }
+
+        public void setIdempotency(Map<String, Object> idempotency) {
+            this.idempotency = idempotency;
+        }
+
         public String getAccessPolicy() {
             return accessPolicy;
         }
 
         public void setAccessPolicy(String accessPolicy) {
             this.accessPolicy = accessPolicy;
+        }
+    }
+
+    /**
+     * Runtime endpoint declarations.
+     */
+    public static class EndpointSection {
+        private List<Route> provides = new ArrayList<>();
+
+        public List<Route> getProvides() {
+            return provides;
+        }
+
+        public void setProvides(List<Route> provides) {
+            this.provides = provides != null ? provides : new ArrayList<>();
         }
     }
 

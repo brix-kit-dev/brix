@@ -32,7 +32,10 @@ public final class RevokeFirstOwnerInvitationHandler implements EndpointHandler<
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
         Long invitationId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "invitationId");
         tenantAdministration.revokeFirstOwnerInvitation(
-            new RevokeFirstOwnerInvitationCommand(tenantId, invitationId, actorId));
+            new RevokeFirstOwnerInvitationCommand(
+                tenantId,
+                invitationId,
+                PlatformOperationalInvocationSupport.platformOperatorRef(actorId)));
         return null;
     }
 }

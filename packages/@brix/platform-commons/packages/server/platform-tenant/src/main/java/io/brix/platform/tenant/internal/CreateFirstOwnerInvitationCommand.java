@@ -4,14 +4,14 @@ package io.brix.platform.tenant.internal;
 public record CreateFirstOwnerInvitationCommand(
         Long tenantId,
         String inviteeEmail,
-        Long platformAdminIdentityId,
+        String platformOperatorRef,
         String inviteBaseUrl,
         String locale) {
 
     public CreateFirstOwnerInvitationCommand {
         CreatePendingTenantCommand.requirePositive(tenantId, "tenantId");
         CreatePendingTenantCommand.requireText(inviteeEmail, "inviteeEmail");
-        CreatePendingTenantCommand.requirePositive(platformAdminIdentityId, "platformAdminIdentityId");
+        CreatePendingTenantCommand.requireText(platformOperatorRef, "platformOperatorRef");
         CreatePendingTenantCommand.requireText(inviteBaseUrl, "inviteBaseUrl");
     }
 }

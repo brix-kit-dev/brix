@@ -34,6 +34,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.brix.platform.tenant.entity.PlatformTenantOutbox;
 import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
 import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
+import io.runtime.manifest.loader.PluginManifestLoader;
+import io.runtime.manifest.model.PluginManifest;
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.event.IntegrationEvent;
 
@@ -131,6 +133,19 @@ class PlatformTenantReliableEventBusCapabilityTest {
         assertThrows(EventPublishException.class, () -> capability.publishIntegration(event));
 
         verify(outboxRepository, never()).save(any(PlatformTenantOutbox.class));
+    }
+
+    @Test
+    void manifestWithoutCanonicalInboxIsRejectedAtConstruction() {
+        PluginManifest manifest = new PluginManifestLoader()
+            .loadActiveFromClasspath(PlatformTenantReliableEventBusCapability.class.getClassLoader());
+        manifest.getData().setInbox(null);
+
+        EventPublishException failure = assertThrows(
+            EventPublishException.class,
+            () -> new PlatformTenantReliableEventBusCapability(outboxRepository, objectMapper, manifest));
+
+        assertTrue(failure.getMessage().contains("storage, outbox, and inbox"));
     }
 
     private static void beginOwnerTransaction() {

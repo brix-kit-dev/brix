@@ -38,7 +38,7 @@ public final class CreateFirstOwnerInvitationHandler
             new CreateFirstOwnerInvitationCommand(
                 tenantId,
                 request.inviteeEmail(),
-                actorId,
+                PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
                 request.inviteBaseUrl(),
                 request.locale())));
     }

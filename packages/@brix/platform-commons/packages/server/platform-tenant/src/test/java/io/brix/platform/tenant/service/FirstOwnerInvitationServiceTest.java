@@ -42,6 +42,7 @@ import io.brix.platform.tenant.enums.InvitationStatus;
 import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.enums.TenantStatus;
 import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
+import io.brix.platform.tenant.exception.QuotaExceededException;
 import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.FirstOwnerAcceptanceResult;
@@ -120,13 +121,17 @@ class FirstOwnerInvitationServiceTest {
         FirstOwnerInvitationView view = service.create(new CreateFirstOwnerInvitationCommand(
             100L,
             "Owner@Example.com",
-            9L,
+            "platform-identity:9",
             "https://console.example.test/invite",
             "en-US"));
 
         assertEquals(200L, view.id());
         assertEquals("owner@example.com", view.inviteeEmail());
         assertEquals("PENDING", view.status());
+        ArgumentCaptor<TenantInvitation> saved = ArgumentCaptor.forClass(TenantInvitation.class);
+        verify(invitationRepository).save(saved.capture());
+        assertEquals("platform-identity:9", saved.getValue().getPlatformOperatorRef());
+        assertEquals(InvitationInviterType.PLATFORM_ADMIN, saved.getValue().getInviterType());
         ArgumentCaptor<NotificationRequest> notification = ArgumentCaptor.forClass(NotificationRequest.class);
         verify(notificationCapability).send(notification.capture());
         assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());
@@ -196,6 +201,58 @@ class FirstOwnerInvitationServiceTest {
         verify(auditLogRepository, never()).save(any(TenantAuditLog.class));
     }
 
+    @Test
+    void acceptRejectsAlreadyAcceptedInvitationWithoutRepeatingSideEffects() {
+        String rawToken = "tenant-owner-token";
+        TenantInvitation invitation = firstOwnerInvitation(200L, 100L, "owner@example.com", rawToken);
+        invitation.accept(OffsetDateTime.now().minusMinutes(1));
+        when(invitationRepository.findByTokenHashForUpdate(SecretHashing.sha256Base64Url(rawToken)))
+            .thenReturn(Optional.of(invitation));
+
+        TenantAdministrationException failure = assertThrows(
+            TenantAdministrationException.class,
+            () -> service.accept(new AcceptFirstOwnerInvitationCommand(
+                rawToken,
+                500L,
+                "owner@example.com")));
+
+        assertEquals("FIRST_OWNER_INVITATION_NOT_ACCEPTABLE", failure.code());
+        verify(tenantRepository, never()).save(any(Tenant.class));
+        verify(tenantMemberRepository, never()).save(any(TenantMember.class));
+        verify(profileRepository, never()).save(any(BizUserProfile.class));
+        verify(installationQuotaRepository, never()).save(any(InstallationQuota.class));
+        verify(eventBusCapability, never()).publishIntegration(any(IntegrationEvent.class));
+        verify(auditLogRepository, never()).save(any(TenantAuditLog.class));
+    }
+
+    @Test
+    void acceptRejectsQuotaExhaustionBeforeOwnerProfileOutboxSideEffects() {
+        String rawToken = "tenant-owner-token";
+        TenantInvitation invitation = firstOwnerInvitation(200L, 100L, "owner@example.com", rawToken);
+        Tenant tenant = pendingTenant(100L);
+        InstallationQuota quota = new InstallationQuota(InstallationQuota.DEFAULT_INSTALLATION_ID, 3, 3);
+
+        when(invitationRepository.findByTokenHashForUpdate(SecretHashing.sha256Base64Url(rawToken)))
+            .thenReturn(Optional.of(invitation));
+        when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
+        when(installationQuotaRepository.findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID))
+            .thenReturn(Optional.of(quota));
+        when(tenantMemberRepository.existsActiveOwnerByTenantId(100L)).thenReturn(false);
+
+        assertThrows(QuotaExceededException.class, () -> service.accept(new AcceptFirstOwnerInvitationCommand(
+            rawToken,
+            500L,
+            "owner@example.com")));
+
+        assertEquals(3, quota.getUsed());
+        verify(tenantMemberRepository, never()).save(any(TenantMember.class));
+        verify(profileRepository, never()).save(any(BizUserProfile.class));
+        verify(tenantRepository, never()).save(any(Tenant.class));
+        verify(invitationRepository, never()).save(invitation);
+        verify(eventBusCapability, never()).publishIntegration(any(IntegrationEvent.class));
+        verify(auditLogRepository, never()).save(any(TenantAuditLog.class));
+    }
+
     private static Tenant pendingTenant(Long tenantId) {
         Tenant tenant = new Tenant("acme", "Acme");
         tenant.setId(tenantId);
@@ -215,7 +272,7 @@ class FirstOwnerInvitationServiceTest {
         invitation.setTargetRole(TenantMemberType.OWNER);
         invitation.setInvitationPurpose(InvitationPurpose.FIRST_OWNER);
         invitation.setInviterType(InvitationInviterType.PLATFORM_ADMIN);
-        invitation.setPlatformAdminId(9L);
+        invitation.setPlatformOperatorRef("platform-identity:9");
         invitation.setInviteeEmail(email);
         invitation.setTokenHash(SecretHashing.sha256Base64Url(rawToken));
         invitation.setStatus(InvitationStatus.PENDING);

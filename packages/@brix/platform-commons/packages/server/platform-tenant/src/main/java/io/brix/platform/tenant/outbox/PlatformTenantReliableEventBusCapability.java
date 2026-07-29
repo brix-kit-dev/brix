@@ -46,6 +46,7 @@ public final class PlatformTenantReliableEventBusCapability implements EventBusC
 
     private static final String STORAGE_ID = "platform_tenant";
     private static final String OUTBOX_TABLE = "platform_tenant_outbox";
+    private static final String INBOX_TABLE = "platform_tenant_inbox";
     private static final String MESSAGE_KIND_EVENT = "EVENT";
     private static final String MDC_CORRELATION_ID = "correlationId";
     private static final String MDC_TRACEPARENT = "traceparent";
@@ -191,8 +192,10 @@ public final class PlatformTenantReliableEventBusCapability implements EventBusC
         PluginManifest.DataSection data = manifest.getData();
         if (data == null
                 || !STORAGE_ID.equals(data.getStorageId())
-                || !OUTBOX_TABLE.equals(data.getOutbox())) {
-            throw new EventPublishException("platform-tenant manifest must declare platform_tenant storage and outbox");
+                || !OUTBOX_TABLE.equals(data.getOutbox())
+                || !INBOX_TABLE.equals(data.getInbox())) {
+            throw new EventPublishException(
+                "platform-tenant manifest must declare platform_tenant storage, outbox, and inbox");
         }
     }
 
