@@ -14,12 +14,11 @@
  * from importing individual pages, hooks, repositories or legacy route/menu
  * arrays.
  *
- * Route elements are wrapped with a lightweight `<Suspense>` boundary here so
- * the host does not need to manage lazy-loading state.
+ * Route elements are wrapped with a lightweight render boundary here so the
+ * host does not need to manage plugin route failures.
  */
 
 import {
-  lazy,
   createElement,
   Suspense,
   Component,
@@ -29,6 +28,17 @@ import {
 } from 'react';
 
 import { BootstrapOnlyGuard, PlatformAuthGuard, SetupOnlyGuard } from './guards';
+import { AuditLogPage } from './pages/AuditLogPage';
+import { ChangeOwnPasswordPage } from './pages/ChangeOwnPasswordPage';
+import { LicenseQuotaPage } from './pages/LicenseQuotaPage';
+import { PlatformBootstrapPage } from './pages/PlatformBootstrapPage';
+import { PlatformBootstrapSentPage } from './pages/PlatformBootstrapSentPage';
+import { PlatformDashboardPage } from './pages/PlatformDashboardPage';
+import { PlatformLoginPage } from './pages/PlatformLoginPage';
+import { PlatformLoginTotpPage } from './pages/PlatformLoginTotpPage';
+import { PlatformSetupPage } from './pages/PlatformSetupPage';
+import { PlatformTenantListPage } from './pages/PlatformTenantListPage';
+import { SuperAdminListPage } from './pages/SuperAdminListPage';
 import {
   PLATFORM_ADMIN_UI_MANIFEST,
   createPlatformAdminMenuSnapshot,
@@ -39,61 +49,15 @@ import {
   type PlatformAdminRouteDeclaration,
 } from './ui-manifest';
 
-// ── Internal lazy loaders — NEVER re-exported ────────────────────────────────
-
-const _PlatformLoginPage = lazy(() =>
-  import('./pages/PlatformLoginPage').then(m => ({ default: m.PlatformLoginPage })),
-);
-
-const _PlatformLoginTotpPage = lazy(() =>
-  import('./pages/PlatformLoginTotpPage').then(m => ({ default: m.PlatformLoginTotpPage })),
-);
-
-const _PlatformSetupPage = lazy(() =>
-  import('./pages/PlatformSetupPage').then(m => ({ default: m.PlatformSetupPage })),
-);
-
-const _PlatformBootstrapPage = lazy(() =>
-  import('./pages/PlatformBootstrapPage').then(m => ({ default: m.PlatformBootstrapPage })),
-);
-
-const _PlatformBootstrapSentPage = lazy(() =>
-  import('./pages/PlatformBootstrapSentPage').then(m => ({ default: m.PlatformBootstrapSentPage })),
-);
-
-const _PlatformDashboardPage = lazy(() =>
-  import('./pages/PlatformDashboardPage').then(m => ({ default: m.PlatformDashboardPage })),
-);
-
-const _SuperAdminListPage = lazy(() =>
-  import('./pages/SuperAdminListPage').then(m => ({ default: m.SuperAdminListPage })),
-);
-
-const _PlatformTenantListPage = lazy(() =>
-  import('./pages/PlatformTenantListPage').then(m => ({ default: m.PlatformTenantListPage })),
-);
-
-const _AuditLogPage = lazy(() =>
-  import('./pages/AuditLogPage').then(m => ({ default: m.AuditLogPage })),
-);
-
-const _LicenseQuotaPage = lazy(() =>
-  import('./pages/LicenseQuotaPage').then(m => ({ default: m.LicenseQuotaPage })),
-);
-
-const _ChangeOwnPasswordPage = lazy(() =>
-  import('./pages/ChangeOwnPasswordPage').then(m => ({ default: m.ChangeOwnPasswordPage })),
-);
+// ── Internal route element registry — NEVER re-exported ──────────────────────
 
 /**
- * Minimal, dependency-free error boundary for lazy-loaded route chunks.
+ * Minimal, dependency-free error boundary for route rendering failures.
  *
- * Without this boundary a chunk-load failure (network error, mismatched
- * `chunkhash`, MF singleton mismatch, etc.) bubbles past `<Suspense>` and
- * is rendered as a blank screen with no console output — exactly the
- * symptom we are guarding against. Errors are surfaced to `console.error`
- * so they show up in DevTools, and a small inline panel renders a human
- * readable description in place of the broken page.
+ * Without this boundary a route render failure bubbles past the Host route
+ * outlet and can become a blank screen. Errors are surfaced to
+ * `console.error` so they show up in DevTools, and a small inline panel
+ * renders a human readable description in place of the broken page.
  *
  * Inline-styled (no DesignTokens / UICapability dependency) so this
  * fallback works even when the runtime context wiring itself is the
@@ -151,14 +115,14 @@ class RouteErrorBoundary extends Component<
             fontSize: '12px',
           },
         },
-        'Route chunk failed to render. Refresh the page or contact the platform operator with the route label.',
+        'Route failed to render. Refresh the page or contact the platform operator with the route label.',
       ),
     );
   }
 }
 
 /**
- * Inline loading indicator — rendered while a lazy chunk is in flight.
+ * Inline loading indicator — retained for route elements that suspend.
  * Inline styles keep the boundary independent of UI / theme adapters,
  * so the user sees feedback even before the runtime context is ready.
  */
@@ -181,10 +145,9 @@ function LoadingFallback(): ReactNode {
 /**
  * Wraps a lazy component in `<RouteErrorBoundary><Suspense>…</Suspense></RouteErrorBoundary>`.
  *
- * The error boundary is the outer wrapper so chunk-load rejections (which
- * propagate out of Suspense as thrown errors) are caught and reported.
- * The visible fallback prevents the route from collapsing to a blank
- * screen while the chunk is being fetched.
+ * The error boundary is the outer wrapper so thrown route errors are caught
+ * and reported. The visible fallback prevents the route from collapsing to
+ * a blank screen when a child suspends.
  */
 function withSuspense(
   C: ComponentType,
@@ -291,7 +254,7 @@ export function createPlatformAdminMenuEntries(): ReadonlyArray<PlatformAdminMen
 
 function createRouteElement(route: PlatformAdminRouteDeclaration): ReactNode {
   if (route.componentExport === 'PlatformLoginTotpPage') {
-    return withSuspenseElement(createElement(_PlatformLoginTotpPage), route.path);
+    return withSuspenseElement(createElement(PlatformLoginTotpPage), route.path);
   }
 
   const component = componentFor(route.componentExport);
@@ -316,27 +279,27 @@ function createRouteElement(route: PlatformAdminRouteDeclaration): ReactNode {
 function componentFor(componentExport: PlatformAdminRouteComponentExport): ComponentType {
   switch (componentExport) {
     case 'AuditLogPage':
-      return _AuditLogPage;
+      return AuditLogPage;
     case 'ChangeOwnPasswordPage':
-      return _ChangeOwnPasswordPage;
+      return ChangeOwnPasswordPage;
     case 'LicenseQuotaPage':
-      return _LicenseQuotaPage;
+      return LicenseQuotaPage;
     case 'PlatformBootstrapPage':
-      return _PlatformBootstrapPage;
+      return PlatformBootstrapPage;
     case 'PlatformBootstrapSentPage':
-      return _PlatformBootstrapSentPage;
+      return PlatformBootstrapSentPage;
     case 'PlatformDashboardPage':
-      return _PlatformDashboardPage;
+      return PlatformDashboardPage;
     case 'PlatformLoginPage':
-      return _PlatformLoginPage;
+      return PlatformLoginPage;
     case 'PlatformSetupPage':
-      return _PlatformSetupPage;
+      return PlatformSetupPage;
     case 'PlatformTenantListPage':
-      return _PlatformTenantListPage;
+      return PlatformTenantListPage;
     case 'SuperAdminListPage':
-      return _SuperAdminListPage;
+      return SuperAdminListPage;
     case 'PlatformLoginTotpPage':
-      return _PlatformLoginTotpPage;
+      return PlatformLoginTotpPage;
   }
 }
 

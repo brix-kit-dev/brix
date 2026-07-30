@@ -12,6 +12,7 @@ export type PlatformAdminHostCapability =
   | 'http'
   | 'i18n'
   | 'router'
+  | 'theme'
   | 'ui';
 
 export type PlatformAdminGuardPolicy =
@@ -113,7 +114,7 @@ export class PlatformAdminManifestError extends Error {
 }
 
 export const PLATFORM_ADMIN_REQUIRED_HOST_CAPABILITIES =
-  Object.freeze(['auth', 'http', 'i18n', 'router', 'ui'] as const);
+  Object.freeze(['auth', 'http', 'i18n', 'router', 'theme', 'ui'] as const);
 
 export const PLATFORM_ADMIN_ROUTE_COMPONENT_EXPORTS = Object.freeze([
   'AuditLogPage',

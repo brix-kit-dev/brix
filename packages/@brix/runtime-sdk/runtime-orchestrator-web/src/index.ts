@@ -57,11 +57,13 @@ export {
 } from './WebUIRuntime';
 
 export {
+  FrontendHostCapabilityResolutionError,
   FrontendHostCompositionError,
   bootstrapFrontendHost,
   validateFrontendHostComposition,
   type FrontendHostBootstrapOptions,
   type FrontendHostBootstrapResult,
+  type FrontendHostCapabilityBinding,
   type FrontendHostCapabilityDeclaration,
   type FrontendHostComposition,
   type FrontendHostCompositionDiagnostic,

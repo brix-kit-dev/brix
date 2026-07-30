@@ -13,7 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { RuntimeContext } from '@brix-sdk/runtime-sdk-api-web';
+import type {
+  CapabilityProvider,
+  CapabilityRegisterOptions,
+  CapabilityType,
+  RuntimeContext,
+} from '@brix-sdk/runtime-sdk-api-web';
 import { createWebUIRuntime, type WebUIRuntime, type WebUIRuntimeConfig } from './WebUIRuntime';
 
 export type FrontendHostKind = 'standalone-web' | 'embedded-web' | 'local-web';
@@ -89,6 +94,7 @@ export interface FrontendHostComposition {
 export interface FrontendHostBootstrapOptions {
   readonly composition: FrontendHostComposition;
   readonly debug?: boolean;
+  readonly capabilityBindings?: readonly FrontendHostCapabilityBinding[];
   readonly routeAdmission?: FrontendHostRouteAdmissionOptions;
   readonly runtimeConfig?: Pick<WebUIRuntimeConfig, 'onReady' | 'onError'>;
 }
@@ -106,12 +112,29 @@ export interface FrontendHostCompositionDiagnostic {
   readonly path: string;
 }
 
+export interface FrontendHostCapabilityBinding<T = unknown> {
+  readonly capabilityId: string;
+  readonly capabilityType: CapabilityType<T> | symbol;
+  readonly provider: CapabilityProvider<T>;
+  readonly options?: CapabilityRegisterOptions;
+}
+
 export class FrontendHostCompositionError extends Error {
   readonly diagnostics: readonly FrontendHostCompositionDiagnostic[];
 
   constructor(diagnostics: readonly FrontendHostCompositionDiagnostic[]) {
     super('Frontend Host composition validation failed.');
     this.name = 'FrontendHostCompositionError';
+    this.diagnostics = diagnostics;
+  }
+}
+
+export class FrontendHostCapabilityResolutionError extends Error {
+  readonly diagnostics: readonly FrontendHostCompositionDiagnostic[];
+
+  constructor(diagnostics: readonly FrontendHostCompositionDiagnostic[]) {
+    super('Frontend Host capability resolution failed.');
+    this.name = 'FrontendHostCapabilityResolutionError';
     this.diagnostics = diagnostics;
   }
 }
@@ -440,6 +463,15 @@ export async function bootstrapFrontendHost(
     ...options.runtimeConfig,
   });
 
+  registerFrontendHostCapabilityBindings(runtime, options.capabilityBindings ?? []);
+  const capabilityDiagnostics = validateRequiredCapabilities(
+    options.composition,
+    options.capabilityBindings ?? [],
+  );
+  if (capabilityDiagnostics.length > 0) {
+    throw new FrontendHostCapabilityResolutionError(capabilityDiagnostics);
+  }
+
   await runtime.initialize();
   await runtime.start();
   const routeSnapshot = publishFrontendRouteSnapshot(options.composition, options.routeAdmission);
@@ -456,6 +488,39 @@ export async function bootstrapFrontendHost(
     composition: options.composition,
     routeSnapshot,
   };
+}
+
+function registerFrontendHostCapabilityBindings(
+  runtime: WebUIRuntime,
+  bindings: readonly FrontendHostCapabilityBinding[],
+): void {
+  for (const binding of bindings) {
+    runtime.registerCapability(
+      binding.capabilityType,
+      binding.provider,
+      binding.options,
+    );
+  }
+}
+
+function validateRequiredCapabilities(
+  composition: FrontendHostComposition,
+  bindings: readonly FrontendHostCapabilityBinding[],
+): readonly FrontendHostCompositionDiagnostic[] {
+  const declared = new Set(bindings.map(binding => binding.capabilityId));
+  const diagnostics: FrontendHostCompositionDiagnostic[] = [];
+
+  for (const capabilityId of composition.capabilities.required) {
+    if (!declared.has(capabilityId)) {
+      diagnostics.push({
+        code: 'frontend-host.capability.required-missing',
+        message: `Required Host capability ${capabilityId} has no selected provider binding.`,
+        path: `capabilities.required[${capabilityId}]`,
+      });
+    }
+  }
+
+  return diagnostics;
 }
 
 function canProvideHostCapabilities(

@@ -16,9 +16,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   bootstrapFrontendHost,
+  FrontendHostCapabilityResolutionError,
   FrontendHostCompositionError,
   publishFrontendRouteSnapshot,
   validateFrontendHostComposition,
+  type FrontendHostCapabilityBinding,
   type FrontendHostComposition,
   type FrontendHostRouteSnapshotSource,
 } from './host-bootstrap';
@@ -139,6 +141,18 @@ const snapshotComposition: FrontendHostComposition = {
   },
 };
 
+function createCapabilityBindings(
+  capabilityIds: readonly string[],
+): readonly FrontendHostCapabilityBinding[] {
+  return capabilityIds.map(capabilityId => ({
+    capabilityId,
+    capabilityType: Symbol.for(`test.${capabilityId}`),
+    provider: {
+      provide: () => ({ capabilityId }),
+    },
+  }));
+}
+
 describe('frontend host bootstrap', () => {
   it('boots an empty Host composition through the runtime entrypoint', async () => {
     const result = await bootstrapFrontendHost({ composition: emptyComposition });
@@ -179,6 +193,12 @@ describe('frontend host bootstrap', () => {
     await expect(
       bootstrapFrontendHost({ composition: invalidComposition })
     ).rejects.toBeInstanceOf(FrontendHostCompositionError);
+  });
+
+  it('fails closed when a required Host capability has no provider binding', async () => {
+    await expect(
+      bootstrapFrontendHost({ composition: snapshotComposition })
+    ).rejects.toBeInstanceOf(FrontendHostCapabilityResolutionError);
   });
 
   it('requires route snapshot sources when snapshot mode is selected', () => {
@@ -226,6 +246,7 @@ describe('frontend host bootstrap', () => {
   it('resolves the default path from Runtime route policy instead of Host role checks', async () => {
     const result = await bootstrapFrontendHost({
       composition: snapshotComposition,
+      capabilityBindings: createCapabilityBindings(['auth', 'router', 'ui']),
       routeAdmission: {
         subject: {
           permissions: [],
