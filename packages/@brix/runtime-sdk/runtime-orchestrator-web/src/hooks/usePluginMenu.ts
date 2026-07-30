@@ -24,7 +24,6 @@
  * Responsible for:
  *   - Converting Host core menus to AggregatedMenuItem
  *   - Converting plugin manifest menus/pages to AggregatedMenuItem / AggregatedRoute
- *   - Converting inline-config local plugin menus/routes (legacy fallback)
  *   - Merging and sorting all menu sources by `order` weight
  *
  * This module is purely transformational — it receives loaded data and produces
@@ -36,7 +35,7 @@
 
 import { useMemo } from 'react';
 import type { DiscoveredPlugin, LoadedPluginConfig, UIPluginManifest } from '../services';
-import type { HostMenuConfig, LocalPluginConfig, LocalPluginMenu } from './plugin-system-types';
+import type { HostMenuConfig } from './plugin-system-types';
 
 // Cache-bust parameter for Module Federation remoteEntry URLs
 const REMOTE_ENTRY_CACHE_BUST = Date.now().toString();
@@ -112,8 +111,6 @@ export interface UsePluginMenuOptions {
   hostCoreMenus: HostMenuConfig[];
   /** Loaded plugin configurations from discovery */
   loadedPlugins: LoadedPluginConfig[];
-  /** Online local plugins (passed health check) */
-  onlineLocalPlugins: LocalPluginConfig[];
 }
 
 /**
@@ -129,73 +126,6 @@ export interface UsePluginMenuResult {
 // ============================================================================
 // Pure Conversion Functions
 // ============================================================================
-
-/**
- * Convert local plugin menus to AggregatedMenuItem.
- *
- * @param plugin - Local plugin configuration
- * @returns Converted aggregated menu items
- */
-function convertLocalPluginMenus(plugin: LocalPluginConfig): AggregatedMenuItem[] {
-  const convertMenu = (menu: LocalPluginMenu): AggregatedMenuItem => ({
-    key: `${plugin.id}:${menu.id}`,
-    id: `${plugin.id}:${menu.id}`,
-    title: menu.title,
-    icon: menu.icon,
-    path: menu.path,
-    order: menu.order,
-    permission: menu.permission,
-    source: plugin.id,
-    children: menu.children?.map(convertMenu),
-  });
-
-  return plugin.menus?.map(convertMenu) ?? [];
-}
-
-/**
- * Convert local plugin routes to AggregatedRoute.
- *
- * @param plugin - Local plugin configuration
- * @returns Converted aggregated routes
- */
-function convertLocalPluginRoutes(plugin: LocalPluginConfig): AggregatedRoute[] {
-  // Append scope query param to remoteEntry for proper MF container resolution
-  const remoteEntryWithScope = (() => {
-    try {
-      const url = new URL(plugin.remoteEntry, window.location.origin);
-      if (!url.searchParams.has('scope')) {
-        url.searchParams.set('scope', plugin.scope);
-      }
-      if (!url.searchParams.has('mfv')) {
-        url.searchParams.set('mfv', REMOTE_ENTRY_CACHE_BUST);
-      }
-      return url.toString();
-    } catch {
-      return plugin.remoteEntry;
-    }
-  })();
-
-  const discoveredPlugin: DiscoveredPlugin = {
-    id: plugin.id,
-    name: plugin.name ?? plugin.id,
-    remoteEntry: remoteEntryWithScope,
-    manifestUrl: plugin.manifestUrl ?? '',
-    enabled: true,
-    priority: 100,
-  };
-
-  return (plugin.routes ?? []).map(route => {
-    const normalizedComponent = route.component.replace(/^(\.\/)+/, '');
-    return {
-      path: route.path,
-      pageId: route.pageId,
-      title: route.title,
-      component: `${plugin.scope}/${normalizedComponent}`,
-      permission: route.permission,
-      plugin: discoveredPlugin,
-    };
-  });
-}
 
 /**
  * Convert Host core menus to AggregatedMenuItem.
@@ -356,8 +286,8 @@ function convertPluginPages(
 /**
  * Menu and route aggregation hook.
  *
- * Merges Host core menus, manifest-loaded plugin menus, and inline-config
- * local plugin menus into a single sorted list. Also aggregates all routes.
+ * Merges Host core menus and manifest-loaded plugin menus into a single sorted list.
+ * Also aggregates routes from loaded manifests.
  *
  * This hook is purely derived state — it performs no side effects.
  *
@@ -365,16 +295,15 @@ function convertPluginPages(
  * @returns Aggregated menus and routes
  */
 export function usePluginMenu(options: UsePluginMenuOptions): UsePluginMenuResult {
-  const { hostCoreMenus, loadedPlugins, onlineLocalPlugins } = options;
+  const { hostCoreMenus, loadedPlugins } = options;
 
   /**
-   * Aggregate menus (Host + manifest-loaded plugins + inline local plugins).
+   * Aggregate menus (Host + manifest-loaded plugins).
    *
    * Merge Logic:
    * 1. Convert Host core menus (always available, even during loading)
    * 2. Iterate loaded plugins (backend + manifest-driven local), convert menus from manifest
-   * 3. Iterate inline-config local plugins (no manifestUrl), convert inline menus
-   * 4. Sort by order
+   * 3. Sort by order
    */
   const menus = useMemo<AggregatedMenuItem[]>(() => {
     // Host core menus — always available
@@ -393,25 +322,16 @@ export function usePluginMenu(options: UsePluginMenuOptions): UsePluginMenuResul
       pluginMenuItems.push(...pluginMenus);
     }
 
-    // Inline-config local plugin menus (legacy mode — only for plugins WITHOUT manifestUrl)
-    const localPluginMenuItems: AggregatedMenuItem[] = [];
-    for (const plugin of onlineLocalPlugins) {
-      if (plugin.manifestUrl) continue; // Manifest-driven: handled via loadedPlugins above
-      const localMenus = convertLocalPluginMenus(plugin);
-      localPluginMenuItems.push(...localMenus);
-    }
-
     // Merge and sort by order weight (lower = higher priority)
-    const allMenus = [...hostMenuItems, ...pluginMenuItems, ...localPluginMenuItems];
+    const allMenus = [...hostMenuItems, ...pluginMenuItems];
     return allMenus.sort((a, b) => a.order - b.order);
-  }, [hostCoreMenus, loadedPlugins, onlineLocalPlugins]);
+  }, [hostCoreMenus, loadedPlugins]);
 
   /**
-   * Aggregate routes (manifest-loaded plugins + inline local plugins).
+   * Aggregate routes from manifest-loaded plugins.
    *
    * Generation Logic:
    * 1. Iterate loaded plugins (backend + manifest-driven local), extract page config
-   * 2. Iterate inline-config local plugins (no manifestUrl), convert routes
    * Convert to unified AggregatedRoute format.
    */
   const routes = useMemo<AggregatedRoute[]>(() => {
@@ -429,15 +349,8 @@ export function usePluginMenu(options: UsePluginMenuOptions): UsePluginMenuResul
       allRoutes.push(...pluginRoutes);
     }
 
-    // Inline-config local plugin routes (legacy mode — only for plugins WITHOUT manifestUrl)
-    for (const plugin of onlineLocalPlugins) {
-      if (plugin.manifestUrl) continue; // Manifest-driven: handled via loadedPlugins above
-      const localRoutes = convertLocalPluginRoutes(plugin);
-      allRoutes.push(...localRoutes);
-    }
-
     return allRoutes;
-  }, [loadedPlugins, onlineLocalPlugins]);
+  }, [loadedPlugins]);
 
   return { menus, routes };
 }

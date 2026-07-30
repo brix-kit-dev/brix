@@ -37,4 +37,19 @@ export {
   findPageById,
   type UIPluginManifest,
   type LoadedPluginConfig,
+  type LoadedPluginFailure,
+  type LoadedPluginSuccess,
 } from './manifest-loader';
+
+// Runtime Asset Transport
+export {
+  RuntimeAssetTransportError,
+  fetchRuntimeAsset,
+  fetchRuntimeAssetJson,
+  probeRuntimeAsset,
+  type RuntimeAssetErrorCode,
+  type RuntimeAssetKind,
+  type RuntimeAssetRequest,
+  type RuntimeAssetResponse,
+  type RuntimeAssetTransportPolicy,
+} from './runtime-asset-transport';

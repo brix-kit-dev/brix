@@ -332,6 +332,150 @@ export interface AuthState {
 }
 
 // =========================================
+// Verified Authentication Context
+// =========================================
+
+/**
+ * Verified authentication context kind.
+ *
+ * <p>The value is produced by the Auth Capability provider after token
+ * validation. Guards consume this value and MUST NOT derive it from raw tokens.</p>
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export type VerifiedAuthContextKind =
+  | 'platform'
+  | 'actor'
+  | 'subject'
+  | 'bootstrap-setup';
+
+/**
+ * Stable route admission state returned by Auth Capability.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export type VerifiedSessionState =
+  | 'anonymous'
+  | 'authenticated'
+  | 'challenge'
+  | 'expired';
+
+/**
+ * Common fields for a verified authentication context.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface VerifiedAuthContextBase {
+  /** Verified context kind. */
+  readonly kind: VerifiedAuthContextKind;
+  /** Stable subject identifier from the verified session. */
+  readonly subjectId: string;
+  /** Stable actor identifier when distinct from the subject. */
+  readonly actorId?: string;
+  /** Session identifier suitable for UI correlation, never a raw token. */
+  readonly sessionId: string;
+  /** Capability-verified permission identifiers. */
+  readonly permissions: readonly string[];
+  /** ISO-8601 expiry timestamp when the provider exposes it. */
+  readonly expiresAt?: string;
+}
+
+/**
+ * Verified platform administrator context.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface VerifiedPlatformContext extends VerifiedAuthContextBase {
+  readonly kind: 'platform';
+}
+
+/**
+ * Verified tenant actor context.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface VerifiedActorContext extends VerifiedAuthContextBase {
+  readonly kind: 'actor';
+  /** Tenant identifier verified by the Auth Capability provider. */
+  readonly tenantId: string;
+  /** Tenant member identifier when available. */
+  readonly memberId?: string;
+}
+
+/**
+ * Verified tenant subject context.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface VerifiedSubjectContext extends VerifiedAuthContextBase {
+  readonly kind: 'subject';
+  /** Tenant identifier verified by the Auth Capability provider. */
+  readonly tenantId: string;
+  /** Tenant principal identifier when available. */
+  readonly principalId?: string;
+}
+
+/**
+ * Verified bootstrap/setup context.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface VerifiedBootstrapContext extends VerifiedAuthContextBase {
+  readonly kind: 'bootstrap-setup';
+  readonly bootstrapStage: 'setup' | 'bootstrap' | 'mfa-challenge';
+}
+
+/**
+ * Union of all verified contexts exposed to frontend guards.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export type VerifiedAuthContext =
+  | VerifiedPlatformContext
+  | VerifiedActorContext
+  | VerifiedSubjectContext
+  | VerifiedBootstrapContext;
+
+/**
+ * Verified session snapshot used by Route Guard and Router Capability.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface VerifiedSession {
+  readonly state: VerifiedSessionState;
+  readonly activeContext: VerifiedAuthContext | null;
+  readonly permissions: readonly string[];
+}
+
+/**
+ * Route policy passed to Auth Capability for fail-closed admission decisions.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface AuthRoutePolicy {
+  readonly allowedContexts: readonly VerifiedAuthContextKind[];
+  readonly permissions?: readonly string[];
+  readonly requireAllPermissions?: boolean;
+  readonly tenantContext?: 'forbidden' | 'required' | 'optional';
+}
+
+/**
+ * Stable route admission result.
+ *
+ * @since 3.2.0 Phase 4 Guard alignment
+ */
+export interface AuthRouteDecision {
+  readonly allowed: boolean;
+  readonly reason:
+    | 'allowed'
+    | 'anonymous'
+    | 'context_mismatch'
+    | 'tenant_forbidden'
+    | 'tenant_required'
+    | 'permission_denied';
+}
+
+// =========================================
 // Authentication State Change Event
 // =========================================
 
@@ -486,6 +630,65 @@ export interface AuthCapability {
    * @returns Access token, returns null if not logged in
    */
   getToken(): string | null;
+
+  /**
+   * Get a sanitized verified session snapshot for Route Guards.
+   *
+   * <p>Guards MUST use this method instead of reading or decoding raw tokens.</p>
+   *
+   * @returns Verified session snapshot
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  getVerifiedSession(): VerifiedSession;
+
+  /**
+   * Get the currently active verified context.
+   *
+   * @returns Active context, or null when no verified context exists
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  getActiveContext(): VerifiedAuthContext | null;
+
+  /**
+   * Get the current verified platform context.
+   *
+   * @returns Platform context, or null when another context is active
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  getVerifiedPlatformContext(): VerifiedPlatformContext | null;
+
+  /**
+   * Get the current verified actor context.
+   *
+   * @returns Actor context, or null when another context is active
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  getVerifiedActorContext(): VerifiedActorContext | null;
+
+  /**
+   * Get the current verified subject context.
+   *
+   * @returns Subject context, or null when another context is active
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  getVerifiedSubjectContext(): VerifiedSubjectContext | null;
+
+  /**
+   * Get the current verified bootstrap/setup context.
+   *
+   * @returns Bootstrap/setup context, or null when another context is active
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  getVerifiedBootstrapContext(): VerifiedBootstrapContext | null;
+
+  /**
+   * Evaluate route access using verified context and permissions.
+   *
+   * @param policy Route policy from UI Manifest or Host Composition
+   * @returns Stable route decision
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  canAccessRoute(policy: AuthRoutePolicy): AuthRouteDecision;
 
   /**
    * Get current tenant

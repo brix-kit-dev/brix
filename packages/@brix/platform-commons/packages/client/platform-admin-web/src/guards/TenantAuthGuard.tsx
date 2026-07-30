@@ -5,15 +5,18 @@
 
 import { type ReactNode, useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { AuthCapabilityType, type AuthCapability } from '@brix-sdk/runtime-sdk-api-web';
+import {
+  AuthCapabilityType,
+  type AuthCapability,
+  type AuthRoutePolicy,
+} from '@brix-sdk/runtime-sdk-api-web';
 import { useAuth, useRuntimeContext } from '@brix-sdk/runtime-sdk-react';
-import { PLATFORM_ADMIN_ROUTES } from '../constants';
-import { currentAccessToken, isPlatformAccessToken, isTenantAccessToken } from './auth-scope';
 
 export interface TenantAuthGuardProps {
   children: ReactNode;
   loadingFallback?: ReactNode;
   tenantLoginPath?: string;
+  permissions?: readonly string[];
 }
 
 export function TenantAuthGuard(props: TenantAuthGuardProps): JSX.Element {
@@ -26,11 +29,13 @@ export function TenantAuthGuard(props: TenantAuthGuardProps): JSX.Element {
   );
 
   if (isLoading) return <>{props.loadingFallback ?? <GuardLoading />}</>;
-  const token = auth ? currentAccessToken(auth) : null;
-  if (isAuthenticated && isPlatformAccessToken(token)) {
-    return <Navigate to={PLATFORM_ADMIN_ROUTES.DASHBOARD} replace />;
-  }
-  if (!isAuthenticated || !isTenantAccessToken(token)) {
+  const routePolicy: AuthRoutePolicy = {
+    allowedContexts: ['actor', 'subject'],
+    tenantContext: 'required',
+    permissions: props.permissions,
+  };
+  const decision = auth?.canAccessRoute(routePolicy);
+  if (!isAuthenticated || !decision?.allowed) {
     return (
       <Navigate
         to={props.tenantLoginPath ?? '/login'}

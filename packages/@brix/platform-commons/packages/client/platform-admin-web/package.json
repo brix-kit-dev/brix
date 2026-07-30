@@ -1,7 +1,7 @@
 {
   "name": "@brix-sdk/platform-admin-web",
   "version": "3.2.0",
-  "description": "Platform Super-Admin Web SDK — v2.0 setup/TOTP pages, hooks, and repositories for the platform-admin backend.",
+  "description": "Platform Super-Admin Web SDK — manifest-backed route assembly and contract types for the platform-admin backend.",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -17,25 +17,15 @@
       "import": "./dist/module.js",
       "require": "./dist/module.cjs"
     },
-    "./pages": {
-      "types": "./dist/pages.d.ts",
-      "import": "./dist/pages.js",
-      "require": "./dist/pages.cjs"
-    },
-    "./hooks": {
-      "types": "./dist/hooks.d.ts",
-      "import": "./dist/hooks.js",
-      "require": "./dist/hooks.cjs"
-    },
-    "./repositories": {
-      "types": "./dist/repositories.d.ts",
-      "import": "./dist/repositories.js",
-      "require": "./dist/repositories.cjs"
-    },
     "./constants": {
       "types": "./dist/constants.d.ts",
       "import": "./dist/constants.js",
       "require": "./dist/constants.cjs"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.js",
+      "require": "./dist/manifest.cjs"
     }
   },
   "files": [
@@ -46,7 +36,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
@@ -59,6 +49,7 @@
     "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@brix-sdk/runtime-sdk-api-web": "workspace:*",
     "@brix-sdk/runtime-sdk-react": "workspace:*",
     "@testing-library/react": "^14.1.0",
@@ -70,6 +61,7 @@
     "rimraf": "^5.0.5",
     "tsup": "^8.0.1",
     "typescript": "^5.3.2",
+    "typescript-eslint": "^7.18.0",
     "vitest": "^1.2.0"
   },
   "keywords": [

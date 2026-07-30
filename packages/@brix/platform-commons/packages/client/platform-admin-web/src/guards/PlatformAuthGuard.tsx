@@ -5,15 +5,19 @@
 
 import { type ReactNode, useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { AuthCapabilityType, type AuthCapability } from '@brix-sdk/runtime-sdk-api-web';
+import {
+  AuthCapabilityType,
+  type AuthCapability,
+  type AuthRoutePolicy,
+} from '@brix-sdk/runtime-sdk-api-web';
 import { useAuth, useRuntimeContext } from '@brix-sdk/runtime-sdk-react';
 import { PLATFORM_ADMIN_ROUTES } from '../constants';
-import { currentAccessToken, isPlatformAccessToken } from './auth-scope';
 
 export interface PlatformAuthGuardProps {
   children: ReactNode;
   loadingFallback?: ReactNode;
   redirectTo?: string;
+  permissions?: readonly string[];
 }
 
 export function PlatformAuthGuard(props: PlatformAuthGuardProps): JSX.Element {
@@ -26,8 +30,13 @@ export function PlatformAuthGuard(props: PlatformAuthGuardProps): JSX.Element {
   );
 
   if (isLoading) return <>{props.loadingFallback ?? <GuardLoading />}</>;
-  const token = auth ? currentAccessToken(auth) : null;
-  if (!isAuthenticated || !isPlatformAccessToken(token)) {
+  const routePolicy: AuthRoutePolicy = {
+    allowedContexts: ['platform'],
+    tenantContext: 'forbidden',
+    permissions: props.permissions,
+  };
+  const decision = auth?.canAccessRoute(routePolicy);
+  if (!isAuthenticated || !decision?.allowed) {
     return (
       <Navigate
         to={props.redirectTo ?? PLATFORM_ADMIN_ROUTES.LOGIN}

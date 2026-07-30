@@ -50,6 +50,8 @@ import type {
   Tenant,
   AuthChangeEvent,
   DataScope,
+  VerifiedAuthContext,
+  VerifiedSessionState,
 } from './auth';
 import type {
   ActorTenantAccessContext,
@@ -102,6 +104,22 @@ export interface InternalAuthState {
   dataScopes: DataScope[];
   /** Whether authentication state is being loaded */
   loading: boolean;
+  /**
+   * Capability-provider verified context snapshot.
+   *
+   * <p>Frontend guards consume this field through AuthCapability verified
+   * context APIs. It must be produced by trusted Auth provider logic, not by
+   * Guard-side JWT parsing.</p>
+   *
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  activeContext?: VerifiedAuthContext | null;
+  /**
+   * Stable session state for route admission.
+   *
+   * @since 3.2.0 Phase 4 Guard alignment
+   */
+  sessionState?: VerifiedSessionState;
 }
 
 /**

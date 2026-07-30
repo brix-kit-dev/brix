@@ -41,8 +41,6 @@ export {
   type UsePluginSystemOptions,
   type HostMenuConfig,
   type LocalPluginConfig,
-  type LocalPluginMenu,
-  type LocalPluginRoute,
 } from './usePluginSystem';
 
 // ========== Sub-hooks (advanced usage) ==========

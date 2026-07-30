@@ -1,15 +1,15 @@
 # @brix-sdk/platform-admin-web
 
-Platform Super-Admin Web SDK: pages, hooks, route guards, and repositories for
-the `platform-admin` backend module.
+Platform Super-Admin Web SDK: manifest-backed route assembly, route guards and
+contract types for the `platform-admin` backend module.
 
-This package implements the v2.0 super-admin web flow from
-`docs/v2.0-平台超管功能最小实现-设计蓝图.md`.
+This package implements the active v3.0.10 Runtime Shell frontend slice for the
+platform administration UI.
 
 ## Architecture
 
-`platform-admin-web` is the client mirror of a Layer 2C platform capability. It
-lives in `platform-commons`, not in `enterprise-solutions`.
+`platform-admin-web` is a Layer 1 platform-operational UI module. It lives in
+`platform-commons`, not in `enterprise-solutions`.
 
 The layering is:
 
@@ -27,9 +27,10 @@ depend on any `enterprise-*` package.
 | `@brix-sdk/platform-admin-web` | Convenience barrel |
 | `@brix-sdk/platform-admin-web/module` | Runtime module definition and route contributions |
 | `@brix-sdk/platform-admin-web/constants` | Routes, permissions, API paths, audit actions |
-| `@brix-sdk/platform-admin-web/repositories` | Repository factories |
-| `@brix-sdk/platform-admin-web/hooks` | React view-model hooks |
-| `@brix-sdk/platform-admin-web/pages` | Page components |
+| `@brix-sdk/platform-admin-web/manifest` | UI manifest contract and validation helpers |
+
+Page, Hook and Repository files are internal. Hosts and other plugins must use
+the package root or `./module` route snapshot instead of importing UI internals.
 
 ## Red Lines
 

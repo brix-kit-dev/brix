@@ -68,6 +68,7 @@ import {
   loadAllManifests,
   type DiscoveredPlugin,
   type LoadedPluginConfig,
+  type LoadedPluginSuccess,
 } from '../services';
 import type { PluginEntry, PluginStatus, PluginLifecycle } from '@brix-sdk/runtime-sdk-api-web';
 
@@ -410,8 +411,8 @@ export function useWebUIRuntime(
 
       // Convert to PluginEntry and register
       const pluginEntries: PluginEntry[] = loadedPlugins
-        .filter((config: LoadedPluginConfig) => config.status === 'loaded')
-        .map((config: LoadedPluginConfig) => createPluginEntry(config));
+        .filter((config): config is LoadedPluginSuccess => config.status === 'loaded')
+        .map(config => createPluginEntry(config));
 
       runtime.registerPlugins(pluginEntries);
 
@@ -613,7 +614,6 @@ export function useWebUIRuntime(
 
     for (const [pluginId, pluginState] of state.pluginStates) {
       if (pluginState.status === 'active') {
-        // TODO: Implement real health check (call plugin's healthCheck method)
         results.set(pluginId, 'healthy');
       } else if (pluginState.status === 'error') {
         results.set(pluginId, 'unhealthy');
@@ -695,7 +695,7 @@ export function useWebUIRuntime(
  * @param config Loaded plugin configuration
  * @returns PluginEntry
  */
-function createPluginEntry(config: LoadedPluginConfig): PluginEntry {
+function createPluginEntry(config: LoadedPluginSuccess): PluginEntry {
   const { plugin, manifest } = config;
 
   // Create async load function (Module Federation loading handled internally by WebUIRuntime)

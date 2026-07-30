@@ -46,6 +46,11 @@
       "types": "./dist/types/globals.d.ts",
       "import": "./dist/globals.js",
       "default": "./dist/globals.js"
+    },
+    "./runtime-identity": {
+      "types": "./dist/types/runtime-identity.d.ts",
+      "import": "./dist/runtime-identity.js",
+      "default": "./dist/runtime-identity.js"
     }
   },
   "files": [

@@ -38,6 +38,14 @@ import type {
   LoginCredentials,
   LoginResult,
   AuthState as IAuthState,
+  AuthRouteDecision,
+  AuthRoutePolicy,
+  VerifiedActorContext,
+  VerifiedAuthContext,
+  VerifiedBootstrapContext,
+  VerifiedPlatformContext,
+  VerifiedSession,
+  VerifiedSubjectContext,
   Unsubscribe,
   AuthCapabilityConfig,
   InternalAuthState,
@@ -200,6 +208,92 @@ export class AuthCapabilityImpl implements AuthCapability {
   getToken(): string | null {
     return this.getInternalAuthState().token;
   }
+
+  /**
+   * Return the provider-verified session snapshot consumed by Route Guards.
+   */
+  getVerifiedSession(): VerifiedSession {
+    const state = this.getInternalAuthState();
+    const activeContext = readVerifiedContext(state.activeContext);
+    return {
+      state: state.sessionState ?? inferSessionState(activeContext),
+      activeContext,
+      permissions: activeContext?.permissions ?? [],
+    };
+  }
+
+  /**
+   * Return the active provider-verified context without exposing raw tokens.
+   */
+  getActiveContext(): VerifiedAuthContext | null {
+    return this.getVerifiedSession().activeContext;
+  }
+
+  /**
+   * Return a verified platform context when it is the active context.
+   */
+  getVerifiedPlatformContext(): VerifiedPlatformContext | null {
+    const context = this.getActiveContext();
+    return context?.kind === 'platform' ? context : null;
+  }
+
+  /**
+   * Return a verified tenant actor context when it is the active context.
+   */
+  getVerifiedActorContext(): VerifiedActorContext | null {
+    const context = this.getActiveContext();
+    return context?.kind === 'actor' ? context : null;
+  }
+
+  /**
+   * Return a verified tenant subject context when it is the active context.
+   */
+  getVerifiedSubjectContext(): VerifiedSubjectContext | null {
+    const context = this.getActiveContext();
+    return context?.kind === 'subject' ? context : null;
+  }
+
+  /**
+   * Return a verified bootstrap/setup context when it is the active context.
+   */
+  getVerifiedBootstrapContext(): VerifiedBootstrapContext | null {
+    const context = this.getActiveContext();
+    return context?.kind === 'bootstrap-setup' ? context : null;
+  }
+
+  /**
+   * Evaluate route admission from provider-verified context and permissions.
+   */
+  canAccessRoute(policy: AuthRoutePolicy): AuthRouteDecision {
+    const context = this.getActiveContext();
+    if (!context) {
+      return { allowed: false, reason: 'anonymous' };
+    }
+    if (!policy.allowedContexts.includes(context.kind)) {
+      return { allowed: false, reason: 'context_mismatch' };
+    }
+
+    const hasTenant = hasTenantContext(context);
+    if (policy.tenantContext === 'forbidden' && hasTenant) {
+      return { allowed: false, reason: 'tenant_forbidden' };
+    }
+    if (policy.tenantContext === 'required' && !hasTenant) {
+      return { allowed: false, reason: 'tenant_required' };
+    }
+
+    const requiredPermissions = policy.permissions ?? [];
+    if (requiredPermissions.length > 0) {
+      const granted = new Set(context.permissions);
+      const allowed = policy.requireAllPermissions === false
+        ? requiredPermissions.some(permission => granted.has(permission))
+        : requiredPermissions.every(permission => granted.has(permission));
+      if (!allowed) {
+        return { allowed: false, reason: 'permission_denied' };
+      }
+    }
+
+    return { allowed: true, reason: 'allowed' };
+  }
   
   /**
    * 
@@ -324,4 +418,44 @@ export class AuthCapabilityImpl implements AuthCapability {
     this.subscriptions.forEach(unsubscribe => unsubscribe());
     this.subscriptions.clear();
   }
+}
+
+function inferSessionState(context: VerifiedAuthContext | null): VerifiedSession['state'] {
+  if (!context) {
+    return 'anonymous';
+  }
+  return context.kind === 'bootstrap-setup' ? 'challenge' : 'authenticated';
+}
+
+function readVerifiedContext(value: VerifiedAuthContext | null | undefined): VerifiedAuthContext | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  if (!hasText(value.subjectId) || !hasText(value.sessionId) || !Array.isArray(value.permissions)) {
+    return null;
+  }
+  switch (value.kind) {
+    case 'platform':
+      return value;
+    case 'actor':
+      return hasText(value.tenantId) ? value : null;
+    case 'subject':
+      return hasText(value.tenantId) ? value : null;
+    case 'bootstrap-setup':
+      return value.bootstrapStage === 'setup'
+        || value.bootstrapStage === 'bootstrap'
+        || value.bootstrapStage === 'mfa-challenge'
+        ? value
+        : null;
+    default:
+      return null;
+  }
+}
+
+function hasTenantContext(context: VerifiedAuthContext): context is VerifiedActorContext | VerifiedSubjectContext {
+  return (context.kind === 'actor' || context.kind === 'subject') && hasText(context.tenantId);
+}
+
+function hasText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }

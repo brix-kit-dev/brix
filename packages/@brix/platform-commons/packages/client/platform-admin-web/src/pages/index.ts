@@ -4,7 +4,7 @@
  */
 
 export { PlatformLoginPage, type PlatformLoginPageProps } from './PlatformLoginPage';
-export { PlatformLoginTotpPage, type PlatformLoginTotpPageProps } from './PlatformLoginTotpPage';
+export { PlatformLoginTotpPage } from './PlatformLoginTotpPage';
 export { PlatformSetupPage } from './PlatformSetupPage';
 export { PlatformBootstrapPage } from './PlatformBootstrapPage';
 export { PlatformBootstrapSentPage } from './PlatformBootstrapSentPage';

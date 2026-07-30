@@ -3,13 +3,13 @@ import { defineConfig } from 'tsup';
 /**
  * tsup build config for @brix-sdk/platform-admin-web.
  *
- * Multi-entry exports mirror package.json `exports` map so that consumers can
- * import only the slice they need:
- *   - ./           — full SDK barrel
- *   - ./pages      — UI pages (heaviest; not auto-loaded)
- *   - ./hooks      — React hooks (medium)
- *   - ./repositories — pure data layer (lightweight, framework-agnostic)
- *   - ./constants  — permission codes / route constants (zero deps)
+ * Multi-entry exports mirror package.json `exports` map. Page, Hook and
+ * Repository internals are deliberately not entry points; route composition
+ * is exposed through the manifest-backed module entry.
+ *   - ./           — stable public barrel
+ *   - ./module     — manifest-backed route/menu snapshot
+ *   - ./constants  — permission codes / route constants
+ *   - ./manifest   — UI manifest contract and validation helpers
  *
  * `external`: peerDependencies must be marked external so the consuming host
  * provides the singletons (React, RuntimeContext, UIAdapter). Bundling them
@@ -18,11 +18,9 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
-    pages: 'src/pages/index.ts',
-    hooks: 'src/hooks/index.ts',
-    repositories: 'src/repositories/index.ts',
     constants: 'src/constants.ts',
     module: 'src/module.ts',
+    manifest: 'src/ui-manifest.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,

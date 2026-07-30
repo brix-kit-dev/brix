@@ -92,6 +92,7 @@ export default defineConfig({
    * - mf-shared-config.ts: Module Federation shared configuration
    * - versions.ts: Version constants for runtime dependencies
    * - globals.ts: Global injection utilities for legacy compatibility
+   * - runtime-identity.ts: Browser-readable runtime singleton evidence
    */
   entry: [
     'src/index.ts',
@@ -102,6 +103,7 @@ export default defineConfig({
     'src/mf-shared-config.ts',
     'src/versions.ts',
     'src/globals.ts',
+    'src/runtime-identity.ts',
   ],
 
   /**

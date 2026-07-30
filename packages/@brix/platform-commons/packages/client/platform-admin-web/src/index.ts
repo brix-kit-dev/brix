@@ -6,8 +6,9 @@
 /**
  * @file `@brix-sdk/platform-admin-web` — public barrel.
  *
- * Re-exports every consumer-visible symbol so apps can `import { … } from
- * '@brix-sdk/platform-admin-web'` without remembering the sub-paths.
+ * Exposes only the stable module assembly contract, manifest, constants and
+ * DTO types. Page, Hook and Repository internals intentionally stay package
+ * private; Hosts consume the route snapshot generated from the manifest.
  *
  * Architectural note (SSOT §11):
  *   This package is part of `platform-commons` and MUST NOT depend on any
@@ -19,17 +20,13 @@
 
 export * from './constants';
 export * from './types';
-export * from './repositories';
-export * from './hooks';
 export * from './guards';
-export * from './pages';
+export * from './ui-manifest';
 export { I18N_NAMESPACE, I18N_KEYS, makeT, type I18nTuple } from './i18n';
 export {
-  platformAdminMenus,
-  createPlatformAdminPublicRoutes,
-  platformAdminPublicRoutes,
-  platformAdminProtectedRoutes,
+  createPlatformAdminMenuEntries,
+  createPlatformAdminRouteSnapshot,
   type PlatformAdminMenuEntry,
-  type PlatformAdminRouteOptions,
   type PlatformAdminRouteEntry,
+  type PlatformAdminRouteSnapshotEntry,
 } from './module';

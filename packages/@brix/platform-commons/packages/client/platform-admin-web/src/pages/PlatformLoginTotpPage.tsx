@@ -11,20 +11,13 @@ import { useUIStrict, AdminPageShell, PageHeader } from "../internal/ui-kit";
 import { usePlatformLoginTotp } from "../hooks/usePlatformLoginTotp";
 import { I18N_KEYS, I18N_NAMESPACE, makeT } from "../i18n";
 import { PLATFORM_ADMIN_ROUTES } from "../constants";
-import type { PlatformLoginTotpResponse } from "../types";
 
 interface LoginTotpRouteState {
   mfaChallengeToken?: string;
   loginId?: string;
 }
 
-export interface PlatformLoginTotpPageProps {
-  onLoginSuccess?: (res: PlatformLoginTotpResponse, loginId: string) => void;
-}
-
-export function PlatformLoginTotpPage(
-  props: PlatformLoginTotpPageProps,
-): JSX.Element {
+export function PlatformLoginTotpPage(): JSX.Element {
   const { Card, Input, Button, message } = useUIStrict();
   const { tokens } = useTheme();
   const t = tokens as DesignTokens;
@@ -37,7 +30,6 @@ export function PlatformLoginTotpPage(
   const [submitted, setSubmitted] = useState(false);
 
   const challenge = routeState.mfaChallengeToken?.trim();
-  const loginId = routeState.loginId?.trim() ?? "";
   const codeInvalid = !/^\d{6}$/.test(code);
 
   async function handleSubmit(e: FormEvent) {
@@ -45,11 +37,10 @@ export function PlatformLoginTotpPage(
     setSubmitted(true);
     if (!challenge || codeInvalid) return;
     try {
-      const res = await loginTotp({
+      await loginTotp({
         mfaChallengeToken: challenge,
         totpCode: code,
       });
-      props.onLoginSuccess?.(res, loginId);
       setCode("");
       navigate(PLATFORM_ADMIN_ROUTES.DASHBOARD, { replace: true });
     } catch (err) {

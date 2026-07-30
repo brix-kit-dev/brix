@@ -62,6 +62,7 @@
  * | /mf-config          | Module Federation shared configuration         |
  * | /versions           | Version constants and utilities                |
  * | /globals            | Global window injection utilities              |
+ * | /runtime-identity   | Runtime singleton identity evidence            |
  *
  * ## Usage Examples
  *
@@ -160,6 +161,7 @@ export {
   getSharedPackageNames,
   type SharedConfig,
   type SharedDependencyConfig,
+  type SharedRuntimeRole,
 } from './mf-shared-config';
 
 // =============================================================================
@@ -178,6 +180,16 @@ export {
   getGlobalReactDOM,
   clearGlobals,
 } from './globals';
+
+export {
+  FRONTEND_RUNTIME_IDENTITY_GLOBAL,
+  FRONTEND_RUNTIME_IDENTITY_SCHEMA,
+  createFrontendRuntimeIdentityEvidence,
+  publishFrontendRuntimeIdentityEvidence,
+  type FrontendRuntimeCapabilityName,
+  type FrontendRuntimeIdentityEvidence,
+  type FrontendRuntimeIdentityInput,
+} from './runtime-identity';
 
 // =============================================================================
 // Namespace Re-exports for Convenience

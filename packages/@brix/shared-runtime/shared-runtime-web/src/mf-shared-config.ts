@@ -34,15 +34,8 @@
  *
  * 1. `singleton: true` - Forces single instance across all remotes
  * 2. `requiredVersion` - Ensures compatible versions are loaded
- * 3. `eager: true` (Host only) - Loads dependency with initial bundle
- * 4. `eager: false` (Remote) - Loads dependency from Host, not bundled
- *
- * ## Why Eager Matters
- *
- * - Host sets `eager: true`: The shared dependency is included in the initial
- *   bundle and available before any remote loads
- * - Remote sets `eager: false`: The remote does NOT bundle the dependency,
- *   instead obtaining it from the shared scope provided by Host
+ * 3. `strictVersion: true` - Fails closed on incompatible core runtime ranges
+ * 4. `import: false` (Remote) - Loads dependency from Host, not bundled
  *
  * This ensures:
  * - Single React instance in browser memory
@@ -100,6 +93,13 @@ import { RUNTIME_VERSIONS } from './versions';
 declare const __RESOLVED_MUI_MATERIAL_VERSION__: string | undefined;
 declare const __RESOLVED_MUI_ICONS_VERSION__: string | undefined;
 
+const RESOLVED_MUI_MATERIAL_VERSION = typeof __RESOLVED_MUI_MATERIAL_VERSION__ === 'undefined'
+  ? undefined
+  : __RESOLVED_MUI_MATERIAL_VERSION__;
+const RESOLVED_MUI_ICONS_VERSION = typeof __RESOLVED_MUI_ICONS_VERSION__ === 'undefined'
+  ? undefined
+  : __RESOLVED_MUI_ICONS_VERSION__;
+
 // =============================================================================
 // Type Definitions
 // =============================================================================
@@ -126,11 +126,11 @@ export interface SharedDependencyConfig {
   requiredVersion: string;
 
   /**
-   * When true, the dependency is loaded eagerly with the initial bundle.
-   * - Host: true (provides the dependency)
-   * - Remote: false (consumes from Host)
+   * Phase 7 release gates forbid eager shared runtime loading in Host and
+   * Remote artifacts. The field is retained only so guard code can detect and
+   * reject legacy hand-written configurations.
    */
-  eager?: boolean;
+  eager?: never;
 
   /**
    * When true, the module cannot be shared and must be provided.
@@ -149,6 +149,18 @@ export interface SharedDependencyConfig {
    * Use exact version (e.g., "7.3.8") not semver range (e.g., "^7.0.0").
    */
   version?: string;
+
+  /**
+   * When false, the Remote must consume this dependency from the Host-provided
+   * share scope and must not bundle its own provider.
+   */
+  import?: false;
+
+  /**
+   * Module Federation share scope. Brix uses the default scope for trusted
+   * same-JS-realm Web Profile remotes.
+   */
+  shareScope?: 'default';
 }
 
 /**
@@ -157,6 +169,107 @@ export interface SharedDependencyConfig {
  */
 export interface SharedConfig {
   [packageName: string]: SharedDependencyConfig;
+}
+
+export type SharedRuntimeRole = 'host' | 'remote' | 'adapter';
+
+interface SharedRuntimeBomEntry {
+  readonly requiredVersion: string;
+  readonly strictVersion: boolean;
+  readonly version?: string;
+}
+
+const STRICT_RUNTIME_PACKAGES = new Set([
+  'react',
+  'react-dom',
+  'react/jsx-runtime',
+  'react-router-dom',
+  '@brix-sdk/runtime-sdk-react',
+  '@brix-sdk/runtime-sdk-api-web',
+]);
+
+function sharedRuntimeBom(): Record<string, SharedRuntimeBomEntry> {
+  return {
+    react: {
+      requiredVersion: RUNTIME_VERSIONS.react,
+      strictVersion: true,
+    },
+    'react-dom': {
+      requiredVersion: RUNTIME_VERSIONS['react-dom'],
+      strictVersion: true,
+    },
+    'react/jsx-runtime': {
+      requiredVersion: RUNTIME_VERSIONS.react,
+      strictVersion: true,
+    },
+    'react-router-dom': {
+      requiredVersion: RUNTIME_VERSIONS['react-router-dom'],
+      strictVersion: true,
+    },
+    zustand: {
+      requiredVersion: RUNTIME_VERSIONS.zustand,
+      strictVersion: false,
+    },
+    '@mui/material': {
+      requiredVersion: RUNTIME_VERSIONS['@mui/material'],
+      strictVersion: false,
+      version: RESOLVED_MUI_MATERIAL_VERSION,
+    },
+    '@mui/icons-material': {
+      requiredVersion: RUNTIME_VERSIONS['@mui/icons-material'],
+      strictVersion: false,
+      version: RESOLVED_MUI_ICONS_VERSION,
+    },
+    '@emotion/react': {
+      requiredVersion: RUNTIME_VERSIONS['@emotion/react'],
+      strictVersion: false,
+    },
+    '@emotion/styled': {
+      requiredVersion: RUNTIME_VERSIONS['@emotion/styled'],
+      strictVersion: false,
+    },
+    '@brix-sdk/runtime-sdk-react': {
+      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-react'],
+      strictVersion: true,
+    },
+    '@brix-sdk/runtime-sdk-api-web': {
+      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-api-web'],
+      strictVersion: true,
+    },
+  };
+}
+
+function createSharedConfig(role: SharedRuntimeRole): SharedConfig {
+  const consumeFromHost = role === 'remote' || role === 'adapter';
+  return Object.fromEntries(
+    Object.entries(sharedRuntimeBom()).map(([name, entry]) => {
+      const config: SharedDependencyConfig = {
+        singleton: true,
+        requiredVersion: entry.requiredVersion,
+        strictVersion: entry.strictVersion,
+        ...(entry.version ? { version: entry.version } : {}),
+        ...(consumeFromHost ? { import: false, shareScope: 'default' as const } : {}),
+      };
+      return [name, config];
+    })
+  );
+}
+
+function assertReleaseSafeSharedConfig(config: SharedConfig, role: SharedRuntimeRole): void {
+  for (const [name, dependency] of Object.entries(config)) {
+    if ('eager' in dependency) {
+      throw new Error(`BRX_FE_MF_EAGER_FORBIDDEN:${role}:${name}`);
+    }
+    if (!dependency.singleton) {
+      throw new Error(`BRX_FE_MF_SINGLETON_REQUIRED:${role}:${name}`);
+    }
+    if (STRICT_RUNTIME_PACKAGES.has(name) && dependency.strictVersion !== true) {
+      throw new Error(`BRX_FE_MF_STRICT_VERSION_REQUIRED:${role}:${name}`);
+    }
+    if ((role === 'remote' || role === 'adapter') && dependency.import !== false) {
+      throw new Error(`BRX_FE_MF_REMOTE_IMPORT_FALSE_REQUIRED:${role}:${name}`);
+    }
+  }
 }
 
 // =============================================================================
@@ -168,7 +281,7 @@ export interface SharedConfig {
  *
  * The Host is responsible for providing all runtime dependencies to remotes.
  * This configuration:
- * - Sets `eager: true` so dependencies load with the Host bundle
+ * - Does not set `eager`; Phase 7 forbids eager shared runtime loading
  * - Sets `singleton: true` to enforce single instances
  * - Uses versions from RUNTIME_VERSIONS for consistency
  *
@@ -193,113 +306,13 @@ export interface SharedConfig {
  * ```
  *
  * @remarks
- * The Host should be the ONLY application that sets `eager: true`.
+ * The Host provides the shared scope through its normal dependency graph.
  * All plugins/remotes should use `getRemoteSharedConfig()`.
  */
 export function getHostSharedConfig(): SharedConfig {
-  return {
-    // =========================================================================
-    // React Core - CRITICAL SINGLETON
-    // =========================================================================
-    react: {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS.react,
-      eager: true,
-      strictVersion: true,
-    },
-    'react-dom': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['react-dom'],
-      eager: true,
-      strictVersion: true,
-    },
-    /**
-     * JSX Runtime - Required for the new JSX transform.
-     * Without this, some bundlers may bundle their own copy.
-     */
-    'react/jsx-runtime': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS.react,
-      eager: true,
-    },
-
-    // =========================================================================
-    // Router - Single router context required
-    // =========================================================================
-    'react-router-dom': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['react-router-dom'],
-      eager: true,
-    },
-
-    // =========================================================================
-    // State Management - Works without React context
-    // =========================================================================
-    zustand: {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS.zustand,
-      eager: true,
-    },
-
-    // =========================================================================
-    // UI Library - Theme context must be shared
-    //
-    // IMPORTANT: @mui/* packages use ESM exports that resolve to esm/index.js.
-    // In pnpm environments, this subdirectory has no package.json, preventing
-    // MF from auto-detecting the version. The explicit `version` field fixes:
-    // - "No version specified" warnings
-    // - "factory is undefined" errors during HMR
-    // =========================================================================
-    '@mui/material': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@mui/material'],
-      version: __RESOLVED_MUI_MATERIAL_VERSION__,
-      eager: true,
-    },
-    '@mui/icons-material': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@mui/icons-material'],
-      version: __RESOLVED_MUI_ICONS_VERSION__,
-      eager: true,
-    },
-    '@emotion/react': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@emotion/react'],
-      eager: true,
-    },
-    '@emotion/styled': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@emotion/styled'],
-      eager: true,
-    },
-
-    // =========================================================================
-    // Brix Runtime SDK - CRITICAL for RuntimeContext sharing
-    // =========================================================================
-
-    /**
-     * Runtime SDK React - Contains RuntimeContextProvider and hooks.
-     * CRITICAL: Must be singleton so plugins access Host's RuntimeContext.
-     * All source code MUST import via @brix-sdk/* (unified naming convention).
-     */
-    '@brix-sdk/runtime-sdk-react': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-react'],
-      eager: true,
-    },
-
-    /**
-     * Runtime SDK API Web - Contains capability type symbols.
-     * CRITICAL: Must be singleton to ensure Symbol.for() consistency.
-     * All source code MUST import via @brix-sdk/* (unified naming convention).
-     */
-    '@brix-sdk/runtime-sdk-api-web': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-api-web'],
-      eager: true,
-    },
-
-  };
+  const config = createSharedConfig('host');
+  assertReleaseSafeSharedConfig(config, 'host');
+  return config;
 }
 
 /**
@@ -307,7 +320,7 @@ export function getHostSharedConfig(): SharedConfig {
  *
  * Plugins/Remotes consume runtime dependencies from the Host.
  * This configuration:
- * - Sets `eager: false` so dependencies are NOT bundled
+ * - Sets `import: false` so dependencies are NOT bundled
  * - Sets `singleton: true` to participate in singleton sharing
  * - Uses versions from RUNTIME_VERSIONS for compatibility checking
  *
@@ -338,93 +351,9 @@ export function getHostSharedConfig(): SharedConfig {
  * - The plugin bundle will NOT include React, etc. - Host provides them
  */
 export function getRemoteSharedConfig(): SharedConfig {
-  return {
-    // =========================================================================
-    // React Core - Consumed from Host
-    // =========================================================================
-    react: {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS.react,
-      eager: false,
-    },
-    'react-dom': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['react-dom'],
-      eager: false,
-    },
-    'react/jsx-runtime': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS.react,
-      eager: false,
-    },
-
-    // =========================================================================
-    // Router - Consumed from Host
-    // =========================================================================
-    'react-router-dom': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['react-router-dom'],
-      eager: false,
-    },
-
-    // =========================================================================
-    // State Management - Consumed from Host
-    // =========================================================================
-    zustand: {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS.zustand,
-      eager: false,
-    },
-
-    // =========================================================================
-    // UI Library - Consumed from Host
-    // =========================================================================
-    '@mui/material': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@mui/material'],
-      eager: false,
-    },
-    '@mui/icons-material': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@mui/icons-material'],
-      eager: false,
-    },
-    '@emotion/react': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@emotion/react'],
-      eager: false,
-    },
-    '@emotion/styled': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@emotion/styled'],
-      eager: false,
-    },
-
-    // =========================================================================
-    // Brix Runtime SDK - Consumed from Host
-    // =========================================================================
-
-    /**
-     * Runtime SDK React - Obtained from Host for RuntimeContext access.
-     * All source code MUST import via @brix-sdk/* (unified naming convention).
-     */
-    '@brix-sdk/runtime-sdk-react': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-react'],
-      eager: false,
-    },
-
-    /**
-     * Runtime SDK API Web - Obtained from Host for capability types.
-     * All source code MUST import via @brix-sdk/* (unified naming convention).
-     */
-    '@brix-sdk/runtime-sdk-api-web': {
-      singleton: true,
-      requiredVersion: RUNTIME_VERSIONS['@brix-sdk/runtime-sdk-api-web'],
-      eager: false,
-    },
-
-  };
+  const config = createSharedConfig('remote');
+  assertReleaseSafeSharedConfig(config, 'remote');
+  return config;
 }
 
 /**
@@ -456,8 +385,9 @@ export function getRemoteSharedConfig(): SharedConfig {
  * ```
  */
 export function getAdapterSharedConfig(): SharedConfig {
-  // Currently identical to Remote config, but separated for architectural reasons
-  return getRemoteSharedConfig();
+  const config = createSharedConfig('adapter');
+  assertReleaseSafeSharedConfig(config, 'adapter');
+  return config;
 }
 
 // =============================================================================
@@ -499,10 +429,12 @@ export function mergeSharedConfig(
   baseConfig: SharedConfig,
   customDeps: SharedConfig
 ): SharedConfig {
-  return {
+  const merged = {
     ...baseConfig,
     ...customDeps,
   };
+  assertReleaseSafeSharedConfig(merged, 'remote');
+  return merged;
 }
 
 /**

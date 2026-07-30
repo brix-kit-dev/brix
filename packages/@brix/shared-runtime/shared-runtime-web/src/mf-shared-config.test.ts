@@ -18,7 +18,7 @@
  * Tests verify:
  * 1. Host and Remote configurations have correct structure
  * 2. Singleton settings are correct for critical dependencies
- * 3. Eager settings differ between Host and Remote
+ * 3. Phase 7 no-eager and remote import=false rules are enforced
  * 4. Version references match RUNTIME_VERSIONS
  */
 
@@ -56,11 +56,11 @@ describe('mf-shared-config', () => {
       }
     });
 
-    it('should set eager: true for all host dependencies', () => {
+    it('should not emit eager config for host dependencies', () => {
       const config = getHostSharedConfig();
 
       for (const [, depConfig] of Object.entries(config)) {
-        expect(depConfig.eager).toBe(true);
+        expect('eager' in depConfig).toBe(false);
       }
     });
 
@@ -78,6 +78,8 @@ describe('mf-shared-config', () => {
 
       expect(config['react'].strictVersion).toBe(true);
       expect(config['react-dom'].strictVersion).toBe(true);
+      expect(config['react/jsx-runtime'].strictVersion).toBe(true);
+      expect(config['react-router-dom'].strictVersion).toBe(true);
     });
   });
 
@@ -101,11 +103,13 @@ describe('mf-shared-config', () => {
       }
     });
 
-    it('should set eager: false for all remote dependencies', () => {
+    it('should force import:false and omit eager for all remote dependencies', () => {
       const config = getRemoteSharedConfig();
 
       for (const [, depConfig] of Object.entries(config)) {
-        expect(depConfig.eager).toBe(false);
+        expect(depConfig.import).toBe(false);
+        expect(depConfig.shareScope).toBe('default');
+        expect('eager' in depConfig).toBe(false);
       }
     });
 
@@ -137,7 +141,8 @@ describe('mf-shared-config', () => {
         'custom-lib': {
           singleton: true,
           requiredVersion: '^1.0.0',
-          eager: false,
+          import: false,
+          shareScope: 'default',
         },
       };
 
@@ -152,20 +157,21 @@ describe('mf-shared-config', () => {
       expect(merged['custom-lib'].requiredVersion).toBe('^1.0.0');
     });
 
-    it('should allow overriding base config (for advanced use cases)', () => {
+    it('should reject custom eager shared dependencies', () => {
       const baseConfig = getRemoteSharedConfig();
       const overrides = {
         react: {
           singleton: true,
-          requiredVersion: '^18.3.0', // Override version
-          eager: true, // Override eager
+          requiredVersion: '^18.3.0',
+          strictVersion: true,
+          import: false,
+          eager: true,
         },
-      };
+      } as never;
 
-      const merged = mergeSharedConfig(baseConfig, overrides);
-
-      expect(merged['react'].requiredVersion).toBe('^18.3.0');
-      expect(merged['react'].eager).toBe(true);
+      expect(() => mergeSharedConfig(baseConfig, overrides)).toThrow(
+        'BRX_FE_MF_EAGER_FORBIDDEN'
+      );
     });
   });
 
@@ -190,14 +196,15 @@ describe('mf-shared-config', () => {
   });
 
   describe('Host vs Remote configuration differences', () => {
-    it('should have eager: true in host and eager: false in remote', () => {
+    it('should keep Host as provider and Remote as import:false consumer', () => {
       const hostConfig = getHostSharedConfig();
       const remoteConfig = getRemoteSharedConfig();
 
-      // This is the critical difference between host and remote
       for (const name of Object.keys(hostConfig)) {
-        expect(hostConfig[name].eager).toBe(true);
-        expect(remoteConfig[name].eager).toBe(false);
+        expect('eager' in hostConfig[name]).toBe(false);
+        expect('import' in hostConfig[name]).toBe(false);
+        expect('eager' in remoteConfig[name]).toBe(false);
+        expect(remoteConfig[name].import).toBe(false);
       }
     });
   });

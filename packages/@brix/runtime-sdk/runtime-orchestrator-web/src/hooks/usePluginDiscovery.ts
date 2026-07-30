@@ -39,6 +39,8 @@ import {
   loadAllManifests,
   type DiscoveredPlugin,
   type LoadedPluginConfig,
+  type RuntimeAssetTransportPolicy,
+  probeRuntimeAsset,
 } from '../services';
 import type { LocalPluginConfig } from './plugin-system-types';
 import type { PluginState } from './usePluginLifecycle';
@@ -67,6 +69,8 @@ export interface UsePluginDiscoveryOptions {
   healthCheckTimeout?: number;
   /** Health check polling interval (ms). 0 = no polling. Default 30000 */
   healthCheckInterval?: number;
+  /** Additional allowed origins for Runtime-managed static manifest and remoteEntry assets. */
+  assetAllowedOrigins?: readonly string[];
 }
 
 /**
@@ -111,23 +115,21 @@ const EMPTY_ARRAY: readonly never[] = [] as const;
  * @param timeout - Request timeout in milliseconds
  * @returns true if accessible, false otherwise
  */
-export async function checkPluginHealth(remoteEntry: string, timeout: number = 5000): Promise<boolean> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+export async function checkPluginHealth(
+  remoteEntry: string,
+  timeout: number = 5000,
+  transportPolicy: RuntimeAssetTransportPolicy = {}
+): Promise<boolean> {
   try {
-    const response = await fetch(remoteEntry, {
-      method: 'GET',
-      headers: { Range: 'bytes=0-0' },
-      signal: controller.signal,
-      cache: 'no-cache',
+    const response = await probeRuntimeAsset({
+      url: remoteEntry,
+      kind: 'remote-entry-health',
+      timeoutMs: timeout,
+      ...transportPolicy,
     });
-    await response.arrayBuffer();
-    return response.ok;
+    return response.value;
   } catch {
     return false;
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 
@@ -160,11 +162,14 @@ export function usePluginDiscovery(
     localPlugins = EMPTY_ARRAY as unknown as LocalPluginConfig[],
     healthCheckTimeout = 5000,
     healthCheckInterval = 30000,
+    assetAllowedOrigins = EMPTY_ARRAY as unknown as readonly string[],
   } = options;
 
   // Stabilize array reference via ref to avoid infinite effect cycles
   const localPluginsRef = useRef(localPlugins);
   localPluginsRef.current = localPlugins;
+  const assetAllowedOriginsRef = useRef(assetAllowedOrigins);
+  assetAllowedOriginsRef.current = assetAllowedOrigins;
   const healthCheckPromiseRef = useRef<Promise<LocalPluginConfig[] | undefined> | null>(null);
   const localPluginsLength = localPlugins.length;
 
@@ -193,7 +198,12 @@ export function usePluginDiscovery(
     const healthCheckPromise = (async () => {
       const healthChecks = await Promise.all(
         currentLocalPlugins.map(async (plugin) => {
-          const isOnline = await checkPluginHealth(plugin.remoteEntry, healthCheckTimeout);
+          const isOnline = await checkPluginHealth(plugin.remoteEntry, healthCheckTimeout, {
+            allowedOrigins: [
+              ...assetAllowedOriginsRef.current,
+              ...(plugin.allowedAssetOrigins ?? []),
+            ],
+          });
           return { plugin, isOnline };
         })
       );
@@ -267,14 +277,13 @@ export function usePluginDiscovery(
     const loadLocalPluginManifests = async (
       healthyPlugins: LocalPluginConfig[]
     ): Promise<LoadedPluginConfig[]> => {
-      const manifestDriven = healthyPlugins.filter(p => p.manifestUrl);
-      if (manifestDriven.length === 0) return [];
+      if (healthyPlugins.length === 0) return [];
 
-      const asDiscovered: DiscoveredPlugin[] = manifestDriven.map(p => ({
+      const asDiscovered: DiscoveredPlugin[] = healthyPlugins.map(p => ({
         id: p.id,
         name: p.name ?? p.id,
         remoteEntry: p.remoteEntry,
-        manifestUrl: p.manifestUrl!,
+        manifestUrl: p.manifestUrl,
         enabled: true,
         priority: 100,
       }));
@@ -282,6 +291,12 @@ export function usePluginDiscovery(
       return loadAllManifests(asDiscovered, {
         timeout: manifestTimeout,
         ignoreFailures: true,
+        assetTransport: {
+          allowedOrigins: [
+            ...assetAllowedOriginsRef.current,
+            ...healthyPlugins.flatMap(p => [...(p.allowedAssetOrigins ?? [])]),
+          ],
+        },
       });
     };
 
@@ -298,7 +313,9 @@ export function usePluginDiscovery(
       const healthChecks = await Promise.all(
         plugins.map(async (plugin) => ({
           plugin,
-          isOnline: await checkPluginHealth(plugin.remoteEntry, healthCheckTimeout),
+          isOnline: await checkPluginHealth(plugin.remoteEntry, healthCheckTimeout, {
+            allowedOrigins: assetAllowedOriginsRef.current,
+          }),
         }))
       );
 
@@ -354,6 +371,9 @@ export function usePluginDiscovery(
           ? loadAllManifests(reachablePlugins, {
               timeout: manifestTimeout,
               ignoreFailures: true,
+              assetTransport: {
+                allowedOrigins: assetAllowedOriginsRef.current,
+              },
             })
           : Promise.resolve([]),
         healthyLocalPlugins
@@ -424,7 +444,7 @@ export function usePluginDiscovery(
       setStartupDuration(Date.now() - startTime);
 
       // Local health checks already ran in parallel above, but if discovery
-      // threw before Promise.all resolved, run them now as fallback.
+      // threw before Promise.all resolved, run them now as an independent local path.
       if (useLocalPlugins) {
         try {
           const healthyLocals = await checkLocalPluginsHealth() ?? [];
@@ -433,7 +453,7 @@ export function usePluginDiscovery(
             setLoadedPlugins(localManifests);
           }
         } catch {
-          // Local plugin health check failure is non-fatal
+          // Local plugin asset failure is non-fatal to the Host shell itself.
         }
       }
     } finally {

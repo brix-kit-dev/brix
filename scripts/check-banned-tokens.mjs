@@ -155,10 +155,8 @@ function existsDirectory(path) {
 }
 
 function isExactTokenAllowed(relativePath, line, token) {
-  const normalized = relativePath.replaceAll('\\', '/');
-  if (token === 'temp_password_expires_at') {
-    return normalized.endsWith('/V015__add_platform_admin_security_fields.sql')
-      || normalized.endsWith('/V019__drop_platform_admin_v1_temp_password_artifacts.sql');
-  }
+  void relativePath;
+  void line;
+  void token;
   return false;
 }

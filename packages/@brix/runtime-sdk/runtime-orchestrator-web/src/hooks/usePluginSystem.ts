@@ -69,8 +69,6 @@ export type { AggregatedMenuItem, AggregatedRoute } from './usePluginMenu';
 export type {
   HostMenuConfig,
   LocalPluginConfig,
-  LocalPluginMenu,
-  LocalPluginRoute,
 } from './plugin-system-types';
 
 // Stable empty array reference - prevents infinite re-render loops
@@ -130,8 +128,8 @@ export interface UsePluginSystemOptions {
    * Local plugin registry (declarative configuration)
    *
    * Enables frontend-based plugin discovery without backend dependency.
-   * Each plugin declares its remoteEntry URL, scope, menus, and routes.
-   * The system will automatically detect which plugins are online and display their menus.
+   * Each plugin declares its remoteEntry URL, scope, and ui-manifest.json URL.
+   * Menus and routes are admitted only from the loaded manifest.
    */
   localPlugins?: LocalPluginConfig[];
   /**
@@ -152,6 +150,8 @@ export interface UsePluginSystemOptions {
    * @default 30000 (30 seconds)
    */
   healthCheckInterval?: number;
+  /** Additional allowed origins for Runtime-managed manifest and remoteEntry assets. */
+  assetAllowedOrigins?: readonly string[];
 }
 
 // ============================================================================
@@ -184,6 +184,7 @@ export function usePluginSystem(
     localPlugins = EMPTY_ARRAY as unknown as LocalPluginConfig[],
     healthCheckTimeout = 5000,
     healthCheckInterval = 30000,
+    assetAllowedOrigins,
   } = options;
 
   // Stabilize host menu ref to avoid re-render loops in usePluginMenu
@@ -200,6 +201,7 @@ export function usePluginSystem(
     localPlugins,
     healthCheckTimeout,
     healthCheckInterval,
+    assetAllowedOrigins,
   });
 
   // 2. Lifecycle - map discovery sub-phases to canonical lifecycle
@@ -213,7 +215,6 @@ export function usePluginSystem(
   const { menus, routes } = usePluginMenu({
     hostCoreMenus: hostCoreMenusRef.current,
     loadedPlugins: discovery.loadedPlugins,
-    onlineLocalPlugins: discovery.onlineLocalPlugins,
   });
 
   return {

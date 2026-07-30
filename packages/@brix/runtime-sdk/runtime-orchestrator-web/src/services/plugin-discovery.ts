@@ -21,7 +21,7 @@
  *
  * Design Principles: Following Manifest-Driven architecture
  * - Host does not hardcode any plugin list
- * - Dynamically fetch registered plugins from backend /api/plugins endpoint
+ * - Dynamically load registered plugins from the Runtime-managed discovery endpoint
  * - Support caching and retry mechanisms
  *
  * API Contract:
@@ -40,6 +40,12 @@
  *   "mode": "product"
  * }
  */
+
+import {
+  fetchRuntimeAsset,
+  fetchRuntimeAssetJson,
+  type RuntimeAssetTransportPolicy,
+} from './runtime-asset-transport';
 
 /**
  * Plugin info returned from backend
@@ -86,6 +92,8 @@ export interface PluginDiscoveryOptions {
   enableCache?: boolean;
   /** Cache TTL (milliseconds), default 60000 */
   cacheTtl?: number;
+  /** Runtime-managed anonymous transport policy for discovery resources. */
+  assetTransport?: RuntimeAssetTransportPolicy;
 }
 
 // Internal cache
@@ -113,6 +121,7 @@ export async function discoverPlugins(
     timeout = 5000,
     enableCache = true,
     cacheTtl = 60000,
+    assetTransport = {},
   } = options;
 
   // Check cache
@@ -120,48 +129,26 @@ export async function discoverPlugins(
     return pluginsCache;
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const response = await fetchRuntimeAssetJson<PluginsResponse>({
+    url: apiUrl,
+    kind: 'plugin-discovery',
+    timeoutMs: timeout,
+    ...assetTransport,
+  });
+  const data = response.value;
 
-  try {
-    const response = await fetch(apiUrl, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include', // Include auth cookies
-    });
+  // Filter enabled plugins and sort by priority
+  const enabledPlugins = data.plugins
+    .filter(p => p.enabled)
+    .sort((a, b) => a.priority - b.priority);
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json() as PluginsResponse;
-
-    // Filter enabled plugins and sort by priority
-    const enabledPlugins = data.plugins
-      .filter(p => p.enabled)
-      .sort((a, b) => a.priority - b.priority);
-
-    // Update cache
-    if (enableCache) {
-      pluginsCache = enabledPlugins;
-      cacheTimestamp = Date.now();
-    }
-
-    return enabledPlugins;
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`Plugin discovery timeout after ${timeout}ms`);
-    }
-
-    throw error;
+  // Update cache
+  if (enableCache) {
+    pluginsCache = enabledPlugins;
+    cacheTimestamp = Date.now();
   }
+
+  return enabledPlugins;
 }
 
 /**
@@ -181,19 +168,18 @@ export function clearPluginCache(): void {
 export async function isDiscoveryServiceAvailable(
   options: PluginDiscoveryOptions = {}
 ): Promise<boolean> {
-  const { apiUrl = '/api/plugins', timeout = 3000 } = options;
+  const { apiUrl = '/api/plugins', timeout = 3000, assetTransport = {} } = options;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const response = await fetchRuntimeAsset<boolean>({
+      url: apiUrl,
+      kind: 'plugin-discovery',
+      timeoutMs: timeout,
+      accept: 'application/json',
+      ...assetTransport,
+    }, async () => true);
 
-    const response = await fetch(apiUrl, {
-      method: 'HEAD',
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    return response.ok;
+    return response.value;
   } catch {
     return false;
   }

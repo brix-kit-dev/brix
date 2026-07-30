@@ -3,8 +3,10 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { AuthCapabilityType, type AuthCapability } from '@brix-sdk/runtime-sdk-api-web';
+import { useRuntimeContext } from '@brix-sdk/runtime-sdk-react';
 import { PLATFORM_ADMIN_ROUTES } from '../constants';
 
 export interface SetupOnlyGuardProps {
@@ -14,8 +16,17 @@ export interface SetupOnlyGuardProps {
 export function SetupOnlyGuard(props: SetupOnlyGuardProps): JSX.Element {
   const location = useLocation();
   const [params] = useSearchParams();
+  const context = useRuntimeContext();
+  const auth = useMemo(
+    () => context.getCapability<AuthCapability>(AuthCapabilityType),
+    [context],
+  );
   const token = params.get('token')?.trim();
   const stateToken = readSetupTokenState(location.state);
+  const activeContext = auth?.getActiveContext();
+  if (activeContext && activeContext.kind !== 'bootstrap-setup') {
+    return <Navigate to={PLATFORM_ADMIN_ROUTES.LOGIN} replace />;
+  }
   if (token) {
     return (
       <Navigate
@@ -25,7 +36,7 @@ export function SetupOnlyGuard(props: SetupOnlyGuardProps): JSX.Element {
       />
     );
   }
-  if (!stateToken) {
+  if (!stateToken && activeContext?.kind !== 'bootstrap-setup') {
     return <Navigate to={PLATFORM_ADMIN_ROUTES.LOGIN} replace />;
   }
   return <>{props.children}</>;

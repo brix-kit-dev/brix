@@ -31,8 +31,8 @@
  * This module is located at the SDK layer, providing complete plugin system management capabilities for the Host Layer.
  * Host Layer only needs to pass configuration, no implementation logic required.
  *
- * Host Ultra-Thin Principle:
- * Following the v3.0.4 blueprint Host ultra-thin principle, all plugin system logic is delegated to this module.
+ * Host Assembly Principle:
+ * Host Layer delegates plugin system logic to this module and passes only composition.
  * Host Layer usage:
  * ```typescript
  * import { usePluginSystem } from '@brix-sdk/runtime-orchestrator-web';
@@ -55,6 +55,29 @@ export {
   type WebUIRuntimeConfig,
   type RuntimeStatus,
 } from './WebUIRuntime';
+
+export {
+  FrontendHostCompositionError,
+  bootstrapFrontendHost,
+  validateFrontendHostComposition,
+  type FrontendHostBootstrapOptions,
+  type FrontendHostBootstrapResult,
+  type FrontendHostCapabilityDeclaration,
+  type FrontendHostComposition,
+  type FrontendHostCompositionDiagnostic,
+  type FrontendHostKind,
+  type FrontendHostMenuSnapshotEntry,
+  type FrontendHostPublishedRouteSnapshot,
+  type FrontendHostRouteAdmissionOptions,
+  type FrontendHostRouteAdmissionSubject,
+  type FrontendHostRouteDeclaration,
+  type FrontendHostRouteSnapshotEntry,
+  type FrontendHostRouteSnapshotSource,
+  type FrontendHostRuntimeContextDeclaration,
+  type FrontendHostRuntimeDeclaration,
+  type RoutePublicationMode,
+  publishFrontendRouteSnapshot,
+} from './host-bootstrap';
 
 // ============================================================================
 // Capability Registry Implementation
@@ -100,6 +123,18 @@ export {
   findPageById,
   type UIPluginManifest,
   type LoadedPluginConfig,
+  type LoadedPluginFailure,
+  type LoadedPluginSuccess,
+  // Runtime Asset Transport
+  RuntimeAssetTransportError,
+  fetchRuntimeAsset,
+  fetchRuntimeAssetJson,
+  probeRuntimeAsset,
+  type RuntimeAssetErrorCode,
+  type RuntimeAssetKind,
+  type RuntimeAssetRequest,
+  type RuntimeAssetResponse,
+  type RuntimeAssetTransportPolicy,
 } from './services';
 
 // ============================================================================
@@ -116,8 +151,6 @@ export {
   type UsePluginSystemOptions,
   type HostMenuConfig,
   type LocalPluginConfig,
-  type LocalPluginMenu,
-  type LocalPluginRoute,
   // useWebUIRuntime - Low-level runtime control
   useWebUIRuntime,
   type LifecyclePhase,

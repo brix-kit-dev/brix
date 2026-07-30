@@ -7,4 +7,3 @@ export { PlatformAuthGuard, type PlatformAuthGuardProps } from './PlatformAuthGu
 export { TenantAuthGuard, type TenantAuthGuardProps } from './TenantAuthGuard';
 export { SetupOnlyGuard, type SetupOnlyGuardProps } from './SetupOnlyGuard';
 export { BootstrapOnlyGuard, type BootstrapOnlyGuardProps } from './BootstrapOnlyGuard';
-export { isPlatformAccessToken, isTenantAccessToken } from './auth-scope';

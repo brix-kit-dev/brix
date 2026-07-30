@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
@@ -22,11 +23,11 @@ class FlywayMigrationGuardTest {
 
     private static final Pattern WEAK_PROFILE_REFERENCE_PATTERN = Pattern.compile("\\b(ref_type|ref_id)\\b");
 
-    private static final Set<String> LEGACY_PROFILE_CLEANUP_FILES = Set.of(
-        "V020__phase1_data_model_convergence.sql");
+    private static final String CLEAN_SCHEMA_FILE = "V001__platform_tenant_clean_schema.sql";
 
-    private static final Set<String> IDEMPOTENT_SINGLETON_INSERT_FILES = Set.of(
-        "V025__phase2_bootstrap_anchor_clean.sql");
+    private static final Set<String> LEGACY_PROFILE_CLEANUP_FILES = Set.of();
+
+    private static final Set<String> IDEMPOTENT_SINGLETON_INSERT_FILES = Set.of();
 
     @Test
     void newMigrationsMustNotIntroduceWeakProfileReferences() throws IOException {
@@ -45,17 +46,17 @@ class FlywayMigrationGuardTest {
     }
 
     @Test
-    void phase3CleanFirstOwnerMigrationMustDeclareRequiredInvariants() throws IOException {
+    void cleanSchemaMustDeclareRequiredFirstOwnerInvariants() throws IOException {
         String sql = Files.readString(
-            MIGRATION_DIR.resolve("V026__phase3_clean_first_owner_invariants.sql"),
+            MIGRATION_DIR.resolve(CLEAN_SCHEMA_FILE),
             StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
 
         assertAll(
             () -> assertTrue(sql.contains("platform_operator_ref"),
                 "FIRST_OWNER invitation must store opaque platform operator reference"),
-            () -> assertTrue(sql.contains("drop constraint if exists fk_tenant_member_identity"),
+            () -> assertFalse(sql.contains("fk_tenant_member_identity"),
                 "platform-tenant member identity reference must not be a cross-Owner FK"),
-            () -> assertTrue(sql.contains("drop constraint if exists fk_principal_identity"),
+            () -> assertFalse(sql.contains("fk_principal_identity"),
                 "platform-tenant principal identity reference must not be a cross-Owner FK"),
             () -> assertTrue(sql.contains("guard_active_tenant_has_owner"),
                 "ACTIVE/TRIAL tenants must be guarded by an active OWNER invariant"),

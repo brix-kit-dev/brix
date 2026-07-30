@@ -41,6 +41,8 @@ import {
   getGlobalReact,
   getGlobalReactDOM,
   clearGlobals,
+  createFrontendRuntimeIdentityEvidence,
+  publishFrontendRuntimeIdentityEvidence,
 
   // Namespace exports
   ReactRuntime,
@@ -90,6 +92,13 @@ describe('index exports', () => {
       expect(typeof getGlobalReact).toBe('function');
       expect(typeof getGlobalReactDOM).toBe('function');
       expect(typeof clearGlobals).toBe('function');
+    });
+  });
+
+  describe('runtime identity exports', () => {
+    it('should export runtime identity evidence functions', () => {
+      expect(typeof createFrontendRuntimeIdentityEvidence).toBe('function');
+      expect(typeof publishFrontendRuntimeIdentityEvidence).toBe('function');
     });
   });
 

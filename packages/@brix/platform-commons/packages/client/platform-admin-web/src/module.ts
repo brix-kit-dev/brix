@@ -10,20 +10,9 @@
  *
  * ## Architectural contract (SSOT v1.0 §11 / Blueprint v3.0.9 Constraint 6)
  *
- * The host shell MUST import from this file only (via the package root) and
- * is FORBIDDEN from importing individual pages, hooks, repositories or any
- * other internal symbol.  This file is the sole public interface for module
- * assembly.
- *
- * ```ts
- * // ✅ allowed
- * import { platformAdminMenus, platformAdminPublicRoutes, platformAdminProtectedRoutes }
- *   from '@brix-sdk/platform-admin-web';
- *
- * // ❌ forbidden in host
- * import { SuperAdminListPage } from '@brix-sdk/platform-admin-web';
- * import { useSuperAdminList }  from '@brix-sdk/platform-admin-web';
- * ```
+ * The host shell consumes the manifest-backed route snapshot. It is forbidden
+ * from importing individual pages, hooks, repositories or legacy route/menu
+ * arrays.
  *
  * Route elements are wrapped with a lightweight `<Suspense>` boundary here so
  * the host does not need to manage lazy-loading state.
@@ -39,9 +28,16 @@ import {
   type ErrorInfo,
 } from 'react';
 
-import { PLATFORM_ADMIN_ROUTES } from './constants';
-import type { PlatformLoginTotpResponse } from './types';
 import { BootstrapOnlyGuard, PlatformAuthGuard, SetupOnlyGuard } from './guards';
+import {
+  PLATFORM_ADMIN_UI_MANIFEST,
+  createPlatformAdminMenuSnapshot,
+  validatePlatformAdminUiManifest,
+  type PlatformAdminGuardPolicy,
+  type PlatformAdminMenuSnapshotEntry,
+  type PlatformAdminRouteComponentExport,
+  type PlatformAdminRouteDeclaration,
+} from './ui-manifest';
 
 // ── Internal lazy loaders — NEVER re-exported ────────────────────────────────
 
@@ -119,11 +115,11 @@ class RouteErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     // eslint-disable-next-line no-console
-    console.error(
-      `[platform-admin-web] failed to render route "${this.props.routeLabel}":`,
-      error,
-      info,
-    );
+    console.error('[platform-admin-web] route render failed', {
+      routeLabel: this.props.routeLabel,
+      errorName: error.name,
+      componentStackPresent: (info.componentStack ?? '').trim().length > 0,
+    });
   }
 
   render(): ReactNode {
@@ -148,16 +144,14 @@ class RouteErrorBoundary extends Component<
         `平台管理控制台加载失败 (${this.props.routeLabel})`,
       ),
       createElement(
-        'pre',
+        'div',
         {
           style: {
             margin: 0,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
             fontSize: '12px',
           },
         },
-        error.message || String(error),
+        'Route chunk failed to render. Refresh the page or contact the platform operator with the route label.',
       ),
     );
   }
@@ -258,148 +252,119 @@ export interface PlatformAdminRouteEntry {
   readonly element: ReactNode;
 }
 
-export interface PlatformAdminRouteOptions {
-  readonly onLoginSuccess?: (res: PlatformLoginTotpResponse, loginId: string) => void;
+export interface PlatformAdminRouteSnapshotEntry extends PlatformAdminRouteEntry {
+  readonly routeId: string;
+  readonly pageId: string;
+  readonly title: string;
+  readonly componentExport: PlatformAdminRouteComponentExport;
+  readonly guardPolicy: PlatformAdminGuardPolicy;
+  readonly authContext: PlatformAdminRouteDeclaration['authContext'];
+  readonly tenantContext: PlatformAdminRouteDeclaration['tenantContext'];
+  readonly permissions: readonly string[];
+  readonly requiredHostCapabilities: PlatformAdminRouteDeclaration['requiredHostCapabilities'];
+  readonly referrerPolicy: PlatformAdminRouteDeclaration['referrerPolicy'];
 }
 
-// ── Menu descriptor ───────────────────────────────────────────────────────────
+// ── Route snapshot descriptor ─────────────────────────────────────────────────
 
-/**
- * "系统配置" top-level menu group with four sub-items.
- *
- * The host merges this array into its sidebar menu list.
- * Titles use the `platform-admin` i18n namespace; if the namespace is not
- * loaded the Chinese strings are used verbatim as fallbacks.
- */
-export const platformAdminMenus: ReadonlyArray<PlatformAdminMenuEntry> = [
-  {
-    key: 'system-config',
-    id: 'system-config',
-    title: '系统配置',
-    icon: 'setting',
-    order: 9999,
-    source: 'platform',
-    children: [
-      {
-        key: 'platform-admins',
-        id: 'platform-admins',
-        title: '平台管理员',
-        icon: 'user',
-        path: PLATFORM_ADMIN_ROUTES.ADMINS,
-        order: 1,
-      },
-      {
-        key: 'tenant-management',
-        id: 'tenant-management',
-        title: '租户管理',
-        icon: 'apartment',
-        path: PLATFORM_ADMIN_ROUTES.TENANTS,
-        order: 2,
-      },
-      {
-        key: 'audit-log',
-        id: 'audit-log',
-        title: '操作审计',
-        icon: 'file-search',
-        path: PLATFORM_ADMIN_ROUTES.AUDIT,
-        order: 3,
-      },
-      {
-        key: 'license-quota',
-        id: 'license-quota',
-        title: 'License / 配额',
-        icon: 'shield',
-        path: PLATFORM_ADMIN_ROUTES.LICENSE,
-        order: 4,
-      },
-      {
-        key: 'change-password',
-        id: 'change-password',
-        title: '修改密码',
-        icon: 'lock',
-        path: PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD,
-        order: 5,
-      },
-    ],
-  },
-];
-
-// ── Route descriptors ─────────────────────────────────────────────────────────
-
-/**
- * Public (unauthenticated) routes for the platform admin module.
- * The host MUST register these OUTSIDE any auth guard.
- */
-export function createPlatformAdminPublicRoutes(
-  options: PlatformAdminRouteOptions = {},
-): ReadonlyArray<PlatformAdminRouteEntry> {
-  return [
-    {
-      path: PLATFORM_ADMIN_ROUTES.LOGIN,
-      element: withSuspense(_PlatformLoginPage, PLATFORM_ADMIN_ROUTES.LOGIN),
-    },
-    {
-      path: PLATFORM_ADMIN_ROUTES.LOGIN_TOTP,
-      element: withSuspenseElement(
-        createElement(_PlatformLoginTotpPage, {
-          onLoginSuccess: options.onLoginSuccess,
-        }),
-        PLATFORM_ADMIN_ROUTES.LOGIN_TOTP,
-      ),
-    },
-    {
-      path: PLATFORM_ADMIN_ROUTES.SETUP,
-      element: withSuspenseElement(
-        createElement(SetupOnlyGuard, null, createElement(_PlatformSetupPage)),
-        PLATFORM_ADMIN_ROUTES.SETUP,
-      ),
-    },
-    {
-      path: PLATFORM_ADMIN_ROUTES.BOOTSTRAP,
-      element: withSuspenseElement(
-        createElement(BootstrapOnlyGuard, null, createElement(_PlatformBootstrapPage)),
-        PLATFORM_ADMIN_ROUTES.BOOTSTRAP,
-      ),
-    },
-    {
-      path: PLATFORM_ADMIN_ROUTES.BOOTSTRAP_SENT,
-      element: withSuspense(_PlatformBootstrapSentPage, PLATFORM_ADMIN_ROUTES.BOOTSTRAP_SENT),
-    },
-  ];
+export function createPlatformAdminRouteSnapshot(): ReadonlyArray<PlatformAdminRouteSnapshotEntry> {
+  validatePlatformAdminUiManifest(PLATFORM_ADMIN_UI_MANIFEST);
+  return PLATFORM_ADMIN_UI_MANIFEST.routes.map(route => ({
+    routeId: route.routeId,
+    pageId: route.pageId,
+    path: route.path,
+    title: route.title,
+    componentExport: route.componentExport,
+    guardPolicy: route.guardPolicy,
+    authContext: route.authContext,
+    tenantContext: route.tenantContext,
+    permissions: route.permissions,
+    requiredHostCapabilities: route.requiredHostCapabilities,
+    referrerPolicy: route.referrerPolicy,
+    element: createRouteElement(route),
+  }));
 }
 
-export const platformAdminPublicRoutes: ReadonlyArray<PlatformAdminRouteEntry> =
-  createPlatformAdminPublicRoutes();
+export function createPlatformAdminMenuEntries(): ReadonlyArray<PlatformAdminMenuEntry> {
+  return createPlatformAdminMenuSnapshot().map(toMenuEntry);
+}
 
-/**
- * Protected routes for the platform admin module.
- * The host should register these INSIDE the layout wrapper (so the sidebar
- * is visible) but individual pages handle their own platform-JWT verification
- * and redirect to `PLATFORM_ADMIN_ROUTES.LOGIN` when no platform session exists.
- */
-export const platformAdminProtectedRoutes: ReadonlyArray<PlatformAdminRouteEntry> = [
-  {
-    path: PLATFORM_ADMIN_ROUTES.DASHBOARD,
-    element: withPlatformAuth(_PlatformDashboardPage, PLATFORM_ADMIN_ROUTES.DASHBOARD),
-  },
-  {
-    path: PLATFORM_ADMIN_ROUTES.ADMINS,
-    element: withPlatformAuth(_SuperAdminListPage, PLATFORM_ADMIN_ROUTES.ADMINS),
-  },
-  {
-    path: PLATFORM_ADMIN_ROUTES.TENANTS,
-    element: withPlatformAuth(_PlatformTenantListPage, PLATFORM_ADMIN_ROUTES.TENANTS),
-  },
-  {
-    path: PLATFORM_ADMIN_ROUTES.AUDIT,
-    element: withPlatformAuth(_AuditLogPage, PLATFORM_ADMIN_ROUTES.AUDIT),
-  },
-  {
-    path: PLATFORM_ADMIN_ROUTES.LICENSE,
-    element: withPlatformAuth(_LicenseQuotaPage, PLATFORM_ADMIN_ROUTES.LICENSE),
-  },
-  {
-    path: PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD,
-    element: withPlatformAuth(_ChangeOwnPasswordPage, PLATFORM_ADMIN_ROUTES.CHANGE_OWN_PASSWORD),
-  },
-];
+function createRouteElement(route: PlatformAdminRouteDeclaration): ReactNode {
+  if (route.componentExport === 'PlatformLoginTotpPage') {
+    return withSuspenseElement(createElement(_PlatformLoginTotpPage), route.path);
+  }
+
+  const component = componentFor(route.componentExport);
+  if (route.guardPolicy === 'platform-authenticated') {
+    return withPlatformAuth(component, route.path);
+  }
+  if (route.guardPolicy === 'setup-only') {
+    return withSuspenseElement(
+      createElement(SetupOnlyGuard, null, createElement(component)),
+      route.path,
+    );
+  }
+  if (route.guardPolicy === 'bootstrap-only') {
+    return withSuspenseElement(
+      createElement(BootstrapOnlyGuard, null, createElement(component)),
+      route.path,
+    );
+  }
+  return withSuspense(component, route.path);
+}
+
+function componentFor(componentExport: PlatformAdminRouteComponentExport): ComponentType {
+  switch (componentExport) {
+    case 'AuditLogPage':
+      return _AuditLogPage;
+    case 'ChangeOwnPasswordPage':
+      return _ChangeOwnPasswordPage;
+    case 'LicenseQuotaPage':
+      return _LicenseQuotaPage;
+    case 'PlatformBootstrapPage':
+      return _PlatformBootstrapPage;
+    case 'PlatformBootstrapSentPage':
+      return _PlatformBootstrapSentPage;
+    case 'PlatformDashboardPage':
+      return _PlatformDashboardPage;
+    case 'PlatformLoginPage':
+      return _PlatformLoginPage;
+    case 'PlatformSetupPage':
+      return _PlatformSetupPage;
+    case 'PlatformTenantListPage':
+      return _PlatformTenantListPage;
+    case 'SuperAdminListPage':
+      return _SuperAdminListPage;
+    case 'PlatformLoginTotpPage':
+      return _PlatformLoginTotpPage;
+  }
+}
+
+function toMenuEntry(menu: PlatformAdminMenuSnapshotEntry): PlatformAdminMenuEntry {
+  return {
+    key: menu.key,
+    id: menu.id,
+    title: menu.title,
+    icon: menu.icon,
+    order: menu.order,
+    source: menu.source,
+    ...(menu.path ? { path: menu.path } : {}),
+    ...(menu.children ? { children: menu.children.map(toMenuChildEntry) } : {}),
+  };
+}
+
+function toMenuChildEntry(
+  menu: PlatformAdminMenuSnapshotEntry,
+): NonNullable<PlatformAdminMenuEntry['children']>[number] {
+  if (!menu.path) {
+    throw new Error(`Platform admin child menu ${menu.id} must resolve to a route path`);
+  }
+  return {
+    key: menu.key,
+    id: menu.id,
+    title: menu.title,
+    icon: menu.icon,
+    path: menu.path,
+    order: menu.order,
+  };
+}

@@ -8,7 +8,7 @@
 /**
  * Local plugin configuration (declarative registration)
  *
- * Defines a plugin's metadata, remote entry, menus, and routes without backend dependency.
+ * Defines a plugin's metadata, remote entry, and UI Manifest URL without backend dependency.
  */
 export interface LocalPluginConfig {
   /** Plugin unique identifier */
@@ -19,32 +19,10 @@ export interface LocalPluginConfig {
   remoteEntry: string;
   /** Module Federation scope name (must match plugin's rspack.config.ts) */
   scope: string;
-  /** Manifest URL - when provided, menus/routes come from ui-manifest.json */
-  manifestUrl?: string;
-  /** Plugin menus (required when manifestUrl is not set) */
-  menus?: LocalPluginMenu[];
-  /** Plugin routes (required when manifestUrl is not set) */
-  routes?: LocalPluginRoute[];
-}
-
-/** Local plugin menu configuration */
-export interface LocalPluginMenu {
-  id: string;
-  title: string;
-  icon?: string;
-  path: string;
-  order: number;
-  permission?: string;
-  children?: LocalPluginMenu[];
-}
-
-/** Local plugin route configuration */
-export interface LocalPluginRoute {
-  path: string;
-  pageId: string;
-  title: string;
-  component: string;
-  permission?: string;
+  /** Manifest URL - menus/routes must come from ui-manifest.json */
+  manifestUrl: string;
+  /** Additional allowed origins for this plugin's static assets. */
+  allowedAssetOrigins?: readonly string[];
 }
 
 /** Host menu configuration (for Host Layer to pass in) */
