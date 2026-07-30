@@ -34,6 +34,8 @@ import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.RefreshTokenCapability;
 import io.runtime.sdk.capability.TenantCapability;
+import io.runtime.sdk.capability.registry.Capability;
+import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 /**
  * <h2>Auth Flow Capability — Default Multi-Tenant Implementation</h2>
@@ -60,6 +62,13 @@ import io.runtime.sdk.capability.TenantCapability;
  *
  * @since 3.2.0
  */
+@Capability(
+    type = AuthFlowCapability.class,
+    name = "platform-auth-flow",
+    description = "Platform-managed multi-tenant authentication flow capability.",
+    level = CapabilityLevel.CORE,
+    aliases = {"authFlow", "AuthFlowCapability"}
+)
 public class AuthFlowCapabilityImpl implements AuthFlowCapability {
 
     private static final Logger log = LoggerFactory.getLogger(AuthFlowCapabilityImpl.class);

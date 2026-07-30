@@ -71,7 +71,7 @@ public class AuthFlowAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(AuthFlowCapability.class)
-    public AuthFlowCapability authFlowCapability(
+    public AuthFlowCapabilityImpl authFlowCapability(
             IdentityTenantCapability identityTenantCapability,
             PasswordCapability passwordCapability,
             JwtIssuerCapability jwtIssuerCapability,

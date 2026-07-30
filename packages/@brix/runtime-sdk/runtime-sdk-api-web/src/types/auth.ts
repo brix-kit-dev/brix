@@ -44,6 +44,18 @@ import type { Unsubscribe } from './event';
  */
 export const AuthCapabilityType = Symbol.for('AuthCapability');
 
+/**
+ * Generic Auth Capability provider key for installing a server-verified
+ * session that was completed outside the basic username/password flow.
+ *
+ * <p>The payload remains expressed in Auth contract terms. Feature modules
+ * MUST NOT write tokens directly; they hand the completed session to the
+ * Host-provided Auth Capability using this provider.</p>
+ *
+ * @since 3.2.0 Platform MFA session handoff
+ */
+export const AuthSessionInstallProvider = 'brix:auth-session-install' as const;
+
 // =========================================
 // User Information
 // =========================================
@@ -435,6 +447,35 @@ export type VerifiedAuthContext =
   | VerifiedActorContext
   | VerifiedSubjectContext
   | VerifiedBootstrapContext;
+
+/**
+ * Login credentials shape used when a trusted frontend flow receives a
+ * completed server session and delegates token lifecycle to Auth Capability.
+ *
+ * <p>This is intentionally generic: it describes the authenticated context,
+ * not the feature or endpoint that produced it.</p>
+ *
+ * @since 3.2.0 Platform MFA session handoff
+ */
+export interface AuthSessionInstallCredentials extends LoginCredentials {
+  readonly provider: typeof AuthSessionInstallProvider;
+  readonly token: string;
+  readonly refreshToken?: string;
+  readonly contextKind: Exclude<VerifiedAuthContextKind, 'bootstrap-setup'>;
+  readonly subjectId: string;
+  readonly actorId?: string;
+  readonly tenantId?: string;
+  readonly memberId?: string;
+  readonly principalId?: string;
+  readonly username?: string;
+  readonly email?: string;
+  readonly displayName?: string;
+  readonly primaryRole?: string;
+  readonly roles?: readonly string[];
+  readonly permissions?: readonly string[];
+  readonly expiresIn?: number;
+  readonly expiresAt?: string;
+}
 
 /**
  * Verified session snapshot used by Route Guard and Router Capability.

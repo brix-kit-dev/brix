@@ -5,6 +5,7 @@ exports[`API Export Stability Tests (Golden File) > Capability Type Identifiers 
 exports[`API Export Stability Tests (Golden File) > should export all expected modules > api-exports 1`] = `
 [
   "AuthCapabilityType",
+  "AuthSessionInstallProvider",
   "BackpressureError",
   "CapabilityPriority",
   "ConfigCapabilityType",

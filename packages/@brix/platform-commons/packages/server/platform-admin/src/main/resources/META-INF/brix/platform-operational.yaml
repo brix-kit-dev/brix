@@ -25,11 +25,17 @@ internalContracts:
       versionRange: ">=1.0.0 <2.0.0"
       required: true
       privilegeAllowlistRef: platform-admin.identity-administration
+    - contractId: brix.internal.platform.auth-flow
+      contractType: io.runtime.sdk.capability.AuthFlowCapability
+      versionRange: ">=1.0.0 <2.0.0"
+      required: true
+      privilegeAllowlistRef: platform-admin.auth-flow
 privileges:
   allowlist:
     - platform-admin.tenant-administration
     - platform-admin.bootstrap-administration
     - platform-admin.identity-administration
+    - platform-admin.auth-flow
 endpoints:
   provides:
     - endpointId: platform.bootstrap.status.v1
@@ -146,6 +152,44 @@ endpoints:
         policyRef: interactive-write
       idempotency:
         mode: required
+    - endpointId: platform.auth.login.v1
+      transport: http
+      method: POST
+      path: /api/platform/auth/login
+      request:
+        schemaRef: brix://schemas/platform-admin/platform-login-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-login-response/1.0.0
+      handlerId: platform.auth.login
+      authentication:
+        mode: anonymous
+      authorization:
+        policyRef: platform-auth:login
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: not-applicable
+    - endpointId: platform.auth.login.totp.v1
+      transport: http
+      method: POST
+      path: /api/platform/auth/login/totp
+      request:
+        schemaRef: brix://schemas/platform-admin/platform-login-totp-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-login-response/1.0.0
+      handlerId: platform.auth.login.totp
+      authentication:
+        mode: anonymous
+      authorization:
+        policyRef: platform-auth:login-totp
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: not-applicable
     - endpointId: platform.tenants.create.v1
       transport: http
       method: POST

@@ -367,9 +367,31 @@ public final class OperationalModuleRuntimeManager {
                     "Non-providing operational artifact published an InternalContractProvider");
             }
             if (provides) {
-                internalContracts.bind(module.descriptor(), sameArtifact.get(0), Set.of());
+                internalContracts.bind(
+                    module.descriptor(),
+                    sameArtifact.get(0),
+                    providedInternalContractTypes(module));
             }
         }
+    }
+
+    private Set<Class<?>> providedInternalContractTypes(
+            ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule module) {
+        Set<Class<?>> types = new LinkedHashSet<>();
+        ClassLoader loader = module.provider().getClass().getClassLoader();
+        for (OperationalModuleDescriptor.ProvidedInternalContract declaration
+                : module.descriptor().providedContracts()) {
+            try {
+                types.add(Class.forName(declaration.contractType(), false, loader));
+            } catch (ClassNotFoundException e) {
+                throw failure(
+                    "internal_contract.type_missing",
+                    "Operational module internal contract type is unavailable: "
+                        + declaration.contractType(),
+                    e);
+            }
+        }
+        return Set.copyOf(types);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

@@ -162,6 +162,52 @@ class OperationalModuleRuntimeManagerTest {
         assertEquals("internal_contract.provider_duplicate", failure.diagnosticCode());
     }
 
+    @Test
+    void operationalInternalProviderMayRequireDeclaredOwnerCapability() {
+        Runnable ownerCapability = () -> { };
+        PlatformOperationalModule module = operationalModuleWithoutBindings();
+        var descriptor = new OperationalModuleDescriptor(
+            new OperationalModuleIdentity("provider-owner-capability", "3.2.0", "runtime-tests"),
+            ">=3.2.0 <4.0.0",
+            List.of(new OperationalModuleDescriptor.ProvidedInternalContract(
+                "test.contract",
+                Runnable.class.getName(),
+                "1.0.0",
+                "test.provider",
+                "runtime-tests")),
+            List.of(new OperationalModuleDescriptor.RequiredInternalContract(
+                "test.contract",
+                Runnable.class.getName(),
+                ">=1.0.0 <2.0.0",
+                true,
+                "test.contract")),
+            java.util.Set.of("test.contract"),
+            java.util.Map.of(),
+            java.util.Map.of());
+        var discovered = new ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule(
+            module,
+            descriptor,
+            module.getClass().getProtectionDomain().getCodeSource().getLocation());
+        InternalContractProvider provider =
+            bootstrap -> bootstrap.bind(
+                "test.contract",
+                Runnable.class,
+                context -> context.requireOwnerCapability(Runnable.class));
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        registry.register(Runnable.class, ownerCapability);
+        OperationalModuleRuntimeManager manager = new OperationalModuleRuntimeManager(
+            () -> List.of(discovered),
+            () -> List.of(provider),
+            new InternalContractBinder(registry, registry, getClass().getClassLoader()),
+            new HostRuntimeOperationalView(List.of("provider-owner-capability")),
+            List.of("provider-owner-capability"),
+            "3.2.0");
+
+        var states = manager.prepare();
+
+        assertEquals(PluginLifecycleState.RESOLVED, states.get(0).lifecycleState());
+    }
+
     private OperationalModuleRuntimeManager manager(
             java.util.function.Supplier<List<ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule>>
                 discovery,

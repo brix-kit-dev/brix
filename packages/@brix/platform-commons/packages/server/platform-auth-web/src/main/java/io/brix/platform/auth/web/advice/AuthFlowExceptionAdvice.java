@@ -25,17 +25,12 @@ import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
  *
  * @since 3.2.0
  */
-// Scoped to all controllers that delegate to AuthFlowCapability and rethrow
-// AuthFlowException expecting structured HTTP mapping. Includes:
-//   - io.brix.platform.auth.web.controller       (tenant /api/auth/*)
-//   - io.brix.platform.admin.controller          (platform /api/platform/auth/*)
-// Without the admin package, AuthFlowException from PlatformAuthController would
-// fall through to GlobalExceptionHandler.handleException → 500 PLATFORM-S-001
-// instead of the intended 401/403 with the AUTH_* error code.
+// Scoped to the legacy tenant /api/auth/* controller surface only. Platform
+// /api/platform/auth/* is served by Runtime Shell handlers and maps
+// AuthFlowException without depending on Spring controller advice.
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(basePackages = {
-        "io.brix.platform.auth.web.controller",
-        "io.brix.platform.admin.controller"
+        "io.brix.platform.auth.web.controller"
 })
 public class AuthFlowExceptionAdvice {
 

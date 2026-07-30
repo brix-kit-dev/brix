@@ -109,6 +109,7 @@
         <!-- 平台能力模块 -->
         <module>packages/server/platform-gateway</module>
         <module>packages/server/platform-auth</module>
+        <module>packages/server/platform-auth-operational</module>
         <module>packages/server/platform-auth-servlet</module>
         <module>packages/server/platform-auth-reactive</module>
         <module>packages/server/platform-auth-web</module>
@@ -207,6 +208,11 @@
             <dependency>
                 <groupId>io.brix.platform</groupId>
                 <artifactId>platform-auth-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-auth-operational</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

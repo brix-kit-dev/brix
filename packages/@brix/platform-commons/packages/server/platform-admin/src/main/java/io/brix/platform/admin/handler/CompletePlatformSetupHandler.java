@@ -29,15 +29,23 @@ public final class CompletePlatformSetupHandler
     @Override
     public PlatformSetupCompleteResponse handle(EndpointInvocation<PlatformSetupCompleteRequest> invocation) {
         invocation.tenantId().ifPresent(tenant -> {
-            throw new IllegalArgumentException("setup endpoints forbid tenant context");
+            throw PlatformEndpointErrors.badRequest(
+                    "PLATFORM_SETUP_TENANT_CONTEXT_FORBIDDEN",
+                    new IllegalArgumentException("setup endpoints forbid tenant context"));
         });
-        PlatformSetupCompleteRequest request = request(invocation.body());
-        var completion = identityAdministration.completeSetup(new CompletePlatformSetupCommand(
-                request.setupToken(),
-                request.challengeId(),
-                request.password(),
-                request.totpCode()));
-        return new PlatformSetupCompleteResponse(completion.activated());
+        try {
+            PlatformSetupCompleteRequest request = request(invocation.body());
+            var completion = identityAdministration.completeSetup(new CompletePlatformSetupCommand(
+                    request.setupToken(),
+                    request.challengeId(),
+                    request.password(),
+                    request.totpCode()));
+            return new PlatformSetupCompleteResponse(completion.activated());
+        } catch (IllegalArgumentException e) {
+            throw PlatformEndpointErrors.badRequest("PLATFORM_SETUP_INVALID_REQUEST", e);
+        } catch (IllegalStateException e) {
+            throw PlatformEndpointErrors.conflict("PLATFORM_SETUP_NOT_READY", e);
+        }
     }
 
     private static PlatformSetupCompleteRequest request(Object body) {

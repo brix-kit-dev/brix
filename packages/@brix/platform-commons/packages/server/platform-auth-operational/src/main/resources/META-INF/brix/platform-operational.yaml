@@ -1,0 +1,23 @@
+apiVersion: brix.io/platform-operational/v1
+kind: PlatformOperationalModule
+moduleKind: platform-operational
+metadata:
+  id: platform-auth-flow
+  version: 3.2.0
+  owner: platform-commons
+runtime:
+  supportedRange: ">=3.0.10 <4.0.0"
+internalContracts:
+  provides:
+    - contractId: brix.internal.platform.auth-flow
+      contractType: io.runtime.sdk.capability.AuthFlowCapability
+      contractVersion: 1.0.0
+      providerId: platform-auth-flow.internal.auth-flow
+      owner: platform-commons
+  requires: []
+privileges:
+  allowlist: []
+endpoints:
+  provides: []
+tasks:
+  provides: []

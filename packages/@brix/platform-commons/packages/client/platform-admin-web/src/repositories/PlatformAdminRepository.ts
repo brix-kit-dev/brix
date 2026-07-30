@@ -6,8 +6,8 @@
 /**
  * @file PlatformAdminRepository — CRUD over platform super-admin accounts.
  *
- * Mirrors backend `io.brix.platform.admin.controller.PlatformAdminController`
- * (server module `platform-admin`). All endpoints listed in SSOT §6.
+ * Mirrors Runtime Shell endpoints provided by server module `platform-admin`.
+ * All endpoints listed in SSOT §6.
  */
 
 import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';

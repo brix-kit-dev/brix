@@ -41,19 +41,19 @@ public final class AuditAction {
 
     /**
      * Platform super-admin login succeeded.
-     * <p>Target type: {@code SELF}. Logged in {@code PlatformAuthController}.
+     * <p>Target type: {@code SELF}. Logged by the platform auth runtime entry.
      */
     public static final String SUPER_ADMIN_LOGIN_SUCCESS = "SUPER_ADMIN_LOGIN_SUCCESS";
 
     /**
      * Platform super-admin login failed (bad password, locked, MFA failure, etc.).
-     * <p>Target type: {@code SELF}. Logged in {@code PlatformAuthController}.
+     * <p>Target type: {@code SELF}. Logged by the platform auth runtime entry.
      */
     public static final String SUPER_ADMIN_LOGIN_FAILED = "SUPER_ADMIN_LOGIN_FAILED";
 
     /**
      * Platform super-admin logged out (token revoked via logout endpoint).
-     * <p>Target type: {@code SELF}. Logged in {@code PlatformAuthController}.
+     * <p>Target type: {@code SELF}. Logged by the platform auth runtime entry.
      */
     public static final String SUPER_ADMIN_LOGOUT = "SUPER_ADMIN_LOGOUT";
 

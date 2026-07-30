@@ -39,6 +39,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.context.SecurityContextHolder;
+import io.brix.platform.auth.flow.MfaLoginSupport;
+import io.brix.platform.auth.jwt.JwtValidator;
 import io.brix.platform.tenant.TenantCapabilityImpl;
 import io.brix.platform.tenant.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.tenant.core.IdGenerator;
@@ -71,6 +73,7 @@ import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.PlatformBootstrapAdministrationService;
 import io.brix.platform.tenant.service.PlatformIdentityAdministrationService;
+import io.brix.platform.tenant.service.PlatformMfaLoginSupport;
 import io.brix.platform.tenant.service.TenantAdministrationService;
 import io.brix.platform.tenant.service.TenantConfigCapabilityImpl;
 import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
@@ -506,6 +509,24 @@ public class TenantAutoConfiguration {
                 bootstrapCompletionListener,
                 eventPublisher,
                 auditService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(MfaLoginSupport.class)
+    public MfaLoginSupport platformMfaLoginSupport(
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            ObjectProvider<JwtValidator> jwtValidatorProvider,
+            ObjectProvider<JwtIssuerCapability> jwtIssuerCapabilityProvider,
+            ObjectProvider<TotpCapability> totpCapabilityProvider,
+            ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider) {
+        return new PlatformMfaLoginSupport(
+                identityRepository,
+                platformAdminRepository,
+                Optional.ofNullable(jwtValidatorProvider.getIfAvailable()),
+                Optional.ofNullable(jwtIssuerCapabilityProvider.getIfAvailable()),
+                Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
+                Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()));
     }
 
     /**

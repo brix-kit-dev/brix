@@ -9,6 +9,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
+
 import org.junit.jupiter.api.Test;
 
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
@@ -21,8 +24,29 @@ import io.runtime.sdk.capability.IdentityTenantCapability.IdentityRecord;
 import io.runtime.sdk.capability.IdentityTenantCapability.PlatformAdminRecord;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
+import io.runtime.sdk.capability.registry.Capability;
+import io.runtime.sdk.capability.registry.CapabilityLevel;
 
 class AuthFlowCapabilityImplTest {
+
+    @Test
+    void exposesRuntimeCapabilityMetadataForInternalContractBinding() {
+        Capability capability = AuthFlowCapabilityImpl.class.getAnnotation(Capability.class);
+
+        assertEquals(io.runtime.sdk.capability.AuthFlowCapability.class, capability.type());
+        assertEquals("platform-auth-flow", capability.name());
+        assertEquals(CapabilityLevel.CORE, capability.level());
+    }
+
+    @Test
+    void autoConfigurationExposesAnnotatedImplementationTypeForRuntimeScanning() {
+        Method factoryMethod = Arrays.stream(AuthFlowAutoConfiguration.class.getDeclaredMethods())
+                .filter(method -> method.getName().equals("authFlowCapability"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(AuthFlowCapabilityImpl.class, factoryMethod.getReturnType());
+    }
 
     @Test
     void pendingSetupIdentityCannotLoginThroughPlatformAuth() {
@@ -182,5 +206,22 @@ class AuthFlowCapabilityImplTest {
                 when(mfaLoginSupport.verify(command)).thenReturn(expected);
 
                 assertEquals(expected, authFlow.mfaVerify(command));
+        }
+
+        @Test
+        void mfaVerifyFailsClosedWhenSupportIsAbsent() {
+                IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+                PasswordCapability passwordCapability = mock(PasswordCapability.class);
+                JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
+                AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
+                                identityTenantCapability,
+                                passwordCapability,
+                                jwtIssuerCapability,
+                                null);
+
+                AuthFlowException ex = assertThrows(AuthFlowException.class,
+                                () -> authFlow.mfaVerify(new MfaVerifyCommand("challenge", "123456")));
+
+                assertEquals(AuthFlowException.CODE_CAPABILITY_UNAVAILABLE, ex.getErrorCode());
         }
 }
