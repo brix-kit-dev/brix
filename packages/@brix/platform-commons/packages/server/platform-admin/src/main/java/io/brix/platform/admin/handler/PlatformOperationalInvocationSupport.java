@@ -17,18 +17,26 @@ final class PlatformOperationalInvocationSupport {
 
     static Long requirePlatformActorId(EndpointInvocation<?> invocation) {
         invocation.tenantId().ifPresent(tenant -> {
-            throw new IllegalArgumentException("platform endpoints forbid tenant context");
+            throw PlatformEndpointErrors.forbidden(
+                "PLATFORM_TENANT_CONTEXT_FORBIDDEN",
+                "platform endpoints forbid tenant context");
         });
         String value = invocation.actorId()
-            .orElseThrow(() -> new IllegalArgumentException("platform actor is required"));
+            .orElseThrow(() -> PlatformEndpointErrors.unauthorized(
+                "PLATFORM_AUTH_REQUIRED",
+                "platform actor is required"));
         try {
             long parsed = Long.parseLong(value);
             if (parsed <= 0) {
-                throw new IllegalArgumentException("platform actor is required");
+                throw PlatformEndpointErrors.unauthorized(
+                    "PLATFORM_AUTH_REQUIRED",
+                    "platform actor is required");
             }
             return parsed;
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("platform actor is invalid", ex);
+            throw PlatformEndpointErrors.unauthorized(
+                "PLATFORM_AUTH_INVALID",
+                "platform actor is invalid");
         }
     }
 

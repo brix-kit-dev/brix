@@ -24,7 +24,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.ObjectProvider;
 
 import io.runtime.orchestrator.autoconfigure.CapabilityAutoConfiguration;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
@@ -38,6 +37,7 @@ import io.runtime.orchestrator.operational.OperationalModuleRuntimeManager;
 import io.runtime.orchestrator.operational.ServiceLoaderOperationalModuleDiscovery;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.internalcontract.ServiceLoaderInternalContractProviderDiscovery;
+import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.plugin.BrixPlugin;
 
@@ -305,12 +305,15 @@ public class RuntimeShellBootstrapAutoConfiguration {
          * Creates the protocol bridge for published Runtime Shell endpoints.
          *
          * @param dispatcher endpoint dispatcher
+         * @param authCapabilityProvider request authentication context provider
          * @return endpoint controller
          */
         @Bean
         @ConditionalOnMissingBean
-        RuntimeShellEndpointController runtimeShellEndpointController(PluginEndpointDispatcher dispatcher) {
-            return new RuntimeShellEndpointController(dispatcher);
+        RuntimeShellEndpointController runtimeShellEndpointController(
+                PluginEndpointDispatcher dispatcher,
+                ObjectProvider<AuthCapability> authCapabilityProvider) {
+            return new RuntimeShellEndpointController(dispatcher, authCapabilityProvider);
         }
     }
 }

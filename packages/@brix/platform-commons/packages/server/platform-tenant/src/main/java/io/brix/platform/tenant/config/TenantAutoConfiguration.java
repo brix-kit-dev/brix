@@ -79,6 +79,7 @@ import io.brix.platform.tenant.service.TenantConfigCapabilityImpl;
 import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
+import io.brix.platform.tenant.service.TenantQuotaService;
 import io.brix.platform.tenant.service.TenantSettingsService;
 import io.brix.platform.tenant.service.TenantSettingsServiceImpl;
 import io.runtime.sdk.capability.EventBusCapability;
@@ -447,10 +448,14 @@ public class TenantAutoConfiguration {
     @ConditionalOnMissingBean(io.brix.platform.tenant.internal.TenantAdministration.class)
     public io.brix.platform.tenant.internal.TenantAdministration tenantAdministration(
             TenantProvisioningService tenantProvisioningService,
-            FirstOwnerInvitationService firstOwnerInvitationService) {
+            FirstOwnerInvitationService firstOwnerInvitationService,
+            TenantRepository tenantRepository,
+            TenantQuotaService tenantQuotaService) {
         return new TenantAdministrationService(
             tenantProvisioningService,
-            firstOwnerInvitationService);
+            firstOwnerInvitationService,
+            tenantRepository,
+            tenantQuotaService);
     }
 
     /**

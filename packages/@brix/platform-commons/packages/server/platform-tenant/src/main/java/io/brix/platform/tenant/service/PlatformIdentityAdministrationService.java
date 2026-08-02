@@ -7,9 +7,15 @@
 package io.brix.platform.tenant.service;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.auth.AuditAction;
@@ -18,8 +24,12 @@ import io.brix.platform.tenant.entity.Identity;
 import io.brix.platform.tenant.entity.PlatformAdmin;
 import io.brix.platform.tenant.entity.SetupToken;
 import io.brix.platform.tenant.enums.IdentityStatus;
+import io.brix.platform.tenant.enums.PlatformAdminStatus;
 import io.brix.platform.tenant.internal.CompletePlatformSetupCommand;
+import io.brix.platform.tenant.internal.PlatformAdminView;
 import io.brix.platform.tenant.internal.PlatformIdentityAdministration;
+import io.brix.platform.tenant.internal.PlatformPageRequest;
+import io.brix.platform.tenant.internal.PlatformPageView;
 import io.brix.platform.tenant.internal.PlatformSetupCompletionView;
 import io.brix.platform.tenant.internal.SetupTokenView;
 import io.brix.platform.tenant.internal.SetupTotpChallengeView;
@@ -35,6 +45,8 @@ import io.runtime.sdk.capability.TotpCapability;
  * Owner-side implementation of platform setup identity operations.
  */
 public class PlatformIdentityAdministrationService implements PlatformIdentityAdministration {
+
+    private static final int MAX_PAGE_SIZE = 200;
 
     private final SetupTokenRepository setupTokenRepository;
     private final IdentityRepository identityRepository;
@@ -147,6 +159,44 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         return new PlatformSetupCompletionView(true);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PlatformPageView<PlatformAdminView> listPlatformAdmins(PlatformPageRequest request) {
+        Page<PlatformAdmin> page = findPlatformAdminPage(
+            platformAdminStatus(request.status()),
+            searchTerm(request.query()),
+            pageable(request, adminSortProperty(request.sortBy())));
+        Map<Long, Identity> identities = identityRepository.findAllById(page.getContent().stream()
+                .map(PlatformAdmin::getIdentityId)
+                .toList())
+            .stream()
+            .collect(Collectors.toMap(Identity::getId, Function.identity()));
+        return new PlatformPageView<>(
+            page.getContent().stream()
+                .map(admin -> toView(admin, identities.get(admin.getIdentityId())))
+                .toList(),
+            page.getNumber(),
+            page.getSize(),
+            page.getTotalElements(),
+            page.getTotalPages(),
+            page.isFirst(),
+            page.isLast());
+    }
+
+    private Page<PlatformAdmin> findPlatformAdminPage(
+            PlatformAdminStatus status,
+            String term,
+            Pageable pageable) {
+        if (term == null) {
+            return status == null
+                    ? platformAdminRepository.findAll(pageable)
+                    : platformAdminRepository.findPlatformAdminPageByStatus(status, pageable);
+        }
+        return status == null
+                ? platformAdminRepository.findPlatformAdminPageByTerm(term, pageable)
+                : platformAdminRepository.findPlatformAdminPageByStatusAndTerm(status, term, pageable);
+    }
+
     private SetupToken requireUsableToken(String setupToken) {
         if (setupToken == null || setupToken.isBlank()) {
             throw new IllegalArgumentException("setup token is required");
@@ -180,5 +230,52 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
 
     private static String challengeId(String setupToken, Long identityId) {
         return SecretHashing.sha256Base64Url(setupToken + ":" + identityId);
+    }
+
+    private static PlatformAdminView toView(PlatformAdmin admin, Identity identity) {
+        String role = admin.getRole() == null ? null : admin.getRole().name();
+        String status = admin.getStatus() == null ? null : admin.getStatus().name();
+        return new PlatformAdminView(
+            admin.getId(),
+            admin.getIdentityId(),
+            identity == null ? "" : identity.getUsername(),
+            identity == null ? "" : identity.getEmail(),
+            role,
+            status,
+            admin.isMfaEnabled(),
+            admin.getNotes(),
+            admin.getCreatedAt());
+    }
+
+    private static Pageable pageable(PlatformPageRequest request, String sortProperty) {
+        int page = Math.max(0, request.page());
+        int size = Math.max(1, Math.min(MAX_PAGE_SIZE, request.size()));
+        Sort.Direction direction = request.descending() ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return org.springframework.data.domain.PageRequest.of(page, size, Sort.by(direction, sortProperty));
+    }
+
+    private static String adminSortProperty(String requested) {
+        if (requested == null || requested.isBlank()) {
+            return "createdAt";
+        }
+        return switch (requested) {
+            case "adminId", "id" -> "id";
+            case "identityId" -> "identityId";
+            case "role" -> "role";
+            case "status" -> "status";
+            case "createdAt" -> "createdAt";
+            default -> "createdAt";
+        };
+    }
+
+    private static String searchTerm(String query) {
+        return query == null || query.isBlank() ? null : query.trim();
+    }
+
+    private static PlatformAdminStatus platformAdminStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return PlatformAdminStatus.valueOf(value);
     }
 }

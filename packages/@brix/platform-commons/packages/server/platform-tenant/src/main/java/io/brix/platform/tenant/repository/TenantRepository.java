@@ -140,6 +140,46 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
     Page<Tenant> findByStatus(TenantStatus status, Pageable pageable);
 
     /**
+     * Lists tenants for platform administration by status.
+     *
+     * @param status tenant status
+     * @param pageable pagination and sort
+     * @return page of matching tenants
+     */
+    Page<Tenant> findPlatformAdminPageByStatus(TenantStatus status, Pageable pageable);
+
+    /**
+     * Lists tenants for platform administration by search term.
+     *
+     * @param term code/name search term
+     * @param pageable pagination and sort
+     * @return page of matching tenants
+     */
+    @Query("SELECT t FROM Tenant t "
+           + "WHERE LOWER(t.code) LIKE LOWER(CONCAT('%', :term, '%')) "
+           + "OR LOWER(t.name) LIKE LOWER(CONCAT('%', :term, '%'))")
+    Page<Tenant> findPlatformAdminPageByTerm(
+            @Param("term") String term,
+            Pageable pageable);
+
+    /**
+     * Lists tenants for platform administration by status and search term.
+     *
+     * @param status tenant status
+     * @param term code/name search term
+     * @param pageable pagination and sort
+     * @return page of matching tenants
+     */
+    @Query("SELECT t FROM Tenant t "
+           + "WHERE t.status = :status "
+           + "AND (LOWER(t.code) LIKE LOWER(CONCAT('%', :term, '%')) "
+           + "OR LOWER(t.name) LIKE LOWER(CONCAT('%', :term, '%')))")
+    Page<Tenant> findPlatformAdminPageByStatusAndTerm(
+            @Param("status") TenantStatus status,
+            @Param("term") String term,
+            Pageable pageable);
+
+    /**
      * Locks one tenant row for lifecycle changes.
      *
      * @param id tenant id

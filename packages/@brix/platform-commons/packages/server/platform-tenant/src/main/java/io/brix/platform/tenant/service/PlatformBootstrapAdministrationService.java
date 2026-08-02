@@ -10,6 +10,7 @@ import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +55,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
             "bootstrap:status",
             "bootstrap:session",
             "bootstrap:create-first-admin");
+    private static final String RESOURCE_TYPE_PLATFORM_ADMIN = resourceType(PlatformAdmin.class);
 
     private final SuperAdminBootstrapProperties properties;
     private final BootstrapStateRepository bootstrapStateRepository;
@@ -194,7 +196,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
 
         state.consumeSession();
         bootstrapStateRepository.save(state);
-        writeAudit(identity.getId(), AuditAction.BOOTSTRAP_ADMIN_CREATED, "PLATFORM_ADMIN",
+        writeAudit(identity.getId(), AuditAction.BOOTSTRAP_ADMIN_CREATED, RESOURCE_TYPE_PLATFORM_ADMIN,
                 "First formal platform super administrator created.", true);
         writeAudit(identity.getId(), AuditAction.SETUP_TOKEN_ISSUED, "SETUP_TOKEN",
                 "Initial platform setup token issued.", true);
@@ -255,6 +257,12 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String resourceType(Class<?> type) {
+        return type.getSimpleName()
+                .replaceAll("([a-z])([A-Z])", "$1_$2")
+                .toUpperCase(Locale.ROOT);
     }
 
     private record TokenPair(String raw) {

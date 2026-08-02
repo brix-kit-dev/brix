@@ -35,6 +35,21 @@ public interface TenantAdministration {
     TenantAdministrationTenant createPendingTenant(CreatePendingTenantCommand command);
 
     /**
+     * Lists tenants through the tenant Data Owner read projection.
+     *
+     * @param request pagination, sort, status, and search request
+     * @return tenant page view
+     */
+    PlatformPageView<PlatformTenantView> listTenants(PlatformPageRequest request);
+
+    /**
+     * Returns the deployment installation quota and license admission view.
+     *
+     * @return quota view
+     */
+    InstallationQuotaView installationQuota();
+
+    /**
      * Returns the latest FIRST_OWNER invitation status for a tenant.
      *
      * @param tenantId tenant identifier

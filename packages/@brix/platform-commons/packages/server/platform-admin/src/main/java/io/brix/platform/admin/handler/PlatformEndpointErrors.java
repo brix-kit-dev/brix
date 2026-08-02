@@ -25,6 +25,14 @@ final class PlatformEndpointErrors {
         return new EndpointHandlingException(409, errorCode, safeMessage(cause));
     }
 
+    static EndpointHandlingException unauthorized(String errorCode, String message) {
+        return new EndpointHandlingException(401, errorCode, safeMessage(message));
+    }
+
+    static EndpointHandlingException forbidden(String errorCode, String message) {
+        return new EndpointHandlingException(403, errorCode, safeMessage(message));
+    }
+
     static EndpointHandlingException authFlow(AuthFlowException cause) {
         return new EndpointHandlingException(
                 authStatus(cause.getErrorCode()),
@@ -57,6 +65,10 @@ final class PlatformEndpointErrors {
 
     private static String safeMessage(RuntimeException cause) {
         String message = cause.getMessage();
+        return safeMessage(message);
+    }
+
+    private static String safeMessage(String message) {
         return message == null || message.isBlank() ? "Request cannot be processed" : message;
     }
 }

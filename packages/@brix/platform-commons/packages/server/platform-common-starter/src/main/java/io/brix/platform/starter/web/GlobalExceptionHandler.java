@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.server.ResponseStatusException;
 
 import io.brix.platform.common.dto.ApiResponse;
 import io.brix.platform.common.exception.MissingRequiredCapabilityException;
@@ -377,6 +378,49 @@ public class GlobalExceptionHandler {
         );
         
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    /**
+     * Handle framework exceptions that already carry a stable HTTP status.
+     *
+     * <p>Runtime Shell endpoint dispatch uses this path for unpublished routes.
+     * Preserve the 4xx/5xx status instead of letting the catch-all handler
+     * convert client-visible routing failures into PLATFORM-S-001.</p>
+     *
+     * @param ex status exception
+     * @param request HTTP request
+     * @return status-preserving error response
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(
+            ResponseStatusException ex, HttpServletRequest request) {
+
+        int statusCode = ex.getStatusCode().value();
+        PlatformErrorCode errorCode = responseStatusErrorCode(statusCode);
+        log.warn("[GlobalExceptionHandler] Response status exception: status={}, code={}, path={}",
+            statusCode, errorCode.getCode(), request.getRequestURI());
+
+        ApiResponse<Void> response = ApiResponse.failure(
+            errorCode,
+            errorCode.getMessage()
+        );
+
+        return ResponseEntity.status(ex.getStatusCode()).body(response);
+    }
+
+    private static PlatformErrorCode responseStatusErrorCode(int statusCode) {
+        return switch (statusCode) {
+            case 400 -> PlatformErrorCode.INVALID_PARAMETER;
+            case 401 -> PlatformErrorCode.UNAUTHORIZED;
+            case 403 -> PlatformErrorCode.FORBIDDEN;
+            case 404 -> PlatformErrorCode.RESOURCE_NOT_FOUND;
+            case 409 -> PlatformErrorCode.DUPLICATED_OPERATION;
+            case 429 -> PlatformErrorCode.RATE_LIMIT_EXCEEDED;
+            case 503 -> PlatformErrorCode.CAPABILITY_UNAVAILABLE;
+            default -> statusCode >= 500
+                    ? PlatformErrorCode.INTERNAL_ERROR
+                    : PlatformErrorCode.INVALID_PARAMETER;
+        };
     }
     
     /**

@@ -33,6 +33,7 @@ import io.brix.platform.tenant.internal.TenantAdministrationTenant;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.orchestrator.operational.OperationalModuleIdentity;
 import io.runtime.orchestrator.operational.RuntimeOperationalView;
+import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointInvocation;
 
 class PlatformAdminTenantOperationalHandlerTest {
@@ -65,11 +66,13 @@ class PlatformAdminTenantOperationalHandlerTest {
     void createTenantRejectsTenantContext() {
         CreatePlatformTenantHandler handler = new CreatePlatformTenantHandler(context);
 
-        assertThrows(IllegalArgumentException.class, () -> handler.handle(invocation(
+        EndpointHandlingException failure = assertThrows(EndpointHandlingException.class, () -> handler.handle(invocation(
             new CreatePlatformTenantRequest("acme", "Acme"),
             Map.of(),
             Optional.of("1001"),
             Optional.of("tenant-a"))));
+        assertEquals(403, failure.status());
+        assertEquals("PLATFORM_TENANT_CONTEXT_FORBIDDEN", failure.errorCode());
     }
 
     @Test

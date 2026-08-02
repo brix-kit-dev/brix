@@ -14,7 +14,10 @@ import io.brix.platform.admin.handler.CreateFirstAdminHandler;
 import io.brix.platform.admin.handler.CreatePlatformTenantHandler;
 import io.brix.platform.admin.handler.GetBootstrapStatusHandler;
 import io.brix.platform.admin.handler.GetFirstOwnerInvitationStatusHandler;
+import io.brix.platform.admin.handler.GetInstallationQuotaHandler;
 import io.brix.platform.admin.handler.InitPlatformSetupTotpHandler;
+import io.brix.platform.admin.handler.ListPlatformAdminsHandler;
+import io.brix.platform.admin.handler.ListPlatformTenantsHandler;
 import io.brix.platform.admin.handler.OpenBootstrapSessionHandler;
 import io.brix.platform.admin.handler.PlatformLoginHandler;
 import io.brix.platform.admin.handler.PlatformTotpLoginHandler;
@@ -67,6 +70,15 @@ public final class PlatformAdminOperationalModule implements PlatformOperational
         bootstrap.bindEndpointHandlerFactory(
             "platform.auth.login.totp",
             PlatformTotpLoginHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.admins.list",
+            ListPlatformAdminsHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.tenants.list",
+            ListPlatformTenantsHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.license.quota",
+            GetInstallationQuotaHandler::new);
         bootstrap.bindEndpointHandlerFactory(
             "platform.tenants.create",
             CreatePlatformTenantHandler::new);

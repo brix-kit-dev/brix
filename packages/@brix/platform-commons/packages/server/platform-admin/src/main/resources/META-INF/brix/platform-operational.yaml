@@ -190,6 +190,63 @@ endpoints:
         policyRef: interactive-write
       idempotency:
         mode: not-applicable
+    - endpointId: platform.admins.list.v1
+      transport: http
+      method: GET
+      path: /api/platform/admins
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-admin-page/1.0.0
+      handlerId: platform.admins.list
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:admin:read
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
+    - endpointId: platform.tenants.list.v1
+      transport: http
+      method: GET
+      path: /api/platform/tenants
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-tenant-page/1.0.0
+      handlerId: platform.tenants.list
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:tenant:read
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
+    - endpointId: platform.license.quota.v1
+      transport: http
+      method: GET
+      path: /api/platform/license/quota
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/installation-quota/1.0.0
+      handlerId: platform.license.quota
+      authentication:
+        mode: required
+      authorization:
+        policyRef: platform:license:read
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
     - endpointId: platform.tenants.create.v1
       transport: http
       method: POST

@@ -30,7 +30,7 @@ class PlatformAdminOperationalDescriptorTest {
         assertEquals("platform-admin", descriptor.identity().moduleId());
         assertEquals("platform-commons", descriptor.identity().owner());
         assertEquals(">=3.0.10 <4.0.0", descriptor.runtimeRange());
-        assertEquals(13, descriptor.endpoints().size());
+        assertEquals(16, descriptor.endpoints().size());
         assertTrue(descriptor.endpoints().values().stream()
             .allMatch(endpoint -> endpoint.path().startsWith("/api/platform/")));
 
@@ -47,6 +47,9 @@ class PlatformAdminOperationalDescriptorTest {
             .anyMatch(contract -> "brix.internal.platform.auth-flow".equals(contract.contractId())));
         assertTrue(descriptor.endpoints().containsKey("platform.auth.login.v1"));
         assertTrue(descriptor.endpoints().containsKey("platform.auth.login.totp.v1"));
+        assertTrue(descriptor.endpoints().containsKey("platform.admins.list.v1"));
+        assertTrue(descriptor.endpoints().containsKey("platform.tenants.list.v1"));
+        assertTrue(descriptor.endpoints().containsKey("platform.license.quota.v1"));
     }
 
     @Test

@@ -40,4 +40,12 @@ public interface PlatformIdentityAdministration {
      * @return completion view
      */
     PlatformSetupCompletionView completeSetup(CompletePlatformSetupCommand command);
+
+    /**
+     * Lists platform administrators as an owner-side read projection.
+     *
+     * @param request pagination and sort request
+     * @return page of platform administrator views
+     */
+    PlatformPageView<PlatformAdminView> listPlatformAdmins(PlatformPageRequest request);
 }

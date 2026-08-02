@@ -18,6 +18,8 @@ package io.brix.platform.tenant.repository;
 import io.brix.platform.tenant.entity.PlatformAdmin;
 import io.brix.platform.tenant.enums.PlatformAdminRole;
 import io.brix.platform.tenant.enums.PlatformAdminStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -108,6 +110,46 @@ public interface PlatformAdminRepository extends JpaRepository<PlatformAdmin, Lo
            + "WHERE pa.mfaEnabled = false "
            + "AND pa.status = io.brix.platform.tenant.enums.PlatformAdminStatus.ACTIVE")
     List<PlatformAdmin> findWithoutMfa();
+
+    /**
+     * Lists platform admin grants by status.
+     *
+     * @param status grant status
+     * @param pageable pagination and sort
+     * @return page of matching grants
+     */
+    Page<PlatformAdmin> findPlatformAdminPageByStatus(PlatformAdminStatus status, Pageable pageable);
+
+    /**
+     * Lists platform admin grants by identity search.
+     *
+     * @param term email/username search term
+     * @param pageable pagination and sort
+     * @return page of matching grants
+     */
+    @Query("SELECT pa FROM PlatformAdmin pa JOIN Identity i ON i.id = pa.identityId "
+           + "WHERE LOWER(i.email) LIKE LOWER(CONCAT('%', :term, '%')) "
+           + "OR LOWER(i.username) LIKE LOWER(CONCAT('%', :term, '%'))")
+    Page<PlatformAdmin> findPlatformAdminPageByTerm(
+            @Param("term") String term,
+            Pageable pageable);
+
+    /**
+     * Lists platform admin grants by status and identity search.
+     *
+     * @param status grant status
+     * @param term email/username search term
+     * @param pageable pagination and sort
+     * @return page of matching grants
+     */
+    @Query("SELECT pa FROM PlatformAdmin pa JOIN Identity i ON i.id = pa.identityId "
+           + "WHERE pa.status = :status "
+           + "AND (LOWER(i.email) LIKE LOWER(CONCAT('%', :term, '%')) "
+           + "OR LOWER(i.username) LIKE LOWER(CONCAT('%', :term, '%')))")
+    Page<PlatformAdmin> findPlatformAdminPageByStatusAndTerm(
+            @Param("status") PlatformAdminStatus status,
+            @Param("term") String term,
+            Pageable pageable);
 
     /**
      * Counts active platform admins by role.

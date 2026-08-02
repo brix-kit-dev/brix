@@ -21,8 +21,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointResponse;
 
@@ -49,6 +54,7 @@ import io.runtime.sdk.plugin.EndpointResponse;
 public class RuntimeShellEndpointController {
 
     private final PluginEndpointDispatcher dispatcher;
+    private final Supplier<AuthCapability> authCapabilitySupplier;
 
     /**
      * Creates a controller.
@@ -56,7 +62,27 @@ public class RuntimeShellEndpointController {
      * @param dispatcher Runtime Shell endpoint dispatcher
      */
     public RuntimeShellEndpointController(PluginEndpointDispatcher dispatcher) {
+        this(dispatcher, () -> null);
+    }
+
+    /**
+     * Creates a controller with a Runtime authentication capability.
+     *
+     * @param dispatcher Runtime Shell endpoint dispatcher
+     * @param authCapabilityProvider current request authentication context provider
+     */
+    @Autowired
+    public RuntimeShellEndpointController(
+            PluginEndpointDispatcher dispatcher,
+            ObjectProvider<AuthCapability> authCapabilityProvider) {
+        this(dispatcher, authCapabilityProvider::getIfAvailable);
+    }
+
+    RuntimeShellEndpointController(
+            PluginEndpointDispatcher dispatcher,
+            Supplier<AuthCapability> authCapabilitySupplier) {
         this.dispatcher = dispatcher;
+        this.authCapabilitySupplier = authCapabilitySupplier;
     }
 
     /**
@@ -82,7 +108,7 @@ public class RuntimeShellEndpointController {
                 requestPath(request),
                 body,
                 queryParameters(request),
-                headers(request));
+                trustedInvocationHeaders(headers(request)));
             if (result instanceof EndpointResponse response) {
                 return ResponseEntity.status(HttpStatusCode.valueOf(response.status())).body(response.body());
             }
@@ -95,6 +121,34 @@ public class RuntimeShellEndpointController {
                     "errorCode", e.errorCode(),
                     "message", e.getMessage()));
         }
+    }
+
+    private Map<String, List<String>> trustedInvocationHeaders(Map<String, List<String>> requestHeaders) {
+        Map<String, List<String>> result = new LinkedHashMap<>(requestHeaders);
+        result.remove("x-actor-id");
+        result.remove("x-tenant-id");
+
+        authenticatedActorId().ifPresent(actorId -> result.put("x-actor-id", List.of(actorId)));
+        authenticatedTenantId().ifPresent(tenantId -> result.put("x-tenant-id", List.of(tenantId)));
+        return Map.copyOf(result);
+    }
+
+    private Optional<String> authenticatedActorId() {
+        AuthCapability auth = authCapabilitySupplier.get();
+        if (auth == null || auth.getCurrentPrincipal() == null) {
+            return Optional.empty();
+        }
+        String name = auth.getCurrentPrincipal().getName();
+        return name == null || name.isBlank() ? Optional.empty() : Optional.of(name.trim());
+    }
+
+    private Optional<String> authenticatedTenantId() {
+        AuthCapability auth = authCapabilitySupplier.get();
+        if (auth == null) {
+            return Optional.empty();
+        }
+        String tenantId = auth.getTenantId();
+        return tenantId == null || tenantId.isBlank() ? Optional.empty() : Optional.of(tenantId.trim());
     }
 
     private static String requestPath(HttpServletRequest request) {
