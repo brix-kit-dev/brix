@@ -429,14 +429,20 @@ export function publishFrontendRouteSnapshot(
       ...composition.capabilities.required,
       ...composition.capabilities.optional,
     ];
+  const hasSubjectAdmission = Object.prototype.hasOwnProperty.call(admission, 'subject');
   const allRoutes = (composition.routes.sources ?? []).flatMap(source => source.routes);
   const admittedRoutes = allRoutes.filter(route =>
     canProvideHostCapabilities(route.requiredHostCapabilities, hostCapabilities)
-  ).filter(route => canAccessRoute(route, admission.subject));
+  ).filter(route => !hasSubjectAdmission || canAccessRoute(route, admission.subject));
   const admittedRoutePaths = new Set(admittedRoutes.map(route => route.path));
   const menus = (composition.routes.sources ?? []).flatMap(source => source.menus ?? []);
   const admittedMenus = menus
-    .map(menu => filterMenuSnapshot(menu, admittedRoutePaths, admission.subject))
+    .map(menu => filterMenuSnapshot(
+      menu,
+      admittedRoutePaths,
+      admission.subject,
+      hasSubjectAdmission,
+    ))
     .filter((menu): menu is FrontendHostMenuSnapshotEntry => menu !== null);
 
   return {
@@ -546,16 +552,17 @@ function filterMenuSnapshot(
   menu: FrontendHostMenuSnapshotEntry,
   admittedRoutePaths: ReadonlySet<string>,
   subject: FrontendHostRouteAdmissionSubject | null | undefined,
+  filterBySubject: boolean,
 ): FrontendHostMenuSnapshotEntry | null {
   if (menu.path && !admittedRoutePaths.has(menu.path)) {
     return null;
   }
-  if (menu.permission && !(subject?.permissions ?? []).includes(menu.permission)) {
+  if (filterBySubject && menu.permission && !(subject?.permissions ?? []).includes(menu.permission)) {
     return null;
   }
 
   const children = menu.children
-    ?.map(child => filterMenuSnapshot(child, admittedRoutePaths, subject))
+    ?.map(child => filterMenuSnapshot(child, admittedRoutePaths, subject, filterBySubject))
     .filter((child): child is FrontendHostMenuSnapshotEntry => child !== null);
 
   if (!menu.path && (!children || children.length === 0)) {

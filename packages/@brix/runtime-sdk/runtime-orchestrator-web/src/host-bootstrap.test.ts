@@ -233,6 +233,20 @@ describe('frontend host bootstrap', () => {
     ]);
   });
 
+  it('publishes the complete Host-capable route and menu snapshot when no subject admission is requested', () => {
+    const snapshot = publishFrontendRouteSnapshot(snapshotComposition);
+
+    expect(snapshot.routes.map(route => route.path)).toEqual([
+      '/platform/login',
+      '/platform',
+      '/platform/admins',
+    ]);
+    expect(snapshot.menus).toHaveLength(1);
+    expect(snapshot.menus[0]?.children?.map(menu => menu.path)).toEqual([
+      '/platform/admins',
+    ]);
+  });
+
   it('hides routes when a required Host ability is absent', () => {
     const snapshot = publishFrontendRouteSnapshot(snapshotComposition, {
       subject: {
