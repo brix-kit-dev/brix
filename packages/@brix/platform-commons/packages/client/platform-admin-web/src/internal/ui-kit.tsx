@@ -33,9 +33,10 @@ export function AdminPageShell(props: AdminPageShellProps): JSX.Element {
     <div
       className="platform-admin-page-shell"
       style={{
-        minHeight: "100vh",
+        minHeight: "100%",
         background: "transparent",
         padding: `${designTokens.space.xl} ${designTokens.space.md}`,
+        boxSizing: "border-box",
         fontFamily: designTokens.typography.fontFamily,
       }}
     >

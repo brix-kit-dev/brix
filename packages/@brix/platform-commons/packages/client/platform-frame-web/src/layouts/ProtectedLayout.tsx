@@ -247,6 +247,7 @@ function useLayoutStyles(
   const actualSidebarWidth = sidebarCollapsed
     ? dimensions.sidebarCollapsedWidth
     : dimensions.sidebarWidth;
+  const frameGap = dimensions.contentMargin;
   const shellGlassRadius = `calc(${tokens.shape.lg} + ${tokens.space.sm})`;
   // 劳模模式：极简商业质感。
   // - 页面底色：surface.page 纯色（不再叠 radial-gradient 环境光）
@@ -263,6 +264,7 @@ function useLayoutStyles(
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
+      minHeight: 0,
       overflow: 'hidden',
       background: tokens.colors.surface.page,
       color: tokens.colors.text.primary,
@@ -274,45 +276,48 @@ function useLayoutStyles(
   const headerStyle = useMemo<CSSProperties>(
     () => ({
       position: 'fixed',
-      top: '12px',
-      left: `${actualSidebarWidth + 20}px`,
-      right: '16px',
+      top: `${frameGap}px`,
+      left: `${actualSidebarWidth + frameGap * 2}px`,
+      right: `${frameGap}px`,
       height: `${dimensions.headerHeight}px`,
       zIndex: 100,
       transition: 'left 0.2s ease-in-out',
     }),
-    [actualSidebarWidth, dimensions.headerHeight]
+    [actualSidebarWidth, dimensions.headerHeight, frameGap]
   );
 
   const sidebarStyle = useMemo<CSSProperties>(
     () => ({
       position: 'fixed',
-      top: '12px',
-      left: '12px',
-      bottom: '12px',
+      top: `${frameGap}px`,
+      left: `${frameGap}px`,
+      bottom: `${frameGap}px`,
       width: `${actualSidebarWidth}px`,
       zIndex: 101,
       transition: 'width 0.2s ease-in-out',
     }),
-    [actualSidebarWidth]
+    [actualSidebarWidth, frameGap]
   );
 
   const bodyStyle = useMemo<CSSProperties>(
     () => ({
+      position: 'fixed',
       display: 'flex',
-      flex: 1,
-      marginTop: `${dimensions.headerHeight + 24}px`,
-      marginLeft: `${actualSidebarWidth + 20}px`,
-      padding: `0 16px 12px 0`,
-      transition: 'margin-left 0.2s ease-in-out',
+      top: `${dimensions.headerHeight + frameGap * 2}px`,
+      right: `${frameGap}px`,
+      bottom: `${frameGap}px`,
+      left: `${actualSidebarWidth + frameGap * 2}px`,
+      minHeight: 0,
+      transition: 'left 0.2s ease-in-out',
     }),
-    [dimensions.headerHeight, actualSidebarWidth]
+    [dimensions.headerHeight, actualSidebarWidth, frameGap]
   );
 
   const contentStyle = useMemo<CSSProperties>(
     () => ({
       flex: 1,
-      height: `calc(100vh - ${dimensions.headerHeight + 36}px)`,
+      height: '100%',
+      minHeight: 0,
       position: 'relative',
       overflow: 'hidden',
       // 劳模模式：surface.card 实色面板 + 1px 边 + 轻阴影。
@@ -328,7 +333,9 @@ function useLayoutStyles(
     () => ({
       position: 'relative',
       height: '100%',
+      minHeight: 0,
       overflow: 'auto',
+      boxSizing: 'border-box',
     }),
     []
   );
