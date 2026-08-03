@@ -21,6 +21,8 @@ import io.runtime.sdk.capability.NotificationTemplateKeys;
 
 class NotificationApplicationServiceTest {
 
+    private static final String TENANT_OWNER_SETUP_TEMPLATE = "tenant.owner.setup.initial";
+
     private final CapturingAdapter adapter = new CapturingAdapter();
     private final NotificationApplicationService service = new NotificationApplicationService(
             new TemplateRepository(new ObjectMapper(), getClass().getClassLoader()),
@@ -54,6 +56,18 @@ class NotificationApplicationServiceTest {
                 Map.of("inviteUrl", "https://setup.example.invalid/invite/raw-secret")));
 
         assertEquals("接受 Brix 租户所有者邀请", adapter.message.get().subject());
+    }
+
+    @Test
+    void supportsTenantOwnerSetupTemplate() {
+        service.send(new NotificationRequest(
+                10L,
+                "owner@example.invalid",
+                TENANT_OWNER_SETUP_TEMPLATE,
+                "en-US",
+                Map.of("setupUrl", "https://setup.example.invalid/token/raw-secret")));
+
+        assertEquals("Complete your Brix tenant owner setup", adapter.message.get().subject());
     }
 
     @Test

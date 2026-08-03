@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +30,7 @@ import io.brix.platform.tenant.internal.FirstOwnerInvitationView;
 import io.brix.platform.tenant.internal.ResendFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.RevokeFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
+import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.internal.TenantAdministrationTenant;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.orchestrator.operational.OperationalModuleIdentity;
@@ -85,7 +87,6 @@ class PlatformAdminTenantOperationalHandlerTest {
         var response = handler.handle(invocation(
             new CreateFirstOwnerInvitationRequest(
                 "owner@example.invalid",
-                "https://app.example.invalid/invite",
                 "en-US"),
             Map.of("tenantId", "42"),
             Optional.of("1001"),
@@ -98,6 +99,68 @@ class PlatformAdminTenantOperationalHandlerTest {
         verify(tenantAdministration).createFirstOwnerInvitation(command.capture());
         assertEquals(42L, command.getValue().tenantId());
         assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
+        assertEquals("en-US", command.getValue().locale());
+    }
+
+    @Test
+    void createFirstOwnerInvitationIgnoresCallerSuppliedInviteBaseUrl() {
+        OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-28T12:00:00Z");
+        when(tenantAdministration.createFirstOwnerInvitation(any())).thenReturn(
+            new FirstOwnerInvitationView(7L, 42L, "owner@example.invalid", "PENDING", expiresAt));
+        CreateFirstOwnerInvitationHandler handler = new CreateFirstOwnerInvitationHandler(context);
+
+        handler.handle(rawCreateFirstOwnerInvocation(
+            Map.of(
+                "inviteeEmail", "owner@example.invalid",
+                "inviteBaseUrl", "https://evil.example.invalid/invite",
+                "locale", "en-US"),
+            Map.of("tenantId", "42"),
+            Optional.of("1001"),
+            Optional.empty()));
+
+        ArgumentCaptor<CreateFirstOwnerInvitationCommand> command =
+            ArgumentCaptor.forClass(CreateFirstOwnerInvitationCommand.class);
+        verify(tenantAdministration).createFirstOwnerInvitation(command.capture());
+        assertEquals("owner@example.invalid", command.getValue().inviteeEmail());
+        assertEquals("en-US", command.getValue().locale());
+    }
+
+    @Test
+    void createFirstOwnerInvitationMapsOwnerConfigurationFailureToServiceUnavailable() {
+        when(tenantAdministration.createFirstOwnerInvitation(any())).thenThrow(
+            new TenantAdministrationException(
+                "FIRST_OWNER_INVITE_BASE_URL_NOT_CONFIGURED",
+                "FIRST_OWNER invitation base URL is not configured"));
+        CreateFirstOwnerInvitationHandler handler = new CreateFirstOwnerInvitationHandler(context);
+
+        EndpointHandlingException failure = assertThrows(
+            EndpointHandlingException.class,
+            () -> handler.handle(invocation(
+                new CreateFirstOwnerInvitationRequest("owner@example.invalid", "en-US"),
+                Map.of("tenantId", "42"),
+                Optional.of("1001"),
+                Optional.empty())));
+
+        assertEquals(503, failure.status());
+        assertEquals("FIRST_OWNER_INVITE_BASE_URL_NOT_CONFIGURED", failure.errorCode());
+    }
+
+    @Test
+    void createFirstOwnerInvitationMapsMissingTenantToNotFound() {
+        when(tenantAdministration.createFirstOwnerInvitation(any())).thenThrow(
+            new TenantAdministrationException("TENANT_NOT_FOUND", "Tenant not found"));
+        CreateFirstOwnerInvitationHandler handler = new CreateFirstOwnerInvitationHandler(context);
+
+        EndpointHandlingException failure = assertThrows(
+            EndpointHandlingException.class,
+            () -> handler.handle(invocation(
+                new CreateFirstOwnerInvitationRequest("owner@example.invalid", "en-US"),
+                Map.of("tenantId", "42"),
+                Optional.of("1001"),
+                Optional.empty())));
+
+        assertEquals(404, failure.status());
+        assertEquals("TENANT_NOT_FOUND", failure.errorCode());
     }
 
     @Test
@@ -108,7 +171,7 @@ class PlatformAdminTenantOperationalHandlerTest {
         ResendFirstOwnerInvitationHandler handler = new ResendFirstOwnerInvitationHandler(context);
 
         handler.handle(invocation(
-            new ResendFirstOwnerInvitationRequest("https://app.example.invalid/invite", "en-US"),
+            new ResendFirstOwnerInvitationRequest("en-US"),
             Map.of("tenantId", "42"),
             Optional.of("1001"),
             Optional.empty()));
@@ -118,6 +181,27 @@ class PlatformAdminTenantOperationalHandlerTest {
         verify(tenantAdministration).resendFirstOwnerInvitation(command.capture());
         assertEquals(42L, command.getValue().tenantId());
         assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
+        assertEquals("en-US", command.getValue().locale());
+    }
+
+    @Test
+    void resendFirstOwnerInvitationMapsOwnerFailure() {
+        when(tenantAdministration.resendFirstOwnerInvitation(any())).thenThrow(
+            new TenantAdministrationException(
+                "FIRST_OWNER_INVITATION_MISSING",
+                "No pending FIRST_OWNER invitation exists"));
+        ResendFirstOwnerInvitationHandler handler = new ResendFirstOwnerInvitationHandler(context);
+
+        EndpointHandlingException failure = assertThrows(
+            EndpointHandlingException.class,
+            () -> handler.handle(invocation(
+                new ResendFirstOwnerInvitationRequest("en-US"),
+                Map.of("tenantId", "42"),
+                Optional.of("1001"),
+                Optional.empty())));
+
+        assertEquals(404, failure.status());
+        assertEquals("FIRST_OWNER_INVITATION_MISSING", failure.errorCode());
     }
 
     @Test
@@ -139,12 +223,49 @@ class PlatformAdminTenantOperationalHandlerTest {
         assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
     }
 
+    @Test
+    void revokeFirstOwnerInvitationMapsOwnerFailure() {
+        doThrow(new TenantAdministrationException(
+            "FIRST_OWNER_INVITATION_NOT_REVOKABLE",
+            "FIRST_OWNER invitation is not revokable"))
+            .when(tenantAdministration).revokeFirstOwnerInvitation(any());
+        RevokeFirstOwnerInvitationHandler handler = new RevokeFirstOwnerInvitationHandler(context);
+
+        EndpointHandlingException failure = assertThrows(
+            EndpointHandlingException.class,
+            () -> handler.handle(invocation(
+                null,
+                Map.of("tenantId", "42", "invitationId", "7"),
+                Optional.of("1001"),
+                Optional.empty())));
+
+        assertEquals(409, failure.status());
+        assertEquals("FIRST_OWNER_INVITATION_NOT_REVOKABLE", failure.errorCode());
+    }
+
     private static <T> EndpointInvocation<T> invocation(
             T body,
             Map<String, String> pathVariables,
             Optional<String> actorId,
             Optional<String> tenantId) {
         return new EndpointInvocation<>(
+            body,
+            pathVariables,
+            Map.of(),
+            Map.of(),
+            tenantId,
+            actorId,
+            Optional.of("trace-1"),
+            Instant.now().plusSeconds(30));
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private static EndpointInvocation<CreateFirstOwnerInvitationRequest> rawCreateFirstOwnerInvocation(
+            Object body,
+            Map<String, String> pathVariables,
+            Optional<String> actorId,
+            Optional<String> tenantId) {
+        return new EndpointInvocation(
             body,
             pathVariables,
             Map.of(),

@@ -6,10 +6,13 @@
  */
 package io.brix.platform.tenant.service;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -23,12 +26,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.entity.BizUserProfile;
+import io.brix.platform.tenant.entity.Identity;
 import io.brix.platform.tenant.entity.InstallationQuota;
+import io.brix.platform.tenant.entity.SetupToken;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantAuditLog;
 import io.brix.platform.tenant.entity.TenantInvitation;
 import io.brix.platform.tenant.entity.TenantInvitation.InvitationTargetType;
 import io.brix.platform.tenant.entity.TenantMember;
+import io.brix.platform.tenant.enums.IdentityStatus;
 import io.brix.platform.tenant.enums.InvitationInviterType;
 import io.brix.platform.tenant.enums.InvitationPurpose;
 import io.brix.platform.tenant.enums.InvitationStatus;
@@ -44,7 +50,10 @@ import io.brix.platform.tenant.internal.ResendFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.RevokeFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
+import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
+import io.brix.platform.tenant.repository.PlatformAdminRepository;
+import io.brix.platform.tenant.repository.SetupTokenRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
@@ -65,10 +74,14 @@ public class FirstOwnerInvitationService {
 
     private static final Duration DEFAULT_TTL = Duration.ofHours(24);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String TENANT_OWNER_SETUP_TEMPLATE = "tenant.owner.setup.initial";
 
     private final TenantInvitationRepository invitationRepository;
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository tenantMemberRepository;
+    private final IdentityRepository identityRepository;
+    private final PlatformAdminRepository platformAdminRepository;
+    private final SetupTokenRepository setupTokenRepository;
     private final InstallationQuotaRepository installationQuotaRepository;
     private final BizUserProfileRepository profileRepository;
     private final EventBusCapability eventBusCapability;
@@ -76,6 +89,8 @@ public class FirstOwnerInvitationService {
     private final Optional<NotificationCapability> notificationCapability;
     private final IdGenerator idGenerator;
     private final ObjectMapper objectMapper;
+    private final String inviteBaseUrl;
+    private final String setupBaseUrl;
 
     /**
      * Creates the FIRST_OWNER invitation service.
@@ -84,16 +99,24 @@ public class FirstOwnerInvitationService {
             TenantInvitationRepository invitationRepository,
             TenantRepository tenantRepository,
             TenantMemberRepository tenantMemberRepository,
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            SetupTokenRepository setupTokenRepository,
             InstallationQuotaRepository installationQuotaRepository,
             BizUserProfileRepository profileRepository,
             EventBusCapability eventBusCapability,
             TenantAuditLogRepository auditLogRepository,
             Optional<NotificationCapability> notificationCapability,
             IdGenerator idGenerator,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            String inviteBaseUrl,
+            String setupBaseUrl) {
         this.invitationRepository = invitationRepository;
         this.tenantRepository = tenantRepository;
         this.tenantMemberRepository = tenantMemberRepository;
+        this.identityRepository = identityRepository;
+        this.platformAdminRepository = platformAdminRepository;
+        this.setupTokenRepository = setupTokenRepository;
         this.installationQuotaRepository = installationQuotaRepository;
         this.profileRepository = profileRepository;
         this.eventBusCapability = eventBusCapability;
@@ -101,6 +124,8 @@ public class FirstOwnerInvitationService {
         this.notificationCapability = notificationCapability;
         this.idGenerator = idGenerator;
         this.objectMapper = objectMapper;
+        this.inviteBaseUrl = inviteBaseUrl;
+        this.setupBaseUrl = setupBaseUrl;
     }
 
     /**
@@ -129,7 +154,14 @@ public class FirstOwnerInvitationService {
             command.platformOperatorRef(),
             tokenPair.hash());
         invitation = invitationRepository.save(invitation);
-        sendInvitation(command.tenantId(), command.inviteeEmail(), command.inviteBaseUrl(), tokenPair.raw(), command.locale());
+        Optional<TokenPair> setupToken = prepareInviteeIdentitySetup(
+            command.inviteeEmail(),
+            command.platformOperatorRef());
+        if (setupToken.isPresent()) {
+            sendSetup(command.tenantId(), command.inviteeEmail(), setupToken.get().raw(), command.locale());
+        } else {
+            sendInvitation(command.tenantId(), command.inviteeEmail(), tokenPair.raw(), command.locale());
+        }
         return view(invitation);
     }
 
@@ -182,7 +214,19 @@ public class FirstOwnerInvitationService {
             command.platformOperatorRef(),
             tokenPair.hash());
         replacement = invitationRepository.save(replacement);
-        sendInvitation(command.tenantId(), replacement.getInviteeEmail(), command.inviteBaseUrl(), tokenPair.raw(), command.locale());
+        String replacementInviteeEmail = replacement.getInviteeEmail();
+        Optional<TokenPair> setupToken = prepareInviteeIdentitySetup(
+            replacementInviteeEmail,
+            command.platformOperatorRef());
+        if (setupToken.isPresent()) {
+            sendSetup(
+                command.tenantId(),
+                replacementInviteeEmail,
+                setupToken.get().raw(),
+                command.locale());
+        } else {
+            sendInvitation(command.tenantId(), replacementInviteeEmail, tokenPair.raw(), command.locale());
+        }
         return view(replacement);
     }
 
@@ -222,7 +266,13 @@ public class FirstOwnerInvitationService {
             .orElseThrow(() -> new TenantAdministrationException(
                 "FIRST_OWNER_INVITATION_INVALID",
                 "FIRST_OWNER invitation is invalid"));
-        validateAcceptanceInvitation(invitation, command, now);
+        validateAcceptanceInvitation(invitation, now);
+        String identityEmail = identityRepository.findById(command.identityId())
+            .map(Identity::getEmail)
+            .orElseThrow(() -> new TenantAdministrationException(
+                "FIRST_OWNER_IDENTITY_NOT_FOUND",
+                "Actor identity was not found"));
+        validateAcceptanceIdentityEmail(invitation, identityEmail);
 
         Tenant tenant = lockTenant(invitation.getTenantId());
         requirePendingTenant(tenant);
@@ -267,6 +317,53 @@ public class FirstOwnerInvitationService {
             ownerMember.getId(),
             profile.getId(),
             tenant.getStatus().name());
+    }
+
+    /**
+     * Sends pending FIRST_OWNER acceptance links after the invitee identity
+     * completes the governed setup flow. Raw invitation tokens are reissued here
+     * because only token hashes are stored.
+     *
+     * @param identityId activated invitee identity id
+     * @return invitations for which a new acceptance link was delivered
+     */
+    @Transactional
+    public List<FirstOwnerInvitationView> sendPendingInvitationsAfterSetup(Long identityId) {
+        Identity identity = identityRepository.findById(identityId)
+            .orElseThrow(() -> new TenantAdministrationException(
+                "FIRST_OWNER_IDENTITY_NOT_FOUND",
+                "Invitee identity was not found"));
+        if (identity.getStatus() != IdentityStatus.ACTIVE) {
+            throw new TenantAdministrationException(
+                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ACTIVE",
+                "FIRST_OWNER invitee identity must complete setup before receiving the invitation");
+        }
+        String inviteeEmail = normalizeEmail(identity.getEmail());
+        return invitationRepository.findPendingByInviteeEmailAndPurposeForUpdate(
+                inviteeEmail,
+                InvitationPurpose.FIRST_OWNER,
+                InvitationStatus.PENDING)
+            .stream()
+            .map(invitation -> reissueAndSendInvitation(invitation, inviteeEmail))
+            .toList();
+    }
+
+    private FirstOwnerInvitationView reissueAndSendInvitation(
+            TenantInvitation invitation,
+            String inviteeEmail) {
+        Tenant tenant = lockTenant(invitation.getTenantId());
+        requirePendingTenant(tenant);
+        if (tenantMemberRepository.existsActiveOwnerByTenantId(tenant.getId())) {
+            throw new TenantAdministrationException(
+                "FIRST_OWNER_ALREADY_EXISTS",
+                "Tenant already has an active OWNER");
+        }
+        TokenPair tokenPair = newTokenPair();
+        invitation.setTokenHash(tokenPair.hash());
+        invitation.setExpiresAt(OffsetDateTime.now().plus(DEFAULT_TTL));
+        invitation = invitationRepository.save(invitation);
+        sendInvitation(invitation.getTenantId(), inviteeEmail, tokenPair.raw(), null);
+        return view(invitation);
     }
 
     private TenantInvitation newFirstOwnerInvitation(
@@ -315,6 +412,54 @@ public class FirstOwnerInvitationService {
             .findFirst();
     }
 
+    private Optional<TokenPair> prepareInviteeIdentitySetup(
+            String inviteeEmail,
+            String platformOperatorRef) {
+        String email = normalizeEmail(inviteeEmail);
+        Identity identity = identityRepository.findByEmail(email)
+            .orElse(null);
+        if (identity == null) {
+            identity = new Identity(email, email);
+            identity.setId(idGenerator.nextId());
+            identity.setStatus(IdentityStatus.PENDING_SETUP);
+            identity.setPasswordHash(null);
+            identity.setMfaEnabled(false);
+            identity = identityRepository.save(identity);
+            identityRepository.flush();
+        }
+        if (identity.getStatus() == IdentityStatus.ACTIVE) {
+            return Optional.empty();
+        }
+        if (identity.getStatus() != IdentityStatus.PENDING_SETUP) {
+            throw new TenantAdministrationException(
+                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ELIGIBLE",
+                "FIRST_OWNER invitee identity is not eligible for setup");
+        }
+        if (platformAdminRepository.findByIdentityId(identity.getId()).filter(admin -> admin.isActive()).isPresent()) {
+            throw new TenantAdministrationException(
+                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ELIGIBLE",
+                "FIRST_OWNER invitee identity must complete platform setup before tenant ownership setup");
+        }
+        return Optional.of(issueTenantOwnerSetupToken(identity.getId(), platformOperatorRef));
+    }
+
+    private TokenPair issueTenantOwnerSetupToken(Long identityId, String platformOperatorRef) {
+        setupTokenRepository.markActiveTokensUsed(
+            identityId,
+            SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP,
+            OffsetDateTime.now());
+        TokenPair tokenPair = newTokenPair();
+        SetupToken token = new SetupToken();
+        token.setId(idGenerator.nextId());
+        token.setIdentityId(identityId);
+        token.setPurpose(SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP);
+        token.setTokenHash(tokenPair.hash());
+        token.setExpiresAt(OffsetDateTime.now().plus(DEFAULT_TTL));
+        token.setCreatedBy(identityIdFromOperatorRef(platformOperatorRef).orElse(null));
+        setupTokenRepository.save(token);
+        return tokenPair;
+    }
+
     private static void requirePendingTenant(Tenant tenant) {
         if (tenant.getStatus() != TenantStatus.PENDING_ACTIVATION) {
             throw new TenantAdministrationException(
@@ -325,7 +470,6 @@ public class FirstOwnerInvitationService {
 
     private static void validateAcceptanceInvitation(
             TenantInvitation invitation,
-            AcceptFirstOwnerInvitationCommand command,
             OffsetDateTime now) {
         if (invitation.getInvitationPurpose() != InvitationPurpose.FIRST_OWNER
                 || invitation.getTargetRole() != TenantMemberType.OWNER
@@ -334,7 +478,12 @@ public class FirstOwnerInvitationService {
                 "FIRST_OWNER_INVITATION_NOT_ACCEPTABLE",
                 "FIRST_OWNER invitation is not acceptable");
         }
-        if (!normalizeEmail(invitation.getInviteeEmail()).equals(normalizeEmail(command.identityEmail()))) {
+    }
+
+    private static void validateAcceptanceIdentityEmail(
+            TenantInvitation invitation,
+            String identityEmail) {
+        if (!normalizeEmail(invitation.getInviteeEmail()).equals(normalizeEmail(identityEmail))) {
             throw new TenantAdministrationException(
                 "FIRST_OWNER_INVITATION_EMAIL_MISMATCH",
                 "FIRST_OWNER invitation email does not match actor identity");
@@ -344,14 +493,17 @@ public class FirstOwnerInvitationService {
     private void sendInvitation(
             Long tenantId,
             String inviteeEmail,
-            String inviteBaseUrl,
             String rawToken,
             String locale) {
         NotificationCapability notification = notificationCapability.orElseThrow(
             () -> new TenantAdministrationException(
                 "NOTIFICATION_PROVIDER_MISSING",
                 "NotificationCapability is required for FIRST_OWNER invitations"));
-        String inviteUrl = UriComponentsBuilder.fromUriString(inviteBaseUrl)
+        String inviteUrl = UriComponentsBuilder.fromUriString(requireBaseUrl(
+                inviteBaseUrl,
+                "FIRST_OWNER_INVITE_BASE_URL_NOT_CONFIGURED",
+                "FIRST_OWNER_INVITE_BASE_URL_INVALID",
+                "FIRST_OWNER invitation base URL"))
             .queryParam("token", rawToken)
             .build(true)
             .toUriString();
@@ -361,6 +513,78 @@ public class FirstOwnerInvitationService {
             NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL,
             locale,
             Map.of("inviteUrl", inviteUrl)));
+    }
+
+    private void sendSetup(
+            Long tenantId,
+            String inviteeEmail,
+            String rawToken,
+            String locale) {
+        NotificationCapability notification = notificationCapability.orElseThrow(
+            () -> new TenantAdministrationException(
+                "NOTIFICATION_PROVIDER_MISSING",
+                "NotificationCapability is required for FIRST_OWNER invitations"));
+        String setupUrl = UriComponentsBuilder.fromUriString(requireBaseUrl(
+                setupBaseUrl,
+                "FIRST_OWNER_SETUP_BASE_URL_NOT_CONFIGURED",
+                "FIRST_OWNER_SETUP_BASE_URL_INVALID",
+                "FIRST_OWNER setup base URL"))
+            .queryParam("token", rawToken)
+            .build(true)
+            .toUriString();
+        notification.send(new NotificationRequest(
+            tenantId,
+            inviteeEmail,
+            TENANT_OWNER_SETUP_TEMPLATE,
+            locale,
+            Map.of("setupUrl", setupUrl)));
+    }
+
+    private static String requireBaseUrl(
+            String value,
+            String missingCode,
+            String invalidCode,
+            String description) {
+        if (value == null || value.isBlank()) {
+            throw new TenantAdministrationException(
+                missingCode,
+                description + " is not configured");
+        }
+        String normalized = value.trim();
+        try {
+            URI uri = new URI(normalized);
+            String scheme = uri.getScheme();
+            if (scheme == null
+                    || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))
+                    || uri.getHost() == null
+                    || containsTokenQuery(uri.getRawQuery())) {
+                throw new TenantAdministrationException(
+                    invalidCode,
+                    description + " is invalid");
+            }
+            return normalized;
+        } catch (URISyntaxException ex) {
+            throw new TenantAdministrationException(
+                invalidCode,
+                description + " is invalid");
+        }
+    }
+
+    private static boolean containsTokenQuery(String rawQuery) {
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return false;
+        }
+        for (String parameter : rawQuery.split("&")) {
+            String name = parameter;
+            int equals = parameter.indexOf('=');
+            if (equals >= 0) {
+                name = parameter.substring(0, equals);
+            }
+            if ("token".equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void publishFirstOwnerAccepted(
@@ -420,6 +644,17 @@ public class FirstOwnerInvitationService {
             throw new IllegalArgumentException("email is required");
         }
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static Optional<Long> identityIdFromOperatorRef(String platformOperatorRef) {
+        if (platformOperatorRef == null || !platformOperatorRef.startsWith("platform-identity:")) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Long.valueOf(platformOperatorRef.substring("platform-identity:".length())));
+        } catch (NumberFormatException ex) {
+            return Optional.empty();
+        }
     }
 
     private static TokenPair newTokenPair() {

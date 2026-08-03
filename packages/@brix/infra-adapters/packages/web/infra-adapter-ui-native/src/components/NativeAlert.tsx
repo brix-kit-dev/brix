@@ -32,7 +32,7 @@
  * Replaces direct MUI Alert usage in enterprise-solutions plugins.
  */
 
-import type { FC, CSSProperties } from 'react';
+import type { FC, CSSProperties, ReactNode } from 'react';
 import { useState } from 'react';
 import type { AlertProps, AlertSeverity } from '@brix-sdk/runtime-sdk-api-web';
 
@@ -140,10 +140,15 @@ const SEVERITY_ICONS: Record<AlertSeverity, string> = {
  * @param props - AlertProps from UIAdapter contract
  * @returns Native Alert component
  */
-export const NativeAlert: FC<AlertProps> = ({
+type NativeAlertProps = AlertProps & {
+  readonly description?: ReactNode;
+};
+
+export const NativeAlert: FC<NativeAlertProps> = ({
   severity = 'info',
   title,
   description,
+  children,
   icon,
   showIcon = true,
   closable = false,
@@ -261,6 +266,7 @@ export const NativeAlert: FC<AlertProps> = ({
       <div style={contentStyle}>
         {title && <div style={titleStyle}>{title}</div>}
         {description && <div style={descriptionStyle}>{description}</div>}
+        {children && <div style={descriptionStyle}>{children}</div>}
       </div>
 
       {/* Action */}

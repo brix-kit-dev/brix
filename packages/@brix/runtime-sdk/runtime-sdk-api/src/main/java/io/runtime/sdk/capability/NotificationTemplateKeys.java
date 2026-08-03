@@ -17,6 +17,9 @@ public final class NotificationTemplateKeys {
     /** Initial invitation link for the first tenant owner. */
     public static final String TENANT_OWNER_INVITATION_INITIAL = "tenant.owner.invitation.initial";
 
+    /** Initial setup link for a pending first tenant owner identity. */
+    public static final String TENANT_OWNER_SETUP_INITIAL = "tenant.owner.setup.initial";
+
     private NotificationTemplateKeys() {
     }
 }

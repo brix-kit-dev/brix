@@ -50,6 +50,7 @@ class PlatformAdminOperationalDescriptorTest {
         assertTrue(descriptor.endpoints().containsKey("platform.admins.list.v1"));
         assertTrue(descriptor.endpoints().containsKey("platform.tenants.list.v1"));
         assertTrue(descriptor.endpoints().containsKey("platform.license.quota.v1"));
+        assertTrue(descriptor.endpoints().containsKey("platform.tenants.first-owner-invitations.revoke.v1"));
     }
 
     @Test

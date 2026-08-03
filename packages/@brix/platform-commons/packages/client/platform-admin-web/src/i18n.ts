@@ -85,7 +85,12 @@ export const I18N_KEYS = Object.freeze({
   },
   setup: {
     title: ['setup.title', 'Complete Platform Admin Setup'],
+    tenantOwnerTitle: ['setup.tenantOwnerTitle', 'Complete Tenant Owner Setup'],
     subtitle: ['setup.subtitle', 'Create your password and bind an authenticator before signing in.'],
+    tenantOwnerSubtitle: [
+      'setup.tenantOwnerSubtitle',
+      'Create your password and bind an authenticator before accepting the tenant owner invitation.',
+    ],
     invalidLink: ['setup.invalidLink', 'This setup link is invalid or expired.'],
     invalidLinkHelp: [
       'setup.invalidLinkHelp',
@@ -103,6 +108,10 @@ export const I18N_KEYS = Object.freeze({
     successBadge: ['setup.successBadge', 'Setup complete'],
     successTitle: ['setup.successTitle', 'Credential and MFA are active'],
     successBody: ['setup.successBody', 'Your password hash has been saved and this authenticator is now bound to the account.'],
+    tenantOwnerSuccessBody: [
+      'setup.tenantOwnerSuccessBody',
+      'Your password and authenticator are active. Return to the invitation email and open the tenant owner invitation link.',
+    ],
     nextTitle: ['setup.nextTitle', 'Next sign in'],
     nextBody: ['setup.nextBody', 'Sign in with your password, then enter the current code from the same authenticator app.'],
     nextPasswordTitle: ['setup.nextPasswordTitle', 'Password step'],

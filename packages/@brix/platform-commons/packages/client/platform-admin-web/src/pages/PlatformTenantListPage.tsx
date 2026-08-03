@@ -6,9 +6,9 @@
 /**
  * @file PlatformTenantListPage — paginated tenant view + status mutation entry.
  *
- * Status transitions go through {@link UpdateTenantStatusDialog} which
- * enforces (client-side) the same legal targets the backend StatusMachine
- * accepts (`ACTIVE` / `SUSPENDED`).
+ * Status transitions go through {@link UpdateTenantStatusDialog}. Tenant
+ * activation from PENDING_ACTIVATION is intentionally absent here; it happens
+ * only through FIRST_OWNER invitation acceptance.
  */
 
 import { useState } from 'react';
@@ -94,8 +94,29 @@ export function isInstallationQuotaFull(
   return Boolean(quota && quota.quota > 0 && quota.used >= quota.quota);
 }
 
+export function canOpenFirstOwnerInvitation(
+  tenant: PlatformTenantDto,
+  hasInvitePermission: boolean,
+): boolean {
+  return (
+    hasInvitePermission &&
+    tenant.status === PLATFORM_TENANT_STATUS.PENDING_ACTIVATION
+  );
+}
+
+export function canOpenTenantStatusUpdate(
+  tenant: PlatformTenantDto,
+  hasUpdatePermission: boolean,
+): boolean {
+  return (
+    hasUpdatePermission &&
+    (tenant.status === PLATFORM_TENANT_STATUS.ACTIVE ||
+      tenant.status === PLATFORM_TENANT_STATUS.SUSPENDED)
+  );
+}
+
 export function PlatformTenantListPage(): JSX.Element {
-  const { Button, Input, Select } = useUIStrict();
+  const { Button, Icon, Input, Select } = useUIStrict();
   const { tokens } = useTheme();
   const t = tokens as DesignTokens;
   const tt = makeT(useI18n(I18N_NAMESPACE).t);
@@ -320,21 +341,33 @@ export function PlatformTenantListPage(): JSX.Element {
                 header: tt(I18N_KEYS.common.actions),
                 render: (r) => {
                   const actions = [];
-                  if (
-                    canInviteFirstOwner &&
-                    r.status === PLATFORM_TENANT_STATUS.PENDING_ACTIVATION
-                  ) {
+                  if (canOpenFirstOwnerInvitation(r, canInviteFirstOwner)) {
                     actions.push(
-                      <IconActionButton
+                      <Button
                         key="first-owner"
-                        icon="person_add"
-                        label="FIRST_OWNER invitation"
+                        variant="secondary"
+                        size="small"
                         onClick={() => setInviting(r)}
+                        style={{
+                          minHeight: 34,
+                          whiteSpace: 'nowrap',
+                        }}
                         data-testid="platform-tenant-row-first-owner"
-                      />,
+                      >
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: t.space.xs,
+                          }}
+                        >
+                          <Icon name="person_add" size={18} />
+                          <span>邀请租户管理员</span>
+                        </span>
+                      </Button>,
                     );
                   }
-                  if (canUpdate) {
+                  if (canOpenTenantStatusUpdate(r, canUpdate)) {
                     actions.push(
                       <IconActionButton
                         key="status"
@@ -351,6 +384,7 @@ export function PlatformTenantListPage(): JSX.Element {
                         display: 'flex',
                         gap: t.space.xs,
                         justifyContent: 'center',
+                        flexWrap: 'wrap',
                       }}
                     >
                       {actions}
@@ -360,7 +394,7 @@ export function PlatformTenantListPage(): JSX.Element {
                   );
                 },
                 align: 'center',
-                width: '112px',
+                width: '176px',
               },
             ]}
           />

@@ -20,6 +20,7 @@ import java.util.Objects;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,6 +29,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 
 /**
@@ -64,7 +66,7 @@ import jakarta.persistence.UniqueConstraint;
         @Index(name = "idx_user_profile_principal", columnList = "tenant_id, principal_id")
     }
 )
-public class BizUserProfile {
+public class BizUserProfile implements Persistable<Long> {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -135,6 +137,12 @@ public class BizUserProfile {
 
     public Long getId() {
         return id;
+    }
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return createdAt == null;
     }
 
     public void setId(Long id) {

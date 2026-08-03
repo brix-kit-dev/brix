@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Immutable invocation context for a manifest-declared endpoint handler.
@@ -35,6 +36,10 @@ import java.util.Optional;
  * @param headers request headers keyed by lower-case name
  * @param tenantId resolved tenant context, when the route policy requires one
  * @param actorId authenticated actor, when available
+ * @param identityEmail authenticated identity email, when available
+ * @param tokenRole authenticated token role, when available
+ * @param tokenType authenticated token type, when available
+ * @param allowedActions restricted actions allowed by the authenticated token
  * @param traceId request trace identifier, when available
  * @param deadline absolute invocation deadline
  * @param <I> request body type
@@ -48,6 +53,10 @@ public record EndpointInvocation<I>(
         Map<String, List<String>> headers,
         Optional<String> tenantId,
         Optional<String> actorId,
+        Optional<String> identityEmail,
+        Optional<String> tokenRole,
+        Optional<String> tokenType,
+        Set<String> allowedActions,
         Optional<String> traceId,
         Instant deadline) {
 
@@ -60,8 +69,39 @@ public record EndpointInvocation<I>(
         headers = copyMultiMap(headers, "headers");
         tenantId = tenantId != null ? tenantId : Optional.empty();
         actorId = actorId != null ? actorId : Optional.empty();
+        identityEmail = identityEmail != null ? identityEmail : Optional.empty();
+        tokenRole = tokenRole != null ? tokenRole : Optional.empty();
+        tokenType = tokenType != null ? tokenType : Optional.empty();
+        allowedActions = allowedActions != null ? Set.copyOf(allowedActions) : Set.of();
         traceId = traceId != null ? traceId : Optional.empty();
         deadline = Objects.requireNonNull(deadline, "deadline must not be null");
+    }
+
+    /**
+     * Creates an invocation without extended authenticated identity details.
+     */
+    public EndpointInvocation(
+            I body,
+            Map<String, String> pathVariables,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Optional<String> tenantId,
+            Optional<String> actorId,
+            Optional<String> traceId,
+            Instant deadline) {
+        this(
+            body,
+            pathVariables,
+            queryParameters,
+            headers,
+            tenantId,
+            actorId,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Set.of(),
+            traceId,
+            deadline);
     }
 
     private static Map<String, List<String>> copyMultiMap(Map<String, List<String>> source, String name) {

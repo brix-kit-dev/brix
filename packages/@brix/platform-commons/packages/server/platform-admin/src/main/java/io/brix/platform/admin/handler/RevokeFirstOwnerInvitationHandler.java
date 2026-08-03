@@ -8,6 +8,7 @@ package io.brix.platform.admin.handler;
 
 import io.brix.platform.tenant.internal.RevokeFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
+import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
@@ -31,11 +32,15 @@ public final class RevokeFirstOwnerInvitationHandler implements EndpointHandler<
         Long actorId = PlatformOperationalInvocationSupport.requirePlatformActorId(invocation);
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
         Long invitationId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "invitationId");
-        tenantAdministration.revokeFirstOwnerInvitation(
-            new RevokeFirstOwnerInvitationCommand(
-                tenantId,
-                invitationId,
-                PlatformOperationalInvocationSupport.platformOperatorRef(actorId)));
+        try {
+            tenantAdministration.revokeFirstOwnerInvitation(
+                new RevokeFirstOwnerInvitationCommand(
+                    tenantId,
+                    invitationId,
+                    PlatformOperationalInvocationSupport.platformOperatorRef(actorId)));
+        } catch (TenantAdministrationException ex) {
+            throw PlatformEndpointErrors.tenantAdministration(ex);
+        }
         return null;
     }
 }

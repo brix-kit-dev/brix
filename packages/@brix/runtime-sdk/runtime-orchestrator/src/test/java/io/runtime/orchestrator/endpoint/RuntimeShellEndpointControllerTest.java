@@ -21,6 +21,7 @@ import java.util.Set;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 
+import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.DataScope;
 
@@ -56,6 +57,31 @@ class RuntimeShellEndpointControllerTest {
 
         assertFalse(dispatcher.headers.containsKey("x-actor-id"));
         assertFalse(dispatcher.headers.containsKey("x-tenant-id"));
+    }
+
+    @Test
+    void dispatchInjectsOnlyVerifiedExtendedAuthContext() {
+        CapturingDispatcher dispatcher = new CapturingDispatcher();
+        RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
+            dispatcher,
+            () -> new TestAuthCapability(
+                "1001",
+                null,
+                "owner@example.test",
+                "actor",
+                "identity",
+                Set.of("first_owner_accept")));
+
+        controller.dispatch(null, request(Map.of(
+            "X-Auth-Identity-Email", List.of("spoof@example.test"),
+            "X-Auth-Token-Role", List.of("platform-admin"),
+            "X-Auth-Token-Type", List.of("access"),
+            "X-Auth-Allowed-Action", List.of("spoof"))));
+
+        assertEquals(List.of("owner@example.test"), dispatcher.headers.get("x-auth-identity-email"));
+        assertEquals(List.of("actor"), dispatcher.headers.get("x-auth-token-role"));
+        assertEquals(List.of("identity"), dispatcher.headers.get("x-auth-token-type"));
+        assertEquals(List.of("first_owner_accept"), dispatcher.headers.get("x-auth-allowed-action"));
     }
 
     private static HttpServletRequest request(Map<String, List<String>> headers) {
@@ -95,11 +121,23 @@ class RuntimeShellEndpointControllerTest {
         }
     }
 
-    private record TestAuthCapability(String actorId, String tenantId) implements AuthCapability {
+    private record TestAuthCapability(
+            String actorId,
+            String tenantId,
+            String email,
+            String tokenRole,
+            String tokenType,
+            Set<String> allowedActions) implements AuthCapability {
+
+        private TestAuthCapability(String actorId, String tenantId) {
+            this(actorId, tenantId, null, null, null, Set.of());
+        }
 
         @Override
         public Principal getCurrentPrincipal() {
-            return actorId == null ? null : () -> actorId;
+            return actorId == null
+                ? null
+                : new TestPrincipal(actorId, tenantId, email, tokenRole, tokenType, allowedActions);
         }
 
         @Override
@@ -120,6 +158,50 @@ class RuntimeShellEndpointControllerTest {
         @Override
         public String getTenantId() {
             return tenantId;
+        }
+    }
+
+    private record TestPrincipal(
+            String userId,
+            String tenantId,
+            String email,
+            String tokenRole,
+            String tokenType,
+            Set<String> allowedActions) implements AuthenticatedPrincipal {
+
+        @Override
+        public String getName() {
+            return userId;
+        }
+
+        @Override
+        public String getUserId() {
+            return userId;
+        }
+
+        @Override
+        public String getTenantId() {
+            return tenantId;
+        }
+
+        @Override
+        public String getEmail() {
+            return email;
+        }
+
+        @Override
+        public String getTokenRole() {
+            return tokenRole;
+        }
+
+        @Override
+        public String getTokenType() {
+            return tokenType;
+        }
+
+        @Override
+        public Set<String> getAllowedActions() {
+            return allowedActions;
         }
     }
 }

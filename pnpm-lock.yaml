@@ -961,6 +961,9 @@ importers:
         specifier: workspace:*
         version: link:../../../../runtime-sdk/runtime-sdk-api-web
     devDependencies:
+      '@brix-sdk/eslint-config-architecture':
+        specifier: workspace:*
+        version: link:../../../../platform-devtools/eslint-config-architecture
       '@brix-sdk/runtime-sdk-react':
         specifier: workspace:*
         version: link:../../../../runtime-sdk/runtime-sdk-react
@@ -985,6 +988,9 @@ importers:
       typescript:
         specifier: ^5.3.2
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^7.18.0
+        version: 7.18.0(eslint@8.57.1)(typescript@5.9.3)
       vitest:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@20.19.34)(jsdom@28.1.0)

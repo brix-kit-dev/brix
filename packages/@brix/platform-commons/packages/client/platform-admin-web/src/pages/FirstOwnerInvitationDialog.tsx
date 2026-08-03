@@ -37,7 +37,6 @@ export function FirstOwnerInvitationDialog(
   } = useFirstOwnerInvitation();
 
   const [inviteeEmail, setInviteeEmail] = useState('');
-  const [inviteBaseUrl, setInviteBaseUrl] = useState('');
   const [locale, setLocale] = useState('en-US');
   const [submitted, setSubmitted] = useState(false);
   const currentInvitation = current ?? props.currentInvitation ?? null;
@@ -45,7 +44,6 @@ export function FirstOwnerInvitationDialog(
   useEffect(() => {
     if (props.open) {
       setInviteeEmail(currentInvitation?.inviteeEmail ?? '');
-      setInviteBaseUrl('');
       setLocale('en-US');
       setSubmitted(false);
     }
@@ -69,7 +67,6 @@ export function FirstOwnerInvitationDialog(
   const hasInvitation = Boolean(currentInvitation?.invitationId);
   const emailInvalid =
     !inviteeEmail.trim() || !EMAIL_PATTERN.test(inviteeEmail.trim());
-  const inviteBaseUrlInvalid = !isValidHttpsUrl(inviteBaseUrl);
 
   function handleClose() {
     if (!loading) {
@@ -80,10 +77,9 @@ export function FirstOwnerInvitationDialog(
   async function handleCreateOrResend() {
     if (loading) return;
     setSubmitted(true);
-    if (emailInvalid || inviteBaseUrlInvalid) return;
+    if (emailInvalid) return;
     try {
       const payload = {
-        inviteBaseUrl: inviteBaseUrl.trim(),
         locale: locale.trim() || undefined,
       };
       const invitation = hasInvitation
@@ -123,7 +119,7 @@ export function FirstOwnerInvitationDialog(
     >
       <Stack direction="column" style={{ gap: t.space.md }}>
         <Alert severity="info">
-          The response never contains an invitation token, link, or message body.
+          Invitation links are delivered by managed email only.
         </Alert>
 
         <div style={{ color: t.colors.text.secondary }}>
@@ -143,22 +139,6 @@ export function FirstOwnerInvitationDialog(
             submitted && emailInvalid ? 'A valid invitee email is required' : ''
           }
           data-testid="platform-tenant-first-owner-email"
-        />
-
-        <Input
-          type="url"
-          label="Invitation entry URL"
-          value={inviteBaseUrl}
-          onChange={(e) => setInviteBaseUrl(e.target.value)}
-          required
-          fullWidth
-          error={submitted && inviteBaseUrlInvalid}
-          helperText={
-            submitted && inviteBaseUrlInvalid
-              ? 'Use an HTTPS URL without a token parameter'
-              : ''
-          }
-          data-testid="platform-tenant-first-owner-base-url"
         />
 
         <Input
@@ -196,15 +176,6 @@ export function FirstOwnerInvitationDialog(
       </Stack>
     </Modal>
   );
-}
-
-function isValidHttpsUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && !url.searchParams.has('token');
-  } catch {
-    return false;
-  }
 }
 
 function formatDate(value: string | null): string {

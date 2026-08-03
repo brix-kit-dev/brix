@@ -141,7 +141,7 @@ export interface PlatformSetupValidateResponse {
   username?: string;
   email?: string | null;
   displayName?: string | null;
-  purpose?: 'INITIAL_SETUP' | 'PASSWORD_RESET' | string;
+  purpose?: 'INITIAL_SETUP' | 'TENANT_FIRST_OWNER_SETUP' | 'PASSWORD_RESET' | string;
   expiresAt?: string;
 }
 
@@ -305,11 +305,9 @@ export interface FirstOwnerInvitationDto {
 
 export interface CreateFirstOwnerInvitationRequest {
   inviteeEmail: string;
-  inviteBaseUrl: string;
   locale?: string;
 }
 
 export interface ResendFirstOwnerInvitationRequest {
-  inviteBaseUrl: string;
   locale?: string;
 }

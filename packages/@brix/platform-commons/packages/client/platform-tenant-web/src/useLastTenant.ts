@@ -16,9 +16,9 @@
 
 /**
  * @file useLastTenant Hook — Last Tenant Persistence & Recovery
- * @description Reads and writes the user's last selected tenant ID to
- * localStorage. Used during app bootstrap to auto-restore the last
- * tenant context without requiring the user to select again.
+ * @description Reads and writes the user's last selected tenant ID through
+ * Runtime PluginStateCapability. Used during app bootstrap to auto-restore
+ * the last tenant context without requiring the user to select again.
  *
  * @module @brix-sdk/platform-tenant-web/useLastTenant
  * @version 3.1.0
@@ -26,16 +26,17 @@
  * [Architecture Layer]
  * Layer 2C: Platform Commons — utility hook for tenant selection persistence.
  *
- * [Storage Key]
+ * [State Key]
  * `brix:lastTenant` — stores the raw tenant ID string.
  *
  * @since 3.1.0
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { usePluginState } from '@brix-sdk/runtime-sdk-react';
 
 /**
- * localStorage key for the last selected tenant.
+ * Plugin state key for the last selected tenant.
  */
 const LAST_TENANT_KEY = 'brix:lastTenant';
 
@@ -43,7 +44,7 @@ const LAST_TENANT_KEY = 'brix:lastTenant';
  * Return type for useLastTenant hook.
  */
 export interface UseLastTenantResult {
-  /** The last tenant ID from localStorage, or null if not set */
+  /** The last tenant ID from Runtime PluginStateCapability, or null if not set */
   lastTenantId: string | null;
 
   /**
@@ -62,7 +63,7 @@ export interface UseLastTenantResult {
 /**
  * Hook for reading and writing the last selected tenant ID.
  *
- * On mount, reads the value from localStorage. Provides setter and
+ * On mount, reads the value from PluginStateCapability. Provides setter and
  * clearer methods for managing the persisted tenant ID.
  *
  * Commonly used during app bootstrap:
@@ -89,45 +90,21 @@ export interface UseLastTenantResult {
  * @returns UseLastTenantResult
  */
 export function useLastTenant(): UseLastTenantResult {
-  const [lastTenantId, setLastTenantIdState] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(LAST_TENANT_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const { state, setState, resetState } = usePluginState<string | null>(
+    LAST_TENANT_KEY,
+    null,
+  );
 
   const setLastTenantId = useCallback((tenantId: string) => {
-    try {
-      localStorage.setItem(LAST_TENANT_KEY, tenantId);
-      setLastTenantIdState(tenantId);
-    } catch {
-      // localStorage may be unavailable
-    }
-  }, []);
+    setState(tenantId);
+  }, [setState]);
 
   const clearLastTenantId = useCallback(() => {
-    try {
-      localStorage.removeItem(LAST_TENANT_KEY);
-      setLastTenantIdState(null);
-    } catch {
-      // localStorage may be unavailable
-    }
-  }, []);
-
-  // Sync with localStorage changes from other tabs
-  useEffect(() => {
-    const handler = (event: StorageEvent) => {
-      if (event.key === LAST_TENANT_KEY) {
-        setLastTenantIdState(event.newValue);
-      }
-    };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
-  }, []);
+    resetState();
+  }, [resetState]);
 
   return {
-    lastTenantId,
+    lastTenantId: state ?? null,
     setLastTenantId,
     clearLastTenantId,
   };

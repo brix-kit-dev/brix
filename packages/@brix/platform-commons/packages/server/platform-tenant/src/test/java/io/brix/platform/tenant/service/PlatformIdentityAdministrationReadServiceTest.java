@@ -102,6 +102,7 @@ class PlatformIdentityAdministrationReadServiceTest {
             Optional.empty(),
             bootstrapCompletionListener,
             eventPublisher,
-            auditService);
+            auditService,
+            Optional.empty());
     }
 }

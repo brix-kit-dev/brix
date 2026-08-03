@@ -99,6 +99,14 @@ public final class PlatformPermissions {
      */
     public static final String TENANT_CREATE = "platform:tenant:create";
 
+    /**
+     * Create, resend, or revoke the FIRST_OWNER invitation for a pending tenant.
+     *
+     * <p>Fine-grained code aligning with platform-admin operational endpoints for
+     * {@code /api/platform/tenants/{tenantId}/first-owner-invitations/**}.
+     */
+    public static final String TENANT_FIRST_OWNER_INVITE = "platform:tenant:first-owner-invite";
+
     // ========== Platform Admin Management ==========
 
     /** Create or manage platform administrator accounts (coarse-grained, kept for backward compat). */
@@ -194,6 +202,7 @@ public final class PlatformPermissions {
             case RoleCode.PLATFORM_SUPER_ADMIN -> List.of(
                     // tenant
                     TENANT_MANAGE, TENANT_VIEW, TENANT_READ, TENANT_CREATE, TENANT_UPDATE_STATUS,
+                    TENANT_FIRST_OWNER_INVITE,
                     // admin management
                 ADMIN_MANAGE, ADMIN_READ, ADMIN_CREATE, ADMIN_REVOKE,
                     ADMIN_RESET_PASSWORD, ADMIN_CHANGE_OWN_PASSWORD,

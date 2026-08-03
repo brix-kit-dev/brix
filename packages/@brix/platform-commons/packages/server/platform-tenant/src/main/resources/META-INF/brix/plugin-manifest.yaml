@@ -16,7 +16,26 @@ modules:
     version: 3.2.0
     moduleKind: plugin-server
 endpoints:
-  provides: []
+  provides:
+    - endpointId: platform-tenant.first-owner.accept.v1
+      transport: http
+      method: POST
+      path: /api/tenant/first-owner-invitations/accept
+      request:
+        schemaRef: brix://schemas/platform-tenant/accept-first-owner-invitation-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-tenant/first-owner-acceptance/1.0.0
+      handlerId: platform-tenant.first-owner.accept.v1
+      authentication:
+        mode: required
+      authorization:
+        policyRef: tenant:first-owner:accept
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: required
 capabilities:
   required:
     - id: io.runtime.sdk.capability.EventBusCapability
@@ -75,6 +94,7 @@ data:
 permissions:
   - id: platform:tenant:create
   - id: platform:tenant:first-owner-invite
+  - id: tenant:first-owner:accept
 config: []
 ui:
   web:

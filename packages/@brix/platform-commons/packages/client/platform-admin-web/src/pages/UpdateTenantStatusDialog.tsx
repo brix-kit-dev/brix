@@ -6,8 +6,8 @@
 /**
  * @file UpdateTenantStatusDialog — change a tenant's lifecycle status.
  *
- * Client only offers the legal forward transitions (ACTIVE ↔ SUSPENDED).
- * Server-side StatusMachine remains the source of truth for what is allowed.
+ * Client only offers operator-controlled transitions (ACTIVE ↔ SUSPENDED).
+ * PENDING_ACTIVATION is activated only by the FIRST_OWNER acceptance flow.
  */
 
 import { useState } from 'react';
@@ -17,16 +17,10 @@ import { useUIStrict } from '../internal/ui-kit';
 import { useUpdateTenantStatus } from '../hooks/useUpdateTenantStatus';
 import {
   PLATFORM_TENANT_STATUS,
-  PLATFORM_TENANT_TRANSITIONABLE_STATUS,
   type PlatformTenantStatus,
 } from '../constants';
 import { I18N_KEYS, I18N_NAMESPACE, makeT } from '../i18n';
 import type { PlatformTenantDto } from '../types';
-
-const STATUS_OPTIONS = PLATFORM_TENANT_TRANSITIONABLE_STATUS.map((v) => ({
-  value: v,
-  label: v,
-}));
 
 export interface UpdateTenantStatusDialogProps {
   open: boolean;
@@ -35,19 +29,33 @@ export interface UpdateTenantStatusDialogProps {
   onUpdated?: () => void;
 }
 
+export function getTenantStatusTransitionTargets(
+  status: PlatformTenantStatus,
+): readonly PlatformTenantStatus[] {
+  switch (status) {
+    case PLATFORM_TENANT_STATUS.ACTIVE:
+      return [PLATFORM_TENANT_STATUS.SUSPENDED];
+    case PLATFORM_TENANT_STATUS.SUSPENDED:
+      return [PLATFORM_TENANT_STATUS.ACTIVE];
+    default:
+      return [];
+  }
+}
+
 export function UpdateTenantStatusDialog(
   props: UpdateTenantStatusDialogProps,
 ): JSX.Element {
-  const { Modal, Select, Input, message } = useUIStrict();
+  const { Modal, Select, Input, Alert, message } = useUIStrict();
   const { tokens } = useTheme();
   const t = tokens as DesignTokens;
   const tt = makeT(useI18n(I18N_NAMESPACE).t);
   const { update, loading, error } = useUpdateTenantStatus();
+  const statusTargets = getTenantStatusTransitionTargets(props.tenant.status);
+  const hasLegalTransition = statusTargets.length > 0;
+  const statusOptions = statusTargets.map((v) => ({ value: v, label: v }));
 
   const [target, setTarget] = useState<PlatformTenantStatus>(
-    props.tenant.status === PLATFORM_TENANT_STATUS.ACTIVE
-      ? PLATFORM_TENANT_STATUS.SUSPENDED
-      : PLATFORM_TENANT_STATUS.ACTIVE,
+    statusTargets[0] ?? props.tenant.status,
   );
   const [reason, setReason] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -57,7 +65,7 @@ export function UpdateTenantStatusDialog(
 
   async function handleConfirm() {
     setSubmitted(true);
-    if (reasonInvalid || sameStatus) return;
+    if (!hasLegalTransition || reasonInvalid || sameStatus) return;
     try {
       await update(props.tenant.id, { status: target, reason: reason.trim() });
       message.success?.('OK');
@@ -72,7 +80,7 @@ export function UpdateTenantStatusDialog(
       open={props.open}
       title={tt(I18N_KEYS.tenant.statusDialogTitle)}
       onClose={() => !loading && props.onClose()}
-      onConfirm={handleConfirm}
+      onConfirm={hasLegalTransition ? handleConfirm : undefined}
       confirmLoading={loading}
       confirmText={tt(I18N_KEYS.common.confirm)}
       cancelText={tt(I18N_KEYS.common.cancel)}
@@ -81,31 +89,40 @@ export function UpdateTenantStatusDialog(
       <p style={{ marginTop: 0, color: t.colors.text.secondary }}>
         {props.tenant.code} — {props.tenant.name}
       </p>
-      <Select
-        label={tt(I18N_KEYS.tenant.colStatus)}
-        options={STATUS_OPTIONS}
-        value={target}
-        onChange={(v) => setTarget(v as PlatformTenantStatus)}
-        fullWidth
-        required
-        data-testid="platform-tenant-status-target"
-      />
-      <div style={{ height: t.space.sm }} />
-      <Input
-        type="text"
-        label={tt(I18N_KEYS.tenant.statusReason)}
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        required
-        fullWidth
-        multiline
-        rows={3}
-        error={submitted && reasonInvalid}
-        helperText={
-          submitted && reasonInvalid ? tt(I18N_KEYS.admin.requiredField) : ''
-        }
-        data-testid="platform-tenant-status-reason"
-      />
+      {hasLegalTransition ? (
+        <>
+          <Select
+            label={tt(I18N_KEYS.tenant.colStatus)}
+            options={statusOptions}
+            value={target}
+            onChange={(v) => setTarget(v as PlatformTenantStatus)}
+            fullWidth
+            required
+            data-testid="platform-tenant-status-target"
+          />
+          <div style={{ height: t.space.sm }} />
+          <Input
+            type="text"
+            label={tt(I18N_KEYS.tenant.statusReason)}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            required
+            fullWidth
+            multiline
+            rows={3}
+            error={submitted && reasonInvalid}
+            helperText={
+              submitted && reasonInvalid ? tt(I18N_KEYS.admin.requiredField) : ''
+            }
+            data-testid="platform-tenant-status-reason"
+          />
+        </>
+      ) : (
+        <Alert severity="warning" data-testid="platform-tenant-status-blocked">
+          PENDING_ACTIVATION tenants are activated only after the invited
+          FIRST_OWNER accepts the invitation.
+        </Alert>
+      )}
 
       {error ? (
         <div

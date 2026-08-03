@@ -1,0 +1,5 @@
+{
+  "subject": "Complete your Brix tenant owner setup",
+  "body": "Hello,\n\nUse the link below to set your password and bind MFA before accepting the tenant owner invitation:\n{{setupUrl}}\n\nThis link is single-use and expires shortly.",
+  "variables": ["setupUrl"]
+}

@@ -168,7 +168,10 @@ import io.runtime.sdk.capability.TotpCapability;
 @AutoConfiguration
 @EnableJpaRepositories(basePackages = "io.brix.platform.tenant.repository")
 @EntityScan(basePackages = "io.brix.platform.tenant.entity")
-@EnableConfigurationProperties(SuperAdminBootstrapProperties.class)
+@EnableConfigurationProperties({
+    SuperAdminBootstrapProperties.class,
+    FirstOwnerInvitationProperties.class
+})
 @ComponentScan(basePackages = {
     "io.brix.platform.tenant.aspect",
     "io.brix.platform.tenant.controller",
@@ -373,24 +376,33 @@ public class TenantAutoConfiguration {
             TenantInvitationRepository invitationRepository,
             TenantRepository tenantRepository,
             TenantMemberRepository tenantMemberRepository,
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            SetupTokenRepository setupTokenRepository,
             InstallationQuotaRepository installationQuotaRepository,
             BizUserProfileRepository bizUserProfileRepository,
             @Qualifier("platformTenantEventBusCapability") EventBusCapability platformTenantEventBusCapability,
             TenantAuditLogRepository auditLogRepository,
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
             IdGenerator idGenerator,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            FirstOwnerInvitationProperties firstOwnerInvitationProperties) {
         return new FirstOwnerInvitationService(
             invitationRepository,
             tenantRepository,
             tenantMemberRepository,
+            identityRepository,
+            platformAdminRepository,
+            setupTokenRepository,
             installationQuotaRepository,
             bizUserProfileRepository,
             platformTenantEventBusCapability,
             auditLogRepository,
             Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
             idGenerator,
-            objectMapper);
+            objectMapper,
+            firstOwnerInvitationProperties.getInviteBaseUrl(),
+            firstOwnerInvitationProperties.getSetupBaseUrl());
     }
 
     /**
@@ -501,6 +513,7 @@ public class TenantAutoConfiguration {
             ObjectProvider<PasswordCapability> passwordCapabilityProvider,
             ObjectProvider<TotpCapability> totpCapabilityProvider,
             ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider,
+            FirstOwnerInvitationService firstOwnerInvitationService,
             BootstrapCompletionListener bootstrapCompletionListener,
             ApplicationEventPublisher eventPublisher,
             AuditService auditService) {
@@ -513,7 +526,8 @@ public class TenantAutoConfiguration {
                 Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()),
                 bootstrapCompletionListener,
                 eventPublisher,
-                auditService);
+                auditService,
+                Optional.of(firstOwnerInvitationService));
     }
 
     @Bean

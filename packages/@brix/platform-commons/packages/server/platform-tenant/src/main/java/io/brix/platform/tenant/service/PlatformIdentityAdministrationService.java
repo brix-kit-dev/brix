@@ -57,6 +57,7 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
     private final BootstrapCompletionListener bootstrapCompletionListener;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditService auditService;
+    private final Optional<FirstOwnerInvitationService> firstOwnerInvitationService;
 
     /**
      * Creates the platform identity administration service.
@@ -70,7 +71,8 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
             Optional<SecretEncryptionCapability> secretEncryptionCapability,
             BootstrapCompletionListener bootstrapCompletionListener,
             ApplicationEventPublisher eventPublisher,
-            AuditService auditService) {
+            AuditService auditService,
+            Optional<FirstOwnerInvitationService> firstOwnerInvitationService) {
         this.setupTokenRepository = setupTokenRepository;
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
@@ -80,6 +82,7 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         this.bootstrapCompletionListener = bootstrapCompletionListener;
         this.eventPublisher = eventPublisher;
         this.auditService = auditService;
+        this.firstOwnerInvitationService = firstOwnerInvitationService;
     }
 
     @Override
@@ -121,9 +124,14 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         if (!challengeId(command.setupToken(), identity.getId()).equals(command.challengeId())) {
             throw new IllegalArgumentException("setup challenge is invalid");
         }
-        PlatformAdmin admin = platformAdminRepository.findByIdentityId(identity.getId())
-                .filter(PlatformAdmin::isActive)
-                .orElseThrow(() -> new IllegalStateException("platform admin grant is missing"));
+        Optional<PlatformAdmin> admin = platformAdminRepository.findByIdentityId(identity.getId())
+                .filter(PlatformAdmin::isActive);
+        if (SetupTokenPurposes.INITIAL_SETUP.equals(token.getPurpose()) && admin.isEmpty()) {
+            throw new IllegalStateException("platform admin grant is missing");
+        }
+        if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose()) && admin.isPresent()) {
+            throw new IllegalStateException("tenant first-owner setup token is not valid for platform admin identity");
+        }
         PasswordCapability password = passwordCapability.orElseThrow(
                 () -> new IllegalStateException("PasswordCapability is required"));
         TotpCapability totp = totpCapability.orElseThrow(
@@ -141,21 +149,29 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
 
         identity.setPasswordHash(password.hash(command.password()));
         identity.setPasswordMustChange(false);
+        identity.verifyEmail();
         identity.setStatus(IdentityStatus.ACTIVE);
         identity.setMfaEnabled(true);
         identity.setMfaBoundAt(OffsetDateTime.now());
         identity.setTokenVersion(identity.getTokenVersion() + 1);
         identityRepository.save(identity);
-        admin.setMfaEnabled(true);
-        platformAdminRepository.save(admin);
+        admin.ifPresent(platformAdmin -> {
+            platformAdmin.setMfaEnabled(true);
+            platformAdminRepository.save(platformAdmin);
+        });
         token.setUsedAt(OffsetDateTime.now());
         setupTokenRepository.save(token);
-        writeAudit(identity.getId(), AuditAction.IDENTITY_PASSWORD_SET, "IDENTITY", "Platform identity password set.");
-        writeAudit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", "Platform identity TOTP bound.");
-        writeAudit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", "Platform setup token consumed.");
-        writeAudit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", "Platform identity activated.");
-        bootstrapCompletionListener.completeIfEligible(identity.getId());
-        eventPublisher.publishEvent(new BootstrapCompletionListener.IdentitySetupCompletedEvent(identity.getId()));
+        writeAudit(identity.getId(), AuditAction.IDENTITY_PASSWORD_SET, "IDENTITY", "Identity password set.");
+        writeAudit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", "Identity TOTP bound.");
+        writeAudit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", "Setup token consumed.");
+        writeAudit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", "Identity activated.");
+        if (SetupTokenPurposes.INITIAL_SETUP.equals(token.getPurpose())) {
+            bootstrapCompletionListener.completeIfEligible(identity.getId());
+            eventPublisher.publishEvent(new BootstrapCompletionListener.IdentitySetupCompletedEvent(identity.getId()));
+        } else if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose())) {
+            firstOwnerInvitationService.ifPresent(service ->
+                service.sendPendingInvitationsAfterSetup(identity.getId()));
+        }
         return new PlatformSetupCompletionView(true);
     }
 
@@ -203,10 +219,15 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         }
         SetupToken token = setupTokenRepository.findByTokenHash(SecretHashing.sha256Base64Url(setupToken))
                 .orElseThrow(() -> new IllegalArgumentException("setup token is invalid"));
-        if (!"INITIAL_SETUP".equals(token.getPurpose()) || !token.isUsable(OffsetDateTime.now())) {
+        if (!isSupportedPurpose(token.getPurpose()) || !token.isUsable(OffsetDateTime.now())) {
             throw new IllegalArgumentException("setup token is invalid");
         }
         return token;
+    }
+
+    private static boolean isSupportedPurpose(String purpose) {
+        return SetupTokenPurposes.INITIAL_SETUP.equals(purpose)
+                || SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(purpose);
     }
 
     private Identity requireIdentity(Long identityId) {

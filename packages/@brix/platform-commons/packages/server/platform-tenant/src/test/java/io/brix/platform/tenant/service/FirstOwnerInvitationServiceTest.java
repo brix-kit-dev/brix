@@ -8,6 +8,7 @@ package io.brix.platform.tenant.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,12 +31,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.entity.BizUserProfile;
+import io.brix.platform.tenant.entity.Identity;
 import io.brix.platform.tenant.entity.InstallationQuota;
+import io.brix.platform.tenant.entity.SetupToken;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantAuditLog;
 import io.brix.platform.tenant.entity.TenantInvitation;
 import io.brix.platform.tenant.entity.TenantInvitation.InvitationTargetType;
 import io.brix.platform.tenant.entity.TenantMember;
+import io.brix.platform.tenant.enums.IdentityStatus;
 import io.brix.platform.tenant.enums.InvitationInviterType;
 import io.brix.platform.tenant.enums.InvitationPurpose;
 import io.brix.platform.tenant.enums.InvitationStatus;
@@ -49,7 +53,10 @@ import io.brix.platform.tenant.internal.FirstOwnerAcceptanceResult;
 import io.brix.platform.tenant.internal.FirstOwnerInvitationView;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
+import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
+import io.brix.platform.tenant.repository.PlatformAdminRepository;
+import io.brix.platform.tenant.repository.SetupTokenRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
@@ -64,6 +71,8 @@ import io.runtime.sdk.event.IntegrationEvent;
 @ExtendWith(MockitoExtension.class)
 class FirstOwnerInvitationServiceTest {
 
+    private static final String TENANT_OWNER_SETUP_TEMPLATE = "tenant.owner.setup.initial";
+
     @Mock
     private TenantInvitationRepository invitationRepository;
 
@@ -72,6 +81,15 @@ class FirstOwnerInvitationServiceTest {
 
     @Mock
     private TenantMemberRepository tenantMemberRepository;
+
+    @Mock
+    private IdentityRepository identityRepository;
+
+    @Mock
+    private PlatformAdminRepository platformAdminRepository;
+
+    @Mock
+    private SetupTokenRepository setupTokenRepository;
 
     @Mock
     private InstallationQuotaRepository installationQuotaRepository;
@@ -99,30 +117,37 @@ class FirstOwnerInvitationServiceTest {
             invitationRepository,
             tenantRepository,
             tenantMemberRepository,
+            identityRepository,
+            platformAdminRepository,
+            setupTokenRepository,
             installationQuotaRepository,
             profileRepository,
             eventBusCapability,
             auditLogRepository,
             Optional.of(notificationCapability),
             idGenerator,
-            new ObjectMapper());
+            new ObjectMapper(),
+            "https://console.example.test/invite",
+            "https://console.example.test/setup");
     }
 
     @Test
-    void createSendsManagedNotificationWithoutReturningToken() {
+    void createSendsSetupOnlyWhenInviteeIdentityRequiresSetup() {
         Tenant tenant = pendingTenant(100L);
         when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
         when(invitationRepository.findLatestByTenantAndPurposeForUpdate(
                 100L, InvitationPurpose.FIRST_OWNER, InvitationStatus.PENDING, PageRequest.of(0, 1)))
             .thenReturn(java.util.List.of());
-        when(idGenerator.nextId()).thenReturn(200L);
+        when(identityRepository.findByEmail("owner@example.com")).thenReturn(Optional.empty());
+        when(idGenerator.nextId()).thenReturn(200L, 201L, 202L);
         when(invitationRepository.save(any(TenantInvitation.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(identityRepository.save(any(Identity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(setupTokenRepository.save(any(SetupToken.class))).thenAnswer(inv -> inv.getArgument(0));
 
         FirstOwnerInvitationView view = service.create(new CreateFirstOwnerInvitationCommand(
             100L,
             "Owner@Example.com",
             "platform-identity:9",
-            "https://console.example.test/invite",
             "en-US"));
 
         assertEquals(200L, view.id());
@@ -134,9 +159,116 @@ class FirstOwnerInvitationServiceTest {
         assertEquals(InvitationInviterType.PLATFORM_ADMIN, saved.getValue().getInviterType());
         ArgumentCaptor<NotificationRequest> notification = ArgumentCaptor.forClass(NotificationRequest.class);
         verify(notificationCapability).send(notification.capture());
+        assertEquals(TENANT_OWNER_SETUP_TEMPLATE, notification.getValue().templateKey());
+        String setupUrl = notification.getValue().variables().get("setupUrl");
+        assertTrue(setupUrl.startsWith("https://console.example.test/setup?token="));
+        assertFalse(setupUrl.contains("Owner@Example.com"));
+        ArgumentCaptor<Identity> savedIdentity = ArgumentCaptor.forClass(Identity.class);
+        verify(identityRepository).save(savedIdentity.capture());
+        assertEquals("owner@example.com", savedIdentity.getValue().getEmail());
+        assertEquals(IdentityStatus.PENDING_SETUP, savedIdentity.getValue().getStatus());
+        ArgumentCaptor<SetupToken> savedSetupToken = ArgumentCaptor.forClass(SetupToken.class);
+        verify(setupTokenRepository).save(savedSetupToken.capture());
+        assertEquals(201L, savedSetupToken.getValue().getIdentityId());
+        assertEquals(SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP, savedSetupToken.getValue().getPurpose());
+    }
+
+    @Test
+    void createSendsInvitationImmediatelyForActiveInviteeIdentity() {
+        Tenant tenant = pendingTenant(100L);
+        when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
+        when(invitationRepository.findLatestByTenantAndPurposeForUpdate(
+                100L, InvitationPurpose.FIRST_OWNER, InvitationStatus.PENDING, PageRequest.of(0, 1)))
+            .thenReturn(java.util.List.of());
+        Identity existing = identity(201L, "owner@example.com");
+        existing.setStatus(IdentityStatus.ACTIVE);
+        when(identityRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(existing));
+        when(idGenerator.nextId()).thenReturn(200L);
+        when(invitationRepository.save(any(TenantInvitation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.create(new CreateFirstOwnerInvitationCommand(
+            100L,
+            "Owner@Example.com",
+            "platform-identity:9",
+            "en-US"));
+
+        ArgumentCaptor<NotificationRequest> notification = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationCapability).send(notification.capture());
         assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());
-        assertTrue(notification.getValue().variables().get("inviteUrl").contains("token="));
-        assertFalse(notification.getValue().variables().get("inviteUrl").contains("Owner@Example.com"));
+        String inviteUrl = notification.getValue().variables().get("inviteUrl");
+        assertTrue(inviteUrl.startsWith("https://console.example.test/invite?token="));
+        verify(setupTokenRepository, never()).save(any(SetupToken.class));
+    }
+
+    @Test
+    void setupCompletionDeliveryReissuesInvitationTokenAndSendsInvitation() {
+        String oldRawToken = "old-tenant-owner-token";
+        TenantInvitation invitation = firstOwnerInvitation(200L, 100L, "owner@example.com", oldRawToken);
+        String oldHash = invitation.getTokenHash();
+        Identity identity = identity(500L, "Owner@Example.com");
+        identity.setStatus(IdentityStatus.ACTIVE);
+        Tenant tenant = pendingTenant(100L);
+        when(identityRepository.findById(500L)).thenReturn(Optional.of(identity));
+        when(invitationRepository.findPendingByInviteeEmailAndPurposeForUpdate(
+                "owner@example.com",
+                InvitationPurpose.FIRST_OWNER,
+                InvitationStatus.PENDING))
+            .thenReturn(java.util.List.of(invitation));
+        when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
+        when(tenantMemberRepository.existsActiveOwnerByTenantId(100L)).thenReturn(false);
+        when(invitationRepository.save(any(TenantInvitation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        java.util.List<FirstOwnerInvitationView> delivered = service.sendPendingInvitationsAfterSetup(500L);
+
+        assertEquals(1, delivered.size());
+        assertEquals(200L, delivered.get(0).id());
+        assertNotEquals(oldHash, invitation.getTokenHash());
+        ArgumentCaptor<NotificationRequest> notification = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationCapability).send(notification.capture());
+        assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());
+        String inviteUrl = notification.getValue().variables().get("inviteUrl");
+        assertTrue(inviteUrl.startsWith("https://console.example.test/invite?token="));
+        assertFalse(inviteUrl.contains(oldRawToken));
+    }
+
+    @Test
+    void createRejectsConfiguredInviteBaseUrlWithTokenParameter() {
+        service = new FirstOwnerInvitationService(
+            invitationRepository,
+            tenantRepository,
+            tenantMemberRepository,
+            identityRepository,
+            platformAdminRepository,
+            setupTokenRepository,
+            installationQuotaRepository,
+            profileRepository,
+            eventBusCapability,
+            auditLogRepository,
+            Optional.of(notificationCapability),
+            idGenerator,
+            new ObjectMapper(),
+            "https://console.example.test/invite?token=caller",
+            "https://console.example.test/setup");
+        Tenant tenant = pendingTenant(100L);
+        when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
+        when(invitationRepository.findLatestByTenantAndPurposeForUpdate(
+                100L, InvitationPurpose.FIRST_OWNER, InvitationStatus.PENDING, PageRequest.of(0, 1)))
+            .thenReturn(java.util.List.of());
+        Identity existing = identity(201L, "owner@example.com");
+        existing.setStatus(IdentityStatus.ACTIVE);
+        when(identityRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(existing));
+        when(idGenerator.nextId()).thenReturn(200L);
+        when(invitationRepository.save(any(TenantInvitation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TenantAdministrationException failure = assertThrows(
+            TenantAdministrationException.class,
+            () -> service.create(new CreateFirstOwnerInvitationCommand(
+                100L,
+                "Owner@Example.com",
+                "platform-identity:9",
+                "en-US")));
+
+        assertEquals("FIRST_OWNER_INVITE_BASE_URL_INVALID", failure.code());
     }
 
     @Test
@@ -148,6 +280,7 @@ class FirstOwnerInvitationServiceTest {
 
         when(invitationRepository.findByTokenHashForUpdate(SecretHashing.sha256Base64Url(rawToken)))
             .thenReturn(Optional.of(invitation));
+        when(identityRepository.findById(500L)).thenReturn(Optional.of(identity(500L, "Owner@Example.com")));
         when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
         when(installationQuotaRepository.findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID))
             .thenReturn(Optional.of(quota));
@@ -158,8 +291,7 @@ class FirstOwnerInvitationServiceTest {
 
         FirstOwnerAcceptanceResult result = service.accept(new AcceptFirstOwnerInvitationCommand(
             rawToken,
-            500L,
-            "Owner@Example.com"));
+            500L));
 
         assertEquals(100L, result.tenantId());
         assertEquals(300L, result.memberId());
@@ -186,13 +318,13 @@ class FirstOwnerInvitationServiceTest {
         TenantInvitation invitation = firstOwnerInvitation(200L, 100L, "owner@example.com", rawToken);
         when(invitationRepository.findByTokenHashForUpdate(SecretHashing.sha256Base64Url(rawToken)))
             .thenReturn(Optional.of(invitation));
+        when(identityRepository.findById(500L)).thenReturn(Optional.of(identity(500L, "other@example.com")));
 
         TenantAdministrationException failure = assertThrows(
             TenantAdministrationException.class,
             () -> service.accept(new AcceptFirstOwnerInvitationCommand(
                 rawToken,
-                500L,
-                "other@example.com")));
+                500L)));
 
         assertEquals("FIRST_OWNER_INVITATION_EMAIL_MISMATCH", failure.code());
         verify(tenantRepository, never()).save(any(Tenant.class));
@@ -213,8 +345,7 @@ class FirstOwnerInvitationServiceTest {
             TenantAdministrationException.class,
             () -> service.accept(new AcceptFirstOwnerInvitationCommand(
                 rawToken,
-                500L,
-                "owner@example.com")));
+                500L)));
 
         assertEquals("FIRST_OWNER_INVITATION_NOT_ACCEPTABLE", failure.code());
         verify(tenantRepository, never()).save(any(Tenant.class));
@@ -234,6 +365,7 @@ class FirstOwnerInvitationServiceTest {
 
         when(invitationRepository.findByTokenHashForUpdate(SecretHashing.sha256Base64Url(rawToken)))
             .thenReturn(Optional.of(invitation));
+        when(identityRepository.findById(500L)).thenReturn(Optional.of(identity(500L, "owner@example.com")));
         when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
         when(installationQuotaRepository.findByInstallationIdForUpdate(InstallationQuota.DEFAULT_INSTALLATION_ID))
             .thenReturn(Optional.of(quota));
@@ -241,8 +373,7 @@ class FirstOwnerInvitationServiceTest {
 
         assertThrows(QuotaExceededException.class, () -> service.accept(new AcceptFirstOwnerInvitationCommand(
             rawToken,
-            500L,
-            "owner@example.com")));
+            500L)));
 
         assertEquals(3, quota.getUsed());
         verify(tenantMemberRepository, never()).save(any(TenantMember.class));
@@ -258,6 +389,14 @@ class FirstOwnerInvitationServiceTest {
         tenant.setId(tenantId);
         tenant.setStatus(TenantStatus.PENDING_ACTIVATION);
         return tenant;
+    }
+
+    private static Identity identity(Long identityId, String email) {
+        Identity identity = new Identity();
+        identity.setId(identityId);
+        identity.setUsername(email);
+        identity.setEmail(email);
+        return identity;
     }
 
     private static TenantInvitation firstOwnerInvitation(

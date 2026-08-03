@@ -1,0 +1,5 @@
+{
+  "subject": "完成 Brix 租户所有者账号设置",
+  "body": "你好，\n\n请使用以下链接设置密码并绑定 MFA，然后再接受租户所有者邀请：\n{{setupUrl}}\n\n该链接为一次性链接，并会在短时间后过期。",
+  "variables": ["setupUrl"]
+}

@@ -6,6 +6,7 @@
  */
 package io.brix.platform.admin.handler;
 
+import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 
@@ -38,6 +39,35 @@ final class PlatformEndpointErrors {
                 authStatus(cause.getErrorCode()),
                 cause.getErrorCode(),
                 safeMessage(cause));
+    }
+
+    static EndpointHandlingException tenantAdministration(TenantAdministrationException cause) {
+        return new EndpointHandlingException(
+                tenantAdministrationStatus(cause.code()),
+                cause.code(),
+                safeMessage(cause));
+    }
+
+    private static int tenantAdministrationStatus(String code) {
+        if (code == null) {
+            return 400;
+        }
+        return switch (code) {
+            case "TENANT_NOT_FOUND",
+                 "FIRST_OWNER_IDENTITY_NOT_FOUND",
+                 "FIRST_OWNER_INVITATION_INVALID",
+                 "FIRST_OWNER_INVITATION_MISSING" -> 404;
+            case "FIRST_OWNER_INVITATION_EXISTS",
+                 "TENANT_NOT_PENDING_ACTIVATION",
+                 "FIRST_OWNER_INVITATION_NOT_REVOKABLE",
+                 "FIRST_OWNER_INVITATION_NOT_ACCEPTABLE",
+                 "FIRST_OWNER_INVITATION_EMAIL_MISMATCH",
+                 "FIRST_OWNER_ALREADY_EXISTS" -> 409;
+            case "NOTIFICATION_PROVIDER_MISSING",
+                 "FIRST_OWNER_INVITE_BASE_URL_NOT_CONFIGURED",
+                 "FIRST_OWNER_INVITE_BASE_URL_INVALID" -> 503;
+            default -> 400;
+        };
     }
 
     private static int authStatus(String code) {

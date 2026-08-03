@@ -111,7 +111,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private static final String PLATFORM_ROLE_BOOTSTRAP = "BOOTSTRAP";
 
     private static final List<String> IDENTITY_TOKEN_ACTIONS =
-            List.of("select_context", "register_tenant");
+            List.of("select_context", "register_tenant", "first_owner_accept");
 
     private final JwtProperties properties;
     private final ObjectMapper objectMapper;

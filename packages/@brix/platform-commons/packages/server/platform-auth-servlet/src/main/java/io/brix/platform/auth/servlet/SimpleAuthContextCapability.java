@@ -22,6 +22,7 @@ import java.util.Set;
 
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
+import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.DataScope;
 import io.runtime.sdk.capability.registry.Capability;
@@ -130,7 +131,7 @@ public class SimpleAuthContextCapability implements AuthCapability {
     /**
      * Lightweight Principal wrapper around AuthenticatedUser.
      */
-    private static final class SimpleAuthPrincipal implements Principal {
+    private static final class SimpleAuthPrincipal implements AuthenticatedPrincipal {
 
         private final AuthenticatedUser user;
 
@@ -141,6 +142,36 @@ public class SimpleAuthContextCapability implements AuthCapability {
         @Override
         public String getName() {
             return user.getUserId();
+        }
+
+        @Override
+        public String getUserId() {
+            return user.getUserId();
+        }
+
+        @Override
+        public String getTenantId() {
+            return user.getTenantId();
+        }
+
+        @Override
+        public String getEmail() {
+            return user.getEmail();
+        }
+
+        @Override
+        public String getTokenRole() {
+            return user.getTokenRole() == null ? null : user.getTokenRole().getValue();
+        }
+
+        @Override
+        public String getTokenType() {
+            return user.getTokenType() == null ? null : user.getTokenType().getValue();
+        }
+
+        @Override
+        public Set<String> getAllowedActions() {
+            return Set.copyOf(user.getAllowedActions());
         }
 
         @Override

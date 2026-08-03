@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.runtime.sdk.plugin.EndpointHandler;
@@ -44,6 +45,10 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
 
     private static final String TENANT_HEADER = "x-tenant-id";
     private static final String ACTOR_HEADER = "x-actor-id";
+    private static final String IDENTITY_EMAIL_HEADER = "x-auth-identity-email";
+    private static final String TOKEN_ROLE_HEADER = "x-auth-token-role";
+    private static final String TOKEN_TYPE_HEADER = "x-auth-token-type";
+    private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
     private static final String TRACE_HEADER = "x-trace-id";
 
     private final AtomicReference<List<EndpointRoute>> snapshot = new AtomicReference<>(List.of());
@@ -103,6 +108,10 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             normalizedHeaders,
             firstHeader(normalizedHeaders, TENANT_HEADER),
             firstHeader(normalizedHeaders, ACTOR_HEADER),
+            firstHeader(normalizedHeaders, IDENTITY_EMAIL_HEADER),
+            firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER),
+            firstHeader(normalizedHeaders, TOKEN_TYPE_HEADER),
+            headerValues(normalizedHeaders, ALLOWED_ACTION_HEADER),
             firstHeader(normalizedHeaders, TRACE_HEADER),
             Instant.now().plus(endpointDeadline));
         return invokeHandler(match.route(), invocation);
@@ -211,6 +220,16 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             return Optional.empty();
         }
         return Optional.of(values.get(0));
+    }
+
+    private static Set<String> headerValues(Map<String, List<String>> headers, String name) {
+        List<String> values = headers.get(name);
+        if (values == null || values.isEmpty()) {
+            return Set.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     private record RouteMatch(EndpointRoute route, Map<String, String> pathVariables) {

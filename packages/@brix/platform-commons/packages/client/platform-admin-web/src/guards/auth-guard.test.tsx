@@ -20,9 +20,10 @@ import {
 import { PlatformAuthGuard } from './PlatformAuthGuard';
 import { TenantAuthGuard } from './TenantAuthGuard';
 import { SetupOnlyGuard } from './SetupOnlyGuard';
+import { BootstrapOnlyGuard } from './BootstrapOnlyGuard';
 
-vi.mock('../hooks/usePlatformBootstrap', () => ({
-  usePlatformBootstrap: () => ({
+const bootstrapMock = vi.hoisted(() => ({
+  state: {
     status: { open: true },
     result: null,
     loading: false,
@@ -30,7 +31,11 @@ vi.mock('../hooks/usePlatformBootstrap', () => ({
     refreshStatus: vi.fn(),
     createFirstAdmin: vi.fn(),
     reset: vi.fn(),
-  }),
+  },
+}));
+
+vi.mock('../hooks/usePlatformBootstrap', () => ({
+  usePlatformBootstrap: () => bootstrapMock.state,
 }));
 
 const user: User = {
@@ -43,6 +48,15 @@ const user: User = {
 describe('platform-admin route guards', () => {
   afterEach(() => {
     cleanup();
+    bootstrapMock.state = {
+      status: { open: true },
+      result: null,
+      loading: false,
+      error: null,
+      refreshStatus: vi.fn(),
+      createFirstAdmin: vi.fn(),
+      reset: vi.fn(),
+    };
     vi.clearAllMocks();
   });
 
@@ -122,6 +136,55 @@ describe('platform-admin route guards', () => {
 
     await waitFor(() => expect(screen.getByTestId('setup-state').textContent).toBe('setup-token'));
     expect(screen.getByTestId('setup-search').textContent).toBe('');
+  });
+
+  it('allows bootstrap in Stage A when the browser still has a stale platform context', async () => {
+    renderGuard(
+      <Routes>
+        <Route
+          path="/platform/bootstrap"
+          element={(
+            <BootstrapOnlyGuard>
+              <span>bootstrap-ok</span>
+            </BootstrapOnlyGuard>
+          )}
+        />
+        <Route path="/platform/login" element={<span>platform-login</span>} />
+      </Routes>,
+      platformContext(),
+      '/platform/bootstrap',
+      false,
+    );
+
+    expect(await screen.findByText('bootstrap-ok')).toBeTruthy();
+    expect(screen.queryByText('platform-login')).toBeNull();
+  });
+
+  it('redirects bootstrap to platform login after Stage B closes bootstrap', async () => {
+    bootstrapMock.state = {
+      ...bootstrapMock.state,
+      status: { open: false, completedAt: '2026-08-03T13:00:00Z' },
+    };
+
+    renderGuard(
+      <Routes>
+        <Route
+          path="/platform/bootstrap"
+          element={(
+            <BootstrapOnlyGuard>
+              <span>bootstrap-ok</span>
+            </BootstrapOnlyGuard>
+          )}
+        />
+        <Route path="/platform/login" element={<span>platform-login</span>} />
+      </Routes>,
+      null,
+      '/platform/bootstrap',
+      false,
+    );
+
+    expect(await screen.findByText('platform-login')).toBeTruthy();
+    expect(screen.queryByText('bootstrap-ok')).toBeNull();
   });
 });
 

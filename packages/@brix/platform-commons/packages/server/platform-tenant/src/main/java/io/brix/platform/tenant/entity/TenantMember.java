@@ -19,9 +19,7 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
-import io.brix.platform.tenant.enums.MemberStatus;
-import io.brix.platform.tenant.enums.TenantMemberType;
-import jakarta.persistence.Column;
+import org.springframework.data.domain.Persistable;
 
 import io.brix.platform.tenant.enums.MemberStatus;
 import io.brix.platform.tenant.enums.TenantMemberType;
@@ -34,15 +32,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 
 /**
@@ -101,7 +91,7 @@ import jakarta.persistence.UniqueConstraint;
         @Index(name = "idx_sys_tenant_member_status", columnList = "tenant_id, status")
     }
 )
-public class TenantMember {
+public class TenantMember implements Persistable<Long> {
 
     /**
      * Primary key - Snowflake-generated unique identifier.
@@ -310,6 +300,12 @@ public class TenantMember {
 
     public Long getId() {
         return id;
+    }
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return createdAt == null;
     }
 
     public void setId(Long id) {

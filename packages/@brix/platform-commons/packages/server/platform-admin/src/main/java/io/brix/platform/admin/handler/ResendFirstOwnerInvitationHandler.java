@@ -6,10 +6,9 @@
  */
 package io.brix.platform.admin.handler;
 
-import java.util.Map;
-
 import io.brix.platform.tenant.internal.ResendFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
+import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
@@ -34,27 +33,28 @@ public final class ResendFirstOwnerInvitationHandler
         Long actorId = PlatformOperationalInvocationSupport.requirePlatformActorId(invocation);
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
         ResendFirstOwnerInvitationRequest request = request(invocation.body());
-        return FirstOwnerInvitationDto.from(tenantAdministration.resendFirstOwnerInvitation(
-            new ResendFirstOwnerInvitationCommand(
-                tenantId,
-                PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
-                request.inviteBaseUrl(),
-                request.locale())));
+        try {
+            return FirstOwnerInvitationDto.from(tenantAdministration.resendFirstOwnerInvitation(
+                new ResendFirstOwnerInvitationCommand(
+                    tenantId,
+                    PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
+                    request.locale())));
+        } catch (TenantAdministrationException ex) {
+            throw PlatformEndpointErrors.tenantAdministration(ex);
+        }
     }
 
     private static ResendFirstOwnerInvitationRequest request(Object body) {
         if (body instanceof ResendFirstOwnerInvitationRequest typed) {
             return typed;
         }
-        if (body instanceof Map<?, ?> map) {
-            Object inviteBaseUrl = map.get("inviteBaseUrl");
-            if (inviteBaseUrl == null || String.valueOf(inviteBaseUrl).isBlank()) {
-                throw new IllegalArgumentException("inviteBaseUrl is required");
-            }
+        if (body instanceof java.util.Map<?, ?>) {
             return new ResendFirstOwnerInvitationRequest(
-                String.valueOf(inviteBaseUrl),
                 PlatformOperationalInvocationSupport.optionalString(body, "locale"));
         }
-        throw new IllegalArgumentException("resend first owner invitation request body is required");
+        if (body == null) {
+            return new ResendFirstOwnerInvitationRequest(null);
+        }
+        throw new IllegalArgumentException("resend first owner invitation request body must be an object");
     }
 }

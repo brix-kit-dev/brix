@@ -6,6 +6,12 @@
  */
 package io.brix.platform.tenant;
 
+import java.util.Objects;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import io.brix.platform.tenant.endpoint.AcceptFirstOwnerInvitationHandler;
+import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
@@ -19,9 +25,22 @@ import io.runtime.sdk.plugin.PluginContext;
  */
 public final class PlatformTenantPlugin implements BrixPlugin {
 
+    public static final String ENDPOINT_FIRST_OWNER_ACCEPT = "platform-tenant.first-owner.accept.v1";
+
+    private FirstOwnerInvitationService firstOwnerInvitationService;
+
+    @Autowired
+    public void setFirstOwnerInvitationService(FirstOwnerInvitationService firstOwnerInvitationService) {
+        this.firstOwnerInvitationService = Objects.requireNonNull(
+            firstOwnerInvitationService,
+            "firstOwnerInvitationService must not be null");
+    }
+
     @Override
     public void configure(PluginBootstrapContext bootstrap) {
-        // The Phase 3 Data Owner exposes no public Runtime Entry.
+        bootstrap.bindEndpoint(
+            ENDPOINT_FIRST_OWNER_ACCEPT,
+            new AcceptFirstOwnerInvitationHandler(requireFirstOwnerInvitationService()));
     }
 
     @Override
@@ -37,5 +56,12 @@ public final class PlatformTenantPlugin implements BrixPlugin {
     @Override
     public BrixHealth health() {
         return BrixHealth.up();
+    }
+
+    private FirstOwnerInvitationService requireFirstOwnerInvitationService() {
+        if (firstOwnerInvitationService == null) {
+            throw new IllegalStateException("FirstOwnerInvitationService is not available for endpoint binding");
+        }
+        return firstOwnerInvitationService;
     }
 }

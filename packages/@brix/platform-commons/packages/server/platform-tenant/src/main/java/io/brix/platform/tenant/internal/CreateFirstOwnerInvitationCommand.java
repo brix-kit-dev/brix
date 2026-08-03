@@ -5,13 +5,11 @@ public record CreateFirstOwnerInvitationCommand(
         Long tenantId,
         String inviteeEmail,
         String platformOperatorRef,
-        String inviteBaseUrl,
         String locale) {
 
     public CreateFirstOwnerInvitationCommand {
         CreatePendingTenantCommand.requirePositive(tenantId, "tenantId");
         CreatePendingTenantCommand.requireText(inviteeEmail, "inviteeEmail");
         CreatePendingTenantCommand.requireText(platformOperatorRef, "platformOperatorRef");
-        CreatePendingTenantCommand.requireText(inviteBaseUrl, "inviteBaseUrl");
     }
 }

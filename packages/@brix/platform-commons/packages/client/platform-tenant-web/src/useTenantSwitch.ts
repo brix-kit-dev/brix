@@ -30,7 +30,7 @@
  * 1. Validate target tenant is in availableTenants
  * 2. Set switching state
  * 3. Call TenantCapability.switchTenant()
- * 4. Persist last tenant ID to localStorage
+ * 4. Persist last tenant ID through Runtime PluginStateCapability
  * 5. Clear switching state
  *
  * @since 3.1.0
@@ -38,12 +38,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTenant } from './useTenant';
-
-/**
- * Last tenant localStorage key prefix.
- * Key format: `brix:lastTenant:{identityId}`
- */
-const LAST_TENANT_KEY_PREFIX = 'brix:lastTenant';
+import { useLastTenant } from './useLastTenant';
 
 /**
  * Return type for useTenantSwitch hook.
@@ -68,7 +63,7 @@ export interface UseTenantSwitchResult {
  * Hook that provides tenant switching functionality.
  *
  * Wraps the TenantCapability.switchTenant() with additional logic
- * for validation, loading state, error handling, and localStorage
+ * for validation, loading state, error handling, and Runtime state
  * persistence of the last selected tenant.
  *
  * @example
@@ -89,6 +84,7 @@ export interface UseTenantSwitchResult {
  */
 export function useTenantSwitch(): UseTenantSwitchResult {
   const { tenant, availableTenants, switchTenant } = useTenant();
+  const { setLastTenantId } = useLastTenant();
   const [isSwitching, setIsSwitching] = useState(false);
   const [switchError, setSwitchError] = useState<Error | null>(null);
 
@@ -115,20 +111,14 @@ export function useTenantSwitch(): UseTenantSwitchResult {
 
     try {
       await switchTenant(targetTenantId);
-
-      // Persist last tenant ID
-      try {
-        localStorage.setItem(LAST_TENANT_KEY_PREFIX, targetTenantId);
-      } catch {
-        // localStorage may be unavailable in some environments
-      }
+      setLastTenantId(targetTenantId);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       setSwitchError(err);
     } finally {
       setIsSwitching(false);
     }
-  }, [tenant, availableTenants, switchTenant]);
+  }, [tenant, availableTenants, switchTenant, setLastTenantId]);
 
   return {
     isSwitching,

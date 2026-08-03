@@ -10,6 +10,7 @@ import java.util.Map;
 
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
+import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
@@ -34,13 +35,16 @@ public final class CreateFirstOwnerInvitationHandler
         Long actorId = PlatformOperationalInvocationSupport.requirePlatformActorId(invocation);
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
         CreateFirstOwnerInvitationRequest request = request(invocation.body());
-        return FirstOwnerInvitationDto.from(tenantAdministration.createFirstOwnerInvitation(
-            new CreateFirstOwnerInvitationCommand(
-                tenantId,
-                request.inviteeEmail(),
-                PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
-                request.inviteBaseUrl(),
-                request.locale())));
+        try {
+            return FirstOwnerInvitationDto.from(tenantAdministration.createFirstOwnerInvitation(
+                new CreateFirstOwnerInvitationCommand(
+                    tenantId,
+                    request.inviteeEmail(),
+                    PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
+                    request.locale())));
+        } catch (TenantAdministrationException ex) {
+            throw PlatformEndpointErrors.tenantAdministration(ex);
+        }
     }
 
     private static CreateFirstOwnerInvitationRequest request(Object body) {
@@ -50,7 +54,6 @@ public final class CreateFirstOwnerInvitationHandler
         if (body instanceof Map<?, ?> map) {
             return new CreateFirstOwnerInvitationRequest(
                 requiredString(map, "inviteeEmail"),
-                requiredString(map, "inviteBaseUrl"),
                 PlatformOperationalInvocationSupport.optionalString(body, "locale"));
         }
         throw new IllegalArgumentException("first owner invitation request body is required");

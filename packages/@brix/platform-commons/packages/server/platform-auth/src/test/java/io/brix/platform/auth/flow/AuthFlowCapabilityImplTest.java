@@ -145,6 +145,39 @@ class AuthFlowCapabilityImplTest {
     }
 
     @Test
+    void actorLoginWithoutMembershipReturnsRestrictedIdentityTokenForPreLinking() {
+        IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+        PasswordCapability passwordCapability = mock(PasswordCapability.class);
+        JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
+        AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
+                identityTenantCapability,
+                passwordCapability,
+                jwtIssuerCapability,
+                null);
+
+        when(identityTenantCapability.findIdentityByEmail("owner@example.invalid"))
+                .thenReturn(java.util.Optional.of(new IdentityRecord(
+                        1L,
+                        "owner@example.invalid",
+                        "Owner",
+                        "hash",
+                        "ACTIVE",
+                        false,
+                        7L)));
+        when(passwordCapability.verify("password", "hash")).thenReturn(true);
+        when(identityTenantCapability.getActiveMemberships(1L)).thenReturn(java.util.List.of());
+        when(jwtIssuerCapability.issueIdentityToken(any())).thenReturn("identity-token");
+
+        LoginResult result = authFlow.loginActor(
+                new LoginCommand("owner@example.invalid", "password", "127.0.0.1"));
+
+        assertEquals(LoginStatus.SELECT_TENANT, result.status());
+        assertEquals("identity-token", result.identityToken());
+        assertEquals(java.util.List.of(), result.tenantOptions());
+        verify(jwtIssuerCapability, never()).issueActorAccessToken(any());
+    }
+
+    @Test
     void lockedPlatformIdentityReturnsLockedWithoutPasswordVerification() {
         IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
         PasswordCapability passwordCapability = mock(PasswordCapability.class);

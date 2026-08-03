@@ -62,7 +62,6 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
     const repository = createPlatformTenantRepository(http);
     const invitation = await repository.createFirstOwnerInvitation('42', {
       inviteeEmail: 'owner@example.invalid',
-      inviteBaseUrl: 'https://console.example.invalid/invitations/first-owner',
       locale: 'en-US',
     });
 
@@ -70,7 +69,6 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
       '/platform/tenants/42/first-owner-invitations',
       {
         inviteeEmail: 'owner@example.invalid',
-        inviteBaseUrl: 'https://console.example.invalid/invitations/first-owner',
         locale: 'en-US',
       },
     );
@@ -98,7 +96,6 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
 
     const repository = createPlatformTenantRepository(http);
     const invitation = await repository.resendFirstOwnerInvitation('42', {
-      inviteBaseUrl: 'https://console.example.invalid/invitations/first-owner',
       locale: 'en-US',
     });
     await repository.revokeFirstOwnerInvitation('42', invitation.invitationId);

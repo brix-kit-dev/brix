@@ -222,12 +222,12 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
     }
 
     private TokenPair issueSetupToken(Long identityId, Long createdBy) {
-        setupTokenRepository.markActiveTokensUsed(identityId, "INITIAL_SETUP", OffsetDateTime.now());
+        setupTokenRepository.markActiveTokensUsed(identityId, SetupTokenPurposes.INITIAL_SETUP, OffsetDateTime.now());
         String raw = randomToken();
         SetupToken token = new SetupToken();
         token.setId(idGenerator.nextId());
         token.setIdentityId(identityId);
-        token.setPurpose("INITIAL_SETUP");
+        token.setPurpose(SetupTokenPurposes.INITIAL_SETUP);
         token.setTokenHash(SecretHashing.sha256Base64Url(raw));
         token.setExpiresAt(OffsetDateTime.now().plusHours(24));
         token.setCreatedBy(createdBy);

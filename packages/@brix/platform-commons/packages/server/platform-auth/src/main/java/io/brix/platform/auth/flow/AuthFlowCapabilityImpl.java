@@ -215,9 +215,17 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         List<TenantMembershipRecord> memberships =
                 identityTenantCapability.getActiveMemberships(identity.id());
         if (memberships.isEmpty()) {
-            throw new AuthFlowException(
-                    AuthFlowException.CODE_NO_TENANT_ASSOCIATION,
-                    "No active Actor tenant memberships.");
+            String identityTokenJti = UUID.randomUUID().toString();
+            String identityToken = jwtIssuerCapability.issueIdentityToken(
+                    new JwtIssuerCapability.IdentityTokenRequest(
+                            identity.id(), identity.email(), identity.username(), identityTokenJti));
+            return new LoginResult(
+                    LoginStatus.SELECT_TENANT,
+                    null, null, 0L, identityToken,
+                    List.of(),
+                    identity.id(), null, identity.email(), null,
+                    Collections.emptyList(), Collections.emptyList(),
+                    identity.passwordMustChange(), false);
         }
         if (memberships.size() == 1) {
             TenantMembershipRecord membership = memberships.get(0);

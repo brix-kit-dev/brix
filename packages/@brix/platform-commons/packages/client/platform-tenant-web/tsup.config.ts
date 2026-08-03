@@ -6,7 +6,11 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ['react', '@brix-sdk/runtime-sdk-api-web'],
+  external: [
+    'react',
+    '@brix-sdk/runtime-sdk-api-web',
+    '@brix-sdk/runtime-sdk-react',
+  ],
   treeshake: true,
   minify: false,
 });

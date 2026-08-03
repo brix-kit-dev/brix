@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.runtime.sdk.capability.AuthCapability;
+import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointResponse;
 
@@ -52,6 +53,13 @@ import io.runtime.sdk.plugin.EndpointResponse;
  */
 @RestController
 public class RuntimeShellEndpointController {
+
+    private static final String ACTOR_HEADER = "x-actor-id";
+    private static final String TENANT_HEADER = "x-tenant-id";
+    private static final String IDENTITY_EMAIL_HEADER = "x-auth-identity-email";
+    private static final String TOKEN_ROLE_HEADER = "x-auth-token-role";
+    private static final String TOKEN_TYPE_HEADER = "x-auth-token-type";
+    private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
 
     private final PluginEndpointDispatcher dispatcher;
     private final Supplier<AuthCapability> authCapabilitySupplier;
@@ -125,16 +133,30 @@ public class RuntimeShellEndpointController {
 
     private Map<String, List<String>> trustedInvocationHeaders(Map<String, List<String>> requestHeaders) {
         Map<String, List<String>> result = new LinkedHashMap<>(requestHeaders);
-        result.remove("x-actor-id");
-        result.remove("x-tenant-id");
+        result.remove(ACTOR_HEADER);
+        result.remove(TENANT_HEADER);
+        result.remove(IDENTITY_EMAIL_HEADER);
+        result.remove(TOKEN_ROLE_HEADER);
+        result.remove(TOKEN_TYPE_HEADER);
+        result.remove(ALLOWED_ACTION_HEADER);
 
-        authenticatedActorId().ifPresent(actorId -> result.put("x-actor-id", List.of(actorId)));
-        authenticatedTenantId().ifPresent(tenantId -> result.put("x-tenant-id", List.of(tenantId)));
+        AuthCapability auth = authCapabilitySupplier.get();
+        authenticatedActorId(auth).ifPresent(actorId -> result.put(ACTOR_HEADER, List.of(actorId)));
+        authenticatedTenantId(auth).ifPresent(tenantId -> result.put(TENANT_HEADER, List.of(tenantId)));
+        Optional<AuthenticatedPrincipal> principal = authenticatedPrincipal(auth);
+        principal.flatMap(RuntimeShellEndpointController::authenticatedEmail)
+            .ifPresent(email -> result.put(IDENTITY_EMAIL_HEADER, List.of(email)));
+        principal.flatMap(RuntimeShellEndpointController::authenticatedTokenRole)
+            .ifPresent(role -> result.put(TOKEN_ROLE_HEADER, List.of(role)));
+        principal.flatMap(RuntimeShellEndpointController::authenticatedTokenType)
+            .ifPresent(type -> result.put(TOKEN_TYPE_HEADER, List.of(type)));
+        principal.map(AuthenticatedPrincipal::getAllowedActions)
+            .filter(actions -> !actions.isEmpty())
+            .ifPresent(actions -> result.put(ALLOWED_ACTION_HEADER, List.copyOf(actions)));
         return Map.copyOf(result);
     }
 
-    private Optional<String> authenticatedActorId() {
-        AuthCapability auth = authCapabilitySupplier.get();
+    private static Optional<String> authenticatedActorId(AuthCapability auth) {
         if (auth == null || auth.getCurrentPrincipal() == null) {
             return Optional.empty();
         }
@@ -142,13 +164,34 @@ public class RuntimeShellEndpointController {
         return name == null || name.isBlank() ? Optional.empty() : Optional.of(name.trim());
     }
 
-    private Optional<String> authenticatedTenantId() {
-        AuthCapability auth = authCapabilitySupplier.get();
+    private static Optional<String> authenticatedTenantId(AuthCapability auth) {
         if (auth == null) {
             return Optional.empty();
         }
         String tenantId = auth.getTenantId();
         return tenantId == null || tenantId.isBlank() ? Optional.empty() : Optional.of(tenantId.trim());
+    }
+
+    private static Optional<AuthenticatedPrincipal> authenticatedPrincipal(AuthCapability auth) {
+        if (auth == null || !(auth.getCurrentPrincipal() instanceof AuthenticatedPrincipal principal)) {
+            return Optional.empty();
+        }
+        return Optional.of(principal);
+    }
+
+    private static Optional<String> authenticatedEmail(AuthenticatedPrincipal principal) {
+        String email = principal.getEmail();
+        return email == null || email.isBlank() ? Optional.empty() : Optional.of(email.trim());
+    }
+
+    private static Optional<String> authenticatedTokenRole(AuthenticatedPrincipal principal) {
+        String role = principal.getTokenRole();
+        return role == null || role.isBlank() ? Optional.empty() : Optional.of(role.trim());
+    }
+
+    private static Optional<String> authenticatedTokenType(AuthenticatedPrincipal principal) {
+        String type = principal.getTokenType();
+        return type == null || type.isBlank() ? Optional.empty() : Optional.of(type.trim());
     }
 
     private static String requestPath(HttpServletRequest request) {

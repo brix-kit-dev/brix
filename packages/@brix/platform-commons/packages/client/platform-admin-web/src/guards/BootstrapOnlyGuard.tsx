@@ -23,9 +23,6 @@ export function BootstrapOnlyGuard(props: BootstrapOnlyGuardProps): JSX.Element 
   );
   const activeContext = auth?.getActiveContext();
   const bootstrap = usePlatformBootstrap(true);
-  if (activeContext && activeContext.kind !== 'bootstrap-setup') {
-    return <Navigate to={PLATFORM_ADMIN_ROUTES.LOGIN} replace />;
-  }
   if (bootstrap.loading && !bootstrap.status) {
     return <>{props.loadingFallback ?? <GuardLoading />}</>;
   }
@@ -37,6 +34,12 @@ export function BootstrapOnlyGuard(props: BootstrapOnlyGuardProps): JSX.Element 
     );
   }
   if (bootstrap.status && !bootstrap.status.open) {
+    return <Navigate to={PLATFORM_ADMIN_ROUTES.LOGIN} replace />;
+  }
+  if (bootstrap.status?.open) {
+    return <>{props.children}</>;
+  }
+  if (activeContext && activeContext.kind !== 'bootstrap-setup') {
     return <Navigate to={PLATFORM_ADMIN_ROUTES.LOGIN} replace />;
   }
   return <>{props.children}</>;
