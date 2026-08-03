@@ -1,0 +1,39 @@
+import { useTheme, useUI } from '@brix-sdk/runtime-sdk-react';
+import { use<%= classPrefix %>Status } from '../hooks/use<%= classPrefix %>Status';
+
+export function <%= classPrefix %>StatusPage() {
+  const ui = useUI();
+  const { tokens } = useTheme();
+  const state = use<%= classPrefix %>Status();
+
+  if (state.loading) {
+    return <ui.Spin />;
+  }
+
+  if (state.permissionDenied) {
+    return <ui.Alert type="warning">Permission denied.</ui.Alert>;
+  }
+
+  if (state.errorMessage) {
+    return <ui.Alert type="error">{state.errorMessage}</ui.Alert>;
+  }
+
+  if (state.items.length === 0) {
+    return <ui.Empty description="No status records." />;
+  }
+
+  return (
+    <ui.Stack gap={tokens.space.md}>
+      <ui.Typography variant="titleMedium"><%= displayName %></ui.Typography>
+      {state.refreshing ? <ui.Progress /> : null}
+      <ui.Table
+        rowKey="id"
+        dataSource={state.items}
+        columns={[
+          { key: 'label', title: 'Label', dataIndex: 'label' },
+          { key: 'state', title: 'State', dataIndex: 'state' },
+        ]}
+      />
+    </ui.Stack>
+  );
+}

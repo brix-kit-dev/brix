@@ -1,0 +1,19 @@
+import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
+
+export interface <%= classPrefix %>StatusItem {
+  readonly id: string;
+  readonly label: string;
+  readonly state: 'ready' | 'degraded' | 'blocked';
+}
+
+export interface <%= classPrefix %>Repository {
+  listStatus(): Promise<readonly <%= classPrefix %>StatusItem[]>;
+}
+
+export function create<%= classPrefix %>Repository(http: HttpCapability): <%= classPrefix %>Repository {
+  return {
+    listStatus(): Promise<readonly <%= classPrefix %>StatusItem[]> {
+      return http.get<readonly <%= classPrefix %>StatusItem[]>('<%= endpointPath %>');
+    },
+  };
+}

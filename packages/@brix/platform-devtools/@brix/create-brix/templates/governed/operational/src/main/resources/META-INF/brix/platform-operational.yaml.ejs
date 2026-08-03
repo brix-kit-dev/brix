@@ -1,0 +1,20 @@
+apiVersion: brix.io/platform-operational/v1
+kind: PlatformOperationalModule
+metadata:
+  moduleId: <%= moduleId %>
+  name: <%= moduleId %>
+  version: <%= version %>
+  displayName: <%= displayName %>
+  owner: <%= owner %>
+runtime:
+  moduleKind: platform-operational
+  supportedRange: "<%= runtimeRange %>"
+internalContracts:
+  provides: []
+  requires: []
+privileges:
+  allowlist: []
+endpoints:
+  provides: []
+tasks:
+  provides: []

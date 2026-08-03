@@ -1,8 +1,8 @@
 /**
  * @brix/eslint-config-architecture
  *
- * Shared ESLint architectural guard rules, corresponding to the 9 red lines (TypeScript side)
- * defined in the v3.0 Runtime Shell Architecture Blueprint.
+ * Shared ESLint architectural guard rules for the ACTIVE v3.0.10 Runtime Shell
+ * and frontend-1.1 architecture baselines.
  *
  * [Covered Red Lines]
  * - Red Line 1: Prohibit direct import of infrastructure adapters (@brix/infra-adapter-*)
@@ -14,8 +14,8 @@
  * - Red Line 9: Prohibit direct import of UI libraries in enterprise-solutions (must use useUI())
  *
  * [Layer Guard Rules]
- * - pages/ directory prohibits direct import of repositories/*
- * - repositories/ directory prohibits direct use of fetch/axios
+ * - Page/View/Component -> Hook/ViewModel -> Repository -> HttpCapability
+ * - Frontend Host source stays dependency/profile/Runtime assembly only
  *
  * [BrixUI Governance Rules] (v3.3.0)
  * - enterprise-solutions plugins must obtain UI components via useUI() from @brix-sdk/runtime-sdk-react
@@ -28,7 +28,7 @@
  * - no-mui-in-plugins: Forbid MUI-specific API references, palette access, and variable naming
  *
  * These rules are registered as the `@brix-architecture` ESLint plugin and applied to
- * enterprise-solutions/**\/*.{ts,tsx,js,jsx} via flat config file matching.
+ * UI artifacts by layer and source shape, not by enterprise-only identity.
  *
  * [v3.4.0 New]
  * Added Design Token Governance rules (Phase 7 of UI Design Token Reform Plan):
@@ -52,10 +52,10 @@
  *   import architectureRules from '@brix/eslint-config-architecture';
  *   export default [...architectureRules];
  *
- * @version 3.4.0
+ * @version 3.2.0
  * @author Brix Architecture Team
- * @see v3.0.9 Runtime Shell Architecture Blueprint - Constraint 9: BrixUI Unified Governance
- * @see UI设计令牌改造方�?v2.0.md - Phase 7: ESLint Governance Rules
+ * @see v3.0.10 Runtime Shell Architecture Blueprint - §9 UI and A-7/A-18/A-19
+ * @see frontend-1.1 Architecture Blueprint - §2.1, §2.3, §5.1
  */
 
 // ============================================================================
@@ -91,6 +91,7 @@ const brixArchPlugin = {
     'no-permission-or-true': require('./rules/no-permission-or-true'),
     'no-legacy-tenant-switch': require('./rules/no-legacy-tenant-switch'),
     'require-testid-on-action': require('./rules/require-testid-on-action'),
+    'frontend-layer-boundary': require('./rules/frontend-layer-boundary'),
   },
 };
 
@@ -388,7 +389,34 @@ const baseRules = [
   },
 
   // ============================================================================
-  // BrixUI Governance: enterprise-solutions directory rules (Constraint 9)
+  // Frontend 1.1 Boundary: Page/Hook/Repository/HttpCapability and Host source
+  // ============================================================================
+  // ACTIVE frontend-1.1 requires UI artifacts to keep Page/ViewModel/
+  // Repository/Capability boundaries and keeps the Frontend Host as an
+  // assembly-only runtime mount. The custom AST rule covers platform-admin,
+  // enterprise plugins, templates and third-party artifacts in the same JS
+  // permission domain; path globs are only a source-file selection mechanism.
+  {
+    name: 'brix/architecture-guard/frontend-1.1-layer-boundary',
+    files: [
+      '**/src/**/*.{ts,tsx,js,jsx}',
+      '**/pages/**/*.{ts,tsx,js,jsx}',
+      '**/views/**/*.{ts,tsx,js,jsx}',
+      '**/components/**/*.{ts,tsx,js,jsx}',
+      '**/hooks/**/*.{ts,tsx,js,jsx}',
+      '**/repositories/**/*.{ts,tsx,js,jsx}',
+      '**/repository/**/*.{ts,tsx,js,jsx}',
+    ],
+    plugins: {
+      '@brix-architecture': brixArchPlugin,
+    },
+    rules: {
+      '@brix-architecture/frontend-layer-boundary': 'error',
+    },
+  },
+
+  // ============================================================================
+  // BrixUI Governance: same-permission-domain UI artifact rules (FE-4)
   // ============================================================================
   /**
    * enterprise-solutions plugins must use UIAdapter components via useUI() hook.
@@ -427,7 +455,11 @@ const baseRules = [
       '**/enterprise-solutions/**/*.ts',
       '**/enterprise-solutions/**/*.tsx',
       '**/enterprise-solutions/**/*.js',
-      '**/enterprise-solutions/**/*.jsx'
+      '**/enterprise-solutions/**/*.jsx',
+      '**/platform-admin-web/src/**/*.ts',
+      '**/platform-admin-web/src/**/*.tsx',
+      '**/app-*/**/*-ui-web/src/**/*.ts',
+      '**/app-*/**/*-ui-web/src/**/*.tsx',
     ],
     rules: {
       'no-restricted-imports': mergeRestrictedImports(BRIX_UI_RESTRICTED_PATTERNS),
@@ -473,7 +505,11 @@ const baseRules = [
       '**/enterprise-solutions/**/*.ts',
       '**/enterprise-solutions/**/*.tsx',
       '**/enterprise-solutions/**/*.js',
-      '**/enterprise-solutions/**/*.jsx'
+      '**/enterprise-solutions/**/*.jsx',
+      '**/platform-admin-web/src/**/*.ts',
+      '**/platform-admin-web/src/**/*.tsx',
+      '**/app-*/**/*-ui-web/src/**/*.ts',
+      '**/app-*/**/*-ui-web/src/**/*.tsx',
     ],
     plugins: {
       '@brix-architecture': brixArchPlugin,

@@ -45,6 +45,7 @@ public class PluginManifest {
     private ContractSection queries;
     private ContractSection commands;
     private EventSection events;
+    private TaskSection tasks;
     private InternalContractSection internalContracts;
     private List<ExternalService> externalServices = new ArrayList<>();
     private DataSection data;
@@ -145,6 +146,14 @@ public class PluginManifest {
 
     public void setEvents(EventSection events) {
         this.events = events;
+    }
+
+    public TaskSection getTasks() {
+        return tasks;
+    }
+
+    public void setTasks(TaskSection tasks) {
+        this.tasks = tasks;
     }
 
     public InternalContractSection getInternalContracts() {
@@ -571,9 +580,22 @@ public class PluginManifest {
      */
     public static class ContractRef {
         private String id;
+        private String queryType;
+        private String commandType;
         private String schema;
+        private Map<String, Object> request;
+        private Map<String, Object> response;
         private String version;
+        private String versionRange;
+        private Boolean required;
         private String handler;
+        private String handlerId;
+        private String scopePolicyRef;
+        private String accessPolicyRef;
+        private String timeoutPolicyRef;
+        private String concurrencyPolicyRef;
+        private String retryPolicyRef;
+        private String idempotencyPolicyRef;
         private String availability;
         private String idempotency;
         private String authorization;
@@ -586,12 +608,44 @@ public class PluginManifest {
             this.id = id;
         }
 
+        public String getQueryType() {
+            return queryType;
+        }
+
+        public void setQueryType(String queryType) {
+            this.queryType = queryType;
+        }
+
+        public String getCommandType() {
+            return commandType;
+        }
+
+        public void setCommandType(String commandType) {
+            this.commandType = commandType;
+        }
+
         public String getSchema() {
             return schema;
         }
 
         public void setSchema(String schema) {
             this.schema = schema;
+        }
+
+        public Map<String, Object> getRequest() {
+            return request;
+        }
+
+        public void setRequest(Map<String, Object> request) {
+            this.request = request;
+        }
+
+        public Map<String, Object> getResponse() {
+            return response;
+        }
+
+        public void setResponse(Map<String, Object> response) {
+            this.response = response;
         }
 
         public String getVersion() {
@@ -602,12 +656,84 @@ public class PluginManifest {
             this.version = version;
         }
 
+        public String getVersionRange() {
+            return versionRange;
+        }
+
+        public void setVersionRange(String versionRange) {
+            this.versionRange = versionRange;
+        }
+
+        public Boolean getRequired() {
+            return required;
+        }
+
+        public void setRequired(Boolean required) {
+            this.required = required;
+        }
+
         public String getHandler() {
             return handler;
         }
 
         public void setHandler(String handler) {
             this.handler = handler;
+        }
+
+        public String getHandlerId() {
+            return handlerId != null ? handlerId : handler;
+        }
+
+        public void setHandlerId(String handlerId) {
+            this.handlerId = handlerId;
+        }
+
+        public String getScopePolicyRef() {
+            return scopePolicyRef;
+        }
+
+        public void setScopePolicyRef(String scopePolicyRef) {
+            this.scopePolicyRef = scopePolicyRef;
+        }
+
+        public String getAccessPolicyRef() {
+            return accessPolicyRef;
+        }
+
+        public void setAccessPolicyRef(String accessPolicyRef) {
+            this.accessPolicyRef = accessPolicyRef;
+        }
+
+        public String getTimeoutPolicyRef() {
+            return timeoutPolicyRef;
+        }
+
+        public void setTimeoutPolicyRef(String timeoutPolicyRef) {
+            this.timeoutPolicyRef = timeoutPolicyRef;
+        }
+
+        public String getConcurrencyPolicyRef() {
+            return concurrencyPolicyRef;
+        }
+
+        public void setConcurrencyPolicyRef(String concurrencyPolicyRef) {
+            this.concurrencyPolicyRef = concurrencyPolicyRef;
+        }
+
+        public String getRetryPolicyRef() {
+            return retryPolicyRef;
+        }
+
+        public void setRetryPolicyRef(String retryPolicyRef) {
+            this.retryPolicyRef = retryPolicyRef;
+        }
+
+        public String getIdempotencyPolicyRef() {
+            return idempotencyPolicyRef;
+        }
+
+        public void setIdempotencyPolicyRef(String idempotencyPolicyRef) {
+            this.idempotencyPolicyRef = idempotencyPolicyRef;
         }
 
         public String getAvailability() {
@@ -664,7 +790,9 @@ public class PluginManifest {
      */
     public static class EventPublish {
         private String id;
+        private String eventType;
         private String schema;
+        private String schemaRef;
         private String version;
         private String reliability;
 
@@ -676,12 +804,28 @@ public class PluginManifest {
             this.id = id;
         }
 
+        public String getEventType() {
+            return eventType != null ? eventType : id;
+        }
+
+        public void setEventType(String eventType) {
+            this.eventType = eventType;
+        }
+
         public String getSchema() {
             return schema;
         }
 
         public void setSchema(String schema) {
             this.schema = schema;
+        }
+
+        public String getSchemaRef() {
+            return schemaRef != null ? schemaRef : schema;
+        }
+
+        public void setSchemaRef(String schemaRef) {
+            this.schemaRef = schemaRef;
         }
 
         public String getVersion() {
@@ -709,6 +853,10 @@ public class PluginManifest {
         private String eventType;
         private String schemaRange;
         private String handlerId;
+        private String scopePolicyRef;
+        private String publisherPolicyRef;
+        private String timeoutPolicyRef;
+        private String concurrencyPolicyRef;
         private String retryPolicyRef;
         private String idempotencyPolicyRef;
 
@@ -742,6 +890,140 @@ public class PluginManifest {
 
         public void setHandlerId(String handlerId) {
             this.handlerId = handlerId;
+        }
+
+        public String getScopePolicyRef() {
+            return scopePolicyRef;
+        }
+
+        public void setScopePolicyRef(String scopePolicyRef) {
+            this.scopePolicyRef = scopePolicyRef;
+        }
+
+        public String getPublisherPolicyRef() {
+            return publisherPolicyRef;
+        }
+
+        public void setPublisherPolicyRef(String publisherPolicyRef) {
+            this.publisherPolicyRef = publisherPolicyRef;
+        }
+
+        public String getTimeoutPolicyRef() {
+            return timeoutPolicyRef;
+        }
+
+        public void setTimeoutPolicyRef(String timeoutPolicyRef) {
+            this.timeoutPolicyRef = timeoutPolicyRef;
+        }
+
+        public String getConcurrencyPolicyRef() {
+            return concurrencyPolicyRef;
+        }
+
+        public void setConcurrencyPolicyRef(String concurrencyPolicyRef) {
+            this.concurrencyPolicyRef = concurrencyPolicyRef;
+        }
+
+        public String getRetryPolicyRef() {
+            return retryPolicyRef;
+        }
+
+        public void setRetryPolicyRef(String retryPolicyRef) {
+            this.retryPolicyRef = retryPolicyRef;
+        }
+
+        public String getIdempotencyPolicyRef() {
+            return idempotencyPolicyRef;
+        }
+
+        public void setIdempotencyPolicyRef(String idempotencyPolicyRef) {
+            this.idempotencyPolicyRef = idempotencyPolicyRef;
+        }
+    }
+
+    /**
+     * Managed Runtime task declarations.
+     */
+    public static class TaskSection {
+        private List<Task> provides = new ArrayList<>();
+
+        public List<Task> getProvides() {
+            return provides;
+        }
+
+        public void setProvides(List<Task> provides) {
+            this.provides = provides != null ? provides : new ArrayList<>();
+        }
+    }
+
+    /**
+     * Declarative scheduler task entry.
+     */
+    public static class Task {
+        private String taskId;
+        private String handlerId;
+        private String scopePolicyRef;
+        private String executionIdentityPolicyRef;
+        private String triggerPolicyRef;
+        private String timeoutPolicyRef;
+        private String concurrencyPolicyRef;
+        private String retryPolicyRef;
+        private String idempotencyPolicyRef;
+
+        public String getTaskId() {
+            return taskId;
+        }
+
+        public void setTaskId(String taskId) {
+            this.taskId = taskId;
+        }
+
+        public String getHandlerId() {
+            return handlerId;
+        }
+
+        public void setHandlerId(String handlerId) {
+            this.handlerId = handlerId;
+        }
+
+        public String getScopePolicyRef() {
+            return scopePolicyRef;
+        }
+
+        public void setScopePolicyRef(String scopePolicyRef) {
+            this.scopePolicyRef = scopePolicyRef;
+        }
+
+        public String getExecutionIdentityPolicyRef() {
+            return executionIdentityPolicyRef;
+        }
+
+        public void setExecutionIdentityPolicyRef(String executionIdentityPolicyRef) {
+            this.executionIdentityPolicyRef = executionIdentityPolicyRef;
+        }
+
+        public String getTriggerPolicyRef() {
+            return triggerPolicyRef;
+        }
+
+        public void setTriggerPolicyRef(String triggerPolicyRef) {
+            this.triggerPolicyRef = triggerPolicyRef;
+        }
+
+        public String getTimeoutPolicyRef() {
+            return timeoutPolicyRef;
+        }
+
+        public void setTimeoutPolicyRef(String timeoutPolicyRef) {
+            this.timeoutPolicyRef = timeoutPolicyRef;
+        }
+
+        public String getConcurrencyPolicyRef() {
+            return concurrencyPolicyRef;
+        }
+
+        public void setConcurrencyPolicyRef(String concurrencyPolicyRef) {
+            this.concurrencyPolicyRef = concurrencyPolicyRef;
         }
 
         public String getRetryPolicyRef() {

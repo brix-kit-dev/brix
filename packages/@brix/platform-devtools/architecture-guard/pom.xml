@@ -32,6 +32,12 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-governance</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- ArchUnit core (compile scope; consumers include this library with test scope) -->
         <dependency>
             <groupId>com.tngtech.archunit</groupId>

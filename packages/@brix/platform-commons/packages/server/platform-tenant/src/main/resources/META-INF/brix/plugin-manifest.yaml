@@ -15,7 +15,8 @@ modules:
     artifactId: platform-tenant
     version: 3.2.0
     moduleKind: plugin-server
-routes: []
+endpoints:
+  provides: []
 capabilities:
   required:
     - id: io.runtime.sdk.capability.EventBusCapability
@@ -31,7 +32,8 @@ commands:
   consumes: []
 events:
   publishes:
-    - id: TenantFirstOwnerAccepted
+    - eventType: TenantFirstOwnerAccepted
+      schemaRef: brix://schemas/platform-tenant/tenant-first-owner-accepted/1.0.0
       version: 1.0.0
       reliability: CRITICAL
   subscribes:
@@ -39,8 +41,14 @@ events:
       eventType: TenantFirstOwnerAccepted
       schemaRange: ">=1.0.0 <2.0.0"
       handlerId: tenant-first-owner-projection.v1
+      scopePolicyRef: tenant-first-owner-projection-scope
+      publisherPolicyRef: platform-tenant-owner
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: tenant-first-owner-projection
       retryPolicyRef: event-standard
       idempotencyPolicyRef: persistent-inbox
+tasks:
+  provides: []
 internalContracts:
   provides:
     - contractId: brix.internal.tenant.administration
@@ -58,7 +66,6 @@ internalContracts:
       contractVersion: 1.0.0
       providerId: platform-tenant.internal.identity-administration
       owner: platform-tenant
-  requires: []
 data:
   storageId: platform_tenant
   schema: platform-tenant

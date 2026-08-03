@@ -1,0 +1,992 @@
+schemaVersion: 1
+baseline:
+  lockPath: ../brix-enterprise/docs/architecture-baselines.lock.yaml
+  active:
+    runtime-shell: 3.0.10
+    frontend: 1.1
+    super-admin: 3.0
+    multi-tenant: 4.0
+  nonGuiding:
+    runtime-shell: 3.0.11
+phase:
+  id: phase-5
+  name: frontend-runtime-host-boundary
+  status: partial
+  consumerBlockingResultChanged: false
+
+legacyTerms:
+  - term: v3.0.7
+    status: legacy/migration-only
+    evidence: phase0-clean-baseline-scan
+  - term: v3.0.8
+    status: legacy/migration-only
+    evidence: phase0-clean-baseline-scan
+  - term: v3.0.9
+    status: legacy/migration-only
+    evidence: phase0-clean-baseline-scan
+  - term: module-manifest.yaml
+    status: legacy/migration-only
+    evidence: schemas/module-manifest.schema.yaml
+  - term: startup-order
+    status: legacy/migration-only
+    evidence: create-brix-template-freeze
+  - term: RuntimeContext-backend
+    status: legacy/migration-only
+    evidence: phase0-clean-baseline-scan
+  - term: AbstractModule
+    status: legacy/migration-only
+    evidence: phase0-clean-baseline-scan
+
+clauseGroups:
+  - id: PRINCIPLE
+    owner: architecture
+    tool: registry
+    test: ArchitectureGovernanceRegistryCompletenessTest
+    status: missing-blocking
+    evidence: docs/v3.0.10-运行壳架构设计蓝图.md
+  - id: LAYER
+    owner: runtime
+    tool: java-archunit
+    test: ArchitectureGovernanceRegistryCompletenessTest
+    status: missing-blocking
+    evidence: BRX-RS-LAYER-001..018
+  - id: CAP
+    owner: runtime
+    tool: runtime-startup-validator
+    test: future-runtime-contract
+    status: missing-blocking
+    evidence: BRX-RS-CAP-001..025
+  - id: BOOT
+    owner: runtime
+    tool: runtime-startup-validator
+    test: future-host-bootstrap-contract
+    status: missing-blocking
+    evidence: BRX-RS-BOOT-001..012
+  - id: MANIFEST
+    owner: runtime
+    tool: schema-and-runtime-validator
+    test: future-manifest-contract
+    status: missing-blocking
+    evidence: BRX-RS-MANIFEST-001..030
+  - id: LIFE
+    owner: runtime
+    tool: runtime-lifecycle-contract
+    test: future-lifecycle-contract
+    status: missing-blocking
+    evidence: BRX-RS-LIFE
+  - id: MESSAGE
+    owner: runtime
+    tool: outbox-inbox-contract
+    test: future-message-contract
+    status: missing-blocking
+    evidence: BRX-RS-MESSAGE
+  - id: HOST
+    owner: runtime
+    tool: host-profile-validator
+    test: future-host-profile-contract
+    status: missing-blocking
+    evidence: BRX-RS-HOST-001..022
+  - id: UI
+    owner: frontend
+    tool: eslint-and-bundle-validator
+    test: future-frontend-runtime-contract
+    status: missing-blocking
+    evidence: BRX-RS-UI-001..016
+  - id: SECURITY
+    owner: security
+    tool: security-integration
+    test: future-security-contract
+    status: missing-blocking
+    evidence: BRX-RS-SECURITY
+  - id: RESILIENCE
+    owner: sre
+    tool: chaos-contract
+    test: future-resilience-contract
+    status: missing-blocking
+    evidence: BRX-RS-RESILIENCE
+  - id: SUPPLY
+    owner: release
+    tool: supply-chain-gate
+    test: future-supply-chain-contract
+    status: missing-blocking
+    evidence: BRX-RS-SUPPLY-001
+  - id: GOVERNANCE
+    owner: architecture
+    tool: registry
+    test: ArchitectureGovernanceRegistryCompletenessTest
+    status: missing-blocking
+    evidence: BRX-RS-GOVERNANCE-021..023
+
+requirements:
+  - id: A-1
+    owner: runtime
+    tool: java-archunit
+    test: future-a1-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a1
+  - id: A-2
+    owner: runtime
+    tool: java-archunit
+    test: future-a2-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a2
+  - id: A-3
+    owner: runtime
+    tool: dependency-graph
+    test: future-a3-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a3
+  - id: A-4
+    owner: runtime
+    tool: ast-and-profile-contract
+    test: future-a4-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a4
+  - id: A-5
+    owner: runtime
+    tool: lifecycle-contract
+    test: future-a5-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a5
+  - id: A-6
+    owner: host
+    tool: java-archunit
+    test: future-a6-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a6
+  - id: A-7
+    owner: frontend
+    tool: eslint-and-bundle-validator
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: root-blueprint-redline-a7
+  - id: A-8
+    owner: data-owner
+    tool: dependency-graph
+    test: future-a8-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a8
+  - id: A-9
+    owner: data-owner
+    tool: database-contract
+    test: future-a9-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a9
+  - id: A-10
+    owner: tenant
+    tool: tenant-context-contract
+    test: future-a10-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a10
+  - id: A-11
+    owner: tenant
+    tool: tenant-context-contract
+    test: future-a11-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a11
+  - id: A-12
+    owner: messaging
+    tool: outbox-inbox-contract
+    test: future-a12-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a12
+  - id: A-13
+    owner: security
+    tool: security-integration
+    test: future-a13-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a13
+  - id: A-14
+    owner: security
+    tool: security-integration
+    test: future-a14-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a14
+  - id: A-15
+    owner: observability
+    tool: telemetry-contract
+    test: future-a15-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a15
+  - id: A-16
+    owner: release
+    tool: artifact-policy
+    test: future-a16-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a16
+  - id: A-17
+    owner: runtime
+    tool: schema-and-startup-validator
+    test: future-a17-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a17
+  - id: A-18
+    owner: frontend
+    tool: eslint-and-dependency-audit
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: root-blueprint-redline-a18
+  - id: A-19
+    owner: frontend
+    tool: federation-artifact-gate
+    test: future-a19-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a19
+  - id: A-20
+    owner: security
+    tool: secret-scan
+    test: future-a20-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a20
+  - id: A-21
+    owner: reliability
+    tool: chaos-contract
+    test: future-a21-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a21
+  - id: A-22
+    owner: release
+    tool: ci-coverage
+    test: future-a22-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a22
+  - id: A-23
+    owner: architecture
+    tool: registry
+    test: future-a23-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a23
+  - id: A-24
+    owner: runtime
+    tool: spi-abi-and-resource-contract
+    test: future-a24-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a24
+  - id: A-25
+    owner: runtime
+    tool: entry-snapshot-contract
+    test: future-a25-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a25
+  - id: A-26
+    owner: platform-operational
+    tool: descriptor-provider-contract
+    test: future-a26-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a26
+  - id: S-1
+    owner: security
+    tool: security-map
+    test: future-s1-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s1
+  - id: S-2
+    owner: security
+    tool: security-map
+    test: future-s2-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s2
+  - id: S-3
+    owner: security
+    tool: security-map
+    test: future-s3-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s3
+  - id: S-4
+    owner: security
+    tool: security-map
+    test: future-s4-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s4
+  - id: S-5
+    owner: security
+    tool: security-map
+    test: future-s5-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s5
+  - id: S-6
+    owner: security
+    tool: security-map
+    test: future-s6-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s6
+  - id: S-7
+    owner: security
+    tool: security-map
+    test: future-s7-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s7
+  - id: S-8
+    owner: security
+    tool: security-map
+    test: future-s8-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s8
+  - id: S-9
+    owner: security
+    tool: security-map
+    test: future-s9-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s9
+  - id: S-10
+    owner: security
+    tool: security-map
+    test: future-s10-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s10
+  - id: S-11
+    owner: security
+    tool: security-map
+    test: future-s11-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s11
+  - id: FE-1
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: frontend-blueprint-redline-fe1
+  - id: FE-2
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: frontend-blueprint-redline-fe2
+  - id: FE-3
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: frontend-blueprint-redline-fe3
+  - id: FE-4
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: frontend-blueprint-redline-fe4
+  - id: FE-5
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: future-fe5-contract
+    status: missing-blocking
+    evidence: frontend-blueprint-redline-fe5
+  - id: FE-6
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: future-fe6-contract
+    status: missing-blocking
+    evidence: frontend-blueprint-redline-fe6
+  - id: FE-7
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: future-fe7-contract
+    status: missing-blocking
+    evidence: frontend-blueprint-redline-fe7
+  - id: FE-8
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: future-fe8-contract
+    status: missing-blocking
+    evidence: frontend-blueprint-redline-fe8
+  - id: FE-9
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: future-fe9-contract
+    status: missing-blocking
+    evidence: frontend-blueprint-redline-fe9
+  - id: FE-10
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: future-fe10-contract
+    status: missing-blocking
+    evidence: frontend-blueprint-redline-fe10
+  - id: FE-11
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: future-fe11-contract
+    status: missing-blocking
+    evidence: frontend-blueprint-redline-fe11
+  - id: FE-12
+    owner: frontend
+    tool: eslint-and-runtime-host
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: frontend-blueprint-redline-fe12
+  - id: SA-1
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa1-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa1
+  - id: SA-2
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa2-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa2
+  - id: SA-3
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa3-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa3
+  - id: SA-4
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa4-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa4
+  - id: SA-5
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa5-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa5
+  - id: SA-6
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa6-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa6
+  - id: SA-7
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa7-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa7
+  - id: SA-8
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa8-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa8
+  - id: SA-9
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa9-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa9
+  - id: SA-10
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa10-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa10
+  - id: SA-11
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa11-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa11
+  - id: SA-12
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa12-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa12
+  - id: T-1
+    owner: tenant
+    tool: tenant-contract
+    test: future-t1-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t1
+  - id: T-2
+    owner: tenant
+    tool: tenant-contract
+    test: future-t2-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t2
+  - id: T-3
+    owner: tenant
+    tool: tenant-contract
+    test: future-t3-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t3
+  - id: T-4
+    owner: tenant
+    tool: tenant-contract
+    test: future-t4-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t4
+  - id: T-5
+    owner: tenant
+    tool: tenant-contract
+    test: future-t5-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t5
+  - id: T-6
+    owner: tenant
+    tool: tenant-contract
+    test: future-t6-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t6
+  - id: T-7
+    owner: tenant
+    tool: tenant-contract
+    test: future-t7-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t7
+  - id: T-8
+    owner: tenant
+    tool: tenant-contract
+    test: future-t8-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t8
+  - id: T-9
+    owner: tenant
+    tool: tenant-contract
+    test: future-t9-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t9
+  - id: T-10
+    owner: tenant
+    tool: tenant-contract
+    test: future-t10-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t10
+  - id: T-11
+    owner: tenant
+    tool: tenant-contract
+    test: future-t11-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t11
+  - id: T-12
+    owner: tenant
+    tool: tenant-contract
+    test: future-t12-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t12
+  - id: T-13
+    owner: tenant
+    tool: tenant-contract
+    test: future-t13-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t13
+  - id: T-14
+    owner: tenant
+    tool: tenant-contract
+    test: future-t14-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t14
+  - id: T-15
+    owner: tenant
+    tool: tenant-contract
+    test: future-t15-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t15
+  - id: T-16
+    owner: tenant
+    tool: tenant-contract
+    test: future-t16-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t16
+  - id: T-17
+    owner: tenant
+    tool: tenant-contract
+    test: future-t17-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t17
+  - id: T-18
+    owner: tenant
+    tool: tenant-contract
+    test: future-t18-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t18
+  - id: T-19
+    owner: tenant
+    tool: tenant-contract
+    test: future-t19-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t19
+  - id: T-20
+    owner: tenant
+    tool: tenant-contract
+    test: future-t20-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t20
+  - id: T-21
+    owner: tenant
+    tool: tenant-contract
+    test: future-t21-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t21
+  - id: T-22
+    owner: tenant
+    tool: tenant-contract
+    test: future-t22-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t22
+  - id: T-23
+    owner: tenant
+    tool: tenant-contract
+    test: future-t23-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t23
+  - id: T-24
+    owner: tenant
+    tool: tenant-contract
+    test: future-t24-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t24
+  - id: T-25
+    owner: tenant
+    tool: tenant-contract
+    test: future-t25-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t25
+  - id: T-26
+    owner: tenant
+    tool: tenant-contract
+    test: future-t26-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t26
+  - id: T-27
+    owner: tenant
+    tool: tenant-contract
+    test: future-t27-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t27
+  - id: T-28
+    owner: tenant
+    tool: tenant-contract
+    test: future-t28-contract
+    status: missing-blocking
+    evidence: multi-tenant-blueprint-t28
+
+ruleInventory:
+  - id: java-brix-architecture-rules
+    kind: java
+    wired: true
+    scope: architecture-guard-public-api
+    targetCount: consumer-dependent
+    test: architecture-guard-self-tests
+    status: partial
+    evidence: BrixArchitectureRules.java
+  - id: java-core-profile-v2
+    kind: java
+    wired: true
+    scope: legacy-plugin-core-profile
+    targetCount: consumer-dependent
+    test: architecture-guard-self-tests
+    status: legacy/migration-only
+    evidence: CoreProfileV2.java
+  - id: java-plugin-profile
+    kind: java
+    wired: true
+    scope: plugin-profile
+    targetCount: consumer-dependent
+    test: architecture-guard-self-tests
+    status: partial
+    evidence: PluginProfile.java
+  - id: java-host-profile
+    kind: java
+    wired: true
+    scope: host-profile
+    targetCount: consumer-dependent
+    test: HostUltraThinRuleTest
+    status: partial
+    evidence: HostProfile.java
+  - id: java-operational-profile
+    kind: java
+    wired: true
+    scope: platform-operational-profile
+    targetCount: consumer-dependent
+    test: OperationalProfileTest
+    status: partial
+    evidence: OperationalProfile.java
+  - id: java-marker-based-plugin-rule
+    kind: java
+    wired: true
+    scope: legacy-marker-runtime-context
+    targetCount: consumer-dependent
+    test: architecture-guard-self-tests
+    status: legacy/migration-only
+    evidence: MarkerBasedPluginRule.java
+  - id: java-data-ownership-rule
+    kind: java
+    wired: true
+    scope: data-owner
+    targetCount: consumer-dependent
+    test: DataOwnershipRuleTest
+    status: partial
+    evidence: DataOwnershipRule.java
+  - id: data-owner-sql-migration-lint
+    kind: java
+    wired: true
+    scope: data-owner-sql
+    targetCount: platform-tenant-fixture
+    test: DataOwnerPhase4Test
+    status: partial
+    evidence: SqlMigrationLinter.java
+  - id: data-owner-migration-hash-ledger
+    kind: java
+    wired: true
+    scope: released-migration-hash
+    targetCount: owner-migration-ledger
+    test: DataOwnerPhase4Test
+    status: partial
+    evidence: MigrationHashLedger.java
+  - id: data-owner-db-privilege-contract
+    kind: java
+    wired: true
+    scope: database-privilege
+    targetCount: owner-role-contract
+    test: DataOwnerPhase4Test
+    status: partial
+    evidence: DatabasePrivilegeVerifier.java
+  - id: java-host-ultra-thin-rule
+    kind: java
+    wired: true
+    scope: host-source
+    targetCount: consumer-dependent
+    test: HostUltraThinRuleTest
+    status: partial
+    evidence: HostUltraThinRule.java
+  - id: java-plugin-manifest-resource-rule
+    kind: java
+    wired: true
+    scope: plugin-manifest-resource
+    targetCount: consumer-dependent
+    test: PluginManifestResourceRuleTest
+    status: partial
+    evidence: PluginManifestResourceRule.java
+  - id: java-no-spring-container-api-rule
+    kind: java
+    wired: true
+    scope: plugin-source
+    targetCount: consumer-dependent
+    test: NoSpringContainerApiRuleTest
+    status: partial
+    evidence: NoSpringContainerApiRule.java
+  - id: java-no-direct-http-clients-rule
+    kind: java
+    wired: true
+    scope: plugin-source
+    targetCount: consumer-dependent
+    test: NoDirectHttpClientsRuleTest
+    status: partial
+    evidence: NoDirectHttpClientsRule.java
+  - id: java-no-middleware-clients-rule
+    kind: java
+    wired: true
+    scope: plugin-source
+    targetCount: consumer-dependent
+    test: NoMiddlewareClientsRuleTest
+    status: partial
+    evidence: NoMiddlewareClientsRule.java
+  - id: java-outbox-consistency-rule
+    kind: java
+    wired: true
+    scope: outbox-source
+    targetCount: consumer-dependent
+    test: OutboxConsistencyRuleTest
+    status: partial
+    evidence: OutboxConsistencyRule.java
+  - id: reliable-message-fixture-evidence
+    kind: java
+    wired: true
+    scope: owner-outbox-inbox-fixture
+    targetCount: platform-tenant-fixture
+    test: DataOwnerPhase4Test
+    status: partial
+    evidence: ReliableMessageEvidenceVerifier.java
+  - id: java-no-enterprise-to-platform-admin-rule
+    kind: java
+    wired: true
+    scope: enterprise-boundary
+    targetCount: consumer-dependent
+    test: NoEnterpriseToPlatformAdminRuleTest
+    status: partial
+    evidence: NoEnterpriseToPlatformAdminRule.java
+  - id: java-cross-module-via-capability-rule
+    kind: java
+    wired: true
+    scope: cross-module-source
+    targetCount: consumer-dependent
+    test: CrossModuleViaCapabilityRuleTest
+    status: partial
+    evidence: CrossModuleViaCapabilityRule.java
+  - id: java-no-infra-adapter-rule
+    kind: java
+    wired: true
+    scope: plugin-source
+    targetCount: consumer-dependent
+    test: NoInfraAdapterRuleTest
+    status: partial
+    evidence: NoInfraAdapterRule.java
+  - id: java-no-platform-tenant-relationship-access-rule
+    kind: java
+    wired: true
+    scope: tenant-boundary
+    targetCount: consumer-dependent
+    test: NoPlatformTenantRelationshipAccessRuleTest
+    status: partial
+    evidence: NoPlatformTenantRelationshipAccessRule.java
+  - id: phase1-artifact-inventory-builder
+    kind: artifact-graph
+    wired: true
+    scope: maven-pnpm-modulekind-inventory
+    targetCount: fixture-backed
+    test: ArtifactInventoryPhase1Test
+    status: partial
+    evidence: ArtifactInventoryBuilder.java
+  - id: phase1-descriptor-provider-association
+    kind: artifact-graph
+    wired: true
+    scope: descriptor-provider-same-artifact
+    targetCount: fixture-backed
+    test: ArtifactInventoryPhase1Test
+    status: partial
+    evidence: DescriptorAssociationVerifier.java
+  - id: phase1-artifact-dag-verifier
+    kind: artifact-graph
+    wired: true
+    scope: modulekind-layer-dag
+    targetCount: fixture-backed
+    test: ArtifactInventoryPhase1Test
+    status: partial
+    evidence: ArtifactGraphVerifier.java
+  - id: phase1-execution-plan-compiler
+    kind: artifact-graph
+    wired: true
+    scope: modulekind-generated-execution-plan
+    targetCount: fixture-backed
+    test: ArtifactInventoryPhase1Test
+    status: partial
+    evidence: ExecutionPlanCompiler.java
+  - id: phase1-descriptor-schema-alignment
+    kind: schema
+    wired: true
+    scope: plugin-operational-ui-descriptors
+    targetCount: fixture-backed
+    test: DescriptorSchemaPhase1Test
+    status: partial
+    evidence: schemas/plugin-manifest.schema.json
+  - id: eslint-no-mui-in-plugins
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-mui-in-plugins.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-no-direct-design-tokens-import
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-direct-design-tokens-import.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-no-plugin-theme-tokens
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-plugin-theme-tokens.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-no-legacy-tenant-switch
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-legacy-tenant-switch.test.js
+    status: legacy/migration-only
+    evidence: eslint-config-architecture
+  - id: eslint-no-platform-admin-mode-flag
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-platform-admin-mode-flag.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-no-permission-or-true
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-permission-or-true.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-no-role-string-literal
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-role-string-literal.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-no-temp-password-in-response-type
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: no-temp-password-in-response-type.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-frontend-layer-boundary
+    kind: eslint
+    wired: true
+    scope: frontend-source-and-host-source
+    targetCount: consumer-dependent
+    test: frontend-layer-boundary.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: eslint-require-testid-on-action
+    kind: eslint
+    wired: true
+    scope: frontend-source
+    targetCount: consumer-dependent
+    test: require-testid-on-action.test.js
+    status: partial
+    evidence: eslint-config-architecture
+  - id: schema-plugin-manifest
+    kind: schema
+    wired: false
+    scope: plugin-manifest
+    targetCount: not-counted-in-phase0
+    test: future-schema-contract
+    status: missing-blocking
+    evidence: schemas/plugin-manifest.schema.json
+  - id: schema-platform-operational
+    kind: schema
+    wired: false
+    scope: platform-operational
+    targetCount: not-counted-in-phase0
+    test: future-schema-contract
+    status: missing-blocking
+    evidence: schemas/platform-operational.schema.json
+  - id: schema-module-manifest
+    kind: schema
+    wired: false
+    scope: legacy-module-manifest
+    targetCount: not-counted-in-phase0
+    test: future-migration-scan
+    status: legacy/migration-only
+    evidence: schemas/module-manifest.schema.yaml
+  - id: schema-ui-manifest
+    kind: schema
+    wired: false
+    scope: ui-manifest
+    targetCount: not-counted-in-phase0
+    test: future-ui-manifest-contract
+    status: missing-blocking
+    evidence: schemas/ui-manifest.schema.yaml
+  - id: schema-outbox-message-contract-v1
+    kind: schema
+    wired: false
+    scope: outbox-message
+    targetCount: not-counted-in-phase0
+    test: future-outbox-contract
+    status: missing-blocking
+    evidence: schemas/outbox-message-contract.v1.json
+  - id: ci-platform-devtools-architecture-guard
+    kind: ci
+    wired: true
+    scope: platform-devtools-local-workflow
+    targetCount: platform-devtools-only
+    test: architecture-guard-self-tests
+    status: partial
+    evidence: .github/workflows/architecture-guard.yml

@@ -1,0 +1,33 @@
+package <%= packageName %>.operational;
+
+import io.runtime.orchestrator.operational.OperationalBootstrapContext;
+import io.runtime.orchestrator.operational.OperationalContext;
+import io.runtime.orchestrator.operational.PlatformOperationalModule;
+import io.runtime.sdk.plugin.BrixHealth;
+
+/**
+ * Platform operational entry point for <%= displayName %>.
+ *
+ * <p>This module only registers descriptor-declared factories and does not
+ * expose a platform capability, business repository, Host controller, or second
+ * dispatcher.</p>
+ */
+public final class <%= classPrefix %>OperationalModule implements PlatformOperationalModule {
+
+    @Override
+    public void configure(OperationalBootstrapContext bootstrap) {
+    }
+
+    @Override
+    public void onStart(OperationalContext context) {
+    }
+
+    @Override
+    public void onStop() {
+    }
+
+    @Override
+    public BrixHealth health() {
+        return BrixHealth.up();
+    }
+}

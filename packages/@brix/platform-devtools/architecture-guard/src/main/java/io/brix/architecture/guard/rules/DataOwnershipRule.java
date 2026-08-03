@@ -3,8 +3,14 @@
  */
 package io.brix.architecture.guard.rules;
 
+import com.tngtech.archunit.core.domain.Dependency;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -70,30 +76,40 @@ public final class DataOwnershipRule {
     }
 
     /**
-     * No JPA repository access across plugin boundaries.
+     * No repository access across owner boundaries.
      *
-     * <p>This rule checks that core modules do not access repositories 
-     * from OTHER plugins. Within the same plugin, accessing repositories is allowed.</p>
-     * 
-     * <p><b>Important:</b> This rule requires plugin-specific configuration.
-     * Use {@link #noAccessToOtherPluginRepositories(String, String...)} for precise control.</p>
-     * 
-     * <p><b>Note:</b> Currently returns a permissive rule. 
-     * Each plugin should configure its own cross-boundary checks.</p>
+     * <p>The previous placeholder rule deliberately matched an impossible
+     * package and therefore could not block violations. Phase 4 makes the
+     * default rule executable: plugin or platform core classes may not import
+     * another owner's Repository type. Same-owner repositories remain allowed
+     * for owner application services.</p>
      *
-     * @return ArchUnit rule instance (permissive - always passes)
+     * @return ArchUnit rule instance
      */
     public static ArchRule noCrossPluginRepositoryAccess() {
-        // This rule is intentionally relaxed because:
-        // 1. Core modules SHOULD depend on their own Repository interfaces (DDD pattern)
-        // 2. Only cross-module Repository access should be forbidden
-        // 3. Use noAccessToOtherPluginRepositories() for specific cross-boundary checks
+        return classes()
+                .that().resideInAnyPackage("io.brix..core..", "io.brix..service..", "io.brix..app..")
+                .should(notDependOnForeignRepository())
+                .because("A-8/Phase 4: cross-Owner Repository access is forbidden; use typed contracts or events")
+                .allowEmptyShould(true);
+    }
+
+    /**
+     * Plugin core and domain code must not depend on raw persistence APIs.
+     *
+     * @return ArchUnit rule instance
+     */
+    public static ArchRule noRawPersistenceApiInCoreOrDomain() {
         return noClasses()
-                .that().resideInAPackage("..CROSS_MODULE_BOUNDARY_PLACEHOLDER..")
+                .that().resideInAnyPackage("..core..", "..domain..")
                 .should().dependOnClassesThat()
-                .haveSimpleNameEndingWith("Repository")
-                .because("Red Line 8: Cross-module Repository access is forbidden. " +
-                        "Use Integration Events or Capability interfaces for cross-module data access.")
+                .resideInAnyPackage(
+                    "jakarta.persistence..",
+                    "javax.persistence..",
+                    "org.springframework.data.jpa..",
+                    "org.jooq..",
+                    "java.sql..")
+                .because("A-8/Phase 4: plugin core/domain must stay persistence-agnostic")
                 .allowEmptyShould(true);
     }
     
@@ -152,5 +168,52 @@ public final class DataOwnershipRule {
      */
     public static ArchRule rule() {
         return noCrossPluginRepositoryAccess();
+    }
+
+    private static ArchCondition<JavaClass> notDependOnForeignRepository() {
+        return new ArchCondition<>("not depend on another Data Owner repository") {
+            @Override
+            public void check(JavaClass item, ConditionEvents events) {
+                String originOwner = ownerPrefix(item.getPackageName());
+                if (originOwner.isBlank()) {
+                    return;
+                }
+                for (Dependency dependency : item.getDirectDependenciesFromSelf()) {
+                    JavaClass target = dependency.getTargetClass();
+                    if (!target.getSimpleName().endsWith("Repository")) {
+                        continue;
+                    }
+                    String targetOwner = ownerPrefix(target.getPackageName());
+                    if (!targetOwner.isBlank() && !originOwner.equals(targetOwner)) {
+                        events.add(SimpleConditionEvent.violated(item,
+                            item.getName() + " depends on foreign repository " + target.getName()));
+                    }
+                }
+            }
+        };
+    }
+
+    private static String ownerPrefix(String packageName) {
+        String[] segments = packageName.split("\\.");
+        for (int index = 0; index < segments.length - 2; index++) {
+            if ("app".equals(segments[index])) {
+                return join(segments, 0, Math.min(index + 2, segments.length));
+            }
+            if ("platform".equals(segments[index]) && index + 1 < segments.length) {
+                return join(segments, 0, Math.min(index + 2, segments.length));
+            }
+        }
+        return "";
+    }
+
+    private static String join(String[] segments, int startInclusive, int endExclusive) {
+        StringBuilder builder = new StringBuilder();
+        for (int index = startInclusive; index < endExclusive; index++) {
+            if (builder.length() > 0) {
+                builder.append('.');
+            }
+            builder.append(segments[index]);
+        }
+        return builder.toString();
     }
 }

@@ -32,6 +32,8 @@ on:
       - 'packages/**/package.json'
       - 'packages/**/tsconfig.json'
       - 'packages/**/pom.xml'
+      - 'packages/@brix/platform-devtools/architecture-governance/**'
+      - 'packages/@brix/platform-devtools/architecture-guard/**'
       - 'packages/@brix/platform-devtools/schemas/**'
       - 'docs/runtime-shell/**'
       - 'packages/**/vitest.config.*'
@@ -51,6 +53,8 @@ on:
       - 'packages/**/*.tsx'
       - 'packages/**/package.json'
       - 'packages/**/pom.xml'
+      - 'packages/@brix/platform-devtools/architecture-governance/**'
+      - 'packages/@brix/platform-devtools/architecture-guard/**'
       - 'packages/@brix/platform-devtools/schemas/**'
       - 'docs/runtime-shell/**'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
@@ -168,6 +172,16 @@ jobs:
       # ----------------------------------------------------------------------
       - name: Maven dependency analysis
         run: mvn -q -DskipTests -DfailOnWarning=true -pl :architecture-guard dependency:analyze-only
+
+      - name: Architecture governance and guard tests
+        run: mvn -q -pl :architecture-governance,:architecture-guard test
+
+      - name: Upload Phase 6 evidence report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase6-architecture-evidence
+          path: packages/@brix/platform-devtools/architecture-governance/target/phase6-evidence/
 
       - name: Platform admin redline scan
         run: node scripts/check-banned-tokens.mjs

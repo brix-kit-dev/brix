@@ -214,7 +214,7 @@ public final class ClasspathPluginRuntimeDescriptorResolver
             }
             if (manifest.getEvents() != null) {
                 for (PluginManifest.EventPublish publish : manifest.getEvents().getPublishes()) {
-                    builder.eventPublication(publish.getId(), publish.getVersion(),
+                    builder.eventPublication(publish.getEventType(), publish.getVersion(),
                         EventReliability.valueOf(publish.getReliability()));
                 }
                 for (PluginManifest.EventSubscribe subscribe : manifest.getEvents().getSubscribes()) {

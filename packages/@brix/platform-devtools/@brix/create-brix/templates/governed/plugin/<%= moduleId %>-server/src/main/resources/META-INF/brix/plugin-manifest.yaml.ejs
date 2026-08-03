@@ -1,0 +1,50 @@
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: <%= moduleId %>
+  name: <%= moduleId %>
+  version: <%= version %>
+  displayName: <%= displayName %>
+  vendor: <%= vendor %>
+  license: <%= license %>
+  attestationIdentity: brix://attestations/<%= moduleId %>
+runtime:
+  compiledAgainst: <%= runtimeVersion %>
+  supportedRange: "<%= runtimeRange %>"
+modules:
+  - moduleKind: plugin-api
+    artifact: io.brix.app:<%= moduleId %>-api:<%= version %>
+  - moduleKind: plugin-core
+    artifact: io.brix.app:<%= moduleId %>-core:<%= version %>
+  - moduleKind: plugin-server
+    artifact: io.brix.app:<%= moduleId %>-server:<%= version %>
+endpoints:
+  provides: []
+capabilities:
+  required: []
+  optional: []
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes: []
+  subscribes: []
+tasks:
+  provides: []
+internalContracts:
+  provides: []
+externalServices: []
+data:
+  owner: <%= moduleId %>
+  storageId: <%= storageId %>
+  migrations: db/migration/<%= moduleId %>
+permissions:
+  - id: <%= permissionId %>
+    description: Read <%= displayName %> resources.
+config: []
+ui:
+  web:
+    enabled: false

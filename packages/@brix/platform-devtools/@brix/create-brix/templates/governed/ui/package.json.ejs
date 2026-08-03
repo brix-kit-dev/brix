@@ -1,0 +1,16 @@
+{
+  "name": "<%= npmPackageName %>",
+  "version": "<%= version %>",
+  "type": "module",
+  "private": true,
+  "peerDependencies": {
+    "@brix-sdk/runtime-sdk-api-web": "<%= runtimeRange %>",
+    "@brix-sdk/runtime-sdk-react": "<%= runtimeRange %>",
+    "@brix-sdk/shared-runtime-web": "<%= runtimeRange %>",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

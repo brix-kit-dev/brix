@@ -26,7 +26,7 @@
  */
 
 import { mkdir, writeFile, readFile, readdir, stat } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import ejs from 'ejs';
 import type { 
@@ -36,23 +36,313 @@ import type {
   ServiceTemplateContext,
   AppConfig,
   AppTemplateContext,
+  GovernedScaffoldConfig,
+  GovernedScaffoldTemplateContext,
+  GovernedScaffoldKind,
+  LegacyScanFinding,
+  LegacyScanReport,
 } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const TEMPLATES_DIR = join(__dirname, '..', 'templates');
 const SDK_VERSION = '3.2.0';
+const LEGACY_TEMPLATE_FREEZE_MESSAGE =
+  'create-brix legacy template generation is disabled by Runtime Shell v3.0.10 Phase 0. ' +
+  'Existing templates are legacy/migration-only until the governed plugin, operational, and UI templates are delivered.';
+
+function assertLegacyTemplateGenerationFrozen(kind: string): never {
+  throw new Error(`${kind}: ${LEGACY_TEMPLATE_FREEZE_MESSAGE}`);
+}
+
+const NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+const STORAGE_ID_MAX_LENGTH = 31;
+const DEFAULT_RUNTIME_VERSION = '3.0.10';
+const DEFAULT_RUNTIME_RANGE = '>=3.0.10 <4.0.0';
+
+const LEGACY_SCAN_RULES: readonly {
+  readonly id: string;
+  readonly severity: LegacyScanFinding['severity'];
+  readonly rule: string;
+  readonly pattern: RegExp;
+  readonly guidance: string;
+}[] = [
+  {
+    id: 'PH7-C-001',
+    severity: 'blocking',
+    rule: 'legacy-module-manifest',
+    pattern: /module-manifest\.ya?ml|startup-order|startupOrder/,
+    guidance: 'Move active declarations to META-INF/brix/plugin-manifest.yaml, META-INF/brix/platform-operational.yaml, or ui-manifest.yaml.',
+  },
+  {
+    id: 'PH7-C-002',
+    severity: 'blocking',
+    rule: 'spring-controller-scaffold',
+    pattern: /@RestController|@RequestMapping|@Controller\b|ComponentScan|EnableJpaRepositories|EntityScan/,
+    guidance: 'Expose Runtime Entry declarations through descriptor plus Runtime dispatcher binding instead of Spring MVC scanning.',
+  },
+  {
+    id: 'PH7-C-003',
+    severity: 'blocking',
+    rule: 'infra-client-scaffold',
+    pattern: /KafkaTemplate|KafkaProducer|RabbitTemplate|DataSource|JdbcTemplate|EntityManager|fetch\s*\(|axios\b/,
+    guidance: 'Use Capability Contract boundaries and generated HttpCapability or reliable messaging contracts.',
+  },
+  {
+    id: 'PH7-C-004',
+    severity: 'blocking',
+    rule: 'vendor-ui-scaffold',
+    pattern: /@mui\/material|@mui\/icons-material|antd\b|element-plus|sx\s*=/,
+    guidance: 'Use BrixUI through useUI() and semantic tokens through useTheme().tokens.',
+  },
+  {
+    id: 'PH7-C-005',
+    severity: 'blocking',
+    rule: 'temporary-marker',
+    pattern: /\bTODO\b|\bFIXME\b|\bplaceholder\b|\bfake\b|\bmock\b/i,
+    guidance: 'Remove temporary markers and generated non-production data paths before a module can leave migration inventory.',
+  },
+];
+
+/**
+ * Generate a Runtime Shell v3.0.10 governed scaffold.
+ */
+export async function generateGovernedScaffold(config: GovernedScaffoldConfig): Promise<void> {
+  const context = buildGovernedScaffoldContext(config);
+  const outputDir = join(config.outputDir, context.moduleId);
+
+  await mkdir(outputDir, { recursive: true });
+  await renderTemplateTree(`governed/${context.kind}`, outputDir, context);
+  await renderTemplateTree('governed/common', outputDir, context);
+
+  if (context.writeMigrationPlan) {
+    await renderTemplate(
+      'governed/migration/migration-plan.yaml.ejs',
+      join(outputDir, 'migration', 'phase7-migration-plan.yaml'),
+      context,
+    );
+  }
+}
+
+/**
+ * Scan a tree for legacy scaffold structures.
+ */
+export async function scanLegacyScaffold(root: string): Promise<LegacyScanReport> {
+  const findings: LegacyScanFinding[] = [];
+  await scanLegacyDirectory(root, root, findings);
+  findings.sort((left, right) => left.path.localeCompare(right.path) || left.id.localeCompare(right.id));
+
+  return {
+    apiVersion: 'brix.io/phase7-legacy-scan/v1',
+    root,
+    generatedAt: new Date().toISOString(),
+    findings,
+    migrationBatches: [
+      'batch-1-descriptor-resource-paths',
+      'batch-2-runtime-entry-binding',
+      'batch-3-frontend-layering-and-ui-manifest',
+      'batch-4-reliable-message-and-data-owner-evidence',
+    ],
+  };
+}
+
+/**
+ * Write a legacy scanner report as stable JSON.
+ */
+export async function writeLegacyScanReport(root: string, outputPath: string): Promise<LegacyScanReport> {
+  const report = await scanLegacyScaffold(root);
+  await mkdir(dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf-8');
+  return report;
+}
+
+function buildGovernedScaffoldContext(config: GovernedScaffoldConfig): GovernedScaffoldTemplateContext {
+  validateGovernedScaffoldConfig(config);
+  const moduleId = moduleIdFor(config.kind, config.name);
+  const classPrefix = toPascalCase(config.name);
+  const storageId = toStorageId(moduleId);
+  const packageName = packageNameFor(config.kind, config.name);
+  const descriptorPath = descriptorPathFor(config.kind);
+
+  return {
+    ...config,
+    date: new Date().toISOString().split('T')[0],
+    classPrefix,
+    packageName,
+    packagePath: packageName.replace(/\./g, '/'),
+    npmPackageName: `@brix-sdk/${moduleId}`,
+    moduleId,
+    endpointId: `${moduleId}.status.v1`,
+    handlerId: `${moduleId}.status`,
+    storageId,
+    descriptorPath,
+  };
+}
+
+function validateGovernedScaffoldConfig(config: GovernedScaffoldConfig): void {
+  if (!NAME_PATTERN.test(config.name)) {
+    throw new Error('Phase 7 scaffold name must be kebab-case and start with a lowercase letter');
+  }
+  if (!config.displayName.trim()) {
+    throw new Error('Phase 7 scaffold displayName is required');
+  }
+  if (!config.description.trim()) {
+    throw new Error('Phase 7 scaffold description is required');
+  }
+  if (!config.owner.trim()) {
+    throw new Error('Phase 7 scaffold owner is required');
+  }
+  if (!config.vendor.trim()) {
+    throw new Error('Phase 7 scaffold vendor is required');
+  }
+  if (!config.license.trim()) {
+    throw new Error('Phase 7 scaffold license is required');
+  }
+  if (!config.runtimeVersion.trim() || !config.runtimeRange.trim()) {
+    throw new Error('Phase 7 scaffold runtimeVersion and runtimeRange are required');
+  }
+  if (!config.endpointPath.startsWith('/')) {
+    throw new Error('Phase 7 scaffold endpointPath must be absolute');
+  }
+}
+
+function moduleIdFor(kind: GovernedScaffoldKind, name: string): string {
+  if (kind === 'plugin') {
+    return name.startsWith('app-') ? name : `app-${name}`;
+  }
+  if (kind === 'operational') {
+    return name.startsWith('platform-') ? name : `platform-${name}`;
+  }
+  return name.endsWith('-ui-web') ? name : `${name}-ui-web`;
+}
+
+function packageNameFor(kind: GovernedScaffoldKind, name: string): string {
+  const normalized = name.replace(/-/g, '.');
+  if (kind === 'plugin') {
+    return `io.brix.app.${normalized.replace(/^app\./, '')}`;
+  }
+  if (kind === 'operational') {
+    return `io.brix.platform.${normalized.replace(/^platform\./, '')}`;
+  }
+  return `io.brix.ui.${normalized.replace(/\.ui\.web$/, '')}`;
+}
+
+function descriptorPathFor(kind: GovernedScaffoldKind): string {
+  if (kind === 'plugin') {
+    return 'src/main/resources/META-INF/brix/plugin-manifest.yaml';
+  }
+  if (kind === 'operational') {
+    return 'src/main/resources/META-INF/brix/platform-operational.yaml';
+  }
+  return 'ui-manifest.yaml';
+}
+
+function toPascalCase(value: string): string {
+  return value
+    .replace(/^(app-|platform-)/, '')
+    .replace(/-ui-web$/, '')
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+}
+
+function toStorageId(value: string): string {
+  const storageId = value.replace(/-/g, '_').replace(/^app_/, '');
+  if (storageId.length <= STORAGE_ID_MAX_LENGTH) {
+    return storageId;
+  }
+  return storageId.slice(0, STORAGE_ID_MAX_LENGTH);
+}
+
+async function renderTemplateTree(
+  templateRoot: string,
+  outputRoot: string,
+  context: GovernedScaffoldTemplateContext,
+): Promise<void> {
+  const fullRoot = join(TEMPLATES_DIR, templateRoot);
+  const entries = await readdir(fullRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    const source = join(fullRoot, entry.name);
+    const renderedName = ejs.render(entry.name.replace(/\.ejs$/, ''), context);
+    const target = join(outputRoot, renderedName);
+    if (entry.isDirectory()) {
+      await renderTemplateTree(join(templateRoot, entry.name), target, context);
+    } else {
+      const template = await readFile(source, 'utf-8');
+      const content = ejs.render(template, context);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, content, 'utf-8');
+    }
+  }
+}
+
+async function scanLegacyDirectory(root: string, current: string, findings: LegacyScanFinding[]): Promise<void> {
+  const entries = await readdir(current, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'target') {
+      continue;
+    }
+    const fullPath = join(current, entry.name);
+    if (entry.isDirectory()) {
+      await scanLegacyDirectory(root, fullPath, findings);
+      continue;
+    }
+    await scanLegacyFile(root, fullPath, findings);
+  }
+}
+
+async function scanLegacyFile(root: string, fullPath: string, findings: LegacyScanFinding[]): Promise<void> {
+  const relativePath = relative(root, fullPath) || fullPath;
+  const content = await readFile(fullPath, 'utf-8').catch(() => '');
+  const scanTarget = `${relativePath}\n${content}`;
+  for (const rule of LEGACY_SCAN_RULES) {
+    if (rule.pattern.test(scanTarget)) {
+      findings.push({
+        id: rule.id,
+        severity: rule.severity,
+        path: relativePath,
+        rule: rule.rule,
+        guidance: rule.guidance,
+      });
+    }
+  }
+}
+
+/**
+ * Defaults for non-interactive governed scaffold commands.
+ */
+export function createDefaultGovernedScaffoldConfig(
+  kind: GovernedScaffoldKind,
+  name: string,
+  outputDir: string,
+): GovernedScaffoldConfig {
+  const moduleId = moduleIdFor(kind, name);
+  return {
+    kind,
+    name,
+    displayName: toPascalCase(name),
+    description: `${moduleId} governed Runtime Shell module`,
+    owner: 'architecture-governance',
+    vendor: 'brix',
+    license: 'Apache-2.0',
+    version: '0.1.0',
+    runtimeVersion: DEFAULT_RUNTIME_VERSION,
+    runtimeRange: DEFAULT_RUNTIME_RANGE,
+    outputDir,
+    permissionId: `${moduleId}:read`,
+    endpointPath: kind === 'operational' ? `/api/platform/${name}/status` : `/api/v1/${name}/status`,
+    endpointMethod: 'GET',
+    includeReliableMessaging: false,
+    writeMigrationPlan: true,
+  };
+}
 
 /**
  * Generate Plugin Skeleton
  */
 export async function generatePlugin(config: PluginConfig): Promise<void> {
-  if (config.withWeb || config.withMobile) {
-    throw new Error(
-      'Legacy plugin frontend generation is disabled by the Runtime Shell architecture. ' +
-      'Use create-brix app to generate ui-web/ui-mobile modules with View -> Hook -> Repository layering.'
-    );
-  }
+  assertLegacyTemplateGenerationFrozen(`plugin ${config.name}`);
 
   const context = buildPluginContext(config);
   const outputDir = join(config.outputDir, config.name);
@@ -79,6 +369,8 @@ export async function generatePlugin(config: PluginConfig): Promise<void> {
  * Generate Service Skeleton
  */
 export async function generateService(config: ServiceConfig): Promise<void> {
+  assertLegacyTemplateGenerationFrozen(`service ${config.fullName}`);
+
   const context = buildServiceContext(config);
   const outputDir = join(config.outputDir, config.fullName);
   
@@ -394,27 +686,17 @@ async function renderTemplate(
 // =====================================================
 
 /**
- * Generate Business Application Skeleton (v3.0 Architecture)
- * 
- * Follows v3.0 Runtime Shell Architecture Blueprint to generate business application module structure
- * conforming to Runtime Shell capability contracts:
- * 
- * ```
- * app-{name}/
- * ������ pom.xml                    # Parent POM
- * ������ module-manifest.yaml       # Module declaration file (v3.0 core)
- * ������ {name}-api/                # API module (DTO, Event, Request)
- * ������ {name}-core/               # Core module (business logic)
- * ������ {name}-server/             # Server module (v3.0.4 new: REST Controller + AutoConfiguration)
- * ������ {name}-shared/             # Shared module (v3.0.4 new: frontend-backend shared types + orval code generation)
- * ������ {name}-ui-web/             # UI Web module (frontend interface, renamed from ui module)
- * ������ {name}-ui-mobile/          # UI Mobile module (v3.0.4 new: React Native mobile)
- * ������ {name}-app/                # App module (standalone runnable)
- * ```
+ * Generate Business Application Skeleton.
+ *
+ * Runtime Shell v3.0.10 Phase 0 freezes this legacy template entry before any
+ * filesystem writes. The retained implementation body documents the former
+ * rendering path for migration inventory only.
  * 
  * @param config Application configuration
  */
 export async function generateApp(config: AppConfig): Promise<void> {
+  assertLegacyTemplateGenerationFrozen(`app ${config.fullName}`);
+
   const context = buildAppContext(config);
   const outputDir = join(config.outputDir, config.fullName);
   

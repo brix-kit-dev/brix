@@ -2,579 +2,398 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://brix.io/schemas/plugin-manifest.schema.json",
   "title": "Brix v3.0.10 Plugin Manifest",
-  "description": "Strict schema for the active YAML plugin manifest at META-INF/brix/plugin-manifest.yaml. YAML is the declarative source of truth; Java SPI implementations must not duplicate manifest metadata.",
+  "description": "Strict schema for the active YAML plugin manifest at META-INF/brix/plugin-manifest.yaml.",
   "type": "object",
-  "required": ["apiVersion", "kind", "metadata", "runtime", "modules", "capabilities", "queries", "commands", "events"],
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "runtime", "modules", "endpoints", "capabilities", "queries", "commands", "events", "tasks"],
   "properties": {
-    "apiVersion": {
-      "const": "brix.io/v1"
-    },
-    "kind": {
-      "const": "Plugin"
-    },
-    "metadata": {
-      "$ref": "#/definitions/metadata"
-    },
-    "runtime": {
-      "$ref": "#/definitions/runtime"
-    },
+    "apiVersion": { "const": "brix.io/v1" },
+    "kind": { "const": "Plugin" },
+    "metadata": { "$ref": "#/definitions/metadata" },
+    "runtime": { "$ref": "#/definitions/runtime" },
     "modules": {
       "type": "array",
       "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/module"
-      }
-    },
-    "routes": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/route"
-      },
-      "default": []
+      "items": { "$ref": "#/definitions/module" }
     },
     "endpoints": {
-      "$ref": "#/definitions/endpointSection"
-    },
-    "capabilities": {
-      "$ref": "#/definitions/capabilitySection"
-    },
-    "queries": {
-      "$ref": "#/definitions/contractSection"
-    },
-    "commands": {
-      "$ref": "#/definitions/contractSection"
-    },
-    "events": {
-      "$ref": "#/definitions/eventSection"
-    },
-    "internalContracts": {
-      "$ref": "#/definitions/internalContractSection"
-    },
-    "externalServices": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/externalService"
-      },
-      "default": []
-    },
-    "data": {
-      "$ref": "#/definitions/dataSection"
-    },
-    "permissions": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/permission"
-      },
-      "default": []
-    },
-    "config": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/configEntry"
-      },
-      "default": []
-    },
-    "ui": {
-      "$ref": "#/definitions/uiSection"
-    }
-  },
-  "additionalProperties": false,
-  "definitions": {
-    "metadata": {
       "type": "object",
-      "required": ["pluginId", "name", "version", "vendor", "license"],
-      "properties": {
-        "pluginId": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*$"
-        },
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
-          "$ref": "#/definitions/semver"
-        },
-        "displayName": {
-          "type": "string"
-        },
-        "vendor": {
-          "type": "string",
-          "minLength": 1
-        },
-        "license": {
-          "type": "string",
-          "minLength": 1
-        },
-        "attestationIdentity": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "runtime": {
-      "type": "object",
-      "required": ["compiledAgainst", "supportedRange"],
-      "properties": {
-        "compiledAgainst": {
-          "$ref": "#/definitions/semver"
-        },
-        "supportedRange": {
-          "$ref": "#/definitions/range"
-        }
-      },
-      "additionalProperties": false
-    },
-    "module": {
-      "type": "object",
-      "required": ["groupId", "artifactId", "version", "moduleKind"],
-      "properties": {
-        "groupId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "artifactId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
-          "$ref": "#/definitions/semver"
-        },
-        "moduleKind": {
-          "type": "string",
-          "enum": ["plugin-api", "plugin-core", "plugin-server", "shared-contract", "ui-web", "ui-mobile", "platform-capability", "runtime-capability", "adapter", "host"]
-        }
-      },
-      "additionalProperties": false
-    },
-    "route": {
-      "type": "object",
-      "required": ["path", "method"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "endpointId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "transport": {
-          "type": "string"
-        },
-        "path": {
-          "type": "string",
-          "pattern": "^/"
-        },
-        "method": {
-          "type": "string",
-          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
-        },
-        "handler": {
-          "type": "string"
-        },
-        "handlerId": {
-          "type": "string"
-        },
-        "request": {
-          "type": "object"
-        },
-        "response": {
-          "type": "object"
-        },
-        "authentication": {
-          "type": "object"
-        },
-        "authorization": {
-          "type": "object"
-        },
-        "tenantContext": {
-          "type": "object"
-        },
-        "timeout": {
-          "type": "object"
-        },
-        "idempotency": {
-          "type": "object"
-        },
-        "accessPolicy": {
-          "type": "string"
-        }
-      },
-      "anyOf": [
-        {"required": ["id"]},
-        {"required": ["endpointId"]}
-      ],
-      "additionalProperties": false
-    },
-    "endpointSection": {
-      "type": "object",
+      "additionalProperties": false,
       "required": ["provides"],
       "properties": {
         "provides": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/route"
-          },
+          "items": { "$ref": "#/definitions/endpoint" },
           "default": []
         }
-      },
-      "additionalProperties": false
+      }
     },
-    "capabilitySection": {
+    "capabilities": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["required", "optional"],
       "properties": {
         "required": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/capabilityRef"
-          },
+          "items": { "$ref": "#/definitions/capabilityRef" },
           "default": []
         },
         "optional": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/capabilityRef"
-          },
+          "items": { "$ref": "#/definitions/capabilityRef" },
           "default": []
         }
-      },
-      "additionalProperties": false
+      }
     },
-    "capabilityRef": {
+    "queries": {
       "type": "object",
-      "required": ["id", "version"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
-          "$ref": "#/definitions/range"
-        }
-      },
-      "additionalProperties": false
-    },
-    "contractSection": {
-      "type": "object",
+      "additionalProperties": false,
       "required": ["provides", "consumes"],
       "properties": {
         "provides": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/contractRef"
-          },
+          "items": { "$ref": "#/definitions/queryProvider" },
           "default": []
         },
         "consumes": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/contractRef"
-          },
+          "items": { "$ref": "#/definitions/queryConsumer" },
           "default": []
         }
-      },
-      "additionalProperties": false
+      }
     },
-    "eventSection": {
+    "commands": {
       "type": "object",
+      "additionalProperties": false,
+      "required": ["provides", "consumes"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/commandProvider" },
+          "default": []
+        },
+        "consumes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/commandConsumer" },
+          "default": []
+        }
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": false,
       "required": ["publishes", "subscribes"],
       "properties": {
         "publishes": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/eventPublish"
-          },
+          "items": { "$ref": "#/definitions/eventPublish" },
           "default": []
         },
         "subscribes": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/eventSubscribe"
-          },
+          "items": { "$ref": "#/definitions/eventSubscribe" },
           "default": []
         }
-      },
-      "additionalProperties": false
+      }
     },
-    "eventPublish": {
+    "tasks": {
       "type": "object",
-      "required": ["id", "version", "reliability"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "schema": {
-          "type": "string"
-        },
-        "version": {
-          "$ref": "#/definitions/semver"
-        },
-        "reliability": {
-          "type": "string",
-          "enum": ["CRITICAL", "STANDARD", "BEST_EFFORT"]
-        }
-      },
-      "additionalProperties": false
-    },
-    "eventSubscribe": {
-      "type": "object",
-      "required": [
-        "subscriptionId",
-        "eventType",
-        "schemaRange",
-        "handlerId",
-        "retryPolicyRef",
-        "idempotencyPolicyRef"
-      ],
-      "properties": {
-        "subscriptionId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "eventType": {
-          "type": "string",
-          "minLength": 1
-        },
-        "schemaRange": {
-          "$ref": "#/definitions/range"
-        },
-        "handlerId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "retryPolicyRef": {
-          "type": "string",
-          "minLength": 1
-        },
-        "idempotencyPolicyRef": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "contractRef": {
-      "type": "object",
-      "required": ["id"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "schema": {
-          "type": "string"
-        },
-        "version": {
-          "$ref": "#/definitions/semver"
-        },
-        "handler": {
-          "type": "string"
-        },
-        "availability": {
-          "type": "string",
-          "enum": ["required", "optional"]
-        },
-        "idempotency": {
-          "type": "string"
-        },
-        "authorization": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "externalService": {
-      "type": "object",
-      "required": ["id", "baseUrlRef"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "baseUrlRef": {
-          "type": "string",
-          "minLength": 1
-        },
-        "authPolicyRef": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "internalContractSection": {
-      "type": "object",
-      "required": ["provides", "requires"],
+      "additionalProperties": false,
+      "required": ["provides"],
       "properties": {
         "provides": {
           "type": "array",
-          "items": {
-            "$ref": "#/definitions/providedInternalContract"
-          },
-          "default": []
-        },
-        "requires": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/requiredInternalContract"
-          },
+          "items": { "$ref": "#/definitions/task" },
           "default": []
         }
-      },
-      "additionalProperties": false
+      }
+    },
+    "internalContracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provides"],
+      "properties": {
+        "provides": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/providedInternalContract" },
+          "default": []
+        }
+      }
+    },
+    "externalServices": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/externalService" },
+      "default": []
+    },
+    "data": { "$ref": "#/definitions/dataSection" },
+    "permissions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/permission" },
+      "default": []
+    },
+    "config": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/configEntry" },
+      "default": []
+    },
+    "ui": { "$ref": "#/definitions/uiSection" }
+  },
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pluginId", "name", "version", "vendor", "license"],
+      "properties": {
+        "pluginId": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "$ref": "#/definitions/semver" },
+        "displayName": { "type": "string" },
+        "vendor": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "minLength": 1 },
+        "attestationIdentity": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiledAgainst", "supportedRange"],
+      "properties": {
+        "compiledAgainst": { "$ref": "#/definitions/semver" },
+        "supportedRange": { "$ref": "#/definitions/range" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groupId", "artifactId", "version", "moduleKind"],
+      "properties": {
+        "groupId": { "type": "string", "minLength": 1 },
+        "artifactId": { "type": "string", "minLength": 1 },
+        "version": { "$ref": "#/definitions/semver" },
+        "moduleKind": {
+          "type": "string",
+          "enum": ["plugin-api", "plugin-core", "plugin-server", "shared-contract", "ui-web", "ui-mobile"]
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpointId", "transport", "method", "path", "request", "response", "handlerId", "authentication", "authorization", "tenantContext", "timeout", "idempotency"],
+      "properties": {
+        "endpointId": { "type": "string", "minLength": 1 },
+        "transport": { "const": "http" },
+        "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+        "path": { "type": "string", "pattern": "^/" },
+        "request": { "$ref": "#/definitions/schemaRef" },
+        "response": { "$ref": "#/definitions/schemaRef" },
+        "handlerId": { "type": "string", "minLength": 1 },
+        "authentication": { "$ref": "#/definitions/policy" },
+        "authorization": { "$ref": "#/definitions/policy" },
+        "tenantContext": { "$ref": "#/definitions/policy" },
+        "timeout": { "$ref": "#/definitions/policy" },
+        "idempotency": { "$ref": "#/definitions/policy" }
+      }
+    },
+    "queryProvider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queryType", "request", "response", "handlerId", "scopePolicyRef", "accessPolicyRef", "timeoutPolicyRef", "concurrencyPolicyRef"],
+      "properties": {
+        "queryType": { "type": "string", "minLength": 1 },
+        "request": { "$ref": "#/definitions/schemaRef" },
+        "response": { "$ref": "#/definitions/schemaRef" },
+        "handlerId": { "type": "string", "minLength": 1 },
+        "scopePolicyRef": { "type": "string", "minLength": 1 },
+        "accessPolicyRef": { "type": "string", "minLength": 1 },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "concurrencyPolicyRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "queryConsumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queryType", "versionRange", "required", "timeoutPolicyRef", "retryPolicyRef"],
+      "properties": {
+        "queryType": { "type": "string", "minLength": 1 },
+        "versionRange": { "$ref": "#/definitions/range" },
+        "required": { "type": "boolean" },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "retryPolicyRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "commandProvider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandType", "request", "handlerId", "scopePolicyRef", "accessPolicyRef", "timeoutPolicyRef", "concurrencyPolicyRef", "retryPolicyRef", "idempotencyPolicyRef"],
+      "properties": {
+        "commandType": { "type": "string", "minLength": 1 },
+        "request": { "$ref": "#/definitions/schemaRef" },
+        "handlerId": { "type": "string", "minLength": 1 },
+        "scopePolicyRef": { "type": "string", "minLength": 1 },
+        "accessPolicyRef": { "type": "string", "minLength": 1 },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "concurrencyPolicyRef": { "type": "string", "minLength": 1 },
+        "retryPolicyRef": { "type": "string", "minLength": 1 },
+        "idempotencyPolicyRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "commandConsumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandType", "versionRange", "required", "timeoutPolicyRef", "retryPolicyRef", "idempotencyPolicyRef"],
+      "properties": {
+        "commandType": { "type": "string", "minLength": 1 },
+        "versionRange": { "$ref": "#/definitions/range" },
+        "required": { "type": "boolean" },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "retryPolicyRef": { "type": "string", "minLength": 1 },
+        "idempotencyPolicyRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "eventPublish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventType", "schemaRef", "version", "reliability"],
+      "properties": {
+        "eventType": { "type": "string", "minLength": 1 },
+        "schemaRef": { "type": "string", "minLength": 1 },
+        "version": { "$ref": "#/definitions/semver" },
+        "reliability": { "enum": ["CRITICAL", "STANDARD", "BEST_EFFORT"] }
+      }
+    },
+    "eventSubscribe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subscriptionId", "eventType", "schemaRange", "handlerId", "scopePolicyRef", "publisherPolicyRef", "timeoutPolicyRef", "concurrencyPolicyRef", "retryPolicyRef", "idempotencyPolicyRef"],
+      "properties": {
+        "subscriptionId": { "type": "string", "minLength": 1 },
+        "eventType": { "type": "string", "minLength": 1 },
+        "schemaRange": { "$ref": "#/definitions/range" },
+        "handlerId": { "type": "string", "minLength": 1 },
+        "scopePolicyRef": { "type": "string", "minLength": 1 },
+        "publisherPolicyRef": { "type": "string", "minLength": 1 },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "concurrencyPolicyRef": { "type": "string", "minLength": 1 },
+        "retryPolicyRef": { "type": "string", "minLength": 1 },
+        "idempotencyPolicyRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "handlerId", "scopePolicyRef", "executionIdentityPolicyRef", "triggerPolicyRef", "timeoutPolicyRef", "concurrencyPolicyRef", "retryPolicyRef", "idempotencyPolicyRef"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "handlerId": { "type": "string", "minLength": 1 },
+        "scopePolicyRef": { "type": "string", "minLength": 1 },
+        "executionIdentityPolicyRef": { "type": "string", "minLength": 1 },
+        "triggerPolicyRef": { "type": "string", "minLength": 1 },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "concurrencyPolicyRef": { "type": "string", "minLength": 1 },
+        "retryPolicyRef": { "type": "string", "minLength": 1 },
+        "idempotencyPolicyRef": { "type": "string", "minLength": 1 }
+      }
     },
     "providedInternalContract": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["contractId", "contractType", "contractVersion", "providerId", "owner"],
       "properties": {
-        "contractId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "contractType": {
-          "type": "string",
-          "minLength": 1
-        },
-        "contractVersion": {
-          "$ref": "#/definitions/semver"
-        },
-        "providerId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "owner": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
+        "contractId": { "type": "string", "minLength": 1 },
+        "contractType": { "type": "string", "minLength": 1 },
+        "contractVersion": { "$ref": "#/definitions/semver" },
+        "providerId": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 }
+      }
     },
-    "requiredInternalContract": {
+    "capabilityRef": {
       "type": "object",
-      "required": ["contractId", "contractType", "versionRange", "required", "privilegeAllowlistRef"],
+      "additionalProperties": false,
+      "required": ["id", "version"],
       "properties": {
-        "contractId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "contractType": {
-          "type": "string",
-          "minLength": 1
-        },
-        "versionRange": {
-          "$ref": "#/definitions/range"
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "privilegeAllowlistRef": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "$ref": "#/definitions/range" }
+      }
+    },
+    "externalService": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "baseUrlRef"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "baseUrlRef": { "type": "string", "minLength": 1 },
+        "authPolicyRef": { "type": "string" }
+      }
     },
     "dataSection": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["storageId"],
       "properties": {
-        "storageId": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9_]{0,30}$"
-        },
-        "schema": {
-          "type": "string"
-        },
-        "migrationLocation": {
-          "type": "string"
-        },
-        "outbox": {
-          "type": "string"
-        },
-        "inbox": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
+        "storageId": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,30}$" },
+        "schema": { "type": "string" },
+        "migrationLocation": { "type": "string" },
+        "outbox": { "type": "string" },
+        "inbox": { "type": "string" }
+      }
     },
     "permission": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["id"],
       "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      }
     },
     "configEntry": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["key", "type", "sensitivity"],
       "properties": {
-        "key": {
-          "type": "string",
-          "minLength": 1
-        },
-        "type": {
-          "type": "string",
-          "enum": ["string", "integer", "boolean", "decimal", "duration", "uri"]
-        },
-        "description": {
-          "type": "string"
-        },
+        "key": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["string", "integer", "boolean", "decimal", "duration", "uri"] },
+        "description": { "type": "string" },
         "default": {},
-        "sensitivity": {
-          "type": "string",
-          "enum": ["public", "internal", "secret", "pii", "financial", "health"]
-        }
+        "sensitivity": { "enum": ["public", "internal", "secret", "pii", "financial", "health"] }
       },
-      "additionalProperties": false,
       "not": {
-        "properties": {
-          "sensitivity": {
-            "const": "secret"
-          }
-        },
+        "properties": { "sensitivity": { "const": "secret" } },
         "required": ["sensitivity", "default"]
       }
     },
     "uiSection": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "web": {
-          "$ref": "#/definitions/uiPlatform"
-        },
-        "mobile": {
-          "$ref": "#/definitions/uiPlatform"
-        }
-      },
-      "additionalProperties": false
+        "web": { "$ref": "#/definitions/uiPlatform" },
+        "mobile": { "$ref": "#/definitions/uiPlatform" }
+      }
     },
     "uiPlatform": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["enabled"],
       "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "manifestUrl": {
-          "type": "string",
-          "pattern": "^/"
-        },
-        "runtimeRange": {
-          "$ref": "#/definitions/range"
-        }
-      },
-      "additionalProperties": false
+        "enabled": { "type": "boolean" },
+        "manifestUrl": { "type": "string", "pattern": "^/" },
+        "runtimeRange": { "$ref": "#/definitions/range" }
+      }
+    },
+    "schemaRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaRef"],
+      "properties": {
+        "schemaRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": ["string", "boolean", "array"] }
     },
     "semver": {
       "type": "string",

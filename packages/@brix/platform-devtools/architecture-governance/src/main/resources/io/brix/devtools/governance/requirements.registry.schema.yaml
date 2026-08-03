@@ -1,0 +1,36 @@
+schemaVersion: 1
+requiredSections:
+  - baseline
+  - phase
+  - legacyTerms
+  - clauseGroups
+  - requirements
+  - ruleInventory
+requirementRequiredFields:
+  - id
+  - owner
+  - tool
+  - test
+  - status
+  - evidence
+ruleInventoryRequiredFields:
+  - id
+  - kind
+  - wired
+  - scope
+  - targetCount
+  - test
+  - status
+  - evidence
+allowedStatuses:
+  - inventory-only
+  - partial
+  - unwired
+  - missing-blocking
+  - legacy/migration-only
+forbiddenPhase0Statuses:
+  - pass
+  - passing
+  - enforced-passing
+  - accepted
+  - ga

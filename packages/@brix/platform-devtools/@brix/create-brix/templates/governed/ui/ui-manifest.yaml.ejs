@@ -1,0 +1,20 @@
+schemaVersion: brix.ui-manifest.v1
+module:
+  id: <%= moduleId %>
+  kind: ui-web
+  owner: <%= owner %>
+runtime:
+  sharedRuntime: "@brix-sdk/shared-runtime-web"
+  requiredVersion: "<%= runtimeRange %>"
+routes:
+  - id: <%= moduleId %>.status
+    path: /<%= name %>
+    component: <%= classPrefix %>StatusPage
+    guard: <%= classPrefix %>RouteGuard
+permissions:
+  - id: <%= permissionId %>
+    description: Read <%= displayName %> resources.
+federation:
+  exposes:
+    ./<%= classPrefix %>StatusPage: ./src/pages/<%= classPrefix %>StatusPage.tsx
+escapeHatches: []

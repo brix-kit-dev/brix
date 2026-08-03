@@ -32,12 +32,17 @@
 /**
  * Generation Type
  * 
- * v3.0 architecture supports three project types:
- * - plugin: Plugin skeleton (v2.x legacy architecture, JAR package, depends only on platform-commons)
- * - service: Service skeleton (v2.x legacy architecture, runnable Spring Boot application)
- * - app: Business application module (v3.0 new architecture, follows Runtime Shell capability contracts)
+ * Runtime Shell v3.0.10 Phase 0 freezes all current template entrypoints:
+ * - plugin: legacy/migration-only
+ * - service: legacy/migration-only
+ * - app: legacy template entry until governed v3.0.10 templates are delivered
  */
 export type GenerateType = 'plugin' | 'service' | 'app';
+
+/**
+ * Governed scaffold kind delivered by Runtime Shell v3.0.10 Phase 7.
+ */
+export type GovernedScaffoldKind = 'plugin' | 'operational' | 'ui';
 
 /**
  * Plugin Type
@@ -218,6 +223,110 @@ export interface ServiceTemplateContext extends ServiceConfig {
   sdkVersion: string;
   /** Index signature for template rendering */
   [key: string]: unknown;
+}
+
+// =====================================================
+// Runtime Shell v3.0.10 Phase 7 Governed Scaffolding
+// =====================================================
+
+/**
+ * Configuration for a governed Phase 7 scaffold.
+ */
+export interface GovernedScaffoldConfig {
+  /** Scaffold kind */
+  kind: GovernedScaffoldKind;
+  /** Kebab-case module name without a repository path */
+  name: string;
+  /** Display name */
+  displayName: string;
+  /** Description */
+  description: string;
+  /** Owning team or module owner */
+  owner: string;
+  /** Vendor id used by descriptors */
+  vendor: string;
+  /** SPDX license id */
+  license: string;
+  /** Scaffolded module version */
+  version: string;
+  /** Exact Runtime/L2A version used at build time */
+  runtimeVersion: string;
+  /** Brix Range v1 runtime support range */
+  runtimeRange: string;
+  /** Output directory */
+  outputDir: string;
+  /** Endpoint permission id */
+  permissionId: string;
+  /** HTTP endpoint path */
+  endpointPath: string;
+  /** HTTP endpoint method */
+  endpointMethod: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** Include canonical reliable message descriptor sections */
+  includeReliableMessaging: boolean;
+  /** Write an accompanying migration plan */
+  writeMigrationPlan: boolean;
+  /** Index signature for template rendering */
+  [key: string]: unknown;
+}
+
+/**
+ * Template context for governed Phase 7 scaffolds.
+ */
+export interface GovernedScaffoldTemplateContext extends GovernedScaffoldConfig {
+  /** Current date */
+  date: string;
+  /** PascalCase class or component prefix */
+  classPrefix: string;
+  /** Java package name */
+  packageName: string;
+  /** Java package path */
+  packagePath: string;
+  /** NPM package name for UI artifacts */
+  npmPackageName: string;
+  /** Module id written to descriptors */
+  moduleId: string;
+  /** Stable endpoint id */
+  endpointId: string;
+  /** Stable handler id */
+  handlerId: string;
+  /** Storage id using root blueprint storage-id constraints */
+  storageId: string;
+  /** Descriptor resource path */
+  descriptorPath: string;
+  /** Index signature for template rendering */
+  [key: string]: unknown;
+}
+
+/**
+ * Legacy scanner finding.
+ */
+export interface LegacyScanFinding {
+  /** Stable finding id */
+  id: string;
+  /** Severity */
+  severity: 'blocking' | 'warning';
+  /** Relative path */
+  path: string;
+  /** Matched rule label */
+  rule: string;
+  /** Migration guidance */
+  guidance: string;
+}
+
+/**
+ * Legacy scanner report.
+ */
+export interface LegacyScanReport {
+  /** Scanner version */
+  apiVersion: 'brix.io/phase7-legacy-scan/v1';
+  /** Scanned root path */
+  root: string;
+  /** ISO timestamp */
+  generatedAt: string;
+  /** Findings */
+  findings: LegacyScanFinding[];
+  /** Module migration batches */
+  migrationBatches: readonly string[];
 }
 
 // =====================================================

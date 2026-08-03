@@ -25,6 +25,7 @@ import io.brix.architecture.guard.profiles.HostProfile;
 import io.brix.architecture.guard.profiles.PluginProfile;
 import io.brix.architecture.guard.profiles.OperationalProfile;
 import io.brix.architecture.guard.profiles.SdkProfile;
+import io.brix.architecture.guard.executor.JavaStaticBoundaryExecutor;
 
 /**
  * Brix Architecture Rules Entry Point
@@ -101,6 +102,7 @@ public final class BrixArchitectureRules {
      *
      * @return ArchTests rule set
      */
+    @Deprecated(since = "3.2.0", forRemoval = false)
     public static ArchTests coreProfileV2() {
         return ArchTests.in(CoreProfileV2.class);
     }
@@ -114,6 +116,7 @@ public final class BrixArchitectureRules {
      *
      * @return ArchTests rule set
      */
+    @Deprecated(since = "3.2.0", forRemoval = false)
     public static ArchTests hostProfile() {
         return ArchTests.in(HostProfile.class);
     }
@@ -161,5 +164,14 @@ public final class BrixArchitectureRules {
      */
     public static ArchTests operationalProfile() {
         return ArchTests.in(OperationalProfile.class);
+    }
+
+    /**
+     * Phase 2 Java static boundary executor selected by governance moduleKind.
+     *
+     * @return bytecode executor
+     */
+    public static JavaStaticBoundaryExecutor javaStaticBoundaryExecutor() {
+        return new JavaStaticBoundaryExecutor();
     }
 }

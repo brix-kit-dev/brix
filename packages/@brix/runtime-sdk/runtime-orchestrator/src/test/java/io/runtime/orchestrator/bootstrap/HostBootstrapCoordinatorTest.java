@@ -8,7 +8,9 @@ package io.runtime.orchestrator.bootstrap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -66,6 +68,40 @@ class HostBootstrapCoordinatorTest {
         assertTrue(handle.fatalFuture().toCompletableFuture().isDone());
     }
 
+    @Test
+    void startupFailureCompletesHandleFatalAndKeepsSnapshotUnpublished() {
+        Fixture fixture = fixture();
+        fixture.operational = new OperationalModuleRuntimeManager(
+            List::of,
+            List::of,
+            new InternalContractBinder(
+                new DefaultCapabilityRegistry(),
+                new DefaultCapabilityRegistry(),
+                getClass().getClassLoader()),
+            fixture.runtimeView,
+            List.of("missing-operational"),
+            "3.2.0");
+        fixture.coordinator = new HostBootstrapCoordinator(
+            fixture.plugins,
+            fixture.operational,
+            fixture.dispatcher,
+            fixture.runtimeView,
+            ignored -> { });
+
+        assertThrows(RuntimeException.class, fixture.coordinator::start);
+
+        RuntimeShellBootstrapHandle handle = fixture.coordinator.currentHandle();
+        assertNotNull(handle);
+        assertFalse(handle.ready());
+        assertTrue(handle.readyFuture().toCompletableFuture().isCompletedExceptionally());
+        RuntimeShellBootstrapHandle.FatalReason fatal =
+            handle.fatalFuture().toCompletableFuture().join();
+        assertEquals("runtime.bootstrap_failed", fatal.errorCode());
+        assertEquals("host-bootstrap", fatal.moduleId());
+        assertTrue(fixture.dispatcher.routes().isEmpty());
+        assertFalse(fixture.runtimeView.ready());
+    }
+
     private Fixture fixture() {
         DefaultPluginEndpointDispatcher dispatcher =
             new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
@@ -97,7 +133,7 @@ class HostBootstrapCoordinatorTest {
     private static final class Fixture {
         private final DefaultPluginEndpointDispatcher dispatcher;
         private final PluginRuntimeManager plugins;
-        private final OperationalModuleRuntimeManager operational;
+        private OperationalModuleRuntimeManager operational;
         private final HostRuntimeOperationalView runtimeView;
         private HostBootstrapCoordinator coordinator;
 

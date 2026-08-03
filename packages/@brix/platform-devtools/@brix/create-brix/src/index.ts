@@ -24,4 +24,12 @@
  */
 
 export * from './types.js';
-export { generatePlugin, generateService, generateApp } from './generator.js';
+export {
+  createDefaultGovernedScaffoldConfig,
+  generateGovernedScaffold,
+  generatePlugin,
+  generateService,
+  generateApp,
+  scanLegacyScaffold,
+  writeLegacyScanReport,
+} from './generator.js';

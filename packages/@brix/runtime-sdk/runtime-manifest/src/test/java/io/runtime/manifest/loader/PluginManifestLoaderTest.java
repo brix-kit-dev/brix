@@ -62,8 +62,11 @@ class PluginManifestLoaderTest {
         var manifest = loader.loadFromString(reliablePublisherManifest());
 
         assertThat(manifest.getEvents().getPublishes())
-            .extracting("id")
+            .extracting("eventType")
             .containsExactly("TenantFirstOwnerAccepted");
+        assertThat(manifest.getEvents().getPublishes())
+            .extracting("schemaRef")
+            .containsExactly("brix://schemas/platform-tenant/tenant-first-owner-accepted/1.0.0");
         assertThat(manifest.getEvents().getPublishes().get(0).getReliability())
             .isEqualTo("CRITICAL");
     }
@@ -144,7 +147,8 @@ class PluginManifestLoaderTest {
             """
             events:
               publishes:
-                - id: TenantFirstOwnerAccepted
+                - eventType: TenantFirstOwnerAccepted
+                  schemaRef: brix://schemas/platform-tenant/tenant-first-owner-accepted/1.0.0
                   version: 1.0.0
                   reliability: CRITICAL
               subscribes: []

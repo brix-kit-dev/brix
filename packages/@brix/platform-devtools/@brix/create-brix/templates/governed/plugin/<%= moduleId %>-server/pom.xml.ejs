@@ -1,0 +1,29 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.brix.app</groupId>
+    <artifactId><%= moduleId %></artifactId>
+    <version><%= version %></version>
+  </parent>
+  <artifactId><%= moduleId %>-server</artifactId>
+  <packaging>jar</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>io.runtime</groupId>
+      <artifactId>runtime-sdk-api</artifactId>
+      <version><%= runtimeVersion %></version>
+    </dependency>
+    <dependency>
+      <groupId>io.brix.app</groupId>
+      <artifactId><%= moduleId %>-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.brix.app</groupId>
+      <artifactId><%= moduleId %>-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>

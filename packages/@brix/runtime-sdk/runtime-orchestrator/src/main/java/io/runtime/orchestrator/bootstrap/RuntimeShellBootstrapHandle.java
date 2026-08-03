@@ -76,6 +76,11 @@ public final class RuntimeShellBootstrapHandle implements AutoCloseable {
         ready.complete(null);
     }
 
+    void completeStartupFailure(Throwable cause) {
+        ready.completeExceptionally(Objects.requireNonNull(cause, "cause must not be null"));
+        completeFatal(new FatalReason("runtime.bootstrap_failed", "host-bootstrap"));
+    }
+
     boolean completeFatal(FatalReason reason) {
         return fatal.complete(Objects.requireNonNull(reason, "reason must not be null"));
     }

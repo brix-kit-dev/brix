@@ -1,0 +1,74 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useHttp } from '@brix-sdk/runtime-sdk-react';
+import type { HttpCapability } from '@brix-sdk/runtime-sdk-api-web';
+import {
+  create<%= classPrefix %>Repository,
+  type <%= classPrefix %>StatusItem,
+} from '../repositories/<%= classPrefix %>Repository';
+
+export interface <%= classPrefix %>StatusState {
+  readonly loading: boolean;
+  readonly refreshing: boolean;
+  readonly permissionDenied: boolean;
+  readonly items: readonly <%= classPrefix %>StatusItem[];
+  readonly errorMessage: string | null;
+}
+
+export function use<%= classPrefix %>Status(): <%= classPrefix %>StatusState {
+  const http = useHttp();
+  const httpCapability = http as unknown as HttpCapability;
+  const repository = useMemo(
+    () => create<%= classPrefix %>Repository(httpCapability),
+    [httpCapability],
+  );
+  const [state, setState] = useState<<%= classPrefix %>StatusState>({
+    loading: true,
+    refreshing: false,
+    permissionDenied: false,
+    items: [],
+    errorMessage: null,
+  });
+
+  useEffect(() => {
+    let active = true;
+    setState((current) => ({
+      ...current,
+      loading: current.items.length === 0,
+      refreshing: current.items.length > 0,
+      errorMessage: null,
+    }));
+
+    repository.listStatus()
+      .then((items) => {
+        if (!active) {
+          return;
+        }
+        setState({
+          loading: false,
+          refreshing: false,
+          permissionDenied: false,
+          items,
+          errorMessage: null,
+        });
+      })
+      .catch((error: unknown) => {
+        if (!active) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : 'Request failed';
+        setState({
+          loading: false,
+          refreshing: false,
+          permissionDenied: message.includes('403'),
+          items: [],
+          errorMessage: message,
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [repository]);
+
+  return state;
+}

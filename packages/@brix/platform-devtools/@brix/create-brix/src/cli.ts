@@ -24,9 +24,9 @@
  * - app command added --with-server, --with-shared, --with-ui-mobile, --with-pact options
  * 
  * v3.0 supports three generation types:
- * - plugin: Plugin skeleton (v2.x legacy architecture, pure JAR, depends only on platform-common)
- * - service: Service skeleton (v2.x legacy architecture, runnable, depends on platform-common-starter)
- * - app: Business application module (v3.0 new architecture, follows Runtime Shell capability contracts)
+ * - plugin: legacy/migration-only entry, disabled by Runtime Shell v3.0.10 Phase 0
+ * - service: legacy/migration-only entry, disabled by Runtime Shell v3.0.10 Phase 0
+ * - app: legacy template entry, disabled until governed v3.0.10 templates are delivered
  */
 
 import { Command } from 'commander';
@@ -44,8 +44,15 @@ import {
   confirmAppConfig,
   printAppConfigSummary,
 } from './prompts.js';
-import { generatePlugin, generateService, generateApp } from './generator.js';
-import type { PluginConfig, ServiceConfig, AppConfig } from './types.js';
+import {
+  createDefaultGovernedScaffoldConfig,
+  generateGovernedScaffold,
+  generatePlugin,
+  generateService,
+  generateApp,
+  writeLegacyScanReport,
+} from './generator.js';
+import type { PluginConfig, ServiceConfig, AppConfig, GovernedScaffoldKind } from './types.js';
 
 // Version number
 const __filename = fileURLToPath(import.meta.url);
@@ -74,10 +81,11 @@ function printBanner(): void {
   �U                                                                  �U
   �U  ${chalk.bold(versionText)}${padding}�U
   �U                                                                  �U
-  �U  v3.0 Runtime Shell Architecture + v2.x Compatibility Mode       �U
-  �U  �� app     - Business App Module (v3.0 Recommended, Runtime Shell)�U
-  �U  �� plugin  - Plugin Skeleton (v2.x Compatible, Pure JAR)         �U
-  �U  �� service - Service Skeleton (v2.x Compatible, Runnable)        �U
+  �U  v3.0.10 Runtime Shell Architecture + Phase 0 Template Freeze     �U
+  �U  �� phase7  - Governed Plugin / Operational / UI scaffolds         �U
+  �U  �� app     - Legacy template entry, disabled until replacement   �U
+  �U  �� plugin  - Legacy/migration-only entry, disabled               �U
+  �U  �� service - Legacy/migration-only entry, disabled               �U
   �U                                                                  �U
   �^�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�a
   `));
@@ -252,15 +260,8 @@ function printServiceNextSteps(config: ServiceConfig): void {
 /**
  * Create business application command (v3.0 architecture)
  * 
- * Generates business application modules following the v3.0 Runtime Shell architecture, including:
- * - module-manifest.yaml (module declaration file)
- * - {name}-api (API module)
- * - {name}-core (business logic module)
- * - {name}-server (REST Controller module)
- * - {name}-shared (frontend-backend shared types module)
- * - {name}-ui-web (UI module)
- * - {name}-ui-mobile (mobile UI module)
- * - {name}-app (standalone runnable module)
+ * This legacy template entry is frozen by Runtime Shell v3.0.10 Phase 0.
+ * It remains listed so callers receive a deterministic fail-fast diagnostic.
  */
 async function createApp(name?: string, options?: {
   withApi?: boolean;
@@ -352,13 +353,107 @@ function printAppNextSteps(config: AppConfig): void {
 // Configure command line
 program
   .name('create-brix')
-  .description('Brix Platform Scaffolding - Create business applications, plugins and services')
+  .description('Brix Platform Scaffolding - governed Phase 7 templates plus frozen legacy inventory')
   .version(VERSION);
+
+// ===== Runtime Shell v3.0.10 Phase 7 Governed Scaffolding =====
+program
+  .command('phase7 <kind> <name>')
+  .description('Generate a governed Runtime Shell v3.0.10 scaffold: plugin | operational | ui')
+  .option('-o, --output-dir <dir>', 'Output directory', '.')
+  .option('--display-name <name>', 'Display name')
+  .option('--description <text>', 'Description')
+  .option('--owner <owner>', 'Owning team or module owner', 'architecture-governance')
+  .option('--vendor <vendor>', 'Vendor id', 'brix')
+  .option('--license <license>', 'SPDX license id', 'Apache-2.0')
+  .option('--version <version>', 'Generated module version', '0.1.0')
+  .option('--runtime-version <version>', 'Exact Runtime/L2A version', '3.0.10')
+  .option('--runtime-range <range>', 'Brix Range v1 Runtime support range', '>=3.0.10 <4.0.0')
+  .option('--permission <id>', 'Permission id')
+  .option('--endpoint-path <path>', 'HTTP endpoint path')
+  .option('--endpoint-method <method>', 'HTTP endpoint method', 'GET')
+  .option('--reliable-messaging', 'Include reliable messaging descriptor sections', false)
+  .option('--no-migration-plan', 'Do not write phase7 migration plan')
+  .action(async (kind: string, name: string, options: {
+    outputDir: string;
+    displayName?: string;
+    description?: string;
+    owner: string;
+    vendor: string;
+    license: string;
+    version: string;
+    runtimeVersion: string;
+    runtimeRange: string;
+    permission?: string;
+    endpointPath?: string;
+    endpointMethod: string;
+    reliableMessaging: boolean;
+    migrationPlan: boolean;
+  }) => {
+    printBanner();
+    const validKinds: readonly GovernedScaffoldKind[] = ['plugin', 'operational', 'ui'];
+    if (!validKinds.includes(kind as GovernedScaffoldKind)) {
+      console.error(chalk.red(`Error: Invalid Phase 7 scaffold kind "${kind}"`));
+      console.log(chalk.gray(`Supported kinds: ${validKinds.join(', ')}`));
+      process.exit(1);
+    }
+
+    const config = createDefaultGovernedScaffoldConfig(
+      kind as GovernedScaffoldKind,
+      name,
+      options.outputDir,
+    );
+    config.displayName = options.displayName ?? config.displayName;
+    config.description = options.description ?? config.description;
+    config.owner = options.owner;
+    config.vendor = options.vendor;
+    config.license = options.license;
+    config.version = options.version;
+    config.runtimeVersion = options.runtimeVersion;
+    config.runtimeRange = options.runtimeRange;
+    config.permissionId = options.permission ?? config.permissionId;
+    config.endpointPath = options.endpointPath ?? config.endpointPath;
+    config.endpointMethod = options.endpointMethod.toUpperCase() as typeof config.endpointMethod;
+    config.includeReliableMessaging = options.reliableMessaging;
+    config.writeMigrationPlan = options.migrationPlan;
+
+    const spinner = ora(`Generating governed ${kind} scaffold...`).start();
+    try {
+      await generateGovernedScaffold(config);
+      spinner.succeed(chalk.green(`Governed ${kind} scaffold created.`));
+      console.log(chalk.gray(`\nLocation: ${config.outputDir}`));
+      console.log(chalk.gray('Legacy entries remain migration-only and disabled.'));
+    } catch (err) {
+      spinner.fail(chalk.red(`Creation failed: ${err}`));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('legacy-scan <path>')
+  .description('Scan legacy scaffolds and write a Phase 7 migration inventory report')
+  .option('-o, --output <file>', 'Report output file', 'phase7-legacy-scan-report.json')
+  .action(async (path: string, options: { output: string }) => {
+    printBanner();
+    const spinner = ora('Scanning legacy scaffold structures...').start();
+    try {
+      const report = await writeLegacyScanReport(path, options.output);
+      const blocking = report.findings.filter((finding) => finding.severity === 'blocking').length;
+      spinner.succeed(chalk.green(`Legacy scan completed with ${blocking} blocking finding(s).`));
+      console.log(chalk.gray(`Report: ${options.output}`));
+      if (blocking > 0) {
+        process.exitCode = 2;
+      }
+    } catch (err) {
+      spinner.fail(chalk.red(`Scan failed: ${err}`));
+      process.exit(1);
+    }
+  });
 
 // ===== v3.0 Recommended: Create Business Application Command =====
 program
   .command('app [name]')
-  .description('[v3.0 Recommended] Create business application module (follows Runtime Shell architecture)')
+  .description('[legacy/migration-only] Disabled until governed v3.0.10 templates are delivered')
   .option('--with-api', 'Include API module', true)
   .option('--no-with-api', 'Exclude API module')
   .option('--with-core', 'Include Core module', true)
@@ -450,10 +545,10 @@ program
     }
   });
 
-// ===== v2.x Compatible: Create Plugin Command =====
+// ===== legacy/migration-only: Create Plugin Command =====
 program
   .command('plugin [name]')
-  .description('[v2.x Compatible] Create plugin skeleton')
+  .description('[legacy/migration-only] Disabled by Runtime Shell v3.0.10 Phase 0')
   .option('-f, --flyway-prefix <prefix>', 'Flyway version prefix (3 digits)')
   .option('--with-web', 'Include Web frontend module', true)
   .option('--no-with-web', 'Exclude Web frontend module')
@@ -466,10 +561,10 @@ program
   .option('--dry-run', 'Preview only, do not create files')
   .action(createPlugin);
 
-// ===== v2.x Compatible: Create Service Command =====
+// ===== legacy/migration-only: Create Service Command =====
 program
   .command('service [name]')
-  .description('[v2.x Compatible] Create service skeleton')
+  .description('[legacy/migration-only] Disabled by Runtime Shell v3.0.10 Phase 0')
   .option('-p, --port <port>', 'Service port number', parseInt)
   .option('--plugins <plugins>', 'Dependent plugins list (comma-separated)')
   .option('--with-docker', 'Generate Docker configuration', true)

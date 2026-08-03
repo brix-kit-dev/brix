@@ -8,8 +8,10 @@ package io.runtime.orchestrator.operational;
 
 import java.net.URL;
 import java.security.CodeSource;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -237,6 +239,7 @@ public final class OperationalModuleRuntimeManager {
             if (providerStarted) {
                 safeStop(module);
             }
+            releaseResources(module);
             module.state = state(
                 module,
                 false,
@@ -321,14 +324,17 @@ public final class OperationalModuleRuntimeManager {
             EndpointHandler<?, ?> handler = Objects.requireNonNull(
                 entry.getValue().create(context),
                 "Operational endpoint factory returned null");
+            module.resources.addFirst(handler);
             handlers.put(entry.getKey(), handler);
         }
         Map<String, ManagedTask> tasks = new LinkedHashMap<>();
         for (Map.Entry<String, OperationalHandlerFactory<? extends ManagedTask>> entry
                 : module.bootstrap.taskFactories().entrySet()) {
-            tasks.put(entry.getKey(), Objects.requireNonNull(
+            ManagedTask task = Objects.requireNonNull(
                 entry.getValue().create(context),
-                "Operational task factory returned null"));
+                "Operational task factory returned null");
+            module.resources.addFirst(task);
+            tasks.put(entry.getKey(), task);
         }
         List<EndpointRoute> routes = new ArrayList<>();
         for (OperationalModuleDescriptor.EndpointDeclaration declaration
@@ -415,6 +421,7 @@ public final class OperationalModuleRuntimeManager {
         if (providerStarted) {
             safeStop(module);
         }
+        releaseResources(module);
         module.state = state(
             module,
             false,
@@ -454,6 +461,25 @@ public final class OperationalModuleRuntimeManager {
         } catch (RuntimeException e) {
             log.warn("Operational module '{}' failed during stop: {}", module.id(), e.getMessage(), e);
         }
+    }
+
+    private void releaseResources(ManagedModule module) {
+        while (!module.resources.isEmpty()) {
+            Object resource = module.resources.removeFirst();
+            if (resource instanceof AutoCloseable closeable) {
+                try {
+                    closeable.close();
+                } catch (Exception e) {
+                    log.warn(
+                        "Operational module '{}' failed to close Runtime-managed resource: {}",
+                        module.id(),
+                        e.getMessage(),
+                        e);
+                }
+            }
+        }
+        module.routes = List.of();
+        module.tasks = Map.of();
     }
 
     private boolean isRequired(ManagedModule module) {
@@ -546,6 +572,7 @@ public final class OperationalModuleRuntimeManager {
         private OperationalContext context;
         private List<EndpointRoute> routes = List.of();
         private Map<String, ManagedTask> tasks = Map.of();
+        private final Deque<Object> resources = new ArrayDeque<>();
         private OperationalModuleRuntimeState state;
 
         private ManagedModule(

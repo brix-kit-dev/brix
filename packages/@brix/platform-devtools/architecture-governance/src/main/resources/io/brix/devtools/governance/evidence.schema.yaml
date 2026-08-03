@@ -1,0 +1,56 @@
+schemaVersion: 1
+kind: BrixArchitectureEvidence
+requiredFields:
+  - baselineId
+  - commitId
+  - evidence
+  - coverage
+  - supplyChain
+  - waivers
+evidenceRequiredFields:
+  - requirementId
+  - artifact
+  - executor
+  - status
+  - selectedTargetCount
+  - evidenceUri
+  - producedAt
+  - validFor
+coverageRequiredFields:
+  - artifact
+  - requiredExecutors
+  - executedExecutors
+supplyChainRequiredFields:
+  - artifact
+  - lockedDependencies
+  - lockEvidenceUri
+  - sbomUri
+  - licenseReportUri
+  - scaReportUri
+  - digest
+  - signatureUri
+  - provenanceUri
+  - trustedCi
+  - producedAt
+  - validFor
+waiverRequiredFields:
+  - requirementId
+  - artifact
+  - owner
+  - reason
+  - risk
+  - compensatingControl
+  - expiresAt
+  - approver
+  - priority
+allowedStatuses:
+  - enforced-passing
+  - missing-blocking
+  - partial
+  - failing
+  - waived-until
+  - not-applicable
+requiredReportFormats:
+  - json
+  - sarif
+  - markdown

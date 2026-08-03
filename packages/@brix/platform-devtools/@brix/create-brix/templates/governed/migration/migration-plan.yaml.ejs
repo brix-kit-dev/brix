@@ -1,0 +1,37 @@
+apiVersion: brix.io/phase7-migration-plan/v1
+kind: Phase7MigrationPlan
+metadata:
+  moduleId: <%= moduleId %>
+  generatedAt: <%= date %>
+  owner: <%= owner %>
+baseline:
+  root: runtime-shell@3.0.10
+  frontend: frontend@1.1
+  superAdmin: super-admin@3.0
+  multiTenant: multi-tenant@4.0
+scope:
+  scaffoldKind: <%= kind %>
+  descriptorPath: <%= descriptorPath %>
+batches:
+  - id: batch-1-descriptor-resource-paths
+    objective: Move active declarations to the fixed descriptor path and remove legacy module declaration inputs.
+    expiresAfter: 30d
+  - id: batch-2-runtime-entry-binding
+    objective: Bind only descriptor-declared Runtime Entries through the Runtime Shell lifecycle.
+    expiresAfter: 45d
+  - id: batch-3-frontend-layering-and-ui-manifest
+    objective: Align UI routes, guards, repositories, and BrixUI usage with frontend 1.1.
+    expiresAfter: 45d
+  - id: batch-4-reliable-message-and-data-owner-evidence
+    objective: Close Data Owner, migration, Outbox, Inbox, and transaction evidence where applicable.
+    expiresAfter: 60d
+acceptance:
+  requires:
+    - Phase 1 descriptor and artifact graph gates
+    - Phase 2 Java static boundary gates
+    - Phase 3 Runtime startup and operational contract gates
+    - Phase 4 Data Owner and reliable message gates when data or events exist
+    - Phase 5 frontend gates when UI exists
+    - Phase 6 evidence and supply-chain gates
+  notes:
+    - Scanner reports inventory migration risk and do not mark a module accepted.

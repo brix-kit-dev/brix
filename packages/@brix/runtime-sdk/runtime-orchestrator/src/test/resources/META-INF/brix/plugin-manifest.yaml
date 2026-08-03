@@ -15,6 +15,8 @@ modules:
     artifactId: service-loaded-test
     version: 3.0.10
     moduleKind: plugin-server
+endpoints:
+  provides: []
 capabilities:
   required:
     - id: TestCapability
@@ -31,3 +33,5 @@ commands:
 events:
   publishes: []
   subscribes: []
+tasks:
+  provides: []

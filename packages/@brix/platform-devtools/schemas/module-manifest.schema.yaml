@@ -1,9 +1,11 @@
 # ============================================================================
-# Brix Legacy Module Manifest Schema
+# Brix Legacy Module Manifest Schema (migration-only)
 # ============================================================================
 # YAML Schema definition for module-manifest.yaml. Under the v3.0.10 Runtime
 # Shell baseline this schema is retained for compatibility only; migrated
-# plugins use META-INF/plugin-manifest.yaml after the manifest migration phase.
+# plugins use META-INF/brix/plugin-manifest.yaml and platform operational
+# modules use META-INF/brix/platform-operational.yaml. This file MUST NOT be
+# consumed as an ACTIVE Runtime descriptor.
 #
 # Applies to: app-*/module-manifest.yaml
 # Version: 3.2.0

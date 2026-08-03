@@ -109,6 +109,7 @@ public final class HostBootstrapCoordinator {
         } catch (RuntimeException e) {
             endpointDispatcher.clear();
             runtimeView.ready(false);
+            candidate.completeStartupFailure(e);
             operationalModules.stop();
             plugins.stop();
             throw e;
@@ -165,6 +166,10 @@ public final class HostBootstrapCoordinator {
      */
     public synchronized List<OperationalModuleRuntimeState> operationalStates() {
         return operationalModules.states();
+    }
+
+    RuntimeShellBootstrapHandle currentHandle() {
+        return handle;
     }
 
     private synchronized void stop() {

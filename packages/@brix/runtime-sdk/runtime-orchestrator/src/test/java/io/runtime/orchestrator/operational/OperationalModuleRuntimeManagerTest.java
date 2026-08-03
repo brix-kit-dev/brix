@@ -20,6 +20,8 @@ import io.runtime.orchestrator.bootstrap.HostRuntimeOperationalView;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
+import io.runtime.sdk.plugin.EndpointHandler;
+import io.runtime.sdk.plugin.ManagedTask;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 
 class OperationalModuleRuntimeManagerTest {
@@ -134,6 +136,55 @@ class OperationalModuleRuntimeManagerTest {
 
         manager.startPrepared();
         assertTrue(factoryInvoked.get());
+    }
+
+    @Test
+    void startupFailureReleasesCreatedOperationalResourcesInReverseOrder() {
+        List<String> closeOrder = new java.util.ArrayList<>();
+        PlatformOperationalModule provider = new PlatformOperationalModule() {
+            @Override
+            public void configure(OperationalBootstrapContext bootstrap) {
+                bootstrap.bindEndpointHandlerFactory(
+                    "runtime.status",
+                    context -> new CloseableEndpoint(closeOrder, "endpoint"));
+                bootstrap.bindTaskFactory(
+                    "runtime.task",
+                    context -> new CloseableTask(closeOrder, "task"));
+            }
+
+            @Override
+            public void onStart(OperationalContext context) {
+                throw new OperationalRuntimeException(
+                    "operational.start.injected_failure",
+                    "Injected startup failure");
+            }
+
+            @Override
+            public void onStop() {
+            }
+
+            @Override
+            public io.runtime.sdk.plugin.BrixHealth health() {
+                return io.runtime.sdk.plugin.BrixHealth.up();
+            }
+        };
+        var discovered = new ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule(
+            provider,
+            descriptorWithTask("resource-cleanup-test"),
+            provider.getClass().getProtectionDomain().getCodeSource().getLocation());
+        OperationalModuleRuntimeManager manager = manager(
+            () -> List.of(discovered),
+            List.of("resource-cleanup-test"));
+
+        manager.prepare();
+        OperationalRuntimeException failure =
+            assertThrows(OperationalRuntimeException.class, manager::startPrepared);
+
+        assertEquals("operational.start.injected_failure", failure.diagnosticCode());
+        assertEquals(PluginLifecycleState.STOPPED, manager.states().get(0).lifecycleState());
+        assertFalse(manager.states().get(0).entriesPublished());
+        assertTrue(manager.preparedRoutes().isEmpty());
+        assertEquals(List.of("task", "endpoint"), closeOrder);
     }
 
     @Test
@@ -255,6 +306,26 @@ class OperationalModuleRuntimeManagerTest {
             java.util.Map.of());
     }
 
+    private OperationalModuleDescriptor descriptorWithTask(String id) {
+        var endpoint = new OperationalModuleDescriptor.EndpointDeclaration(
+            "runtime.status.v1",
+            "GET",
+            "/api/platform/runtime/status",
+            "runtime.status",
+            "runtime-status-read");
+        var task = new OperationalModuleDescriptor.TaskDeclaration(
+            "runtime.task.v1",
+            "runtime.task");
+        return new OperationalModuleDescriptor(
+            new OperationalModuleIdentity(id, "3.2.0", "runtime-tests"),
+            ">=3.2.0 <4.0.0",
+            List.of(),
+            List.of(),
+            java.util.Set.of(),
+            java.util.Map.of(endpoint.endpointId(), endpoint),
+            java.util.Map.of(task.taskId(), task));
+    }
+
     private PlatformOperationalModule operationalModuleWithoutBindings() {
         return new PlatformOperationalModule() {
             @Override
@@ -274,5 +345,44 @@ class OperationalModuleRuntimeManagerTest {
                 return io.runtime.sdk.plugin.BrixHealth.up();
             }
         };
+    }
+
+    private static final class CloseableEndpoint implements EndpointHandler<Object, Object>, AutoCloseable {
+        private final List<String> closeOrder;
+        private final String name;
+
+        private CloseableEndpoint(List<String> closeOrder, String name) {
+            this.closeOrder = closeOrder;
+            this.name = name;
+        }
+
+        @Override
+        public Object handle(Object request) {
+            return "ok";
+        }
+
+        @Override
+        public void close() {
+            closeOrder.add(name);
+        }
+    }
+
+    private static final class CloseableTask implements ManagedTask, AutoCloseable {
+        private final List<String> closeOrder;
+        private final String name;
+
+        private CloseableTask(List<String> closeOrder, String name) {
+            this.closeOrder = closeOrder;
+            this.name = name;
+        }
+
+        @Override
+        public void run() {
+        }
+
+        @Override
+        public void close() {
+            closeOrder.add(name);
+        }
     }
 }

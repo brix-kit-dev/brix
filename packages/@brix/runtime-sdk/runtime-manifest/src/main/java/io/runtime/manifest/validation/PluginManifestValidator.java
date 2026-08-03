@@ -184,14 +184,15 @@ public final class PluginManifestValidator {
                 result.addError(prefix, "Event publish declaration is required");
                 continue;
             }
-            requirePresent(result, prefix + ".id", publish.getId());
+            requirePresent(result, prefix + ".eventType", publish.getEventType());
+            requirePresent(result, prefix + ".schemaRef", publish.getSchemaRef());
             validateSemVer(result, prefix + ".version", publish.getVersion());
             requireReliability(result, prefix + ".reliability", publish.getReliability());
             if (isPersistentReliability(publish.getReliability())) {
                 persistentPublisher = true;
             }
-            if (publish.getId() != null && !publishIds.add(publish.getId())) {
-                result.addError(prefix + ".id", "Duplicate published event id: " + publish.getId());
+            if (publish.getEventType() != null && !publishIds.add(publish.getEventType())) {
+                result.addError(prefix + ".eventType", "Duplicate published event type: " + publish.getEventType());
             }
         }
 

@@ -150,7 +150,7 @@ public final class PlatformTenantReliableEventBusCapability implements EventBusC
     private EventPolicy resolvePolicy(IntegrationEvent event) {
         String eventType = eventTypeId(event);
         PluginManifest.EventPublish publish = publications().stream()
-            .filter(candidate -> eventType.equals(candidate.getId()))
+            .filter(candidate -> eventType.equals(candidate.getEventType()))
             .findFirst()
             .orElseThrow(() -> new EventPublishException(event.getEventId(),
                 "Integration event is not declared in platform-tenant manifest: " + eventType, null));
@@ -161,7 +161,7 @@ public final class PlatformTenantReliableEventBusCapability implements EventBusC
             throw new EventPublishException(event.getEventId(),
                 "Invalid manifest reliability for integration event: " + eventType, ex);
         }
-        return new EventPolicy(publish.getId(), publish.getVersion(), reliability);
+        return new EventPolicy(publish.getEventType(), publish.getVersion(), reliability);
     }
 
     private List<PluginManifest.EventPublish> publications() {

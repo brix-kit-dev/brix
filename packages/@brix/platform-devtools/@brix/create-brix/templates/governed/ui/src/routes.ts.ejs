@@ -1,0 +1,9 @@
+import type { RouteObject } from 'react-router-dom';
+import { <%= classPrefix %>StatusPage } from './pages/<%= classPrefix %>StatusPage';
+
+export const <%= classPrefix.charAt(0).toLowerCase() + classPrefix.slice(1) %>Routes: readonly RouteObject[] = [
+  {
+    path: '/<%= name %>',
+    element: <<%= classPrefix %>StatusPage />,
+  },
+];

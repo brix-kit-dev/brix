@@ -95,13 +95,16 @@ class PluginManifestSchemaTest {
               "events": {
                 "publishes": [
                   {
-                    "id": "TenantFirstOwnerAccepted",
+                    "eventType": "TenantFirstOwnerAccepted",
+                    "schemaRef": "brix://schemas/platform-tenant/tenant-first-owner-accepted/1.0.0",
                     "version": "1.0.0",
                     "reliability": "CRITICAL"
                   }
                 ],
                 "subscribes": []
               },
+              "endpoints": {"provides": []},
+              "tasks": {"provides": []},
               "data": {
                 "storageId": "platform_tenant",
                 "outbox": "platform_tenant_outbox",
@@ -115,7 +118,7 @@ class PluginManifestSchemaTest {
         return manifestWithReliability().replace("""
                     "reliability": "CRITICAL"
             """, """
-                    "schema": "classpath:/events/TenantFirstOwnerAccepted.json"
+                    "schemaRef": "brix://schemas/platform-tenant/tenant-first-owner-accepted/1.0.0"
             """);
     }
 
@@ -157,15 +160,15 @@ class PluginManifestSchemaTest {
                     "authorization": {"permissions": ["app-booking:template:read"]},
                     "tenantContext": {"mode": "optional"},
                     "timeout": {"policyRef": "endpoint-default"},
-                    "idempotency": {"mode": "not-applicable"},
-                    "accessPolicy": "app-booking-template-read"
+                    "idempotency": {"mode": "not-applicable"}
                   }
                 ]
               },
               "capabilities": {"required": [], "optional": []},
               "queries": {"provides": [], "consumes": []},
               "commands": {"provides": [], "consumes": []},
-              "events": {"publishes": [], "subscribes": []}
+              "events": {"publishes": [], "subscribes": []},
+              "tasks": {"provides": []}
             }
             """;
     }

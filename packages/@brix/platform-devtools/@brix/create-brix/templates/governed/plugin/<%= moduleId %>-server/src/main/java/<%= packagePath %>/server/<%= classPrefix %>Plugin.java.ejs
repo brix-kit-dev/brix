@@ -1,0 +1,33 @@
+package <%= packageName %>.server;
+
+import io.runtime.sdk.plugin.BrixHealth;
+import io.runtime.sdk.plugin.BrixPlugin;
+import io.runtime.sdk.plugin.PluginBootstrapContext;
+import io.runtime.sdk.plugin.PluginContext;
+
+/**
+ * Runtime Shell entry point for <%= displayName %>.
+ *
+ * <p>The plugin manifest is the declaration source of truth. This lifecycle
+ * provider performs no business work in Host startup and does not access
+ * infrastructure or other plugin implementations.</p>
+ */
+public final class <%= classPrefix %>Plugin implements BrixPlugin {
+
+    @Override
+    public void configure(PluginBootstrapContext bootstrap) {
+    }
+
+    @Override
+    public void onStart(PluginContext context) {
+    }
+
+    @Override
+    public void onStop() {
+    }
+
+    @Override
+    public BrixHealth health() {
+        return BrixHealth.up();
+    }
+}
