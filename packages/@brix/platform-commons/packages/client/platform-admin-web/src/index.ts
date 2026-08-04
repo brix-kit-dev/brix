@@ -20,7 +20,6 @@
 
 export * from './constants';
 export * from './types';
-export * from './guards';
 export * from './ui-manifest';
 export { I18N_NAMESPACE, I18N_KEYS, makeT, type I18nTuple } from './i18n';
 export {

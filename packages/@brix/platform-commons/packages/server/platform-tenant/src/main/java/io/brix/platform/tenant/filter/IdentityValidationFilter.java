@@ -42,8 +42,8 @@ import jakarta.servlet.http.HttpServletResponse;
  * <h3>Architecture Position</h3>
  * <ul>
  *   <li><b>Layer</b>: 2C — Platform Commons (platform-tenant)</li>
- *   <li><b>Blueprint ref</b>: v3.0.9 Section 5.8 / P2-8 — AuthFilter dual-branch verification</li>
- *   <li><b>Check item</b>: R16.14</li>
+ *   <li><b>Blueprint ref</b>: multi-tenant v4.0 — Actor/Subject member-principal validation</li>
+ *   <li><b>Check item</b>: T-5/T-11/T-22</li>
  * </ul>
  *
  * <h3>Why a separate filter instead of modifying SecurityContextFilter?</h3>

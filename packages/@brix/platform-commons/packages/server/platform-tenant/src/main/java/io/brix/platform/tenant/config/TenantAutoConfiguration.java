@@ -60,7 +60,6 @@ import io.brix.platform.tenant.repository.PlatformTenantInboxRepository;
 import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
 import io.brix.platform.tenant.repository.SetupTokenRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
-import io.brix.platform.tenant.repository.TenantConfigRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
@@ -75,19 +74,15 @@ import io.brix.platform.tenant.service.PlatformBootstrapAdministrationService;
 import io.brix.platform.tenant.service.PlatformIdentityAdministrationService;
 import io.brix.platform.tenant.service.PlatformMfaLoginSupport;
 import io.brix.platform.tenant.service.TenantAdministrationService;
-import io.brix.platform.tenant.service.TenantConfigCapabilityImpl;
 import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
 import io.brix.platform.tenant.service.TenantQuotaService;
-import io.brix.platform.tenant.service.TenantSettingsService;
-import io.brix.platform.tenant.service.TenantSettingsServiceImpl;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TenantCapability;
-import io.runtime.sdk.capability.TenantConfigCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.TotpCapability;
 
@@ -174,7 +169,6 @@ import io.runtime.sdk.capability.TotpCapability;
 })
 @ComponentScan(basePackages = {
     "io.brix.platform.tenant.aspect",
-    "io.brix.platform.tenant.controller",
     "io.brix.platform.tenant.service",
     "io.brix.platform.tenant.validation",
     "io.brix.platform.tenant.interceptor",
@@ -566,89 +560,6 @@ public class TenantAutoConfiguration {
             IdGenerator idGenerator) {
         log.debug("Registering AuditService");
         return new AuditServiceImpl(auditLogRepository, idGenerator);
-    }
-
-    /**
-     * Phase 2 / C-4 — Registers the {@link ViewModeCapability} bean.
-     *
-     * <p>Wires the capability contract to the platform-auth + audit
-     * infrastructure so platform admins may explicitly switch view
-     * perspective and have every switch recorded for compliance.</p>
-     *
-     * @param securityContextHolder    thread-local security context
-     * @param jwtIssuerCapability      issues platform-admin viewing tokens
-     * @param identityTenantCapability looks up the originating identity record
-     * @param auditService             records the view-mode switch
-     * @return configured ViewModeCapability implementation
-     */
-    @Bean
-    @ConditionalOnMissingBean(io.runtime.sdk.capability.ViewModeCapability.class)
-    @ConditionalOnBean({
-            io.runtime.sdk.capability.JwtIssuerCapability.class,
-            io.runtime.sdk.capability.IdentityTenantCapability.class
-    })
-    public io.runtime.sdk.capability.ViewModeCapability viewModeCapability(
-            SecurityContextHolder securityContextHolder,
-            io.runtime.sdk.capability.JwtIssuerCapability jwtIssuerCapability,
-            io.runtime.sdk.capability.IdentityTenantCapability identityTenantCapability,
-            AuditService auditService) {
-        log.info("Registering ViewModeCapabilityImpl (Phase 2 / C-4)");
-        return new io.brix.platform.tenant.service.ViewModeCapabilityImpl(
-                securityContextHolder,
-                jwtIssuerCapability,
-                identityTenantCapability,
-                auditService);
-    }
-
-    /**
-     * Creates the TenantSettingsService bean.
-     *
-     * <p>This service handles tenant settings, user preferences,
-     * branding, and namespace configuration with three-layer merge.</p>
-     *
-     * @param tenantRepository         repository for tenant entities
-     * @param tenantConfigRepository   repository for tenant config entries
-     * @param bizUserProfileRepository repository for user profiles (preferences)
-     * @param idGenerator              ID generator for new config entries
-     * @param objectMapper             JSON serializer for JSONB fields
-     * @return configured TenantSettingsService
-     */
-    @Bean
-    @ConditionalOnMissingBean(TenantSettingsService.class)
-    public TenantSettingsService tenantSettingsService(
-            TenantRepository tenantRepository,
-            TenantConfigRepository tenantConfigRepository,
-            BizUserProfileRepository bizUserProfileRepository,
-            IdGenerator idGenerator,
-            ObjectMapper objectMapper) {
-        log.debug("Registering TenantSettingsService");
-        return new TenantSettingsServiceImpl(
-            tenantRepository,
-            tenantConfigRepository,
-            bizUserProfileRepository,
-            idGenerator,
-            objectMapper
-        );
-    }
-
-    /**
-     * Creates the TenantConfigCapability bean (SDK contract implementation).
-     *
-     * <p>Bridges the Runtime SDK {@link TenantConfigCapability} contract to
-     * the platform-tenant {@link TenantSettingsService}. Resolves current
-     * tenant/user from TenantContext ThreadLocal.</p>
-     *
-     * @param settingsService the tenant settings service
-     * @param objectMapper    JSON serializer for value conversion
-     * @return configured TenantConfigCapability implementation
-     */
-    @Bean
-    @ConditionalOnMissingBean(TenantConfigCapability.class)
-    public TenantConfigCapability tenantConfigCapability(
-            TenantSettingsService settingsService,
-            ObjectMapper objectMapper) {
-        log.debug("Registering TenantConfigCapabilityImpl");
-        return new TenantConfigCapabilityImpl(settingsService, objectMapper);
     }
 
     // ========================================================================

@@ -25,9 +25,7 @@ import io.brix.platform.tenant.entity.BizUserProfile;
 /**
  * Repository for BizUserProfile entity operations.
  *
- * <p>Provides data access for the {@code biz_user_profile} table,
- * primarily used by {@code TenantSettingsService} to read and update
- * user preferences for the three-layer configuration merge.</p>
+ * <p>Provides data access for the {@code biz_user_profile} table.</p>
  *
  * <h3>Architecture Layer</h3>
  * <p>Layer 2C: Platform Commons — data access for user profiles.</p>

@@ -38,8 +38,6 @@ import io.runtime.sdk.capability.TenantCapability;
  *
  * <h3>Architecture Compliance</h3>
  * <ul>
- *   <li>Blueprint v3.0.9 Section 14.1: Three-layer identity model —
- *       TenantCapability implements the "Membership" layer</li>
  *   <li>Blueprint Constraint: All tenant resolution goes through
  *       the formal capability contract, not direct TenantContext access</li>
  *   <li>Phase 1.5: Formal TenantCapabilityImpl bridging TenantContext</li>
@@ -47,10 +45,9 @@ import io.runtime.sdk.capability.TenantCapability;
  *
  * <h3>Resolution Flow</h3>
  * <pre>
- * HTTP Request → TenantFilter → TenantResolverChain → TenantContext (ThreadLocal)
- *                                                          ↑
- *                                                  TenantCapabilityImpl
- *                                                  (reads from ThreadLocal)
+ * Runtime-verified invocation context → TenantContext (private carrier)
+ *                                                   ↑
+ *                                           TenantCapabilityImpl
  * </pre>
  *
  * <h3>Thread Safety</h3>
@@ -126,9 +123,8 @@ public class TenantCapabilityImpl implements TenantCapability {
     /**
      * {@inheritDoc}
      *
-     * <p>Reads the tenant ID from {@link TenantContext} ThreadLocal storage.
-     * The tenant context is established by the TenantFilter/TenantResolverChain
-     * earlier in the request lifecycle.</p>
+     * <p>Reads the tenant ID from {@link TenantContext} private carrier
+     * populated by Runtime-verified invocation context.</p>
      *
      * @throws TenantResolutionException if no tenant context has been established
      */
@@ -139,8 +135,7 @@ public class TenantCapabilityImpl implements TenantCapability {
                     log.warn("Tenant resolution failed: no tenant context in current thread [{}]",
                             Thread.currentThread().getName());
                     return new TenantResolutionException(
-                            "No tenant context available. Ensure the request passes through " +
-                            "TenantFilter or tenant context is explicitly set for background tasks.");
+                            "No tenant context available. Ensure Runtime established a verified invocation context.");
                 });
     }
 
@@ -179,9 +174,8 @@ public class TenantCapabilityImpl implements TenantCapability {
      * {@inheritDoc}
      *
      * <p>Delegates to {@link TenantContext#setTenantId(String)} to populate the
-     * ThreadLocal-based tenant context. This is used by unauthenticated request paths
-     * (e.g., OAuth2 callbacks) where the TenantFilter cannot resolve tenant from
-     * JWT claims or HTTP headers.</p>
+     * ThreadLocal-based tenant context. This is a compatibility method for
+     * Runtime-owned context setup, not a plugin authority override path.</p>
      *
      * @throws IllegalArgumentException if tenantId is null or blank
      */

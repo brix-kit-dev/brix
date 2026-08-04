@@ -1,7 +1,7 @@
 # @brix-sdk/platform-admin-web
 
-Platform Super-Admin Web SDK: manifest-backed route assembly, route guards and
-contract types for the `platform-admin` backend module.
+Platform Super-Admin Web SDK: manifest-backed route assembly and contract types
+for the `platform-admin` backend module.
 
 This package implements the active v3.0.10 Runtime Shell frontend slice for the
 platform administration UI.

@@ -36,13 +36,11 @@ import jakarta.persistence.UniqueConstraint;
  * User Profile Entity — per-tenant user profile with preferences.
  *
  * <p>Maps to the {@code biz_user_profile} table (created in V009).
- * This entity provides access to the user's preferences JSONB column
- * for the three-layer configuration merge:
- * {@code effectiveValue = userPreference ?? tenantConfig ?? platformDefault}.</p>
+ * This entity stores the tenant-local profile row created for Actor or Subject
+ * access contexts.</p>
  *
  * <h3>Architecture Layer</h3>
- * <p>Layer 2C: Platform Commons entity — used by TenantSettingsService
- * for user preference reads/writes.</p>
+ * <p>Layer 2C: Platform Commons entity — owned by platform-tenant.</p>
  *
  * <h3>Actor/Subject Reference Model</h3>
  * <pre>

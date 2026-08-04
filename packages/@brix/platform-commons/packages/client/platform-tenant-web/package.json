@@ -1,7 +1,7 @@
 {
   "name": "@brix-sdk/platform-tenant-web",
   "version": "3.2.0",
-  "description": "Web Tenant Capability Implementation - Multi-tenant context and useTenant Hook",
+  "description": "Tenant web plugin contract for FIRST_OWNER activation and manifest-backed route assembly",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -51,9 +51,9 @@
     "brix",
     "platform",
     "tenant",
-    "multi-tenant",
-    "capability",
-    "context"
+    "first-owner",
+    "activation",
+    "runtime-shell"
   ],
   "author": "Brix Platform Authors",
   "license": "Apache-2.0"
