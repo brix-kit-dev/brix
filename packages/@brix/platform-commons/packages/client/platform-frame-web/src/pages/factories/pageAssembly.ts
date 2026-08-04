@@ -35,7 +35,7 @@
  * ```
  * Host (config only)
  *   → pageAssembly (this module, Shell layer)
- *     → createSimpleLoginPage (@brix-sdk/platform-auth-web)
+ *     → createSimpleLoginPage (@brix-sdk/platform-auth-ui-web)
  *     → createSimpleDashboardPage (../DashboardPage)
  *     → createSimpleNotFoundPage (../ErrorPages)
  * ```
@@ -66,13 +66,13 @@
 import {
   createSimpleLoginPage,
   createSimpleRegisterPage,
-} from '@brix-sdk/platform-auth-web';
+} from '@brix-sdk/platform-auth-ui-web';
 import type {
   LoginFormBranding,
   LoginFormResult,
   RegisterFormData,
   RegisterFormResult,
-} from '@brix-sdk/platform-auth-web';
+} from '@brix-sdk/platform-auth-ui-web';
 import { createSimpleDashboardPage } from '../DashboardPage';
 import {
   createSimpleNotFoundPage,
@@ -105,7 +105,7 @@ export interface PageNavigationService {
  * Auth service interface consumed by page factories.
  *
  * Represents the minimal subset of AuthService needed for page assembly.
- * Host injects the concrete implementation (e.g., from @brix-sdk/platform-auth-web).
+ * Host injects the concrete implementation.
  *
  * @since 3.2.0
  */

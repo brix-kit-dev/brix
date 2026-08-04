@@ -45,7 +45,7 @@
     "@brix-sdk/runtime-sdk-api-web": "workspace:*",
     "@brix-sdk/runtime-sdk-react": "workspace:*",
     "@brix-sdk/platform-design-tokens": "workspace:*",
-    "@brix-sdk/platform-auth-web": "workspace:*",
+    "@brix-sdk/platform-auth-ui-web": "workspace:*",
     "@brix-sdk/platform-navigation-web": "workspace:*"
   },
   "peerDependencies": {

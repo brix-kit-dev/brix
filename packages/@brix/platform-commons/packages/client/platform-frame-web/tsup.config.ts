@@ -33,7 +33,7 @@ export default defineConfig({
     'react',
     'react-dom',
     'react-router-dom',
-    '@brix-sdk/platform-auth-web',
+    '@brix-sdk/platform-auth-ui-web',
     '@brix-sdk/runtime-sdk-api-web',
     '@brix-sdk/runtime-sdk-react',
     '@brix-sdk/platform-design-tokens',

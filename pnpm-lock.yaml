@@ -632,28 +632,10 @@ importers:
 
   packages/@brix/platform-commons/packages/client/platform-auth-web:
     dependencies:
-      '@brix-sdk/platform-auth-service-web':
-        specifier: workspace:*
-        version: link:../platform-auth-service-web
-      '@brix-sdk/platform-auth-ui-web':
-        specifier: workspace:*
-        version: link:../platform-auth-ui-web
       '@brix-sdk/runtime-sdk-api-web':
         specifier: workspace:*
         version: link:../../../../runtime-sdk/runtime-sdk-api-web
-      '@brix-sdk/shared-runtime-web':
-        specifier: workspace:*
-        version: link:../../../../shared-runtime/shared-runtime-web
-      react-router-dom:
-        specifier: ^6.22.0
-        version: 6.30.3(react-dom@18.3.1)(react@18.3.1)
     devDependencies:
-      '@types/react':
-        specifier: ^18.2.43
-        version: 18.3.28
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
       rimraf:
         specifier: ^5.0.5
         version: 5.0.10
@@ -749,9 +731,9 @@ importers:
 
   packages/@brix/platform-commons/packages/client/platform-frame-web:
     dependencies:
-      '@brix-sdk/platform-auth-web':
+      '@brix-sdk/platform-auth-ui-web':
         specifier: workspace:*
-        version: link:../platform-auth-web
+        version: link:../platform-auth-ui-web
       '@brix-sdk/platform-design-tokens':
         specifier: workspace:*
         version: link:../platform-design-tokens

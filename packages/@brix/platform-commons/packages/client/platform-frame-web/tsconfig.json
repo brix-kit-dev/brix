@@ -16,8 +16,8 @@
       "@brix-sdk/runtime-sdk-shared/*": ["../../runtime-sdk/runtime-sdk-shared/src/*"],
       "@brix-sdk/platform-design-tokens": ["../platform-design-tokens/src"],
       "@brix-sdk/platform-design-tokens/*": ["../platform-design-tokens/src/*"],
-      "@brix-sdk/platform-auth-web": ["../platform-auth-web/src"],
-      "@brix-sdk/platform-auth-web/*": ["../platform-auth-web/src/*"],
+      "@brix-sdk/platform-auth-ui-web": ["../platform-auth-ui-web/src"],
+      "@brix-sdk/platform-auth-ui-web/*": ["../platform-auth-ui-web/src/*"],
       "@brix-sdk/platform-navigation-web": ["../platform-navigation-web/src"],
       "@brix-sdk/platform-navigation-web/*": ["../platform-navigation-web/src/*"]
     }

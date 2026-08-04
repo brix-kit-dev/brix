@@ -1,7 +1,7 @@
 {
   "name": "@brix-sdk/platform-auth-web",
   "version": "3.2.0",
-  "description": "Web Auth Capability Implementation - Implements AuthCapability interface and auth components",
+  "description": "Web AuthCapability implementation for provider-verified runtime session context",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -11,21 +11,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
-    },
-    "./components": {
-      "types": "./dist/components.d.ts",
-      "import": "./dist/components.mjs",
-      "require": "./dist/components.js"
-    },
-    "./hooks": {
-      "types": "./dist/hooks.d.ts",
-      "import": "./dist/hooks.mjs",
-      "require": "./dist/hooks.js"
-    },
-    "./pages": {
-      "types": "./dist/pages.d.ts",
-      "import": "./dist/pages.mjs",
-      "require": "./dist/pages.js"
     }
   },
   "files": [
@@ -41,18 +26,9 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@brix-sdk/runtime-sdk-api-web": "workspace:*",
-    "@brix-sdk/platform-auth-service-web": "workspace:*",
-    "@brix-sdk/platform-auth-ui-web": "workspace:*"
-  },
-  "peerDependencies": {
-    "@brix-sdk/shared-runtime-web": "workspace:*",
-    "react": "^18.2.0",
-    "react-router-dom": "^6.22.0"
+    "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^18.2.43",
-    "react": "^18.2.0",
     "rimraf": "^5.0.5",
     "tsup": "^8.0.1",
     "typescript": "^5.3.2"
