@@ -14,6 +14,25 @@ function createHttpCapabilityMock(): HttpCapability {
 }
 
 describe('createPlatformAuthRepository', () => {
+  it('posts platform login using the backend loginId contract', async () => {
+    const http = createHttpCapabilityMock();
+    vi.mocked(http.post).mockResolvedValueOnce({
+      mfaRequired: true,
+      mfaChallengeToken: 'challenge-token',
+    });
+
+    const repository = createPlatformAuthRepository(http);
+    await repository.login({
+      loginId: 'admin@example.com',
+      password: 'Password!2026',
+    });
+
+    expect(http.post).toHaveBeenCalledWith('/platform/auth/login', {
+      loginId: 'admin@example.com',
+      password: 'Password!2026',
+    });
+  });
+
   it('posts login TOTP using the backend totpCode contract', async () => {
     const http = createHttpCapabilityMock();
     vi.mocked(http.post).mockResolvedValueOnce({

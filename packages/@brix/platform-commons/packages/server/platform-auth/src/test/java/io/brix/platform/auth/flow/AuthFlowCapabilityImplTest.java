@@ -49,6 +49,14 @@ class AuthFlowCapabilityImplTest {
     }
 
     @Test
+    void redactsLoginIdBeforeAuthFailureLogging() {
+        assertEquals("a***@e***", AuthFlowCapabilityImpl.redactedLoginId("admin@example.invalid"));
+        assertEquals("s***", AuthFlowCapabilityImpl.redactedLoginId("shiqiang"));
+        assertEquals("<blank>", AuthFlowCapabilityImpl.redactedLoginId(" "));
+        assertEquals("<blank>", AuthFlowCapabilityImpl.redactedLoginId(null));
+    }
+
+    @Test
     void pendingSetupIdentityCannotLoginThroughPlatformAuth() {
         IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
         PasswordCapability passwordCapability = mock(PasswordCapability.class);

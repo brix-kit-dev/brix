@@ -22,6 +22,8 @@ import shinwaLogoUrl from '../assets/shinwa.png';
 
 export interface PlatformLoginPageProps {}
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function PlatformLoginPage(_props: PlatformLoginPageProps): JSX.Element {
   const { Button, Input, Card, Icon } = useUIStrict();
   const { tokens } = useTheme();
@@ -30,13 +32,16 @@ export function PlatformLoginPage(_props: PlatformLoginPageProps): JSX.Element {
   const navigate = useNavigate();
   const { login, loading, error } = usePlatformLogin();
 
-  const [username, setUsername] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const usernameError = submitted && !username.trim();
+  const trimmedLoginId = loginId.trim();
+  const loginIdMissing = !trimmedLoginId;
+  const loginIdInvalid = !!trimmedLoginId && !EMAIL_RE.test(trimmedLoginId);
+  const usernameError = submitted && (loginIdMissing || loginIdInvalid);
   const passwordError = submitted && !password;
   const loginTitleId = 'platform-login-title';
   const loginSubtitleId = 'platform-login-subtitle';
@@ -56,11 +61,11 @@ export function PlatformLoginPage(_props: PlatformLoginPageProps): JSX.Element {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitted(true);
-    if (!username.trim() || !password) return;
+    if (loginIdMissing || loginIdInvalid || !password) return;
 
     try {
       setSubmitError(null);
-      const res = await login({ loginId: username.trim(), password });
+      const res = await login({ loginId: trimmedLoginId, password });
       if (!res.mfaChallengeToken) {
         setSubmitError(tt(I18N_KEYS.login.mfaChallengeMissing));
         return;
@@ -69,7 +74,7 @@ export function PlatformLoginPage(_props: PlatformLoginPageProps): JSX.Element {
         replace: true,
         state: {
           mfaChallengeToken: res.mfaChallengeToken,
-          loginId: username.trim(),
+          loginId: trimmedLoginId,
         },
       });
     } catch {
@@ -308,12 +313,12 @@ export function PlatformLoginPage(_props: PlatformLoginPageProps): JSX.Element {
           >
             <div style={{ marginTop: 0 }}>
               <Input
-                type="text"
+                type="email"
                 name="loginId"
                 label={tt(I18N_KEYS.login.username)}
                 placeholder={tt(I18N_KEYS.login.usernamePlaceholder)}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={loginId}
+                onChange={(e) => setLoginId(e.target.value)}
                 required
                 autoFocus
                 fullWidth
@@ -321,9 +326,13 @@ export function PlatformLoginPage(_props: PlatformLoginPageProps): JSX.Element {
                 startAdornment="person"
                 error={usernameError}
                 helperText={
-                  usernameError ? tt(I18N_KEYS.login.requiredUsername) : ''
+                  usernameError
+                    ? tt(loginIdMissing
+                        ? I18N_KEYS.login.requiredUsername
+                        : I18N_KEYS.login.invalidEmail)
+                    : ''
                 }
-                autoComplete="username"
+                autoComplete="email"
                 maxLength={64}
                 disabled={loading}
                 data-testid="login-username"

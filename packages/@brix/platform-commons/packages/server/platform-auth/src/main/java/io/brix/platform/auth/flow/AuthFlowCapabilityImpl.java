@@ -689,17 +689,18 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                     AuthFlowException.CODE_INVALID_CREDENTIALS, "loginId is required");
         }
         String loginId = command.loginId();
+        String safeLoginId = redactedLoginId(loginId);
 
         IdentityRecord identity = identityTenantCapability.findIdentityByEmail(loginId)
                 .orElse(null);
         if (identity == null) {
-            log.warn("[AuthFlow] login failed — identity not found: {}", loginId);
+            log.warn("[AuthFlow] login failed — identity not found: {}", safeLoginId);
             throw new AuthFlowException(
                     AuthFlowException.CODE_INVALID_CREDENTIALS, "Invalid credentials");
         }
 
         if (IDENTITY_STATUS_PENDING_SETUP.equals(identity.status())) {
-            log.warn("[AuthFlow] login failed — identity pending setup: {}", loginId);
+            log.warn("[AuthFlow] login failed — identity pending setup: {}", safeLoginId);
             throw new AuthFlowException(
                     AuthFlowException.CODE_PENDING_SETUP,
                     "Account setup is pending. Use the dedicated setup flow.");
@@ -712,7 +713,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                 }
 
                 if (IDENTITY_STATUS_LOCKED.equals(identity.status())) {
-            log.warn("[AuthFlow] login failed — identity locked: {}", loginId);
+            log.warn("[AuthFlow] login failed — identity locked: {}", safeLoginId);
             throw new AuthFlowException(
                     AuthFlowException.CODE_ACCOUNT_LOCKED,
                     "Account is locked. Please contact the administrator.");
@@ -720,7 +721,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
 
         if (!IDENTITY_STATUS_ACTIVE.equals(identity.status())) {
             log.warn("[AuthFlow] login failed — identity not active: {} (status={})",
-                    loginId, identity.status());
+                    safeLoginId, identity.status());
             throw new AuthFlowException(
                     AuthFlowException.CODE_ACCOUNT_DISABLED,
                     "Account is disabled. Please contact the administrator.");
@@ -728,7 +729,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
 
         if (command.password() == null || identity.passwordHash() == null
                 || !passwordCapability.verify(command.password(), identity.passwordHash())) {
-            log.warn("[AuthFlow] login failed — wrong password: {}", loginId);
+            log.warn("[AuthFlow] login failed — wrong password: {}", safeLoginId);
                         if (trackPlatformLoginFailures) {
                                 identityTenantCapability.recordFailedLogin(identity.id(),
                                                 lockoutProperties.getMaxFailedAttempts(),
@@ -745,6 +746,22 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                 }
 
         return identity;
+    }
+
+    static String redactedLoginId(String loginId) {
+        if (loginId == null || loginId.isBlank()) {
+            return "<blank>";
+        }
+        String value = loginId.trim();
+        int at = value.indexOf('@');
+        if (at > 0) {
+            String local = value.substring(0, at);
+            String domain = value.substring(at + 1);
+            String visibleLocal = local.substring(0, 1);
+            String visibleDomain = domain.isBlank() ? "" : domain.substring(0, 1);
+            return visibleLocal + "***@" + visibleDomain + "***";
+        }
+        return value.substring(0, 1) + "***";
     }
 
     private List<String> resolveRoles(String identityId, String tenantId) {
