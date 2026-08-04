@@ -677,7 +677,7 @@ export class HttpCapabilityImpl implements HttpCapability {
     // Inject auth token
     if (this.authTokenProvider) {
       const token = await this.authTokenProvider();
-      if (token) {
+      if (token && !headers.Authorization) {
         headers['Authorization'] = `Bearer ${token}`;
       }
     }

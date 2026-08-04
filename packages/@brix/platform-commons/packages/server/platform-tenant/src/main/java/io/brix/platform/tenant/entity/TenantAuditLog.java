@@ -11,12 +11,16 @@ import java.util.Objects;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
  * Tenant-scoped audit log entry owned by the platform-tenant Data Owner.
@@ -26,7 +30,7 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "biz_tenant_audit_log")
-public class TenantAuditLog {
+public class TenantAuditLog implements Persistable<Long> {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -63,6 +67,9 @@ public class TenantAuditLog {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Transient
+    private boolean newRecord = true;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
@@ -70,8 +77,22 @@ public class TenantAuditLog {
         }
     }
 
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        this.newRecord = false;
+    }
+
+    @Override
+    @Transient
     public Long getId() {
         return id;
+    }
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return newRecord;
     }
 
     public void setId(Long id) {

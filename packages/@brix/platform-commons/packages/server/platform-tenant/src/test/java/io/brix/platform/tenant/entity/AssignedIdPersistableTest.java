@@ -41,4 +41,31 @@ class AssignedIdPersistableTest {
 
         assertFalse(profile.isNew());
     }
+
+    @Test
+    void platformTenantOutboxWithAssignedMessageIdRemainsNewUntilPersisted() {
+        PlatformTenantOutbox outbox = new PlatformTenantOutbox();
+        outbox.setMessageId("event-100");
+        outbox.setCreatedAt(OffsetDateTime.now());
+
+        assertTrue(outbox.isNew());
+
+        outbox.markNotNew();
+
+        assertFalse(outbox.isNew());
+    }
+
+    @Test
+    void tenantAuditLogWithAssignedIdRemainsNewUntilPersisted() {
+        TenantAuditLog auditLog = new TenantAuditLog();
+        auditLog.setId(500L);
+        auditLog.setTenantId(100L);
+        auditLog.setCreatedAt(OffsetDateTime.now());
+
+        assertTrue(auditLog.isNew());
+
+        auditLog.markNotNew();
+
+        assertFalse(auditLog.isNew());
+    }
 }

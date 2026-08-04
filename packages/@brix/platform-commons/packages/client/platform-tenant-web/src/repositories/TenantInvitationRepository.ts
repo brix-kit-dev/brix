@@ -10,6 +10,10 @@ export interface AcceptFirstOwnerInvitationRequest {
   readonly invitationToken: string;
 }
 
+export interface AcceptFirstOwnerInvitationOptions {
+  readonly identityToken?: string;
+}
+
 export interface FirstOwnerAcceptanceDto {
   readonly tenantId: string;
   readonly memberId: string;
@@ -20,6 +24,7 @@ export interface FirstOwnerAcceptanceDto {
 export interface TenantInvitationRepository {
   acceptFirstOwnerInvitation(
     req: AcceptFirstOwnerInvitationRequest,
+    options?: AcceptFirstOwnerInvitationOptions,
   ): Promise<FirstOwnerAcceptanceDto>;
 }
 
@@ -34,7 +39,19 @@ export function createTenantInvitationRepository(
   http: HttpCapability,
 ): TenantInvitationRepository {
   return {
-    async acceptFirstOwnerInvitation(req) {
+    async acceptFirstOwnerInvitation(req, options) {
+      if (options?.identityToken) {
+        const response = await http.request<BackendFirstOwnerAcceptanceDto>({
+          url: PLATFORM_TENANT_API.FIRST_OWNER_ACCEPT,
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${options.identityToken}`,
+          },
+          data: { invitationToken: req.invitationToken },
+        });
+        return normalizeFirstOwnerAcceptance(response.data);
+      }
+
       const response = await http.post<unknown>(
         PLATFORM_TENANT_API.FIRST_OWNER_ACCEPT,
         { invitationToken: req.invitationToken },
@@ -54,4 +71,3 @@ function normalizeFirstOwnerAcceptance(
     tenantStatus: response.tenantStatus ?? '',
   };
 }
-

@@ -37,4 +37,32 @@ describe('HttpCapabilityImpl error metadata', () => {
       params: { page: 0, size: 20 },
     });
   });
+
+  it('does not override an explicit per-request Authorization header', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      statusText: 'OK',
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const http = new HttpCapabilityImpl({
+      baseURL: '/api',
+      authTokenProvider: () => 'session-token',
+    });
+
+    await http.request({
+      url: '/tenant/first-owner-invitations/accept',
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer identity-token',
+      },
+      data: { invitationToken: 'raw-token' },
+    });
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(request.headers).toMatchObject({
+      Authorization: 'Bearer identity-token',
+    });
+  });
 });

@@ -44,5 +44,41 @@ describe('TenantInvitationRepository', () => {
       tenantStatus: 'ACTIVE',
     });
   });
-});
 
+  it('accepts FIRST_OWNER invitations with a short-lived identity token when provided', async () => {
+    const http = createHttpCapabilityMock();
+    vi.mocked(http.request).mockResolvedValue({
+      data: {
+        tenantId: 42,
+        memberId: 7,
+        profileId: 9,
+        tenantStatus: 'ACTIVE',
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+    });
+
+    const repository = createTenantInvitationRepository(http);
+    const result = await repository.acceptFirstOwnerInvitation(
+      { invitationToken: 'raw-invite-token' },
+      { identityToken: 'identity-token' },
+    );
+
+    expect(http.request).toHaveBeenCalledWith({
+      url: '/tenant/first-owner-invitations/accept',
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer identity-token',
+      },
+      data: { invitationToken: 'raw-invite-token' },
+    });
+    expect(http.post).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      tenantId: '42',
+      memberId: '7',
+      profileId: '9',
+      tenantStatus: 'ACTIVE',
+    });
+  });
+});

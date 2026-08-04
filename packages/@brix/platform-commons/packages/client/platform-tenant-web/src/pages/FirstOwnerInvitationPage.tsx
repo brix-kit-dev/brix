@@ -18,6 +18,8 @@ export function FirstOwnerInvitationPage(): JSX.Element {
   const t = tokens as DesignTokens;
   const accept = useAcceptFirstOwnerInvitation();
   const [invitationToken, setInvitationToken] = useState(initialInvitationToken);
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const surfaceCard = t.colors.surface.card ?? '#ffffff';
@@ -32,7 +34,11 @@ export function FirstOwnerInvitationPage(): JSX.Element {
   ].join(', ');
 
   const normalizedInvitationToken = invitationToken.trim();
+  const normalizedLoginId = loginId.trim();
   const tokenMissing = submitted && !normalizedInvitationToken;
+  const inviteeLoginRequired = !auth.isLoading && !auth.isAuthenticated;
+  const loginIdMissing = submitted && inviteeLoginRequired && !normalizedLoginId;
+  const passwordMissing = submitted && inviteeLoginRequired && !password;
   const canSubmit = !auth.isLoading && !accept.loading && !accept.result;
 
   const handleAccept = useCallback(async (event?: FormEvent<HTMLFormElement>) => {
@@ -42,13 +48,31 @@ export function FirstOwnerInvitationPage(): JSX.Element {
       setLocalError('邀请链接缺少必要凭证，请使用最新邮件中的完整链接。');
       return;
     }
-    if (!auth.isAuthenticated) {
-      setLocalError('请先使用受邀邮箱完成登录，再返回此页面接受邀请。');
+    if (inviteeLoginRequired && (!normalizedLoginId || !password)) {
+      setLocalError('请输入受邀邮箱/用户名和密码，然后接受并激活租户。');
       return;
     }
     setLocalError(null);
-    await accept.accept(normalizedInvitationToken);
-  }, [accept, auth.isAuthenticated, normalizedInvitationToken]);
+    try {
+      if (inviteeLoginRequired) {
+        await accept.acceptWithInviteeLogin(normalizedInvitationToken, {
+          loginId: normalizedLoginId,
+          password,
+        });
+        setPassword('');
+        return;
+      }
+      await accept.accept(normalizedInvitationToken);
+    } catch (cause) {
+      setLocalError(toFirstOwnerErrorMessage(cause));
+    }
+  }, [
+    accept,
+    inviteeLoginRequired,
+    normalizedInvitationToken,
+    normalizedLoginId,
+    password,
+  ]);
 
   const statusAlert = useMemo(() => {
     if (accept.result) {
@@ -65,10 +89,10 @@ export function FirstOwnerInvitationPage(): JSX.Element {
         </Alert>
       );
     }
-    if (!auth.isLoading && !auth.isAuthenticated) {
+    if (inviteeLoginRequired) {
       return (
-        <Alert severity="warning" data-testid="first-owner-accept-auth-required">
-          请先使用受邀账号完成登录，登录后再点击接受邀请。
+        <Alert severity="info" data-testid="first-owner-accept-auth-required">
+          请使用受邀邮箱/用户名完成身份校验；系统会在本页直接接受邀请并激活租户。
         </Alert>
       );
     }
@@ -89,6 +113,7 @@ export function FirstOwnerInvitationPage(): JSX.Element {
     accept.result,
     auth.isAuthenticated,
     auth.isLoading,
+    inviteeLoginRequired,
     localError,
     normalizedInvitationToken,
   ]);
@@ -181,7 +206,7 @@ export function FirstOwnerInvitationPage(): JSX.Element {
               }}
             >
               <StepLine icon="identity" text="邀请凭证只保存在当前页面内存中。" t={t} />
-              <StepLine icon="login" text="仅受邀邮箱登录后可以完成接管。" t={t} />
+              <StepLine icon="login" text="仅受邀身份校验通过后可以完成接管。" t={t} />
               <StepLine icon="success" text="接受成功后，邀请会进入不可重复使用状态。" t={t} />
             </div>
           </div>
@@ -218,9 +243,66 @@ export function FirstOwnerInvitationPage(): JSX.Element {
               >
                 {auth.isAuthenticated
                   ? auth.user?.email ?? auth.user?.username ?? '已验证身份'
-                  : '尚未登录受邀账号'}
+                  : '请输入受邀账号信息'}
               </p>
             </div>
+
+            {inviteeLoginRequired ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gap: t.space.md,
+                }}
+              >
+                <Input
+                  label="受邀邮箱 / 用户名"
+                  type="text"
+                  value={loginId}
+                  placeholder="输入收到邀请邮件的账号"
+                  required
+                  fullWidth
+                  autoComplete="username"
+                  startAdornment="identity"
+                  error={loginIdMissing}
+                  helperText={
+                    loginIdMissing
+                      ? '请输入受邀邮箱或用户名。'
+                      : '必须与邀请中的受邀身份一致。'
+                  }
+                  disabled={accept.loading || Boolean(accept.result)}
+                  data-testid="first-owner-login-id-input"
+                  onChange={(event) => {
+                    setLoginId(event.target.value);
+                    setLocalError(null);
+                    accept.resetError();
+                  }}
+                />
+
+                <Input
+                  label="密码"
+                  type="password"
+                  value={password}
+                  placeholder="输入受邀账号密码"
+                  required
+                  fullWidth
+                  autoComplete="current-password"
+                  startAdornment="lock"
+                  error={passwordMissing}
+                  helperText={
+                    passwordMissing
+                      ? '请输入密码。'
+                      : '密码仅用于本次身份校验，不会保存在页面中。'
+                  }
+                  disabled={accept.loading || Boolean(accept.result)}
+                  data-testid="first-owner-password-input"
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setLocalError(null);
+                    accept.resetError();
+                  }}
+                />
+              </div>
+            ) : null}
 
             <Input
               label="邀请凭证"
@@ -242,6 +324,7 @@ export function FirstOwnerInvitationPage(): JSX.Element {
               onChange={(event) => {
                 setInvitationToken(event.target.value);
                 setLocalError(null);
+                accept.resetError();
               }}
             />
 
@@ -328,4 +411,30 @@ function readInvitationToken(): string {
     return '';
   }
   return new URL(window.location.href).searchParams.get('token')?.trim() ?? '';
+}
+
+function toFirstOwnerErrorMessage(cause: unknown): string {
+  const code = cause instanceof Error ? cause.message : String(cause);
+  if (code === 'FIRST_OWNER_INVITATION_TOKEN_REQUIRED') {
+    return '邀请链接缺少必要凭证，请使用最新邮件中的完整链接。';
+  }
+  if (code === 'FIRST_OWNER_INVITEE_CREDENTIALS_REQUIRED') {
+    return '请输入受邀邮箱/用户名和密码，然后接受并激活租户。';
+  }
+  if (code === 'FIRST_OWNER_INVITEE_LOGIN_INVALID') {
+    return '受邀账号或密码不正确。请使用收到邀请邮件的邮箱/用户名，并输入该账号当前密码。';
+  }
+  if (code === 'FIRST_OWNER_INVITEE_PENDING_SETUP') {
+    return '受邀账号尚未完成初始设置。请先打开 setup 邮件完成密码和 MFA 设置，再返回邀请链接。';
+  }
+  if (code === 'FIRST_OWNER_INVITEE_ACCOUNT_LOCKED') {
+    return '受邀账号已被锁定，暂时不能接受 FIRST_OWNER 邀请。请先联系平台管理员处理账号状态。';
+  }
+  if (code === 'FIRST_OWNER_INVITEE_ACCOUNT_DISABLED') {
+    return '受邀账号已停用，不能接受 FIRST_OWNER 邀请。请确认受邀身份状态后重试。';
+  }
+  if (code === 'FIRST_OWNER_IDENTITY_TOKEN_REQUIRED') {
+    return '当前账号已进入租户上下文，无法用于 FIRST_OWNER 接受。请使用受邀邮箱的激活/登录链路重新进入。';
+  }
+  return '接受邀请失败，请确认邀请未过期，且账号与受邀邮箱一致。';
 }

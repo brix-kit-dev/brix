@@ -51,6 +51,7 @@ import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.FirstOwnerAcceptanceResult;
 import io.brix.platform.tenant.internal.FirstOwnerInvitationView;
+import io.brix.platform.tenant.internal.ResendFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.IdentityRepository;
@@ -223,6 +224,40 @@ class FirstOwnerInvitationServiceTest {
         assertEquals(1, delivered.size());
         assertEquals(200L, delivered.get(0).id());
         assertNotEquals(oldHash, invitation.getTokenHash());
+        ArgumentCaptor<NotificationRequest> notification = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationCapability).send(notification.capture());
+        assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());
+        String inviteUrl = notification.getValue().variables().get("inviteUrl");
+        assertTrue(inviteUrl.startsWith("https://console.example.test/invite?token="));
+        assertFalse(inviteUrl.contains(oldRawToken));
+    }
+
+    @Test
+    void resendRevokesCurrentInvitationAndReplacementExpiresInFuture() {
+        String oldRawToken = "old-tenant-owner-token";
+        Tenant tenant = pendingTenant(100L);
+        TenantInvitation existing = firstOwnerInvitation(200L, 100L, "owner@example.com", oldRawToken);
+        Identity activeInvitee = identity(500L, "owner@example.com");
+        activeInvitee.setStatus(IdentityStatus.ACTIVE);
+        OffsetDateTime beforeResend = OffsetDateTime.now();
+
+        when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
+        when(invitationRepository.findLatestByTenantAndPurposeForUpdate(
+                100L, InvitationPurpose.FIRST_OWNER, InvitationStatus.PENDING, PageRequest.of(0, 1)))
+            .thenReturn(java.util.List.of(existing));
+        when(idGenerator.nextId()).thenReturn(201L);
+        when(invitationRepository.save(any(TenantInvitation.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(identityRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(activeInvitee));
+
+        FirstOwnerInvitationView replacement = service.resend(new ResendFirstOwnerInvitationCommand(
+            100L,
+            "platform-identity:9",
+            "en-US"));
+
+        assertEquals(InvitationStatus.REVOKED, existing.getStatus());
+        assertEquals(201L, replacement.id());
+        assertEquals("PENDING", replacement.status());
+        assertTrue(replacement.expiresAt().isAfter(beforeResend.plusHours(23)));
         ArgumentCaptor<NotificationRequest> notification = ArgumentCaptor.forClass(NotificationRequest.class);
         verify(notificationCapability).send(notification.capture());
         assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());

@@ -11,3 +11,6 @@ export const PLATFORM_TENANT_API = Object.freeze({
   FIRST_OWNER_ACCEPT: '/tenant/first-owner-invitations/accept',
 } as const);
 
+export const PLATFORM_AUTH_API = Object.freeze({
+  ACTOR_LOGIN: '/auth/login/actor',
+} as const);

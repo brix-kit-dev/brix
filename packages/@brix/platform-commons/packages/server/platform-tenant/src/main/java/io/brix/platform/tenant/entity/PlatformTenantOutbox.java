@@ -11,12 +11,16 @@ import java.util.Objects;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
  * Canonical outbox record owned by {@code platform-tenant}.
@@ -26,7 +30,7 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "platform_tenant_outbox")
-public class PlatformTenantOutbox {
+public class PlatformTenantOutbox implements Persistable<String> {
 
     @Id
     @Column(name = "message_id", nullable = false, updatable = false, length = 64)
@@ -105,6 +109,9 @@ public class PlatformTenantOutbox {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Transient
+    private boolean newRecord = true;
+
     @PrePersist
     protected void onCreate() {
         if (occurredAt == null) {
@@ -116,6 +123,24 @@ public class PlatformTenantOutbox {
         if (createdAt == null) {
             createdAt = occurredAt;
         }
+    }
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        this.newRecord = false;
+    }
+
+    @Override
+    @Transient
+    public String getId() {
+        return messageId;
+    }
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return newRecord;
     }
 
     public String getMessageId() {
