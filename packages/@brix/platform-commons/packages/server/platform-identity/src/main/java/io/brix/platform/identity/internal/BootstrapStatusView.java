@@ -1,0 +1,22 @@
+/*
+ * Copyright 2026 Brix Platform Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ */
+package io.brix.platform.identity.internal;
+
+import java.time.OffsetDateTime;
+
+/**
+ * Public bootstrap status view without setup-code or token material.
+ *
+ * @param open whether Stage A is open
+ * @param setupCodeExpiresAt setup-code expiry when available
+ * @param completedAt Stage B completion time
+ */
+public record BootstrapStatusView(
+        boolean open,
+        OffsetDateTime setupCodeExpiresAt,
+        OffsetDateTime completedAt) {
+}

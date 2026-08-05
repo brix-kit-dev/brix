@@ -19,8 +19,8 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import io.brix.platform.admin.dto.PlatformSetupCompleteRequest;
-import io.brix.platform.tenant.internal.PlatformIdentityAdministration;
-import io.brix.platform.tenant.internal.PlatformSetupCompletionView;
+import io.brix.platform.identity.internal.PlatformIdentityAdministration;
+import io.brix.platform.identity.internal.PlatformSetupCompletionView;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.orchestrator.operational.OperationalModuleIdentity;
 import io.runtime.orchestrator.operational.RuntimeOperationalView;

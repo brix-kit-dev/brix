@@ -62,10 +62,14 @@ final class PlatformEndpointErrors {
                  "FIRST_OWNER_INVITATION_NOT_REVOKABLE",
                  "FIRST_OWNER_INVITATION_NOT_ACCEPTABLE",
                  "FIRST_OWNER_INVITATION_EMAIL_MISMATCH",
+                 "FIRST_OWNER_INVITEE_IDENTITY_NOT_ELIGIBLE",
+                 "FIRST_OWNER_INVITEE_IDENTITY_NOT_ACTIVE",
                  "FIRST_OWNER_ALREADY_EXISTS" -> 409;
             case "NOTIFICATION_PROVIDER_MISSING",
                  "FIRST_OWNER_INVITE_BASE_URL_NOT_CONFIGURED",
-                 "FIRST_OWNER_INVITE_BASE_URL_INVALID" -> 503;
+                 "FIRST_OWNER_INVITE_BASE_URL_INVALID",
+                 "FIRST_OWNER_SETUP_BASE_URL_NOT_CONFIGURED",
+                 "FIRST_OWNER_SETUP_BASE_URL_INVALID" -> 503;
             default -> 400;
         };
     }

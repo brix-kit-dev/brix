@@ -26,6 +26,10 @@ final class PlatformTenantEndpointErrors {
         return new EndpointHandlingException(400, errorCode, safeMessage(message));
     }
 
+    static EndpointHandlingException serviceUnavailable(String errorCode, String message) {
+        return new EndpointHandlingException(503, errorCode, safeMessage(message));
+    }
+
     static EndpointHandlingException tenantAdministration(TenantAdministrationException cause) {
         return new EndpointHandlingException(
             tenantAdministrationStatus(cause.code()),

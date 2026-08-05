@@ -18,9 +18,8 @@ package io.brix.platform.tenant.enums;
 /**
  * Member Status Enumeration.
  *
- * <p>Generic status enumeration used for tenant members, identities, and
- * other membership-related entities. Provides a common status lifecycle
- * that can be applied across different contexts.
+ * <p>Status enumeration used for tenant-owned memberships and related
+ * tenant-local lifecycle records.
  *
  * <h3>State Transition Diagram</h3>
  * <pre>
@@ -31,17 +30,14 @@ package io.brix.platform.tenant.enums;
  * </pre>
  *
  * <h3>Database Storage</h3>
- * <p>Stored as VARCHAR(32) in status columns across multiple tables:
+ * <p>Stored as VARCHAR(32) in tenant-owned status columns:
  * <ul>
  *   <li>sys_tenant_member.status</li>
- *   <li>sys_identity.status</li>
- *   <li>sys_platform_admin.status</li>
  * </ul>
  *
  * <h3>Usage Context</h3>
- * <p>This enum provides a unified status model that can be used across
- * different entities. Each entity may use a subset of these states
- * based on its specific requirements.
+ * <p>Global identity and platform-admin grants use their own enums in
+ * {@code platform-identity}.
  *
  * @author Brix Platform Team
  * @since 3.1.0

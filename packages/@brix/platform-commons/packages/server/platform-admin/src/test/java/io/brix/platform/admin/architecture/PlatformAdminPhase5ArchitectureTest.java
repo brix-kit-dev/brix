@@ -19,6 +19,7 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 @AnalyzeClasses(
         packages = {
                 "io.brix.platform.admin",
+                "io.brix.platform.identity",
                 "io.brix.platform.tenant",
                 "io.brix.platform.auth",
                 "io.runtime.sdk.capability"
@@ -31,13 +32,13 @@ class PlatformAdminPhase5ArchitectureTest {
     @ArchTest
     static final ArchRule identityStatusUsesDedicatedEnum = classes()
             .that().haveSimpleName("Identity")
-            .should(haveFieldType("status", "io.brix.platform.tenant.enums.IdentityStatus"))
+            .should(haveFieldType("status", "io.brix.platform.identity.enums.IdentityStatus"))
             .because("SSOT §16.1 requires Identity.status to use IdentityStatus, not tenant MemberStatus");
 
     @ArchTest
     static final ArchRule platformAdminStatusUsesRevokedEnum = classes()
             .that().haveSimpleName("PlatformAdmin")
-            .should(haveFieldType("status", "io.brix.platform.tenant.enums.PlatformAdminStatus"))
+            .should(haveFieldType("status", "io.brix.platform.identity.enums.PlatformAdminStatus"))
             .because("SSOT §16.2 requires PlatformAdmin.status to use ACTIVE/REVOKED semantics");
 
     @ArchTest

@@ -41,6 +41,8 @@ capabilities:
     - id: io.runtime.sdk.capability.EventBusCapability
       version: ">=3.0.10 <4.0.0"
   optional:
+    - id: io.brix.platform.tenant.internal.TenantAdministration
+      version: ">=3.2.0 <4.0.0"
     - id: io.runtime.sdk.capability.NotificationCapability
       version: ">=3.2.0 <4.0.0"
 queries:
@@ -74,16 +76,6 @@ internalContracts:
       contractType: io.brix.platform.tenant.internal.TenantAdministration
       contractVersion: 1.0.0
       providerId: platform-tenant.internal.tenant-administration
-      owner: platform-tenant
-    - contractId: brix.internal.platform.bootstrap-administration
-      contractType: io.brix.platform.tenant.internal.PlatformBootstrapAdministration
-      contractVersion: 1.0.0
-      providerId: platform-tenant.internal.bootstrap-administration
-      owner: platform-tenant
-    - contractId: brix.internal.platform.identity-administration
-      contractType: io.brix.platform.tenant.internal.PlatformIdentityAdministration
-      contractVersion: 1.0.0
-      providerId: platform-tenant.internal.identity-administration
       owner: platform-tenant
 data:
   storageId: platform_tenant

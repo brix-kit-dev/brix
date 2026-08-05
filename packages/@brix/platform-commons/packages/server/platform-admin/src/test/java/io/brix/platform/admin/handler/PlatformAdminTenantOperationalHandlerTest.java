@@ -146,6 +146,46 @@ class PlatformAdminTenantOperationalHandlerTest {
     }
 
     @Test
+    void createFirstOwnerInvitationMapsInviteeSetupConfigurationFailureToServiceUnavailable() {
+        when(tenantAdministration.createFirstOwnerInvitation(any())).thenThrow(
+            new TenantAdministrationException(
+                "FIRST_OWNER_SETUP_BASE_URL_NOT_CONFIGURED",
+                "FIRST_OWNER setup base URL is not configured"));
+        CreateFirstOwnerInvitationHandler handler = new CreateFirstOwnerInvitationHandler(context);
+
+        EndpointHandlingException failure = assertThrows(
+            EndpointHandlingException.class,
+            () -> handler.handle(invocation(
+                new CreateFirstOwnerInvitationRequest("owner@example.invalid", "en-US"),
+                Map.of("tenantId", "42"),
+                Optional.of("1001"),
+                Optional.empty())));
+
+        assertEquals(503, failure.status());
+        assertEquals("FIRST_OWNER_SETUP_BASE_URL_NOT_CONFIGURED", failure.errorCode());
+    }
+
+    @Test
+    void createFirstOwnerInvitationMapsInviteeIdentityEligibilityFailureToConflict() {
+        when(tenantAdministration.createFirstOwnerInvitation(any())).thenThrow(
+            new TenantAdministrationException(
+                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ELIGIBLE",
+                "FIRST_OWNER invitee identity is not eligible for setup"));
+        CreateFirstOwnerInvitationHandler handler = new CreateFirstOwnerInvitationHandler(context);
+
+        EndpointHandlingException failure = assertThrows(
+            EndpointHandlingException.class,
+            () -> handler.handle(invocation(
+                new CreateFirstOwnerInvitationRequest("owner@example.invalid", "en-US"),
+                Map.of("tenantId", "42"),
+                Optional.of("1001"),
+                Optional.empty())));
+
+        assertEquals(409, failure.status());
+        assertEquals("FIRST_OWNER_INVITEE_IDENTITY_NOT_ELIGIBLE", failure.errorCode());
+    }
+
+    @Test
     void createFirstOwnerInvitationMapsMissingTenantToNotFound() {
         when(tenantAdministration.createFirstOwnerInvitation(any())).thenThrow(
             new TenantAdministrationException("TENANT_NOT_FOUND", "Tenant not found"));

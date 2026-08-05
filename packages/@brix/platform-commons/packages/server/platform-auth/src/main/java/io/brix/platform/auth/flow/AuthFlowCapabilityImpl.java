@@ -25,11 +25,12 @@ import io.brix.platform.auth.ticket.ContextSelectionTicketService;
 import io.brix.platform.auth.ticket.ContextSelectionTicketService.InvalidTicketException;
 import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
-import io.runtime.sdk.capability.IdentityTenantCapability;
-import io.runtime.sdk.capability.IdentityTenantCapability.IdentityRecord;
-import io.runtime.sdk.capability.IdentityTenantCapability.PlatformAdminRecord;
-import io.runtime.sdk.capability.IdentityTenantCapability.TenantMembershipRecord;
-import io.runtime.sdk.capability.IdentityTenantCapability.TenantPrincipalRecord;
+import io.runtime.sdk.capability.IdentityAccountCapability;
+import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
+import io.runtime.sdk.capability.IdentityAccountCapability.PlatformAdminRecord;
+import io.runtime.sdk.capability.TenantAccessCapability;
+import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
+import io.runtime.sdk.capability.TenantAccessCapability.TenantPrincipalRecord;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.RefreshTokenCapability;
@@ -54,7 +55,8 @@ import io.runtime.sdk.capability.registry.CapabilityLevel;
  *
  * <h3>Dependencies</h3>
  * <ul>
- *   <li>{@link IdentityTenantCapability} — sys_identity / sys_tenant_member / sys_tenant_principal queries</li>
+ *   <li>{@link IdentityAccountCapability} — global identity credential and platform-admin state</li>
+ *   <li>{@link TenantAccessCapability} — tenant membership and principalship access state</li>
  *   <li>{@link PasswordCapability} — BCrypt verification</li>
  *   <li>{@link JwtIssuerCapability} — token signing</li>
  *   <li>{@link RbacResolver} (optional internal SPI) — fallback to membership type if absent</li>
@@ -79,7 +81,8 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
     private static final String ROLE_TYPE_ACTOR = "actor";
     private static final String ROLE_TYPE_SUBJECT = "subject";
 
-    private final IdentityTenantCapability identityTenantCapability;
+    private final IdentityAccountCapability identityAccountCapability;
+    private final TenantAccessCapability tenantAccessCapability;
     private final PasswordCapability passwordCapability;
     private final JwtIssuerCapability jwtIssuerCapability;
     private final RbacResolver rbacResolver;
@@ -90,44 +93,49 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         private final ContextSelectionTicketService contextSelectionTicketService;
         private final TenantCapability tenantCapability;
 
-    public AuthFlowCapabilityImpl(IdentityTenantCapability identityTenantCapability,
+    public AuthFlowCapabilityImpl(IdentityAccountCapability identityAccountCapability,
+                                  TenantAccessCapability tenantAccessCapability,
                                   PasswordCapability passwordCapability,
                                   JwtIssuerCapability jwtIssuerCapability,
                                   RbacResolver rbacResolver) {
-        this(identityTenantCapability, passwordCapability, jwtIssuerCapability, rbacResolver, null);
+        this(identityAccountCapability, tenantAccessCapability, passwordCapability, jwtIssuerCapability, rbacResolver, null);
     }
 
-    public AuthFlowCapabilityImpl(IdentityTenantCapability identityTenantCapability,
+    public AuthFlowCapabilityImpl(IdentityAccountCapability identityAccountCapability,
+                                  TenantAccessCapability tenantAccessCapability,
                                   PasswordCapability passwordCapability,
                                   JwtIssuerCapability jwtIssuerCapability,
                                   RbacResolver rbacResolver,
                                   RefreshTokenCapability refreshTokenCapability) {
-        this(identityTenantCapability, passwordCapability, jwtIssuerCapability, rbacResolver,
+        this(identityAccountCapability, tenantAccessCapability, passwordCapability, jwtIssuerCapability, rbacResolver,
                 refreshTokenCapability, () -> null);
     }
 
-    public AuthFlowCapabilityImpl(IdentityTenantCapability identityTenantCapability,
+    public AuthFlowCapabilityImpl(IdentityAccountCapability identityAccountCapability,
+                                  TenantAccessCapability tenantAccessCapability,
                                   PasswordCapability passwordCapability,
                                   JwtIssuerCapability jwtIssuerCapability,
                                   RbacResolver rbacResolver,
                                   RefreshTokenCapability refreshTokenCapability,
                                   Supplier<MfaLoginSupport> mfaLoginSupportSupplier) {
-        this(identityTenantCapability, passwordCapability, jwtIssuerCapability, rbacResolver,
+        this(identityAccountCapability, tenantAccessCapability, passwordCapability, jwtIssuerCapability, rbacResolver,
                 refreshTokenCapability, mfaLoginSupportSupplier, new PlatformLoginLockoutProperties());
     }
 
-    public AuthFlowCapabilityImpl(IdentityTenantCapability identityTenantCapability,
+    public AuthFlowCapabilityImpl(IdentityAccountCapability identityAccountCapability,
+                                  TenantAccessCapability tenantAccessCapability,
                                   PasswordCapability passwordCapability,
                                   JwtIssuerCapability jwtIssuerCapability,
                                   RbacResolver rbacResolver,
                                   RefreshTokenCapability refreshTokenCapability,
                                   Supplier<MfaLoginSupport> mfaLoginSupportSupplier,
                                   PlatformLoginLockoutProperties lockoutProperties) {
-        this(identityTenantCapability, passwordCapability, jwtIssuerCapability, rbacResolver,
+        this(identityAccountCapability, tenantAccessCapability, passwordCapability, jwtIssuerCapability, rbacResolver,
                 refreshTokenCapability, mfaLoginSupportSupplier, lockoutProperties, null, null);
     }
 
-    public AuthFlowCapabilityImpl(IdentityTenantCapability identityTenantCapability,
+    public AuthFlowCapabilityImpl(IdentityAccountCapability identityAccountCapability,
+                                  TenantAccessCapability tenantAccessCapability,
                                   PasswordCapability passwordCapability,
                                   JwtIssuerCapability jwtIssuerCapability,
                                   RbacResolver rbacResolver,
@@ -136,7 +144,8 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                                   PlatformLoginLockoutProperties lockoutProperties,
                                   ContextSelectionTicketService contextSelectionTicketService,
                                   TenantCapability tenantCapability) {
-        this.identityTenantCapability = identityTenantCapability;
+        this.identityAccountCapability = identityAccountCapability;
+        this.tenantAccessCapability = tenantAccessCapability;
         this.passwordCapability = passwordCapability;
         this.jwtIssuerCapability = jwtIssuerCapability;
         this.rbacResolver = rbacResolver;
@@ -154,9 +163,9 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         IdentityRecord identity = authenticateIdentity(command);
 
         List<TenantMembershipRecord> memberships =
-                identityTenantCapability.getActiveMemberships(identity.id());
+                tenantAccessCapability.getActiveMemberships(identity.id());
         List<TenantPrincipalRecord> principalships =
-                identityTenantCapability.getActivePrincipalships(identity.id());
+                tenantAccessCapability.getActivePrincipalships(identity.id());
 
         int total = memberships.size() + principalships.size();
 
@@ -171,13 +180,13 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         if (total == 1) {
             if (!memberships.isEmpty()) {
                 TenantMembershipRecord m = memberships.get(0);
-                identityTenantCapability.touchMemberAccess(m.memberId());
+                tenantAccessCapability.touchMemberAccess(m.memberId());
                 log.info("[AuthFlow] auto-select actor: identity={}, tenant={}",
                         identity.id(), m.tenantId());
                 return buildActorLoginResult(identity, m);
             }
             TenantPrincipalRecord p = principalships.get(0);
-            identityTenantCapability.touchPrincipalAccess(p.principalId());
+            tenantAccessCapability.touchPrincipalAccess(p.principalId());
             log.info("[AuthFlow] auto-select subject: identity={}, tenant={}",
                     identity.id(), p.tenantId());
             return buildSubjectLoginResult(identity, p);
@@ -213,7 +222,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
     public LoginResult loginActor(LoginCommand command) {
         IdentityRecord identity = authenticateIdentity(command);
         List<TenantMembershipRecord> memberships =
-                identityTenantCapability.getActiveMemberships(identity.id());
+                tenantAccessCapability.getActiveMemberships(identity.id());
         if (memberships.isEmpty()) {
             String identityTokenJti = UUID.randomUUID().toString();
             String identityToken = jwtIssuerCapability.issueIdentityToken(
@@ -229,7 +238,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         }
         if (memberships.size() == 1) {
             TenantMembershipRecord membership = memberships.get(0);
-            identityTenantCapability.touchMemberAccess(membership.memberId());
+            tenantAccessCapability.touchMemberAccess(membership.memberId());
             return buildActorLoginResult(identity, membership);
         }
         String identityTokenJti = UUID.randomUUID().toString();
@@ -249,19 +258,19 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
     public LoginResult loginSubject(LoginCommand command) {
         IdentityRecord identity = authenticateIdentity(command);
         Long currentTenantId = currentTenantIdForSubjectLogin();
-        TenantPrincipalRecord principal = identityTenantCapability
+        TenantPrincipalRecord principal = tenantAccessCapability
                 .findPrincipalship(identity.id(), currentTenantId)
                 .orElseThrow(() -> new AuthFlowException(
                         AuthFlowException.CODE_NO_TENANT_ASSOCIATION,
                         "No active Subject context in the current tenant."));
-        identityTenantCapability.touchPrincipalAccess(principal.principalId());
+        tenantAccessCapability.touchPrincipalAccess(principal.principalId());
         return buildSubjectLoginResult(identity, principal);
     }
 
     @Override
     public LoginResult loginPlatformAdmin(LoginCommand command) {
                 IdentityRecord identity = authenticateIdentity(command, true);
-        PlatformAdminRecord admin = identityTenantCapability.findActivePlatformAdmin(identity.id())
+        PlatformAdminRecord admin = identityAccountCapability.findActivePlatformAdmin(identity.id())
                 .orElseThrow(() -> {
                     log.warn("[AuthFlow] platform login rejected — identity is not an active platform admin: {}",
                             identity.id());
@@ -287,25 +296,25 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         }
 
         // Reload identity to re-surface passwordMustChange (Identity Token does not carry it).
-        IdentityRecord identity = identityTenantCapability.findIdentityById(identityId)
+        IdentityRecord identity = identityAccountCapability.findIdentityById(identityId)
                 .orElseThrow(() -> new AuthFlowException(
                         AuthFlowException.CODE_IDENTITY_NOT_FOUND, "Identity not found"));
 
         Long targetTenantId = command.tenantId();
 
         Optional<TenantMembershipRecord> mOpt =
-                identityTenantCapability.findMembership(identityId, targetTenantId);
+                tenantAccessCapability.findMembership(identityId, targetTenantId);
         if (mOpt.isPresent()) {
             TenantMembershipRecord m = mOpt.get();
-            identityTenantCapability.touchMemberAccess(m.memberId());
+            tenantAccessCapability.touchMemberAccess(m.memberId());
             return buildActorLoginResult(identity, m);
         }
 
         Optional<TenantPrincipalRecord> pOpt =
-                identityTenantCapability.findPrincipalship(identityId, targetTenantId);
+                tenantAccessCapability.findPrincipalship(identityId, targetTenantId);
         if (pOpt.isPresent()) {
             TenantPrincipalRecord p = pOpt.get();
-            identityTenantCapability.touchPrincipalAccess(p.principalId());
+            tenantAccessCapability.touchPrincipalAccess(p.principalId());
             return buildSubjectLoginResult(identity, p);
         }
 
@@ -329,29 +338,29 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                             command == null ? null : command.selectionTicket(),
                             identityId,
                             command == null ? null : command.identityTokenJti());
-            IdentityRecord identity = identityTenantCapability.findIdentityById(identityId)
+            IdentityRecord identity = identityAccountCapability.findIdentityById(identityId)
                     .orElseThrow(() -> new AuthFlowException(
                             AuthFlowException.CODE_IDENTITY_NOT_FOUND, "Identity not found"));
             if (ROLE_TYPE_ACTOR.equals(selection.roleType())) {
-                TenantMembershipRecord membership = identityTenantCapability
+                TenantMembershipRecord membership = tenantAccessCapability
                         .findMembership(identityId, selection.tenantId())
                         .filter(m -> selection.refId().equals(m.memberId()))
                         .filter(m -> selection.contextId().equals(m.contextId()))
                         .orElseThrow(() -> new AuthFlowException(
                                 AuthFlowException.CODE_TENANT_ACCESS_DENIED,
                                 "Actor context is no longer available."));
-                identityTenantCapability.touchMemberAccess(membership.memberId());
+                tenantAccessCapability.touchMemberAccess(membership.memberId());
                 return buildActorLoginResult(identity, membership);
             }
             if (ROLE_TYPE_SUBJECT.equals(selection.roleType())) {
-                TenantPrincipalRecord principal = identityTenantCapability
+                TenantPrincipalRecord principal = tenantAccessCapability
                         .findPrincipalship(identityId, selection.tenantId())
                         .filter(p -> selection.refId().equals(p.principalId()))
                         .filter(p -> selection.contextId().equals(p.contextId()))
                         .orElseThrow(() -> new AuthFlowException(
                                 AuthFlowException.CODE_TENANT_ACCESS_DENIED,
                                 "Subject context is no longer available."));
-                identityTenantCapability.touchPrincipalAccess(principal.principalId());
+                tenantAccessCapability.touchPrincipalAccess(principal.principalId());
                 return buildSubjectLoginResult(identity, principal);
             }
             throw new AuthFlowException(
@@ -387,13 +396,13 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                         });
 
         // Re-issue access token for the identity
-        IdentityRecord identity = identityTenantCapability.findIdentityById(rotated.identityId())
+        IdentityRecord identity = identityAccountCapability.findIdentityById(rotated.identityId())
                 .orElseThrow(() -> new AuthFlowException(
                         AuthFlowException.CODE_IDENTITY_NOT_FOUND, "Identity not found"));
 
         if (rotated.adminId() != null) {
             // Refresh for a platform admin session
-            PlatformAdminRecord admin = identityTenantCapability
+            PlatformAdminRecord admin = identityAccountCapability
                     .findActivePlatformAdmin(identity.id())
                     .orElseThrow(() -> new AuthFlowException(
                             AuthFlowException.CODE_ACCOUNT_DISABLED,
@@ -435,7 +444,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         //   1. 加载身份、验证 ACTIVE
         //   2. 验证旧密码与 password_hash 匹配
         //   3. 检查新密码策略及"与旧不同"约束
-        //   4. 调用 IdentityTenantCapability.updatePasswordHash() 写入新哈希并清除必须改密标志
+        //   4. 调用 IdentityAccountCapability.updatePasswordHash() 写入新哈希并清除必须改密标志
         if (command == null || command.identityId() == null) {
             throw new AuthFlowException(
                     AuthFlowException.CODE_IDENTITY_NOT_FOUND, "identityId is required");
@@ -457,7 +466,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                     "New password must differ from the old one");
         }
 
-        IdentityRecord identity = identityTenantCapability.findIdentityById(command.identityId())
+        IdentityRecord identity = identityAccountCapability.findIdentityById(command.identityId())
                 .orElseThrow(() -> new AuthFlowException(
                         AuthFlowException.CODE_IDENTITY_NOT_FOUND, "Identity not found"));
 
@@ -476,9 +485,9 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         }
 
         String newHash = passwordCapability.hash(newPassword);
-        identityTenantCapability.updatePasswordHash(identity.id(), newHash);
+        identityAccountCapability.updatePasswordHash(identity.id(), newHash);
         // A3: increment token_version so all existing JWTs become invalid immediately.
-        identityTenantCapability.incrementTokenVersion(identity.id());
+        identityAccountCapability.incrementTokenVersion(identity.id());
         // A2: revoke all persistent refresh tokens for this identity.
         if (refreshTokenCapability != null) {
             refreshTokenCapability.revokeAllByIdentityId(identity.id());
@@ -691,7 +700,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         String loginId = command.loginId();
         String safeLoginId = redactedLoginId(loginId);
 
-        IdentityRecord identity = identityTenantCapability.findIdentityByEmail(loginId)
+        IdentityRecord identity = identityAccountCapability.findIdentityByEmail(loginId)
                 .orElse(null);
         if (identity == null) {
             log.warn("[AuthFlow] login failed — identity not found: {}", safeLoginId);
@@ -707,8 +716,8 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         }
 
         if (IDENTITY_STATUS_LOCKED.equals(identity.status())) {
-                        if (identityTenantCapability.unlockExpiredLoginLock(identity.id(), Instant.now())) {
-                                identity = identityTenantCapability.findIdentityById(identity.id()).orElse(identity);
+                        if (identityAccountCapability.unlockExpiredLoginLock(identity.id(), Instant.now())) {
+                                identity = identityAccountCapability.findIdentityById(identity.id()).orElse(identity);
                         }
                 }
 
@@ -731,7 +740,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
                 || !passwordCapability.verify(command.password(), identity.passwordHash())) {
             log.warn("[AuthFlow] login failed — wrong password: {}", safeLoginId);
                         if (trackPlatformLoginFailures) {
-                                identityTenantCapability.recordFailedLogin(identity.id(),
+                                identityAccountCapability.recordFailedLogin(identity.id(),
                                                 lockoutProperties.getMaxFailedAttempts(),
                                                 lockoutProperties.getLockMinutes(),
                                                 command.clientIp());
@@ -741,8 +750,8 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
         }
 
                 if (trackPlatformLoginFailures) {
-                        identityTenantCapability.recordSuccessfulLogin(identity.id(), command.clientIp());
-                        identity = identityTenantCapability.findIdentityById(identity.id()).orElse(identity);
+                        identityAccountCapability.recordSuccessfulLogin(identity.id(), command.clientIp());
+                        identity = identityAccountCapability.findIdentityById(identity.id()).orElse(identity);
                 }
 
         return identity;

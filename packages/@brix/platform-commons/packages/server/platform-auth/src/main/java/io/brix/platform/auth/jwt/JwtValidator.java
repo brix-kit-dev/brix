@@ -44,8 +44,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
-import io.runtime.sdk.capability.IdentityTenantCapability;
+import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
+import io.runtime.sdk.capability.TenantAccessCapability;
 
 /**
  * JWT Validator
@@ -63,16 +64,22 @@ public class JwtValidator {
     private final JwtProperties properties;
     private final PublicKey publicKey;
     /** Optional — when present, {@code tv} claim is validated against DB per A3. */
-    private final IdentityTenantCapability identityTenantCapability;
+    private final IdentityAccountCapability identityAccountCapability;
+    /** Optional — when present, context authz version is validated against DB. */
+    private final TenantAccessCapability tenantAccessCapability;
 
     public JwtValidator(JwtProperties properties) {
-        this(properties, null);
+        this(properties, null, null);
     }
 
-    public JwtValidator(JwtProperties properties, IdentityTenantCapability identityTenantCapability) {
+    public JwtValidator(
+            JwtProperties properties,
+            IdentityAccountCapability identityAccountCapability,
+            TenantAccessCapability tenantAccessCapability) {
         this.properties = properties;
         this.publicKey = loadPublicKey(properties.getPublicKeyPath());
-        this.identityTenantCapability = identityTenantCapability;
+        this.identityAccountCapability = identityAccountCapability;
+        this.tenantAccessCapability = tenantAccessCapability;
     }
 
     /**
@@ -203,15 +210,15 @@ public class JwtValidator {
         String originalSub = claims.get("original_sub", String.class);
         user.setOriginalSub(originalSub);
 
-        // A3: validate per-user token version against DB to detect revoked tokens.
-        // Only performed when IdentityTenantCapability is wired (safety net for tests).
-        if (identityTenantCapability != null) {
+        // A3: validate per-user token version against identity DB to detect revoked tokens.
+        // Only performed when IdentityAccountCapability is wired (safety net for tests).
+        if (identityAccountCapability != null) {
             String subjectId = claims.getSubject();
             Long tokenVersion = claims.get("tv", Long.class);
             if (subjectId != null && tokenVersion != null) {
                 try {
                     long identityId = Long.parseLong(subjectId);
-                    long currentVersion = identityTenantCapability.getTokenVersion(identityId);
+                    long currentVersion = identityAccountCapability.getTokenVersion(identityId);
                     if (tokenVersion < currentVersion) {
                         logger.warn("[A3] Token version stale: jwt.tv={}, db.tv={}, identityId={}",
                                 tokenVersion, currentVersion, identityId);
@@ -229,6 +236,8 @@ public class JwtValidator {
                             JwtValidationException.Reason.INVALID);
                 }
             }
+        }
+        if (tenantAccessCapability != null) {
             validateContextAuthzVersion(claims, user);
         }
 
@@ -268,8 +277,8 @@ public class JwtValidator {
         }
         if (user.getTokenRole() == TokenRole.ACTOR) {
             long mver = readLongClaim(claims, "mver");
-            IdentityTenantCapability.TenantMembershipRecord membership =
-                    identityTenantCapability.findMembershipByContextId(contextId)
+            TenantAccessCapability.TenantMembershipRecord membership =
+                    tenantAccessCapability.findMembershipByContextId(contextId)
                             .orElseThrow(() -> staleAuthz("Actor context is no longer active"));
             if (!String.valueOf(membership.identityId()).equals(user.getUserId())
                     || !String.valueOf(membership.memberId()).equals(user.getMemberId())
@@ -278,8 +287,8 @@ public class JwtValidator {
             }
         } else if (user.getTokenRole() == TokenRole.SUBJECT) {
             long pver = readLongClaim(claims, "pver");
-            IdentityTenantCapability.TenantPrincipalRecord principal =
-                    identityTenantCapability.findPrincipalshipByContextId(contextId)
+            TenantAccessCapability.TenantPrincipalRecord principal =
+                    tenantAccessCapability.findPrincipalshipByContextId(contextId)
                             .orElseThrow(() -> staleAuthz("Subject context is no longer active"));
             if (!String.valueOf(principal.identityId()).equals(user.getUserId())
                     || !String.valueOf(principal.principalId()).equals(user.getPrincipalId())

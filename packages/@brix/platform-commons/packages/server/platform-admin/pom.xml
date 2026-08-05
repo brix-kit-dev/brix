@@ -53,11 +53,22 @@
         <!--
             platform-tenant: current repository-local home of the
             TenantAdministration internal contract API. platform-admin main
-            code may import only io.brix.platform.tenant.internal.*.
+            code may import io.brix.platform.tenant.internal.* only for
+            tenant lifecycle operations.
         -->
         <dependency>
             <groupId>io.brix.platform</groupId>
             <artifactId>platform-tenant</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!--
+            platform-identity: home of bootstrap and platform identity
+            internal contract APIs consumed by platform-admin.
+        -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-identity</artifactId>
             <version>${project.version}</version>
         </dependency>
 

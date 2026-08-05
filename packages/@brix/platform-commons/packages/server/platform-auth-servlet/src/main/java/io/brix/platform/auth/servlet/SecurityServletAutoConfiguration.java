@@ -30,7 +30,8 @@ import io.brix.platform.auth.jwt.JwtProperties;
 import io.brix.platform.auth.jwt.JwtValidator;
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.AuthContextCapability;
-import io.runtime.sdk.capability.IdentityTenantCapability;
+import io.runtime.sdk.capability.IdentityAccountCapability;
+import io.runtime.sdk.capability.TenantAccessCapability;
 
 /**
  * Servlet-based Security Auto-Configuration.
@@ -93,18 +94,23 @@ public class SecurityServletAutoConfiguration {
      * JWT validator using RS256 public-key verification.
      * Only created when JWT is explicitly enabled (default: true).
      *
-     * <p>A3: wires {@link IdentityTenantCapability} (if available) to validate the
-     * {@code tv} claim against the DB version on every request.</p>
+     * <p>A3: wires {@link IdentityAccountCapability} and
+     * {@link TenantAccessCapability} (if available) to validate token version
+     * and context authorization version on every request.</p>
      *
      * @param properties              JWT configuration (key path, issuer, audience, clock skew)
-     * @param identityTenantProvider  optional A3 identity capability
+     * @param identityAccountProvider optional A3 identity account capability
+     * @param tenantAccessProvider optional context authorization capability
      * @return a configured JwtValidator
      */
     @Bean
     @ConditionalOnProperty(prefix = "platform.security.jwt", name = "enabled", havingValue = "true", matchIfMissing = true)
     public JwtValidator jwtValidator(JwtProperties properties,
-                                     ObjectProvider<IdentityTenantCapability> identityTenantProvider) {
-        return new JwtValidator(properties, identityTenantProvider.getIfAvailable());
+                                     ObjectProvider<IdentityAccountCapability> identityAccountProvider,
+                                     ObjectProvider<TenantAccessCapability> tenantAccessProvider) {
+        return new JwtValidator(properties,
+                identityAccountProvider.getIfAvailable(),
+                tenantAccessProvider.getIfAvailable());
     }
 
     /**

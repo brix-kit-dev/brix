@@ -50,7 +50,8 @@ import io.runtime.sdk.annotation.Since;
  * @author Brix Platform Team
  * @since 3.2.0
  * @see JwtIssuerCapability
- * @see IdentityTenantCapability
+ * @see IdentityAccountCapability
+ * @see TenantAccessCapability
  */
 @Since("3.2.0")
 public interface AuthFlowCapability {

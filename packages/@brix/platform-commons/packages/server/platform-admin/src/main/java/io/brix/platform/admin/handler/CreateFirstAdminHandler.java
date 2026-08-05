@@ -10,8 +10,8 @@ import java.util.Map;
 
 import io.brix.platform.admin.dto.CreateFirstAdminRequest;
 import io.brix.platform.admin.dto.CreatePlatformAdminResponse;
-import io.brix.platform.tenant.internal.CreateFirstPlatformAdminCommand;
-import io.brix.platform.tenant.internal.PlatformBootstrapAdministration;
+import io.brix.platform.identity.internal.CreateFirstPlatformAdminCommand;
+import io.brix.platform.identity.internal.PlatformBootstrapAdministration;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
@@ -29,16 +29,24 @@ public final class CreateFirstAdminHandler
     @Override
     public CreatePlatformAdminResponse handle(EndpointInvocation<CreateFirstAdminRequest> invocation) {
         invocation.tenantId().ifPresent(tenant -> {
-            throw new IllegalArgumentException("bootstrap endpoints forbid tenant context");
+            throw PlatformEndpointErrors.badRequest(
+                    "PLATFORM_BOOTSTRAP_TENANT_CONTEXT_FORBIDDEN",
+                    new IllegalArgumentException("bootstrap endpoints forbid tenant context"));
         });
-        String token = PlatformOperationalInvocationSupport.requiredBearerToken(invocation);
-        CreateFirstAdminRequest request = request(invocation.body());
-        var created = bootstrapAdministration.createFirstAdmin(new CreateFirstPlatformAdminCommand(
-                token,
-                request.username(),
-                request.email(),
-                request.notes()));
-        return new CreatePlatformAdminResponse(created.id(), created.identityId(), created.setupLinkSent());
+        try {
+            String token = PlatformOperationalInvocationSupport.requiredBearerToken(invocation);
+            CreateFirstAdminRequest request = request(invocation.body());
+            var created = bootstrapAdministration.createFirstAdmin(new CreateFirstPlatformAdminCommand(
+                    token,
+                    request.username(),
+                    request.email(),
+                    request.notes()));
+            return new CreatePlatformAdminResponse(created.id(), created.identityId(), created.setupLinkSent());
+        } catch (IllegalArgumentException e) {
+            throw PlatformEndpointErrors.badRequest("PLATFORM_BOOTSTRAP_INVALID_REQUEST", e);
+        } catch (IllegalStateException e) {
+            throw PlatformEndpointErrors.conflict("PLATFORM_BOOTSTRAP_NOT_READY", e);
+        }
     }
 
     private static CreateFirstAdminRequest request(Object body) {

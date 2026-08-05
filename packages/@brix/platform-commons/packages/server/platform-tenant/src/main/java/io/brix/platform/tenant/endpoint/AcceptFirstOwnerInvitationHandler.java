@@ -9,11 +9,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
+import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
-import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 
@@ -28,12 +29,12 @@ public final class AcceptFirstOwnerInvitationHandler
     private static final String TOKEN_TYPE_HEADER = "x-auth-token-type";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
 
-    private final FirstOwnerInvitationService firstOwnerInvitationService;
+    private final Supplier<TenantAdministration> tenantAdministrationSupplier;
 
-    public AcceptFirstOwnerInvitationHandler(FirstOwnerInvitationService firstOwnerInvitationService) {
-        this.firstOwnerInvitationService = Objects.requireNonNull(
-            firstOwnerInvitationService,
-            "firstOwnerInvitationService must not be null");
+    public AcceptFirstOwnerInvitationHandler(Supplier<TenantAdministration> tenantAdministrationSupplier) {
+        this.tenantAdministrationSupplier = Objects.requireNonNull(
+            tenantAdministrationSupplier,
+            "tenantAdministrationSupplier must not be null");
     }
 
     @Override
@@ -41,11 +42,21 @@ public final class AcceptFirstOwnerInvitationHandler
         Long identityId = requireVerifiedActorIdentity(invocation);
         AcceptFirstOwnerInvitationRequest request = request(invocation.body());
         try {
-            return FirstOwnerAcceptanceDto.from(firstOwnerInvitationService.accept(
+            return FirstOwnerAcceptanceDto.from(tenantAdministration().acceptFirstOwnerInvitation(
                 new AcceptFirstOwnerInvitationCommand(request.invitationToken(), identityId)));
         } catch (TenantAdministrationException ex) {
             throw PlatformTenantEndpointErrors.tenantAdministration(ex);
         }
+    }
+
+    private TenantAdministration tenantAdministration() {
+        TenantAdministration tenantAdministration = tenantAdministrationSupplier.get();
+        if (tenantAdministration == null) {
+            throw PlatformTenantEndpointErrors.serviceUnavailable(
+                "TENANT_ADMINISTRATION_UNAVAILABLE",
+                "tenant administration is not available");
+        }
+        return tenantAdministration;
     }
 
     private static Long requireVerifiedActorIdentity(EndpointInvocation<?> invocation) {

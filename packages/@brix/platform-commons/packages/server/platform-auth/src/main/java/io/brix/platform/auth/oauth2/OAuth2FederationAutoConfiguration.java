@@ -22,27 +22,31 @@ import io.brix.platform.auth.flow.AuthFlowAutoConfiguration;
 import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.capability.ConfigStoreCapability;
 import io.runtime.sdk.capability.HttpCapability;
-import io.runtime.sdk.capability.IdentityTenantCapability;
+import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.OAuth2FederationCapability;
+import io.runtime.sdk.capability.TenantAccessCapability;
 
 /**
  * Auto-configuration that exposes the {@link OAuth2FederationCapability} contract
  * backed by {@link OAuth2FederationCapabilityImpl} (Google).
  *
- * <p>Activates only when {@link HttpCapability}, {@link IdentityTenantCapability}
- * and {@link AuthFlowCapability} are all on the context — a missing bean degrades
+ * <p>Activates only when {@link HttpCapability}, {@link IdentityAccountCapability},
+ * {@link TenantAccessCapability}, and {@link AuthFlowCapability} are all on the context — a missing bean degrades
  * gracefully (no OAuth2 endpoint exposed) rather than failing at startup.</p>
  *
  * @since 3.2.0
  */
 @AutoConfiguration(after = AuthFlowAutoConfiguration.class)
-// Activate when Jackson (ObjectMapper) is present AND platform-tenant module is on
-// the classpath (its concrete IdentityTenantCapability impl class). The string-form
-// reference keeps platform-auth loosely coupled to platform-tenant. See
+// Activate when Jackson (ObjectMapper) is present AND the split identity/tenant
+// providers are on the classpath. The string-form references keep platform-auth
+// loosely coupled to sibling modules. See
 // AuthFlowAutoConfiguration for the rationale on preferring @ConditionalOnClass
 // over @ConditionalOnBean for cross-module activation guards.
 @ConditionalOnClass(value = ObjectMapper.class,
-        name = "io.brix.platform.tenant.service.IdentityTenantCapabilityImpl")
+        name = {
+                "io.brix.platform.identity.service.IdentityAccountCapabilityImpl",
+                "io.brix.platform.tenant.service.TenantAccessCapabilityImpl"
+        })
 public class OAuth2FederationAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(OAuth2FederationAutoConfiguration.class);
@@ -57,7 +61,8 @@ public class OAuth2FederationAutoConfiguration {
      * <p>Type-based {@link ConditionalOnMissingBean} ensures a custom verifier of the
      * same {@link GoogleIdTokenVerifier} type provided by an integrator overrides this
      * default; otherwise the platform default is always available for
-     * {@link #oAuth2FederationCapability(GoogleIdTokenVerifier, IdentityTenantCapability,
+     * {@link #oAuth2FederationCapability(GoogleIdTokenVerifier, IdentityAccountCapability,
+     * TenantAccessCapability,
      * AuthFlowCapability, ConfigStoreCapability)}.</p>
      */
     @Bean("platformAuthGoogleIdTokenVerifier")
@@ -71,11 +76,12 @@ public class OAuth2FederationAutoConfiguration {
     @ConditionalOnMissingBean(OAuth2FederationCapability.class)
     public OAuth2FederationCapability oAuth2FederationCapability(
             GoogleIdTokenVerifier googleIdTokenVerifier,
-            IdentityTenantCapability identityTenantCapability,
+            IdentityAccountCapability identityAccountCapability,
+            TenantAccessCapability tenantAccessCapability,
             AuthFlowCapability authFlowCapability,
             ConfigStoreCapability configStore) {
         log.info("Registering default OAuth2FederationCapability (Google)");
-        return new OAuth2FederationCapabilityImpl(googleIdTokenVerifier, identityTenantCapability,
+        return new OAuth2FederationCapabilityImpl(googleIdTokenVerifier, identityAccountCapability, tenantAccessCapability,
                 authFlowCapability, configStore);
     }
 }

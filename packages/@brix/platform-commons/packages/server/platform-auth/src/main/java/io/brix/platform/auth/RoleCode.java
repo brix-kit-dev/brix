@@ -20,7 +20,7 @@ package io.brix.platform.auth;
  *
  * <h3>Architectural Position</h3>
  * <p>Layer 2C ({@code platform-auth}). These codes match the enum names defined by
- * {@code io.brix.platform.tenant.enums.PlatformAdminRole} and are written into the
+ * {@code io.brix.platform.identity.enums.PlatformAdminRole} and are written into the
  * {@code platform_role} JWT claim and {@code sys_platform_admin.role} column.</p>
  *
  * <h3>Design Rules (SSOT §11 Red-Line R-3)</h3>

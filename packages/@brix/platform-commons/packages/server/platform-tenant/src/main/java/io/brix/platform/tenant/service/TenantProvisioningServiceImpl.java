@@ -30,7 +30,6 @@ import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.enums.TenantStatus;
 import io.brix.platform.tenant.exception.QuotaExceededException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
-import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
@@ -108,7 +107,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
     private final InstallationQuotaRepository installationQuotaRepository;
     private final OrganizationRepository organizationRepository;
     private final BizUserProfileRepository bizUserProfileRepository;
-    private final IdentityRepository identityRepository;
     private final IdGenerator idGenerator;
 
     /**
@@ -121,7 +119,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      * @param tenantRepository repository for tenant operations
      * @param tenantMemberRepository repository for tenant member operations
      * @param organizationRepository repository for organization operations
-     * @param identityRepository repository for identity validation
      * @param idGenerator generator for Snowflake IDs
      */
     public TenantProvisioningServiceImpl(
@@ -130,14 +127,12 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
             InstallationQuotaRepository installationQuotaRepository,
             OrganizationRepository organizationRepository,
             BizUserProfileRepository bizUserProfileRepository,
-            IdentityRepository identityRepository,
             IdGenerator idGenerator) {
         this.tenantRepository = tenantRepository;
         this.tenantMemberRepository = tenantMemberRepository;
         this.installationQuotaRepository = installationQuotaRepository;
         this.organizationRepository = organizationRepository;
         this.bizUserProfileRepository = bizUserProfileRepository;
-        this.identityRepository = identityRepository;
         this.idGenerator = idGenerator;
     }
 

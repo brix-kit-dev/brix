@@ -18,9 +18,10 @@ import io.runtime.sdk.capability.AuthFlowCapability.AuthFlowException;
 import io.runtime.sdk.capability.AuthFlowCapability.LoginCommand;
 import io.runtime.sdk.capability.AuthFlowCapability.LoginResult;
 import io.runtime.sdk.capability.ConfigStoreCapability;
-import io.runtime.sdk.capability.IdentityTenantCapability;
-import io.runtime.sdk.capability.IdentityTenantCapability.IdentityRecord;
+import io.runtime.sdk.capability.IdentityAccountCapability;
+import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
 import io.runtime.sdk.capability.OAuth2FederationCapability;
+import io.runtime.sdk.capability.TenantAccessCapability;
 
 /**
  * <h2>OAuth2 Federation Capability — Default Google Implementation</h2>
@@ -69,16 +70,19 @@ public class OAuth2FederationCapabilityImpl implements OAuth2FederationCapabilit
     private static final String LEGACY_CONFIG_KEY_GOOGLE_CLIENT_ID = "identity.oauth2.google.client-id";
 
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
-    private final IdentityTenantCapability identityTenantCapability;
+    private final IdentityAccountCapability identityAccountCapability;
+    private final TenantAccessCapability tenantAccessCapability;
     private final AuthFlowCapability authFlowCapability;
     private final ConfigStoreCapability configStore;
 
     public OAuth2FederationCapabilityImpl(GoogleIdTokenVerifier googleIdTokenVerifier,
-                                          IdentityTenantCapability identityTenantCapability,
+                                          IdentityAccountCapability identityAccountCapability,
+                                          TenantAccessCapability tenantAccessCapability,
                                           AuthFlowCapability authFlowCapability,
                                           ConfigStoreCapability configStore) {
         this.googleIdTokenVerifier = googleIdTokenVerifier;
-        this.identityTenantCapability = identityTenantCapability;
+        this.identityAccountCapability = identityAccountCapability;
+        this.tenantAccessCapability = tenantAccessCapability;
         this.authFlowCapability = authFlowCapability;
         this.configStore = configStore;
     }
@@ -100,7 +104,7 @@ public class OAuth2FederationCapabilityImpl implements OAuth2FederationCapabilit
                     "Google ID token does not carry an email claim");
         }
 
-        IdentityRecord identity = identityTenantCapability.findIdentityByEmail(user.email())
+        IdentityRecord identity = identityAccountCapability.findIdentityByEmail(user.email())
                 .orElseThrow(() -> {
                     log.warn("[OAuth2Federation] No matching identity for Google email: {}", user.email());
                     return new AuthFlowException(
@@ -134,15 +138,15 @@ public class OAuth2FederationCapabilityImpl implements OAuth2FederationCapabilit
      * for federated logins where no password verification is appropriate.
      *
      * <p>We resolve memberships / principalships through the same
-     * {@link IdentityTenantCapability} contract and then route to either Identity
+     * {@link TenantAccessCapability} contract and then route to either Identity
      * Token (multi-tenant) or directly issue an Actor / Subject token via the
      * existing {@link AuthFlowCapability#selectTenant} entry-point for single-association
      * cases. This keeps the OAuth2 federation strictly above {@code AuthFlowCapability}
      * without touching the JWT issuer directly — preserving the layered design.</p>
      */
     private LoginResult buildFederatedLoginResult(IdentityRecord identity) {
-        var memberships = identityTenantCapability.getActiveMemberships(identity.id());
-        var principalships = identityTenantCapability.getActivePrincipalships(identity.id());
+        var memberships = tenantAccessCapability.getActiveMemberships(identity.id());
+        var principalships = tenantAccessCapability.getActivePrincipalships(identity.id());
         int total = memberships.size() + principalships.size();
 
         if (total == 0) {

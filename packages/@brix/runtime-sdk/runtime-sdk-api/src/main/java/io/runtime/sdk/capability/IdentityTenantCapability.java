@@ -22,18 +22,18 @@ import java.util.Optional;
 import io.runtime.sdk.annotation.Since;
 
 /**
- * Identity-Tenant Membership Capability Contract.
+ * Legacy identity-tenant membership compatibility contract.
  *
- * <p>Provides cross-module query capability for the B2B2C multi-tenant authentication flow.
- * Allows Layer 1 plugins (e.g., app-identity) to query identity credentials and
- * tenant membership/principalship data without direct dependency on Layer 2C
- * (platform-tenant) implementation.
+ * <p>This combined contract is retained for source/binary compatibility with
+ * older integrations. New platform code must consume {@link IdentityAccountCapability}
+ * for global identity credential state and {@link TenantAccessCapability} for
+ * tenant membership/principalship state.
  *
  * <h3>Architecture Compliance</h3>
  * <ul>
  *   <li>Defined in Layer 2A ({@code runtime-sdk-api}) as a capability contract</li>
- *   <li>Implemented in Layer 2C ({@code platform-tenant}) via JPA repositories</li>
- *   <li>Consumed by Layer 1 ({@code identity-core}) for multi-tenant login flow</li>
+ *   <li>Production implementations are split by Data Owner</li>
+ *   <li>Consumers must not require this combined contract for new code</li>
  * </ul>
  *
  * <h3>Security Considerations</h3>
@@ -46,6 +46,7 @@ import io.runtime.sdk.annotation.Since;
  * @see TenantCapability
  */
 @Since("3.2.0")
+@Deprecated(since = "3.2.0", forRemoval = false)
 public interface IdentityTenantCapability {
 
     /**

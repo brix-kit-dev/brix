@@ -40,9 +40,13 @@ class PlatformAdminOperationalDescriptorTest {
         assertEquals("io.brix.platform.tenant.internal.TenantAdministration", tenantContract.contractType());
         assertEquals("platform-admin.tenant-administration", tenantContract.privilegeAllowlistRef());
         assertTrue(descriptor.requiredContracts().stream()
-            .anyMatch(contract -> "brix.internal.platform.bootstrap-administration".equals(contract.contractId())));
+            .anyMatch(contract -> "brix.internal.platform.bootstrap-administration".equals(contract.contractId())
+                && "io.brix.platform.identity.internal.PlatformBootstrapAdministration"
+                    .equals(contract.contractType())));
         assertTrue(descriptor.requiredContracts().stream()
-            .anyMatch(contract -> "brix.internal.platform.identity-administration".equals(contract.contractId())));
+            .anyMatch(contract -> "brix.internal.platform.identity-administration".equals(contract.contractId())
+                && "io.brix.platform.identity.internal.PlatformIdentityAdministration"
+                    .equals(contract.contractType())));
         assertTrue(descriptor.requiredContracts().stream()
             .anyMatch(contract -> "brix.internal.platform.auth-flow".equals(contract.contractId())));
         assertTrue(descriptor.endpoints().containsKey("platform.auth.login.v1"));

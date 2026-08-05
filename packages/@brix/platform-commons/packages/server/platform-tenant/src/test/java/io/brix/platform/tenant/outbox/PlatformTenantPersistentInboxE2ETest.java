@@ -37,7 +37,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.brix.platform.tenant.core.IdGenerator;
-import io.brix.platform.tenant.entity.Identity;
 import io.brix.platform.tenant.entity.InstallationQuota;
 import io.brix.platform.tenant.entity.PlatformTenantFirstOwnerProjection;
 import io.brix.platform.tenant.entity.PlatformTenantInbox;
@@ -52,13 +51,10 @@ import io.brix.platform.tenant.enums.TenantMemberType;
 import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
 import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
-import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
 import io.brix.platform.tenant.repository.PlatformTenantInboxRepository;
 import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
-import io.brix.platform.tenant.repository.PlatformAdminRepository;
-import io.brix.platform.tenant.repository.SetupTokenRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
@@ -68,6 +64,7 @@ import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.brix.platform.tenant.service.FirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
+import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 
 @DataJpaTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:platform_tenant_inbox;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH",
@@ -98,15 +95,6 @@ class PlatformTenantPersistentInboxE2ETest {
     private TenantMemberRepository tenantMemberRepository;
 
     @Autowired
-    private IdentityRepository identityRepository;
-
-    @Autowired
-    private PlatformAdminRepository platformAdminRepository;
-
-    @Autowired
-    private SetupTokenRepository setupTokenRepository;
-
-    @Autowired
     private InstallationQuotaRepository installationQuotaRepository;
 
     @Autowired
@@ -129,8 +117,6 @@ class PlatformTenantPersistentInboxE2ETest {
         profileRepository.deleteAll();
         tenantMemberRepository.deleteAll();
         invitationRepository.deleteAll();
-        platformAdminRepository.deleteAll();
-        setupTokenRepository.deleteAll();
         installationQuotaRepository.deleteAll();
         tenantRepository.deleteAll();
     }
@@ -239,9 +225,7 @@ class PlatformTenantPersistentInboxE2ETest {
             invitationRepository,
             tenantRepository,
             tenantMemberRepository,
-            identityRepository,
-            platformAdminRepository,
-            setupTokenRepository,
+            new StaticFirstOwnerInviteeIdentitySetupCapability("owner@example.com"),
             installationQuotaRepository,
             profileRepository,
             new PlatformTenantReliableEventBusCapability(outboxRepository, objectMapper),
@@ -249,8 +233,7 @@ class PlatformTenantPersistentInboxE2ETest {
             Optional.empty(),
             new SequentialIdGenerator(),
             objectMapper,
-            "https://console.example.test/invite",
-            "https://console.example.test/setup");
+            "https://console.example.test/invite");
     }
 
     private void seedPendingTenantAndInvitation(Long tenantId, Long invitationId, String rawToken) {
@@ -264,12 +247,6 @@ class PlatformTenantPersistentInboxE2ETest {
                 InstallationQuota.DEFAULT_INSTALLATION_ID,
                 InstallationQuota.DEFAULT_TENANT_QUOTA,
                 0));
-
-            Identity identity = new Identity();
-            identity.setId(900L);
-            identity.setUsername("owner@example.com");
-            identity.setEmail("owner@example.com");
-            identityRepository.save(identity);
 
             TenantInvitation invitation = new TenantInvitation();
             invitation.setId(invitationId);
@@ -331,5 +308,28 @@ class PlatformTenantPersistentInboxE2ETest {
             return 0;
         }
 
+    }
+
+    private record StaticFirstOwnerInviteeIdentitySetupCapability(String email)
+            implements FirstOwnerInviteeIdentitySetupCapability {
+
+        @Override
+        public boolean sendSetupIfRequired(
+                Long tenantId,
+                String inviteeEmail,
+                String platformOperatorRef,
+                String locale) {
+            return false;
+        }
+
+        @Override
+        public String requireIdentityEmail(Long identityId) {
+            return email;
+        }
+
+        @Override
+        public String requireActiveIdentityEmail(Long identityId) {
+            return email;
+        }
     }
 }

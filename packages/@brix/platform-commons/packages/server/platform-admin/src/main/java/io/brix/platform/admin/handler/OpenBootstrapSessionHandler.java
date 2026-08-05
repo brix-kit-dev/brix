@@ -10,8 +10,8 @@ import java.util.Map;
 
 import io.brix.platform.admin.dto.BootstrapSessionRequest;
 import io.brix.platform.admin.dto.BootstrapSessionResponse;
-import io.brix.platform.tenant.internal.BootstrapSessionCommand;
-import io.brix.platform.tenant.internal.PlatformBootstrapAdministration;
+import io.brix.platform.identity.internal.BootstrapSessionCommand;
+import io.brix.platform.identity.internal.PlatformBootstrapAdministration;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
@@ -29,10 +29,19 @@ public final class OpenBootstrapSessionHandler
     @Override
     public BootstrapSessionResponse handle(EndpointInvocation<BootstrapSessionRequest> invocation) {
         invocation.tenantId().ifPresent(tenant -> {
-            throw new IllegalArgumentException("bootstrap endpoints forbid tenant context");
+            throw PlatformEndpointErrors.badRequest(
+                    "PLATFORM_BOOTSTRAP_TENANT_CONTEXT_FORBIDDEN",
+                    new IllegalArgumentException("bootstrap endpoints forbid tenant context"));
         });
-        var session = bootstrapAdministration.openSession(new BootstrapSessionCommand(request(invocation.body()).setupCode()));
-        return new BootstrapSessionResponse(session.tokenType(), session.accessToken(), session.expiresIn());
+        try {
+            var session = bootstrapAdministration.openSession(
+                    new BootstrapSessionCommand(request(invocation.body()).setupCode()));
+            return new BootstrapSessionResponse(session.tokenType(), session.accessToken(), session.expiresIn());
+        } catch (IllegalArgumentException e) {
+            throw PlatformEndpointErrors.badRequest("PLATFORM_BOOTSTRAP_INVALID_REQUEST", e);
+        } catch (IllegalStateException e) {
+            throw PlatformEndpointErrors.conflict("PLATFORM_BOOTSTRAP_NOT_READY", e);
+        }
     }
 
     private static BootstrapSessionRequest request(Object body) {

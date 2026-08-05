@@ -6,12 +6,10 @@
  */
 package io.brix.platform.tenant;
 
-import java.util.Objects;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.brix.platform.tenant.endpoint.AcceptFirstOwnerInvitationHandler;
-import io.brix.platform.tenant.service.FirstOwnerInvitationService;
+import io.brix.platform.tenant.internal.TenantAdministration;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
@@ -27,41 +25,32 @@ public final class PlatformTenantPlugin implements BrixPlugin {
 
     public static final String ENDPOINT_FIRST_OWNER_ACCEPT = "platform-tenant.first-owner.accept.v1";
 
-    private FirstOwnerInvitationService firstOwnerInvitationService;
-
-    @Autowired
-    public void setFirstOwnerInvitationService(FirstOwnerInvitationService firstOwnerInvitationService) {
-        this.firstOwnerInvitationService = Objects.requireNonNull(
-            firstOwnerInvitationService,
-            "firstOwnerInvitationService must not be null");
-    }
+    private final AtomicReference<TenantAdministration> tenantAdministration = new AtomicReference<>();
+    private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.unknown("Not started"));
 
     @Override
     public void configure(PluginBootstrapContext bootstrap) {
         bootstrap.bindEndpoint(
             ENDPOINT_FIRST_OWNER_ACCEPT,
-            new AcceptFirstOwnerInvitationHandler(requireFirstOwnerInvitationService()));
+            new AcceptFirstOwnerInvitationHandler(tenantAdministration::get));
     }
 
     @Override
     public void onStart(PluginContext context) {
-        // Data Owner services are provided by the Owner artifact and invoked through contracts.
+        tenantAdministration.set(context.find(TenantAdministration.class)
+            .orElseThrow(() -> new IllegalStateException(
+                "TenantAdministration internal contract is not available for first-owner endpoint binding")));
+        health.set(BrixHealth.up());
     }
 
     @Override
     public void onStop() {
-        // No unmanaged resources are held by the plugin provider.
+        tenantAdministration.set(null);
+        health.set(BrixHealth.down("Stopped"));
     }
 
     @Override
     public BrixHealth health() {
-        return BrixHealth.up();
-    }
-
-    private FirstOwnerInvitationService requireFirstOwnerInvitationService() {
-        if (firstOwnerInvitationService == null) {
-            throw new IllegalStateException("FirstOwnerInvitationService is not available for endpoint binding");
-        }
-        return firstOwnerInvitationService;
+        return health.get();
     }
 }

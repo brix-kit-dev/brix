@@ -189,7 +189,7 @@ public final class PlatformPermissions {
      *
      * <p>Called at login time to populate the JWT {@code permissions} claim.
      * The {@code adminRole} parameter must match the enum name of
-    * {@code io.brix.platform.tenant.enums.PlatformAdminRole}.
+     * {@code io.brix.platform.identity.enums.PlatformAdminRole}.
      *
      * @param adminRole platform admin role enum name, never {@code null}
      * @return immutable, non-null list of permission codes

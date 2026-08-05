@@ -22,21 +22,21 @@ import org.mockito.ArgumentCaptor;
 
 import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.FirstOwnerAcceptanceResult;
+import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
-import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointInvocation;
 
 class AcceptFirstOwnerInvitationHandlerTest {
 
-    private final FirstOwnerInvitationService firstOwnerInvitationService =
-        org.mockito.Mockito.mock(FirstOwnerInvitationService.class);
+    private final TenantAdministration tenantAdministration =
+        org.mockito.Mockito.mock(TenantAdministration.class);
     private final AcceptFirstOwnerInvitationHandler handler =
-        new AcceptFirstOwnerInvitationHandler(firstOwnerInvitationService);
+        new AcceptFirstOwnerInvitationHandler(() -> tenantAdministration);
 
     @Test
     void delegatesToTenantOwnerWithVerifiedIdentityToken() {
-        when(firstOwnerInvitationService.accept(any())).thenReturn(
+        when(tenantAdministration.acceptFirstOwnerInvitation(any())).thenReturn(
             new FirstOwnerAcceptanceResult(42L, 500L, 600L, "ACTIVE"));
 
         FirstOwnerAcceptanceDto response = handler.handle(invocation(
@@ -52,7 +52,7 @@ class AcceptFirstOwnerInvitationHandlerTest {
         assertEquals("ACTIVE", response.tenantStatus());
         ArgumentCaptor<AcceptFirstOwnerInvitationCommand> command =
             ArgumentCaptor.forClass(AcceptFirstOwnerInvitationCommand.class);
-        verify(firstOwnerInvitationService).accept(command.capture());
+        verify(tenantAdministration).acceptFirstOwnerInvitation(command.capture());
         assertEquals("raw-invite-token", command.getValue().invitationToken());
         assertEquals(900L, command.getValue().identityId());
     }
@@ -91,7 +91,7 @@ class AcceptFirstOwnerInvitationHandlerTest {
 
     @Test
     void mapsInvalidInvitationToNotFound() {
-        when(firstOwnerInvitationService.accept(any())).thenThrow(
+        when(tenantAdministration.acceptFirstOwnerInvitation(any())).thenThrow(
             new TenantAdministrationException(
                 "FIRST_OWNER_INVITATION_INVALID",
                 "FIRST_OWNER invitation is invalid"));

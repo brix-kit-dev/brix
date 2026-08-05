@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -26,15 +27,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.entity.BizUserProfile;
-import io.brix.platform.tenant.entity.Identity;
 import io.brix.platform.tenant.entity.InstallationQuota;
-import io.brix.platform.tenant.entity.SetupToken;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantAuditLog;
 import io.brix.platform.tenant.entity.TenantInvitation;
 import io.brix.platform.tenant.entity.TenantInvitation.InvitationTargetType;
 import io.brix.platform.tenant.entity.TenantMember;
-import io.brix.platform.tenant.enums.IdentityStatus;
 import io.brix.platform.tenant.enums.InvitationInviterType;
 import io.brix.platform.tenant.enums.InvitationPurpose;
 import io.brix.platform.tenant.enums.InvitationStatus;
@@ -50,16 +48,15 @@ import io.brix.platform.tenant.internal.ResendFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.RevokeFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
-import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
-import io.brix.platform.tenant.repository.PlatformAdminRepository;
-import io.brix.platform.tenant.repository.SetupTokenRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
 import io.brix.platform.tenant.security.SecretHashing;
 import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
+import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability.IdentitySetupException;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.NotificationRequest;
 import io.runtime.sdk.capability.NotificationTemplateKeys;
@@ -74,14 +71,11 @@ public class FirstOwnerInvitationService {
 
     private static final Duration DEFAULT_TTL = Duration.ofHours(24);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final String TENANT_OWNER_SETUP_TEMPLATE = "tenant.owner.setup.initial";
 
     private final TenantInvitationRepository invitationRepository;
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository tenantMemberRepository;
-    private final IdentityRepository identityRepository;
-    private final PlatformAdminRepository platformAdminRepository;
-    private final SetupTokenRepository setupTokenRepository;
+    private final FirstOwnerInviteeIdentitySetupCapability inviteeIdentitySetupCapability;
     private final InstallationQuotaRepository installationQuotaRepository;
     private final BizUserProfileRepository profileRepository;
     private final EventBusCapability eventBusCapability;
@@ -90,7 +84,6 @@ public class FirstOwnerInvitationService {
     private final IdGenerator idGenerator;
     private final ObjectMapper objectMapper;
     private final String inviteBaseUrl;
-    private final String setupBaseUrl;
 
     /**
      * Creates the FIRST_OWNER invitation service.
@@ -99,9 +92,7 @@ public class FirstOwnerInvitationService {
             TenantInvitationRepository invitationRepository,
             TenantRepository tenantRepository,
             TenantMemberRepository tenantMemberRepository,
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
-            SetupTokenRepository setupTokenRepository,
+            FirstOwnerInviteeIdentitySetupCapability inviteeIdentitySetupCapability,
             InstallationQuotaRepository installationQuotaRepository,
             BizUserProfileRepository profileRepository,
             EventBusCapability eventBusCapability,
@@ -109,14 +100,11 @@ public class FirstOwnerInvitationService {
             Optional<NotificationCapability> notificationCapability,
             IdGenerator idGenerator,
             ObjectMapper objectMapper,
-            String inviteBaseUrl,
-            String setupBaseUrl) {
+            String inviteBaseUrl) {
         this.invitationRepository = invitationRepository;
         this.tenantRepository = tenantRepository;
         this.tenantMemberRepository = tenantMemberRepository;
-        this.identityRepository = identityRepository;
-        this.platformAdminRepository = platformAdminRepository;
-        this.setupTokenRepository = setupTokenRepository;
+        this.inviteeIdentitySetupCapability = inviteeIdentitySetupCapability;
         this.installationQuotaRepository = installationQuotaRepository;
         this.profileRepository = profileRepository;
         this.eventBusCapability = eventBusCapability;
@@ -125,7 +113,6 @@ public class FirstOwnerInvitationService {
         this.idGenerator = idGenerator;
         this.objectMapper = objectMapper;
         this.inviteBaseUrl = inviteBaseUrl;
-        this.setupBaseUrl = setupBaseUrl;
     }
 
     /**
@@ -154,12 +141,12 @@ public class FirstOwnerInvitationService {
             command.platformOperatorRef(),
             tokenPair.hash());
         invitation = invitationRepository.save(invitation);
-        Optional<TokenPair> setupToken = prepareInviteeIdentitySetup(
+        boolean setupSent = withIdentitySetupErrors(() -> inviteeIdentitySetupCapability.sendSetupIfRequired(
+            command.tenantId(),
             command.inviteeEmail(),
-            command.platformOperatorRef());
-        if (setupToken.isPresent()) {
-            sendSetup(command.tenantId(), command.inviteeEmail(), setupToken.get().raw(), command.locale());
-        } else {
+            command.platformOperatorRef(),
+            command.locale()));
+        if (!setupSent) {
             sendInvitation(command.tenantId(), command.inviteeEmail(), tokenPair.raw(), command.locale());
         }
         return view(invitation);
@@ -215,16 +202,12 @@ public class FirstOwnerInvitationService {
             tokenPair.hash());
         replacement = invitationRepository.save(replacement);
         String replacementInviteeEmail = replacement.getInviteeEmail();
-        Optional<TokenPair> setupToken = prepareInviteeIdentitySetup(
+        boolean setupSent = withIdentitySetupErrors(() -> inviteeIdentitySetupCapability.sendSetupIfRequired(
+            command.tenantId(),
             replacementInviteeEmail,
-            command.platformOperatorRef());
-        if (setupToken.isPresent()) {
-            sendSetup(
-                command.tenantId(),
-                replacementInviteeEmail,
-                setupToken.get().raw(),
-                command.locale());
-        } else {
+            command.platformOperatorRef(),
+            command.locale()));
+        if (!setupSent) {
             sendInvitation(command.tenantId(), replacementInviteeEmail, tokenPair.raw(), command.locale());
         }
         return view(replacement);
@@ -267,11 +250,8 @@ public class FirstOwnerInvitationService {
                 "FIRST_OWNER_INVITATION_INVALID",
                 "FIRST_OWNER invitation is invalid"));
         validateAcceptanceInvitation(invitation, now);
-        String identityEmail = identityRepository.findById(command.identityId())
-            .map(Identity::getEmail)
-            .orElseThrow(() -> new TenantAdministrationException(
-                "FIRST_OWNER_IDENTITY_NOT_FOUND",
-                "Actor identity was not found"));
+        String identityEmail = withIdentitySetupErrors(
+            () -> inviteeIdentitySetupCapability.requireIdentityEmail(command.identityId()));
         validateAcceptanceIdentityEmail(invitation, identityEmail);
 
         Tenant tenant = lockTenant(invitation.getTenantId());
@@ -327,18 +307,10 @@ public class FirstOwnerInvitationService {
      * @param identityId activated invitee identity id
      * @return invitations for which a new acceptance link was delivered
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<FirstOwnerInvitationView> sendPendingInvitationsAfterSetup(Long identityId) {
-        Identity identity = identityRepository.findById(identityId)
-            .orElseThrow(() -> new TenantAdministrationException(
-                "FIRST_OWNER_IDENTITY_NOT_FOUND",
-                "Invitee identity was not found"));
-        if (identity.getStatus() != IdentityStatus.ACTIVE) {
-            throw new TenantAdministrationException(
-                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ACTIVE",
-                "FIRST_OWNER invitee identity must complete setup before receiving the invitation");
-        }
-        String inviteeEmail = normalizeEmail(identity.getEmail());
+        String inviteeEmail = withIdentitySetupErrors(
+            () -> inviteeIdentitySetupCapability.requireActiveIdentityEmail(identityId));
         return invitationRepository.findPendingByInviteeEmailAndPurposeForUpdate(
                 inviteeEmail,
                 InvitationPurpose.FIRST_OWNER,
@@ -412,54 +384,6 @@ public class FirstOwnerInvitationService {
             .findFirst();
     }
 
-    private Optional<TokenPair> prepareInviteeIdentitySetup(
-            String inviteeEmail,
-            String platformOperatorRef) {
-        String email = normalizeEmail(inviteeEmail);
-        Identity identity = identityRepository.findByEmail(email)
-            .orElse(null);
-        if (identity == null) {
-            identity = new Identity(email, email);
-            identity.setId(idGenerator.nextId());
-            identity.setStatus(IdentityStatus.PENDING_SETUP);
-            identity.setPasswordHash(null);
-            identity.setMfaEnabled(false);
-            identity = identityRepository.save(identity);
-            identityRepository.flush();
-        }
-        if (identity.getStatus() == IdentityStatus.ACTIVE) {
-            return Optional.empty();
-        }
-        if (identity.getStatus() != IdentityStatus.PENDING_SETUP) {
-            throw new TenantAdministrationException(
-                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ELIGIBLE",
-                "FIRST_OWNER invitee identity is not eligible for setup");
-        }
-        if (platformAdminRepository.findByIdentityId(identity.getId()).filter(admin -> admin.isActive()).isPresent()) {
-            throw new TenantAdministrationException(
-                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ELIGIBLE",
-                "FIRST_OWNER invitee identity must complete platform setup before tenant ownership setup");
-        }
-        return Optional.of(issueTenantOwnerSetupToken(identity.getId(), platformOperatorRef));
-    }
-
-    private TokenPair issueTenantOwnerSetupToken(Long identityId, String platformOperatorRef) {
-        setupTokenRepository.markActiveTokensUsed(
-            identityId,
-            SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP,
-            OffsetDateTime.now());
-        TokenPair tokenPair = newTokenPair();
-        SetupToken token = new SetupToken();
-        token.setId(idGenerator.nextId());
-        token.setIdentityId(identityId);
-        token.setPurpose(SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP);
-        token.setTokenHash(tokenPair.hash());
-        token.setExpiresAt(OffsetDateTime.now().plus(DEFAULT_TTL));
-        token.setCreatedBy(identityIdFromOperatorRef(platformOperatorRef).orElse(null));
-        setupTokenRepository.save(token);
-        return tokenPair;
-    }
-
     private static void requirePendingTenant(Tenant tenant) {
         if (tenant.getStatus() != TenantStatus.PENDING_ACTIVATION) {
             throw new TenantAdministrationException(
@@ -513,31 +437,6 @@ public class FirstOwnerInvitationService {
             NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL,
             locale,
             Map.of("inviteUrl", inviteUrl)));
-    }
-
-    private void sendSetup(
-            Long tenantId,
-            String inviteeEmail,
-            String rawToken,
-            String locale) {
-        NotificationCapability notification = notificationCapability.orElseThrow(
-            () -> new TenantAdministrationException(
-                "NOTIFICATION_PROVIDER_MISSING",
-                "NotificationCapability is required for FIRST_OWNER invitations"));
-        String setupUrl = UriComponentsBuilder.fromUriString(requireBaseUrl(
-                setupBaseUrl,
-                "FIRST_OWNER_SETUP_BASE_URL_NOT_CONFIGURED",
-                "FIRST_OWNER_SETUP_BASE_URL_INVALID",
-                "FIRST_OWNER setup base URL"))
-            .queryParam("token", rawToken)
-            .build(true)
-            .toUriString();
-        notification.send(new NotificationRequest(
-            tenantId,
-            inviteeEmail,
-            TENANT_OWNER_SETUP_TEMPLATE,
-            locale,
-            Map.of("setupUrl", setupUrl)));
     }
 
     private static String requireBaseUrl(
@@ -646,17 +545,6 @@ public class FirstOwnerInvitationService {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static Optional<Long> identityIdFromOperatorRef(String platformOperatorRef) {
-        if (platformOperatorRef == null || !platformOperatorRef.startsWith("platform-identity:")) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(Long.valueOf(platformOperatorRef.substring("platform-identity:".length())));
-        } catch (NumberFormatException ex) {
-            return Optional.empty();
-        }
-    }
-
     private static TokenPair newTokenPair() {
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
@@ -665,5 +553,19 @@ public class FirstOwnerInvitationService {
     }
 
     private record TokenPair(String raw, String hash) {
+    }
+
+    private static <T> T withIdentitySetupErrors(IdentitySetupCall<T> call) {
+        try {
+            return call.execute();
+        } catch (IdentitySetupException ex) {
+            throw new TenantAdministrationException(ex.code(), ex.getMessage());
+        }
+    }
+
+    @FunctionalInterface
+    private interface IdentitySetupCall<T> {
+
+        T execute();
     }
 }

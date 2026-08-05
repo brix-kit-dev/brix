@@ -104,6 +104,8 @@
         <!-- 公共基础模块 -->
         <module>packages/server/platform-common</module>
         <module>packages/server/platform-common-starter</module>
+        <!-- 平台身份与 Bootstrap Owner（正规源模块骨架） -->
+        <module>packages/server/platform-identity</module>
         <!-- 多租户能力模块（Phase 1 MVP - 数据库骨架） -->
         <module>packages/server/platform-tenant</module>
         <!-- 平台能力模块 -->

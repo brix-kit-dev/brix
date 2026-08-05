@@ -7,7 +7,7 @@
 package io.brix.platform.admin.handler;
 
 import io.brix.platform.admin.dto.BootstrapStatusResponse;
-import io.brix.platform.tenant.internal.PlatformBootstrapAdministration;
+import io.brix.platform.identity.internal.PlatformBootstrapAdministration;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;

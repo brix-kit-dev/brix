@@ -10,7 +10,7 @@ import java.util.Map;
 
 import io.brix.platform.admin.dto.PlatformSetupTotpInitRequest;
 import io.brix.platform.admin.dto.PlatformSetupTotpInitResponse;
-import io.brix.platform.tenant.internal.PlatformIdentityAdministration;
+import io.brix.platform.identity.internal.PlatformIdentityAdministration;
 import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;

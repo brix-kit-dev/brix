@@ -21,11 +21,11 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import io.brix.platform.identity.internal.PlatformAdminView;
+import io.brix.platform.identity.internal.PlatformIdentityAdministration;
+import io.brix.platform.identity.internal.PlatformPageRequest;
+import io.brix.platform.identity.internal.PlatformPageView;
 import io.brix.platform.tenant.internal.InstallationQuotaView;
-import io.brix.platform.tenant.internal.PlatformAdminView;
-import io.brix.platform.tenant.internal.PlatformIdentityAdministration;
-import io.brix.platform.tenant.internal.PlatformPageRequest;
-import io.brix.platform.tenant.internal.PlatformPageView;
 import io.brix.platform.tenant.internal.PlatformTenantView;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.runtime.orchestrator.operational.OperationalContext;
@@ -86,7 +86,7 @@ class PlatformAdminReadOperationalHandlerTest {
     void listTenantsDelegatesToTenantOwnerReadContract() {
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-07-28T12:00:00Z");
         when(tenantAdministration.listTenants(org.mockito.ArgumentMatchers.any()))
-            .thenReturn(new PlatformPageView<>(
+            .thenReturn(new io.brix.platform.tenant.internal.PlatformPageView<>(
                 List.of(new PlatformTenantView(
                     42L,
                     "acme",
@@ -112,7 +112,8 @@ class PlatformAdminReadOperationalHandlerTest {
 
         assertEquals(42L, response.content().get(0).tenantId());
         assertEquals(3, response.content().get(0).quotaLimit());
-        ArgumentCaptor<PlatformPageRequest> request = ArgumentCaptor.forClass(PlatformPageRequest.class);
+        ArgumentCaptor<io.brix.platform.tenant.internal.PlatformPageRequest> request =
+            ArgumentCaptor.forClass(io.brix.platform.tenant.internal.PlatformPageRequest.class);
         verify(tenantAdministration).listTenants(request.capture());
         assertEquals("acme", request.getValue().query());
     }

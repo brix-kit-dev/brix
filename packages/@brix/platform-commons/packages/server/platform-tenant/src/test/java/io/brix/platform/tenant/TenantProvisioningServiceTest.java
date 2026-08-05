@@ -46,7 +46,6 @@ import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.enums.TenantStatus;
 import io.brix.platform.tenant.exception.QuotaExceededException;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
-import io.brix.platform.tenant.repository.IdentityRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
@@ -97,9 +96,6 @@ class TenantProvisioningServiceTest {
     private BizUserProfileRepository bizUserProfileRepository;
 
     @Mock
-    private IdentityRepository identityRepository;
-
-    @Mock
     private IdGenerator idGenerator;
 
     private TenantProvisioningService service;
@@ -112,7 +108,6 @@ class TenantProvisioningServiceTest {
             installationQuotaRepository,
             organizationRepository,
             bizUserProfileRepository,
-            identityRepository,
             idGenerator
         );
     }

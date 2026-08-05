@@ -21,10 +21,32 @@ final class PlatformReadQuerySupport {
     }
 
     static PlatformPageRequest pageRequest(EndpointInvocation<?> invocation) {
+        PageQuery query = pageQuery(invocation);
+        return new PlatformPageRequest(
+            query.page(),
+            query.size(),
+            query.sortBy(),
+            query.descending(),
+            query.status(),
+            query.query());
+    }
+
+    static io.brix.platform.identity.internal.PlatformPageRequest identityPageRequest(EndpointInvocation<?> invocation) {
+        PageQuery query = pageQuery(invocation);
+        return new io.brix.platform.identity.internal.PlatformPageRequest(
+            query.page(),
+            query.size(),
+            query.sortBy(),
+            query.descending(),
+            query.status(),
+            query.query());
+    }
+
+    private static PageQuery pageQuery(EndpointInvocation<?> invocation) {
         int page = intQuery(invocation, "page", DEFAULT_PAGE);
         int size = intQuery(invocation, "size", DEFAULT_SIZE);
         SortSpec sort = sortSpec(firstQuery(invocation, "sort", "createdAt,desc"));
-        return new PlatformPageRequest(
+        return new PageQuery(
             Math.max(0, page),
             Math.max(1, Math.min(MAX_SIZE, size)),
             sort.field(),
@@ -63,5 +85,14 @@ final class PlatformReadQuerySupport {
     }
 
     private record SortSpec(String field, boolean descending) {
+    }
+
+    private record PageQuery(
+            int page,
+            int size,
+            String sortBy,
+            boolean descending,
+            String status,
+            String query) {
     }
 }

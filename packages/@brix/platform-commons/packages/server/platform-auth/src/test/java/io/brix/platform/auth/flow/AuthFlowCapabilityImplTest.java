@@ -19,9 +19,10 @@ import io.runtime.sdk.capability.AuthFlowCapability.LoginCommand;
 import io.runtime.sdk.capability.AuthFlowCapability.LoginResult;
 import io.runtime.sdk.capability.AuthFlowCapability.LoginStatus;
 import io.runtime.sdk.capability.AuthFlowCapability.MfaVerifyCommand;
-import io.runtime.sdk.capability.IdentityTenantCapability;
-import io.runtime.sdk.capability.IdentityTenantCapability.IdentityRecord;
-import io.runtime.sdk.capability.IdentityTenantCapability.PlatformAdminRecord;
+import io.runtime.sdk.capability.IdentityAccountCapability;
+import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
+import io.runtime.sdk.capability.IdentityAccountCapability.PlatformAdminRecord;
+import io.runtime.sdk.capability.TenantAccessCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.registry.Capability;
@@ -58,16 +59,18 @@ class AuthFlowCapabilityImplTest {
 
     @Test
     void pendingSetupIdentityCannotLoginThroughPlatformAuth() {
-        IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+        IdentityAccountCapability identityAccountCapability = mock(IdentityAccountCapability.class);
+        TenantAccessCapability tenantAccessCapability = mock(TenantAccessCapability.class);
         PasswordCapability passwordCapability = mock(PasswordCapability.class);
         JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
         AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
-                identityTenantCapability,
+                identityAccountCapability,
+                tenantAccessCapability,
                 passwordCapability,
                 jwtIssuerCapability,
                 null);
 
-        when(identityTenantCapability.findIdentityByEmail("bootstrap@example.invalid"))
+        when(identityAccountCapability.findIdentityByEmail("bootstrap@example.invalid"))
                 .thenReturn(java.util.Optional.of(new IdentityRecord(
                         1L,
                         "bootstrap@example.invalid",
@@ -87,16 +90,18 @@ class AuthFlowCapabilityImplTest {
 
     @Test
     void activePlatformAdminReceivesMfaChallengeInsteadOfAccessToken() {
-        IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+        IdentityAccountCapability identityAccountCapability = mock(IdentityAccountCapability.class);
+        TenantAccessCapability tenantAccessCapability = mock(TenantAccessCapability.class);
         PasswordCapability passwordCapability = mock(PasswordCapability.class);
         JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
         AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
-                identityTenantCapability,
+                identityAccountCapability,
+                tenantAccessCapability,
                 passwordCapability,
                 jwtIssuerCapability,
                 null);
 
-        when(identityTenantCapability.findIdentityByEmail("admin@example.invalid"))
+        when(identityAccountCapability.findIdentityByEmail("admin@example.invalid"))
                 .thenReturn(java.util.Optional.of(new IdentityRecord(
                         1L,
                         "admin@example.invalid",
@@ -106,7 +111,7 @@ class AuthFlowCapabilityImplTest {
                         false,
                         7L)));
         when(passwordCapability.verify("password", "hash")).thenReturn(true);
-        when(identityTenantCapability.findActivePlatformAdmin(1L))
+        when(identityAccountCapability.findActivePlatformAdmin(1L))
                 .thenReturn(java.util.Optional.of(new PlatformAdminRecord(
                         2L, 1L, "PLATFORM_SUPER_ADMIN", true)));
         when(jwtIssuerCapability.issuePlatformMfaChallengeToken(any()))
@@ -123,16 +128,18 @@ class AuthFlowCapabilityImplTest {
 
     @Test
     void wrongPlatformPasswordRecordsFailedLoginAttempt() {
-        IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+        IdentityAccountCapability identityAccountCapability = mock(IdentityAccountCapability.class);
+        TenantAccessCapability tenantAccessCapability = mock(TenantAccessCapability.class);
         PasswordCapability passwordCapability = mock(PasswordCapability.class);
         JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
         AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
-                identityTenantCapability,
+                identityAccountCapability,
+                tenantAccessCapability,
                 passwordCapability,
                 jwtIssuerCapability,
                 null);
 
-        when(identityTenantCapability.findIdentityByEmail("admin@example.invalid"))
+        when(identityAccountCapability.findIdentityByEmail("admin@example.invalid"))
                 .thenReturn(java.util.Optional.of(new IdentityRecord(
                         1L,
                         "admin@example.invalid",
@@ -148,22 +155,24 @@ class AuthFlowCapabilityImplTest {
                         new LoginCommand("admin@example.invalid", "wrong", "127.0.0.1")));
 
         assertEquals(AuthFlowException.CODE_INVALID_CREDENTIALS, ex.getErrorCode());
-        verify(identityTenantCapability).recordFailedLogin(1L, 5, 15, "127.0.0.1");
+        verify(identityAccountCapability).recordFailedLogin(1L, 5, 15, "127.0.0.1");
         verify(jwtIssuerCapability, never()).issuePlatformMfaChallengeToken(any());
     }
 
     @Test
     void actorLoginWithoutMembershipReturnsRestrictedIdentityTokenForPreLinking() {
-        IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+        IdentityAccountCapability identityAccountCapability = mock(IdentityAccountCapability.class);
+        TenantAccessCapability tenantAccessCapability = mock(TenantAccessCapability.class);
         PasswordCapability passwordCapability = mock(PasswordCapability.class);
         JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
         AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
-                identityTenantCapability,
+                identityAccountCapability,
+                tenantAccessCapability,
                 passwordCapability,
                 jwtIssuerCapability,
                 null);
 
-        when(identityTenantCapability.findIdentityByEmail("owner@example.invalid"))
+        when(identityAccountCapability.findIdentityByEmail("owner@example.invalid"))
                 .thenReturn(java.util.Optional.of(new IdentityRecord(
                         1L,
                         "owner@example.invalid",
@@ -173,7 +182,7 @@ class AuthFlowCapabilityImplTest {
                         false,
                         7L)));
         when(passwordCapability.verify("password", "hash")).thenReturn(true);
-        when(identityTenantCapability.getActiveMemberships(1L)).thenReturn(java.util.List.of());
+        when(tenantAccessCapability.getActiveMemberships(1L)).thenReturn(java.util.List.of());
         when(jwtIssuerCapability.issueIdentityToken(any())).thenReturn("identity-token");
 
         LoginResult result = authFlow.loginActor(
@@ -187,16 +196,18 @@ class AuthFlowCapabilityImplTest {
 
     @Test
     void lockedPlatformIdentityReturnsLockedWithoutPasswordVerification() {
-        IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+        IdentityAccountCapability identityAccountCapability = mock(IdentityAccountCapability.class);
+        TenantAccessCapability tenantAccessCapability = mock(TenantAccessCapability.class);
         PasswordCapability passwordCapability = mock(PasswordCapability.class);
         JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
         AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
-                identityTenantCapability,
+                identityAccountCapability,
+                tenantAccessCapability,
                 passwordCapability,
                 jwtIssuerCapability,
                 null);
 
-        when(identityTenantCapability.findIdentityByEmail("admin@example.invalid"))
+        when(identityAccountCapability.findIdentityByEmail("admin@example.invalid"))
                 .thenReturn(java.util.Optional.of(new IdentityRecord(
                         1L,
                         "admin@example.invalid",
@@ -205,7 +216,7 @@ class AuthFlowCapabilityImplTest {
                         "LOCKED",
                         false,
                         7L)));
-        when(identityTenantCapability.unlockExpiredLoginLock(eq(1L), any())).thenReturn(false);
+        when(identityAccountCapability.unlockExpiredLoginLock(eq(1L), any())).thenReturn(false);
 
         AuthFlowException ex = assertThrows(AuthFlowException.class,
                 () -> authFlow.loginPlatformAdmin(
@@ -217,12 +228,14 @@ class AuthFlowCapabilityImplTest {
 
         @Test
         void mfaVerifyDelegatesToRegisteredSupport() {
-                IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+                IdentityAccountCapability identityAccountCapability = mock(IdentityAccountCapability.class);
+        TenantAccessCapability tenantAccessCapability = mock(TenantAccessCapability.class);
                 PasswordCapability passwordCapability = mock(PasswordCapability.class);
                 JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
                 MfaLoginSupport mfaLoginSupport = mock(MfaLoginSupport.class);
                 AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
-                                identityTenantCapability,
+                                identityAccountCapability,
+                tenantAccessCapability,
                                 passwordCapability,
                                 jwtIssuerCapability,
                                 null,
@@ -251,11 +264,13 @@ class AuthFlowCapabilityImplTest {
 
         @Test
         void mfaVerifyFailsClosedWhenSupportIsAbsent() {
-                IdentityTenantCapability identityTenantCapability = mock(IdentityTenantCapability.class);
+                IdentityAccountCapability identityAccountCapability = mock(IdentityAccountCapability.class);
+        TenantAccessCapability tenantAccessCapability = mock(TenantAccessCapability.class);
                 PasswordCapability passwordCapability = mock(PasswordCapability.class);
                 JwtIssuerCapability jwtIssuerCapability = mock(JwtIssuerCapability.class);
                 AuthFlowCapabilityImpl authFlow = new AuthFlowCapabilityImpl(
-                                identityTenantCapability,
+                                identityAccountCapability,
+                tenantAccessCapability,
                                 passwordCapability,
                                 jwtIssuerCapability,
                                 null);

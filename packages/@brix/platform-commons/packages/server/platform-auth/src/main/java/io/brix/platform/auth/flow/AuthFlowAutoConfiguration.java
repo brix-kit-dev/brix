@@ -24,30 +24,32 @@ import io.brix.platform.auth.jwt.JwtIssuerAutoConfiguration;
 import io.brix.platform.auth.password.PasswordCapabilityAutoConfiguration;
 import io.brix.platform.auth.ticket.ContextSelectionTicketService;
 import io.runtime.sdk.capability.AuthFlowCapability;
-import io.runtime.sdk.capability.IdentityTenantCapability;
+import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.RefreshTokenCapability;
 import io.runtime.sdk.capability.TenantCapability;
+import io.runtime.sdk.capability.TenantAccessCapability;
 
 /**
  * Auto-configuration that exposes the {@link AuthFlowCapability} contract
  * backed by {@link AuthFlowCapabilityImpl}.
  *
- * <p>Activates only when the host wires {@link IdentityTenantCapability}
- * (i.e. {@code platform-tenant} is on the classpath / deployed). Plugin-side
- * legacy auth services therefore continue to function as the sole login path
- * in deployments without multi-tenant tables.</p>
+ * <p>Activates only when the host has both platform-identity and
+ * platform-tenant split providers on the classpath. Required narrow capability
+ * beans are constructor-injected and therefore fail fast when missing.</p>
  *
  * @since 3.2.0
  */
 @AutoConfiguration(after = { JwtIssuerAutoConfiguration.class, PasswordCapabilityAutoConfiguration.class })
 @AutoConfigureAfter(name = {
-        // Ordering hint only — class names are loose so we don't hard-link the platform-tenant module.
+        // Ordering hints only — class names are loose so we don't hard-link modules.
+        "io.brix.platform.identity.config.PlatformIdentityAutoConfiguration",
         "io.brix.platform.tenant.config.TenantAutoConfiguration"
 })
-// Classpath gate: only activate when platform-tenant module is on the classpath
-// (its concrete IdentityTenantCapability implementation class is present).
+// Classpath gate: only activate when the identity and tenant split providers
+// are on the classpath. Bean wiring remains fail-fast if either narrow
+// capability is absent.
 // @ConditionalOnClass is evaluated at config-class registration time and is reliable;
 // @ConditionalOnBean is unreliable for sibling auto-configurations because the
 // OnBeanCondition may run before sibling @Bean methods have populated the BeanFactory,
@@ -55,7 +57,10 @@ import io.runtime.sdk.capability.TenantCapability;
 // JwtIssuerCapability dependencies are produced by sibling configurations in this
 // same jar and will fail-fast at bean autowiring time if absent — which is the
 // desired behavior since they are mandatory for AuthFlow to function.
-@ConditionalOnClass(name = "io.brix.platform.tenant.service.IdentityTenantCapabilityImpl")
+@ConditionalOnClass(name = {
+        "io.brix.platform.identity.service.IdentityAccountCapabilityImpl",
+        "io.brix.platform.tenant.service.TenantAccessCapabilityImpl"
+})
 @EnableConfigurationProperties(PlatformLoginLockoutProperties.class)
 public class AuthFlowAutoConfiguration {
 
@@ -64,15 +69,16 @@ public class AuthFlowAutoConfiguration {
     /**
      * Registers the default {@link AuthFlowCapability} backed by
      * {@link AuthFlowCapabilityImpl}. Required dependencies
-     * ({@link IdentityTenantCapability}, {@link PasswordCapability},
-     * {@link JwtIssuerCapability}) are injected as constructor parameters and
-     * will trigger a fail-fast {@code NoSuchBeanDefinitionException} at
-     * autowiring time if absent — preferred over silently skipping the bean.
+     * ({@link IdentityAccountCapability}, {@link TenantAccessCapability},
+     * {@link PasswordCapability}, {@link JwtIssuerCapability}) are injected as
+     * constructor parameters and will trigger a fail-fast
+     * {@code NoSuchBeanDefinitionException} at autowiring time if absent.
      */
     @Bean
     @ConditionalOnMissingBean(AuthFlowCapability.class)
     public AuthFlowCapabilityImpl authFlowCapability(
-            IdentityTenantCapability identityTenantCapability,
+            IdentityAccountCapability identityAccountCapability,
+            TenantAccessCapability tenantAccessCapability,
             PasswordCapability passwordCapability,
             JwtIssuerCapability jwtIssuerCapability,
             ObjectProvider<RbacResolver> rbacResolverProvider,
@@ -91,7 +97,7 @@ public class AuthFlowAutoConfiguration {
                 resolver == null ? "ABSENT" : resolver.getClass().getSimpleName(),
                 refreshTokenCapability == null ? "ABSENT (A2 disabled)" : refreshTokenCapability.getClass().getSimpleName(),
                 contextSelectionTicketService == null ? "ABSENT" : contextSelectionTicketService.getClass().getSimpleName());
-        return new AuthFlowCapabilityImpl(identityTenantCapability, passwordCapability,
+        return new AuthFlowCapabilityImpl(identityAccountCapability, tenantAccessCapability, passwordCapability,
                 jwtIssuerCapability, resolver, refreshTokenCapability, mfaLoginSupportProvider::getIfAvailable,
                 lockoutProperties, contextSelectionTicketService, tenantCapability);
     }
