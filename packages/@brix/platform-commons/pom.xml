@@ -68,7 +68,7 @@
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         
         <!-- 可观测性（通过 OpenTelemetry BOM 统一管理） -->
-        <opentelemetry.version>1.44.1</opentelemetry.version>
+        <opentelemetry.version>1.62.0</opentelemetry.version>
         
         <!-- 韧性 -->
         <resilience4j.version>2.1.0</resilience4j.version>
