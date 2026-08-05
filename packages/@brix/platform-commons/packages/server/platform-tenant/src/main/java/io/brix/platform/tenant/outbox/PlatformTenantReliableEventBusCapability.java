@@ -68,7 +68,7 @@ public final class PlatformTenantReliableEventBusCapability implements EventBusC
             PlatformTenantOutboxRepository outboxRepository,
             ObjectMapper objectMapper) {
         this(outboxRepository, objectMapper, new PluginManifestLoader()
-            .loadActiveFromClasspath(PlatformTenantReliableEventBusCapability.class.getClassLoader()));
+            .loadActiveFromClasspath(PlatformTenantReliableEventBusCapability.class));
     }
 
     /**

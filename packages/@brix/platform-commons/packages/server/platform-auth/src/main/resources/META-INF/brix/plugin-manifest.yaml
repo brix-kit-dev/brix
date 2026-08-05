@@ -1,0 +1,66 @@
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: platform-auth
+  name: platform-auth
+  version: 3.2.0
+  displayName: Platform Auth
+  vendor: Brix Platform
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.2.0
+  supportedRange: ">=3.0.10 <4.0.0"
+modules:
+  - groupId: io.brix.platform
+    artifactId: platform-auth
+    version: 3.2.0
+    moduleKind: plugin-server
+endpoints:
+  provides:
+    - endpointId: platform-auth.login.actor.v1
+      transport: http
+      method: POST
+      path: /api/auth/login/actor
+      request:
+        schemaRef: brix://schemas/platform-auth/login-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-auth/login-response/1.0.0
+      handlerId: platform-auth.login.actor.v1
+      authentication:
+        mode: anonymous
+      authorization:
+        policyRef: auth:login:actor
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: not-applicable
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.AuthFlowCapability
+      version: ">=3.2.0 <4.0.0"
+  optional: []
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes: []
+  subscribes: []
+tasks:
+  provides: []
+internalContracts:
+  provides: []
+data:
+  storageId: platform_auth
+  schema: platform-auth
+  migrationLocation: db/migration/platform-auth
+permissions:
+  - id: auth:login:actor
+config: []
+ui:
+  web:
+    enabled: false

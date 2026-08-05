@@ -71,13 +71,12 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 // IMPORTANT: This is a catch-all fallback advice. It MUST run with the lowest
-// precedence so that domain-specific @RestControllerAdvice beans (e.g.
-// AuthFlowExceptionAdvice in platform-auth-web) are consulted first. With
-// HIGHEST_PRECEDENCE, this advice's @ExceptionHandler(Exception.class) handler
-// would short-circuit specific advices (Spring resolves matching handlers
+// precedence so that domain-specific @RestControllerAdvice beans are consulted
+// first. With HIGHEST_PRECEDENCE, this advice's @ExceptionHandler(Exception.class)
+// handler would short-circuit specific advices (Spring resolves matching handlers
 // advice-by-advice in @Order, not by exception specificity across advices),
-// causing all domain exceptions to surface as 500 "Unknown exception" instead
-// of their intended HTTP status (e.g. 401 Invalid credentials, 403 forbidden).
+// causing domain exceptions to surface as 500 "Unknown exception" instead of
+// their intended HTTP status (e.g. 401 invalid credentials, 403 forbidden).
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class GlobalExceptionHandler {
     

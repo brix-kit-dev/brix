@@ -112,7 +112,6 @@
         <module>packages/server/platform-auth-operational</module>
         <module>packages/server/platform-auth-servlet</module>
         <module>packages/server/platform-auth-reactive</module>
-        <module>packages/server/platform-auth-web</module>
         <module>packages/server/platform-observability</module>
         <module>packages/server/platform-config</module>
         <module>packages/server/platform-notification</module>
@@ -203,11 +202,6 @@
             <dependency>
                 <groupId>io.brix.platform</groupId>
                 <artifactId>platform-auth-reactive</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.brix.platform</groupId>
-                <artifactId>platform-auth-web</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

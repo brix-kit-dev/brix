@@ -138,7 +138,7 @@ class PlatformTenantReliableEventBusCapabilityTest {
     @Test
     void manifestWithoutCanonicalInboxIsRejectedAtConstruction() {
         PluginManifest manifest = new PluginManifestLoader()
-            .loadActiveFromClasspath(PlatformTenantReliableEventBusCapability.class.getClassLoader());
+            .loadActiveFromClasspath(PlatformTenantReliableEventBusCapability.class);
         manifest.getData().setInbox(null);
 
         EventPublishException failure = assertThrows(

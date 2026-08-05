@@ -17,8 +17,15 @@ package io.runtime.manifest.loader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.CodeSource;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -136,5 +143,92 @@ public final class PluginManifestLoader {
         } catch (IOException e) {
             throw new ManifestLoadException("Failed to close plugin manifest classpath resource", e);
         }
+    }
+
+    /**
+     * Loads the active plugin manifest from the same artifact as the supplied
+     * anchor type.
+     *
+     * @param anchorType type whose code source identifies the owning artifact
+     * @return validated plugin manifest from the same artifact
+     */
+    public PluginManifest loadActiveFromClasspath(Class<?> anchorType) {
+        Objects.requireNonNull(anchorType, "anchorType must not be null");
+        ClassLoader effective = anchorType.getClassLoader() != null
+            ? anchorType.getClassLoader()
+            : Thread.currentThread().getContextClassLoader();
+        URL codeSource = codeSource(anchorType);
+        List<URL> matches = resources(effective, PluginManifestValidator.ACTIVE_MANIFEST_RESOURCE).stream()
+            .filter(resource -> belongsToCodeSource(resource, codeSource))
+            .toList();
+        if (matches.isEmpty()) {
+            throw new ManifestLoadException("Active plugin manifest not found in same artifact as "
+                + anchorType.getName() + ": " + PluginManifestValidator.ACTIVE_MANIFEST_RESOURCE);
+        }
+        if (matches.size() > 1) {
+            throw new ManifestLoadException("Multiple active plugin manifests found in same artifact as "
+                + anchorType.getName() + ": " + matches);
+        }
+        try (InputStream inputStream = matches.get(0).openStream()) {
+            return load(inputStream);
+        } catch (IOException e) {
+            throw new ManifestLoadException("Failed to load plugin manifest from same artifact as "
+                + anchorType.getName(), e);
+        }
+    }
+
+    private static List<URL> resources(ClassLoader classLoader, String resourceName) {
+        try {
+            Enumeration<URL> urls = classLoader.getResources(resourceName);
+            List<URL> result = new ArrayList<>();
+            while (urls.hasMoreElements()) {
+                result.add(urls.nextElement());
+            }
+            return result;
+        } catch (IOException e) {
+            throw new ManifestLoadException("Failed to scan classpath for " + resourceName, e);
+        }
+    }
+
+    private static URL codeSource(Class<?> anchorType) {
+        CodeSource source = anchorType.getProtectionDomain().getCodeSource();
+        if (source == null || source.getLocation() == null) {
+            throw new ManifestLoadException("Class has no code source for plugin manifest association: "
+                + anchorType.getName());
+        }
+        return source.getLocation();
+    }
+
+    private static boolean belongsToCodeSource(URL manifestUrl, URL codeSource) {
+        String manifest = manifestUrl.toExternalForm();
+        String source = codeSource.toExternalForm();
+        if (manifest.startsWith("jar:")) {
+            if (source.startsWith("jar:")) {
+                return manifest.startsWith(jarCodeSourcePrefix(source));
+            }
+            return manifest.startsWith("jar:" + source + "!");
+        }
+        if (!"file".equals(manifestUrl.getProtocol()) || !"file".equals(codeSource.getProtocol())) {
+            return false;
+        }
+        try {
+            URI manifestUri = manifestUrl.toURI();
+            URI sourceUri = codeSource.toURI();
+            return manifestUri.getPath() != null
+                && sourceUri.getPath() != null
+                && manifestUri.getPath().startsWith(sourceUri.getPath());
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
+    private static String jarCodeSourcePrefix(String source) {
+        if (source.endsWith("!/")) {
+            return source;
+        }
+        if (source.endsWith("!")) {
+            return source + "/";
+        }
+        return source + "!/";
     }
 }
