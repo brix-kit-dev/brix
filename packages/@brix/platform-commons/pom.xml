@@ -74,7 +74,7 @@
         <resilience4j.version>2.1.0</resilience4j.version>
         
         <!-- JWT 认证 -->
-        <jjwt.version>0.12.6</jjwt.version>
+        <jjwt.version>0.13.0</jjwt.version>
         
         <!-- 数据库 -->
         <postgresql.version>42.7.5</postgresql.version>
