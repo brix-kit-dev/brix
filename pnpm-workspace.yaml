@@ -1,4 +1,4 @@
-﻿# Brix Open Source Monorepo Workspace Configuration
+# Brix Open Source Monorepo Workspace Configuration
 #
 # This file defines the workspace packages for pnpm.
 # All packages under packages/@brix/* are included as workspace members.
@@ -81,7 +81,7 @@ catalog:
   
   # Code Quality
   eslint: ^8.56.0
-  prettier: ^3.2.0
+  prettier: ^3.8.3
   
   # React Ecosystem
   react: ^18.3.0
