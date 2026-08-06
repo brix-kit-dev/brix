@@ -75,7 +75,7 @@
 
         <!-- Maven Plugin Versions -->
         <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.2.3</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
     </properties>
