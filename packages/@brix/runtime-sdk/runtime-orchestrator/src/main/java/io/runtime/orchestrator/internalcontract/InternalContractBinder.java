@@ -9,12 +9,16 @@ package io.runtime.orchestrator.internalcontract;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.orchestrator.operational.OperationalRuntimeException;
+import io.runtime.orchestrator.persistence.OwnerBoundaryProxies;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
+import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.internalcontract.InternalContractProviderBootstrap;
@@ -33,6 +37,7 @@ public final class InternalContractBinder {
     private final DefaultCapabilityRegistry registry;
     private final CapabilityRegistry ownerCapabilities;
     private final ClassLoader classLoader;
+    private final OwnerPersistenceProvider ownerPersistence;
     private final Map<String, PendingBinding> pendingBindings = new LinkedHashMap<>();
     private boolean activated;
 
@@ -47,9 +52,30 @@ public final class InternalContractBinder {
             DefaultCapabilityRegistry registry,
             CapabilityRegistry ownerCapabilities,
             ClassLoader classLoader) {
+        this(registry, ownerCapabilities, classLoader, OwnerPersistenceProvider.none());
+    }
+
+    /**
+     * Creates an internal contract binder that runs owner contracts in the owner's unit of work.
+     *
+     * <p>When the providing data owner has a persistence unit, every registered contract instance
+     * is wrapped so that each call suspends the caller's transaction and runs in the owner's own
+     * local transaction (root blueprint BRX-RS-HOST-020 and BRX-RS-DATA-028).</p>
+     *
+     * @param registry existing L2B capability registry implementation
+     * @param ownerCapabilities source of owner-scoped capabilities
+     * @param classLoader contract type class loader
+     * @param ownerPersistence source of owner-scoped persistence capabilities
+     */
+    public InternalContractBinder(
+            DefaultCapabilityRegistry registry,
+            CapabilityRegistry ownerCapabilities,
+            ClassLoader classLoader,
+            OwnerPersistenceProvider ownerPersistence) {
         this.registry = Objects.requireNonNull(registry, "registry must not be null");
         this.ownerCapabilities = Objects.requireNonNull(ownerCapabilities, "ownerCapabilities must not be null");
         this.classLoader = classLoader != null ? classLoader : InternalContractBinder.class.getClassLoader();
+        this.ownerPersistence = Objects.requireNonNull(ownerPersistence, "ownerPersistence must not be null");
     }
 
     /**
@@ -197,6 +223,10 @@ public final class InternalContractBinder {
                 "internal_contract.factory_type_mismatch",
                 "Internal contract factory returned an invalid type: " + declaration.contractId());
         }
+        Optional<PersistenceCapability> persistence = ownerPersistence.forOwner(ownerIdentity.moduleId());
+        if (persistence.isPresent()) {
+            instance = OwnerBoundaryProxies.wrap(binding.contractType, instance, persistence.get().unitOfWork());
+        }
         try {
             registry.registerInternalContract(
                 declaration.contractId(),
@@ -239,6 +269,7 @@ public final class InternalContractBinder {
         ProviderContext context = new ProviderContext(
             ownerIdentity,
             ownerCapabilities,
+            ownerPersistence,
             allowedOwnerCapabilities == null ? Set.of() : Set.copyOf(allowedOwnerCapabilities));
         for (Map.Entry<String, InternalContractDeclaration> entry : declarations.entrySet()) {
             InternalContractDeclaration declaration = entry.getValue();
@@ -291,14 +322,17 @@ public final class InternalContractBinder {
     private static final class ProviderContext implements InternalContractProviderContext {
         private final RuntimeModuleIdentity ownerIdentity;
         private final CapabilityRegistry ownerCapabilities;
+        private final OwnerPersistenceProvider ownerPersistence;
         private final Set<Class<?>> allowedTypes;
 
         private ProviderContext(
                 RuntimeModuleIdentity ownerIdentity,
                 CapabilityRegistry ownerCapabilities,
+                OwnerPersistenceProvider ownerPersistence,
                 Set<Class<?>> allowedTypes) {
             this.ownerIdentity = ownerIdentity;
             this.ownerCapabilities = ownerCapabilities;
+            this.ownerPersistence = ownerPersistence;
             this.allowedTypes = allowedTypes;
         }
 
@@ -313,6 +347,12 @@ public final class InternalContractBinder {
                 throw new OperationalRuntimeException(
                     "internal_contract.owner_capability_undeclared",
                     "Owner capability is undeclared: " + capabilityType.getName());
+            }
+            if (capabilityType == PersistenceCapability.class) {
+                return capabilityType.cast(ownerPersistence.forOwner(ownerIdentity.moduleId())
+                    .orElseThrow(() -> new OperationalRuntimeException(
+                        "internal_contract.owner_persistence_missing",
+                        "Owner has no persistence unit: " + ownerIdentity.moduleId())));
             }
             return ownerCapabilities.getRequired(capabilityType);
         }

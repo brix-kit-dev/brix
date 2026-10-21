@@ -33,7 +33,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
@@ -70,6 +72,7 @@ public final class PluginRuntimeManager {
     private final Consumer<BrixPlugin> pluginInitializer;
     private final Supplier<List<InternalContractProvider>> internalProviderDiscovery;
     private final InternalContractBinder internalContracts;
+    private final OwnerPersistenceProvider ownerPersistence;
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
     private boolean prepared;
     private boolean started;
@@ -159,6 +162,41 @@ public final class PluginRuntimeManager {
             Consumer<BrixPlugin> pluginInitializer,
             Supplier<List<InternalContractProvider>> internalProviderDiscovery,
             InternalContractBinder internalContracts) {
+        this(
+            discovery,
+            descriptorResolver,
+            capabilityRegistry,
+            requiredPluginIds,
+            endpointDispatcher,
+            pluginInitializer,
+            internalProviderDiscovery,
+            internalContracts,
+            OwnerPersistenceProvider.none());
+    }
+
+    /**
+     * Creates a runtime manager with internal contract binding and owner persistence.
+     *
+     * @param discovery plugin discovery supplier
+     * @param descriptorResolver descriptor resolver
+     * @param capabilityRegistry capability registry
+     * @param requiredPluginIds composition-required plugin ids
+     * @param endpointDispatcher Runtime Shell endpoint dispatcher
+     * @param pluginInitializer Runtime-owned provider initializer
+     * @param internalProviderDiscovery internal contract provider discovery
+     * @param internalContracts internal contract binder
+     * @param ownerPersistence source of owner-scoped persistence capabilities
+     */
+    public PluginRuntimeManager(
+            Supplier<List<BrixPlugin>> discovery,
+            PluginRuntimeDescriptorResolver descriptorResolver,
+            CapabilityRegistry capabilityRegistry,
+            Collection<String> requiredPluginIds,
+            PluginEndpointDispatcher endpointDispatcher,
+            Consumer<BrixPlugin> pluginInitializer,
+            Supplier<List<InternalContractProvider>> internalProviderDiscovery,
+            InternalContractBinder internalContracts,
+            OwnerPersistenceProvider ownerPersistence) {
         this.discovery = Objects.requireNonNull(discovery, "discovery must not be null");
         this.descriptorResolver = Objects.requireNonNull(descriptorResolver, "descriptorResolver must not be null");
         this.capabilityRegistry = Objects.requireNonNull(capabilityRegistry, "capabilityRegistry must not be null");
@@ -169,6 +207,7 @@ public final class PluginRuntimeManager {
             internalProviderDiscovery,
             "internalProviderDiscovery must not be null");
         this.internalContracts = internalContracts;
+        this.ownerPersistence = Objects.requireNonNull(ownerPersistence, "ownerPersistence must not be null");
     }
 
     /**
@@ -383,7 +422,7 @@ public final class PluginRuntimeManager {
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
-            plugin.provider.onStart(new DefaultPluginContext(plugin.descriptor, capabilityRegistry));
+            plugin.provider.onStart(new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence));
             BrixHealth health = pluginHealth(plugin);
             plugin.state = state(plugin, PluginLifecycleState.STARTED, false, health, health.message());
             if (isRequired(plugin) && !health.isReadyStatus()) {
@@ -398,7 +437,10 @@ public final class PluginRuntimeManager {
     private void validateRequiredCapabilities(ManagedPlugin plugin) {
         List<String> missing = new ArrayList<>();
         for (String declaration : plugin.descriptor.requiredCapabilities()) {
-            if (!capabilityAvailable(declaration)) {
+            boolean available = declaresPersistence(declaration)
+                ? ownerPersistence.forOwner(plugin.id()).isPresent()
+                : capabilityAvailable(declaration);
+            if (!available) {
                 missing.add(declaration);
             }
         }
@@ -500,7 +542,16 @@ public final class PluginRuntimeManager {
                     e);
             }
         }
+        if (plugin.descriptor.isRequiredCapability(PersistenceCapability.class, capabilityRegistry)
+                || plugin.descriptor.isOptionalCapability(PersistenceCapability.class, capabilityRegistry)) {
+            types.add(PersistenceCapability.class);
+        }
         return Set.copyOf(types);
+    }
+
+    private static boolean declaresPersistence(String declaration) {
+        return PersistenceCapability.class.getName().equals(declaration)
+            || PersistenceCapability.class.getSimpleName().equals(declaration);
     }
 
     private static URL codeSource(Class<?> providerType) {

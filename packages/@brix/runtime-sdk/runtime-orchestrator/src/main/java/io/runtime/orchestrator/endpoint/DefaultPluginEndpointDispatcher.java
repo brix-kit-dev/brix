@@ -53,17 +53,29 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
 
     private final AtomicReference<List<EndpointRoute>> snapshot = new AtomicReference<>(List.of());
     private final Duration endpointDeadline;
+    private final EndpointInvocationBoundary invocationBoundary;
+
+    /**
+     * Creates a dispatcher that invokes handlers directly.
+     *
+     * @param endpointDeadline maximum endpoint handling duration
+     */
+    public DefaultPluginEndpointDispatcher(Duration endpointDeadline) {
+        this(endpointDeadline, EndpointInvocationBoundary.direct());
+    }
 
     /**
      * Creates a dispatcher.
      *
      * @param endpointDeadline maximum endpoint handling duration
+     * @param invocationBoundary runtime policy applied around every handler invocation
      */
-    public DefaultPluginEndpointDispatcher(Duration endpointDeadline) {
+    public DefaultPluginEndpointDispatcher(Duration endpointDeadline, EndpointInvocationBoundary invocationBoundary) {
         if (endpointDeadline == null || endpointDeadline.isZero() || endpointDeadline.isNegative()) {
             throw new IllegalArgumentException("endpointDeadline must be positive");
         }
         this.endpointDeadline = endpointDeadline;
+        this.invocationBoundary = Objects.requireNonNull(invocationBoundary, "invocationBoundary must not be null");
     }
 
     /**
@@ -126,11 +138,11 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     }
 
     @SuppressWarnings("unchecked")
-    private static Object invokeHandler(EndpointRoute route, EndpointInvocation<Object> invocation) {
+    private Object invokeHandler(EndpointRoute route, EndpointInvocation<Object> invocation) {
         try {
             EndpointHandler<EndpointInvocation<Object>, Object> handler =
                 (EndpointHandler<EndpointInvocation<Object>, Object>) route.handler();
-            return handler.handle(invocation);
+            return invocationBoundary.invoke(route, () -> handler.handle(invocation));
         } catch (ClassCastException e) {
             throw new EndpointDispatchException("Endpoint handler '" + route.endpointId()
                 + "' does not accept EndpointInvocation", e);

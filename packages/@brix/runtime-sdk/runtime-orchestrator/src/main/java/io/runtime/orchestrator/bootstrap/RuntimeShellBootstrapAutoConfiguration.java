@@ -30,6 +30,8 @@ import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.persistence.OwnerUnitOfWorkEndpointBoundary;
 import io.runtime.orchestrator.plugin.ClasspathPluginRuntimeDescriptorResolver;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.plugin.ServiceLoaderPluginDiscovery;
@@ -88,9 +90,12 @@ public class RuntimeShellBootstrapAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public PluginEndpointDispatcher pluginEndpointDispatcher(RuntimeShellBootstrapProperties properties) {
+    public PluginEndpointDispatcher pluginEndpointDispatcher(
+            RuntimeShellBootstrapProperties properties,
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence) {
         return new DefaultPluginEndpointDispatcher(
-            java.time.Duration.ofMillis(properties.getEndpointDeadlineMillis()));
+            java.time.Duration.ofMillis(properties.getEndpointDeadlineMillis()),
+            new OwnerUnitOfWorkEndpointBoundary(ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none)));
     }
 
     /**
@@ -112,6 +117,7 @@ public class RuntimeShellBootstrapAutoConfiguration {
             ObjectProvider<CapabilityRegistry> capabilityRegistry,
             PluginEndpointDispatcher endpointDispatcher,
             ObjectProvider<InternalContractBinder> internalContracts,
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
             AutowireCapableBeanFactory beanFactory,
             RuntimeShellBootstrapProperties properties) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable(DefaultCapabilityRegistry::new);
@@ -127,7 +133,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
                 .map(ServiceLoaderInternalContractProviderDiscovery
                     .DiscoveredInternalContractProvider::provider)
                 .toList(),
-            internalContracts.getIfAvailable());
+            internalContracts.getIfAvailable(),
+            ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none));
     }
 
     /**
@@ -164,7 +171,9 @@ public class RuntimeShellBootstrapAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public InternalContractBinder internalContractBinder(CapabilityRegistry capabilityRegistry) {
+    public InternalContractBinder internalContractBinder(
+            CapabilityRegistry capabilityRegistry,
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence) {
         if (!(capabilityRegistry instanceof DefaultCapabilityRegistry defaultRegistry)) {
             throw new IllegalStateException(
                 "Operational Runtime requires the L2B DefaultCapabilityRegistry internal namespace");
@@ -172,7 +181,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
         return new InternalContractBinder(
             defaultRegistry,
             capabilityRegistry,
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(),
+            ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none));
     }
 
     /**
