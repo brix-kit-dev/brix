@@ -8,9 +8,8 @@ package io.brix.platform.identity.service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-
-import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.context.AuthenticatedUser;
@@ -31,8 +30,14 @@ import io.runtime.sdk.capability.AuthFlowCapability.MfaVerifyCommand;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TotpCapability;
+import io.runtime.sdk.capability.UnitOfWork;
 
-/** Owner-side support for completing platform administrator TOTP login. */
+/**
+ * Owner-side support for completing platform administrator TOTP login.
+ *
+ * <p>platform-auth calls this support directly instead of through a runtime entry, so each
+ * verification runs in the identity owner's own unit of work (root blueprint BRX-RS-DATA-029).</p>
+ */
 public class PlatformMfaLoginSupport implements MfaLoginSupport {
 
     private static final String PLATFORM_SCOPE = "PLATFORM";
@@ -43,6 +48,7 @@ public class PlatformMfaLoginSupport implements MfaLoginSupport {
     private final Optional<JwtIssuerCapability> jwtIssuerCapability;
     private final Optional<TotpCapability> totpCapability;
     private final Optional<SecretEncryptionCapability> secretEncryptionCapability;
+    private final UnitOfWork unitOfWork;
 
     public PlatformMfaLoginSupport(
             IdentityRepository identityRepository,
@@ -50,7 +56,8 @@ public class PlatformMfaLoginSupport implements MfaLoginSupport {
             Optional<JwtValidator> jwtValidator,
             Optional<JwtIssuerCapability> jwtIssuerCapability,
             Optional<TotpCapability> totpCapability,
-            Optional<SecretEncryptionCapability> secretEncryptionCapability) {
+            Optional<SecretEncryptionCapability> secretEncryptionCapability,
+            UnitOfWork unitOfWork) {
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
         this.jwtValidator = jwtValidator == null ? Optional.empty() : jwtValidator;
@@ -58,12 +65,16 @@ public class PlatformMfaLoginSupport implements MfaLoginSupport {
         this.totpCapability = totpCapability == null ? Optional.empty() : totpCapability;
         this.secretEncryptionCapability =
                 secretEncryptionCapability == null ? Optional.empty() : secretEncryptionCapability;
+        this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
     }
 
     @Override
-    @Transactional
     public LoginResult verify(MfaVerifyCommand command) {
         validateCommand(command);
+        return unitOfWork.required(() -> verifyInUnitOfWork(command));
+    }
+
+    private LoginResult verifyInUnitOfWork(MfaVerifyCommand command) {
         JwtValidator validator = jwtValidator.orElseThrow(PlatformMfaLoginSupport::capabilityUnavailable);
         JwtIssuerCapability issuer = jwtIssuerCapability.orElseThrow(PlatformMfaLoginSupport::capabilityUnavailable);
         TotpCapability totp = totpCapability.orElseThrow(PlatformMfaLoginSupport::capabilityUnavailable);

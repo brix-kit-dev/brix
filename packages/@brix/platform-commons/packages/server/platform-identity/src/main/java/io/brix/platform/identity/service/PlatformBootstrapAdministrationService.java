@@ -15,7 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.brix.platform.auth.AuditAction;
@@ -55,7 +56,9 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
             "bootstrap:status",
             "bootstrap:session",
             "bootstrap:create-first-admin");
+    private static final Logger log = LoggerFactory.getLogger(PlatformBootstrapAdministrationService.class);
     private static final String RESOURCE_TYPE_PLATFORM_ADMIN = resourceType(PlatformAdmin.class);
+    private static final String RESOURCE_TYPE_BOOTSTRAP = "BOOTSTRAP";
 
     private final SuperAdminBootstrapProperties properties;
     private final BootstrapStateRepository bootstrapStateRepository;
@@ -92,7 +95,6 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
     }
 
     @Override
-    @Transactional(readOnly = true)
     public BootstrapStatusView status() {
         BootstrapState state = bootstrapStateRepository.findById(BootstrapState.SINGLETON_ID)
                 .orElse(null);
@@ -107,7 +109,6 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
     }
 
     @Override
-    @Transactional
     public BootstrapSessionView openSession(BootstrapSessionCommand command) {
         BootstrapState state = lockOrCreateSingleton();
         if (state.isCompleted() || platformAdminRepository.countCompletedFormalSuperAdmins() > 0) {
@@ -119,7 +120,8 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         String configuredCode = trimToNull(properties.getSetupCode());
         if (configuredCode == null || !SecretHashing.sha256Base64Url(configuredCode)
                 .equals(SecretHashing.sha256Base64Url(command.setupCode()))) {
-            writeAudit(null, AuditAction.SETUP_TOKEN_INVALID, "BOOTSTRAP", "Bootstrap setup code rejected", false);
+            log.warn("[PlatformIdentity] security event action={} resourceType={} success=false",
+                    AuditAction.SETUP_TOKEN_INVALID, RESOURCE_TYPE_BOOTSTRAP);
             throw new IllegalArgumentException("bootstrap setup code is invalid");
         }
         JwtIssuerCapability issuer = jwtIssuerCapability.orElseThrow(
@@ -140,12 +142,12 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         state.openSetupCode(SecretHashing.sha256Base64Url(configuredCode), now.plusSeconds(setupCodeTtlSeconds));
         state.activateSession(SecretHashing.sha256Base64Url(token), now.plusSeconds(ttlSeconds));
         bootstrapStateRepository.save(state);
-        writeAudit(null, AuditAction.BOOTSTRAP_SESSION_OPENED, "BOOTSTRAP", "Bootstrap setup session opened.", true);
+        writeAudit(null, AuditAction.BOOTSTRAP_SESSION_OPENED, RESOURCE_TYPE_BOOTSTRAP,
+                "Bootstrap setup session opened.", true);
         return new BootstrapSessionView("BOOTSTRAP_SETUP", token, ttlSeconds);
     }
 
     @Override
-    @Transactional
     public PlatformAdminCreationView createFirstAdmin(CreateFirstPlatformAdminCommand command) {
         BootstrapState state = lockSingleton();
         if (state.isCompleted() || platformAdminRepository.countCompletedFormalSuperAdmins() > 0) {

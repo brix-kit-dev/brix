@@ -22,24 +22,22 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import io.brix.platform.identity.entity.SetupToken;
 
 /** Repository for one-time setup tokens. */
-@Repository
 public interface SetupTokenRepository extends JpaRepository<SetupToken, Long> {
 
     Optional<SetupToken> findByTokenHash(String tokenHash);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PlatformIdentitySetupToken t SET t.usedAt = :usedAt, t.updatedAt = :usedAt "
             + "WHERE t.identityId = :identityId AND t.purpose = :purpose AND t.usedAt IS NULL")
     int markActiveTokensUsed(@Param("identityId") Long identityId,
                              @Param("purpose") String purpose,
                              @Param("usedAt") OffsetDateTime usedAt);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PlatformIdentitySetupToken t SET t.usedAt = :usedAt, t.updatedAt = :usedAt "
             + "WHERE t.identityId = :identityId AND t.usedAt IS NULL")
     int markAllActiveTokensUsed(@Param("identityId") Long identityId,

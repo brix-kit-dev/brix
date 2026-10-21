@@ -21,7 +21,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -45,7 +44,6 @@ import java.util.Optional;
  * @since 3.1.0
  * @see Identity
  */
-@Repository
 public interface IdentityRepository extends JpaRepository<Identity, Long> {
 
     /**
@@ -116,8 +114,9 @@ public interface IdentityRepository extends JpaRepository<Identity, Long> {
      * 更新指定身份的密码哈希并清除强制改密标志（S3 — 改密 / 强制改密回执）。
      *
      * <p>同步把 {@code password_must_change} 置为 {@code false}、{@code updated_at}
-     * 设为当前时间。{@code @Modifying(clearAutomatically=true)} 使一级缓存失效，
-     * 避免后续 {@code findById} 命中过期实体。
+     * 设为当前时间。执行前先刷出待写入的变更，执行后清空一级缓存
+     * （{@code flushAutomatically} + {@code clearAutomatically}，根蓝图 BRX-RS-DATA-024），
+     * 既不丢失未刷盘的写入，也避免后续 {@code findById} 命中过期实体。
      *
      * @param identityId   身份 ID
      * @param newHash      新密码哈希
@@ -125,7 +124,7 @@ public interface IdentityRepository extends JpaRepository<Identity, Long> {
      * @return 受影响行数（正常应为 1）
      * @since 3.2.0
      */
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PlatformIdentityIdentity i SET i.passwordHash = :hash, i.passwordMustChange = false, "
             + "i.updatedAt = :updatedAt WHERE i.id = :id")
     int updatePasswordHash(@Param("id") Long identityId,
@@ -140,7 +139,7 @@ public interface IdentityRepository extends JpaRepository<Identity, Long> {
      * @return 受影响行数（正常应为 1）
      * @since 3.2.1
      */
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PlatformIdentityIdentity i SET i.tokenVersion = i.tokenVersion + 1, "
             + "i.updatedAt = :updatedAt WHERE i.id = :id")
     int incrementTokenVersion(@Param("id") Long identityId,
