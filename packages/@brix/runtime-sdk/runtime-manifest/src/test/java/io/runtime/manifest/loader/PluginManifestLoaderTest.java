@@ -37,6 +37,12 @@ class PluginManifestLoaderTest {
     }
 
     @Test
+    void artifactWithoutActiveManifestHasNoManifest() {
+        assertThat(loader.findActiveFromClasspath(PluginManifestLoaderTest.class)).isEmpty();
+        assertThat(loader.findActiveFromClasspath(String.class)).isEmpty();
+    }
+
+    @Test
     void rejectsUnknownFields() {
         assertThatThrownBy(() -> loader.loadFromString(validManifest() + "unexpected: value\n"))
             .isInstanceOf(ManifestLoadException.class)
