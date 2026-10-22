@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -39,9 +38,6 @@ public final class OperationalModuleDescriptorLoader {
     public static final String DESCRIPTOR_RESOURCE = "META-INF/brix/platform-operational.yaml";
     /** Bundled strict descriptor schema. */
     public static final String SCHEMA_RESOURCE = "META-INF/schemas/platform-operational.schema.json";
-
-    private static final TypeReference<Map<String, Object>> SECTION_TYPE = new TypeReference<>() {
-    };
 
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
     private final JsonSchema schema;
@@ -146,9 +142,10 @@ public final class OperationalModuleDescriptorLoader {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> section(JsonNode endpoint, String name) {
         JsonNode section = endpoint.path(name);
-        return section.isObject() ? yamlMapper.convertValue(section, SECTION_TYPE) : null;
+        return section.isObject() ? yamlMapper.convertValue(section, Map.class) : null;
     }
 
     private static java.util.stream.Stream<JsonNode> stream(JsonNode array) {
