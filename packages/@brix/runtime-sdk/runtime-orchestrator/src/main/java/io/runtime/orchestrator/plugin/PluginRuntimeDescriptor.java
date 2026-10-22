@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.event.EventReliability;
@@ -347,7 +348,7 @@ public final class PluginRuntimeDescriptor {
         public Builder endpoints(Collection<String> ids) {
             if (ids != null) {
                 for (String id : ids) {
-                    endpoint(id, "", "", "");
+                    endpoint(id, "", "", null);
                 }
             }
             return this;
@@ -359,10 +360,10 @@ public final class PluginRuntimeDescriptor {
          * @param id endpoint id
          * @param method endpoint method
          * @param path endpoint path template
-         * @param accessPolicy endpoint access policy
+         * @param accessPolicy declared endpoint access policy
          * @return this builder
          */
-        public Builder endpoint(String id, String method, String path, String accessPolicy) {
+        public Builder endpoint(String id, String method, String path, EndpointAccessPolicy accessPolicy) {
             if (id != null && !id.isBlank()) {
                 endpoints.put(id, new EndpointDeclaration(id, method, path, accessPolicy));
             }
@@ -528,9 +529,10 @@ public final class PluginRuntimeDescriptor {
      * @param id endpoint id
      * @param method HTTP method
      * @param path route path template
-     * @param accessPolicy access policy reference
+     * @param accessPolicy declared access policy; {@code null} for legacy
+     *        id-only declarations, which cannot be published
      */
-    public record EndpointDeclaration(String id, String method, String path, String accessPolicy) {
+    public record EndpointDeclaration(String id, String method, String path, EndpointAccessPolicy accessPolicy) {
 
         /**
          * Creates an endpoint declaration.
@@ -539,7 +541,6 @@ public final class PluginRuntimeDescriptor {
             id = id == null ? "" : id.trim();
             method = method == null ? "" : method.trim();
             path = path == null ? "" : path.trim();
-            accessPolicy = accessPolicy == null ? "" : accessPolicy.trim();
         }
     }
 

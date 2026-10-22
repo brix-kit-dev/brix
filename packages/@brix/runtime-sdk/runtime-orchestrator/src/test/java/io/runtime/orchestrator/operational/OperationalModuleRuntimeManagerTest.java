@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.bootstrap.HostRuntimeOperationalView;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
+import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.EndpointHandler;
@@ -279,7 +280,7 @@ class OperationalModuleRuntimeManagerTest {
             "GET",
             "/api/platform/runtime/status",
             "runtime.status",
-            "runtime-status-read");
+            TestEndpointAccessPolicies.platform("platform:runtime:read"));
         return new OperationalModuleDescriptor(
             new OperationalModuleIdentity(id, "3.2.0", "runtime-tests"),
             ">=3.2.0 <4.0.0",
@@ -312,7 +313,7 @@ class OperationalModuleRuntimeManagerTest {
             "GET",
             "/api/platform/runtime/status",
             "runtime.status",
-            "runtime-status-read");
+            TestEndpointAccessPolicies.platform("platform:runtime:read"));
         var task = new OperationalModuleDescriptor.TaskDeclaration(
             "runtime.task.v1",
             "runtime.task");

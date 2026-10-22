@@ -12,18 +12,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.security.Principal;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
 
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.DataScope;
+import io.runtime.sdk.plugin.EndpointHandler;
+import io.runtime.sdk.plugin.EndpointInvocation;
 
 class RuntimeShellEndpointControllerTest {
 
@@ -84,6 +89,94 @@ class RuntimeShellEndpointControllerTest {
         assertEquals(List.of("first_owner_accept"), dispatcher.headers.get("x-auth-allowed-action"));
     }
 
+    @Test
+    void dispatchForwardsOnlyVerifiedTokenScopeAndPermissions() {
+        CapturingDispatcher dispatcher = new CapturingDispatcher();
+        RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
+            dispatcher,
+            () -> platformAdmin(Set.of("platform:tenant:read")));
+
+        controller.dispatch(null, request(Map.of(
+            "X-Auth-Token-Scope", List.of("spoofed"),
+            "X-Auth-Permission", List.of("platform:tenant:create"))));
+
+        assertEquals(List.of("PLATFORM"), dispatcher.headers.get("x-auth-token-scope"));
+        assertEquals(List.of("platform:tenant:read"), dispatcher.headers.get("x-auth-permission"));
+    }
+
+    @Test
+    void dispatchDropsClientPermissionHeadersWhenNoVerifiedPrincipalExists() {
+        CapturingDispatcher dispatcher = new CapturingDispatcher();
+        RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
+            dispatcher,
+            () -> new TestAuthCapability(null, null));
+
+        controller.dispatch(null, request(Map.of(
+            "X-Auth-Token-Role", List.of("platform-admin"),
+            "X-Auth-Token-Type", List.of("access"),
+            "X-Auth-Token-Scope", List.of("PLATFORM"),
+            "X-Auth-Permission", List.of("platform:tenant:create"))));
+
+        assertFalse(dispatcher.headers.containsKey("x-auth-token-role"));
+        assertFalse(dispatcher.headers.containsKey("x-auth-token-type"));
+        assertFalse(dispatcher.headers.containsKey("x-auth-token-scope"));
+        assertFalse(dispatcher.headers.containsKey("x-auth-permission"));
+    }
+
+    @Test
+    void dispatcherDenialBecomesProtocolErrorBeforeHandlerRuns() {
+        AtomicInteger handled = new AtomicInteger();
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
+        dispatcher.replaceSnapshot(List.of(new EndpointRoute(
+            "platform-admin",
+            "platform.admins.list.v1",
+            "GET",
+            "/api/platform/admins",
+            TestEndpointAccessPolicies.platform("platform:admin:read"),
+            (EndpointHandler<EndpointInvocation<Object>, Object>) invocation -> {
+                handled.incrementAndGet();
+                return Map.of("ok", true);
+            })));
+
+        ResponseEntity<Object> anonymous = new RuntimeShellEndpointController(
+            dispatcher, () -> new TestAuthCapability(null, null))
+            .dispatch(null, request(Map.of()));
+        ResponseEntity<Object> actor = new RuntimeShellEndpointController(
+            dispatcher, () -> new TestAuthCapability(
+                "2001", "42", null, "actor", "access", Set.of(), "actor", Set.of("platform:admin:read")))
+            .dispatch(null, request(Map.of("X-Auth-Permission", List.of("platform:admin:read"))));
+        ResponseEntity<Object> unprivileged = new RuntimeShellEndpointController(
+            dispatcher, () -> platformAdmin(Set.of("platform:tenant:read")))
+            .dispatch(null, request(Map.of()));
+
+        assertEquals(401, anonymous.getStatusCode().value());
+        assertEquals(Map.of(
+                "errorCode", EndpointAccessDeniedException.AUTHENTICATION_REQUIRED,
+                "message", "Authentication is required"),
+            anonymous.getBody());
+        assertEquals(403, actor.getStatusCode().value());
+        assertEquals(EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED, errorCode(actor));
+        assertEquals(403, unprivileged.getStatusCode().value());
+        assertEquals(EndpointAccessDeniedException.PERMISSION_DENIED, errorCode(unprivileged));
+        assertEquals(0, handled.get());
+
+        ResponseEntity<Object> granted = new RuntimeShellEndpointController(
+            dispatcher, () -> platformAdmin(Set.of("platform:admin:read")))
+            .dispatch(null, request(Map.of()));
+
+        assertEquals(200, granted.getStatusCode().value());
+        assertEquals(1, handled.get());
+    }
+
+    private static TestAuthCapability platformAdmin(Set<String> permissions) {
+        return new TestAuthCapability(
+            "1001", null, "admin@example.test", "platform-admin", "access", Set.of(), "PLATFORM", permissions);
+    }
+
+    private static Object errorCode(ResponseEntity<Object> response) {
+        return ((Map<?, ?>) response.getBody()).get("errorCode");
+    }
+
     private static HttpServletRequest request(Map<String, List<String>> headers) {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getMethod()).thenReturn("GET");
@@ -127,17 +220,30 @@ class RuntimeShellEndpointControllerTest {
             String email,
             String tokenRole,
             String tokenType,
-            Set<String> allowedActions) implements AuthCapability {
+            Set<String> allowedActions,
+            String tokenScope,
+            Set<String> permissions) implements AuthCapability {
 
         private TestAuthCapability(String actorId, String tenantId) {
             this(actorId, tenantId, null, null, null, Set.of());
+        }
+
+        private TestAuthCapability(
+                String actorId,
+                String tenantId,
+                String email,
+                String tokenRole,
+                String tokenType,
+                Set<String> allowedActions) {
+            this(actorId, tenantId, email, tokenRole, tokenType, allowedActions, null, Set.of());
         }
 
         @Override
         public Principal getCurrentPrincipal() {
             return actorId == null
                 ? null
-                : new TestPrincipal(actorId, tenantId, email, tokenRole, tokenType, allowedActions);
+                : new TestPrincipal(
+                    actorId, tenantId, email, tokenRole, tokenType, allowedActions, tokenScope, permissions);
         }
 
         @Override
@@ -167,7 +273,9 @@ class RuntimeShellEndpointControllerTest {
             String email,
             String tokenRole,
             String tokenType,
-            Set<String> allowedActions) implements AuthenticatedPrincipal {
+            Set<String> allowedActions,
+            String tokenScope,
+            Set<String> permissions) implements AuthenticatedPrincipal {
 
         @Override
         public String getName() {
@@ -202,6 +310,16 @@ class RuntimeShellEndpointControllerTest {
         @Override
         public Set<String> getAllowedActions() {
             return allowedActions;
+        }
+
+        @Override
+        public String getTokenScope() {
+            return tokenScope;
+        }
+
+        @Override
+        public Set<String> getPermissions() {
+            return permissions;
         }
     }
 }

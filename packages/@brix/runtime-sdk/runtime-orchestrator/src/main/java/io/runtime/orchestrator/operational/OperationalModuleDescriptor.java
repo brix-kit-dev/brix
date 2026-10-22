@@ -13,6 +13,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+
 /**
  * Validated Runtime representation of {@code platform-operational.yaml}.
  *
@@ -154,18 +156,22 @@ public record OperationalModuleDescriptor(
     /**
      * Descriptor declaration for an operational HTTP endpoint.
      *
+     * <p>Every authenticated {@code /api/platform/**} endpoint accepts only the
+     * formal platform token and must declare the concrete permission IDs that
+     * the Dispatcher authorizes.</p>
+     *
      * @param endpointId stable endpoint identifier
      * @param method HTTP method
      * @param path normalized absolute path
      * @param handlerId code factory identifier
-     * @param accessPolicy access policy reference
+     * @param accessPolicy declared endpoint access policy
      */
     public record EndpointDeclaration(
             String endpointId,
             String method,
             String path,
             String handlerId,
-            String accessPolicy) {
+            EndpointAccessPolicy accessPolicy) {
 
         /**
          * Validates declaration fields.
@@ -175,9 +181,19 @@ public record OperationalModuleDescriptor(
             method = requireText(method, "method").toUpperCase(java.util.Locale.ROOT);
             path = requireText(path, "path");
             handlerId = requireText(handlerId, "handlerId");
-            accessPolicy = requireText(accessPolicy, "accessPolicy");
+            accessPolicy = Objects.requireNonNull(accessPolicy, "accessPolicy must not be null");
             if (!path.startsWith("/api/platform/")) {
                 throw new IllegalArgumentException("Operational endpoint must use /api/platform/**: " + path);
+            }
+            if (accessPolicy.requiresVerifiedPrincipal()
+                    && accessPolicy.tokenPolicy() != EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN) {
+                throw new IllegalArgumentException("Authenticated operational endpoint '" + endpointId
+                    + "' must declare authentication.policyRef="
+                    + EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN.value());
+            }
+            if (accessPolicy.requiresVerifiedPrincipal() && accessPolicy.permissions().isEmpty()) {
+                throw new IllegalArgumentException("Authenticated operational endpoint '" + endpointId
+                    + "' must declare authorization.permissions");
             }
         }
     }

@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.manifest.validation.PluginManifestValidator;
+import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
 import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.BrixPlugin;
 
@@ -244,12 +245,24 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         route.getEndpointId(),
                         route.getMethod(),
                         route.getPath(),
-                        route.getAccessPolicy());
+                        accessPolicy(manifest.pluginId(), route));
                 }
             }
             return builder.build();
         } catch (IOException e) {
             throw new PluginRuntimeException("Failed to read plugin manifest " + manifestUrl, e);
+        }
+    }
+
+    private static EndpointAccessPolicy accessPolicy(String pluginId, PluginManifest.Route route) {
+        try {
+            return EndpointAccessPolicy.fromDeclaration(
+                route.getAuthentication(),
+                route.getAuthorization(),
+                route.getTenantContext());
+        } catch (IllegalArgumentException e) {
+            throw new PluginRuntimeException("Plugin '" + pluginId + "' endpoint '" + route.getEndpointId()
+                + "' declares an invalid access policy: " + e.getMessage(), e);
         }
     }
 

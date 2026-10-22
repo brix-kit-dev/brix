@@ -19,6 +19,7 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
@@ -172,6 +173,21 @@ public class SimpleAuthContextCapability implements AuthCapability {
         @Override
         public Set<String> getAllowedActions() {
             return Set.copyOf(user.getAllowedActions());
+        }
+
+        @Override
+        public String getTokenScope() {
+            return user.getScope();
+        }
+
+        @Override
+        public Set<String> getPermissions() {
+            if (user.getPermissions() == null) {
+                return Set.of();
+            }
+            return user.getPermissions().stream()
+                    .filter(permission -> permission != null && !permission.isBlank())
+                    .collect(Collectors.toUnmodifiableSet());
         }
 
         @Override

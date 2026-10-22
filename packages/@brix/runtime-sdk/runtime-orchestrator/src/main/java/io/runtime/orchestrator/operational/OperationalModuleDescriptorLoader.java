@@ -24,6 +24,8 @@ import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 
+import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+
 /**
  * Strict loader for the unique platform operational descriptor.
  *
@@ -85,13 +87,7 @@ public final class OperationalModuleDescriptorLoader {
         JsonNode contracts = root.path("internalContracts");
         Map<String, OperationalModuleDescriptor.EndpointDeclaration> endpoints = new LinkedHashMap<>();
         for (JsonNode node : root.path("endpoints").path("provides")) {
-            OperationalModuleDescriptor.EndpointDeclaration declaration =
-                new OperationalModuleDescriptor.EndpointDeclaration(
-                    text(node, "endpointId"),
-                    text(node, "method"),
-                    text(node, "path"),
-                    text(node, "handlerId"),
-                    authorizationPolicy(node.path("authorization")));
+            OperationalModuleDescriptor.EndpointDeclaration declaration = endpoint(node);
             endpoints.put(declaration.endpointId(), declaration);
         }
         Map<String, OperationalModuleDescriptor.TaskDeclaration> tasks = new LinkedHashMap<>();
@@ -127,9 +123,29 @@ public final class OperationalModuleDescriptorLoader {
             tasks);
     }
 
-    private static String authorizationPolicy(JsonNode authorization) {
-        String resourcePolicy = text(authorization, "resourcePolicyRef");
-        return resourcePolicy.isEmpty() ? text(authorization, "policyRef") : resourcePolicy;
+    private OperationalModuleDescriptor.EndpointDeclaration endpoint(JsonNode node) {
+        try {
+            return new OperationalModuleDescriptor.EndpointDeclaration(
+                text(node, "endpointId"),
+                text(node, "method"),
+                text(node, "path"),
+                text(node, "handlerId"),
+                EndpointAccessPolicy.fromDeclaration(
+                    section(node, "authentication"),
+                    section(node, "authorization"),
+                    section(node, "tenantContext")));
+        } catch (IllegalArgumentException e) {
+            throw new OperationalRuntimeException(
+                "operational.descriptor.invalid",
+                "Invalid platform operational endpoint '" + text(node, "endpointId") + "': " + e.getMessage(),
+                e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> section(JsonNode endpoint, String name) {
+        JsonNode section = endpoint.path(name);
+        return section.isObject() ? yamlMapper.convertValue(section, Map.class) : null;
     }
 
     private static java.util.stream.Stream<JsonNode> stream(JsonNode array) {

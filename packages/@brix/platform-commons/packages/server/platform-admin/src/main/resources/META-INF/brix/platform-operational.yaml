@@ -201,8 +201,11 @@ endpoints:
       handlerId: platform.admins.list
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:admin:read
+        permissions:
+          - platform:admin:read
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:
@@ -220,8 +223,11 @@ endpoints:
       handlerId: platform.tenants.list
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:tenant:read
+        permissions:
+          - platform:tenant:read
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:
@@ -239,8 +245,11 @@ endpoints:
       handlerId: platform.license.quota
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:license:read
+        permissions:
+          - platform:license:read
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:
@@ -258,8 +267,11 @@ endpoints:
       handlerId: platform.tenants.create
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:tenant:create
+        permissions:
+          - platform:tenant:create
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:
@@ -277,8 +289,11 @@ endpoints:
       handlerId: platform.tenants.first-owner-invitations.create
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:tenant:first-owner-invite
+        permissions:
+          - platform:tenant:first-owner-invite
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:
@@ -296,8 +311,11 @@ endpoints:
       handlerId: platform.tenants.first-owner-invitations.current
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:tenant:first-owner-invite
+        permissions:
+          - platform:tenant:first-owner-invite
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:
@@ -315,8 +333,11 @@ endpoints:
       handlerId: platform.tenants.first-owner-invitations.resend
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:tenant:first-owner-invite
+        permissions:
+          - platform:tenant:first-owner-invite
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:
@@ -334,8 +355,11 @@ endpoints:
       handlerId: platform.tenants.first-owner-invitations.revoke
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: platform:tenant:first-owner-invite
+        permissions:
+          - platform:tenant:first-owner-invite
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:

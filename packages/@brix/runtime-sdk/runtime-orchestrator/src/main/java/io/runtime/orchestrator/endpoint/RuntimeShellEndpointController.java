@@ -59,6 +59,8 @@ public class RuntimeShellEndpointController {
     private static final String IDENTITY_EMAIL_HEADER = "x-auth-identity-email";
     private static final String TOKEN_ROLE_HEADER = "x-auth-token-role";
     private static final String TOKEN_TYPE_HEADER = "x-auth-token-type";
+    private static final String TOKEN_SCOPE_HEADER = "x-auth-token-scope";
+    private static final String PERMISSION_HEADER = "x-auth-permission";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
 
     private final PluginEndpointDispatcher dispatcher;
@@ -138,6 +140,8 @@ public class RuntimeShellEndpointController {
         result.remove(IDENTITY_EMAIL_HEADER);
         result.remove(TOKEN_ROLE_HEADER);
         result.remove(TOKEN_TYPE_HEADER);
+        result.remove(TOKEN_SCOPE_HEADER);
+        result.remove(PERMISSION_HEADER);
         result.remove(ALLOWED_ACTION_HEADER);
 
         AuthCapability auth = authCapabilitySupplier.get();
@@ -150,6 +154,11 @@ public class RuntimeShellEndpointController {
             .ifPresent(role -> result.put(TOKEN_ROLE_HEADER, List.of(role)));
         principal.flatMap(RuntimeShellEndpointController::authenticatedTokenType)
             .ifPresent(type -> result.put(TOKEN_TYPE_HEADER, List.of(type)));
+        principal.flatMap(RuntimeShellEndpointController::authenticatedTokenScope)
+            .ifPresent(scope -> result.put(TOKEN_SCOPE_HEADER, List.of(scope)));
+        principal.map(AuthenticatedPrincipal::getPermissions)
+            .filter(permissions -> !permissions.isEmpty())
+            .ifPresent(permissions -> result.put(PERMISSION_HEADER, List.copyOf(permissions)));
         principal.map(AuthenticatedPrincipal::getAllowedActions)
             .filter(actions -> !actions.isEmpty())
             .ifPresent(actions -> result.put(ALLOWED_ACTION_HEADER, List.copyOf(actions)));
@@ -192,6 +201,11 @@ public class RuntimeShellEndpointController {
     private static Optional<String> authenticatedTokenType(AuthenticatedPrincipal principal) {
         String type = principal.getTokenType();
         return type == null || type.isBlank() ? Optional.empty() : Optional.of(type.trim());
+    }
+
+    private static Optional<String> authenticatedTokenScope(AuthenticatedPrincipal principal) {
+        String scope = principal.getTokenScope();
+        return scope == null || scope.isBlank() ? Optional.empty() : Optional.of(scope.trim());
     }
 
     private static String requestPath(HttpServletRequest request) {

@@ -15,6 +15,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.endpoint.EndpointRoute;
+import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 
 class OwnerUnitOfWorkEndpointBoundaryTest {
 
@@ -55,13 +56,13 @@ class OwnerUnitOfWorkEndpointBoundaryTest {
         OwnerUnitOfWorkEndpointBoundary boundary = new OwnerUnitOfWorkEndpointBoundary(
             owner -> "owner-plugin".equals(owner) ? Optional.of(persistence) : Optional.empty());
 
-        boundary.invoke(new EndpointRoute("other-plugin", "other.read", "GET", "/api/other", "authenticated",
-            invocation -> null), () -> null);
+        boundary.invoke(new EndpointRoute("other-plugin", "other.read", "GET", "/api/other",
+            TestEndpointAccessPolicies.authenticated("other:read"), invocation -> null), () -> null);
         assertTrue(persistence.modes().isEmpty());
     }
 
     private static EndpointRoute route(String method) {
-        return new EndpointRoute("owner-plugin", "owner.entry", method, "/api/owner", "authenticated",
-            invocation -> null);
+        return new EndpointRoute("owner-plugin", "owner.entry", method, "/api/owner",
+            TestEndpointAccessPolicies.authenticated("owner:read"), invocation -> null);
     }
 }
