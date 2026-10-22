@@ -17,6 +17,7 @@ package io.runtime.orchestrator.endpoint;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -31,6 +32,10 @@ import java.util.Set;
  * as {@code authorization.policyRef}/{@code resourcePolicyRef}, and the
  * {@code timeout} or {@code idempotency} policy references of the same
  * declaration, are never interpreted as permissions.</p>
+ *
+ * <p>Step-up re-verification ({@code acr}/{@code max_age}, BRX-RS-SECURITY-015)
+ * is not enforced by this Dispatcher yet, so a declaration that asks for it is
+ * rejected instead of being published unchecked.</p>
  *
  * @param authentication declared authentication mode
  * @param tokenPolicy token class accepted when authentication is required
@@ -96,6 +101,8 @@ public record EndpointAccessPolicy(
             Map<String, ?> authentication,
             Map<String, ?> authorization,
             Map<String, ?> tenantContext) {
+        rejectStepUp(authentication, "authentication");
+        rejectStepUp(authorization, "authorization");
         String resourcePolicyRef = text(authorization, "authorization", "resourcePolicyRef");
         return new EndpointAccessPolicy(
             AuthenticationMode.fromValue(text(authentication, "authentication", "mode")),
@@ -116,6 +123,19 @@ public record EndpointAccessPolicy(
      */
     public boolean requiresVerifiedPrincipal() {
         return authentication == AuthenticationMode.REQUIRED;
+    }
+
+    private static void rejectStepUp(Map<String, ?> section, String sectionName) {
+        if (section == null) {
+            return;
+        }
+        for (String field : List.of("acr", "max_age", "maxAge")) {
+            if (section.containsKey(field)) {
+                throw new IllegalArgumentException(sectionName + "." + field
+                    + " declares step-up re-verification (BRX-RS-SECURITY-015), "
+                    + "which this Dispatcher does not enforce yet");
+            }
+        }
     }
 
     private static String text(Map<String, ?> section, String sectionName, String field) {

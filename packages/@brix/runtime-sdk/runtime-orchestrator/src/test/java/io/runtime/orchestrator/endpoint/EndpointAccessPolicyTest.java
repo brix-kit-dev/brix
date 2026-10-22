@@ -102,6 +102,16 @@ class EndpointAccessPolicyTest {
     }
 
     @Test
+    void rejectsStepUpDeclarationsTheDispatcherCannotEnforceYet() {
+        assertRejected(Map.of("mode", "required", "policyRef", "platform-token", "acr", "brix:aal2-phr"),
+            Map.of("permissions", List.of("platform:admin:create")), FORBIDDEN_TENANT);
+        assertRejected(PLATFORM_AUTHENTICATION,
+            Map.of("permissions", List.of("platform:admin:create"), "max_age", "300"), FORBIDDEN_TENANT);
+        assertRejected(PLATFORM_AUTHENTICATION,
+            Map.of("permissions", List.of("platform:admin:create"), "maxAge", "PT5M"), FORBIDDEN_TENANT);
+    }
+
+    @Test
     void rejectsPrincipalRequirementsOnEndpointsWithoutRuntimeAuthentication() {
         assertRejected(Map.of("mode", "anonymous", "policyRef", "platform-token"),
             Map.of("policyRef", "x"), FORBIDDEN_TENANT);
