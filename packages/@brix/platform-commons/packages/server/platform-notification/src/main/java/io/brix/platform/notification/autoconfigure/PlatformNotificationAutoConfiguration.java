@@ -1,6 +1,7 @@
 package io.brix.platform.notification.autoconfigure;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -41,7 +42,7 @@ public class PlatformNotificationAutoConfiguration {
     public NotificationCapability notificationCapability(
             EmailDeliveryAdapter emailDeliveryAdapter,
             PlatformNotificationProperties properties) {
-        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectMapper objectMapper = JsonMapper.builder().configureForJackson2().build();
         ClassLoader classLoader = PlatformNotificationAutoConfiguration.class.getClassLoader();
         return new NotificationApplicationService(
                 new TemplateRepository(objectMapper, classLoader),

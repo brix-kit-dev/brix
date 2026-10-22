@@ -8,8 +8,8 @@ package io.brix.platform.auth.endpoint;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import io.runtime.sdk.capability.AuthFlowCapability.LoginResult;
 import io.runtime.sdk.capability.AuthFlowCapability.TenantOption;

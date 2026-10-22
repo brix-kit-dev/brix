@@ -19,14 +19,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import com.networknt.schema.Schema;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SpecificationVersion;
 
 /**
  * Plugin Manifest JSON Schema Validator.
@@ -61,7 +60,7 @@ public final class PluginManifestValidator {
      */
     public static final String BUNDLED_SCHEMA_RESOURCE = "META-INF/schemas/plugin-manifest.schema.json";
 
-    private final JsonSchema schema;
+    private final Schema schema;
 
     /**
      * Constructs a validator that eagerly loads and compiles the bundled schema.
@@ -94,19 +93,20 @@ public final class PluginManifestValidator {
                 null);
         }
 
-        Set<ValidationMessage> messages = schema.validate(manifestNode);
+        List<com.networknt.schema.Error> messages = schema.validate(manifestNode);
         if (messages.isEmpty()) {
             return;
         }
 
         List<String> errors = new ArrayList<>(messages.size());
-        for (ValidationMessage m : messages) {
-            errors.add(m.getMessage());
+        for (com.networknt.schema.Error m : messages) {
+            // "location: message", matching the json-schema-validator 1.x message shape
+            errors.add(m.toString());
         }
         throw new PluginManifestValidationException(resourceDescription, errors);
     }
 
-    private static JsonSchema loadBundledSchema(ObjectMapper objectMapper) {
+    private static Schema loadBundledSchema(ObjectMapper objectMapper) {
         ClassLoader cl = PluginManifestValidator.class.getClassLoader();
         try (InputStream in = cl.getResourceAsStream(BUNDLED_SCHEMA_RESOURCE)) {
             if (in == null) {
@@ -116,9 +116,9 @@ public final class PluginManifestValidator {
                         + ". This indicates a packaging defect in runtime-orchestrator.jar.");
             }
             JsonNode schemaNode = objectMapper.readTree(in);
-            JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
-            return factory.getSchema(schemaNode);
-        } catch (IOException e) {
+            SchemaRegistry registry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7);
+            return registry.getSchema(schemaNode);
+        } catch (IOException | JacksonException e) {
             throw new IllegalStateException(
                 "Failed to read bundled plugin manifest schema: " + BUNDLED_SCHEMA_RESOURCE, e);
         }

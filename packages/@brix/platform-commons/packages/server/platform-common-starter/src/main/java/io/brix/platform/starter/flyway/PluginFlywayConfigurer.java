@@ -18,7 +18,7 @@ package io.brix.platform.starter.flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
+import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomizer;
 import io.brix.platform.starter.config.FlywayExtProperties;
 import io.brix.platform.starter.config.ServiceProperties;
 
@@ -120,10 +120,9 @@ public class PluginFlywayConfigurer implements FlywayConfigurationCustomizer {
                 flywayProperties.getBaselineVersion());
         }
         
-        // 4. Set clean on validation error (development environment only!)
+        // 4. Clean on validation error: removed in Flyway 12, the setting is ignored
         if (flywayProperties.isCleanOnValidationError()) {
-            configuration.cleanOnValidationError(true);
-            log.warn("[PluginFlywayConfigurer] Warning: Clean on validation error is enabled, for development environment only!");
+            log.warn("[PluginFlywayConfigurer] cleanOnValidationError is not supported by Flyway 12 and is ignored");
         }
         
         // 5. Log plugin prefix information

@@ -2,8 +2,8 @@ package io.brix.platform.admin.dto;
 
 import java.time.OffsetDateTime;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
 
 public record PlatformSetupValidateResponse(
         boolean valid,

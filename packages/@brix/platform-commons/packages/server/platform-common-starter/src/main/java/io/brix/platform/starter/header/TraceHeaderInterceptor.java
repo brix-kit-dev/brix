@@ -96,19 +96,19 @@ public class TraceHeaderInterceptor implements ClientHttpRequestInterceptor {
         var headers = request.getHeaders();
         
         // 1. Add or propagate Trace ID
-        if (!headers.containsKey(PlatformHeaders.TRACE_ID)) {
+        if (!headers.containsHeader(PlatformHeaders.TRACE_ID)) {
             String traceId = getOrGenerateTraceId();
             headers.add(PlatformHeaders.TRACE_ID, traceId);
         }
         
         // 2. Generate new Span ID (each outbound request is a new Span)
-        if (!headers.containsKey(PlatformHeaders.SPAN_ID)) {
+        if (!headers.containsHeader(PlatformHeaders.SPAN_ID)) {
             String spanId = generateSpanId();
             headers.add(PlatformHeaders.SPAN_ID, spanId);
         }
         
         // 3. Generate Request ID
-        if (!headers.containsKey(PlatformHeaders.REQUEST_ID)) {
+        if (!headers.containsHeader(PlatformHeaders.REQUEST_ID)) {
             String requestId = generateRequestId();
             headers.add(PlatformHeaders.REQUEST_ID, requestId);
         }

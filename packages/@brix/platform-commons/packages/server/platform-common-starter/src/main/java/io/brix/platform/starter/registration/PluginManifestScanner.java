@@ -15,7 +15,8 @@
  */
 package io.brix.platform.starter.registration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -106,7 +107,7 @@ public class PluginManifestScanner {
                         log.info("[PluginManifestScanner] Loaded plugin manifest: {} v{}", 
                             manifest.getName(), manifest.getVersion());
                     }
-                } catch (IOException e) {
+                } catch (IOException | JacksonException e) {
                     log.warn("[PluginManifestScanner] Failed to parse manifest: {}, error: {}", 
                         resource.getDescription(), e.getMessage());
                 }

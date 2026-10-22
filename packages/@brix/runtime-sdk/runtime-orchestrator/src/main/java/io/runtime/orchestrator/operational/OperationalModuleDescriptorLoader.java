@@ -12,17 +12,16 @@ import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import com.networknt.schema.Schema;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SpecificationVersion;
 
 /**
  * Strict loader for the unique platform operational descriptor.
@@ -37,8 +36,8 @@ public final class OperationalModuleDescriptorLoader {
     /** Bundled strict descriptor schema. */
     public static final String SCHEMA_RESOURCE = "META-INF/schemas/platform-operational.schema.json";
 
-    private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-    private final JsonSchema schema;
+    private final ObjectMapper yamlMapper = YAMLMapper.builder().configureForJackson2().build();
+    private final Schema schema;
 
     /**
      * Creates a loader using the Runtime class loader for the bundled schema.
@@ -51,7 +50,7 @@ public final class OperationalModuleDescriptorLoader {
                 "operational.schema.missing",
                 "Bundled operational descriptor schema is missing");
         }
-        this.schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(input);
+        this.schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12).getSchema(input);
     }
 
     /**
@@ -63,16 +62,16 @@ public final class OperationalModuleDescriptorLoader {
     public OperationalModuleDescriptor load(URL descriptorUrl) {
         try (InputStream input = descriptorUrl.openStream()) {
             JsonNode root = yamlMapper.readTree(input);
-            Set<ValidationMessage> errors = schema.validate(root);
+            List<com.networknt.schema.Error> errors = schema.validate(root);
             if (!errors.isEmpty()) {
-                String detail = errors.stream().map(ValidationMessage::getMessage).sorted()
+                String detail = errors.stream().map(com.networknt.schema.Error::toString).sorted()
                     .collect(Collectors.joining("; "));
                 throw new OperationalRuntimeException(
                     "operational.descriptor.invalid",
                     "Invalid platform operational descriptor: " + detail);
             }
             return map(root);
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
             throw new OperationalRuntimeException(
                 "operational.descriptor.unreadable",
                 "Unable to read platform operational descriptor",
@@ -122,7 +121,7 @@ public final class OperationalModuleDescriptorLoader {
                     text(node, "versionRange"),
                     node.path("required").asBoolean(),
                     text(node, "privilegeAllowlistRef"))).toList(),
-            stream(root.path("privileges").path("allowlist")).map(JsonNode::asText).collect(Collectors.toSet()),
+            stream(root.path("privileges").path("allowlist")).map(JsonNode::asString).collect(Collectors.toSet()),
             endpoints,
             tasks);
     }
@@ -137,6 +136,6 @@ public final class OperationalModuleDescriptorLoader {
     }
 
     private static String text(JsonNode node, String field) {
-        return node.path(field).asText();
+        return node.path(field).asString();
     }
 }

@@ -140,7 +140,7 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         
         // Collect non-sensitive request headers
         Map<String, String> safeHeaders = LOGGED_HEADERS.stream()
-                .filter(headers::containsKey)
+                .filter(headers::containsHeader)
                 .collect(Collectors.toMap(
                         name -> name,
                         name -> {
@@ -150,14 +150,14 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
                 ));
 
         // forsensitiveheaderperformsanitizeafterrecord
-        if (headers.containsKey(HttpHeaders.AUTHORIZATION)) {
+        if (headers.containsHeader(HttpHeaders.AUTHORIZATION)) {
             String authValue = headers.getFirst(HttpHeaders.AUTHORIZATION);
             safeHeaders.put(HttpHeaders.AUTHORIZATION, 
                     logSanitizer.sanitizeAuthorizationHeader(authValue));
         }
 
         // record Cookie timeperformde-
-        if (headers.containsKey(HttpHeaders.COOKIE)) {
+        if (headers.containsHeader(HttpHeaders.COOKIE)) {
             safeHeaders.put(HttpHeaders.COOKIE, logSanitizer.maskValue("cookie-data"));
         }
 

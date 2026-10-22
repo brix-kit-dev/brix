@@ -287,7 +287,7 @@ public class RuntimeShellBootstrapAutoConfiguration {
      * Actuator-only Runtime Shell health contribution.
      */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "org.springframework.boot.actuate.health.HealthIndicator")
+    @ConditionalOnClass(name = "org.springframework.boot.health.contributor.HealthIndicator")
     static class RuntimeShellActuatorConfiguration {
 
         /**

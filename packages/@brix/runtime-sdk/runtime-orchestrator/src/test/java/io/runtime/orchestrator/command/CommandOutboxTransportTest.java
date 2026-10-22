@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.event.ConsumerUnitOfWork;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;

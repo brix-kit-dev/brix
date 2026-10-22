@@ -30,8 +30,8 @@ import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.exception.JwtConfigurationException;
 import io.runtime.sdk.capability.JwtIssuerCapability;
@@ -347,7 +347,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         String payloadJson;
         try {
             payloadJson = objectMapper.writeValueAsString(claims);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new JwtConfigurationException(
                     "Failed to serialize JWT claims to JSON",
                     properties.getPrivateKeyPath(), e);

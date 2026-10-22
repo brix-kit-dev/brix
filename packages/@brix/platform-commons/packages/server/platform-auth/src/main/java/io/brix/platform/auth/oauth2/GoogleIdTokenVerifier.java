@@ -23,8 +23,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.sdk.capability.HttpCapability;
 import io.runtime.sdk.capability.HttpCapability.HttpResult;
@@ -80,11 +80,11 @@ public class GoogleIdTokenVerifier {
         }
         try {
             JsonNode header = objectMapper.readTree(decodeBase64Url(parts[0]));
-            String alg = header.path("alg").asText();
+            String alg = header.path("alg").asString();
             if (!"RS256".equals(alg)) {
                 throw invalid("Unsupported algorithm: " + alg + ". Expected RS256.");
             }
-            String kid = header.path("kid").asText();
+            String kid = header.path("kid").asString();
             if (kid.isEmpty()) {
                 throw invalid("Missing kid in header");
             }
@@ -181,13 +181,13 @@ public class GoogleIdTokenVerifier {
             }
             ConcurrentHashMap<String, PublicKey> newCache = new ConcurrentHashMap<>();
             for (JsonNode keyNode : keys) {
-                String kid = keyNode.path("kid").asText();
-                String kty = keyNode.path("kty").asText();
-                String alg = keyNode.path("alg").asText();
+                String kid = keyNode.path("kid").asString();
+                String kty = keyNode.path("kty").asString();
+                String alg = keyNode.path("alg").asString();
                 if ("RSA".equals(kty) && "RS256".equals(alg)) {
                     newCache.put(kid, buildRsaPublicKey(
-                            keyNode.path("n").asText(),
-                            keyNode.path("e").asText()));
+                            keyNode.path("n").asString(),
+                            keyNode.path("e").asString()));
                 }
             }
             jwksCache.clear();

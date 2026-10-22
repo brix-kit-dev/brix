@@ -18,9 +18,9 @@ package io.brix.platform.gateway.health;
 import java.time.Instant;
 import java.util.Map;
 
-import org.springframework.boot.actuate.health.HealthComponent;
-import org.springframework.boot.actuate.health.HealthEndpoint;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -69,7 +69,7 @@ public class HealthzController {
     @GetMapping("/healthz")
     public Mono<ResponseEntity<Map<String, Object>>> healthz() {
         return Mono.fromCallable(() -> {
-            HealthComponent health = healthEndpoint.health();
+            HealthDescriptor health = healthEndpoint.health();
             Status status = health.getStatus();
             
             HttpStatus httpStatus = Status.UP.equals(status) ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;

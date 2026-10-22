@@ -28,7 +28,7 @@ The "shell" metaphor describes how the runtime wraps plugins and provides all in
 
 ### What programming languages does Brix support?
 
-- **Backend**: Java 17+ (Spring Boot 3.x)
+- **Backend**: Java 17+ (Spring Boot 4.x)
 - **Frontend**: TypeScript (React 18+)
 
 ---

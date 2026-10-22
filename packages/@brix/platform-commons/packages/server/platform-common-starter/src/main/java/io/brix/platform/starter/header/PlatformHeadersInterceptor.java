@@ -98,7 +98,7 @@ public class PlatformHeadersInterceptor implements ClientHttpRequestInterceptor 
         addPlatformHeaders(request);
         
         log.debug("[PlatformHeadersInterceptor] Outbound request: {} {}, Headers: {}",
-            request.getMethod(), request.getURI(), request.getHeaders().keySet());
+            request.getMethod(), request.getURI(), request.getHeaders().headerNames());
         
         return execution.execute(request, body);
     }
@@ -112,25 +112,25 @@ public class PlatformHeadersInterceptor implements ClientHttpRequestInterceptor 
         var headers = request.getHeaders();
         
         // 1. Add tenant ID (required)
-        if (!headers.containsKey(PlatformHeaders.TENANT_ID)) {
+        if (!headers.containsHeader(PlatformHeaders.TENANT_ID)) {
             String tenantId = TenantContextHolder.getTenantId();
             headers.add(PlatformHeaders.TENANT_ID, tenantId);
         }
         
         // 2. Add trace ID
         String traceId = TenantContextHolder.getTraceId();
-        if (StringUtils.hasText(traceId) && !headers.containsKey(PlatformHeaders.TRACE_ID)) {
+        if (StringUtils.hasText(traceId) && !headers.containsHeader(PlatformHeaders.TRACE_ID)) {
             headers.add(PlatformHeaders.TRACE_ID, traceId);
         }
         
         // 3. Add user ID (if present)
         String userId = TenantContextHolder.getUserId();
-        if (StringUtils.hasText(userId) && !headers.containsKey(PlatformHeaders.USER_ID)) {
+        if (StringUtils.hasText(userId) && !headers.containsHeader(PlatformHeaders.USER_ID)) {
             headers.add(PlatformHeaders.USER_ID, userId);
         }
         
         // 4. Add client identifier
-        if (!headers.containsKey(PlatformHeaders.CLIENT)) {
+        if (!headers.containsHeader(PlatformHeaders.CLIENT)) {
             String clientName = serviceProperties != null && StringUtils.hasText(serviceProperties.getName())
                 ? serviceProperties.getName()
                 : PlatformHeaders.DEFAULT_CLIENT;

@@ -15,8 +15,8 @@
  */
 package io.brix.platform.observability.health;
 
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
 
 /**
  * Interface for plugin-specific health indicators.

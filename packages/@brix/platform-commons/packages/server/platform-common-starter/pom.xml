@@ -83,7 +83,7 @@
              ===================================================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -95,7 +95,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
 
         <!-- =====================================================
@@ -173,6 +173,12 @@
             <artifactId>flyway-core</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Spring Boot 4: Flyway auto-configuration API (FlywayConfigurationCustomizer) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+            <optional>true</optional>
+        </dependency>
 
         <!-- =====================================================
              datasource-proxy — Slow Query Logging (Phase 5.4)
@@ -188,7 +194,7 @@
         <dependency>
             <groupId>net.ttddyy</groupId>
             <artifactId>datasource-proxy</artifactId>
-            <version>1.10</version>
+            <version>1.11.1</version>
             <optional>true</optional>
         </dependency>
 

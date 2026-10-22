@@ -19,13 +19,12 @@ import io.runtime.sdk.capability.StateStoreCapability;
 import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -151,7 +150,7 @@ public class RedisStateStoreCapability implements StateStoreCapability {
             
             return Optional.of(value);
             
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new StateDeserializationException(key, type.getName(),
                     "State store deserialization failed: key=" + key + ", type=" + type.getName(), e);
         }
@@ -184,7 +183,7 @@ public class RedisStateStoreCapability implements StateStoreCapability {
             
             log.debug("State store write: key={}, type={}", key, value.getClass().getSimpleName());
             
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new StateStoreException("State store serialization failed: " + key, e);
         }
     }
@@ -221,7 +220,7 @@ public class RedisStateStoreCapability implements StateStoreCapability {
             log.debug("State store write: key={}, type={}, ttl={}s", 
                     key, value.getClass().getSimpleName(), ttl.toSeconds());
             
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new StateStoreException("State store serialization failed: " + key, e);
         }
     }
@@ -275,7 +274,7 @@ public class RedisStateStoreCapability implements StateStoreCapability {
             String json = objectMapper.writeValueAsString(value);
             Boolean stored = redisTemplate.opsForValue().setIfAbsent(fullKey, json, ttl);
             return Boolean.TRUE.equals(stored);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new StateStoreException("State store serialization failed: " + key, e);
         }
     }
@@ -310,7 +309,7 @@ public class RedisStateStoreCapability implements StateStoreCapability {
             
             return Optional.of(value);
             
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new StateDeserializationException(key, type.getName(),
                     "State store deserialization failed: key=" + key + ", type=" + type.getName(), e);
         }

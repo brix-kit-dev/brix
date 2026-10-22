@@ -6,22 +6,25 @@ spring:
   # 网关路由配置 (本地开发环境)
   cloud:
     gateway:
-      routes:
-        # 将 /api/plugin-engine/** 转发到本地启动的插件引擎
-        - id: plugin-engine-local
-          uri: ${PLUGIN_ENGINE_URL:http://localhost:8081}
-          predicates:
-            - Path=/api/plugin-engine/**
-          filters:
-            - StripPrefix=1
+      # Spring Cloud Gateway 5 moved these properties under spring.cloud.gateway.server.webflux
+      server:
+        webflux:
+          routes:
+            # 将 /api/plugin-engine/** 转发到本地启动的插件引擎
+            - id: plugin-engine-local
+              uri: ${PLUGIN_ENGINE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/plugin-engine/**
+              filters:
+                - StripPrefix=1
         
-        # 示例：将 /api/user/** 转发到本地启动的用户插件 (假设运行在 8082)
-        - id: user-plugin-local
-          uri: ${USER_PLUGIN_URL:http://localhost:8082}
-          predicates:
-            - Path=/api/user/**
-          filters:
-            - StripPrefix=1
+            # 示例：将 /api/user/** 转发到本地启动的用户插件 (假设运行在 8082)
+            - id: user-plugin-local
+              uri: ${USER_PLUGIN_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/user/**
+              filters:
+                - StripPrefix=1
 
 # ========== CORS 本地开发配置 ==========
 # 本地开发环境允许所有来源，便于前端调试

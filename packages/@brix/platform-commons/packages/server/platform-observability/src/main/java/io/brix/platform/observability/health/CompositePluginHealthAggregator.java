@@ -16,18 +16,18 @@
 package io.brix.platform.observability.health;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.actuate.health.CompositeHealthContributor;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthContributor;
-import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.boot.actuate.health.NamedContributor;
+import org.springframework.boot.health.contributor.CompositeHealthContributor;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthContributor;
+import org.springframework.boot.health.contributor.HealthContributors;
+import org.springframework.boot.health.contributor.HealthIndicator;
 
 /**
  * Composite health aggregator that collects health status from all registered plugins.
@@ -120,18 +120,17 @@ public class CompositePluginHealthAggregator implements CompositeHealthContribut
     }
 
     /**
-     * Returns an iterator over all plugin health contributors.
+     * Returns a stream over all plugin health contributors.
      *
      * <p>Each entry pairs a plugin name with its health indicator, enabling
      * Spring Boot Actuator to build the composite health tree.</p>
      *
-     * @return iterator of named health contributors
+     * @return stream of named health contributors
      */
     @Override
-    public Iterator<NamedContributor<HealthContributor>> iterator() {
+    public Stream<HealthContributors.Entry> stream() {
         return pluginHealthIndicators.entrySet().stream()
-                .<NamedContributor<HealthContributor>>map(entry -> NamedContributor.of(entry.getKey(), entry.getValue()))
-                .iterator();
+                .map(entry -> new HealthContributors.Entry(entry.getKey(), entry.getValue()));
     }
 
     /**

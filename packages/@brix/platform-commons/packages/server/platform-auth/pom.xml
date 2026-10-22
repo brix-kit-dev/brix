@@ -61,7 +61,7 @@
         <!-- Spring Boot AOP (for permission aspects) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
 
         <!-- Spring Boot Configuration Processor -->
@@ -97,7 +97,7 @@
              (safe JSON serialization to prevent claim injection) and
              OAuth2 federation impl (Google JWKS / ID Token parsing). -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
 

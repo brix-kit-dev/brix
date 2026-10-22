@@ -13,12 +13,15 @@ spring:
   
   cloud:
     gateway:
-      routes:
-        # Static test route
-        - id: test-health
-          uri: http://localhost:${server.port}
-          predicates:
-            - Path=/test/**
+      # Spring Cloud Gateway 5 moved these properties under spring.cloud.gateway.server.webflux
+      server:
+        webflux:
+          routes:
+            # Static test route
+            - id: test-health
+              uri: http://localhost:${server.port}
+              predicates:
+                - Path=/test/**
 
 # ========== Gateway Security Configuration ==========
 gateway:

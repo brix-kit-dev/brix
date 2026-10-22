@@ -15,17 +15,17 @@
  */
 package io.brix.platform.starter.autoconfigure;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 
 /**
  * v2.1 Jackson Auto-Configuration
@@ -35,42 +35,46 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
  *   <li>Java 8 date/time support (JSR-310)</li>
  *   <li>Date/time formatted as ISO-8601</li>
  *   <li>Ignore unknown properties (compatibility)</li>
- *   <li>No error on empty objects</li>
  * </ul>
+ * 
+ * <p>Spring Boot 4 auto-configures a Jackson 3 {@link JsonMapper}; this configuration customizes
+ * that mapper so the JSON contract stays identical to the Spring Boot 3 / Jackson 2 mapper that
+ * the hosts actually used (Spring Boot's own {@code jacksonObjectMapper}: Jackson 2 defaults,
+ * ISO-8601 dates, unknown properties ignored, JDK 8 / java.time / parameter-names modules).</p>
  * 
  * @author Brix Platform Authors Team
  * @since v2.1
  */
 @AutoConfiguration(before = JacksonAutoConfiguration.class)
-@ConditionalOnClass(ObjectMapper.class)
+@ConditionalOnClass(JsonMapper.class)
 public class JacksonAutoConfig {
     
     /**
-     * Configure ObjectMapper
+     * Configure the auto-configured JsonMapper
      * 
-     * <p>Unified JSON serialization configuration ensuring consistent behavior across all services.</p>
+     * <p>Unified JSON serialization configuration ensuring consistent behavior across all services.
+     * It starts from the Jackson 2 defaults the Spring Boot 3 mapper was built on and runs before
+     * Spring Boot's own customizer, so explicit {@code spring.jackson.*} properties still win.</p>
      * 
-     * @param builder Jackson builder
-     * @return Configured ObjectMapper
+     * <p>Empty beans keep failing serialization: under Spring Boot 3 the auto-configured
+     * {@code jacksonObjectMapper} always took precedence over the mapper this class used to
+     * declare, so {@code FAIL_ON_EMPTY_BEANS} stayed at the Jackson 2 default.</p>
+     * 
+     * @return JsonMapper builder customizer
      */
     @Bean
-    @Primary
-    @ConditionalOnMissingBean
-    public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
-        ObjectMapper objectMapper = builder.createXmlMapper(false).build();
-        
-        // Register Java 8 date/time module
-        objectMapper.registerModule(new JavaTimeModule());
-        
-        // Serialize date/time as ISO-8601 format instead of timestamps
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        
-        // Ignore unknown properties for better compatibility
-        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        
-        // No error on empty objects
-        objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-        
-        return objectMapper;
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public JsonMapperBuilderCustomizer brixJsonMapperBuilderCustomizer() {
+        return builder -> builder
+                // Jackson 2 defaults (property order, enum names, lenient parsing, ...)
+                .configureForJackson2()
+                // Spring Boot 3 registered the parameter-names module and disabled default view inclusion
+                .enable(MapperFeature.DETECT_PARAMETER_NAMES)
+                .disable(MapperFeature.DEFAULT_VIEW_INCLUSION)
+                // Serialize date/time and durations as ISO-8601 instead of timestamps
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(DateTimeFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
+                // Ignore unknown properties for better compatibility
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 }

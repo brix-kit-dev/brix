@@ -10,9 +10,9 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.sdk.capability.CommandSubmitException;
@@ -38,7 +38,12 @@ public final class JsonCommandPayloadCodec implements CommandPayloadCodec {
      * @param objectMapper object mapper
      */
     public JsonCommandPayloadCodec(ObjectMapper objectMapper) {
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null").findAndRegisterModules();
+        // Jackson 3 mappers are immutable: derive a copy with all classpath modules instead of
+        // mutating the shared host mapper.
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null")
+            .rebuild()
+            .findAndAddModules()
+            .build();
     }
 
     @Override
@@ -49,7 +54,7 @@ public final class JsonCommandPayloadCodec implements CommandPayloadCodec {
                 "idempotencyScope", envelope.idempotencyScope(),
                 "idempotencyKey", envelope.idempotencyKey(),
                 "payload", envelope.payload()));
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new CommandSubmitException(
                 CommandSubmitException.Code.INVALID_COMMAND,
                 Map.of("commandType", envelope.commandType()),
@@ -79,7 +84,7 @@ public final class JsonCommandPayloadCodec implements CommandPayloadCodec {
                 string(payload.get("idempotencyScope"), "idempotencyScope"),
                 string(payload.get("idempotencyKey"), "idempotencyKey"),
                 objectMapper.writeValueAsString(rawPayload));
-        } catch (RuntimeException | JsonProcessingException ex) {
+        } catch (RuntimeException ex) {
             throw new CommandSubmitException(
                 CommandSubmitException.Code.INVALID_COMMAND,
                 Map.of("messageId", message.messageId()),

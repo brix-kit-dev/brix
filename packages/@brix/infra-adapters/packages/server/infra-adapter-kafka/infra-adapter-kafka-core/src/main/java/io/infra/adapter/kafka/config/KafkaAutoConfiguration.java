@@ -38,9 +38,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.infra.adapter.kafka.EventTopicResolver;
 import io.infra.adapter.kafka.CanonicalKafkaOutboxTransport;
@@ -151,20 +152,15 @@ public class KafkaAutoConfiguration {
      * @return ObjectMapper instance
      */
     private static ObjectMapper createEventObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        
-        // Register Java 8 time module
-        mapper.registerModule(new JavaTimeModule());
-        
-        // Serialize datetime in ISO-8601 format
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        
-        // Ignore unknown properties (compatibility)
-        mapper.configure(
-                com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, 
-                false);
-        
-        return mapper;
+        return JsonMapper.builder()
+                // Keep the Jackson 2 defaults the event wire format was built on
+                // (Java time types are supported natively by Jackson 3)
+                .configureForJackson2()
+                // Serialize datetime in ISO-8601 format
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                // Ignore unknown properties (compatibility)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .build();
     }
 
     /**

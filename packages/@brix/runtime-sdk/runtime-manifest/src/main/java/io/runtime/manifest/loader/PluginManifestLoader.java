@@ -29,9 +29,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.manifest.validation.PluginManifestValidator;
@@ -65,9 +66,11 @@ public final class PluginManifestLoader {
      * @param validator manifest validator
      */
     public PluginManifestLoader(PluginManifestValidator validator) {
-        this.yamlMapper = new ObjectMapper(new YAMLFactory());
-        this.yamlMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
-        this.yamlMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, false);
+        this.yamlMapper = YAMLMapper.builder()
+            .configureForJackson2()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true)
+            .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, false)
+            .build();
         this.validator = Objects.requireNonNull(validator, "validator must not be null");
     }
 
@@ -104,7 +107,7 @@ public final class PluginManifestLoader {
             PluginManifest manifest = yamlMapper.readValue(inputStream, PluginManifest.class);
             validator.validateOrThrow(manifest);
             return manifest;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new ManifestLoadException("Failed to parse plugin manifest YAML", e);
         }
     }
@@ -121,7 +124,7 @@ public final class PluginManifestLoader {
             PluginManifest manifest = yamlMapper.readValue(content, PluginManifest.class);
             validator.validateOrThrow(manifest);
             return manifest;
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new ManifestLoadException("Failed to parse plugin manifest YAML", e);
         }
     }
