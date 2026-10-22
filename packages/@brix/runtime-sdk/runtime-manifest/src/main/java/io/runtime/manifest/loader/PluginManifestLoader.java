@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -171,6 +172,45 @@ public final class PluginManifestLoader {
         }
         try (InputStream inputStream = matches.get(0).openStream()) {
             return load(inputStream);
+        } catch (IOException e) {
+            throw new ManifestLoadException("Failed to load plugin manifest from same artifact as "
+                + anchorType.getName(), e);
+        }
+    }
+
+    /**
+     * Finds the active plugin manifest packaged in the same artifact as the
+     * supplied type.
+     *
+     * <p>Unlike {@link #loadActiveFromClasspath(Class)}, an artifact without an
+     * active manifest (a library, or a type without a code source) is not an
+     * error. An artifact with more than one active manifest, or with an invalid
+     * one, still fails.</p>
+     *
+     * @param anchorType type whose code source identifies the artifact
+     * @return the validated manifest of that artifact, or empty when it has none
+     */
+    public Optional<PluginManifest> findActiveFromClasspath(Class<?> anchorType) {
+        Objects.requireNonNull(anchorType, "anchorType must not be null");
+        CodeSource source = anchorType.getProtectionDomain().getCodeSource();
+        if (source == null || source.getLocation() == null) {
+            return Optional.empty();
+        }
+        ClassLoader effective = anchorType.getClassLoader() != null
+            ? anchorType.getClassLoader()
+            : Thread.currentThread().getContextClassLoader();
+        List<URL> matches = resources(effective, PluginManifestValidator.ACTIVE_MANIFEST_RESOURCE).stream()
+            .filter(resource -> belongsToCodeSource(resource, source.getLocation()))
+            .toList();
+        if (matches.isEmpty()) {
+            return Optional.empty();
+        }
+        if (matches.size() > 1) {
+            throw new ManifestLoadException("Multiple active plugin manifests found in same artifact as "
+                + anchorType.getName() + ": " + matches);
+        }
+        try (InputStream inputStream = matches.get(0).openStream()) {
+            return Optional.of(load(inputStream));
         } catch (IOException e) {
             throw new ManifestLoadException("Failed to load plugin manifest from same artifact as "
                 + anchorType.getName(), e);

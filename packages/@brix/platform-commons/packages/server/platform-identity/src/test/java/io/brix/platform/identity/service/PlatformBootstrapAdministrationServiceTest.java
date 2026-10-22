@@ -2,6 +2,7 @@ package io.brix.platform.identity.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.inOrder;
@@ -175,6 +176,20 @@ class PlatformBootstrapAdministrationServiceTest {
         order.verify(platformAdminRepository).flush();
         order.verify(setupTokenRepository).save(any(SetupToken.class));
         verify(notification).send(any());
+    }
+
+    @Test
+    void rejectedSetupCodeWritesNoAuditRowThatTheRollbackWouldDiscard() {
+        when(bootstrapStateRepository.findByIdForUpdate(BootstrapState.SINGLETON_ID))
+                .thenReturn(Optional.empty());
+        when(platformAdminRepository.countCompletedFormalSuperAdmins()).thenReturn(0L);
+
+        PlatformBootstrapAdministrationService service = service(Optional.empty(), Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.openSession(new BootstrapSessionCommand("wrong-code")));
+        verifyNoInteractions(auditService);
+        verify(bootstrapStateRepository, never()).save(any(BootstrapState.class));
     }
 
     private PlatformBootstrapAdministrationService service(

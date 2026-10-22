@@ -18,8 +18,6 @@ package io.brix.platform.identity.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.auth.AuditAction;
 import io.brix.platform.identity.dto.AuditEvent;
@@ -39,7 +37,6 @@ import io.brix.platform.identity.repository.PlatformAdminRepository;
  * flows can publish it after password setup, MFA binding, or token verification
  * without coupling those flows to bootstrap internals.</p>
  */
-@Component
 public class BootstrapCompletionListener {
 
     private static final Logger log = LoggerFactory.getLogger(BootstrapCompletionListener.class);
@@ -65,7 +62,6 @@ public class BootstrapCompletionListener {
         completeIfEligible(event.identityId());
     }
 
-    @Transactional
     public boolean completeIfEligible(Long identityId) {
         if (identityId == null) {
             return false;

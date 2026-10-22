@@ -15,8 +15,14 @@
  */
 package io.runtime.orchestrator.manifest;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -40,5 +46,29 @@ class UIManifestLoaderTest {
 
         assertThrows(MissingRequiredCapabilityException.class,
             () -> loader.verifyRequiredCapabilities(capability -> false));
+    }
+
+    @Test
+    void ownerAwareVerificationSeesTheRequestingPluginOfEachRequiredCapability() {
+        UIManifestLoader loader = new UIManifestLoader(new ObjectMapper());
+        loader.loadManifests();
+        List<String> checked = new ArrayList<>();
+
+        loader.verifyRequiredCapabilities((pluginId, capability) -> checked.add(pluginId + ":" + capability));
+
+        assertTrue(checked.contains("service-loaded-test:TestCapability"));
+        assertFalse(checked.contains("service-loaded-test:OptionalCapability"));
+    }
+
+    @Test
+    void ownerAwareVerificationNamesThePluginWhoseRequirementIsUnmet() {
+        UIManifestLoader loader = new UIManifestLoader(new ObjectMapper());
+        loader.loadManifests();
+
+        MissingRequiredCapabilityException failure = assertThrows(MissingRequiredCapabilityException.class,
+            () -> loader.verifyRequiredCapabilities(
+                (pluginId, capability) -> !"service-loaded-test".equals(pluginId)));
+
+        assertEquals("service-loaded-test", failure.getPluginId());
     }
 }

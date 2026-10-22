@@ -34,7 +34,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.endpoint.PluginRegistryEndpoint;
 import io.runtime.orchestrator.manifest.UIManifestLoader;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.registry.ModuleRegistry;
+import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 
@@ -108,15 +110,21 @@ public class PluginRegistryAutoConfiguration {
      * with capability scanning disabled), verification is skipped with an explicit
      * INFO log line — never silently passed.</p>
      *
+     * <p>{@link PersistenceCapability} is owner-scoped: it is never registered globally,
+     * and a plugin's requirement is satisfied when the persistence adapter provides a
+     * persistence unit for that plugin (root blueprint BRX-RS-DATA-026).</p>
+     *
      * @param manifestLoader      loader holding the validated manifest map
      * @param capabilityRegistry  optional capability registry, injected lazily so
      *                            absence does not fail bean wiring
+     * @param ownerPersistence    optional owner persistence provider of the persistence adapter
      * @return a marker object whose construction triggers the verification side-effect
      */
     @Bean
     public PluginCapabilityVerifier pluginCapabilityVerifier(
             UIManifestLoader manifestLoader,
-            ObjectProvider<CapabilityRegistry> capabilityRegistry) {
+            ObjectProvider<CapabilityRegistry> capabilityRegistry,
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable();
         if (registry == null) {
             log.info("No CapabilityRegistry bean found - skipping plugin required-capability verification");
@@ -155,8 +163,15 @@ public class PluginRegistryAutoConfiguration {
         }
         log.info("Verifying plugin required-capabilities against {} registered capability identifier(s)",
             available.size());
-        manifestLoader.verifyRequiredCapabilities(available::contains);
+        OwnerPersistenceProvider persistence = ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none);
+        manifestLoader.verifyRequiredCapabilities((pluginId, capability) -> available.contains(capability)
+            || (isPersistenceCapability(capability) && persistence.forOwner(pluginId).isPresent()));
         return new PluginCapabilityVerifier();
+    }
+
+    private static boolean isPersistenceCapability(String capability) {
+        return PersistenceCapability.class.getName().equals(capability)
+            || PersistenceCapability.class.getSimpleName().equals(capability);
     }
 
     /**
@@ -187,7 +202,7 @@ public class PluginRegistryAutoConfiguration {
 
     /**
      * Internal marker bean — its sole purpose is to provide a Spring lifecycle hook
-     * for {@link #pluginCapabilityVerifier(UIManifestLoader, ObjectProvider)}.
+     * for {@link #pluginCapabilityVerifier(UIManifestLoader, ObjectProvider, ObjectProvider)}.
      * Consumer code should not depend on it.
      */
     public static final class PluginCapabilityVerifier {

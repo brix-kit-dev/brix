@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 import org.slf4j.Logger;
@@ -319,8 +320,26 @@ public class UIManifestLoader {
      * @throws MissingRequiredCapabilityException at the first plugin whose required
      *                                            capabilities are not all satisfied
      */
-    @SuppressWarnings("unchecked")
     public void verifyRequiredCapabilities(Predicate<String> capabilityAvailable) {
+        if (capabilityAvailable == null) {
+            throw new IllegalArgumentException("capabilityAvailable predicate must not be null");
+        }
+        verifyRequiredCapabilities((pluginId, capability) -> capabilityAvailable.test(capability));
+    }
+
+    /**
+     * Verifies required capabilities with a predicate that also sees the requesting plugin.
+     *
+     * <p>Needed for owner-scoped capabilities such as {@code PersistenceCapability}, which
+     * the Host provides per data owner rather than once for every plugin.</p>
+     *
+     * @param capabilityAvailable predicate receiving the plugin id and the capability name;
+     *                            must not be {@code null}
+     * @throws MissingRequiredCapabilityException at the first plugin whose required
+     *                                            capabilities are not all satisfied
+     */
+    @SuppressWarnings("unchecked")
+    public void verifyRequiredCapabilities(BiPredicate<String, String> capabilityAvailable) {
         if (capabilityAvailable == null) {
             throw new IllegalArgumentException("capabilityAvailable predicate must not be null");
         }
@@ -337,11 +356,11 @@ public class UIManifestLoader {
             List<?> requiredList = (List<?>) requiredObj;
             List<String> missing = new ArrayList<>();
             for (Object cap : requiredList) {
-                if (cap instanceof String && !capabilityAvailable.test((String) cap)) {
+                if (cap instanceof String && !capabilityAvailable.test(pluginId, (String) cap)) {
                     missing.add((String) cap);
                 } else if (cap instanceof Map) {
                     Object id = ((Map<String, Object>) cap).get(FIELD_ID);
-                    if (id instanceof String && !capabilityAvailable.test((String) id)) {
+                    if (id instanceof String && !capabilityAvailable.test(pluginId, (String) id)) {
                         missing.add((String) id);
                     }
                 }

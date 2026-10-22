@@ -13,9 +13,9 @@ import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.brix.platform.identity.core.IdGenerator;
@@ -29,15 +29,20 @@ import io.brix.platform.identity.security.SecretHashing;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.NotificationRequest;
+import io.runtime.sdk.capability.NotificationTemplateKeys;
+import io.runtime.sdk.capability.UnitOfWork;
 
 /**
  * Identity-owned implementation for FIRST_OWNER invitee setup.
+ *
+ * <p>platform-tenant still calls this capability directly instead of through a runtime entry, so
+ * every method opens the identity owner's own unit of work: the tenant transaction is suspended and
+ * identity rows commit independently of it (root blueprint BRX-RS-DATA-029).</p>
  */
 public class IdentityFirstOwnerInviteeSetupCapabilityImpl implements FirstOwnerInviteeIdentitySetupCapability {
 
     private static final Duration DEFAULT_TTL = Duration.ofHours(24);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final String TENANT_OWNER_SETUP_TEMPLATE = "tenant.owner.setup.initial";
 
     private final IdentityRepository identityRepository;
     private final PlatformAdminRepository platformAdminRepository;
@@ -45,6 +50,7 @@ public class IdentityFirstOwnerInviteeSetupCapabilityImpl implements FirstOwnerI
     private final Optional<NotificationCapability> notificationCapability;
     private final IdGenerator idGenerator;
     private final String setupBaseUrl;
+    private final UnitOfWork unitOfWork;
 
     public IdentityFirstOwnerInviteeSetupCapabilityImpl(
             IdentityRepository identityRepository,
@@ -52,18 +58,52 @@ public class IdentityFirstOwnerInviteeSetupCapabilityImpl implements FirstOwnerI
             SetupTokenRepository setupTokenRepository,
             Optional<NotificationCapability> notificationCapability,
             IdGenerator idGenerator,
-            String setupBaseUrl) {
+            String setupBaseUrl,
+            UnitOfWork unitOfWork) {
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
         this.setupTokenRepository = setupTokenRepository;
         this.notificationCapability = notificationCapability;
         this.idGenerator = idGenerator;
         this.setupBaseUrl = setupBaseUrl;
+        this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
     }
 
     @Override
-    @Transactional
     public boolean sendSetupIfRequired(
+            Long tenantId,
+            String inviteeEmail,
+            String platformOperatorRef,
+            String locale) {
+        return unitOfWork.required(() -> sendSetupInUnitOfWork(tenantId, inviteeEmail, platformOperatorRef, locale));
+    }
+
+    @Override
+    public String requireIdentityEmail(Long identityId) {
+        return unitOfWork.readOnly(() -> identityRepository.findById(identityId)
+            .map(Identity::getEmail)
+            .orElseThrow(() -> failure(
+                "FIRST_OWNER_IDENTITY_NOT_FOUND",
+                "Actor identity was not found")));
+    }
+
+    @Override
+    public String requireActiveIdentityEmail(Long identityId) {
+        return unitOfWork.readOnly(() -> {
+            Identity identity = identityRepository.findById(identityId)
+                .orElseThrow(() -> failure(
+                    "FIRST_OWNER_IDENTITY_NOT_FOUND",
+                    "Invitee identity was not found"));
+            if (identity.getStatus() != IdentityStatus.ACTIVE) {
+                throw failure(
+                    "FIRST_OWNER_INVITEE_IDENTITY_NOT_ACTIVE",
+                    "FIRST_OWNER invitee identity must complete setup before receiving the invitation");
+            }
+            return normalizeEmail(identity.getEmail());
+        });
+    }
+
+    private boolean sendSetupInUnitOfWork(
             Long tenantId,
             String inviteeEmail,
             String platformOperatorRef,
@@ -84,31 +124,6 @@ public class IdentityFirstOwnerInviteeSetupCapabilityImpl implements FirstOwnerI
         }
         sendSetup(tenantId, identity.getEmail(), issueTenantOwnerSetupToken(identity.getId(), platformOperatorRef), locale);
         return true;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public String requireIdentityEmail(Long identityId) {
-        return identityRepository.findById(identityId)
-            .map(Identity::getEmail)
-            .orElseThrow(() -> failure(
-                "FIRST_OWNER_IDENTITY_NOT_FOUND",
-                "Actor identity was not found"));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public String requireActiveIdentityEmail(Long identityId) {
-        Identity identity = identityRepository.findById(identityId)
-            .orElseThrow(() -> failure(
-                "FIRST_OWNER_IDENTITY_NOT_FOUND",
-                "Invitee identity was not found"));
-        if (identity.getStatus() != IdentityStatus.ACTIVE) {
-            throw failure(
-                "FIRST_OWNER_INVITEE_IDENTITY_NOT_ACTIVE",
-                "FIRST_OWNER invitee identity must complete setup before receiving the invitation");
-        }
-        return normalizeEmail(identity.getEmail());
     }
 
     private Identity findOrCreateInviteeIdentity(String inviteeEmail) {
@@ -164,7 +179,7 @@ public class IdentityFirstOwnerInviteeSetupCapabilityImpl implements FirstOwnerI
         notification.send(new NotificationRequest(
             tenantId,
             inviteeEmail,
-            TENANT_OWNER_SETUP_TEMPLATE,
+            NotificationTemplateKeys.TENANT_OWNER_SETUP_INITIAL,
             locale,
             Map.of("setupUrl", setupUrl)));
     }

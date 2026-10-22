@@ -43,8 +43,13 @@ package io.runtime.sdk.capability;
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
+ * @deprecated Since 3.3.0 together with {@link DatabaseCapability}. Plugins must not branch on the
+ *             database product (root blueprint BRX-RS-DATA-025); database differences are owned by
+ *             the persistence adapter and the database compatibility profile. Scheduled for removal
+ *             in the next major version.
  * @see DatabaseCapability
  */
+@Deprecated(since = "3.3.0", forRemoval = true)
 public enum DatabaseDialect {
 
     /**

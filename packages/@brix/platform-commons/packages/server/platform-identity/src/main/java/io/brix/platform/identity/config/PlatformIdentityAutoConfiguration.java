@@ -15,8 +15,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import io.brix.platform.auth.flow.MfaLoginSupport;
 import io.brix.platform.auth.jwt.JwtValidator;
@@ -28,28 +26,35 @@ import io.brix.platform.identity.internal.PlatformIdentityAdministration;
 import io.brix.platform.identity.repository.BootstrapStateRepository;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
+import io.brix.platform.identity.repository.PlatformAuditLogRepository;
 import io.brix.platform.identity.repository.SetupTokenRepository;
 import io.brix.platform.identity.service.AuditService;
 import io.brix.platform.identity.service.BootstrapCompletionListener;
-import io.brix.platform.identity.service.IdentityFirstOwnerInviteeSetupCapabilityImpl;
 import io.brix.platform.identity.service.IdentityAccountCapabilityImpl;
-import io.brix.platform.identity.service.JdbcPlatformIdentityAuditService;
+import io.brix.platform.identity.service.IdentityFirstOwnerInviteeSetupCapabilityImpl;
 import io.brix.platform.identity.service.PlatformBootstrapAdministrationService;
 import io.brix.platform.identity.service.PlatformIdentityAdministrationService;
 import io.brix.platform.identity.service.PlatformMfaLoginSupport;
+import io.brix.platform.identity.service.RepositoryPlatformIdentityAuditService;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.PasswordCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TotpCapability;
 
 /**
  * Auto-configuration anchor for the platform-identity source module.
+ *
+ * <p>Repositories come from the identity owner's {@link PersistenceCapability}, never from a
+ * framework repository scan (root blueprint BRX-RS-DATA-026). The persistence adapter derives the
+ * owner from this module's artifact, so the injected capability can only reach identity data.
+ * Transactions are opened by the runtime around internal contract calls and by the owner unit of
+ * work in the capabilities other modules call directly; nothing here uses framework transactions.</p>
  */
 @AutoConfiguration
-@EnableJpaRepositories(basePackages = "io.brix.platform.identity.repository")
 @EntityScan(basePackages = "io.brix.platform.identity.entity")
 @EnableConfigurationProperties(SuperAdminBootstrapProperties.class)
 public class PlatformIdentityAutoConfiguration {
@@ -63,52 +68,51 @@ public class PlatformIdentityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AuditService.class)
-    public AuditService platformIdentityAuditService(JdbcTemplate jdbcTemplate, IdGenerator idGenerator) {
-        return new JdbcPlatformIdentityAuditService(jdbcTemplate, idGenerator);
+    public AuditService platformIdentityAuditService(PersistenceCapability persistence, IdGenerator idGenerator) {
+        return new RepositoryPlatformIdentityAuditService(
+                persistence.repository(PlatformAuditLogRepository.class),
+                idGenerator);
     }
 
     @Bean
     @ConditionalOnMissingBean(IdentityAccountCapability.class)
     public IdentityAccountCapability identityAccountCapability(
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
+            PersistenceCapability persistence,
             ObjectProvider<AuditService> auditServiceProvider) {
         return new IdentityAccountCapabilityImpl(
-                identityRepository,
-                platformAdminRepository,
-                Optional.ofNullable(auditServiceProvider.getIfAvailable()));
+                persistence.repository(IdentityRepository.class),
+                persistence.repository(PlatformAdminRepository.class),
+                Optional.ofNullable(auditServiceProvider.getIfAvailable()),
+                persistence.unitOfWork());
     }
 
     @Bean
     @ConditionalOnMissingBean(FirstOwnerInviteeIdentitySetupCapability.class)
     public FirstOwnerInviteeIdentitySetupCapability firstOwnerInviteeIdentitySetupCapability(
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
-            SetupTokenRepository setupTokenRepository,
+            PersistenceCapability persistence,
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
             IdGenerator idGenerator,
             @Value("${brix.identity.first-owner-invitee-setup.setup-base-url:}")
                     String setupBaseUrl) {
         return new IdentityFirstOwnerInviteeSetupCapabilityImpl(
-                identityRepository,
-                platformAdminRepository,
-                setupTokenRepository,
+                persistence.repository(IdentityRepository.class),
+                persistence.repository(PlatformAdminRepository.class),
+                persistence.repository(SetupTokenRepository.class),
                 Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
                 idGenerator,
-                setupBaseUrl);
+                setupBaseUrl,
+                persistence.unitOfWork());
     }
 
     @Bean
     @ConditionalOnMissingBean(BootstrapCompletionListener.class)
     public BootstrapCompletionListener bootstrapCompletionListener(
-            BootstrapStateRepository bootstrapStateRepository,
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
+            PersistenceCapability persistence,
             AuditService auditService) {
         return new BootstrapCompletionListener(
-                bootstrapStateRepository,
-                identityRepository,
-                platformAdminRepository,
+                persistence.repository(BootstrapStateRepository.class),
+                persistence.repository(IdentityRepository.class),
+                persistence.repository(PlatformAdminRepository.class),
                 auditService);
     }
 
@@ -116,20 +120,17 @@ public class PlatformIdentityAutoConfiguration {
     @ConditionalOnMissingBean(PlatformBootstrapAdministration.class)
     public PlatformBootstrapAdministration platformBootstrapAdministration(
             SuperAdminBootstrapProperties properties,
-            BootstrapStateRepository bootstrapStateRepository,
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
-            SetupTokenRepository setupTokenRepository,
+            PersistenceCapability persistence,
             IdGenerator idGenerator,
             ObjectProvider<JwtIssuerCapability> jwtIssuerCapabilityProvider,
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
             AuditService auditService) {
         return new PlatformBootstrapAdministrationService(
                 properties,
-                bootstrapStateRepository,
-                identityRepository,
-                platformAdminRepository,
-                setupTokenRepository,
+                persistence.repository(BootstrapStateRepository.class),
+                persistence.repository(IdentityRepository.class),
+                persistence.repository(PlatformAdminRepository.class),
+                persistence.repository(SetupTokenRepository.class),
                 idGenerator,
                 Optional.ofNullable(jwtIssuerCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
@@ -139,9 +140,7 @@ public class PlatformIdentityAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(PlatformIdentityAdministration.class)
     public PlatformIdentityAdministration platformIdentityAdministration(
-            SetupTokenRepository setupTokenRepository,
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
+            PersistenceCapability persistence,
             ObjectProvider<PasswordCapability> passwordCapabilityProvider,
             ObjectProvider<TotpCapability> totpCapabilityProvider,
             ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider,
@@ -149,9 +148,9 @@ public class PlatformIdentityAutoConfiguration {
             ApplicationEventPublisher eventPublisher,
             AuditService auditService) {
         return new PlatformIdentityAdministrationService(
-                setupTokenRepository,
-                identityRepository,
-                platformAdminRepository,
+                persistence.repository(SetupTokenRepository.class),
+                persistence.repository(IdentityRepository.class),
+                persistence.repository(PlatformAdminRepository.class),
                 Optional.ofNullable(passwordCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()),
@@ -163,18 +162,18 @@ public class PlatformIdentityAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(MfaLoginSupport.class)
     public MfaLoginSupport platformMfaLoginSupport(
-            IdentityRepository identityRepository,
-            PlatformAdminRepository platformAdminRepository,
+            PersistenceCapability persistence,
             ObjectProvider<JwtValidator> jwtValidatorProvider,
             ObjectProvider<JwtIssuerCapability> jwtIssuerCapabilityProvider,
             ObjectProvider<TotpCapability> totpCapabilityProvider,
             ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider) {
         return new PlatformMfaLoginSupport(
-                identityRepository,
-                platformAdminRepository,
+                persistence.repository(IdentityRepository.class),
+                persistence.repository(PlatformAdminRepository.class),
                 Optional.ofNullable(jwtValidatorProvider.getIfAvailable()),
                 Optional.ofNullable(jwtIssuerCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
-                Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()));
+                Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()),
+                persistence.unitOfWork());
     }
 }

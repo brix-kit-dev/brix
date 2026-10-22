@@ -7,10 +7,13 @@
 package io.runtime.orchestrator.internalcontract;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -19,7 +22,10 @@ import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.orchestrator.operational.OperationalModuleIdentity;
 import io.runtime.orchestrator.operational.OperationalRuntimeException;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.persistence.RecordingPersistence;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
+import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 
 class InternalContractBinderTest {
@@ -102,6 +108,70 @@ class InternalContractBinderTest {
         assertThrows(
             IllegalStateException.class,
             () -> binder.bind(providerDescriptor(), provider(), Set.of()));
+    }
+
+    @Test
+    void ownerContractsRunInsideTheOwnerUnitOfWork() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        RecordingPersistence persistence = new RecordingPersistence();
+        List<Boolean> insideUnitOfWork = new ArrayList<>();
+        InternalContractBinder binder = new InternalContractBinder(
+            registry, registry, getClass().getClassLoader(), ownerPersistence(persistence));
+
+        binder.bindPlugin(pluginDescriptor(), bootstrap -> bootstrap.bind(
+            "test.contract",
+            Runnable.class,
+            context -> () -> insideUnitOfWork.add(persistence.active())), Set.of());
+        binder.activateAndFreeze();
+        binder.require(requirement(">=1.0.0 <2.0.0"), Runnable.class).run();
+
+        assertEquals(List.of(true), insideUnitOfWork);
+        assertEquals(List.of("required"), persistence.modes());
+    }
+
+    @Test
+    void pluginProviderReceivesItsOwnerPersistence() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        RecordingPersistence persistence = new RecordingPersistence();
+        List<PersistenceCapability> received = new ArrayList<>();
+        InternalContractBinder binder = new InternalContractBinder(
+            registry, registry, getClass().getClassLoader(), ownerPersistence(persistence));
+
+        binder.bindPlugin(pluginDescriptor(), bootstrap -> bootstrap.bind(
+            "test.contract",
+            Runnable.class,
+            context -> {
+                received.add(context.requireOwnerCapability(PersistenceCapability.class));
+                return () -> { };
+            }), Set.of(PersistenceCapability.class));
+        binder.activateAndFreeze();
+
+        assertSame(persistence, received.get(0));
+    }
+
+    @Test
+    void undeclaredOwnerPersistenceFailsClosed() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        InternalContractBinder binder = new InternalContractBinder(
+            registry, registry, getClass().getClassLoader(), ownerPersistence(new RecordingPersistence()));
+
+        binder.bindPlugin(pluginDescriptor(), bootstrap -> bootstrap.bind(
+            "test.contract",
+            Runnable.class,
+            context -> {
+                context.requireOwnerCapability(PersistenceCapability.class);
+                return () -> { };
+            }), Set.of());
+
+        OperationalRuntimeException failure =
+            assertThrows(OperationalRuntimeException.class, binder::activateAndFreeze);
+        assertEquals("internal_contract.factory_failed", failure.diagnosticCode());
+        assertEquals("internal_contract.owner_capability_undeclared",
+            ((OperationalRuntimeException) failure.getCause()).diagnosticCode());
+    }
+
+    private static OwnerPersistenceProvider ownerPersistence(RecordingPersistence persistence) {
+        return owner -> "owner-plugin".equals(owner) ? Optional.of(persistence) : Optional.empty();
     }
 
     private InternalContractProvider provider() {
