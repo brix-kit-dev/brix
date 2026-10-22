@@ -124,7 +124,8 @@ class PlatformMfaLoginSupportTest {
                 Optional.of(jwtValidator),
                 Optional.of(jwtIssuerCapability),
                 Optional.empty(),
-                Optional.of(secretEncryptionCapability));
+                Optional.of(secretEncryptionCapability),
+                new RecordingUnitOfWork());
 
         AuthFlowException ex = assertThrows(AuthFlowException.class,
                 () -> support.verify(new MfaVerifyCommand("challenge", "123456")));
@@ -139,7 +140,8 @@ class PlatformMfaLoginSupportTest {
                 Optional.of(jwtValidator),
                 Optional.of(jwtIssuerCapability),
                 Optional.of(totpCapability),
-                Optional.of(secretEncryptionCapability));
+                Optional.of(secretEncryptionCapability),
+                new RecordingUnitOfWork());
     }
 
     private static AuthenticatedUser challenge() {

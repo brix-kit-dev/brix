@@ -20,10 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.persistence.RecordingPersistence;
+import io.runtime.sdk.capability.PersistenceCapability;
 
 class DefaultPluginContextTest {
 
@@ -62,6 +66,43 @@ class DefaultPluginContextTest {
 
         assertThrows(PluginRuntimeException.class, () -> context.require(TestCapability.class));
         assertThrows(PluginRuntimeException.class, () -> context.find(TestCapability.class));
+    }
+
+    @Test
+    void persistenceIsResolvedForThePluginOwner() {
+        RecordingPersistence persistence = new RecordingPersistence();
+        DefaultPluginContext context = new DefaultPluginContext(
+            PluginRuntimeDescriptor.builder("plugin-a")
+                .requiredCapabilities(List.of(PersistenceCapability.class.getName()))
+                .build(),
+            new DefaultCapabilityRegistry(),
+            owner -> "plugin-a".equals(owner) ? Optional.of(persistence) : Optional.empty());
+
+        assertSame(persistence, context.require(PersistenceCapability.class));
+    }
+
+    @Test
+    void requiredPersistenceWithoutOwnerUnitFails() {
+        DefaultPluginContext context = new DefaultPluginContext(
+            PluginRuntimeDescriptor.builder("plugin-a")
+                .requiredCapabilities(List.of(PersistenceCapability.class.getName()))
+                .build(),
+            new DefaultCapabilityRegistry(),
+            OwnerPersistenceProvider.none());
+
+        assertThrows(PluginRuntimeException.class, () -> context.require(PersistenceCapability.class));
+    }
+
+    @Test
+    void optionalPersistenceMayBeAbsent() {
+        DefaultPluginContext context = new DefaultPluginContext(
+            PluginRuntimeDescriptor.builder("plugin-a")
+                .optionalCapabilities(List.of(PersistenceCapability.class.getSimpleName()))
+                .build(),
+            new DefaultCapabilityRegistry(),
+            OwnerPersistenceProvider.none());
+
+        assertTrue(context.find(PersistenceCapability.class).isEmpty());
     }
 
     interface TestCapability {

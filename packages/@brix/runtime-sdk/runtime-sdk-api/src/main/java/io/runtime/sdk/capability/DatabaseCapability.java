@@ -57,8 +57,16 @@ import io.runtime.sdk.annotation.Since;
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
+ * @deprecated Since 3.3.0. This contract is not part of the Capability Catalog and hands the
+ *             database dialect and schema name to plugins, which root blueprint
+ *             BRX-RS-DATA-025 and BRX-RS-DATA-041 forbid. Use {@link PersistenceCapability}; the
+ *             persistence adapter owns all database-specific behaviour. Scheduled for removal in
+ *             the next major version.
  * @see DatabaseDialect
+ * @see PersistenceCapability
  */
+@Deprecated(since = "3.3.0", forRemoval = true)
+@SuppressWarnings("removal")
 @Since("3.0.0")
 public interface DatabaseCapability {
 

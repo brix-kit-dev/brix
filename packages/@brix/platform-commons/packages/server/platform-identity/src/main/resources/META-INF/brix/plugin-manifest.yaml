@@ -18,7 +18,9 @@ modules:
 endpoints:
   provides: []
 capabilities:
-  required: []
+  required:
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
   optional: []
 queries:
   provides: []

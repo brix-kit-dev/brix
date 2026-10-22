@@ -1,0 +1,46 @@
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: test-owner
+  name: test-owner
+  version: 3.2.0
+  displayName: Persistence Adapter Test Owner
+  vendor: Brix Platform
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.2.0
+  supportedRange: ">=3.0.10 <4.0.0"
+modules:
+  - groupId: io.brix
+    artifactId: infra-adapter-persistence-jpa
+    version: 3.2.0
+    moduleKind: plugin-server
+endpoints:
+  provides: []
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
+  optional: []
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes: []
+  subscribes: []
+tasks:
+  provides: []
+internalContracts:
+  provides: []
+data:
+  storageId: test_owner
+  schema: test-owner
+  migrationLocation: db/migration/test-owner
+permissions: []
+config: []
+ui:
+  web:
+    enabled: false

@@ -16,7 +16,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.auth.AuditAction;
 import io.brix.platform.identity.dto.AuditEvent;
@@ -84,7 +83,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
     }
 
     @Override
-    @Transactional(readOnly = true)
     public SetupTokenView validateSetupToken(String setupToken) {
         SetupToken token = requireUsableToken(setupToken);
         Identity identity = requireIdentity(token.getIdentityId());
@@ -98,7 +96,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
     }
 
     @Override
-    @Transactional
     public SetupTotpChallengeView initTotp(String setupToken) {
         SetupToken token = requireUsableToken(setupToken);
         Identity identity = requireIdentity(token.getIdentityId());
@@ -115,7 +112,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
     }
 
     @Override
-    @Transactional
     public PlatformSetupCompletionView completeSetup(CompletePlatformSetupCommand command) {
         SetupToken token = requireUsableToken(command.setupToken());
         Identity identity = requireIdentity(token.getIdentityId());
@@ -173,7 +169,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
     }
 
     @Override
-    @Transactional(readOnly = true)
     public PlatformPageView<PlatformAdminView> listPlatformAdmins(PlatformPageRequest request) {
         Page<PlatformAdmin> page = findPlatformAdminPage(
             platformAdminStatus(request.status()),

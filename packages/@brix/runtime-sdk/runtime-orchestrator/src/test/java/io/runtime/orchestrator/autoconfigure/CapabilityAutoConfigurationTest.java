@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.InvocationTargetException;
@@ -31,16 +32,24 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.ApplicationContext;
 
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
+import io.runtime.orchestrator.manifest.UIManifestLoader;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.ObservabilityCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.registry.CapabilityRegistry;
 
 class CapabilityAutoConfigurationTest {
 
@@ -67,6 +76,35 @@ class CapabilityAutoConfigurationTest {
 
         assertTrue(identifiers.contains("EventBusCapability"));
         assertTrue(identifiers.contains("io.runtime.sdk.capability.EventBusCapability"));
+    }
+
+    @Test
+    void persistenceRequirementIsSatisfiedOnlyForOwnersWithAPersistenceUnit() {
+        UIManifestLoader manifestLoader = mock(UIManifestLoader.class);
+        OwnerPersistenceProvider ownerPersistence = owner -> "platform-identity".equals(owner)
+                ? Optional.of(mock(PersistenceCapability.class))
+                : Optional.empty();
+
+        new PluginRegistryAutoConfiguration().pluginCapabilityVerifier(manifestLoader,
+                beanProvider(CapabilityRegistry.class, emptyCapabilityRegistry()),
+                beanProvider(OwnerPersistenceProvider.class, ownerPersistence));
+
+        BiPredicate<String, String> available = verifiedAvailability(manifestLoader);
+        assertTrue(available.test("platform-identity", PersistenceCapability.class.getName()));
+        assertTrue(available.test("platform-identity", PersistenceCapability.class.getSimpleName()));
+        assertFalse(available.test("platform-tenant", PersistenceCapability.class.getName()));
+        assertFalse(available.test("platform-identity", EventBusCapability.class.getSimpleName()));
+    }
+
+    @Test
+    void persistenceRequirementIsUnmetWithoutAPersistenceAdapter() {
+        UIManifestLoader manifestLoader = mock(UIManifestLoader.class);
+
+        new PluginRegistryAutoConfiguration().pluginCapabilityVerifier(manifestLoader,
+                beanProvider(CapabilityRegistry.class, emptyCapabilityRegistry()),
+                new StaticListableBeanFactory().getBeanProvider(OwnerPersistenceProvider.class));
+
+        assertFalse(verifiedAvailability(manifestLoader).test("platform-identity", PersistenceCapability.class.getName()));
     }
 
     @Test
@@ -107,6 +145,23 @@ class CapabilityAutoConfigurationTest {
         when(applicationContext.getBeansWithAnnotation(any())).thenReturn(Map.of());
         when(applicationContext.getBeanNamesForAnnotation(any())).thenReturn(new String[0]);
         return applicationContext;
+    }
+
+    private static CapabilityRegistry emptyCapabilityRegistry() {
+        CapabilityRegistry registry = mock(CapabilityRegistry.class);
+        when(registry.getAllDescriptors()).thenReturn(Set.of());
+        return registry;
+    }
+
+    private static <T> ObjectProvider<T> beanProvider(Class<T> type, T bean) {
+        return new StaticListableBeanFactory(Map.<String, Object>of(type.getSimpleName(), bean)).getBeanProvider(type);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static BiPredicate<String, String> verifiedAvailability(UIManifestLoader manifestLoader) {
+        ArgumentCaptor<BiPredicate<String, String>> availability = ArgumentCaptor.forClass(BiPredicate.class);
+        verify(manifestLoader).verifyRequiredCapabilities(availability.capture());
+        return availability.getValue();
     }
 
     @SuppressWarnings("unchecked")

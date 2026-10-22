@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -25,16 +26,19 @@ class IdentityAccountCapabilityImplTest {
 
     private IdentityRepository identityRepository;
     private PlatformAdminRepository platformAdminRepository;
+    private RecordingUnitOfWork unitOfWork;
     private IdentityAccountCapabilityImpl capability;
 
     @BeforeEach
     void setUp() {
         identityRepository = mock(IdentityRepository.class);
         platformAdminRepository = mock(PlatformAdminRepository.class);
+        unitOfWork = new RecordingUnitOfWork();
         capability = new IdentityAccountCapabilityImpl(
                 identityRepository,
                 platformAdminRepository,
-                Optional.empty());
+                Optional.empty(),
+                unitOfWork);
     }
 
     @Test
@@ -108,5 +112,26 @@ class IdentityAccountCapabilityImplTest {
 
         verify(identity).recordSuccessfulLogin("127.0.0.1");
         verify(identityRepository).save(identity);
+    }
+
+    @Test
+    void readsRunInAReadOnlyUnitOfWorkAndWritesInAReadWriteOne() {
+        when(identityRepository.findByEmail("owner@example.com")).thenReturn(Optional.empty());
+        when(identityRepository.incrementTokenVersion(
+                org.mockito.ArgumentMatchers.eq(1L),
+                org.mockito.ArgumentMatchers.any(OffsetDateTime.class)))
+                .thenReturn(1);
+
+        capability.findIdentityByEmail("owner@example.com");
+        capability.incrementTokenVersion(1L);
+
+        assertEquals(List.of("readOnly", "required"), unitOfWork.modes());
+    }
+
+    @Test
+    void argumentValidationHappensBeforeAnyUnitOfWorkIsOpened() {
+        assertThrows(IllegalArgumentException.class, () -> capability.updatePasswordHash(null, "hash"));
+
+        assertEquals(List.of(), unitOfWork.modes());
     }
 }
