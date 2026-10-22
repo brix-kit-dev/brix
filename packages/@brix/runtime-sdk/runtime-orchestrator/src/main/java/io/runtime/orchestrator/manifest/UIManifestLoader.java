@@ -31,10 +31,11 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import jakarta.annotation.PostConstruct;
 
@@ -146,7 +147,7 @@ public class UIManifestLoader {
      */
     public UIManifestLoader(ObjectMapper objectMapper, PluginManifestValidator validator) {
         this.objectMapper = objectMapper;
-        this.yamlMapper = new ObjectMapper(new YAMLFactory());
+        this.yamlMapper = YAMLMapper.builder().configureForJackson2().build();
         this.resourceResolver = new PathMatchingResourcePatternResolver();
         if (validator == null) {
             throw new IllegalArgumentException("PluginManifestValidator must not be null");
@@ -219,7 +220,7 @@ public class UIManifestLoader {
         JsonNode manifestNode;
         try (InputStream is = resource.getInputStream()) {
             manifestNode = yamlMapper.readTree(is);
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
             throw new PluginManifestValidationException(
                 description, "Failed to read or parse manifest YAML", e);
         }
@@ -246,7 +247,7 @@ public class UIManifestLoader {
         try (InputStream is = resource.getInputStream()) {
             JsonNode manifestNode = objectMapper.readTree(is);
             manifest = objectMapper.convertValue(manifestNode, new TypeReference<Map<String, Object>>() {});
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
             throw new PluginManifestValidationException(
                 description, "Failed to read or parse legacy manifest JSON", e);
         }

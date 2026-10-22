@@ -22,9 +22,9 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxTransport;
@@ -117,13 +117,13 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
             envelope.put("partitionKey", message.partitionKey());
             envelope.put("payload", payloadNode(message));
             return objectMapper.writeValueAsString(envelope);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new OutboxTransportException(ERROR_PAYLOAD_INVALID, "Canonical outbox payload is not valid JSON", ex,
                 true);
         }
     }
 
-    private JsonNode payloadNode(CanonicalOutboxMessage message) throws JsonProcessingException {
+    private JsonNode payloadNode(CanonicalOutboxMessage message) throws JacksonException {
         return objectMapper.readTree(message.payload());
     }
 

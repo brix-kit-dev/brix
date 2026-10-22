@@ -46,13 +46,13 @@
             <artifactId>snakeyaml</artifactId>
         </dependency>
         
-        <!-- JSON Parsing -->
+        <!-- JSON Parsing (Jackson 3) -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <groupId>tools.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
         

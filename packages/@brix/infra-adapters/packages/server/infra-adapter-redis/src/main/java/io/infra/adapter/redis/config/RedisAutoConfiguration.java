@@ -24,9 +24,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.infra.adapter.redis.RedisLockCapability;
 import io.infra.adapter.redis.RedisStateStoreCapability;
@@ -82,20 +83,15 @@ public class RedisAutoConfiguration {
      * @return ObjectMapper instance
      */
     private static ObjectMapper createStateStoreObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        
-        // Register Java 8 time module
-        mapper.registerModule(new JavaTimeModule());
-        
-        // Serialize date/time in ISO-8601 format
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        
-        // Ignore unknown properties (for compatibility)
-        mapper.configure(
-                com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, 
-                false);
-        
-        return mapper;
+        return JsonMapper.builder()
+                // Keep the Jackson 2 defaults existing state entries were written with
+                // (Java time types are supported natively by Jackson 3)
+                .configureForJackson2()
+                // Serialize date/time in ISO-8601 format
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                // Ignore unknown properties (for compatibility)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .build();
     }
 
     /**

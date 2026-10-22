@@ -28,8 +28,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.MDC;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import io.brix.platform.tenant.entity.PlatformTenantOutbox;
 import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;

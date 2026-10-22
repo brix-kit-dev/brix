@@ -30,7 +30,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.endpoint.PluginRegistryEndpoint;
 import io.runtime.orchestrator.manifest.UIManifestLoader;

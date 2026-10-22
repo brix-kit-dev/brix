@@ -15,6 +15,7 @@
  */
 package io.brix.platform.gateway.health;
 
+import java.lang.reflect.Constructor;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,8 +24,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.health.actuate.endpoint.IndicatedHealthDescriptor;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.http.HttpStatus;
 
 import reactor.test.StepVerifier;
@@ -56,8 +60,7 @@ class HealthzControllerTest {
     @Test
     @DisplayName("/healthz should return 200 UP status when healthy")
     void healthzShouldReturnOkWhenHealthy() {
-        Health health = Health.up().build();
-        when(healthEndpoint.health()).thenReturn(health);
+        when(healthEndpoint.health()).thenReturn(descriptor(Status.UP));
 
         StepVerifier.create(controller.healthz())
                 .expectNextMatches(response -> {
@@ -75,8 +78,7 @@ class HealthzControllerTest {
     @Test
     @DisplayName("/healthz should return 503 DOWN status when unhealthy")
     void healthzShouldReturn503WhenUnhealthy() {
-        Health health = Health.down().withDetail("error", "test").build();
-        when(healthEndpoint.health()).thenReturn(health);
+        when(healthEndpoint.health()).thenReturn(descriptor(Status.DOWN));
 
         StepVerifier.create(controller.healthz())
                 .expectNextMatches(response -> {
@@ -98,5 +100,20 @@ class HealthzControllerTest {
                     return true;
                 })
                 .verifyComplete();
+    }
+
+    /**
+     * Spring Boot 4's {@link HealthDescriptor} is sealed and its implementations have
+     * package-private constructors, so the endpoint result is built reflectively.
+     */
+    private static HealthDescriptor descriptor(Status status) {
+        try {
+            Constructor<IndicatedHealthDescriptor> constructor =
+                    IndicatedHealthDescriptor.class.getDeclaredConstructor(Health.class);
+            constructor.setAccessible(true);
+            return constructor.newInstance(Health.status(status).build());
+        } catch (ReflectiveOperationException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 }

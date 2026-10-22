@@ -15,17 +15,16 @@
  */
 package io.brix.platform.common.util;
 
-import java.io.IOException;
 import java.util.Objects;
 
 import org.springframework.lang.NonNull;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * <p>Jackson serialization/deserialization utility, unified ObjectMapper configuration,
@@ -33,9 +32,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
  * <p>This utility class is thread-safe and can be directly reused in multi-threaded environments.</p>
  */
 public final class JsonUtils {
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .configureForJackson2()
+            .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .build();
 
     private JsonUtils() {
     }
@@ -49,7 +49,7 @@ public final class JsonUtils {
     public static @NonNull String toJson(Object value) {
         try {
             return Objects.requireNonNull(MAPPER.writeValueAsString(value), "JSON serialization returned null");
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("JSON serialization failed", e);
         }
     }
@@ -65,7 +65,7 @@ public final class JsonUtils {
     public static <T> T fromJson(String json, Class<T> clazz) {
         try {
             return MAPPER.readValue(json, clazz);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("JSON deserialization failed", e);
         }
     }
@@ -76,7 +76,7 @@ public final class JsonUtils {
     public static <T> T fromJson(String json, TypeReference<T> typeReference) {
         try {
             return MAPPER.readValue(json, typeReference);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("JSON deserialization failed", e);
         }
     }
@@ -87,7 +87,7 @@ public final class JsonUtils {
     public static JsonNode readTree(String json) {
         try {
             return MAPPER.readTree(json);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("JSON parsing failed", e);
         }
     }

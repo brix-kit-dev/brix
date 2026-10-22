@@ -17,8 +17,6 @@ package io.brix.platform.gateway;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 
 /**
  * API Gateway Auto-Configuration
@@ -34,9 +32,10 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
  * @version 3.1.0
  */
 @AutoConfiguration
-@EnableAutoConfiguration(exclude = {
-    DataSourceAutoConfiguration.class,
-    HibernateJpaAutoConfiguration.class
+@EnableAutoConfiguration(excludeName = {
+    // Referenced by name: the gateway does not ship the Spring Boot 4 JDBC/Hibernate modules.
+    "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration",
+    "org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration"
 })
 public class GatewayApplication {
     // v3.1: main() removed — Host layer ShellApplication is the only startup entry point

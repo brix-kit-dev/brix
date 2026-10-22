@@ -38,7 +38,7 @@
     </description>
 
     <properties>
-        <opentelemetry.version>1.32.0</opentelemetry.version>
+        <opentelemetry-alpha.version>1.62.0-alpha</opentelemetry-alpha.version>
         <opentelemetry-semconv.version>1.23.1-alpha</opentelemetry-semconv.version>
     </properties>
 
@@ -53,31 +53,26 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
         
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
         
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-trace</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
         
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-metrics</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
         
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-logs</artifactId>
-            <version>${opentelemetry.version}</version>
         </dependency>
         
         <!-- OpenTelemetry Semantic Conventions -->
@@ -92,23 +87,16 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
-            <version>${opentelemetry.version}</version>
             <optional>true</optional>
         </dependency>
         
-        <!-- Jaeger Exporter (optional) -->
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-exporter-jaeger</artifactId>
-            <version>${opentelemetry.version}</version>
-            <optional>true</optional>
-        </dependency>
+        <!-- Jaeger exporter removed: OpenTelemetry Java dropped it in 1.35; Jaeger ingests OTLP. -->
         
         <!-- Prometheus Exporter (optional) -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-prometheus</artifactId>
-            <version>${opentelemetry.version}-alpha</version>
+            <version>${opentelemetry-alpha.version}</version>
             <optional>true</optional>
         </dependency>
         
@@ -116,7 +104,6 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-logging</artifactId>
-            <version>${opentelemetry.version}</version>
             <optional>true</optional>
         </dependency>
 
@@ -155,7 +142,6 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-testing</artifactId>
-            <version>${opentelemetry.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

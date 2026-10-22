@@ -56,7 +56,6 @@
     </licenses>
 
     <properties>
-        <hikaricp.version>5.1.0</hikaricp.version>
     </properties>
 
     <dependencies>
@@ -123,6 +122,12 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Spring Boot 4: EntityManagerFactoryDependsOnPostProcessor (JPA hosts only) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-jpa</artifactId>
             <optional>true</optional>
         </dependency>
 

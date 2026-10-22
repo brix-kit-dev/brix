@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 
 import io.runtime.sdk.capability.NotificationException;
 
@@ -50,7 +51,7 @@ public class TemplateRepository {
             return objectMapper.readValue(input, NotificationTemplate.class);
         } catch (NotificationException ex) {
             throw ex;
-        } catch (IOException ex) {
+        } catch (IOException | JacksonException ex) {
             throw new NotificationException(
                     NotificationException.Code.TEMPLATE_INVALID,
                     Map.of("templateKey", templateKey, "locale", locale),

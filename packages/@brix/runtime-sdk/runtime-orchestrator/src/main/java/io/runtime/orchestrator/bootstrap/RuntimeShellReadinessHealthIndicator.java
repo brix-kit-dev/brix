@@ -18,9 +18,9 @@ package io.runtime.orchestrator.bootstrap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 
 import io.runtime.orchestrator.plugin.PluginRuntimeState;
 import io.runtime.orchestrator.operational.OperationalModuleRuntimeState;

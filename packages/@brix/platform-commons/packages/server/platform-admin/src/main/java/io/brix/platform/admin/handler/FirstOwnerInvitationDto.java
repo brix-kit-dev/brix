@@ -8,8 +8,8 @@ package io.brix.platform.admin.handler;
 
 import java.time.OffsetDateTime;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import io.brix.platform.tenant.internal.FirstOwnerInvitationView;
 

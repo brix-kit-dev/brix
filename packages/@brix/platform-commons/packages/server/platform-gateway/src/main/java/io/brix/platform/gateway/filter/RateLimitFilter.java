@@ -35,8 +35,9 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -99,7 +100,7 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
      */
     private final RateLimitConfig rateLimitConfig;
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder().configureForJackson2().build();
 
     public RateLimitFilter(RateLimitConfig rateLimitConfig) {
         this.rateLimitConfig = rateLimitConfig;
@@ -198,7 +199,7 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
             JsonNode payload = OBJECT_MAPPER.readTree(decoded);
             String claimName = rateLimitConfig.getProperties().getTenantJwtClaim();
             JsonNode claimNode = payload.get(claimName);
-            return (claimNode != null && !claimNode.isNull()) ? claimNode.asText() : null;
+            return (claimNode != null && !claimNode.isNull()) ? claimNode.asString() : null;
         } catch (Exception e) {
             if (logger.isDebugEnabled()) {
                 logger.debug("[brix] Failed to extract tenant from JWT: {}", e.getMessage());

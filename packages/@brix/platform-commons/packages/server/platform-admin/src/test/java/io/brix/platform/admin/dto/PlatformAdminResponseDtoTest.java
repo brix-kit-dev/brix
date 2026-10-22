@@ -7,14 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 class PlatformAdminResponseDtoTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule());
+    private final ObjectMapper objectMapper = JsonMapper.builder().configureForJackson2().build();
 
     @Test
     void resetPasswordResponseContainsOnlySetupLinkStatus() throws Exception {
@@ -37,8 +36,8 @@ class PlatformAdminResponseDtoTest {
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(response));
 
-        assertEquals("976369206184382464", json.get("id").asText());
-        assertEquals("974180454301175808", json.get("identityId").asText());
+        assertEquals("976369206184382464", json.get("id").asString());
+        assertEquals("974180454301175808", json.get("identityId").asString());
         assertTrue(json.get("setupLinkSent").asBoolean());
         assertFalse(json.get("id").isNumber());
         assertFalse(json.has("password"));
@@ -59,7 +58,7 @@ class PlatformAdminResponseDtoTest {
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(response));
 
         assertTrue(json.get("valid").asBoolean());
-        assertEquals("974180454301175808", json.get("identityId").asText());
+        assertEquals("974180454301175808", json.get("identityId").asString());
         assertFalse(json.get("identityId").isNumber());
         assertFalse(json.has("setupToken"));
         assertFalse(json.has("setupUrl"));
@@ -93,8 +92,8 @@ class PlatformAdminResponseDtoTest {
 
         assertEquals("setup-token", initRequest.setupToken());
         assertEquals("setup-token", completeRequest.setupToken());
-        assertEquals("setup-token", initJson.get("token").asText());
-        assertEquals("setup-token", completeJson.get("token").asText());
+        assertEquals("setup-token", initJson.get("token").asString());
+        assertEquals("setup-token", completeJson.get("token").asString());
         assertFalse(initJson.has("setupToken"));
         assertFalse(completeJson.has("setupToken"));
     }
@@ -114,8 +113,8 @@ class PlatformAdminResponseDtoTest {
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(response));
 
-        assertEquals("976369206184382464", json.get("adminId").asText());
-        assertEquals("974180454301175808", json.get("identityId").asText());
+        assertEquals("976369206184382464", json.get("adminId").asString());
+        assertEquals("974180454301175808", json.get("identityId").asString());
         assertFalse(json.get("adminId").isNumber());
         assertFalse(json.get("identityId").isNumber());
     }

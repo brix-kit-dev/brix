@@ -26,8 +26,10 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Optional;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
@@ -81,7 +83,7 @@ public final class ClasspathPluginRuntimeDescriptorResolver
      */
     public ClasspathPluginRuntimeDescriptorResolver(ClassLoader classLoader) {
         this.classLoader = classLoader != null ? classLoader : BrixPlugin.class.getClassLoader();
-        this.jsonMapper = new ObjectMapper();
+        this.jsonMapper = JsonMapper.builder().configureForJackson2().build();
         this.pluginManifestLoader = new PluginManifestLoader();
     }
 
@@ -287,23 +289,23 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                 .eventHandlers(ids(root.path("subscriptions")))
                 .tasks(ids(root.path("tasks")))
                 .build();
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
             throw new PluginRuntimeException("Failed to read plugin manifest " + manifestUrl, e);
         }
     }
 
     private String pluginId(JsonNode root) {
         if (root.hasNonNull("pluginId")) {
-            return root.path("pluginId").asText();
+            return root.path("pluginId").asString();
         }
         if (root.path("plugin").hasNonNull("id")) {
-            return root.path("plugin").path("id").asText();
+            return root.path("plugin").path("id").asString();
         }
         if (root.path("metadata").hasNonNull("id")) {
-            return root.path("metadata").path("id").asText();
+            return root.path("metadata").path("id").asString();
         }
         if (root.path("metadata").hasNonNull("pluginId")) {
-            return root.path("metadata").path("pluginId").asText();
+            return root.path("metadata").path("pluginId").asString();
         }
         return null;
     }
@@ -340,8 +342,8 @@ public final class ClasspathPluginRuntimeDescriptorResolver
         }
         List<String> values = new ArrayList<>();
         for (JsonNode item : node) {
-            if (item.isTextual() && !item.asText().isBlank()) {
-                values.add(item.asText());
+            if (item.isString() && !item.asString().isBlank()) {
+                values.add(item.asString());
             }
         }
         return values;
@@ -353,12 +355,12 @@ public final class ClasspathPluginRuntimeDescriptorResolver
         }
         List<String> values = new ArrayList<>();
         for (JsonNode item : node) {
-            if (item.isTextual() && !item.asText().isBlank()) {
-                values.add(item.asText());
-            } else if (item.isObject() && item.hasNonNull("id") && !item.path("id").asText().isBlank()) {
-                values.add(item.path("id").asText());
-            } else if (item.isObject() && item.hasNonNull("name") && !item.path("name").asText().isBlank()) {
-                values.add(item.path("name").asText());
+            if (item.isString() && !item.asString().isBlank()) {
+                values.add(item.asString());
+            } else if (item.isObject() && item.hasNonNull("id") && !item.path("id").asString().isBlank()) {
+                values.add(item.path("id").asString());
+            } else if (item.isObject() && item.hasNonNull("name") && !item.path("name").asString().isBlank()) {
+                values.add(item.path("name").asString());
             }
         }
         return values;

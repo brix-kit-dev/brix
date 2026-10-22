@@ -33,9 +33,9 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.exception.PkceGenerationException;
 import io.brix.platform.auth.oauth2.OAuth2Exception;
@@ -285,13 +285,13 @@ public class OAuth2UserService {
             .map(body -> {
                 try {
                     JsonNode json = objectMapper.readTree(body);
-                    String accessToken = json.path("access_token").asText();
+                    String accessToken = json.path("access_token").asString();
                     if (!StringUtils.hasText(accessToken)) {
-                        String error = json.path("error").asText("unknown");
+                        String error = json.path("error").asString("unknown");
                         throw new OAuth2Exception("Failed to get access_token: " + error);
                     }
                     return accessToken;
-                } catch (JsonProcessingException e) {
+                } catch (JacksonException e) {
                     throw new OAuth2Exception("Failed to parse Token response", e);
                 }
             })
@@ -318,10 +318,10 @@ public class OAuth2UserService {
                 try {
                     JsonNode json = objectMapper.readTree(body);
                     if (json.has("errcode") && json.get("errcode").asInt() != 0) {
-                        throw new OAuth2Exception("WeChat Token request failed: " + json.path("errmsg").asText());
+                        throw new OAuth2Exception("WeChat Token request failed: " + json.path("errmsg").asString());
                     }
-                    return json.path("access_token").asText();
-                } catch (JsonProcessingException e) {
+                    return json.path("access_token").asString();
+                } catch (JacksonException e) {
                     throw new OAuth2Exception("WeChat Token parse failed", e);
                 }
             });
@@ -362,11 +362,11 @@ public class OAuth2UserService {
                     JsonNode json = objectMapper.readTree(body);
                     log.info("[OAuth2] User info fields: provider={}, sub={}, email={}, name={}, picture={}",
                         providerId,
-                        json.path("sub").asText("N/A"),
-                        json.path("email").asText("N/A"),
-                        json.path("name").asText("N/A"),
-                        json.path("picture").asText("N/A"));
-                } catch (JsonProcessingException | RuntimeException e) {
+                        json.path("sub").asString("N/A"),
+                        json.path("email").asString("N/A"),
+                        json.path("name").asString("N/A"),
+                        json.path("picture").asString("N/A"));
+                } catch (RuntimeException e) {
                     log.warn("[OAuth2] Failed to parse user info preview", e);
                 }
             })
@@ -374,7 +374,7 @@ public class OAuth2UserService {
                 try {
                     JsonNode json = objectMapper.readTree(body);
                     return parseUserInfo(providerId, config, json);
-                } catch (JsonProcessingException e) {
+                } catch (JacksonException e) {
                     throw new OAuth2Exception("Failed to parse user info", e);
                 }
             })
@@ -391,12 +391,12 @@ public class OAuth2UserService {
         JsonNode json
     ) {
         OAuth2UserInfo userInfo = new OAuth2UserInfo();
-        String providerUserId = json.path(config.getUserIdAttribute()).asText(null);
+        String providerUserId = json.path(config.getUserIdAttribute()).asString(null);
         if (!StringUtils.hasText(providerUserId)) {
             throw new OAuth2Exception("User unique identifier is empty");
         }
 
-        String userName = json.path(config.getUserNameAttribute()).asText(null);
+        String userName = json.path(config.getUserNameAttribute()).asString(null);
         if (!StringUtils.hasText(userName)) {
             userName = providerUserId;
         }
@@ -404,15 +404,15 @@ public class OAuth2UserService {
         userInfo.setProvider(providerId);
         userInfo.setProviderId(providerUserId);
         userInfo.setName(userName);
-        userInfo.setEmail(json.path(config.getEmailAttribute()).asText(null));
-        userInfo.setAvatar(json.path(config.getAvatarAttribute()).asText(null));
+        userInfo.setEmail(json.path(config.getEmailAttribute()).asString(null));
+        userInfo.setAvatar(json.path(config.getAvatarAttribute()).asString(null));
         userInfo.setRawAttributes(json.toString());
 
         // WeChat special handling
         if ("wechat".equalsIgnoreCase(providerId)) {
-            userInfo.setProviderId(json.path("openid").asText());
-            userInfo.setName(json.path("nickname").asText());
-            userInfo.setAvatar(json.path("headimgurl").asText(null));
+            userInfo.setProviderId(json.path("openid").asString());
+            userInfo.setName(json.path("nickname").asString());
+            userInfo.setAvatar(json.path("headimgurl").asString(null));
         }
 
         return userInfo;

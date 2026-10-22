@@ -25,9 +25,12 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.cfg.MapperBuilder;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import io.runtime.manifest.model.ModuleManifest;
 
@@ -59,19 +62,18 @@ public class YamlManifestLoader implements ManifestLoader {
      * Creates a YAML Manifest loader.
      */
     public YamlManifestLoader() {
-        this.yamlMapper = new ObjectMapper(new YAMLFactory());
-        configureMapper(this.yamlMapper);
-
-        this.jsonMapper = new ObjectMapper();
-        configureMapper(this.jsonMapper);
+        this.yamlMapper = configureMapper(YAMLMapper.builder());
+        this.jsonMapper = configureMapper(JsonMapper.builder());
     }
 
     /**
      * Configures ObjectMapper.
      */
-    private void configureMapper(ObjectMapper mapper) {
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+    private static <M extends ObjectMapper, B extends MapperBuilder<M, B>> M configureMapper(B builder) {
+        return builder.configureForJackson2()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
+            .build();
     }
 
     /**
@@ -92,7 +94,7 @@ public class YamlManifestLoader implements ManifestLoader {
             ModuleManifest manifest = mapper.readValue(is, ModuleManifest.class);
             logger.info("Loaded manifest: {} ({})", manifest.getModuleId(), manifest.getModuleVersion());
             return manifest;
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
             throw new ManifestLoadException("Failed to load manifest from: " + path, e);
         }
     }
@@ -107,7 +109,7 @@ public class YamlManifestLoader implements ManifestLoader {
         try {
             // Default to YAML parser (also JSON compatible)
             return yamlMapper.readValue(inputStream, ModuleManifest.class);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new ManifestLoadException("Failed to load manifest from input stream", e);
         }
     }
@@ -122,7 +124,7 @@ public class YamlManifestLoader implements ManifestLoader {
         try {
             // Default to YAML parser
             return yamlMapper.readValue(content, ModuleManifest.class);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new ManifestLoadException("Failed to load manifest from string", e);
         }
     }
@@ -155,7 +157,7 @@ public class YamlManifestLoader implements ManifestLoader {
             logger.info("Loaded manifest from classpath: {} ({})", 
                 manifest.getModuleId(), manifest.getModuleVersion());
             return manifest;
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
             throw new ManifestLoadException("Failed to load manifest from classpath: " + resourcePath, e);
         }
     }

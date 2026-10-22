@@ -23,8 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.ReactiveHealthIndicator;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.ReactiveHealthIndicator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -87,7 +87,7 @@ public class PluginEngineHealthIndicator implements ReactiveHealthIndicator {
                 .doOnNext(health -> {
                     // Update cache
                     healthCache.put(INDICATOR_NAME, new CachedHealth(health, Instant.now()));
-                    if (health.getStatus().equals(org.springframework.boot.actuate.health.Status.DOWN)) {
+                    if (health.getStatus().equals(org.springframework.boot.health.contributor.Status.DOWN)) {
                         logger.warn("[brix] Plugin Engine health check failed: {}", health.getDetails());
                     }
                 })

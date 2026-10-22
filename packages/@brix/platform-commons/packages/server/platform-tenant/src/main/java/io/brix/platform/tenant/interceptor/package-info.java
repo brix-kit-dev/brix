@@ -42,7 +42,7 @@
  *
  *   <dt>{@link io.brix.platform.tenant.interceptor.TenantInterceptorConfig}</dt>
  *   <dd>Spring configuration class that registers interceptors with Hibernate via
- *       {@link org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer}.</dd>
+ *       {@link org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer}.</dd>
  * </dl>
  *
  * <h2>Configuration</h2>

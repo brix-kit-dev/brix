@@ -90,7 +90,7 @@ public class SensitiveHeaderStripFilter implements GlobalFilter, Ordered {
         List<String> strippedHeaders = new ArrayList<>();
 
         // Detect which sensitive headers are present on this request
-        for (String headerName : headers.keySet()) {
+        for (String headerName : headers.headerNames()) {
             if (sensitiveHeaders.contains(headerName.toLowerCase())) {
                 strippedHeaders.add(headerName);
             }

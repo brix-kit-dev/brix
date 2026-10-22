@@ -61,7 +61,7 @@
 
     <properties>
         <runtime-sdk.version>3.2.0</runtime-sdk.version>
-        <resilience4j.version>2.1.0</resilience4j.version>
+        <resilience4j.version>2.4.0</resilience4j.version>
     </properties>
 
     <dependencies>

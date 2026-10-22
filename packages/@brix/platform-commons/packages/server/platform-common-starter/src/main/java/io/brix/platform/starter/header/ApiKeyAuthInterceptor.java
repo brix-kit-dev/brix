@@ -184,12 +184,12 @@ public class ApiKeyAuthInterceptor implements ClientHttpRequestInterceptor {
         var headers = request.getHeaders();
         
         // Add API Key
-        if (!headers.containsKey(PlatformHeaders.API_KEY)) {
+        if (!headers.containsHeader(PlatformHeaders.API_KEY)) {
             headers.add(PlatformHeaders.API_KEY, serviceProperties.getApiKey());
         }
         
         // Add API Secret
-        if (!headers.containsKey(PlatformHeaders.API_SECRET)) {
+        if (!headers.containsHeader(PlatformHeaders.API_SECRET)) {
             headers.add(PlatformHeaders.API_SECRET, serviceProperties.getApiSecret());
         }
         

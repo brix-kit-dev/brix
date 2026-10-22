@@ -96,7 +96,7 @@ public class ConfigAdapterAutoConfiguration {
      * @return the health indicator bean
      */
     @Bean
-    @ConditionalOnClass(name = "org.springframework.boot.actuate.health.HealthIndicator")
+    @ConditionalOnClass(name = "org.springframework.boot.health.contributor.HealthIndicator")
     @ConditionalOnProperty(prefix = "brix.infra.config", name = "health-indicator-enabled",
         havingValue = "true", matchIfMissing = true)
     @ConditionalOnMissingBean(ConfigStoreHealthIndicator.class)

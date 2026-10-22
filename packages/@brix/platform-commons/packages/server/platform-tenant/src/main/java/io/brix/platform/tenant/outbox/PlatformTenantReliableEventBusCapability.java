@@ -16,8 +16,8 @@ import java.util.Objects;
 import org.slf4j.MDC;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import io.brix.platform.tenant.entity.PlatformTenantOutbox;
 import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
@@ -142,7 +142,7 @@ public final class PlatformTenantReliableEventBusCapability implements EventBusC
     private String writePayload(String eventId, TenantFirstOwnerAcceptedEvent event) {
         try {
             return objectMapper.writeValueAsString(event.payload());
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new EventPublishException(eventId, "Failed to serialize integration event payload", ex);
         }
     }

@@ -34,10 +34,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.MDC;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -276,11 +277,11 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
      * Creates default ObjectMapper
      */
     private ObjectMapper createDefaultObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-        return mapper;
+        return JsonMapper.builder()
+            .configureForJackson2()
+            .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+            .build();
     }
     
     /**
@@ -442,7 +443,7 @@ public class HttpWebhookEventBus implements EventBusCapability, AutoCloseable {
                 }
             }).join(); // Wait for completion
             
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException("Failed to serialize event payload", e);
         }
     }
