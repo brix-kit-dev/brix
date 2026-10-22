@@ -25,8 +25,11 @@ endpoints:
       handlerId: runtime.status
       authentication:
         mode: required
+        policyRef: platform-token
       authorization:
-        policyRef: runtime-status-read
+        permissions:
+          - platform:runtime:read
+        decision: all
       tenantContext:
         mode: forbidden
       timeout:

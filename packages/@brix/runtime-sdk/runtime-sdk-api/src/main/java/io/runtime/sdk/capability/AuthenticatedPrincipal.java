@@ -51,4 +51,29 @@ public interface AuthenticatedPrincipal extends TenantAwarePrincipal {
     default Set<String> getAllowedActions() {
         return Set.of();
     }
+
+    /**
+     * Returns the authenticated token scope such as {@code PLATFORM},
+     * {@code actor}, or {@code subject}.
+     *
+     * @return token scope value, or {@code null} when not available
+     * @since 3.2.0
+     */
+    default String getTokenScope() {
+        return null;
+    }
+
+    /**
+     * Returns the concrete permission IDs granted by the authenticated token.
+     *
+     * <p>Runtime endpoint dispatchers authorize declared endpoint permissions
+     * against this set. Implementations that cannot provide it keep the empty
+     * default, which denies every permission-protected endpoint.</p>
+     *
+     * @return granted permission IDs; empty when none are granted
+     * @since 3.2.0
+     */
+    default Set<String> getPermissions() {
+        return Set.of();
+    }
 }

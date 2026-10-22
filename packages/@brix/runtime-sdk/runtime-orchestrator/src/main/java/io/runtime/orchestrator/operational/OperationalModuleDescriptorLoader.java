@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -23,6 +24,8 @@ import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
+
+import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
 
 /**
  * Strict loader for the unique platform operational descriptor.
@@ -36,6 +39,9 @@ public final class OperationalModuleDescriptorLoader {
     public static final String DESCRIPTOR_RESOURCE = "META-INF/brix/platform-operational.yaml";
     /** Bundled strict descriptor schema. */
     public static final String SCHEMA_RESOURCE = "META-INF/schemas/platform-operational.schema.json";
+
+    private static final TypeReference<Map<String, Object>> SECTION_TYPE = new TypeReference<>() {
+    };
 
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
     private final JsonSchema schema;
@@ -85,13 +91,7 @@ public final class OperationalModuleDescriptorLoader {
         JsonNode contracts = root.path("internalContracts");
         Map<String, OperationalModuleDescriptor.EndpointDeclaration> endpoints = new LinkedHashMap<>();
         for (JsonNode node : root.path("endpoints").path("provides")) {
-            OperationalModuleDescriptor.EndpointDeclaration declaration =
-                new OperationalModuleDescriptor.EndpointDeclaration(
-                    text(node, "endpointId"),
-                    text(node, "method"),
-                    text(node, "path"),
-                    text(node, "handlerId"),
-                    authorizationPolicy(node.path("authorization")));
+            OperationalModuleDescriptor.EndpointDeclaration declaration = endpoint(node);
             endpoints.put(declaration.endpointId(), declaration);
         }
         Map<String, OperationalModuleDescriptor.TaskDeclaration> tasks = new LinkedHashMap<>();
@@ -127,9 +127,28 @@ public final class OperationalModuleDescriptorLoader {
             tasks);
     }
 
-    private static String authorizationPolicy(JsonNode authorization) {
-        String resourcePolicy = text(authorization, "resourcePolicyRef");
-        return resourcePolicy.isEmpty() ? text(authorization, "policyRef") : resourcePolicy;
+    private OperationalModuleDescriptor.EndpointDeclaration endpoint(JsonNode node) {
+        try {
+            return new OperationalModuleDescriptor.EndpointDeclaration(
+                text(node, "endpointId"),
+                text(node, "method"),
+                text(node, "path"),
+                text(node, "handlerId"),
+                EndpointAccessPolicy.fromDeclaration(
+                    section(node, "authentication"),
+                    section(node, "authorization"),
+                    section(node, "tenantContext")));
+        } catch (IllegalArgumentException e) {
+            throw new OperationalRuntimeException(
+                "operational.descriptor.invalid",
+                "Invalid platform operational endpoint '" + text(node, "endpointId") + "': " + e.getMessage(),
+                e);
+        }
+    }
+
+    private Map<String, Object> section(JsonNode endpoint, String name) {
+        JsonNode section = endpoint.path(name);
+        return section.isObject() ? yamlMapper.convertValue(section, SECTION_TYPE) : null;
     }
 
     private static java.util.stream.Stream<JsonNode> stream(JsonNode array) {

@@ -34,7 +34,9 @@ import io.runtime.sdk.plugin.EndpointInvocation;
 /**
  * Default in-process endpoint dispatcher backed by an immutable route snapshot.
  *
- * <p>The dispatcher owns route matching and invocation context creation. It
+ * <p>The dispatcher owns route matching, enforcement of the declared endpoint
+ * access policy and invocation context creation. Authentication, tenant
+ * context and permission checks run before the handler and fail closed. It
  * does not know plugin business types and does not expose framework objects to
  * handlers.</p>
  *
@@ -48,6 +50,8 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     private static final String IDENTITY_EMAIL_HEADER = "x-auth-identity-email";
     private static final String TOKEN_ROLE_HEADER = "x-auth-token-role";
     private static final String TOKEN_TYPE_HEADER = "x-auth-token-type";
+    private static final String TOKEN_SCOPE_HEADER = "x-auth-token-scope";
+    private static final String PERMISSION_HEADER = "x-auth-permission";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
     private static final String TRACE_HEADER = "x-trace-id";
 
@@ -100,6 +104,14 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         RouteMatch match = findRoute(normalizedMethod, normalizedPath)
             .orElseThrow(() -> new EndpointDispatchException(
                 "No published Runtime Shell endpoint for " + normalizedMethod + " " + normalizedPath));
+
+        EndpointAccessGuard.enforce(match.route(), new EndpointAccessGuard.Caller(
+            firstHeader(normalizedHeaders, ACTOR_HEADER),
+            firstHeader(normalizedHeaders, TENANT_HEADER),
+            firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER),
+            firstHeader(normalizedHeaders, TOKEN_TYPE_HEADER),
+            firstHeader(normalizedHeaders, TOKEN_SCOPE_HEADER),
+            headerValues(normalizedHeaders, PERMISSION_HEADER)));
 
         EndpointInvocation<Object> invocation = new EndpointInvocation<>(
             body,

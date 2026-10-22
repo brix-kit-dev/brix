@@ -28,7 +28,7 @@ import io.runtime.sdk.plugin.EndpointHandler;
  * @param endpointId manifest endpoint id
  * @param method normalized HTTP method
  * @param path manifest route template
- * @param accessPolicy manifest access policy reference
+ * @param accessPolicy declared access policy enforced before the handler runs
  * @param handler bound endpoint handler
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -38,7 +38,7 @@ public record EndpointRoute(
         String endpointId,
         String method,
         String path,
-        String accessPolicy,
+        EndpointAccessPolicy accessPolicy,
         EndpointHandler<?, ?> handler) {
 
     /**
@@ -49,7 +49,8 @@ public record EndpointRoute(
         endpointId = requireText(endpointId, "endpointId");
         method = requireText(method, "method").toUpperCase(Locale.ROOT);
         path = normalizePath(path);
-        accessPolicy = accessPolicy == null ? "" : accessPolicy.trim();
+        accessPolicy = Objects.requireNonNull(accessPolicy,
+            "Endpoint '" + endpointId + "' must declare an access policy");
         handler = Objects.requireNonNull(handler, "handler must not be null");
     }
 

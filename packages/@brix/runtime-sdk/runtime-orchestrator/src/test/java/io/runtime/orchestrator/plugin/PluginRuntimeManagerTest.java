@@ -28,7 +28,9 @@ import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.EndpointAccessDeniedException;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.sdk.capability.EventBusCapability;
@@ -262,7 +264,8 @@ class PluginRuntimeManagerTest {
         PluginRuntimeManager manager = new PluginRuntimeManager(
             () -> List.of(plugin),
             candidate -> Optional.of(PluginRuntimeDescriptor.builder("plugin-a")
-                .endpoint("tenant.list", "GET", "/api/v1/tenants", "tenant:admin:read")
+                .endpoint("tenant.list", "GET", "/api/v1/tenants",
+                    TestEndpointAccessPolicies.authenticated("tenant:admin:read"))
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"),
@@ -271,7 +274,13 @@ class PluginRuntimeManagerTest {
         manager.start();
 
         assertEquals(1, dispatcher.routes().size());
-        assertEquals("ok", dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of()));
+        EndpointAccessDeniedException denied = assertThrows(
+            EndpointAccessDeniedException.class,
+            () -> dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of()));
+        assertEquals(401, denied.status());
+        assertEquals("ok", dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of(
+            "x-actor-id", List.of("1001"),
+            "x-auth-permission", List.of("tenant:admin:read"))));
     }
 
     @Test
@@ -281,7 +290,8 @@ class PluginRuntimeManagerTest {
         PluginRuntimeManager manager = manager(
             List.of(plugin),
             Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
-                .endpoint("tenant.list", "GET", "/api/v1/tenants", "tenant:admin:read")
+                .endpoint("tenant.list", "GET", "/api/v1/tenants",
+                    TestEndpointAccessPolicies.authenticated("tenant:admin:read"))
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"));
