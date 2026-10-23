@@ -51,7 +51,7 @@ public class TenantAuditLog implements Persistable<Long> {
     @Column(name = "resource_id", length = 128)
     private String resourceId;
 
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "context", columnDefinition = "JSONB")

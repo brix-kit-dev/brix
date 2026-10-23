@@ -218,7 +218,7 @@ public class AuditLog {
     /**
      * User agent string from the client.
      */
-    @Column(name = "user_agent", length = 512)
+    @Column(name = "user_agent", columnDefinition = "TEXT")
     private String userAgent;
 
     /**

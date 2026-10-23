@@ -62,7 +62,7 @@ public class PlatformAuditLogEntry {
     @Column(name = "affected_tenants", nullable = false, updatable = false)
     private String affectedTenants = NO_AFFECTED_TENANTS;
 
-    @Column(name = "description", updatable = false)
+    @Column(name = "description", columnDefinition = "TEXT", updatable = false)
     private String description;
 
     @JdbcTypeCode(SqlTypes.JSON)
