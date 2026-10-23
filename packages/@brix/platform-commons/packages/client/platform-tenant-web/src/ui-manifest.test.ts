@@ -30,11 +30,25 @@ describe('platform-tenant UI manifest', () => {
     });
   });
 
+  it('declares the staff console home as an Actor route admitted by tenant permissions', () => {
+    const route = PLATFORM_TENANT_UI_MANIFEST.routes.find(item => item.routeId === 'platform-tenant.console-home');
+
+    expect(route).toMatchObject({
+      path: PLATFORM_TENANT_ROUTES.CONSOLE_HOME,
+      componentExport: 'TenantConsoleHomePage',
+      guardPolicy: 'actor-authenticated',
+      authContext: 'actor',
+      tenantContext: 'required',
+      permissions: ['tenant:profile:read'],
+    });
+  });
+
   it('publishes a Host-consumable route snapshot', () => {
     const snapshot = createPlatformTenantRouteSnapshot();
 
     expect(snapshot.map(route => route.path)).toEqual([
       '/platform/first-owner/accept',
+      '/tenant',
     ]);
     expect(snapshot[0]?.element).toBeDefined();
   });

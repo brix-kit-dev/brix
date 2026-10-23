@@ -15,7 +15,11 @@
  */
 package io.runtime.sdk.capability;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import io.runtime.sdk.annotation.Since;
 
@@ -135,6 +139,157 @@ public interface JwtIssuerCapability {
      * @return Identity Token 有效期
      */
     long getIdentityTokenExpirationSeconds();
+
+    // ========== 身份协议面（identity-auth 1.0） ==========
+
+    /**
+     * Upper bound for access tokens issued through the identity protocol surface
+     * (identity-auth {@code BRX-IA-SESSION-001}: at most 15 minutes).
+     *
+     * @since 3.2.0
+     */
+    long MAX_SESSION_ACCESS_TOKEN_SECONDS = 900;
+
+    /**
+     * Signs an Actor access token for the identity protocol surface.
+     *
+     * <p>The claims are those of {@link #issueActorAccessToken(ActorTokenRequest)} plus the
+     * authentication event: {@code acr}, {@code amr}, {@code auth_time} and {@code sid}
+     * (identity-auth {@code BRX-IA-SESSION-003}). The lifetime is the configured access-token
+     * lifetime capped at {@link #MAX_SESSION_ACCESS_TOKEN_SECONDS}.</p>
+     *
+     * <p>Issuers that do not support the identity protocol surface keep this default and
+     * fail closed.</p>
+     *
+     * @param request        Actor token request
+     * @param authentication how and when the identity authenticated
+     * @return the signed token and its validity window
+     * @since 3.2.0
+     */
+    default IssuedToken issueActorAccessToken(ActorTokenRequest request, AuthenticationContext authentication) {
+        throw new UnsupportedOperationException("This issuer does not sign identity protocol access tokens");
+    }
+
+    /**
+     * Signs an OpenID Connect ID token for a client of the identity protocol surface.
+     *
+     * <p>The token carries {@code iss}, {@code sub}, {@code aud}, {@code azp}, {@code iat},
+     * {@code exp}, the optional {@code nonce}, the authentication event ({@code acr},
+     * {@code amr}, {@code auth_time}, {@code sid}) and the request's additional claims. Its
+     * lifetime follows {@link #issueActorAccessToken(ActorTokenRequest, AuthenticationContext)}.
+     * ID tokens are for the client (the BFF) only and are never access tokens.</p>
+     *
+     * @param request ID token request
+     * @return the signed token and its validity window
+     * @since 3.2.0
+     */
+    default IssuedToken issueOidcIdToken(OidcIdTokenRequest request) {
+        throw new UnsupportedOperationException("This issuer does not sign OpenID Connect ID tokens");
+    }
+
+    /**
+     * Returns the public signing keys as a JWK Set document (RFC 7517), for example
+     * {@code {"keys":[{"kty":"RSA","kid":"...","use":"sig","alg":"RS256","n":"...","e":"AQAB"}]}}.
+     * Every token signed by this issuer names its key in the {@code kid} header. The
+     * document MUST NOT contain private key material.
+     *
+     * @return the JWK Set document; an issuer without published keys returns no keys
+     * @since 3.2.0
+     */
+    default Map<String, Object> publicJwkSet() {
+        return Map.of("keys", List.of());
+    }
+
+    /**
+     * How and when an identity authenticated (identity-auth §7, §8).
+     *
+     * @param acr      authentication level, for example {@code brix:aal2}
+     * @param amr      authentication methods used, for example {@code [pwd, otp]}
+     * @param authTime when the identity authenticated
+     * @param sid      login session ID of the identity protocol surface
+     * @since 3.2.0
+     */
+    record AuthenticationContext(String acr, List<String> amr, Instant authTime, String sid) {
+        public AuthenticationContext {
+            acr = requireText(acr, "acr");
+            Objects.requireNonNull(amr, "amr must not be null");
+            amr = List.copyOf(amr);
+            if (amr.isEmpty()) {
+                throw new IllegalArgumentException("amr must not be empty");
+            }
+            Objects.requireNonNull(authTime, "authTime must not be null");
+            sid = requireText(sid, "sid");
+        }
+    }
+
+    /**
+     * OpenID Connect ID token request.
+     *
+     * @param issuer           issuer identifier of the identity protocol surface (an https or
+     *                         http URL)
+     * @param subject          identity ID
+     * @param audience         client ID; also written to {@code azp}
+     * @param nonce            the authorization request's nonce, or {@code null} when the token
+     *                         is issued on refresh
+     * @param authentication   the authentication event
+     * @param additionalClaims client-facing claims such as the selected context; they MUST NOT
+     *                         replace registered or authentication claims
+     * @since 3.2.0
+     */
+    record OidcIdTokenRequest(
+            String issuer,
+            String subject,
+            String audience,
+            String nonce,
+            AuthenticationContext authentication,
+            Map<String, Object> additionalClaims
+    ) {
+        /** Claims the issuer owns; additional claims cannot replace them. */
+        public static final Set<String> RESERVED_CLAIMS = Set.of(
+                "iss", "sub", "aud", "azp", "exp", "iat", "nbf", "jti", "nonce",
+                "acr", "amr", "auth_time", "sid", "typ");
+
+        public OidcIdTokenRequest {
+            issuer = requireText(issuer, "issuer");
+            subject = requireText(subject, "subject");
+            audience = requireText(audience, "audience");
+            Objects.requireNonNull(authentication, "authentication must not be null");
+            additionalClaims = additionalClaims == null ? Map.of() : Map.copyOf(additionalClaims);
+            for (String claim : additionalClaims.keySet()) {
+                if (RESERVED_CLAIMS.contains(claim)) {
+                    throw new IllegalArgumentException("additional claim '" + claim + "' is reserved");
+                }
+            }
+        }
+    }
+
+    /**
+     * A signed token and its validity window.
+     *
+     * @param value     the compact JWS
+     * @param issuedAt  {@code iat}
+     * @param expiresAt {@code exp}
+     * @since 3.2.0
+     */
+    record IssuedToken(String value, Instant issuedAt, Instant expiresAt) {
+        public IssuedToken {
+            value = requireText(value, "value");
+            Objects.requireNonNull(issuedAt, "issuedAt must not be null");
+            Objects.requireNonNull(expiresAt, "expiresAt must not be null");
+        }
+
+        @Override
+        public String toString() {
+            return "IssuedToken{issuedAt=" + issuedAt + ", expiresAt=" + expiresAt + "}";
+        }
+    }
+
+    private static String requireText(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(name + " must not be blank");
+        }
+        return value;
+    }
 
     // ========== 请求记录 ==========
 

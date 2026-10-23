@@ -20,33 +20,32 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import java.util.Arrays;
-import java.util.Collections;
+import io.brix.platform.starter.config.CorsProperties;
+
 
 /**
  * v2.1 CORS Auto-Configuration
  * 
- * <p>Provides Cross-Origin Resource Sharing configuration.</p>
+ * <p>The platform is same-origin by default: without configured origins no CORS headers are
+ * sent, so browsers keep other origins out. Browser consoles call the API on their own origin
+ * with a BFF session cookie (root BRX-RS-SECURITY-012), so cross-origin access with credentials
+ * would let any listed site act with the user's session. Credentials are therefore never
+ * allowed for wildcard origins.</p>
  * 
- * <p>Configuration Example:</p>
+ * <p>Configuration example for an additional, explicitly trusted origin:</p>
  * <pre>
  * brix:
  *   cors:
- *     enabled: true
  *     allowed-origins:
- *       - http://localhost:3000
- *       - https://app.brix.io
+ *       - https://partner.example.com
  *     allowed-methods:
  *       - GET
- *       - POST
- *       - PUT
- *       - DELETE
- *     allow-credentials: true
  * </pre>
  * 
  * @author Brix Platform Authors Team
@@ -61,6 +60,7 @@ import java.util.Collections;
     havingValue = "true",
     matchIfMissing = true
 )
+@EnableConfigurationProperties(CorsProperties.class)
 public class CorsAutoConfiguration {
     
     /**
@@ -72,49 +72,22 @@ public class CorsAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public CorsFilter corsFilter() {
-        CorsConfiguration config = new CorsConfiguration();
-        
-        // Development environment: allow all origins
-        // Production environment should specify allowed origins via configuration
-        config.setAllowedOriginPatterns(Collections.singletonList("*"));
-        
-        // Allowed HTTP methods
-        config.setAllowedMethods(Arrays.asList(
-            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
-        ));
-        
-        // Allowed request headers
-        config.setAllowedHeaders(Arrays.asList(
-            "Origin",
-            "Content-Type",
-            "Accept",
-            "Authorization",
-            "X-Request-ID",
-            "X-Trace-ID",
-            "X-Span-ID",
-            "X-Tenant-ID",
-            "X-User-ID"
-        ));
-        
-        // Exposed response headers
-        config.setExposedHeaders(Arrays.asList(
-            "Authorization",
-            "X-Request-ID",
-            "X-Trace-ID",
-            "X-Total-Count",
-            "X-Page-Count"
-        ));
-        
-        // Allow credentials (Cookies)
-        config.setAllowCredentials(true);
-        
-        // Preflight request cache duration (seconds)
-        config.setMaxAge(3600L);
-        
+    public CorsFilter corsFilter(CorsProperties properties) {
+        properties.validate();
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        
+        if (!properties.hasCrossOriginClients()) {
+            // Same-origin only: no CORS headers, so browsers keep other origins out.
+            return new CorsFilter(source);
+        }
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(properties.getAllowedOrigins());
+        config.setAllowedOriginPatterns(properties.getAllowedOriginPatterns());
+        config.setAllowedMethods(properties.getAllowedMethods());
+        config.setAllowedHeaders(properties.getAllowedHeaders());
+        config.setExposedHeaders(properties.getExposedHeaders());
+        config.setAllowCredentials(properties.isAllowCredentials());
+        config.setMaxAge(properties.getMaxAge());
+        source.registerCorsConfiguration(properties.getPathPattern(), config);
         return new CorsFilter(source);
     }
 }

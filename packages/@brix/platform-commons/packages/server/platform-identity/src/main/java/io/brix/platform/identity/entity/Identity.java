@@ -232,6 +232,15 @@ public class Identity {
     private OffsetDateTime mfaBoundAt;
 
     /**
+     * Last RFC 6238 time step accepted for this identity's TOTP factor. A code is
+     * accepted only for a later step, so each code works at most once.
+     *
+     * @since 3.2.0
+     */
+    @Column(name = "mfa_last_used_step")
+    private Long mfaLastUsedStep;
+
+    /**
      * Record creation timestamp.
      */
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -543,6 +552,14 @@ public class Identity {
 
     public void setMfaBoundAt(OffsetDateTime mfaBoundAt) {
         this.mfaBoundAt = mfaBoundAt;
+    }
+
+    public Long getMfaLastUsedStep() {
+        return mfaLastUsedStep;
+    }
+
+    public void setMfaLastUsedStep(Long mfaLastUsedStep) {
+        this.mfaLastUsedStep = mfaLastUsedStep;
     }
 
     public OffsetDateTime getCreatedAt() {

@@ -78,12 +78,16 @@ public class PlatformIdentityAutoConfiguration {
     @ConditionalOnMissingBean(IdentityAccountCapability.class)
     public IdentityAccountCapability identityAccountCapability(
             PersistenceCapability persistence,
-            ObjectProvider<AuditService> auditServiceProvider) {
+            ObjectProvider<AuditService> auditServiceProvider,
+            ObjectProvider<TotpCapability> totpCapabilityProvider,
+            ObjectProvider<SecretEncryptionCapability> secretEncryptionProvider) {
         return new IdentityAccountCapabilityImpl(
                 persistence.repository(IdentityRepository.class),
                 persistence.repository(PlatformAdminRepository.class),
                 Optional.ofNullable(auditServiceProvider.getIfAvailable()),
-                persistence.unitOfWork());
+                persistence.unitOfWork(),
+                Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
+                Optional.ofNullable(secretEncryptionProvider.getIfAvailable()));
     }
 
     @Bean

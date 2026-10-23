@@ -30,3 +30,8 @@ export {
   type InternalAuthState, 
   type AuthChangeHandler,
 } from './AuthCapabilityImpl';
+export {
+  createBffSessionAuthState,
+  type BffSessionAuthState,
+  type BffSessionAuthStateOptions,
+} from './BffSessionAuthState';

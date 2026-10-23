@@ -16,9 +16,9 @@ export type PlatformTenantHostCapability =
 
 export type PlatformTenantGuardPolicy = 'actor-authenticated';
 export type PlatformTenantAuthContext = 'actor';
-export type PlatformTenantContext = 'forbidden';
+export type PlatformTenantContext = 'forbidden' | 'required';
 export type PlatformTenantReferrerPolicy = 'no-referrer';
-export type PlatformTenantRouteComponentExport = 'FirstOwnerInvitationPage';
+export type PlatformTenantRouteComponentExport = 'FirstOwnerInvitationPage' | 'TenantConsoleHomePage';
 
 export interface PlatformTenantRouteDeclaration {
   readonly routeId: string;
@@ -65,6 +65,7 @@ export const PLATFORM_TENANT_REQUIRED_HOST_CAPABILITIES =
 
 export const PLATFORM_TENANT_ROUTE_COMPONENT_EXPORTS = Object.freeze([
   'FirstOwnerInvitationPage',
+  'TenantConsoleHomePage',
 ] as const);
 
 export const PLATFORM_TENANT_UI_MANIFEST = Object.freeze({
@@ -96,6 +97,19 @@ export const PLATFORM_TENANT_UI_MANIFEST = Object.freeze({
       requiredHostCapabilities: PLATFORM_TENANT_REQUIRED_HOST_CAPABILITIES,
       referrerPolicy: 'no-referrer',
     },
+    {
+      routeId: 'platform-tenant.console-home',
+      pageId: 'platform-tenant:console-home',
+      path: PLATFORM_TENANT_ROUTES.CONSOLE_HOME,
+      title: '员工控制台',
+      componentExport: 'TenantConsoleHomePage',
+      guardPolicy: 'actor-authenticated',
+      authContext: 'actor',
+      tenantContext: 'required',
+      permissions: ['tenant:profile:read'],
+      requiredHostCapabilities: PLATFORM_TENANT_REQUIRED_HOST_CAPABILITIES,
+      referrerPolicy: 'no-referrer',
+    },
   ],
   menus: [],
 } as const satisfies PlatformTenantUiManifest);
@@ -116,7 +130,10 @@ export function validatePlatformTenantUiManifest(
     ensure(!routeIds.has(route.routeId), `Duplicate routeId: ${route.routeId}`);
     routeIds.add(route.routeId);
     ensure(route.pageId.trim().length > 0, `Route ${route.routeId} must declare pageId`);
-    ensure(route.path === PLATFORM_TENANT_ROUTES.FIRST_OWNER_ACCEPT, `Route ${route.routeId} must use governed FIRST_OWNER path`);
+    const governedPath = route.componentExport === 'FirstOwnerInvitationPage'
+      ? PLATFORM_TENANT_ROUTES.FIRST_OWNER_ACCEPT
+      : PLATFORM_TENANT_ROUTES.CONSOLE_HOME;
+    ensure(route.path === governedPath, `Route ${route.routeId} must use its governed path ${governedPath}`);
     ensure(!routePaths.has(route.path), `Duplicate route path: ${route.path}`);
     routePaths.add(route.path);
     ensure(
@@ -125,8 +142,18 @@ export function validatePlatformTenantUiManifest(
     );
     ensure(route.guardPolicy === 'actor-authenticated', `Route ${route.routeId} must require actor auth`);
     ensure(route.authContext === 'actor', `Route ${route.routeId} must use actor auth context`);
-    ensure(route.tenantContext === 'forbidden', `Route ${route.routeId} must forbid caller tenant context`);
-    ensure(route.permissions.length === 0, `Route ${route.routeId} must not require platform permissions`);
+    if (route.componentExport === 'FirstOwnerInvitationPage') {
+      ensure(route.tenantContext === 'forbidden', `Route ${route.routeId} must forbid caller tenant context`);
+      ensure(route.permissions.length === 0, `Route ${route.routeId} must not require platform permissions`);
+    } else {
+      // Staff console routes run in the Actor context of the BFF session and are admitted by
+      // tenant permissions only (multi-tenant BRX-TENANT-AUTHZ-009).
+      ensure(route.tenantContext === 'required', `Route ${route.routeId} must require the tenant context`);
+      ensure(
+        route.permissions.length > 0 && route.permissions.every(permission => permission.startsWith('tenant:')),
+        `Route ${route.routeId} must be admitted by tenant permissions`,
+      );
+    }
     ensure(route.referrerPolicy === 'no-referrer', `Route ${route.routeId} must use no-referrer`);
     for (const capability of route.requiredHostCapabilities) {
       ensure(

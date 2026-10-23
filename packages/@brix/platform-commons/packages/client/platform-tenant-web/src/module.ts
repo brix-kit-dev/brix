@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import { FirstOwnerInvitationPage } from './pages/FirstOwnerInvitationPage';
+import { TenantConsoleHomePage } from './pages/TenantConsoleHomePage';
 import {
   PLATFORM_TENANT_UI_MANIFEST,
   validatePlatformTenantUiManifest,
@@ -118,5 +119,7 @@ function componentFor(componentExport: PlatformTenantRouteComponentExport): Comp
   switch (componentExport) {
     case 'FirstOwnerInvitationPage':
       return FirstOwnerInvitationPage;
+    case 'TenantConsoleHomePage':
+      return TenantConsoleHomePage;
   }
 }

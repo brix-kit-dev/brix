@@ -12,16 +12,23 @@ package io.brix.platform.auth.jwt;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.math.BigInteger;
 import java.security.KeyFactory;
+import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.Signature;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -98,6 +105,11 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private static final String CLAIM_MFA = "mfa";
     /** Phase 2 / C-4 — claim recording the platform-admin identity that initiated impersonation. */
     private static final String CLAIM_ORIGINAL_SUB = "original_sub";
+    // identity-auth 1.0 BRX-IA-SESSION-003 — the authentication event
+    private static final String CLAIM_ACR = "acr";
+    private static final String CLAIM_AMR = "amr";
+    private static final String CLAIM_AUTH_TIME = "auth_time";
+    private static final String CLAIM_SID = "sid";
 
     private static final String TOKEN_TYPE_ACCESS = "access";
     private static final String TOKEN_TYPE_IDENTITY = "identity";
@@ -116,12 +128,21 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private final JwtProperties properties;
     private final ObjectMapper objectMapper;
     private final PrivateKey privateKey;
+    private final RSAPublicKey publicKey;
+    /** RFC 7638 JWK thumbprint of the signing key, written to every token's {@code kid} header. */
+    private final String keyId;
+    private final String encodedHeader;
 
     public JwtIssuerCapabilityImpl(JwtProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.privateKey = loadPrivateKey(properties.getPrivateKeyPath());
-        log.info("[JwtIssuerCapability] RS256 private key loaded from: {}", properties.getPrivateKeyPath());
+        this.publicKey = derivePublicKey(privateKey, properties.getPrivateKeyPath());
+        this.keyId = thumbprint(publicKey);
+        this.encodedHeader = base64UrlEncode(toJson(
+                Map.of("alg", "RS256", "typ", "JWT", "kid", keyId)));
+        log.info("[JwtIssuerCapability] RS256 private key loaded from: {} (kid={})",
+                properties.getPrivateKeyPath(), keyId);
         log.info("[JwtIssuerCapability] config: issuer={}, audience={}, accessExp={}s, identityExp={}s",
                 properties.getIssuer(), properties.getAudience(),
                 properties.getAccessTokenExpirationSeconds(),
@@ -132,6 +153,45 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
 
     @Override
     public String issueActorAccessToken(ActorTokenRequest request) {
+        return signToken(actorClaims(request), properties.getAccessTokenExpirationSeconds());
+    }
+
+    @Override
+    public IssuedToken issueActorAccessToken(ActorTokenRequest request, AuthenticationContext authentication) {
+        Objects.requireNonNull(authentication, "authentication must not be null");
+        Map<String, Object> claims = actorClaims(request);
+        putAuthentication(claims, authentication);
+        return sign(claims, sessionTokenLifetimeSeconds());
+    }
+
+    @Override
+    public IssuedToken issueOidcIdToken(OidcIdTokenRequest request) {
+        Map<String, Object> claims = new LinkedHashMap<>();
+        claims.put("iss", request.issuer());
+        claims.put("sub", request.subject());
+        claims.put("aud", request.audience());
+        claims.put("azp", request.audience());
+        if (request.nonce() != null && !request.nonce().isBlank()) {
+            claims.put("nonce", request.nonce());
+        }
+        putAuthentication(claims, request.authentication());
+        claims.putAll(request.additionalClaims());
+        return sign(claims, sessionTokenLifetimeSeconds());
+    }
+
+    @Override
+    public Map<String, Object> publicJwkSet() {
+        Map<String, Object> jwk = new LinkedHashMap<>();
+        jwk.put("kty", "RSA");
+        jwk.put("kid", keyId);
+        jwk.put("use", "sig");
+        jwk.put("alg", "RS256");
+        jwk.put("n", base64UrlUnsigned(publicKey.getModulus()));
+        jwk.put("e", base64UrlUnsigned(publicKey.getPublicExponent()));
+        return Map.of("keys", List.of(Collections.unmodifiableMap(jwk)));
+    }
+
+    private Map<String, Object> actorClaims(ActorTokenRequest request) {
         Map<String, Object> claims = buildBaseClaims(
                 String.valueOf(request.identityId()), request.username(), request.email(),
                 request.tokenVersion(), JwtIssuerCapability.AUDIENCE_ACTOR, null);
@@ -147,7 +207,19 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         claims.put(CLAIM_ROLES, request.roles() != null ? request.roles() : Collections.emptyList());
         // multi-tenant 5.1 T-30: tenant tokens carry no permission list; the Runtime
         // grant table expands the verified mtype on every request.
-        return signToken(claims, properties.getAccessTokenExpirationSeconds());
+        return claims;
+    }
+
+    private static void putAuthentication(Map<String, Object> claims, AuthenticationContext authentication) {
+        claims.put(CLAIM_ACR, authentication.acr());
+        claims.put(CLAIM_AMR, authentication.amr());
+        claims.put(CLAIM_AUTH_TIME, authentication.authTime().getEpochSecond());
+        claims.put(CLAIM_SID, authentication.sid());
+    }
+
+    /** identity-auth BRX-IA-SESSION-001: at most 15 minutes, tighter when configured so. */
+    private long sessionTokenLifetimeSeconds() {
+        return Math.min(properties.getAccessTokenExpirationSeconds(), MAX_SESSION_ACCESS_TOKEN_SECONDS);
     }
 
     @Override
@@ -338,23 +410,29 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     }
 
     private String signToken(Map<String, Object> claims, long expirationSecs) {
+        return sign(claims, expirationSecs).value();
+    }
+
+    private IssuedToken sign(Map<String, Object> claims, long expirationSecs) {
         long now = System.currentTimeMillis() / 1000L;
         claims.put("iat", now);
         claims.put("nbf", now);
         claims.put("exp", now + expirationSecs);
 
-        String header = base64UrlEncode("{\"alg\":\"RS256\",\"typ\":\"JWT\"}");
-        String payloadJson;
+        String payload = base64UrlEncode(toJson(claims));
+        String signingInput = encodedHeader + "." + payload;
+        return new IssuedToken(signingInput + "." + rs256Sign(signingInput),
+                Instant.ofEpochSecond(now), Instant.ofEpochSecond(now + expirationSecs));
+    }
+
+    private String toJson(Map<String, Object> value) {
         try {
-            payloadJson = objectMapper.writeValueAsString(claims);
+            return objectMapper.writeValueAsString(value);
         } catch (JacksonException e) {
             throw new JwtConfigurationException(
                     "Failed to serialize JWT claims to JSON",
                     properties.getPrivateKeyPath(), e);
         }
-        String payload = base64UrlEncode(payloadJson);
-        String signingInput = header + "." + payload;
-        return signingInput + "." + rs256Sign(signingInput);
     }
 
     private String rs256Sign(String input) {
@@ -373,6 +451,41 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private static String base64UrlEncode(String content) {
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(content.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Base64url of the unsigned big-endian bytes, as JWK {@code n} and {@code e} require. */
+    private static String base64UrlUnsigned(BigInteger value) {
+        byte[] bytes = value.toByteArray();
+        if (bytes.length > 1 && bytes[0] == 0) {
+            bytes = java.util.Arrays.copyOfRange(bytes, 1, bytes.length);
+        }
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /** RFC 7638: SHA-256 over the required members in lexicographic order, without whitespace. */
+    private static String thumbprint(RSAPublicKey key) {
+        String canonical = "{\"e\":\"" + base64UrlUnsigned(key.getPublicExponent())
+                + "\",\"kty\":\"RSA\",\"n\":\"" + base64UrlUnsigned(key.getModulus()) + "\"}";
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
+    }
+
+    private static RSAPublicKey derivePublicKey(PrivateKey key, String path) {
+        if (!(key instanceof RSAPrivateCrtKey crtKey)) {
+            throw new JwtConfigurationException(
+                    "JWT private key does not carry its public exponent (expected an RSA CRT key)", path, null);
+        }
+        try {
+            return (RSAPublicKey) KeyFactory.getInstance("RSA")
+                    .generatePublic(new RSAPublicKeySpec(crtKey.getModulus(), crtKey.getPublicExponent()));
+        } catch (Exception e) {
+            throw new JwtConfigurationException("Failed to derive the JWT public key", path, e);
+        }
     }
 
     private static PrivateKey loadPrivateKey(String path) {

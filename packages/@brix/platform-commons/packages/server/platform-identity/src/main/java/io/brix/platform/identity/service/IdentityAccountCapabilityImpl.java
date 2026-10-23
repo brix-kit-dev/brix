@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,8 @@ import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
 import io.runtime.sdk.capability.IdentityAccountCapability.LoginFailureRecord;
 import io.runtime.sdk.capability.IdentityAccountCapability.PlatformAdminRecord;
+import io.runtime.sdk.capability.SecretEncryptionCapability;
+import io.runtime.sdk.capability.TotpCapability;
 import io.runtime.sdk.capability.UnitOfWork;
 
 /**
@@ -40,16 +43,74 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
     private final PlatformAdminRepository platformAdminRepository;
     private final Optional<AuditService> auditService;
     private final UnitOfWork unitOfWork;
+    private final Optional<TotpCapability> totpCapability;
+    private final Optional<SecretEncryptionCapability> secretEncryptionCapability;
 
     public IdentityAccountCapabilityImpl(
             IdentityRepository identityRepository,
             PlatformAdminRepository platformAdminRepository,
             Optional<AuditService> auditService,
             UnitOfWork unitOfWork) {
+        this(identityRepository, platformAdminRepository, auditService, unitOfWork,
+                Optional.empty(), Optional.empty());
+    }
+
+    public IdentityAccountCapabilityImpl(
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            Optional<AuditService> auditService,
+            UnitOfWork unitOfWork,
+            Optional<TotpCapability> totpCapability,
+            Optional<SecretEncryptionCapability> secretEncryptionCapability) {
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
         this.auditService = auditService;
         this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
+        this.totpCapability = totpCapability == null ? Optional.empty() : totpCapability;
+        this.secretEncryptionCapability =
+                secretEncryptionCapability == null ? Optional.empty() : secretEncryptionCapability;
+    }
+
+    @Override
+    public boolean isTotpEnabled(Long identityId) {
+        if (identityId == null) {
+            return false;
+        }
+        return unitOfWork.readOnly(() -> identityRepository.findById(identityId)
+                .map(IdentityAccountCapabilityImpl::hasBoundTotp)
+                .orElse(false));
+    }
+
+    @Override
+    public boolean verifyTotp(Long identityId, String code) {
+        if (identityId == null || code == null
+                || totpCapability.isEmpty() || secretEncryptionCapability.isEmpty()) {
+            return false;
+        }
+        return unitOfWork.required(() -> {
+            Identity identity = identityRepository.findById(identityId).orElse(null);
+            if (identity == null || identity.getStatus() != IdentityStatus.ACTIVE || !hasBoundTotp(identity)) {
+                return false;
+            }
+            String secret = secretEncryptionCapability.get().decryptSecret(identity.getMfaSecretEncrypted());
+            OptionalLong step = totpCapability.get().matchTimeStep(secret, code);
+            if (step.isEmpty()) {
+                return false;
+            }
+            // RFC 6238 §5.2: the conditional update accepts each time step once.
+            boolean accepted = identityRepository.acceptTotpStep(
+                    identityId, step.getAsLong(), OffsetDateTime.now()) == 1;
+            if (!accepted) {
+                log.warn("[PlatformIdentity] TOTP code reuse rejected for identity={}", identityId);
+            }
+            return accepted;
+        });
+    }
+
+    private static boolean hasBoundTotp(Identity identity) {
+        return identity.isMfaEnabled()
+                && identity.getMfaSecretEncrypted() != null
+                && !identity.getMfaSecretEncrypted().isBlank();
     }
 
     @Override

@@ -38,6 +38,11 @@ import java.util.Set;
  *        {@code MEMBER}, {@code CUSTOMER} or {@code GUEST}) of a tenant caller
  * @param tenantRefId verified member id of a tenant actor or principal id of a
  *        tenant subject; this is the caller that {@link AccessScope#SELF} refers to
+ * @param effectivePermissions every permission the verified tenant role holds in the
+ *        current context, with its scope, from the same grant table (multi-tenant 5.1
+ *        {@code BRX-TENANT-AUTHZ-009}); it describes the caller's session, for example to a
+ *        BFF, and is never an authorization result for the current endpoint. Empty for
+ *        callers without a tenant role (L2A Minor addition, root CAP-020).
  * @author Runtime SDK Team
  * @since 3.2.0
  */
@@ -45,10 +50,11 @@ public record AccessDecision(
         Set<String> permissions,
         Map<String, AccessScope> scopes,
         Optional<String> tenantRoleType,
-        Optional<String> tenantRefId) {
+        Optional<String> tenantRefId,
+        Map<String, AccessScope> effectivePermissions) {
 
     private static final AccessDecision NONE =
-        new AccessDecision(Set.of(), Map.of(), Optional.empty(), Optional.empty());
+        new AccessDecision(Set.of(), Map.of(), Optional.empty(), Optional.empty(), Map.of());
 
     /**
      * Validates and defensively copies the decision.
@@ -58,9 +64,23 @@ public record AccessDecision(
         scopes = Map.copyOf(Objects.requireNonNull(scopes, "scopes must not be null"));
         tenantRoleType = tenantRoleType != null ? tenantRoleType : Optional.empty();
         tenantRefId = tenantRefId != null ? tenantRefId : Optional.empty();
+        effectivePermissions = effectivePermissions != null ? Map.copyOf(effectivePermissions) : Map.of();
         if (!permissions.containsAll(scopes.keySet())) {
             throw new IllegalArgumentException("scopes may only cover held permissions");
         }
+    }
+
+    /**
+     * Creates a decision without the caller's effective permission set.
+     *
+     * @param permissions declared endpoint permissions held by the caller
+     * @param scopes data scope of each held tenant permission
+     * @param tenantRoleType verified tenant role type of a tenant caller
+     * @param tenantRefId verified member or principal id of a tenant caller
+     */
+    public AccessDecision(Set<String> permissions, Map<String, AccessScope> scopes,
+                          Optional<String> tenantRoleType, Optional<String> tenantRefId) {
+        this(permissions, scopes, tenantRoleType, tenantRefId, Map.of());
     }
 
     /**

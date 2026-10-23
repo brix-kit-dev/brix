@@ -42,6 +42,37 @@ public interface IdentityAccountCapability {
     Optional<PlatformAdminRecord> findActivePlatformAdmin(Long identityId);
 
     /**
+     * Returns whether the identity has a bound TOTP factor.
+     *
+     * <p>Owners that do not manage TOTP factors keep this default; callers then treat the
+     * identity as having no second factor.</p>
+     *
+     * @param identityId identity ID
+     * @return {@code true} when a TOTP factor is bound
+     * @since 3.2.0
+     */
+    default boolean isTotpEnabled(Long identityId) {
+        return false;
+    }
+
+    /**
+     * Verifies a TOTP code against the identity's bound factor inside the identity Owner;
+     * the shared secret never leaves the Owner (identity-auth {@code BRX-IA-CRED-003}).
+     * A code is accepted at most once (RFC 6238 §5.2): a code whose time step is not later
+     * than the last accepted step is rejected.
+     *
+     * <p>Owners that do not manage TOTP factors keep this default and fail closed.</p>
+     *
+     * @param identityId identity ID
+     * @param code user supplied code
+     * @return {@code true} when the code is valid and has not been used before
+     * @since 3.2.0
+     */
+    default boolean verifyTotp(Long identityId, String code) {
+        return false;
+    }
+
+    /**
      * Identity record containing credential state. Sensitive fields such as
      * {@code passwordHash} are server-side only and must never be exposed.
      */

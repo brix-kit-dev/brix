@@ -1,14 +1,21 @@
 package io.brix.platform.identity.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +28,8 @@ import io.brix.platform.identity.enums.PlatformAdminStatus;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
 import io.runtime.sdk.capability.IdentityAccountCapability.PlatformAdminRecord;
+import io.runtime.sdk.capability.SecretEncryptionCapability;
+import io.runtime.sdk.capability.TotpCapability;
 
 class IdentityAccountCapabilityImplTest {
 
@@ -133,5 +142,53 @@ class IdentityAccountCapabilityImplTest {
         assertThrows(IllegalArgumentException.class, () -> capability.updatePasswordHash(null, "hash"));
 
         assertEquals(List.of(), unitOfWork.modes());
+    }
+
+    @Test
+    void acceptsATotpCodeOnceAndRejectsItsReuse() {
+        TotpCapability totp = mock(TotpCapability.class);
+        SecretEncryptionCapability encryption = mock(SecretEncryptionCapability.class);
+        IdentityAccountCapabilityImpl withTotp = new IdentityAccountCapabilityImpl(
+                identityRepository, platformAdminRepository, Optional.empty(), unitOfWork,
+                Optional.of(totp), Optional.of(encryption));
+        Identity identity = new Identity("staff@example.invalid", "Staff");
+        identity.setId(7L);
+        identity.setStatus(IdentityStatus.ACTIVE);
+        identity.setMfaEnabled(true);
+        identity.setMfaSecretEncrypted("v1.iv.ciphertext");
+        when(identityRepository.findById(7L)).thenReturn(Optional.of(identity));
+        when(encryption.decryptSecret("v1.iv.ciphertext")).thenReturn("SECRET");
+        when(totp.matchTimeStep("SECRET", "123456")).thenReturn(OptionalLong.of(42L));
+        when(identityRepository.acceptTotpStep(eq(7L), eq(42L), any())).thenReturn(1, 0);
+
+        assertTrue(withTotp.isTotpEnabled(7L));
+        assertTrue(withTotp.verifyTotp(7L, "123456"));
+        assertFalse(withTotp.verifyTotp(7L, "123456"), "the same time step must not be accepted twice");
+    }
+
+    @Test
+    void totpVerificationFailsClosed() {
+        TotpCapability totp = mock(TotpCapability.class);
+        SecretEncryptionCapability encryption = mock(SecretEncryptionCapability.class);
+        IdentityAccountCapabilityImpl withTotp = new IdentityAccountCapabilityImpl(
+                identityRepository, platformAdminRepository, Optional.empty(), unitOfWork,
+                Optional.of(totp), Optional.of(encryption));
+        Identity unbound = new Identity("new@example.invalid", "New");
+        unbound.setId(8L);
+        unbound.setStatus(IdentityStatus.ACTIVE);
+        Identity disabled = new Identity("gone@example.invalid", "Gone");
+        disabled.setId(9L);
+        disabled.setStatus(IdentityStatus.DISABLED);
+        disabled.setMfaEnabled(true);
+        disabled.setMfaSecretEncrypted("v1.iv.ciphertext");
+        when(identityRepository.findById(8L)).thenReturn(Optional.of(unbound));
+        when(identityRepository.findById(9L)).thenReturn(Optional.of(disabled));
+
+        assertFalse(withTotp.isTotpEnabled(8L));
+        assertFalse(withTotp.verifyTotp(8L, "123456"));
+        assertFalse(withTotp.verifyTotp(9L, "123456"));
+        assertFalse(withTotp.verifyTotp(404L, "123456"));
+        assertFalse(capability.verifyTotp(8L, "123456"), "no TOTP capability means no second factor");
+        verify(identityRepository, never()).acceptTotpStep(any(), anyLong(), any());
     }
 }

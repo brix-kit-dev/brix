@@ -64,6 +64,7 @@ public class RuntimeShellEndpointController {
     private static final String TENANT_ROLE_TYPE_HEADER = "x-auth-tenant-role-type";
     private static final String TENANT_REF_HEADER = "x-auth-tenant-ref-id";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
+    private static final String COOKIE_HEADER = "cookie";
 
     private final PluginEndpointDispatcher dispatcher;
     private final Supplier<AuthCapability> authCapabilitySupplier;
@@ -147,6 +148,9 @@ public class RuntimeShellEndpointController {
         result.remove(TENANT_ROLE_TYPE_HEADER);
         result.remove(TENANT_REF_HEADER);
         result.remove(ALLOWED_ACTION_HEADER);
+        // Browser cookies carry the BFF session ID (root BRX-RS-SECURITY-012); handlers get the
+        // verified principal instead and never see session credentials.
+        result.remove(COOKIE_HEADER);
 
         AuthCapability auth = authCapabilitySupplier.get();
         authenticatedActorId(auth).ifPresent(actorId -> result.put(ACTOR_HEADER, List.of(actorId)));

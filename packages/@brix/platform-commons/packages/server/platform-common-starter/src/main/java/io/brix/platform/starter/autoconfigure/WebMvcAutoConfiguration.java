@@ -22,16 +22,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.DispatcherServlet;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import io.brix.platform.starter.config.CorsProperties;
 import io.brix.platform.starter.config.ServiceProperties;
 import io.brix.platform.starter.header.ApiKeyAuthInterceptor;
 import io.brix.platform.starter.header.PlatformHeadersInterceptor;
@@ -43,7 +40,8 @@ import java.util.List;
 /**
  * Web MVC Auto-Configuration
  * 
- * <p>Auto-configures Web layer beans including tenant filters, request interceptors and CORS configuration.</p>
+ * <p>Auto-configures Web layer beans including tenant filters and request interceptors. CORS is
+ * configured by {@link CorsAutoConfiguration} only.</p>
  * 
  * <p>Configuration Conditions:</p>
  * <ul>
@@ -58,34 +56,28 @@ import java.util.List;
  *   <li>TraceHeaderInterceptor: Distributed tracing header injection</li>
  *   <li>ApiKeyAuthInterceptor: API Key/Secret auto-injection</li>
  *   <li>PlatformHeadersInterceptor: Unified platform header injection</li>
- *   <li>CORS configuration: Cross-origin request support</li>
  * </ul>
  * 
  * @author Brix Platform Authors Team
  * @since v2.1
  * @see TenantHeaderFilter
- * @see CorsProperties
  */
 @AutoConfiguration(after = PlatformCoreAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(DispatcherServlet.class)
 @ConditionalOnProperty(prefix = "brix.web", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(CorsProperties.class)
 public class WebMvcAutoConfiguration implements WebMvcConfigurer {
     
     private static final Logger log = LoggerFactory.getLogger(WebMvcAutoConfiguration.class);
     
-    private final CorsProperties corsProperties;
     private final ServiceProperties serviceProperties;
     
     /**
      * Constructor
      * 
-     * @param corsProperties    CORS configuration
      * @param serviceProperties Service configuration
      */
-    public WebMvcAutoConfiguration(CorsProperties corsProperties, ServiceProperties serviceProperties) {
-        this.corsProperties = corsProperties;
+    public WebMvcAutoConfiguration(ServiceProperties serviceProperties) {
         this.serviceProperties = serviceProperties;
         log.info("[WebMvcAutoConfiguration] Initializing Web MVC auto-configuration");
     }
@@ -165,30 +157,6 @@ public class WebMvcAutoConfiguration implements WebMvcConfigurer {
             PlatformHeadersInterceptor platformInterceptor) {
         
         return List.of(traceInterceptor, apiKeyInterceptor, platformInterceptor);
-    }
-    
-    /**
-     * Configure CORS
-     * 
-     * @param registry CORS registry
-     */
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        if (!corsProperties.isEnabled()) {
-            log.info("[WebMvcAutoConfiguration] CORS is disabled");
-            return;
-        }
-        
-        log.info("[WebMvcAutoConfiguration] Configuring CORS - allowed origins: {}", 
-            corsProperties.getAllowedOrigins());
-        
-        registry.addMapping("/**")
-            .allowedOriginPatterns(corsProperties.getAllowedOrigins().toArray(new String[0]))
-            .allowedMethods(corsProperties.getAllowedMethods().toArray(new String[0]))
-            .allowedHeaders(corsProperties.getAllowedHeaders().toArray(new String[0]))
-            .exposedHeaders(corsProperties.getExposedHeaders().toArray(new String[0]))
-            .allowCredentials(corsProperties.isAllowCredentials())
-            .maxAge(corsProperties.getMaxAge());
     }
     
     /**

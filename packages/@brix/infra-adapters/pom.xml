@@ -96,6 +96,7 @@
         <module>packages/server/infra-adapter-config</module>
         <module>packages/server/infra-adapter-resilience</module>
         <module>packages/server/infra-adapter-email-smtp</module>
+        <module>packages/server/infra-adapter-identity-provider</module>
     </modules>
 
     <dependencyManagement>

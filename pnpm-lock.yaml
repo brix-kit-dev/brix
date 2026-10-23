@@ -766,6 +766,49 @@ importers:
         specifier: ^5.3.2
         version: 5.9.3
 
+  packages/@brix/platform-commons/packages/client/platform-hosted-login-web:
+    dependencies:
+      '@brix-sdk/infra-adapter-ui-native':
+        specifier: workspace:*
+        version: link:../../../../infra-adapters/packages/web/infra-adapter-ui-native
+      '@brix-sdk/platform-i18n-web':
+        specifier: workspace:*
+        version: link:../platform-i18n-web
+      '@brix-sdk/runtime-sdk-api-web':
+        specifier: workspace:*
+        version: link:../../../../runtime-sdk/runtime-sdk-api-web
+      '@brix-sdk/runtime-sdk-react':
+        specifier: workspace:*
+        version: link:../../../../runtime-sdk/runtime-sdk-react
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^14.1.0
+        version: 14.3.1(@types/react@18.3.28)(react-dom@18.3.1)(react@18.3.1)
+      '@types/react':
+        specifier: ^18.2.0
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.2.0
+        version: 18.3.7(@types/react@18.3.28)
+      jsdom:
+        specifier: ^24.0.0
+        version: 24.1.3
+      typescript:
+        specifier: ^5.3.2
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21(@types/node@20.19.34)
+      vitest:
+        specifier: ^1.2.0
+        version: 1.6.1(@types/node@20.19.34)(jsdom@24.1.3)
+
   packages/@brix/platform-commons/packages/client/platform-i18n-web:
     dependencies:
       '@brix-sdk/runtime-sdk-api-web':

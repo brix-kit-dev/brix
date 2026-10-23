@@ -83,6 +83,8 @@ export interface HttpRequestInterceptor {
  * - cache: ��������
  * - defaultHeaders: Ĭ������ͷ
  */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
+
 export interface HttpCapabilityImplOptions {
   /**
    * Base URL for all requests
@@ -134,6 +136,19 @@ export interface HttpCapabilityImplOptions {
    * �⻧ ID �ṩ��
    */
   tenantIdProvider?: () => string | null;
+
+  /**
+   * CSRF token provider for BFF sessions (root BRX-RS-SECURITY-012, frontend BRX-FE-AUTH-003).
+   * When it returns a token, state-changing requests (POST, PUT, PATCH, DELETE) carry it in
+   * {@link HttpCapabilityImplOptions.csrfHeaderName}; safe methods never do.
+   */
+  csrfTokenProvider?: () => string | null;
+
+  /**
+   * Request header for the CSRF token.
+   * @default 'X-Brix-CSRF'
+   */
+  csrfHeaderName?: string;
 
   /**
    * Optional EventBus capability for emitting `system.http.error` events on
@@ -236,6 +251,10 @@ export class HttpCapabilityImpl implements HttpCapability {
    */
   private readonly tenantIdProvider?: () => string | null;
 
+  private readonly csrfTokenProvider?: () => string | null;
+
+  private readonly csrfHeaderName: string;
+
   /**
    * Constructor
    *
@@ -254,6 +273,8 @@ export class HttpCapabilityImpl implements HttpCapability {
     this.enableLogging = options.enableLogging ?? false;
     this.authTokenProvider = options.authTokenProvider;
     this.tenantIdProvider = options.tenantIdProvider;
+    this.csrfTokenProvider = options.csrfTokenProvider;
+    this.csrfHeaderName = options.csrfHeaderName ?? 'X-Brix-CSRF';
 
     // Auto-register error-event interceptor when an EventBus is provided.
     // Layer 2C wiring: keeps subscribers (e.g. HttpErrorToaster) decoupled
@@ -522,7 +543,7 @@ export class HttpCapabilityImpl implements HttpCapability {
     const timeout = config.timeout ?? this.defaultTimeout;
 
     // Build headers with auth and tenant context
-    const headers = await this.buildHeaders(config.headers);
+    const headers = await this.buildHeaders(config.headers, method);
 
     // Log request if enabled
     if (this.enableLogging) {
@@ -537,6 +558,8 @@ export class HttpCapabilityImpl implements HttpCapability {
       const fetchOptions: RequestInit = {
         method,
         headers,
+        // Session cookies only travel to this origin.
+        credentials: 'same-origin',
         signal: controller.signal,
       };
 
@@ -668,6 +691,7 @@ export class HttpCapabilityImpl implements HttpCapability {
    */
   private async buildHeaders(
     customHeaders?: Record<string, string>,
+    method = 'GET',
   ): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
       ...this.defaultHeaders,
@@ -687,6 +711,14 @@ export class HttpCapabilityImpl implements HttpCapability {
       const tenantId = this.tenantIdProvider();
       if (tenantId) {
         headers['X-Tenant-ID'] = tenantId;
+      }
+    }
+
+    // Inject the BFF session's CSRF token on state-changing requests only
+    if (this.csrfTokenProvider && !SAFE_METHODS.has(method.toUpperCase())) {
+      const csrfToken = this.csrfTokenProvider();
+      if (csrfToken) {
+        headers[this.csrfHeaderName] = csrfToken;
       }
     }
 

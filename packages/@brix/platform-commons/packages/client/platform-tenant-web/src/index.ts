@@ -22,6 +22,7 @@ export {
 export {
   FirstOwnerInvitationPage,
 } from './pages/FirstOwnerInvitationPage';
+export { TenantConsoleHomePage } from './pages/TenantConsoleHomePage';
 export {
   useAcceptFirstOwnerInvitation,
   type UseAcceptFirstOwnerInvitationResult,

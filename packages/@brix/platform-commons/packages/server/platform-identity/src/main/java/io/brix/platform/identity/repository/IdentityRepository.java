@@ -146,6 +146,23 @@ public interface IdentityRepository extends JpaRepository<Identity, Long> {
                               @Param("updatedAt") OffsetDateTime updatedAt);
 
     /**
+     * Records an accepted TOTP time step when it is later than the last accepted one.
+     * The conditional update makes concurrent uses of one code accept at most once.
+     *
+     * @param identityId identity ID
+     * @param step       matched RFC 6238 time step
+     * @param updatedAt  update time
+     * @return 1 when the step was accepted, 0 when it was already used or is older
+     * @since 3.2.0
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE PlatformIdentityIdentity i SET i.mfaLastUsedStep = :step, i.updatedAt = :updatedAt "
+            + "WHERE i.id = :id AND (i.mfaLastUsedStep IS NULL OR i.mfaLastUsedStep < :step)")
+    int acceptTotpStep(@Param("id") Long identityId,
+                       @Param("step") long step,
+                       @Param("updatedAt") OffsetDateTime updatedAt);
+
+    /**
      * Counts identities by status.
      *
      * @param status the status to count

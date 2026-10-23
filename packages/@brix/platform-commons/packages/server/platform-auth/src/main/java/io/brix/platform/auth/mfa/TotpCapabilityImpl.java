@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.OptionalLong;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -68,19 +69,27 @@ public class TotpCapabilityImpl implements TotpCapability {
 
     @Override
     public boolean validateCode(String secret, String code) {
+        return matchTimeStep(secret, code).isPresent();
+    }
+
+    @Override
+    public OptionalLong matchTimeStep(String secret, String code) {
         if (code == null || !code.matches("\\d{" + properties.getTotpDigits() + "}")) {
-            return false;
+            return OptionalLong.empty();
         }
-        Instant now = clock.instant();
+        long currentStep = clock.instant().getEpochSecond() / periodSeconds();
         int window = Math.max(0, properties.getTotpWindow());
+        OptionalLong matched = OptionalLong.empty();
+        // Check every step in the window so the time taken does not reveal which one matched.
         for (int offset = -window; offset <= window; offset++) {
-            String expected = generateCode(secret, now.plusSeconds((long) offset * periodSeconds()),
+            long step = currentStep + offset;
+            String expected = generateCode(secret, Instant.ofEpochSecond(step * periodSeconds()),
                     properties.getTotpDigits());
-            if (constantTimeEquals(expected, code)) {
-                return true;
+            if (constantTimeEquals(expected, code) && matched.isEmpty()) {
+                matched = OptionalLong.of(step);
             }
         }
-        return false;
+        return matched;
     }
 
     String generateCode(String secret, Instant instant, int digits) {

@@ -8,6 +8,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.OptionalLong;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,5 +41,20 @@ class TotpCapabilityImplTest {
         assertTrue(totp.validateCode("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "287082"));
         assertFalse(totp.validateCode("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "94287082"));
         assertFalse(totp.validateCode("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "abcdef"));
+    }
+
+    @Test
+    void reportsTheTimeStepAMatchingCodeBelongsTo() {
+        MfaProperties properties = new MfaProperties();
+        properties.setTotpWindow(1);
+        // 89s is in step 2; step 1 (30-59s) carries the RFC 6238 vector 287082.
+        TotpCapabilityImpl totp = new TotpCapabilityImpl(
+                properties, Clock.fixed(Instant.ofEpochSecond(89), ZoneOffset.UTC), new SecureRandom());
+        String secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+
+        assertEquals(OptionalLong.of(1L), totp.matchTimeStep(secret, "287082"));
+        assertTrue(totp.validateCode(secret, "287082"));
+        assertEquals(OptionalLong.empty(), totp.matchTimeStep(secret, "000000"));
+        assertEquals(OptionalLong.empty(), totp.matchTimeStep(secret, null));
     }
 }

@@ -98,7 +98,7 @@ final class EndpointAccessGuard {
                     held.put(permission, scope);
                 }
             }
-            return new AccessDecision(held.keySet(), held, caller.tenantRoleType(), caller.tenantRefId());
+            return new AccessDecision(held.keySet(), held, caller.tenantRoleType(), caller.tenantRefId(), effective);
         }
         requirePermissions(route, policy, caller.permissions());
         Set<String> held = new LinkedHashSet<>(policy.permissions());

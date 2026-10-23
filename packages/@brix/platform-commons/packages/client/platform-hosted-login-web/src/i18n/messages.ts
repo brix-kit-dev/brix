@@ -1,0 +1,88 @@
+/**
+ * @file Hosted login texts
+ */
+
+import type { LanguageBundle } from '@brix-sdk/runtime-sdk-api-web';
+
+export const HOSTED_LOGIN_NAMESPACE = 'hostedLogin';
+
+const zhCN: Record<string, string> = {
+  title: '员工登录',
+  subtitle: '登录员工控制台',
+  'identify.label': '邮箱',
+  'identify.submit': '下一步',
+  'password.label': '密码',
+  'password.submit': '登录',
+  'totp.label': '验证码',
+  'totp.hint': '打开验证器 App，输入当前显示的 6 位验证码。',
+  'totp.submit': '验证',
+  'account.switch': '使用其他账号',
+  'account.signOut': '退出登录',
+  'error.invalid_identifier': '请输入有效的邮箱地址。',
+  'error.invalid_credentials': '邮箱或密码不正确。',
+  'error.invalid_code': '验证码不正确或已使用，请输入新的验证码。',
+  'error.too_many_attempts': '尝试次数过多，请稍后再试。',
+  'error.step_expired': '登录已超时，请重新开始。',
+  'error.network': '网络连接失败，请重试。',
+  'error.unavailable': '登录服务暂时不可用，请刷新页面后重试。',
+  'result.no-tenant.title': '尚未加入任何租户',
+  'result.no-tenant.body': '你的账号还没有加入任何机构。请联系机构管理员向你发送邀请。',
+  'result.multiple-tenants.title': '你属于多个租户',
+  'result.multiple-tenants.body': '选择租户的功能将在后续版本提供。',
+  'result.password-change-required.title': '需要先修改密码',
+  'result.password-change-required.body': '你的账号需要先修改密码，请联系管理员。',
+  'result.mfa-setup-required.title': '需要先设置双因素认证',
+  'result.mfa-setup-required.body': '员工账号必须使用验证器 App 登录。请联系管理员为你开通。',
+  'loginError.title': '登录未完成',
+  'loginError.login_expired': '登录已过期，或已在另一个窗口完成。请重新登录。',
+  'loginError.token_exchange_failed': '登录无法完成，请重新登录。',
+  'loginError.context_unavailable': '你所在的租户当前不可用。',
+  'loginError.access_denied': '此账号不能进入员工控制台。',
+  'loginError.default': '登录无法完成，请重新登录。',
+  'loginError.retry': '重新登录',
+  'signedOut.title': '已退出登录',
+  'signedOut.body': '你已安全退出。',
+};
+
+const enUS: Record<string, string> = {
+  title: 'Staff sign-in',
+  subtitle: 'Sign in to the staff console',
+  'identify.label': 'Email',
+  'identify.submit': 'Next',
+  'password.label': 'Password',
+  'password.submit': 'Sign in',
+  'totp.label': 'Verification code',
+  'totp.hint': 'Open your authenticator app and enter the 6-digit code it shows.',
+  'totp.submit': 'Verify',
+  'account.switch': 'Use another account',
+  'account.signOut': 'Sign out',
+  'error.invalid_identifier': 'Enter a valid email address.',
+  'error.invalid_credentials': 'The email or password is incorrect.',
+  'error.invalid_code': 'The code is incorrect or was already used. Enter a new code.',
+  'error.too_many_attempts': 'Too many attempts. Try again later.',
+  'error.step_expired': 'The sign-in timed out. Start again.',
+  'error.network': 'Network error. Try again.',
+  'error.unavailable': 'Sign-in is unavailable right now. Reload the page and try again.',
+  'result.no-tenant.title': 'You have not joined a tenant yet',
+  'result.no-tenant.body': 'Your account does not belong to any organization yet. Ask its administrator to invite you.',
+  'result.multiple-tenants.title': 'You belong to several tenants',
+  'result.multiple-tenants.body': 'Choosing a tenant will be available in a later release.',
+  'result.password-change-required.title': 'Change your password first',
+  'result.password-change-required.body': 'Your account needs a new password. Contact your administrator.',
+  'result.mfa-setup-required.title': 'Set up two-factor authentication first',
+  'result.mfa-setup-required.body': 'Staff accounts must sign in with an authenticator app. Contact your administrator.',
+  'loginError.title': 'Sign-in was not completed',
+  'loginError.login_expired': 'The sign-in expired or finished in another window. Sign in again.',
+  'loginError.token_exchange_failed': 'The sign-in could not be completed. Sign in again.',
+  'loginError.context_unavailable': 'Your tenant is not available right now.',
+  'loginError.access_denied': 'This account cannot use the staff console.',
+  'loginError.default': 'The sign-in could not be completed. Sign in again.',
+  'loginError.retry': 'Sign in again',
+  'signedOut.title': 'Signed out',
+  'signedOut.body': 'You have signed out.',
+};
+
+export const hostedLoginBundles: LanguageBundle[] = [
+  { locale: 'zh-CN', namespace: HOSTED_LOGIN_NAMESPACE, resources: zhCN },
+  { locale: 'en-US', namespace: HOSTED_LOGIN_NAMESPACE, resources: enUS },
+];

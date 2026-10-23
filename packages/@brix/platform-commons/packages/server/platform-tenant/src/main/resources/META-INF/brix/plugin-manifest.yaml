@@ -36,6 +36,32 @@ endpoints:
         policyRef: interactive-write
       idempotency:
         mode: required
+    # The calling staff member's context and effective permissions for the BFF session
+    # (multi-tenant 5.1 BRX-TENANT-AUTHZ-009); every staff role holds tenant:profile:read.
+    - endpointId: platform-tenant.session.v1
+      transport: http
+      method: GET
+      path: /api/tenant/session
+      request:
+        schemaRef: brix://schemas/platform-tenant/tenant-session-request/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-tenant/tenant-session/1.0.0
+      handlerId: platform-tenant.session.v1
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - tenant:profile:read
+        decision: all
+        resourcePolicyRef: platform-tenant-session-read
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      idempotency:
+        mode: not-applicable
 capabilities:
   required:
     - id: io.runtime.sdk.capability.EventBusCapability

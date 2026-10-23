@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-hosted-login-web</artifactId>
+    <name>Platform Hosted Login Web</name>
+    <description>
+        Packages the built hosted login UI (dist/, from `pnpm build`) on the classpath at
+        META-INF/brix/hosted-login/, where the identity protocol surface serves it under /auth/**
+        (frontend BRX-FE-AUTH-004). Build the UI before this module; without dist/ the jar is
+        empty and the login page answers that the UI is not installed.
+    </description>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>dist</directory>
+                <targetPath>META-INF/brix/hosted-login</targetPath>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>

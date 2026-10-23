@@ -41,6 +41,7 @@ packages:
   - 'packages/@brix/platform-commons'                                           # Root package
   - 'packages/@brix/platform-commons/packages/client/platform-shared'           # Shared utilities
   - 'packages/@brix/platform-commons/packages/client/platform-auth-web'         # Auth facade
+  - 'packages/@brix/platform-commons/packages/client/platform-hosted-login-web' # Hosted login UI (identity protocol surface)
   - 'packages/@brix/platform-commons/packages/client/platform-auth-service-web' # Auth service
   - 'packages/@brix/platform-commons/packages/client/platform-auth-ui-web'      # Auth UI
   - 'packages/@brix/platform-commons/packages/client/platform-config-web'       # Config management

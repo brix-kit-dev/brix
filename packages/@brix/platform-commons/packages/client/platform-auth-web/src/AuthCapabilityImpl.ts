@@ -119,7 +119,12 @@ export class AuthCapabilityImpl implements AuthCapability {
    */
   isAuthenticated(): boolean {
     const state = this.getInternalAuthState();
-    return state.user !== null && state.token !== null;
+    if (state.user === null) {
+      return false;
+    }
+    // BFF sessions keep tokens on the server (root S-20); the browser only knows the session.
+    // Installed tokens remain for the exempted legacy flows (EX-2026-001/002).
+    return state.token !== null || state.sessionState === 'authenticated';
   }
   
   /**

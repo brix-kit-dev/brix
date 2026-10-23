@@ -112,6 +112,8 @@
         <module>packages/server/platform-notification</module>
         <!-- 平台超管服务模块（Phase P-2 — 超管 CRUD / 审计 / 租户视图） -->
         <module>packages/server/platform-admin</module>
+        <!-- 托管登录 UI 制品（身份协议面在 /auth/** 提供；先执行 pnpm build） -->
+        <module>packages/client/platform-hosted-login-web</module>
     </modules>
 
     <dependencyManagement>

@@ -83,6 +83,9 @@ export {
   // ViewMode Hook (Stability Reform v1.0 — C-4)
   useViewMode,
 
+  // Form-state Hook (Stability Reform v1.0 — C-8); UI adapters expose it as `Form.useForm`
+  useForm,
+
   // Page-state Hooks (Stability Reform v1.0 — C-3)
   usePageState,
   useSubmitGuard,

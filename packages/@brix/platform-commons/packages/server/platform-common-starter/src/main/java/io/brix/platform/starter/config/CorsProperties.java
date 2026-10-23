@@ -65,7 +65,7 @@ public class CorsProperties {
      * 
      * <p>Default: ["*"]</p>
      */
-    private List<String> allowedOrigins = new ArrayList<>(List.of("*"));
+    private List<String> allowedOrigins = new ArrayList<>();
     
     /**
      * Allowed origin patterns
@@ -106,7 +106,7 @@ public class CorsProperties {
      * 
      * <p>Default: true</p>
      */
-    private boolean allowCredentials = true;
+    private boolean allowCredentials = false;
     
     /**
      * Preflight request cache time (seconds)
@@ -196,5 +196,35 @@ public class CorsProperties {
     
     public void setPathPattern(String pathPattern) {
         this.pathPattern = pathPattern;
+    }
+
+    /**
+     * Whether any cross-origin client is configured. Without one, the platform answers
+     * same-origin requests only: browser consoles reach the API through their own origin and
+     * a BFF session cookie (root BRX-RS-SECURITY-012).
+     *
+     * @since 3.2.0
+     */
+    public boolean hasCrossOriginClients() {
+        return enabled && (!allowedOrigins.isEmpty() || !allowedOriginPatterns.isEmpty());
+    }
+
+    /**
+     * Rejects credentialed CORS for wildcard origins, which would let any website send
+     * requests with the user's cookies and read the responses.
+     *
+     * @throws IllegalStateException when credentials are allowed for a wildcard origin
+     * @since 3.2.0
+     */
+    public void validate() {
+        if (!allowCredentials) {
+            return;
+        }
+        boolean wildcard = allowedOrigins.stream().anyMatch(origin -> origin.contains("*"))
+                || allowedOriginPatterns.stream().anyMatch(pattern -> pattern.contains("*"));
+        if (wildcard) {
+            throw new IllegalStateException(
+                    "brix.cors.allow-credentials=true requires explicit origins; wildcard origins are not allowed");
+        }
     }
 }

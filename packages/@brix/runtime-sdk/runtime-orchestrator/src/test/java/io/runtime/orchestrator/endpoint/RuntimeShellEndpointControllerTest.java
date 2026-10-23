@@ -50,6 +50,21 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
+    void dispatchNeverPassesBrowserCookiesToHandlers() {
+        CapturingDispatcher dispatcher = new CapturingDispatcher();
+        RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
+            dispatcher,
+            () -> new TestAuthCapability("1001", null));
+
+        controller.dispatch(null, request(Map.of(
+            "Cookie", List.of("__Host-brix-session=opaque-session-id"),
+            "Accept", List.of("application/json"))));
+
+        assertFalse(dispatcher.headers.containsKey("cookie"));
+        assertEquals(List.of("application/json"), dispatcher.headers.get("accept"));
+    }
+
+    @Test
     void dispatchRemovesClientActorHeaderWhenNoVerifiedPrincipalExists() {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(

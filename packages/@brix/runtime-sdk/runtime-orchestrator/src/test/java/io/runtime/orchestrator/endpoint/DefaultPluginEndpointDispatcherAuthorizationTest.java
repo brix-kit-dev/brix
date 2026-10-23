@@ -41,6 +41,7 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
     private static final String TENANT_READ = "platform:tenant:read";
     private static final String ORDER_READ = "example:order:read";
     private static final String MY_ORDER_READ = "example:my-order:read";
+    private static final String ORDER_APPROVE = "example:order:approve";
 
     private final RecordingHandler handler = new RecordingHandler();
     private final DefaultPluginEndpointDispatcher dispatcher =
@@ -187,6 +188,21 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
     }
 
     @Test
+    void decisionAlsoDescribesTheCallersWholeContextFromTheGrantTable() {
+        publish(tenantEndpoint("tenant-actor", ORDER_READ), grantsWithApproval());
+
+        assertEquals("handled", invoke(tenantCaller("42", "actor", "MEMBER", "77")));
+        assertEquals("handled", invoke(tenantCaller("42", "actor", "ADMIN", "5")));
+
+        assertEquals(Map.of(ORDER_READ, AccessScope.SELF), handler.invocations.get(0).access().effectivePermissions());
+        AccessDecision admin = handler.invocations.get(1).access();
+        assertEquals(Map.of(ORDER_READ, AccessScope.TENANT, ORDER_APPROVE, AccessScope.TENANT),
+            admin.effectivePermissions());
+        assertEquals(Set.of(ORDER_READ), admin.permissions(),
+            "the endpoint decision stays limited to the declared permissions");
+    }
+
+    @Test
     void tenantCallerPermissionHeaderIsNeverTrusted() {
         publish(tenantEndpoint("tenant-actor", ORDER_READ), grants());
 
@@ -226,6 +242,7 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
         assertEquals(Set.of(TENANT_CREATE), decision.permissions());
         assertTrue(decision.scopes().isEmpty());
         assertTrue(decision.tenantRoleType().isEmpty());
+        assertTrue(decision.effectivePermissions().isEmpty());
     }
 
     @Test
@@ -257,6 +274,19 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
             Map.of("mode", "required", "policyRef", tokenPolicy),
             Map.of("permissions", List.of(permission)),
             Map.of("mode", "required"));
+    }
+
+    private static TenantGrantTable grantsWithApproval() {
+        return TenantGrantTable.build(List.of(
+            new TenantGrantTable.PermissionDeclaration("plugin-a", ORDER_READ, List.of(
+                new TenantGrantTable.Grant("OWNER", "TENANT"),
+                new TenantGrantTable.Grant("ADMIN", "TENANT"),
+                new TenantGrantTable.Grant("MEMBER", "SELF"))),
+            new TenantGrantTable.PermissionDeclaration("plugin-a", ORDER_APPROVE, List.of(
+                new TenantGrantTable.Grant("OWNER", "TENANT"),
+                new TenantGrantTable.Grant("ADMIN", "TENANT"))),
+            new TenantGrantTable.PermissionDeclaration("plugin-a", MY_ORDER_READ, List.of(
+                new TenantGrantTable.Grant("CUSTOMER", "SELF")))), List.of());
     }
 
     private static TenantGrantTable grants() {

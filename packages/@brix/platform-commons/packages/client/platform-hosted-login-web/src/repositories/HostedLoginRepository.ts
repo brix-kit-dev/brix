@@ -1,0 +1,96 @@
+/**
+ * @file Hosted login API
+ * @description Calls the hosted login API of the identity protocol surface (`/auth/api`).
+ * The login session cookie is the only client state; the API never returns a token
+ * (identity-auth BRX-IA-FLOW-003).
+ */
+
+export type LoginStepName =
+  | 'identify'
+  | 'password'
+  | 'totp'
+  | 'done'
+  | 'no-tenant'
+  | 'multiple-tenants'
+  | 'password-change-required'
+  | 'mfa-setup-required';
+
+export interface LoginStepResponse {
+  readonly step?: LoginStepName;
+  readonly continueUrl?: string;
+  readonly error?: string;
+}
+
+export interface HostedLoginRepository {
+  state(): Promise<LoginStepResponse>;
+  identify(identifier: string): Promise<LoginStepResponse>;
+  password(password: string): Promise<LoginStepResponse>;
+  totp(code: string): Promise<LoginStepResponse>;
+  restart(): Promise<LoginStepResponse>;
+  signOut(): Promise<LoginStepResponse>;
+}
+
+const STEPS: readonly LoginStepName[] = [
+  'identify',
+  'password',
+  'totp',
+  'done',
+  'no-tenant',
+  'multiple-tenants',
+  'password-change-required',
+  'mfa-setup-required',
+];
+
+export function createHostedLoginRepository(
+  fetchFn: typeof fetch = (input, init) => fetch(input, init),
+  baseUrl = '/auth/api',
+): HostedLoginRepository {
+  // The login session's CSRF token; it lives in memory only.
+  let csrfToken: string | null = null;
+
+  async function call(path: string, method: 'GET' | 'POST', body?: unknown): Promise<LoginStepResponse> {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (method !== 'GET' && csrfToken) {
+      headers['X-CSRF-TOKEN'] = csrfToken;
+    }
+    const response = await fetchFn(baseUrl + path, {
+      method,
+      headers,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    let payload: Record<string, unknown> | null = null;
+    try {
+      payload = (await response.json()) as Record<string, unknown>;
+    } catch {
+      payload = null;
+    }
+    if (typeof payload?.csrfToken === 'string') {
+      csrfToken = payload.csrfToken;
+    }
+    const step = STEPS.find((name) => name === payload?.step);
+    const error = typeof payload?.error === 'string' ? payload.error : undefined;
+    if (!step) {
+      // The rate limiter and the CSRF check answer without a step.
+      return { error: response.status === 429 ? 'too_many_attempts' : error ?? 'unavailable' };
+    }
+    return {
+      step,
+      error,
+      continueUrl: typeof payload?.continueUrl === 'string' ? payload.continueUrl : undefined,
+    };
+  }
+
+  return {
+    state: () => call('/state', 'GET'),
+    identify: (identifier) => call('/identify', 'POST', { identifier }),
+    password: (password) => call('/password', 'POST', { password }),
+    totp: (code) => call('/totp', 'POST', { code }),
+    restart: () => call('/restart', 'POST', {}),
+    signOut: () => call('/sign-out', 'POST', {}),
+  };
+}
