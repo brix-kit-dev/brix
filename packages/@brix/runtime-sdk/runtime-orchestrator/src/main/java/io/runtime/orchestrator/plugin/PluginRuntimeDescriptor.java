@@ -15,14 +15,17 @@
  */
 package io.runtime.orchestrator.plugin;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.event.EventReliability;
@@ -47,6 +50,7 @@ public final class PluginRuntimeDescriptor {
     private final Set<String> requiredCapabilities;
     private final Set<String> optionalCapabilities;
     private final Map<String, EndpointDeclaration> endpoints;
+    private final List<PermissionDeclaration> permissions;
     private final Set<String> queryHandlers;
     private final Set<String> commandHandlers;
     private final Set<String> eventHandlers;
@@ -62,6 +66,7 @@ public final class PluginRuntimeDescriptor {
         this.requiredCapabilities = copy(builder.requiredCapabilities);
         this.optionalCapabilities = copy(builder.optionalCapabilities);
         this.endpoints = Map.copyOf(builder.endpoints);
+        this.permissions = List.copyOf(builder.permissions);
         this.queryHandlers = copy(builder.queryHandlers);
         this.commandHandlers = copy(builder.commandHandlers);
         this.eventHandlers = copy(builder.eventHandlers);
@@ -156,6 +161,15 @@ public final class PluginRuntimeDescriptor {
      */
     public Map<String, EndpointDeclaration> endpointDeclarations() {
         return endpoints;
+    }
+
+    /**
+     * Returns the permission catalog entries declared by the manifest, in declaration order.
+     *
+     * @return immutable permission declarations with their default tenant grants
+     */
+    public List<PermissionDeclaration> permissionDeclarations() {
+        return permissions;
     }
 
     /**
@@ -290,6 +304,7 @@ public final class PluginRuntimeDescriptor {
         private final Set<String> requiredCapabilities = new LinkedHashSet<>();
         private final Set<String> optionalCapabilities = new LinkedHashSet<>();
         private final Map<String, EndpointDeclaration> endpoints = new LinkedHashMap<>();
+        private final List<PermissionDeclaration> permissions = new ArrayList<>();
         private final Set<String> queryHandlers = new LinkedHashSet<>();
         private final Set<String> commandHandlers = new LinkedHashSet<>();
         private final Set<String> eventHandlers = new LinkedHashSet<>();
@@ -367,6 +382,18 @@ public final class PluginRuntimeDescriptor {
             if (id != null && !id.isBlank()) {
                 endpoints.put(id, new EndpointDeclaration(id, method, path, accessPolicy));
             }
+            return this;
+        }
+
+        /**
+         * Adds a permission catalog entry with its default tenant grants.
+         *
+         * @param id permission id
+         * @param grants declared grants, validated when the Host builds its grant table
+         * @return this builder
+         */
+        public Builder permission(String id, List<TenantGrantTable.Grant> grants) {
+            permissions.add(new PermissionDeclaration(id, grants == null ? List.of() : grants));
             return this;
         }
 
@@ -541,6 +568,23 @@ public final class PluginRuntimeDescriptor {
             id = id == null ? "" : id.trim();
             method = method == null ? "" : method.trim();
             path = path == null ? "" : path.trim();
+        }
+    }
+
+    /**
+     * Manifest-declared permission catalog entry.
+     *
+     * @param id permission id
+     * @param grants declared default grants to built-in tenant roles
+     */
+    public record PermissionDeclaration(String id, List<TenantGrantTable.Grant> grants) {
+
+        /**
+         * Creates a permission declaration.
+         */
+        public PermissionDeclaration {
+            id = id == null ? "" : id.trim();
+            grants = List.copyOf(Objects.requireNonNull(grants, "grants must not be null"));
         }
     }
 

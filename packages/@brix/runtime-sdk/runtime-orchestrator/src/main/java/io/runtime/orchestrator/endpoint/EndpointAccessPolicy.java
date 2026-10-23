@@ -20,6 +20,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -79,6 +80,10 @@ public record EndpointAccessPolicy(
         }
         if (authentication != AuthenticationMode.REQUIRED && tenantContext == TenantContextMode.REQUIRED) {
             throw new IllegalArgumentException("tenantContext.mode=required requires authentication.mode=required");
+        }
+        if (tenantContext == TenantContextMode.REQUIRED && tokenPolicy.tenantTokenRole().isEmpty()) {
+            throw new IllegalArgumentException("tenantContext.mode=required requires authentication.policyRef "
+                + "'tenant-actor' or 'tenant-subject'");
         }
         if (permissions.isEmpty() && authorizationPolicyRef.isEmpty()) {
             throw new IllegalArgumentException(
@@ -221,7 +226,11 @@ public record EndpointAccessPolicy(
         /** Formal platform access token: role {@code platform-admin}, type {@code access}, scope {@code PLATFORM}. */
         PLATFORM_TOKEN("platform-token"),
         /** Tenant user access token: role and scope {@code actor} or {@code subject}, type {@code access}. */
-        AUTHENTICATED_USER("authenticated-user");
+        AUTHENTICATED_USER("authenticated-user"),
+        /** Tenant management API: only actor access tokens (role and scope {@code actor}). */
+        TENANT_ACTOR("tenant-actor"),
+        /** Tenant end-user API: only subject access tokens (role and scope {@code subject}). */
+        TENANT_SUBJECT("tenant-subject");
 
         private static final String ACCESS_TOKEN = "access";
 
@@ -257,6 +266,23 @@ public record EndpointAccessPolicy(
                 case AUTHENTICATED_USER -> ACCESS_TOKEN.equals(tokenType)
                     && ("actor".equals(tokenRole) || "subject".equals(tokenRole))
                     && tokenRole.equals(tokenScope);
+                case TENANT_ACTOR, TENANT_SUBJECT -> ACCESS_TOKEN.equals(tokenType)
+                    && tenantTokenRole().orElseThrow().equals(tokenRole)
+                    && tokenRole.equals(tokenScope);
+            };
+        }
+
+        /**
+         * Returns the only tenant token role this policy admits.
+         *
+         * @return {@code actor} for {@link #TENANT_ACTOR}, {@code subject} for
+         *         {@link #TENANT_SUBJECT}, empty for every other policy
+         */
+        public Optional<String> tenantTokenRole() {
+            return switch (this) {
+                case TENANT_ACTOR -> Optional.of("actor");
+                case TENANT_SUBJECT -> Optional.of("subject");
+                default -> Optional.empty();
             };
         }
 

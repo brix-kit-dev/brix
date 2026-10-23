@@ -61,6 +61,8 @@ public class RuntimeShellEndpointController {
     private static final String TOKEN_TYPE_HEADER = "x-auth-token-type";
     private static final String TOKEN_SCOPE_HEADER = "x-auth-token-scope";
     private static final String PERMISSION_HEADER = "x-auth-permission";
+    private static final String TENANT_ROLE_TYPE_HEADER = "x-auth-tenant-role-type";
+    private static final String TENANT_REF_HEADER = "x-auth-tenant-ref-id";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
 
     private final PluginEndpointDispatcher dispatcher;
@@ -142,6 +144,8 @@ public class RuntimeShellEndpointController {
         result.remove(TOKEN_TYPE_HEADER);
         result.remove(TOKEN_SCOPE_HEADER);
         result.remove(PERMISSION_HEADER);
+        result.remove(TENANT_ROLE_TYPE_HEADER);
+        result.remove(TENANT_REF_HEADER);
         result.remove(ALLOWED_ACTION_HEADER);
 
         AuthCapability auth = authCapabilitySupplier.get();
@@ -159,6 +163,10 @@ public class RuntimeShellEndpointController {
         principal.map(AuthenticatedPrincipal::getPermissions)
             .filter(permissions -> !permissions.isEmpty())
             .ifPresent(permissions -> result.put(PERMISSION_HEADER, List.copyOf(permissions)));
+        principal.flatMap(p -> nonBlank(p.getTenantRoleType()))
+            .ifPresent(roleType -> result.put(TENANT_ROLE_TYPE_HEADER, List.of(roleType)));
+        principal.flatMap(p -> nonBlank(p.getTenantRefId()))
+            .ifPresent(refId -> result.put(TENANT_REF_HEADER, List.of(refId)));
         principal.map(AuthenticatedPrincipal::getAllowedActions)
             .filter(actions -> !actions.isEmpty())
             .ifPresent(actions -> result.put(ALLOWED_ACTION_HEADER, List.copyOf(actions)));
@@ -206,6 +214,10 @@ public class RuntimeShellEndpointController {
     private static Optional<String> authenticatedTokenScope(AuthenticatedPrincipal principal) {
         String scope = principal.getTokenScope();
         return scope == null || scope.isBlank() ? Optional.empty() : Optional.of(scope.trim());
+    }
+
+    private static Optional<String> nonBlank(String value) {
+        return value == null || value.isBlank() ? Optional.empty() : Optional.of(value.trim());
     }
 
     private static String requestPath(HttpServletRequest request) {

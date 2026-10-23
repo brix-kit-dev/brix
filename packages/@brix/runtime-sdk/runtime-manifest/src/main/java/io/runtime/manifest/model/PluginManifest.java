@@ -1260,9 +1260,23 @@ public class PluginManifest {
         private String id;
         private String name;
         private String description;
+        private List<Grant> grants = new ArrayList<>();
 
         public String getId() {
             return id;
+        }
+
+        /**
+         * Returns the default grants of this permission to built-in tenant roles.
+         *
+         * @return declared grants; empty when no tenant role is granted
+         */
+        public List<Grant> getGrants() {
+            return grants;
+        }
+
+        public void setGrants(List<Grant> grants) {
+            this.grants = grants != null ? grants : new ArrayList<>();
         }
 
         public void setId(String id) {
@@ -1283,6 +1297,35 @@ public class PluginManifest {
 
         public void setDescription(String description) {
             this.description = description;
+        }
+    }
+
+    /**
+     * Default grant of a permission to one built-in tenant role.
+     *
+     * <p>{@code role} is a tenant Actor role ({@code OWNER}, {@code ADMIN},
+     * {@code MEMBER}) or Subject role ({@code CUSTOMER}, {@code GUEST});
+     * {@code scope} is {@code TENANT} or {@code SELF}. The Runtime validates the
+     * values when it builds the grant table.</p>
+     */
+    public static class Grant {
+        private String role;
+        private String scope;
+
+        public String getRole() {
+            return role;
+        }
+
+        public void setRole(String role) {
+            this.role = role;
+        }
+
+        public String getScope() {
+            return scope;
+        }
+
+        public void setScope(String scope) {
+            this.scope = scope;
         }
     }
 

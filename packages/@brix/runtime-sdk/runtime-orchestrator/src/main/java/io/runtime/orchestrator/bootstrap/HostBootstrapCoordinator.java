@@ -15,6 +15,7 @@ import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
 import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.orchestrator.operational.OperationalModuleRuntimeManager;
 import io.runtime.orchestrator.operational.OperationalModuleRuntimeState;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
@@ -87,6 +88,7 @@ public final class HostBootstrapCoordinator {
                 .thenComparing(EndpointRouteDeclaration::ownerId)
                 .thenComparing(EndpointRouteDeclaration::endpointId));
             EndpointRouteValidator.validate(List.copyOf(declarations));
+            TenantGrantTable grants = plugins.preparedGrantTable();
             plugins.startPrepared();
             operationalModules.startPrepared();
             List<EndpointRoute> routes = new ArrayList<>(plugins.preparedRoutes());
@@ -96,7 +98,7 @@ public final class HostBootstrapCoordinator {
                 .thenComparing(EndpointRoute::path)
                 .thenComparing(EndpointRoute::pluginId)
                 .thenComparing(EndpointRoute::endpointId));
-            endpointDispatcher.replaceSnapshot(List.copyOf(routes));
+            endpointDispatcher.replaceSnapshot(List.copyOf(routes), grants);
             plugins.markPublished();
             operationalModules.markPublished();
             runtimeView.published();

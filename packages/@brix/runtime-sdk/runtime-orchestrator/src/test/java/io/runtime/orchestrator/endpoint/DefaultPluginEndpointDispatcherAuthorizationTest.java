@@ -8,6 +8,7 @@ package io.runtime.orchestrator.endpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.runtime.sdk.plugin.AccessDecision;
+import io.runtime.sdk.plugin.AccessScope;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 
@@ -35,6 +39,8 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
 
     private static final String TENANT_CREATE = "platform:tenant:create";
     private static final String TENANT_READ = "platform:tenant:read";
+    private static final String ORDER_READ = "example:order:read";
+    private static final String MY_ORDER_READ = "example:my-order:read";
 
     private final RecordingHandler handler = new RecordingHandler();
     private final DefaultPluginEndpointDispatcher dispatcher =
@@ -145,27 +151,81 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
     void authenticatedUserPolicyAcceptsOnlyTenantUserAccessTokens() {
         publish(EndpointAccessPolicy.fromDeclaration(
             Map.of("mode", "required", "policyRef", "authenticated-user"),
-            Map.of("permissions", List.of("app:read")),
+            Map.of("resourcePolicyRef", "app-read"),
             Map.of("mode", "optional")));
 
-        assertEquals("handled", invoke(caller("2001", "42", "actor", "access", "actor", "app:read")));
-        assertEquals("handled", invoke(caller("3001", "42", "subject", "access", "subject", "app:read")));
+        assertEquals("handled", invoke(caller("2001", "42", "actor", "access", "actor")));
+        assertEquals("handled", invoke(caller("3001", "42", "subject", "access", "subject")));
         assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
-            caller("1001", null, "platform-admin", "access", "PLATFORM", "app:read"));
+            caller("1001", null, "platform-admin", "access", "PLATFORM"));
         assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
-            caller("2001", null, "actor", "identity", "identity", "app:read"));
+            caller("2001", null, "actor", "identity", "identity"));
     }
 
     @Test
     void requiredTenantContextRejectsCallerWithoutTenant() {
-        publish(EndpointAccessPolicy.fromDeclaration(
-            Map.of("mode", "required", "policyRef", "authenticated-user"),
-            Map.of("permissions", List.of("tenant:read")),
-            Map.of("mode", "required")));
+        publish(tenantEndpoint("tenant-actor", ORDER_READ), grants());
 
         assertDenied(403, EndpointAccessDeniedException.TENANT_CONTEXT_REQUIRED,
-            caller("2001", null, "actor", "access", "actor", "tenant:read"));
-        assertEquals("handled", invoke(caller("2001", "42", "actor", "access", "actor", "tenant:read")));
+            tenantCaller(null, "actor", "MEMBER", "77"));
+        assertEquals("handled", invoke(tenantCaller("42", "actor", "MEMBER", "77")));
+    }
+
+    @Test
+    void tenantActorEndpointExpandsVerifiedRoleThroughGrantTable() {
+        publish(tenantEndpoint("tenant-actor", ORDER_READ), grants());
+
+        assertEquals("handled", invoke(tenantCaller("42", "actor", "MEMBER", "77")));
+        AccessDecision member = handler.invocations.get(0).access();
+        assertEquals(Set.of(ORDER_READ), member.permissions());
+        assertEquals(Optional.of(AccessScope.SELF), member.scope());
+        assertEquals(Optional.of("MEMBER"), member.tenantRoleType());
+        assertEquals(Optional.of("77"), member.tenantRefId());
+
+        assertEquals("handled", invoke(tenantCaller("42", "actor", "ADMIN", "5")));
+        assertEquals(Optional.of(AccessScope.TENANT), handler.invocations.get(1).access().scope());
+    }
+
+    @Test
+    void tenantCallerPermissionHeaderIsNeverTrusted() {
+        publish(tenantEndpoint("tenant-actor", ORDER_READ), grants());
+
+        assertDenied(403, EndpointAccessDeniedException.PERMISSION_DENIED,
+            caller("2001", "42", "actor", "access", "actor", ORDER_READ));
+        assertDenied(403, EndpointAccessDeniedException.PERMISSION_DENIED,
+            tenantCaller("42", "actor", "CUSTOMER", "77", ORDER_READ));
+    }
+
+    @Test
+    void tenantActorEndpointRejectsSubjectTokens() {
+        publish(tenantEndpoint("tenant-actor", ORDER_READ), grants());
+
+        assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            tenantCaller("42", "subject", "CUSTOMER", "9"));
+    }
+
+    @Test
+    void tenantSubjectEndpointGrantsOnlyDeclaredSubjectRoles() {
+        publish(tenantEndpoint("tenant-subject", MY_ORDER_READ), grants());
+
+        assertEquals("handled", invoke(tenantCaller("42", "subject", "CUSTOMER", "9")));
+        assertEquals(Optional.of(AccessScope.SELF), handler.invocations.get(0).access().scope());
+        assertEquals(Optional.of("9"), handler.invocations.get(0).access().tenantRefId());
+        assertDenied(403, EndpointAccessDeniedException.PERMISSION_DENIED,
+            tenantCaller("42", "subject", "GUEST", "10"));
+        assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            tenantCaller("42", "actor", "OWNER", "1"));
+    }
+
+    @Test
+    void platformDecisionCarriesHeldPermissionsWithoutTenantScope() {
+        publish(TestEndpointAccessPolicies.platform(TENANT_CREATE));
+
+        assertEquals("handled", invoke(platformToken(TENANT_READ, TENANT_CREATE)));
+        AccessDecision decision = handler.invocations.get(0).access();
+        assertEquals(Set.of(TENANT_CREATE), decision.permissions());
+        assertTrue(decision.scopes().isEmpty());
+        assertTrue(decision.tenantRoleType().isEmpty());
     }
 
     @Test
@@ -178,14 +238,48 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
     }
 
     private void publish(EndpointAccessPolicy policy) {
+        publish(policy, TenantGrantTable.empty());
+    }
+
+    private void publish(EndpointAccessPolicy policy, TenantGrantTable grants) {
         dispatcher.replaceSnapshot(List.of(new EndpointRoute(
             "platform-admin",
             "platform.tenants.create.v1",
             "POST",
             "/api/platform/tenants",
             policy,
-            handler)));
+            handler)), grants);
         handler.invocations.clear();
+    }
+
+    private static EndpointAccessPolicy tenantEndpoint(String tokenPolicy, String permission) {
+        return EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "required", "policyRef", tokenPolicy),
+            Map.of("permissions", List.of(permission)),
+            Map.of("mode", "required"));
+    }
+
+    private static TenantGrantTable grants() {
+        return TenantGrantTable.build(List.of(
+            new TenantGrantTable.PermissionDeclaration("plugin-a", ORDER_READ, List.of(
+                new TenantGrantTable.Grant("OWNER", "TENANT"),
+                new TenantGrantTable.Grant("ADMIN", "TENANT"),
+                new TenantGrantTable.Grant("MEMBER", "SELF"))),
+            new TenantGrantTable.PermissionDeclaration("plugin-a", MY_ORDER_READ, List.of(
+                new TenantGrantTable.Grant("CUSTOMER", "SELF")))), List.of());
+    }
+
+    private static Map<String, List<String>> tenantCaller(
+            String tenantId,
+            String tokenRole,
+            String tenantRoleType,
+            String tenantRefId,
+            String... permissions) {
+        Map<String, List<String>> headers = new LinkedHashMap<>(
+            caller("2001", tenantId, tokenRole, "access", tokenRole, permissions));
+        headers.put("x-auth-tenant-role-type", List.of(tenantRoleType));
+        headers.put("x-auth-tenant-ref-id", List.of(tenantRefId));
+        return Map.copyOf(headers);
     }
 
     private Object invoke(Map<String, List<String>> headers) {

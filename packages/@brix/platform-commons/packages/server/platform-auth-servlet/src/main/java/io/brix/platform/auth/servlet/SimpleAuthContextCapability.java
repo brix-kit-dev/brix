@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
+import io.brix.platform.auth.enums.TokenRole;
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.DataScope;
@@ -188,6 +189,28 @@ public class SimpleAuthContextCapability implements AuthCapability {
             return user.getPermissions().stream()
                     .filter(permission -> permission != null && !permission.isBlank())
                     .collect(Collectors.toUnmodifiableSet());
+        }
+
+        @Override
+        public String getTenantRoleType() {
+            if (user.getTokenRole() == TokenRole.ACTOR) {
+                return user.getMemberType();
+            }
+            if (user.getTokenRole() == TokenRole.SUBJECT) {
+                return user.getPrincipalType();
+            }
+            return null;
+        }
+
+        @Override
+        public String getTenantRefId() {
+            if (user.getTokenRole() == TokenRole.ACTOR) {
+                return user.getMemberId();
+            }
+            if (user.getTokenRole() == TokenRole.SUBJECT) {
+                return user.getPrincipalId();
+            }
+            return null;
         }
 
         @Override

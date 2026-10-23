@@ -42,6 +42,9 @@ import java.util.Set;
  * @param allowedActions restricted actions allowed by the authenticated token
  * @param traceId request trace identifier, when available
  * @param deadline absolute invocation deadline
+ * @param access authorization result of the Dispatcher; {@link AccessDecision#none()}
+ *        when the endpoint declares no permission and has no verified tenant caller
+ *        (since 3.2.0)
  * @param <I> request body type
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -58,7 +61,8 @@ public record EndpointInvocation<I>(
         Optional<String> tokenType,
         Set<String> allowedActions,
         Optional<String> traceId,
-        Instant deadline) {
+        Instant deadline,
+        AccessDecision access) {
 
     /**
      * Creates an immutable endpoint invocation.
@@ -75,6 +79,39 @@ public record EndpointInvocation<I>(
         allowedActions = allowedActions != null ? Set.copyOf(allowedActions) : Set.of();
         traceId = traceId != null ? traceId : Optional.empty();
         deadline = Objects.requireNonNull(deadline, "deadline must not be null");
+        access = access != null ? access : AccessDecision.none();
+    }
+
+    /**
+     * Creates an invocation without an authorization result.
+     */
+    public EndpointInvocation(
+            I body,
+            Map<String, String> pathVariables,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Optional<String> tenantId,
+            Optional<String> actorId,
+            Optional<String> identityEmail,
+            Optional<String> tokenRole,
+            Optional<String> tokenType,
+            Set<String> allowedActions,
+            Optional<String> traceId,
+            Instant deadline) {
+        this(
+            body,
+            pathVariables,
+            queryParameters,
+            headers,
+            tenantId,
+            actorId,
+            identityEmail,
+            tokenRole,
+            tokenType,
+            allowedActions,
+            traceId,
+            deadline,
+            AccessDecision.none());
     }
 
     /**

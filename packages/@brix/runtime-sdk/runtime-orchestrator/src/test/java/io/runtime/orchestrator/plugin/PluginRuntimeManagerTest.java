@@ -29,7 +29,9 @@ import org.junit.jupiter.api.Test;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.EndpointAccessDeniedException;
+import io.runtime.orchestrator.endpoint.EndpointDispatchException;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
@@ -266,6 +268,7 @@ class PluginRuntimeManagerTest {
             candidate -> Optional.of(PluginRuntimeDescriptor.builder("plugin-a")
                 .endpoint("tenant.list", "GET", "/api/v1/tenants",
                     TestEndpointAccessPolicies.authenticated("tenant:admin:read"))
+                .permission("tenant:admin:read", List.of())
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"),
@@ -281,6 +284,29 @@ class PluginRuntimeManagerTest {
         assertEquals("ok", dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of(
             "x-actor-id", List.of("1001"),
             "x-auth-permission", List.of("tenant:admin:read"))));
+    }
+
+    @Test
+    void invalidTenantGrantStopsStartupBeforePluginStartAndPublication() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.endpointId = "tenant.list";
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(java.time.Duration.ofSeconds(30));
+        PluginRuntimeManager manager = new PluginRuntimeManager(
+            () -> List.of(plugin),
+            candidate -> Optional.of(PluginRuntimeDescriptor.builder("plugin-a")
+                .endpoint("tenant.list", "GET", "/api/v1/tenants",
+                    TestEndpointAccessPolicies.authenticated("tenant:admin:read"))
+                .permission("tenant:admin:read", List.of(new TenantGrantTable.Grant("CUSTOMER", "TENANT")))
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"),
+            dispatcher);
+
+        EndpointDispatchException invalid = assertThrows(EndpointDispatchException.class, manager::start);
+
+        assertTrue(invalid.getMessage().contains("Subject roles may only receive SELF"), invalid.getMessage());
+        assertFalse(plugin.started, "plugins must not start after a failed B2 grant check");
+        assertTrue(dispatcher.routes().isEmpty());
     }
 
     @Test

@@ -47,6 +47,7 @@ import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
 import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.TenantGrantTable;
 
 /**
  * L2B runtime manager for v3.0.10 backend plugins.
@@ -219,8 +220,9 @@ public final class PluginRuntimeManager {
     public synchronized List<PluginRuntimeState> start() {
         prepare();
         EndpointRouteValidator.validate(preparedRouteDeclarations());
+        TenantGrantTable grants = preparedGrantTable();
         startPrepared();
-        endpointDispatcher.replaceSnapshot(preparedRoutes());
+        endpointDispatcher.replaceSnapshot(preparedRoutes(), grants);
         markPublished();
         return states();
     }
@@ -303,6 +305,39 @@ public final class PluginRuntimeManager {
             }
         }
         return List.copyOf(declarations);
+    }
+
+    /**
+     * Builds the tenant grant table of the resolved plugins for the Host B2 barrier.
+     *
+     * <p>Collects every permission catalog entry and endpoint access policy of
+     * the resolved plugins and validates them together, so an invalid grant or
+     * an endpoint that references an undeclared permission stops startup before
+     * any entry is published.</p>
+     *
+     * @return immutable grant table of this entry generation
+     */
+    public synchronized TenantGrantTable preparedGrantTable() {
+        List<TenantGrantTable.PermissionDeclaration> permissions = new ArrayList<>();
+        List<TenantGrantTable.EndpointPolicyDeclaration> endpoints = new ArrayList<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() != PluginLifecycleState.RESOLVED) {
+                continue;
+            }
+            for (PluginRuntimeDescriptor.PermissionDeclaration permission
+                    : plugin.descriptor.permissionDeclarations()) {
+                permissions.add(new TenantGrantTable.PermissionDeclaration(
+                    plugin.id(), permission.id(), permission.grants()));
+            }
+            for (PluginRuntimeDescriptor.EndpointDeclaration endpoint
+                    : plugin.descriptor.endpointDeclarations().values()) {
+                if (endpoint.accessPolicy() != null) {
+                    endpoints.add(new TenantGrantTable.EndpointPolicyDeclaration(
+                        plugin.id(), endpoint.id(), endpoint.accessPolicy()));
+                }
+            }
+        }
+        return TenantGrantTable.build(permissions, endpoints);
     }
 
     /**

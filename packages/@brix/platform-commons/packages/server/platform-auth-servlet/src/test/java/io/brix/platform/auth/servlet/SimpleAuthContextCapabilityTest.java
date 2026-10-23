@@ -50,6 +50,38 @@ class SimpleAuthContextCapabilityTest {
     }
 
     @Test
+    void principalExposesTenantRoleTypeAndReferenceOfItsTokenClass() {
+        AuthenticatedUser actor = new AuthenticatedUser();
+        actor.setUserId("2001");
+        actor.setTokenRole(TokenRole.ACTOR);
+        actor.setMemberId("77");
+        actor.setMemberType("MEMBER");
+        holder.setCurrentUser(actor);
+        AuthenticatedPrincipal actorPrincipal = (AuthenticatedPrincipal) capability.getCurrentPrincipal();
+        assertThat(actorPrincipal.getTenantRoleType()).isEqualTo("MEMBER");
+        assertThat(actorPrincipal.getTenantRefId()).isEqualTo("77");
+
+        AuthenticatedUser subject = new AuthenticatedUser();
+        subject.setUserId("3001");
+        subject.setTokenRole(TokenRole.SUBJECT);
+        subject.setPrincipalId("9");
+        subject.setPrincipalType("CUSTOMER");
+        holder.setCurrentUser(subject);
+        AuthenticatedPrincipal subjectPrincipal = (AuthenticatedPrincipal) capability.getCurrentPrincipal();
+        assertThat(subjectPrincipal.getTenantRoleType()).isEqualTo("CUSTOMER");
+        assertThat(subjectPrincipal.getTenantRefId()).isEqualTo("9");
+
+        AuthenticatedUser platform = new AuthenticatedUser();
+        platform.setUserId("1001");
+        platform.setTokenRole(TokenRole.PLATFORM_ADMIN);
+        platform.setMemberType("OWNER");
+        holder.setCurrentUser(platform);
+        AuthenticatedPrincipal platformPrincipal = (AuthenticatedPrincipal) capability.getCurrentPrincipal();
+        assertThat(platformPrincipal.getTenantRoleType()).isNull();
+        assertThat(platformPrincipal.getTenantRefId()).isNull();
+    }
+
+    @Test
     void principalWithoutPermissionClaimGrantsNothing() {
         AuthenticatedUser user = new AuthenticatedUser();
         user.setUserId("1001");

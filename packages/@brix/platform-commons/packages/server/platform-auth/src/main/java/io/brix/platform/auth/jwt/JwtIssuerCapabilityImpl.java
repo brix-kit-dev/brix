@@ -145,8 +145,8 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         claims.put(CLAIM_MEMBER_TYPE, request.memberType());
         claims.put(CLAIM_MEMBER_AUTHZ_VERSION, request.authzVersion());
         claims.put(CLAIM_ROLES, request.roles() != null ? request.roles() : Collections.emptyList());
-        claims.put(CLAIM_PERMISSIONS,
-                request.permissions() != null ? request.permissions() : Collections.emptyList());
+        // multi-tenant 5.1 T-30: tenant tokens carry no permission list; the Runtime
+        // grant table expands the verified mtype on every request.
         return signToken(claims, properties.getAccessTokenExpirationSeconds());
     }
 
@@ -167,8 +167,8 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         if (request.displayName() != null) {
             claims.put(CLAIM_DISPLAY_NAME, request.displayName());
         }
-        claims.put(CLAIM_ROLES, Collections.emptyList());
-        claims.put(CLAIM_PERMISSIONS, Collections.emptyList());
+        // multi-tenant §8: Subject Tokens have no roles or permissions claims; the
+        // Runtime grant table expands the verified ptype on every request.
         return signToken(claims, properties.getAccessTokenExpirationSeconds());
     }
 

@@ -76,4 +76,31 @@ public interface AuthenticatedPrincipal extends TenantAwarePrincipal {
     default Set<String> getPermissions() {
         return Set.of();
     }
+
+    /**
+     * Returns the verified tenant role type of a tenant token: the member type
+     * ({@code OWNER}, {@code ADMIN}, {@code MEMBER}) of an actor token or the
+     * principal type ({@code CUSTOMER}, {@code GUEST}) of a subject token.
+     *
+     * <p>Runtime endpoint dispatchers expand it through the Runtime grant table
+     * into the effective permissions of tenant callers; permission lists
+     * carried by tenant tokens are never trusted.</p>
+     *
+     * @return tenant role type, or {@code null} for non-tenant tokens
+     * @since 3.2.0
+     */
+    default String getTenantRoleType() {
+        return null;
+    }
+
+    /**
+     * Returns the verified member id of an actor token or principal id of a
+     * subject token.
+     *
+     * @return tenant member or principal id, or {@code null} for non-tenant tokens
+     * @since 3.2.0
+     */
+    default String getTenantRefId() {
+        return null;
+    }
 }

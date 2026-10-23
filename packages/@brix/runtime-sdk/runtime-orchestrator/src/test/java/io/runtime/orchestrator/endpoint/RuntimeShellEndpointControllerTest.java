@@ -105,6 +105,36 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
+    void dispatchForwardsOnlyVerifiedTenantRoleTypeAndReference() {
+        CapturingDispatcher dispatcher = new CapturingDispatcher();
+        RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
+            dispatcher,
+            () -> new TenantAuthCapability("2001", "42", "actor", "MEMBER", "77"));
+
+        controller.dispatch(null, request(Map.of(
+            "X-Auth-Tenant-Role-Type", List.of("OWNER"),
+            "X-Auth-Tenant-Ref-Id", List.of("1"))));
+
+        assertEquals(List.of("MEMBER"), dispatcher.headers.get("x-auth-tenant-role-type"));
+        assertEquals(List.of("77"), dispatcher.headers.get("x-auth-tenant-ref-id"));
+    }
+
+    @Test
+    void dispatchDropsClientTenantRoleHeadersWhenNoVerifiedPrincipalExists() {
+        CapturingDispatcher dispatcher = new CapturingDispatcher();
+        RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
+            dispatcher,
+            () -> new TestAuthCapability(null, null));
+
+        controller.dispatch(null, request(Map.of(
+            "X-Auth-Tenant-Role-Type", List.of("OWNER"),
+            "X-Auth-Tenant-Ref-Id", List.of("1"))));
+
+        assertFalse(dispatcher.headers.containsKey("x-auth-tenant-role-type"));
+        assertFalse(dispatcher.headers.containsKey("x-auth-tenant-ref-id"));
+    }
+
+    @Test
     void dispatchDropsClientPermissionHeadersWhenNoVerifiedPrincipalExists() {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
@@ -264,6 +294,92 @@ class RuntimeShellEndpointControllerTest {
         @Override
         public String getTenantId() {
             return tenantId;
+        }
+    }
+
+    private record TenantAuthCapability(
+            String actorId,
+            String tenantId,
+            String tokenRole,
+            String tenantRoleType,
+            String tenantRefId) implements AuthCapability {
+
+        @Override
+        public Principal getCurrentPrincipal() {
+            return new TenantPrincipal(actorId, tenantId, tokenRole, tenantRoleType, tenantRefId);
+        }
+
+        @Override
+        public boolean hasPermission(String permission) {
+            return false;
+        }
+
+        @Override
+        public boolean hasRole(String role) {
+            return false;
+        }
+
+        @Override
+        public Set<DataScope> getAuthorizedScopes() {
+            return Set.of();
+        }
+
+        @Override
+        public String getTenantId() {
+            return tenantId;
+        }
+    }
+
+    private record TenantPrincipal(
+            String userId,
+            String tenantId,
+            String tokenRole,
+            String tenantRoleType,
+            String tenantRefId) implements AuthenticatedPrincipal {
+
+        @Override
+        public String getName() {
+            return userId;
+        }
+
+        @Override
+        public String getUserId() {
+            return userId;
+        }
+
+        @Override
+        public String getTenantId() {
+            return tenantId;
+        }
+
+        @Override
+        public String getEmail() {
+            return null;
+        }
+
+        @Override
+        public String getTokenRole() {
+            return tokenRole;
+        }
+
+        @Override
+        public String getTokenType() {
+            return "access";
+        }
+
+        @Override
+        public String getTokenScope() {
+            return tokenRole;
+        }
+
+        @Override
+        public String getTenantRoleType() {
+            return tenantRoleType;
+        }
+
+        @Override
+        public String getTenantRefId() {
+            return tenantRefId;
         }
     }
 

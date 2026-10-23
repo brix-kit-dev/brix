@@ -147,8 +147,9 @@ public interface JwtIssuerCapability {
      * @param tenantId     租户 ID
      * @param memberId     租户成员 ID（{@code sys_tenant_member.id}），写入 {@code mid} claim
      * @param memberType   成员类型（OWNER / ADMIN / MEMBER），写入 {@code mtype} claim
-     * @param roles        角色编码列表（不可为 {@code null}，可为空）
-     * @param permissions  权限编码列表（不可为 {@code null}，可为空）
+     * @param roles        角色编码列表（不可为 {@code null}，可为空）；不参与授权
+     * @param permissions  保留以兼容旧调用方，不写入 Token：租户有效权限只由 Runtime 授予表按
+     *                     {@code mtype} 计算（multi-tenant 5.1 T-30）
      * @param tokenVersion 令牌版本号（A3，写入 {@code tv} claim；与 DB 值不符则令牌失效）
      */
     record ActorTokenRequest(

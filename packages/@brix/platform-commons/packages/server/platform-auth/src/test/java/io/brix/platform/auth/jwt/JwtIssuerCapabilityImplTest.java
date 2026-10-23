@@ -19,7 +19,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.brix.platform.auth.context.AuthenticatedUser;
+import io.runtime.sdk.capability.JwtIssuerCapability.ActorTokenRequest;
 import io.runtime.sdk.capability.JwtIssuerCapability.PlatformAdminTokenRequest;
+import io.runtime.sdk.capability.JwtIssuerCapability.SubjectTokenRequest;
 
 class JwtIssuerCapabilityImplTest {
 
@@ -59,6 +61,29 @@ class JwtIssuerCapabilityImplTest {
         assertFalse(claims.containsKey("tenant_id"));
         assertEquals(List.of("platform:admin:read", "platform:audit:read"), permissions);
         assertFalse(permissions.contains("platform:bypass"));
+    }
+
+    @Test
+    void tenantAccessTokensCarryNoPermissionList(@TempDir Path tempDir) throws Exception {
+        JwtProperties properties = new JwtProperties();
+        TestKeys keys = writeKeys(tempDir);
+        properties.setPrivateKeyPath(keys.privateKeyPath().toUri().toString());
+        JwtIssuerCapabilityImpl issuer = new JwtIssuerCapabilityImpl(properties, objectMapper);
+
+        Map<String, Object> actor = decodePayload(issuer.issueActorAccessToken(new ActorTokenRequest(
+                21L, "staff@example.invalid", "staff", 42L, 7L, "MEMBER",
+                List.of("MEMBER"), List.of("tenant:member:read"), 1L, "ctx-actor", 3L)));
+        Map<String, Object> subject = decodePayload(issuer.issueSubjectAccessToken(new SubjectTokenRequest(
+                31L, "patient@example.invalid", "patient", 42L, 9L, "CUSTOMER",
+                "Patient", 1L, "ctx-subject", 2L)));
+
+        assertEquals("MEMBER", actor.get("mtype"));
+        assertEquals(3, ((Number) actor.get("mver")).intValue());
+        assertFalse(actor.containsKey("permissions"), "actor tokens must not carry a permission list (T-30)");
+        assertEquals("CUSTOMER", subject.get("ptype"));
+        assertEquals(2, ((Number) subject.get("pver")).intValue());
+        assertFalse(subject.containsKey("roles"), "subject tokens have no roles claim (multi-tenant §8)");
+        assertFalse(subject.containsKey("permissions"), "subject tokens must not carry a permission list (T-30)");
     }
 
     @Test

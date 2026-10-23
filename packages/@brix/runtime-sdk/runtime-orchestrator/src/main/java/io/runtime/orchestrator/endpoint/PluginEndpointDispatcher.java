@@ -37,6 +37,20 @@ public interface PluginEndpointDispatcher {
     void replaceSnapshot(Collection<EndpointRoute> routes);
 
     /**
+     * Atomically replaces the complete Host route snapshot together with the
+     * tenant grant table of the same entry generation.
+     *
+     * <p>Dispatchers that do not authorize tenant callers ignore the table.</p>
+     *
+     * @param routes manifest-backed routes
+     * @param grants tenant grant table built from the same selected plugins
+     * @since 3.2.0
+     */
+    default void replaceSnapshot(Collection<EndpointRoute> routes, TenantGrantTable grants) {
+        replaceSnapshot(routes);
+    }
+
+    /**
      * Invokes a published endpoint.
      *
      * @param method request method

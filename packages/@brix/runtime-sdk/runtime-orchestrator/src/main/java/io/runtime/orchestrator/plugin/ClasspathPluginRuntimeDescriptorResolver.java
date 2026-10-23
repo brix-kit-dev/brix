@@ -35,6 +35,7 @@ import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.manifest.validation.PluginManifestValidator;
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.BrixPlugin;
 
@@ -250,6 +251,11 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         accessPolicy(manifest.pluginId(), route));
                 }
             }
+            for (PluginManifest.Permission permission : manifest.getPermissions()) {
+                if (permission != null && permission.getId() != null && !permission.getId().isBlank()) {
+                    builder.permission(permission.getId(), grants(permission));
+                }
+            }
             return builder.build();
         } catch (IOException e) {
             throw new PluginRuntimeException("Failed to read plugin manifest " + manifestUrl, e);
@@ -266,6 +272,16 @@ public final class ClasspathPluginRuntimeDescriptorResolver
             throw new PluginRuntimeException("Plugin '" + pluginId + "' endpoint '" + route.getEndpointId()
                 + "' declares an invalid access policy: " + e.getMessage(), e);
         }
+    }
+
+    private static List<TenantGrantTable.Grant> grants(PluginManifest.Permission permission) {
+        List<TenantGrantTable.Grant> grants = new ArrayList<>();
+        for (PluginManifest.Grant grant : permission.getGrants()) {
+            if (grant != null) {
+                grants.add(new TenantGrantTable.Grant(grant.getRole(), grant.getScope()));
+            }
+        }
+        return grants;
     }
 
     private PluginRuntimeDescriptor loadLegacyJsonDescriptor(URL manifestUrl) {

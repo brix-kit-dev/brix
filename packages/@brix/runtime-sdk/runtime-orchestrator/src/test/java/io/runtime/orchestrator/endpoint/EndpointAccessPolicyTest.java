@@ -143,6 +143,42 @@ class EndpointAccessPolicyTest {
         assertTrue(EndpointAccessPolicy.TokenPolicy.ANY_VERIFIED.accepts(null, null, null));
     }
 
+    @Test
+    void tenantTokenPoliciesSeparateManagementAndEndUserApis() {
+        EndpointAccessPolicy.TokenPolicy actor = EndpointAccessPolicy.TokenPolicy.TENANT_ACTOR;
+        assertTrue(actor.accepts("actor", "access", "actor"));
+        assertFalse(actor.accepts("subject", "access", "subject"));
+        assertFalse(actor.accepts("actor", "identity", "identity"));
+        assertFalse(actor.accepts("actor", "access", "subject"));
+        assertFalse(actor.accepts("platform-admin", "access", "PLATFORM"));
+        assertEquals(java.util.Optional.of("actor"), actor.tenantTokenRole());
+
+        EndpointAccessPolicy.TokenPolicy subject = EndpointAccessPolicy.TokenPolicy.TENANT_SUBJECT;
+        assertTrue(subject.accepts("subject", "access", "subject"));
+        assertFalse(subject.accepts("actor", "access", "actor"));
+        assertFalse(subject.accepts(null, null, null));
+        assertEquals(java.util.Optional.of("subject"), subject.tenantTokenRole());
+
+        assertTrue(EndpointAccessPolicy.TokenPolicy.AUTHENTICATED_USER.tenantTokenRole().isEmpty());
+        assertTrue(EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN.tenantTokenRole().isEmpty());
+    }
+
+    @Test
+    void requiredTenantContextNeedsATenantTokenPolicy() {
+        Map<String, Object> permission = Map.of("permissions", List.of("example:order:read"));
+        Map<String, Object> requiredTenant = Map.of("mode", "required");
+        assertRejected(Map.of("mode", "required", "policyRef", "authenticated-user"), permission, requiredTenant);
+        assertRejected(Map.of("mode", "required", "policyRef", "platform-token"), permission, requiredTenant);
+        assertRejected(Map.of("mode", "required"), permission, requiredTenant);
+
+        EndpointAccessPolicy actor = EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "required", "policyRef", "tenant-actor"), permission, requiredTenant);
+        EndpointAccessPolicy subject = EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "required", "policyRef", "tenant-subject"), permission, requiredTenant);
+        assertEquals(EndpointAccessPolicy.TokenPolicy.TENANT_ACTOR, actor.tokenPolicy());
+        assertEquals(EndpointAccessPolicy.TokenPolicy.TENANT_SUBJECT, subject.tokenPolicy());
+    }
+
     private static void assertRejected(
             Map<String, ?> authentication,
             Map<String, ?> authorization,

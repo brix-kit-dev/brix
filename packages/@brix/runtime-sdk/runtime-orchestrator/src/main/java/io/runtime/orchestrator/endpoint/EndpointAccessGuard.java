@@ -15,12 +15,18 @@
  */
 package io.runtime.orchestrator.endpoint;
 
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.runtime.sdk.plugin.AccessDecision;
+import io.runtime.sdk.plugin.AccessScope;
 
 /**
  * Enforces a route's declared {@link EndpointAccessPolicy} before its handler
@@ -29,6 +35,11 @@ import org.slf4j.LoggerFactory;
  * <p>Implements the authentication, tenant context and permission steps of the
  * Dispatcher interception order, in that order. Every check is fail-closed:
  * missing verified attributes deny the invocation.</p>
+ *
+ * <p>Tenant actor and subject callers get their effective permissions only
+ * from the {@link TenantGrantTable}, by their verified tenant role type; a
+ * permission list forwarded for them is ignored. Platform callers keep the
+ * verified permissions of their token.</p>
  *
  * @author Runtime SDK Team
  * @since 3.2.0
@@ -42,13 +53,15 @@ final class EndpointAccessGuard {
 
     /**
      * Rejects the invocation unless the verified caller satisfies the route
-     * access policy.
+     * access policy, and returns the authorization result for the handler.
      *
      * @param route matched route
      * @param caller Runtime-verified caller attributes
+     * @param grants grant table of the published entry generation
+     * @return authorization result handed to the handler
      * @throws EndpointAccessDeniedException when the policy is not satisfied
      */
-    static void enforce(EndpointRoute route, Caller caller) {
+    static AccessDecision enforce(EndpointRoute route, Caller caller, TenantGrantTable grants) {
         EndpointAccessPolicy policy = route.accessPolicy();
         if (policy.requiresVerifiedPrincipal()) {
             if (caller.actorId().isEmpty()) {
@@ -73,7 +86,28 @@ final class EndpointAccessGuard {
             throw deny(route, 403, EndpointAccessDeniedException.TENANT_CONTEXT_REQUIRED,
                 "This endpoint requires a tenant context");
         }
-        if (!policy.decision().satisfiedBy(policy.permissions(), caller.permissions())) {
+        if (caller.isTenantUser()) {
+            Map<String, AccessScope> effective = grants.effectivePermissions(
+                caller.tokenRole().orElseThrow(),
+                caller.tenantRoleType().orElse(null));
+            requirePermissions(route, policy, effective.keySet());
+            Map<String, AccessScope> held = new LinkedHashMap<>();
+            for (String permission : policy.permissions()) {
+                AccessScope scope = effective.get(permission);
+                if (scope != null) {
+                    held.put(permission, scope);
+                }
+            }
+            return new AccessDecision(held.keySet(), held, caller.tenantRoleType(), caller.tenantRefId());
+        }
+        requirePermissions(route, policy, caller.permissions());
+        Set<String> held = new LinkedHashSet<>(policy.permissions());
+        held.retainAll(caller.permissions());
+        return new AccessDecision(held, Map.of(), Optional.empty(), Optional.empty());
+    }
+
+    private static void requirePermissions(EndpointRoute route, EndpointAccessPolicy policy, Set<String> granted) {
+        if (!policy.decision().satisfiedBy(policy.permissions(), granted)) {
             throw deny(route, 403, EndpointAccessDeniedException.PERMISSION_DENIED,
                 "Permission denied");
         }
@@ -102,7 +136,9 @@ final class EndpointAccessGuard {
      * @param tokenRole verified token role
      * @param tokenType verified token type
      * @param tokenScope verified token scope
-     * @param permissions verified permission IDs
+     * @param permissions verified permission IDs of a platform token; ignored for tenant users
+     * @param tenantRoleType verified member type of an actor or principal type of a subject
+     * @param tenantRefId verified member id of an actor or principal id of a subject
      */
     record Caller(
             Optional<String> actorId,
@@ -110,7 +146,9 @@ final class EndpointAccessGuard {
             Optional<String> tokenRole,
             Optional<String> tokenType,
             Optional<String> tokenScope,
-            Set<String> permissions) {
+            Set<String> permissions,
+            Optional<String> tenantRoleType,
+            Optional<String> tenantRefId) {
 
         /**
          * Defensively copies caller attributes.
@@ -122,6 +160,18 @@ final class EndpointAccessGuard {
             tokenType = Objects.requireNonNull(tokenType, "tokenType must not be null");
             tokenScope = Objects.requireNonNull(tokenScope, "tokenScope must not be null");
             permissions = Set.copyOf(Objects.requireNonNull(permissions, "permissions must not be null"));
+            tenantRoleType = Objects.requireNonNull(tenantRoleType, "tenantRoleType must not be null");
+            tenantRefId = Objects.requireNonNull(tenantRefId, "tenantRefId must not be null");
+        }
+
+        /**
+         * Returns whether the caller presents a tenant actor or subject token,
+         * whose permissions only the grant table may supply.
+         *
+         * @return {@code true} for token role {@code actor} or {@code subject}
+         */
+        boolean isTenantUser() {
+            return tokenRole.filter(role -> "actor".equals(role) || "subject".equals(role)).isPresent();
         }
     }
 }

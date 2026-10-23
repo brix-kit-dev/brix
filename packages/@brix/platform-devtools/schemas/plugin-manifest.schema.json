@@ -345,7 +345,22 @@
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string" },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "grants": {
+          "type": "array",
+          "description": "Default grants of this permission to built-in tenant roles (multi-tenant 5.1 §9.8). Subject roles may only receive SELF.",
+          "items": { "$ref": "#/definitions/permissionGrant" },
+          "default": []
+        }
+      }
+    },
+    "permissionGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "scope"],
+      "properties": {
+        "role": { "type": "string", "enum": ["OWNER", "ADMIN", "MEMBER", "CUSTOMER", "GUEST"] },
+        "scope": { "type": "string", "enum": ["TENANT", "SELF"] }
       }
     },
     "configEntry": {

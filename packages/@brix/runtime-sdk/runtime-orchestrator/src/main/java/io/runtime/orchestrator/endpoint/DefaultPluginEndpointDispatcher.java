@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 
@@ -52,10 +53,13 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     private static final String TOKEN_TYPE_HEADER = "x-auth-token-type";
     private static final String TOKEN_SCOPE_HEADER = "x-auth-token-scope";
     private static final String PERMISSION_HEADER = "x-auth-permission";
+    private static final String TENANT_ROLE_TYPE_HEADER = "x-auth-tenant-role-type";
+    private static final String TENANT_REF_HEADER = "x-auth-tenant-ref-id";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
     private static final String TRACE_HEADER = "x-trace-id";
 
-    private final AtomicReference<List<EndpointRoute>> snapshot = new AtomicReference<>(List.of());
+    private final AtomicReference<Snapshot> snapshot =
+        new AtomicReference<>(new Snapshot(List.of(), TenantGrantTable.empty()));
     private final Duration endpointDeadline;
     private final EndpointInvocationBoundary invocationBoundary;
 
@@ -87,7 +91,16 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
      */
     @Override
     public void replaceSnapshot(Collection<EndpointRoute> routes) {
+        replaceSnapshot(routes, TenantGrantTable.empty());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void replaceSnapshot(Collection<EndpointRoute> routes, TenantGrantTable grants) {
         Objects.requireNonNull(routes, "routes must not be null");
+        Objects.requireNonNull(grants, "grants must not be null");
         List<EndpointRoute> normalized = List.copyOf(routes);
         EndpointRouteValidator.validate(normalized.stream()
             .map(route -> new EndpointRouteDeclaration(
@@ -96,7 +109,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
                 route.method(),
                 route.path()))
             .toList());
-        snapshot.set(normalized);
+        snapshot.set(new Snapshot(normalized, grants));
     }
 
     /**
@@ -113,17 +126,20 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         String normalizedPath = normalizePath(path);
         Map<String, List<String>> normalizedHeaders = normalizeHeaders(headers);
 
-        RouteMatch match = findRoute(normalizedMethod, normalizedPath)
+        Snapshot current = snapshot.get();
+        RouteMatch match = findRoute(current.routes(), normalizedMethod, normalizedPath)
             .orElseThrow(() -> new EndpointDispatchException(
                 "No published Runtime Shell endpoint for " + normalizedMethod + " " + normalizedPath));
 
-        EndpointAccessGuard.enforce(match.route(), new EndpointAccessGuard.Caller(
+        AccessDecision access = EndpointAccessGuard.enforce(match.route(), new EndpointAccessGuard.Caller(
             firstHeader(normalizedHeaders, ACTOR_HEADER),
             firstHeader(normalizedHeaders, TENANT_HEADER),
             firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER),
             firstHeader(normalizedHeaders, TOKEN_TYPE_HEADER),
             firstHeader(normalizedHeaders, TOKEN_SCOPE_HEADER),
-            headerValues(normalizedHeaders, PERMISSION_HEADER)));
+            headerValues(normalizedHeaders, PERMISSION_HEADER),
+            firstHeader(normalizedHeaders, TENANT_ROLE_TYPE_HEADER),
+            firstHeader(normalizedHeaders, TENANT_REF_HEADER)), current.grants());
 
         EndpointInvocation<Object> invocation = new EndpointInvocation<>(
             body,
@@ -137,7 +153,8 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             firstHeader(normalizedHeaders, TOKEN_TYPE_HEADER),
             headerValues(normalizedHeaders, ALLOWED_ACTION_HEADER),
             firstHeader(normalizedHeaders, TRACE_HEADER),
-            Instant.now().plus(endpointDeadline));
+            Instant.now().plus(endpointDeadline),
+            access);
         return invokeHandler(match.route(), invocation);
     }
 
@@ -146,7 +163,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
      */
     @Override
     public List<EndpointRoute> routes() {
-        return snapshot.get();
+        return snapshot.get().routes();
     }
 
     @SuppressWarnings("unchecked")
@@ -161,9 +178,9 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         }
     }
 
-    private Optional<RouteMatch> findRoute(String method, String path) {
+    private static Optional<RouteMatch> findRoute(List<EndpointRoute> routes, String method, String path) {
         List<RouteMatch> matches = new ArrayList<>();
-        for (EndpointRoute route : snapshot.get()) {
+        for (EndpointRoute route : routes) {
             if (!route.method().equals(method)) {
                 continue;
             }
@@ -257,5 +274,11 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     }
 
     private record RouteMatch(EndpointRoute route, Map<String, String> pathVariables) {
+    }
+
+    /**
+     * Routes and tenant grants of one published entry generation, swapped together.
+     */
+    private record Snapshot(List<EndpointRoute> routes, TenantGrantTable grants) {
     }
 }

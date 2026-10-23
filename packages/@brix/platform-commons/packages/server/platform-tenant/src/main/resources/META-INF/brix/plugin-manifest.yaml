@@ -87,6 +87,60 @@ permissions:
   - id: platform:tenant:create
   - id: platform:tenant:first-owner-invite
   - id: tenant:first-owner:accept
+  - id: tenant:profile:read
+    name: Read tenant profile
+    description: Allows reading the basic information of the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
+  - id: tenant:member:read
+    name: Read tenant members
+    description: Allows reading tenant members; MEMBER sees only its own record.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: SELF}
+  - id: tenant:member:invite
+    name: Invite tenant members
+    description: Allows inviting members and resending or revoking member invitations.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+  - id: tenant:member:update-role
+    name: Change member role
+    description: Allows changing a member between ADMIN and MEMBER.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+  - id: tenant:member:disable
+    name: Disable tenant members
+    description: Allows disabling and restoring members.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+  - id: tenant:member:reset-mfa
+    name: Reset member MFA
+    description: Allows resetting the MFA factors of a member after re-verification (BRX-TENANT-AUTH-002).
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+  - id: tenant:owner:transfer
+    name: Transfer tenant ownership
+    description: Allows appointing an OWNER and transferring ownership (T-18).
+    grants:
+      - {role: OWNER, scope: TENANT}
+  - id: tenant:security:update
+    name: Update tenant security settings
+    description: Allows changing mfa_policy and other security settings (BRX-TENANT-AUTH-001).
+    grants:
+      - {role: OWNER, scope: TENANT}
+  - id: tenant:audit:read
+    name: Read tenant audit
+    description: Allows reading the tenant audit log.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
 config: []
 ui:
   web:
