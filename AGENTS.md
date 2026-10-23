@@ -21,6 +21,6 @@ If the sibling repository or control plane is unavailable, stop. Do not fall bac
 - `rebaseRequired=true` blocks claims of `Implementation Accepted` or `GA`; disclose it when relevant.
 - On a missing baseline, validation failure, hash mismatch, ambiguous domain, version conflict, inheritance conflict, or SSoT conflict: `停止施工`, stop before editing, and report it.
 
-Frontend work requires the active `frontend` blueprint. Platform administrator work requires `super-admin`. Tenant isolation, context, identity, token, or tenant data work requires `multi-tenant`. Authentication, login, credential, MFA, session, hosted login, BFF, or identity-provider work requires `identity-auth`. Cross-domain work requires all affected active specialized blueprints.
+Frontend work requires the active `frontend` blueprint. Platform administrator work requires `super-admin`. Tenant isolation, context, identity, token, tenant data, or tenant authorization (roles, permissions, grants, data scopes) work requires `multi-tenant`. Authentication, login, credential, MFA, session, hosted login, BFF, or identity-provider work requires `identity-auth`. Cross-domain work requires all affected active specialized blueprints.
 
 Never silently modify a frozen blueprint. Architecture changes require a new version, hash-locked registry record, explicit status transition, and review evidence.
