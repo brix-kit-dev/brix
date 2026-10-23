@@ -1,4 +1,7 @@
 # Dependabot configuration for automated dependency updates.
+# Version updates are turned off: open-pull-requests-limit is 0 for every
+# ecosystem, so Dependabot opens no update branches or pull requests.
+# Raise the limit on an entry to turn its updates back on.
 # See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
 
 version: 2
@@ -10,7 +13,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -22,7 +25,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -32,7 +35,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -43,7 +46,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - javascript
@@ -53,6 +56,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - ci
