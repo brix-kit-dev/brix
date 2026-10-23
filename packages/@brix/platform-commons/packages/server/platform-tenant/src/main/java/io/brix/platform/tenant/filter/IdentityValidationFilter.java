@@ -127,18 +127,18 @@ public class IdentityValidationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Validate Actor track: mid → sys_tenant_member
+        // Validate Actor track: mid → sys_tenant_member of the token's tenant
         if (user.getMemberId() != null) {
-            if (!validateMemberId(user.getMemberId(), request)) {
+            if (!validateMemberId(user.getMemberId(), user.getTenantId(), request)) {
                 writeUnauthorized(response, "Invalid member identity");
                 securityContextHolder.clear();
                 return;
             }
         }
 
-        // Validate Subject track: pid → sys_tenant_principal
+        // Validate Subject track: pid → sys_tenant_principal of the token's tenant
         if (user.getPrincipalId() != null) {
-            if (!validatePrincipalId(user.getPrincipalId(), request)) {
+            if (!validatePrincipalId(user.getPrincipalId(), user.getTenantId(), request)) {
                 writeUnauthorized(response, "Invalid principal identity");
                 securityContextHolder.clear();
                 return;
@@ -155,10 +155,12 @@ public class IdentityValidationFilter extends OncePerRequestFilter {
      * @param request  the current HTTP request (for logging context)
      * @return true if valid, false if not found or parse error
      */
-    private boolean validateMemberId(String memberId, HttpServletRequest request) {
+    private boolean validateMemberId(String memberId, String tenantId, HttpServletRequest request) {
         try {
             Long id = Long.parseLong(memberId);
-            boolean exists = tenantMemberRepository.existsById(id);
+            // The lookup is scoped to the verified tenant, so it also satisfies the tenant SQL
+            // guard while no tenant context exists yet.
+            boolean exists = tenantId != null && tenantMemberRepository.existsByIdAndTenantId(id, Long.parseLong(tenantId));
             if (!exists) {
                 logger.warn("JWT mid={} references non-existent sys_tenant_member record, uri={}",
                         memberId, request.getRequestURI());
@@ -178,10 +180,11 @@ public class IdentityValidationFilter extends OncePerRequestFilter {
      * @param request     the current HTTP request (for logging context)
      * @return true if valid, false if not found or parse error
      */
-    private boolean validatePrincipalId(String principalId, HttpServletRequest request) {
+    private boolean validatePrincipalId(String principalId, String tenantId, HttpServletRequest request) {
         try {
             Long id = Long.parseLong(principalId);
-            boolean exists = tenantPrincipalRepository.existsById(id);
+            boolean exists = tenantId != null
+                    && tenantPrincipalRepository.existsByIdAndTenantId(id, Long.parseLong(tenantId));
             if (!exists) {
                 logger.warn("JWT pid={} references non-existent sys_tenant_principal record, uri={}",
                         principalId, request.getRequestURI());

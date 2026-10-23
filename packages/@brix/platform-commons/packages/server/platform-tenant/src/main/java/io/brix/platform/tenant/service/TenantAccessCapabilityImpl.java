@@ -191,6 +191,10 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
 
     @Override
     @Transactional(readOnly = true)
+    @CrossTenantAccess(
+            reason = "Token issuance and validation resolve the selected Actor context by its globally unique contextId before any tenant context exists.",
+            approval = "BRIX-ARCH-3.0.10-ACTOR-TENANT-DISCOVERY",
+            readOnly = true)
     public Optional<TenantMembershipRecord> findMembershipByContextId(String contextId) {
         return parseUuid(contextId)
                 .flatMap(memberRepository::findByContextId)
@@ -200,6 +204,10 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
 
     @Override
     @Transactional(readOnly = true)
+    @CrossTenantAccess(
+            reason = "Token issuance and validation resolve the selected Subject context by its globally unique contextId before any tenant context exists.",
+            approval = "BRIX-ARCH-3.0.10-SUBJECT-TENANT-DISCOVERY",
+            readOnly = true)
     public Optional<TenantPrincipalRecord> findPrincipalshipByContextId(String contextId) {
         return parseUuid(contextId)
                 .flatMap(principalRepository::findByContextId)

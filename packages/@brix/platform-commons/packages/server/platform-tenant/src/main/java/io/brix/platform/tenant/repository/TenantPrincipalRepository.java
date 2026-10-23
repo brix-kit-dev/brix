@@ -113,6 +113,17 @@ public interface TenantPrincipalRepository extends JpaRepository<TenantPrincipal
     boolean existsByTenantIdAndIdentityId(Long tenantId, Long identityId);
 
     /**
+     * Whether the row exists in the given tenant. Request-time identity checks use it: the
+     * tenant comes from the verified token, so the lookup stays inside that tenant.
+     *
+     * @param id       row ID
+     * @param tenantId tenant of the verified token
+     * @return whether the row exists in that tenant
+     * @since 3.2.0
+     */
+    boolean existsByIdAndTenantId(Long id, Long tenantId);
+
+    /**
      * Checks if an identity is an active principal of a tenant.
      *
      * <p>Used during Subject token validation to verify the principal

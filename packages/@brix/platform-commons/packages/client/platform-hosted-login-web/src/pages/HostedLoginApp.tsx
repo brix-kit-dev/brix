@@ -86,7 +86,7 @@ function CredentialStep({ model }: { readonly model: HostedLoginViewModel }) {
     <Frame>
       <Stack spacing={2}>
         {model.identifier && step !== 'identify' ? (
-          <Typography variant="body2" color="secondary">{model.identifier}</Typography>
+          <Typography variant="body2" color="textSecondary">{model.identifier}</Typography>
         ) : null}
         {step === 'totp' ? <Typography variant="body2">{t('totp.hint')}</Typography> : null}
         {model.error ? <Alert severity="error">{t(`error.${model.error}`, t('error.unavailable'))}</Alert> : null}
@@ -169,7 +169,7 @@ function Frame({ title, children }: { readonly title?: string; readonly children
       <Stack spacing={3}>
         <Stack spacing={0.5}>
           <Typography variant="h5" component="h1">{title ?? t('title')}</Typography>
-          {title ? null : <Typography variant="body2" color="secondary">{t('subtitle')}</Typography>}
+          {title ? null : <Typography variant="body2" color="textSecondary">{t('subtitle')}</Typography>}
         </Stack>
         {children}
       </Stack>

@@ -30,7 +30,7 @@ export function TenantConsoleHomePage() {
         <Stack spacing={1} style={{ padding: 16 }}>
           <Typography variant="subtitle2">当前身份</Typography>
           <Typography variant="body2">{auth.user?.email ?? auth.user?.username ?? '—'}</Typography>
-          <Typography variant="body2" color="secondary">
+          <Typography variant="body2" color="textSecondary">
             成员类型：{auth.user?.roles?.join(', ') || '—'}
           </Typography>
         </Stack>
@@ -39,7 +39,7 @@ export function TenantConsoleHomePage() {
         <Stack spacing={1} style={{ padding: 16 }}>
           <Typography variant="subtitle2">有效权限（{permissions.length}）</Typography>
           {permissions.length === 0 ? (
-            <Typography variant="body2" color="secondary">当前上下文没有可用权限。</Typography>
+            <Typography variant="body2" color="textSecondary">当前上下文没有可用权限。</Typography>
           ) : (
             <Stack direction="row" spacing={1} wrap="wrap">
               {permissions.map((permission) => <Tag key={permission}>{permission}</Tag>)}
