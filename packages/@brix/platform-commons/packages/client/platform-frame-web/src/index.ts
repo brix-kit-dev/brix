@@ -132,6 +132,7 @@ export { HttpErrorToaster } from './components/HttpErrorToaster';
 
 export { useLayout, type UseLayoutResult } from './hooks/useLayout';
 export { useResponsive, type UseResponsiveResult } from './hooks/useResponsive';
+export { useViewportBelow } from './hooks/useViewportBelow';
 export { useTheme, type UseThemeResult } from './hooks/useTheme';
 
 // ============================================================================

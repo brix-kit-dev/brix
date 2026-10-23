@@ -13,7 +13,7 @@
  * automatically restyle these tables without code changes.
  */
 
-import { type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { useTheme, useUI } from "@brix-sdk/runtime-sdk-react";
 import type { DesignTokens } from "@brix-sdk/runtime-sdk-api-web";
 
@@ -280,12 +280,100 @@ export interface DataTableProps<R> {
   dense?: boolean;
 }
 
+/**
+ * Whether the viewport is narrower than `widthPx` (false without matchMedia).
+ */
+function useViewportBelow(widthPx: number): boolean {
+  const query = `(max-width: ${Math.max(widthPx - 1, 0)}px)`;
+  const [below, setBelow] = useState(
+    () => typeof window !== "undefined"
+      && typeof window.matchMedia === "function"
+      && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+    const media = window.matchMedia(query);
+    const update = () => setBelow(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+  return below;
+}
+
 export function DataTable<R>(props: DataTableProps<R>): JSX.Element {
   const { tokens } = useTheme();
   const t = tokens as DesignTokens;
   const cellPad = props.dense
     ? `${t.space.xs} ${t.space.sm}`
     : `${t.space.xs} ${t.space.md}`;
+  // Below the md breakpoint every row becomes a card of label/value lines, so
+  // phones see all columns, including the action buttons, without side scrolling.
+  const compact = useViewportBelow(t.breakpoints.md);
+
+  if (compact) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: t.space.sm }}>
+        {props.rows.map((r) => (
+          <div
+            key={props.rowKey(r)}
+            data-testid="data-table-card"
+            style={{
+              borderRadius: t.shape.lg,
+              border: `1px solid color-mix(in srgb, ${t.colors.border.default} 72%, transparent)`,
+              background: t.colors.surface.elevated,
+              padding: `${t.space.xs} ${t.space.md}`,
+              fontFamily: t.typography.fontFamily,
+            }}
+          >
+            {props.columns.map((c, index) => (
+              <div
+                key={c.key}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: t.space.sm,
+                  padding: `${t.space.xs} 0`,
+                  borderBottom: index === props.columns.length - 1
+                    ? "none"
+                    : `1px solid ${t.colors.border.subtle}`,
+                }}
+              >
+                <span
+                  style={{
+                    flex: "0 0 38%",
+                    color: t.colors.text.secondary,
+                    fontWeight: 700,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {c.header}
+                </span>
+                <span
+                  style={{
+                    flex: "1 1 auto",
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-end",
+                    gap: t.space.xs,
+                    textAlign: "right",
+                    color: t.colors.text.primary,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {c.render(r)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div

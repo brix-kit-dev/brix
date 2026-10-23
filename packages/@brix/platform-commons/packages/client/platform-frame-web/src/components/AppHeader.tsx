@@ -78,6 +78,12 @@ export interface AppHeaderProps {
     /** Theme color */
     primaryColor?: string;
   };
+  /**
+   * Compact phone layout: the toggle opens the sidebar drawer and the
+   * account button shows only the avatar.
+   * @default false
+   */
+  compact?: boolean;
 }
 
 /**
@@ -101,6 +107,7 @@ export function AppHeader({
   onLogout,
   onNavigate,
   branding,
+  compact = false,
 }: AppHeaderProps): ReactNode {
   const { tokens } = useTheme();
   const ui = useUIOptional();
@@ -120,7 +127,7 @@ export function AppHeader({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 18px',
+      padding: compact ? '0 10px' : '0 18px',
       position: 'relative',
       overflow: 'visible',
       // 劳模模式：surface.card 实色面板 + 1px 边 + 轻阴影。
@@ -132,7 +139,7 @@ export function AppHeader({
         `0 1px 2px ${withAlpha(tokens.colors.text.primary, 0.04)}, ` +
         `0 8px 24px ${withAlpha(tokens.colors.text.primary, 0.04)}`,
     }),
-    [primaryColor, shellGlassRadius, tokens]
+    [compact, primaryColor, shellGlassRadius, tokens]
   );
 
   const leftStyle = useMemo<CSSProperties>(
@@ -298,9 +305,13 @@ export function AppHeader({
             e.currentTarget.style.borderColor = withAlpha(primaryColor, 0.18);
             e.currentTarget.style.boxShadow = 'none';
           }}
-          aria-label={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+          aria-label={compact
+            ? (sidebarCollapsed ? 'Open menu' : 'Close menu')
+            : (sidebarCollapsed ? 'Expand menu' : 'Collapse menu')}
           aria-expanded={!sidebarCollapsed}
-          title={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+          title={compact
+            ? (sidebarCollapsed ? 'Open menu' : 'Close menu')
+            : (sidebarCollapsed ? 'Expand menu' : 'Collapse menu')}
         >
           {Icon ? (
             <Icon name={sidebarCollapsed ? 'menu' : 'close'} size="small" />
@@ -340,9 +351,11 @@ export function AppHeader({
             ) : (
               <div style={avatarStyle}>{username.charAt(0).toUpperCase()}</div>
             )}
-            <span data-testid="current-user-name" style={{ fontSize: '14px', color: tokens.colors.text.primary }}>
-              {username}
-            </span>
+            {compact ? null : (
+              <span data-testid="current-user-name" style={{ fontSize: '14px', color: tokens.colors.text.primary }}>
+                {username}
+              </span>
+            )}
             {Icon ? (
               <Icon name={dropdownOpen ? 'expand_less' : 'expand_more'} size="small" color={tokens.colors.text.secondary} />
             ) : (

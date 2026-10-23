@@ -27,7 +27,9 @@
  * - Composition pattern: combines AppHeader, AppSidebar, and content area
  * - Configuration driven: all behavior controlled via props
  * - Zero business logic: pure presentation and layout orchestration
- * - Responsive design: adapts to different screen sizes
+ * - Responsive design: below the `md` design token breakpoint the sidebar
+ *   becomes an off-canvas drawer opened from the header, and the header and
+ *   content use the full viewport width
  *
  * [Layout Structure]
  * ```
@@ -49,6 +51,7 @@ import {
   useState,
   useMemo,
   useCallback,
+  useEffect,
   type CSSProperties,
   type ReactNode,
 } from 'react';
@@ -57,6 +60,7 @@ import type { DesignTokens } from '@brix-sdk/runtime-sdk-api-web';
 import { AppHeader } from '../components/AppHeader';
 import { AppSidebar, type SidebarMenuItem } from '../components/AppSidebar';
 import { withAlpha } from '../components/styleUtils';
+import { useViewportBelow } from '../hooks/useViewportBelow';
 
 // ============================================================================
 // Types
@@ -243,11 +247,19 @@ function useLayoutStyles(
   dimensions: Required<LayoutDimensions>,
   sidebarCollapsed: boolean,
   tokens: DesignTokens,
+  compact: boolean,
+  drawerOpen: boolean,
 ) {
-  const actualSidebarWidth = sidebarCollapsed
-    ? dimensions.sidebarCollapsedWidth
-    : dimensions.sidebarWidth;
+  // In the compact phone layout the sidebar floats above the content as a
+  // drawer, so it no longer reserves horizontal space.
+  const reservedSidebarWidth = compact
+    ? 0
+    : sidebarCollapsed
+      ? dimensions.sidebarCollapsedWidth
+      : dimensions.sidebarWidth;
   const frameGap = dimensions.contentMargin;
+  const contentLeft = compact ? frameGap : reservedSidebarWidth + frameGap * 2;
+  const drawerZIndex = tokens.zIndex.drawer;
   const shellGlassRadius = `calc(${tokens.shape.lg} + ${tokens.space.sm})`;
   // 劳模模式：极简商业质感。
   // - 页面底色：surface.page 纯色（不再叠 radial-gradient 环境光）
@@ -277,26 +289,51 @@ function useLayoutStyles(
     () => ({
       position: 'fixed',
       top: `${frameGap}px`,
-      left: `${actualSidebarWidth + frameGap * 2}px`,
+      left: `${contentLeft}px`,
       right: `${frameGap}px`,
       height: `${dimensions.headerHeight}px`,
       zIndex: 100,
       transition: 'left 0.2s ease-in-out',
     }),
-    [actualSidebarWidth, dimensions.headerHeight, frameGap]
+    [contentLeft, dimensions.headerHeight, frameGap]
   );
 
   const sidebarStyle = useMemo<CSSProperties>(
+    () => compact
+      ? {
+        position: 'fixed',
+        top: `${frameGap}px`,
+        left: `${frameGap}px`,
+        bottom: `${frameGap}px`,
+        width: `min(${dimensions.sidebarWidth}px, calc(100vw - ${frameGap * 6}px))`,
+        zIndex: drawerZIndex,
+        transform: drawerOpen ? 'translateX(0)' : `translateX(calc(-100% - ${frameGap * 2}px))`,
+        visibility: drawerOpen ? 'visible' : 'hidden',
+        transition: 'transform 0.2s ease-in-out, visibility 0.2s ease-in-out',
+      }
+      : {
+        position: 'fixed',
+        top: `${frameGap}px`,
+        left: `${frameGap}px`,
+        bottom: `${frameGap}px`,
+        width: `${reservedSidebarWidth}px`,
+        zIndex: 101,
+        transition: 'width 0.2s ease-in-out',
+      },
+    [compact, dimensions.sidebarWidth, drawerOpen, drawerZIndex, frameGap, reservedSidebarWidth]
+  );
+
+  const backdropStyle = useMemo<CSSProperties>(
     () => ({
       position: 'fixed',
-      top: `${frameGap}px`,
-      left: `${frameGap}px`,
-      bottom: `${frameGap}px`,
-      width: `${actualSidebarWidth}px`,
-      zIndex: 101,
-      transition: 'width 0.2s ease-in-out',
+      inset: 0,
+      zIndex: drawerZIndex - 1,
+      background: withAlpha(tokens.colors.text.primary, 0.32),
+      border: 'none',
+      padding: 0,
+      cursor: 'pointer',
     }),
-    [actualSidebarWidth, frameGap]
+    [drawerZIndex, tokens]
   );
 
   const bodyStyle = useMemo<CSSProperties>(
@@ -306,11 +343,11 @@ function useLayoutStyles(
       top: `${dimensions.headerHeight + frameGap * 2}px`,
       right: `${frameGap}px`,
       bottom: `${frameGap}px`,
-      left: `${actualSidebarWidth + frameGap * 2}px`,
+      left: `${contentLeft}px`,
       minHeight: 0,
       transition: 'left 0.2s ease-in-out',
     }),
-    [dimensions.headerHeight, actualSidebarWidth, frameGap]
+    [dimensions.headerHeight, contentLeft, frameGap]
   );
 
   const contentStyle = useMemo<CSSProperties>(
@@ -344,6 +381,7 @@ function useLayoutStyles(
     containerStyle,
     headerStyle,
     sidebarStyle,
+    backdropStyle,
     bodyStyle,
     contentStyle,
     contentInnerStyle,
@@ -412,26 +450,74 @@ export function ProtectedLayout({
     ...dimensions,
   };
 
-  // Sidebar collapsed state
+  // Sidebar collapsed state (desktop) and drawer state (compact phone layout)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(defaultCollapsed);
+  const compact = useViewportBelow(tokens.breakpoints.md);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Toggle sidebar
   const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => !prev);
-  }, []);
+    if (compact) {
+      setDrawerOpen((prev) => !prev);
+    } else {
+      setSidebarCollapsed((prev) => !prev);
+    }
+  }, [compact]);
+
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // Leaving the compact layout (rotation, wider window) resets the drawer.
+  useEffect(() => {
+    if (!compact) {
+      setDrawerOpen(false);
+    }
+  }, [compact]);
+
+  // Escape closes the drawer.
+  useEffect(() => {
+    if (!drawerOpen) {
+      return undefined;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setDrawerOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [drawerOpen]);
+
+  // Navigating from the drawer closes it.
+  const navigate = useCallback(
+    (path: string, options?: { replace?: boolean }) => {
+      setDrawerOpen(false);
+      onNavigate(path, options);
+    },
+    [onNavigate]
+  );
 
   // Get layout styles
-  const styles = useLayoutStyles(mergedDimensions, sidebarCollapsed, tokens);
+  const styles = useLayoutStyles(mergedDimensions, sidebarCollapsed, tokens, compact, drawerOpen);
 
   return (
     <div className={className} style={{ ...styles.containerStyle, ...style }}>
+      {/* Drawer backdrop (compact layout only) */}
+      {compact && drawerOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          style={styles.backdropStyle}
+          onClick={closeDrawer}
+        />
+      ) : null}
+
       {/* Sidebar */}
-      <aside style={styles.sidebarStyle}>
+      <aside style={styles.sidebarStyle} aria-hidden={compact && !drawerOpen ? true : undefined}>
         <AppSidebar
           menuItems={menuItems}
           currentPath={currentPath || ''}
-          collapsed={sidebarCollapsed}
-          onNavigate={onNavigate}
+          collapsed={compact ? false : sidebarCollapsed}
+          onNavigate={navigate}
           branding={branding}
           loading={menusLoading}
         />
@@ -440,13 +526,14 @@ export function ProtectedLayout({
       {/* Header */}
       <header style={styles.headerStyle}>
         <AppHeader
-          sidebarCollapsed={sidebarCollapsed}
+          sidebarCollapsed={compact ? !drawerOpen : sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
           username={user?.name || 'User'}
           avatar={user?.avatar}
           onLogout={onLogout}
-          onNavigate={onNavigate}
+          onNavigate={navigate}
           branding={branding}
+          compact={compact}
         />
       </header>
 
