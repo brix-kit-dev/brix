@@ -2,6 +2,7 @@ package io.infra.adapter.identity.provider.login;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -37,6 +38,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import io.infra.adapter.identity.provider.IdentityProviderProperties;
 import io.infra.adapter.identity.provider.authorization.HostedLoginAuthentication;
+import io.infra.adapter.identity.provider.support.EncryptedStateStore;
+import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.infra.adapter.identity.provider.support.Secrets;
 import io.infra.adapter.identity.provider.support.SourceRateLimiter;
 import io.runtime.sdk.capability.IdentityAccountCapability;
@@ -53,8 +56,9 @@ import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
  * identifier step like a known one and fails the password step with the same error after the
  * same password-hash work. Failed attempts are throttled per account and source only
  * (root {@code BRX-RS-SECURITY-014}); they never lock the identity elsewhere. Staff always need
- * the second factor ({@code BRX-IA-MFA-002}). Exactly one Actor context is selected
- * automatically; selecting among several is a later slice.</p>
+ * the second factor ({@code BRX-IA-MFA-002}). One Actor context is selected automatically;
+ * with several, the page chooses with one-time selection tickets (multi-tenant 5.1 §9.3); the
+ * stable contextId never reaches the page before tokens exist.</p>
  *
  * <p>The login session cookie is the only client state; no token is returned here
  * ({@code BRX-IA-FLOW-003}). After the last step the browser continues the saved authorization
@@ -77,7 +81,7 @@ public class HostedLoginController {
     static final String STEP_TOTP = "totp";
     static final String STEP_DONE = "done";
     static final String STEP_NO_TENANT = "no-tenant";
-    static final String STEP_MULTIPLE_TENANTS = "multiple-tenants";
+    static final String STEP_SELECT_TENANT = "select-tenant";
     static final String STEP_PASSWORD_CHANGE_REQUIRED = "password-change-required";
     static final String STEP_MFA_SETUP_REQUIRED = "mfa-setup-required";
 
@@ -87,6 +91,9 @@ public class HostedLoginController {
     private final IdentityProviderProperties properties;
     private final String issuer;
     private final SourceRateLimiter failures;
+    private final SourceRateLimiter selections;
+    private final SelectionTickets tickets;
+    private final LoginSessionRevocations revocations;
     private final Clock clock;
     private final SecurityContextRepository contexts = new HttpSessionSecurityContextRepository();
     private final SecurityContextHolderStrategy contextHolder = SecurityContextHolder.getContextHolderStrategy();
@@ -95,7 +102,7 @@ public class HostedLoginController {
 
     public HostedLoginController(IdentityAccountCapability identities, PasswordCapability passwords,
                                  TenantAccessCapability tenants, IdentityProviderProperties properties,
-                                 Clock clock) {
+                                 EncryptedStateStore store, LoginSessionRevocations revocations, Clock clock) {
         this.identities = Objects.requireNonNull(identities, "identities must not be null");
         this.passwords = Objects.requireNonNull(passwords, "passwords must not be null");
         this.tenants = Objects.requireNonNull(tenants, "tenants must not be null");
@@ -103,6 +110,10 @@ public class HostedLoginController {
         this.issuer = properties.requireIssuerOrigin();
         this.failures = new SourceRateLimiter(properties.getLogin().getMaxFailuresPerAccountAndSource(),
                 properties.getLogin().getThrottleWindow(), clock);
+        // §9.3 (3): selection is throttled per identity against probing other contexts.
+        this.selections = new SourceRateLimiter(10, properties.getLogin().getThrottleWindow(), clock);
+        this.tickets = new SelectionTickets(store, clock);
+        this.revocations = Objects.requireNonNull(revocations, "revocations must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -110,11 +121,15 @@ public class HostedLoginController {
     @GetMapping("/state")
     public LoginStep state(HttpServletRequest request, HttpServletResponse response) {
         Authentication current = contextHolder.getContext().getAuthentication();
-        if (current instanceof HostedLoginAuthentication) {
-            return new LoginStep(STEP_DONE, csrf(request), continueUrl(request, response), null);
+        if (current instanceof HostedLoginAuthentication login && !revocations.isRevoked(login.getSid())) {
+            return new LoginStep(STEP_DONE, csrf(request), continueUrl(request, response), null, null);
         }
-        return new LoginStep(transaction(request).map(LoginTransaction::step).orElse(STEP_IDENTIFY),
-                csrf(request), null, null);
+        Optional<LoginTransaction> tx = transaction(request);
+        if (tx.isPresent() && STEP_SELECT_TENANT.equals(tx.get().step())) {
+            // A reload gets fresh tickets; the earlier ones stop working.
+            return new LoginStep(STEP_SELECT_TENANT, csrf(request), null, null, options(tx.get(), request));
+        }
+        return new LoginStep(tx.map(LoginTransaction::step).orElse(STEP_IDENTIFY), csrf(request), null, null, null);
     }
 
     @PostMapping("/identify")
@@ -186,20 +201,61 @@ public class HostedLoginController {
             request.getSession().removeAttribute(TRANSACTION);
             return reply(HttpStatus.UNAUTHORIZED, STEP_IDENTIFY, "invalid_credentials");
         }
-        List<TenantMembershipRecord> memberships = tenants.getActiveMemberships(identity.id()).stream()
-                .filter(membership -> ACTIVE.equals(membership.status()) && membership.contextId() != null)
-                .toList();
-        if (memberships.size() != 1) {
-            tx.step(memberships.isEmpty() ? STEP_NO_TENANT : STEP_MULTIPLE_TENANTS);
-            request.getSession().setAttribute(TRANSACTION, tx);
-            audit.info("event=identity.login.no_context identity={} contexts={}", identity.id(), memberships.size());
-            return reply(HttpStatus.OK, tx.step(), null);
+        tx.authenticated(clock.instant(), Secrets.randomToken(16));
+        List<TenantMembershipRecord> memberships = activeMemberships(identity.id());
+        if (memberships.size() == 1) {
+            return ResponseEntity.ok(complete(tx, identity, memberships.get(0), request, response));
         }
-        TenantMembershipRecord membership = memberships.get(0);
+        if (memberships.isEmpty()) {
+            tx.step(STEP_NO_TENANT);
+            request.getSession().setAttribute(TRANSACTION, tx);
+            audit.info("event=identity.login.no_context identity={}", identity.id());
+            return reply(HttpStatus.OK, STEP_NO_TENANT, null);
+        }
+        tx.step(STEP_SELECT_TENANT);
+        List<ContextOption> options = options(tx, request);
+        return ResponseEntity.ok(new LoginStep(STEP_SELECT_TENANT, null, null, null, options));
+    }
+
+    /**
+     * Chooses one of the identity's Actor contexts with a selection ticket of this login
+     * (multi-tenant 5.1 §9.3 Phase 2).
+     */
+    @PostMapping("/select")
+    public ResponseEntity<LoginStep> select(@RequestBody SelectRequest body, HttpServletRequest request,
+                                            HttpServletResponse response) {
+        Optional<LoginTransaction> found = transaction(request).filter(tx -> STEP_SELECT_TENANT.equals(tx.step()));
+        if (found.isEmpty()) {
+            return reply(HttpStatus.CONFLICT, currentStep(request), "step_expired");
+        }
+        LoginTransaction tx = found.get();
+        if (!selections.tryAcquire("select|" + tx.identityId())) {
+            return reply(HttpStatus.TOO_MANY_REQUESTS, STEP_SELECT_TENANT, "too_many_attempts");
+        }
+        SelectionTickets.Redemption redemption = tickets.redeem(body == null ? null : body.ticket(), tx);
+        if (redemption.replayed()) {
+            audit.warn("event=identity.login.ticket_replayed identity={} source={}", tx.identityId(),
+                    request.getRemoteAddr());
+            return reply(HttpStatus.CONFLICT, STEP_SELECT_TENANT, "ticket_used");
+        }
+        Optional<TenantMembershipRecord> membership = redemption.valid()
+                ? tenants.findMembershipByContextId(redemption.contextId())
+                        .filter(record -> ACTIVE.equals(record.status()))
+                        .filter(record -> tx.identityId().equals(record.identityId()))
+                : Optional.empty();
+        IdentityRecord identity = identities.findIdentityById(tx.identityId())
+                .filter(record -> ACTIVE.equals(record.status())).orElse(null);
+        if (membership.isEmpty() || identity == null) {
+            return reply(HttpStatus.UNAUTHORIZED, STEP_SELECT_TENANT, "ticket_invalid");
+        }
+        return ResponseEntity.ok(complete(tx, identity, membership.get(), request, response));
+    }
+
+    private LoginStep complete(LoginTransaction tx, IdentityRecord identity, TenantMembershipRecord membership,
+                               HttpServletRequest request, HttpServletResponse response) {
         HostedLoginAuthentication authentication = new HostedLoginAuthentication(identity.id(),
-                identity.username(), identity.email(), "brix:aal2", List.of("pwd", "otp"), clock.instant(),
-                Secrets.randomToken(16), HostedLoginAuthentication.CONTEXT_ACTOR, membership.contextId(),
-                membership.tenantId());
+                identity.username(), identity.email(), "brix:aal2", List.of("pwd", "otp"), tx.authTime(),
+                tx.sid(), HostedLoginAuthentication.CONTEXT_ACTOR, membership.contextId(), membership.tenantId());
         request.getSession().removeAttribute(TRANSACTION);
         // A new session ID for the authenticated session prevents session fixation.
         request.changeSessionId();
@@ -209,7 +265,25 @@ public class HostedLoginController {
         contexts.saveContext(context, request, response);
         audit.info("event=identity.login.succeeded identity={} tenant={} acr={} source={}",
                 identity.id(), membership.tenantId(), authentication.getAcr(), request.getRemoteAddr());
-        return ResponseEntity.ok(new LoginStep(STEP_DONE, null, continueUrl(request, response), null));
+        return new LoginStep(STEP_DONE, null, continueUrl(request, response), null, null);
+    }
+
+    private List<TenantMembershipRecord> activeMemberships(Long identityId) {
+        return tenants.getActiveMemberships(identityId).stream()
+                .filter(membership -> ACTIVE.equals(membership.status()) && membership.contextId() != null)
+                .sorted(Comparator.comparing(TenantMembershipRecord::tenantName,
+                        Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+    }
+
+    /** Fresh one-time tickets for every active Actor context; no stable contextId leaves the server. */
+    private List<ContextOption> options(LoginTransaction tx, HttpServletRequest request) {
+        tx.nextTicketGeneration();
+        request.getSession().setAttribute(TRANSACTION, tx);
+        return activeMemberships(tx.identityId()).stream()
+                .map(membership -> new ContextOption(tickets.issue(tx, membership.contextId()),
+                        membership.tenantName(), membership.tenantCode(), membership.memberType()))
+                .toList();
     }
 
     /** Starts over with another identifier. */
@@ -219,7 +293,7 @@ public class HostedLoginController {
         if (session != null) {
             session.removeAttribute(TRANSACTION);
         }
-        return new LoginStep(STEP_IDENTIFY, null, null, null);
+        return new LoginStep(STEP_IDENTIFY, null, null, null, null);
     }
 
     /** Ends the login session of the identity protocol surface. */
@@ -230,7 +304,7 @@ public class HostedLoginController {
             session.invalidate();
         }
         contextHolder.clearContext();
-        return new LoginStep(STEP_IDENTIFY, null, null, null);
+        return new LoginStep(STEP_IDENTIFY, null, null, null, null);
     }
 
     private boolean passwordMatches(IdentityRecord identity, String password) {
@@ -304,12 +378,28 @@ public class HostedLoginController {
     }
 
     private static ResponseEntity<LoginStep> reply(HttpStatus status, String step, String error) {
-        return ResponseEntity.status(status).body(new LoginStep(step, null, null, error));
+        return ResponseEntity.status(status).body(new LoginStep(step, null, null, error, null));
     }
 
     /** One step of the hosted login as seen by the page. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record LoginStep(String step, String csrfToken, String continueUrl, String error) {
+    public record LoginStep(String step, String csrfToken, String continueUrl, String error,
+                            List<ContextOption> options) {
+    }
+
+    /** A tenant the identity may enter, offered with a one-time selection ticket. */
+    public record ContextOption(String ticket, String tenantName, String tenantCode, String memberType) {
+        @Override
+        public String toString() {
+            return "ContextOption[tenantCode=" + tenantCode + ", memberType=" + memberType + "]";
+        }
+    }
+
+    public record SelectRequest(String ticket) {
+        @Override
+        public String toString() {
+            return "SelectRequest[ticket=<redacted>]";
+        }
     }
 
     public record IdentifyRequest(String identifier) {

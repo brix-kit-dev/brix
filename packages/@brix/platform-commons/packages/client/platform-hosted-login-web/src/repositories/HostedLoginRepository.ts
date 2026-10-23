@@ -11,14 +11,23 @@ export type LoginStepName =
   | 'totp'
   | 'done'
   | 'no-tenant'
-  | 'multiple-tenants'
+  | 'select-tenant'
   | 'password-change-required'
   | 'mfa-setup-required';
+
+/** A tenant to enter, offered with a one-time selection ticket (multi-tenant 5.1 §9.3). */
+export interface LoginOption {
+  readonly ticket: string;
+  readonly tenantName: string;
+  readonly tenantCode: string;
+  readonly memberType: string;
+}
 
 export interface LoginStepResponse {
   readonly step?: LoginStepName;
   readonly continueUrl?: string;
   readonly error?: string;
+  readonly options?: readonly LoginOption[];
 }
 
 export interface HostedLoginRepository {
@@ -26,6 +35,7 @@ export interface HostedLoginRepository {
   identify(identifier: string): Promise<LoginStepResponse>;
   password(password: string): Promise<LoginStepResponse>;
   totp(code: string): Promise<LoginStepResponse>;
+  select(ticket: string): Promise<LoginStepResponse>;
   restart(): Promise<LoginStepResponse>;
   signOut(): Promise<LoginStepResponse>;
 }
@@ -36,7 +46,7 @@ const STEPS: readonly LoginStepName[] = [
   'totp',
   'done',
   'no-tenant',
-  'multiple-tenants',
+  'select-tenant',
   'password-change-required',
   'mfa-setup-required',
 ];
@@ -82,6 +92,7 @@ export function createHostedLoginRepository(
       step,
       error,
       continueUrl: typeof payload?.continueUrl === 'string' ? payload.continueUrl : undefined,
+      options: readOptions(payload?.options),
     };
   }
 
@@ -90,7 +101,24 @@ export function createHostedLoginRepository(
     identify: (identifier) => call('/identify', 'POST', { identifier }),
     password: (password) => call('/password', 'POST', { password }),
     totp: (code) => call('/totp', 'POST', { code }),
+    select: (ticket) => call('/select', 'POST', { ticket }),
     restart: () => call('/restart', 'POST', {}),
     signOut: () => call('/sign-out', 'POST', {}),
   };
+}
+
+function readOptions(value: unknown): readonly LoginOption[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value.flatMap((option: Record<string, unknown>) => (
+    typeof option?.ticket === 'string' && typeof option.tenantName === 'string'
+      ? [{
+          ticket: option.ticket,
+          tenantName: option.tenantName,
+          tenantCode: typeof option.tenantCode === 'string' ? option.tenantCode : '',
+          memberType: typeof option.memberType === 'string' ? option.memberType : '',
+        }]
+      : []
+  ));
 }

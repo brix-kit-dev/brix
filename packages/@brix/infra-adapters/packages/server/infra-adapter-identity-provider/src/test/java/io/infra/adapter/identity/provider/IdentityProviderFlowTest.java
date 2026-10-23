@@ -242,8 +242,7 @@ class IdentityProviderFlowTest {
         Map<String, Object> renewed = apiClaims(browser.get(ISSUER + "/api/test/whoami"));
         assertThat(renewed.get("jti")).isNotEqualTo(firstJti);
         assertThat(renewed).containsEntry("sid", original.sid());
-        assertThat(tokenRequest("grant_type=refresh_token&refresh_token=" + original.refreshToken()).statusCode())
-                .as("a rotated refresh token is no longer accepted").isEqualTo(400);
+        assertThat(sessions.find(sessionId).orElseThrow().refreshToken()).isNotEqualTo(original.refreshToken());
 
         tenants.active = false;
         sessions.save(sessionId, expire(sessions.find(sessionId).orElseThrow()));
@@ -294,6 +293,178 @@ class IdentityProviderFlowTest {
         assertThat(api.status()).isEqualTo(200);
         assertThat(api.header("Content-Security-Policy")).isNull();
         assertThat(apiClaims(api)).isEmpty();
+    }
+
+    @Test
+    void staffOfSeveralTenantsChooseWithOneTimeTicketsAndNeverSeeContextIds() {
+        Browser browser = new Browser();
+        Browser.Response start = browser.get(ISSUER + "/bff/login");
+        browser.get(start.location(), "Accept", "text/html");
+        String csrf = startHostedLogin(browser);
+        identify(browser, csrf, TestCapabilities.MULTI_EMAIL);
+        password(browser, csrf, TestCapabilities.STAFF_PASSWORD);
+        Browser.Response selection = browser.post(ISSUER + "/auth/api/totp",
+                "{\"code\":\"" + CODES.incrementAndGet() + "\"}", "X-CSRF-TOKEN", csrf);
+
+        assertThat(selection.json().get("step").asString()).isEqualTo("select-tenant");
+        assertThat(selection.json().get("options")).hasSize(2);
+        // §9.3 (5): the page sees one-time tickets, never the stable contextIds.
+        assertThat(selection.body()).doesNotContain(TestCapabilities.MULTI_CONTEXT_A)
+                .doesNotContain(TestCapabilities.MULTI_CONTEXT_B).doesNotContain("contextId");
+        String staleTicket = ticketFor(selection, "Hospital");
+
+        Browser.Response reloaded = browser.get(ISSUER + "/auth/api/state");
+        assertThat(select(browser, csrf, staleTicket).status())
+                .as("a reload starts a new ticket generation").isEqualTo(401);
+        Browser intruder = new Browser();
+        String intruderCsrf = startHostedLogin(intruder);
+        identify(intruder, intruderCsrf, TestCapabilities.STAFF_EMAIL);
+        password(intruder, intruderCsrf, TestCapabilities.STAFF_PASSWORD);
+        intruder.post(ISSUER + "/auth/api/totp", "{\"code\":\"" + CODES.incrementAndGet() + "\"}",
+                "X-CSRF-TOKEN", intruderCsrf);
+        String ticket = ticketFor(reloaded, "Hospital");
+
+        Browser.Response done = select(browser, csrf, ticket);
+        assertThat(done.json().get("step").asString()).isEqualTo("done");
+        assertThat(select(browser, csrf, ticket).status()).as("a ticket works once").isEqualTo(409);
+        browser.get(browser.get(done.json().get("continueUrl").asString(), "Accept", "text/html").location());
+
+        JsonNode session = browser.get(ISSUER + "/bff/session").json();
+        assertThat(session.at("/context/tenantId").asString()).isEqualTo(String.valueOf(TestCapabilities.OTHER_TENANT_ID));
+        assertThat(session.at("/context/memberType").asString()).isEqualTo("OWNER");
+        assertThat(session.get("contexts")).hasSize(2);
+        assertThat(session.get("contexts").toString()).doesNotContain(TestCapabilities.FOREIGN_CONTEXT);
+    }
+
+    @Test
+    void aSwitchSilentlyReauthorizesForAnotherContextOfTheSameIdentity() {
+        Browser browser = loggedInAs(TestCapabilities.MULTI_EMAIL, "Clinic");
+        String previousSession = browser.cookies.get(BffCookies.SESSION);
+        BffSession before = sessions.find(previousSession).orElseThrow();
+        String csrf = browser.get(ISSUER + "/bff/session").json().get("csrfToken").asString();
+        String body = "{\"contextId\":\"" + TestCapabilities.MULTI_CONTEXT_B + "\",\"returnTo\":\"/tenant/members\"}";
+
+        assertThat(browser.post(ISSUER + "/bff/switch", body).status()).as("CSRF header required").isEqualTo(403);
+        Browser.Response started = browser.post(ISSUER + "/bff/switch", body, "X-Brix-CSRF", csrf);
+        String authorize = started.json().get("redirect").asString();
+        assertThat(query(authorize)).containsEntry("prompt", "none")
+                .containsEntry("brix_context", TestCapabilities.MULTI_CONTEXT_B);
+
+        Browser.Response code = browser.get(authorize, "Accept", "text/html");
+        assertThat(code.location()).startsWith(ISSUER + "/bff/callback?code=");
+        assertThat(browser.get(code.location()).location()).isEqualTo(ISSUER + "/tenant/members");
+
+        assertThat(browser.cookies.get(BffCookies.SESSION)).isNotEqualTo(previousSession);
+        assertThat(sessions.find(previousSession)).isEmpty();
+        JsonNode session = browser.get(ISSUER + "/bff/session").json();
+        assertThat(session.at("/context/tenantId").asString()).isEqualTo(String.valueOf(TestCapabilities.OTHER_TENANT_ID));
+        assertThat(session.at("/context/memberType").asString()).isEqualTo("OWNER");
+        assertThat(session.get("permissions").toString())
+                .as("permissions are those of the new context only (BRX-TENANT-AUTHZ-009)")
+                .contains("tenant:member:invite").doesNotContain("app-booking:template:read");
+        BffSession after = sessions.find(browser.cookies.get(BffCookies.SESSION)).orElseThrow();
+        assertThat(after.sid()).as("the same login session, a new token family").isEqualTo(before.sid());
+        assertThat(tokenRequest("grant_type=refresh_token&refresh_token=" + before.refreshToken()).statusCode())
+                .as("the previous family ends with the switch").isEqualTo(400);
+        assertThat(apiClaims(browser.get(ISSUER + "/api/test/whoami")))
+                .containsEntry("cid", TestCapabilities.MULTI_CONTEXT_B).containsEntry("mtype", "OWNER");
+    }
+
+    @Test
+    void contextsOfAnotherIdentityCanNeverBeSwitchedTo() {
+        Browser browser = loggedInAs(TestCapabilities.MULTI_EMAIL, "Clinic");
+        String csrf = browser.get(ISSUER + "/bff/session").json().get("csrfToken").asString();
+
+        Browser.Response denied = browser.post(ISSUER + "/bff/switch",
+                "{\"contextId\":\"" + TestCapabilities.FOREIGN_CONTEXT + "\"}", "X-Brix-CSRF", csrf);
+        assertThat(denied.status()).isEqualTo(403);
+        assertThat(denied.json().get("error").asString()).isEqualTo("context_not_available");
+
+        // A hand-made authorization request with a foreign target is refused by the server too (T-26).
+        String forged = browser.get(ISSUER + "/bff/login").location()
+                + "&prompt=none&brix_context=" + TestCapabilities.FOREIGN_CONTEXT;
+        Browser.Response refused = browser.get(forged, "Accept", "text/html");
+        assertThat(refused.location()).startsWith(ISSUER + "/bff/callback?error=access_denied");
+    }
+
+    @Test
+    void anotherSiteCannotSwitchTheContextOfALoginSessionWithACraftedLink() {
+        Browser browser = loggedInAs(TestCapabilities.MULTI_EMAIL, "Clinic");
+        // The login session cookie goes along with top-level navigations from any site, so a
+        // planted link to the identity's own other context must not switch anything.
+        String crafted = browser.get(ISSUER + "/bff/login").location()
+                + "&prompt=none&brix_context=" + TestCapabilities.MULTI_CONTEXT_B;
+        assertThat(browser.get(crafted, "Accept", "text/html").location())
+                .startsWith(ISSUER + "/bff/callback?error=access_denied");
+
+        Browser.Response code = browser.get(browser.get(ISSUER + "/bff/login").location(), "Accept", "text/html");
+        browser.get(code.location());
+        assertThat(browser.get(ISSUER + "/bff/session").json().at("/context/tenantId").asString())
+                .as("the login session kept its context").isEqualTo(String.valueOf(TestCapabilities.TENANT_ID));
+    }
+
+    @Test
+    void aSilentSwitchWithoutALoginSessionGoesThroughLoginAgain() {
+        Browser browser = loggedInAs(TestCapabilities.MULTI_EMAIL, "Clinic");
+        String loginCsrf = browser.get(ISSUER + "/auth/api/state").json().get("csrfToken").asString();
+        browser.post(ISSUER + "/auth/api/sign-out", "{}", "X-CSRF-TOKEN", loginCsrf);
+        String csrf = browser.get(ISSUER + "/bff/session").json().get("csrfToken").asString();
+
+        Browser.Response started = browser.post(ISSUER + "/bff/switch",
+                "{\"contextId\":\"" + TestCapabilities.MULTI_CONTEXT_B + "\"}", "X-Brix-CSRF", csrf);
+        Browser.Response noLogin = browser.get(started.json().get("redirect").asString(), "Accept", "text/html");
+        assertThat(noLogin.location()).as("prompt=none never shows a login page")
+                .startsWith(ISSUER + "/bff/callback?error=login_required");
+        assertThat(browser.get(noLogin.location()).location()).isEqualTo(ISSUER + "/bff/login?returnTo=%2Ftenant");
+    }
+
+    @Test
+    void reusingARotatedRefreshTokenEndsTheWholeFamilyAndTheLoginSession() {
+        Browser browser = loggedIn();
+        String sessionId = browser.cookies.get(BffCookies.SESSION);
+        BffSession original = sessions.find(sessionId).orElseThrow();
+        sessions.save(sessionId, expire(original));
+        apiClaims(browser.get(ISSUER + "/api/test/whoami"));
+        String current = sessions.find(sessionId).orElseThrow().refreshToken();
+
+        assertThat(tokenRequest("grant_type=refresh_token&refresh_token=" + original.refreshToken()).statusCode())
+                .as("the rotated-out token is refused").isEqualTo(400);
+        assertThat(tokenRequest("grant_type=refresh_token&refresh_token=" + current).statusCode())
+                .as("and the whole family with it").isEqualTo(400);
+        Browser.Response again = browser.get(browser.get(ISSUER + "/bff/login").location(), "Accept", "text/html");
+        assertThat(again.location()).as("the login session is revoked: credentials are needed again")
+                .isEqualTo(ISSUER + "/auth/login");
+    }
+
+    private String ticketFor(Browser.Response selection, String tenantName) {
+        for (JsonNode option : selection.json().get("options")) {
+            if (tenantName.equals(option.get("tenantName").asString())) {
+                return option.get("ticket").asString();
+            }
+        }
+        throw new AssertionError("no option for " + tenantName);
+    }
+
+    private static Browser.Response select(Browser browser, String csrf, String ticket) {
+        return browser.post(ISSUER + "/auth/api/select", "{\"ticket\":\"" + ticket + "\"}", "X-CSRF-TOKEN", csrf);
+    }
+
+    private Browser loggedInAs(String email, String tenantName) {
+        Browser browser = new Browser();
+        Browser.Response start = browser.get(ISSUER + "/bff/login");
+        browser.get(start.location(), "Accept", "text/html");
+        String csrf = startHostedLogin(browser);
+        identify(browser, csrf, email);
+        password(browser, csrf, TestCapabilities.STAFF_PASSWORD);
+        Browser.Response step = browser.post(ISSUER + "/auth/api/totp",
+                "{\"code\":\"" + CODES.incrementAndGet() + "\"}", "X-CSRF-TOKEN", csrf);
+        if ("select-tenant".equals(step.json().get("step").asString())) {
+            step = select(browser, csrf, ticketFor(step, tenantName));
+        }
+        String continueUrl = step.json().get("continueUrl").asString();
+        browser.get(browser.get(continueUrl, "Accept", "text/html").location());
+        assertThat(browser.cookies).containsKey(BffCookies.SESSION);
+        return browser;
     }
 
     private Browser loggedIn() {
@@ -400,11 +571,12 @@ class IdentityProviderFlowTest {
         @GetMapping("/api/tenant/session")
         Map<String, Object> tenantSession(@RequestHeader(value = "Authorization", required = false) String authorization) {
             Map<String, Object> claims = claims(authorization);
-            if (!"MEMBER".equals(claims.get("mtype"))) {
-                throw new IllegalStateException("not a tenant member");
-            }
-            return Map.of("tenantId", claims.get("tenant_id"),
-                    "permissions", java.util.List.of("tenant:profile:read", "app-booking:template:read"));
+            java.util.List<String> permissions = switch (String.valueOf(claims.get("mtype"))) {
+                case "MEMBER" -> java.util.List.of("tenant:profile:read", "app-booking:template:read");
+                case "OWNER" -> java.util.List.of("tenant:profile:read", "tenant:member:invite");
+                default -> throw new IllegalStateException("not a tenant member");
+            };
+            return Map.of("tenantId", claims.get("tenant_id"), "permissions", permissions);
         }
 
         @PostMapping("/api/test/echo")

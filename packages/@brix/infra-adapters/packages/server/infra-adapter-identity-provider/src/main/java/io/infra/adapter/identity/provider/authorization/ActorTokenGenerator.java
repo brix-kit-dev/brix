@@ -22,6 +22,7 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Refr
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 
+import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
 import io.runtime.sdk.capability.JwtIssuerCapability;
@@ -38,8 +39,8 @@ import tools.jackson.databind.json.JsonMapper;
  * {@link JwtIssuerCapability}, so the Dispatcher validates them like every other Actor token.
  *
  * <p>Before every access or ID token the identity and the selected membership are read again
- * through Layer 2A contracts; a disabled identity or a membership that is no longer active
- * ends the authorization ({@code invalid_grant}). Access tokens carry the Actor claims of
+ * through Layer 2A contracts; a disabled identity, a membership that is no longer active or a
+ * revoked login session ends the authorization ({@code invalid_grant}). Access tokens carry the Actor claims of
  * multi-tenant §8 plus {@code acr}, {@code amr}, {@code auth_time} and {@code sid} and no
  * permission list (multi-tenant T-30). Refresh tokens are opaque random values.</p>
  *
@@ -54,15 +55,18 @@ public final class ActorTokenGenerator implements OAuth2TokenGenerator<OAuth2Tok
     private final JwtIssuerCapability issuer;
     private final IdentityAccountCapability identities;
     private final TenantAccessCapability tenants;
+    private final LoginSessionRevocations revocations;
     private final String issuerUri;
     private final JsonMapper json;
     private final OAuth2RefreshTokenGenerator refreshTokens = new OAuth2RefreshTokenGenerator();
 
     public ActorTokenGenerator(JwtIssuerCapability issuer, IdentityAccountCapability identities,
-                               TenantAccessCapability tenants, String issuerUri, JsonMapper json) {
+                               TenantAccessCapability tenants, LoginSessionRevocations revocations,
+                               String issuerUri, JsonMapper json) {
         this.issuer = Objects.requireNonNull(issuer, "issuer must not be null");
         this.identities = Objects.requireNonNull(identities, "identities must not be null");
         this.tenants = Objects.requireNonNull(tenants, "tenants must not be null");
+        this.revocations = Objects.requireNonNull(revocations, "revocations must not be null");
         this.issuerUri = Objects.requireNonNull(issuerUri, "issuerUri must not be null");
         this.json = Objects.requireNonNull(json, "json must not be null");
     }
@@ -78,6 +82,9 @@ public final class ActorTokenGenerator implements OAuth2TokenGenerator<OAuth2Tok
             return null;
         }
         HostedLoginAuthentication principal = principalOf(context.getPrincipal());
+        if (revocations.isRevoked(principal.getSid())) {
+            throw invalidGrant("The login session has ended");
+        }
         IdentityRecord identity = activeIdentity(principal);
         TenantMembershipRecord membership = activeMembership(principal);
         if (accessToken) {

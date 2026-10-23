@@ -65,6 +65,12 @@ public final class ClientPolicyValidator implements Consumer<OAuth2Authorization
         if (!AAL2_OR_STRONGER.contains(login.getAcr())) {
             throw denied(request, "The tenant console requires two-factor authentication");
         }
+        // A requested context the login could not switch to (another identity's, inactive, or a
+        // Subject context) is refused rather than silently replaced (multi-tenant T-26).
+        Object requested = request.getAdditionalParameters().get(HostedLoginSessionFilter.CONTEXT_PARAMETER);
+        if (requested != null && !requested.equals(login.getContextId())) {
+            throw denied(request, "The requested context is not available");
+        }
     }
 
     private static OAuth2AuthorizationCodeRequestAuthenticationException denied(

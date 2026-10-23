@@ -32,6 +32,8 @@ export {
 } from './AuthCapabilityImpl';
 export {
   createBffSessionAuthState,
+  type BffContextOption,
   type BffSessionAuthState,
   type BffSessionAuthStateOptions,
 } from './BffSessionAuthState';
+export { createBffTenantCapability } from './BffTenantCapability';

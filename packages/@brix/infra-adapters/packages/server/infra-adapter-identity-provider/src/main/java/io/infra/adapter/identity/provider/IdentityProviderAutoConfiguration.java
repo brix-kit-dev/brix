@@ -62,7 +62,9 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 
 import io.infra.adapter.identity.provider.authorization.ActorTokenGenerator;
+import io.infra.adapter.identity.provider.authorization.AuthorizationEntryPoint;
 import io.infra.adapter.identity.provider.authorization.ClientPolicyValidator;
+import io.infra.adapter.identity.provider.authorization.HostedLoginSessionFilter;
 import io.infra.adapter.identity.provider.authorization.StateStoreAuthorizationService;
 import io.infra.adapter.identity.provider.bff.BffController;
 import io.infra.adapter.identity.provider.bff.BffSessionRelayFilter;
@@ -71,7 +73,9 @@ import io.infra.adapter.identity.provider.bff.BffTokenClient;
 import io.infra.adapter.identity.provider.bff.BffTokenRefresher;
 import io.infra.adapter.identity.provider.login.HostedLoginController;
 import io.infra.adapter.identity.provider.login.HostedLoginPages;
+import io.infra.adapter.identity.provider.support.ContextSwitchIntents;
 import io.infra.adapter.identity.provider.support.EncryptedStateStore;
+import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.infra.adapter.identity.provider.support.ProtocolRateLimitFilter;
 import io.infra.adapter.identity.provider.support.Secrets;
 import io.runtime.sdk.capability.IdentityAccountCapability;
@@ -160,9 +164,21 @@ public class IdentityProviderAutoConfiguration {
     }
 
     @Bean
+    LoginSessionRevocations identityProviderLoginSessionRevocations(EncryptedStateStore store,
+                                                                    IdentityProviderProperties properties) {
+        return new LoginSessionRevocations(store, properties.getSession().getAbsoluteTimeout());
+    }
+
+    @Bean
+    ContextSwitchIntents identityProviderContextSwitchIntents(EncryptedStateStore store) {
+        return new ContextSwitchIntents(store);
+    }
+
+    @Bean
     OAuth2AuthorizationService identityProviderAuthorizations(EncryptedStateStore store,
-                                                              RegisteredClientRepository clients) {
-        return new StateStoreAuthorizationService(store, clients);
+                                                              RegisteredClientRepository clients,
+                                                              LoginSessionRevocations revocations) {
+        return new StateStoreAuthorizationService(store, clients, revocations);
     }
 
     @Bean
@@ -192,8 +208,9 @@ public class IdentityProviderAutoConfiguration {
     OAuth2TokenGenerator<OAuth2Token> identityProviderTokenGenerator(JwtIssuerCapability issuer,
                                                                     IdentityAccountCapability identities,
                                                                     TenantAccessCapability tenants,
+                                                                    LoginSessionRevocations revocations,
                                                                     IdentityProviderProperties properties) {
-        return new ActorTokenGenerator(issuer, identities, tenants, properties.requireIssuerOrigin(), JSON);
+        return new ActorTokenGenerator(issuer, identities, tenants, revocations, properties.requireIssuerOrigin(), JSON);
     }
 
     @Bean
@@ -223,8 +240,14 @@ public class IdentityProviderAutoConfiguration {
      * bean: Spring Boot would also register such a bean for every path, {@code /api/**} included.
      */
     @Bean
-    ProtocolLimits identityProviderRateLimit(IdentityProviderProperties properties) {
-        return new ProtocolLimits(new ProtocolRateLimitFilter(properties.getLogin().getMaxRequestsPerSourcePerMinute()));
+    ProtocolLimits identityProviderRateLimit(IdentityProviderProperties properties,
+                                             LoginSessionRevocations revocations,
+                                             ContextSwitchIntents switchIntents,
+                                             TenantAccessCapability tenants) {
+        return new ProtocolLimits(
+                new ProtocolRateLimitFilter(properties.getLogin().getMaxRequestsPerSourcePerMinute()),
+                new HostedLoginSessionFilter(revocations, switchIntents, tenants,
+                        properties.getSession().getAbsoluteTimeout(), CLOCK));
     }
 
     @Bean
@@ -248,10 +271,12 @@ public class IdentityProviderAutoConfiguration {
                         .oidc(Customizer.withDefaults()))
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
-                        new LoginUrlAuthenticationEntryPoint(properties.requireIssuerOrigin() + "/auth/login"),
+                        new AuthorizationEntryPoint(
+                                new LoginUrlAuthenticationEntryPoint(properties.requireIssuerOrigin() + "/auth/login")),
                         new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
                 .headers(IdentityProviderAutoConfiguration::protocolHeaders)
-                .addFilterBefore(limits.filter(), SecurityContextHolderFilter.class);
+                .addFilterBefore(limits.filter(), SecurityContextHolderFilter.class)
+                .addFilterAfter(limits.loginSession(), SecurityContextHolderFilter.class);
         return http.build();
     }
 
@@ -272,7 +297,8 @@ public class IdentityProviderAutoConfiguration {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
-                .addFilterBefore(limits.filter(), SecurityContextHolderFilter.class);
+                .addFilterBefore(limits.filter(), SecurityContextHolderFilter.class)
+                .addFilterAfter(limits.loginSession(), SecurityContextHolderFilter.class);
         return http.build();
     }
 
@@ -308,8 +334,10 @@ public class IdentityProviderAutoConfiguration {
     HostedLoginController identityProviderHostedLogin(IdentityAccountCapability identities,
                                                       PasswordCapability passwords,
                                                       TenantAccessCapability tenants,
-                                                      IdentityProviderProperties properties) {
-        return new HostedLoginController(identities, passwords, tenants, properties, CLOCK);
+                                                      IdentityProviderProperties properties,
+                                                      EncryptedStateStore store,
+                                                      LoginSessionRevocations revocations) {
+        return new HostedLoginController(identities, passwords, tenants, properties, store, revocations, CLOCK);
     }
 
     @Bean
@@ -336,8 +364,9 @@ public class IdentityProviderAutoConfiguration {
 
     @Bean
     BffController identityProviderBff(BffSessionStore sessions, BffTokenClient tokens, BffTokenRefresher refresher,
-                                      TenantAccessCapability tenants, IdentityProviderProperties properties) {
-        return new BffController(sessions, tokens, refresher, tenants, properties, CLOCK);
+                                      TenantAccessCapability tenants, LoginSessionRevocations revocations,
+                                      ContextSwitchIntents switchIntents, IdentityProviderProperties properties) {
+        return new BffController(sessions, tokens, refresher, tenants, revocations, switchIntents, properties, CLOCK);
     }
 
     /** Runs before the Dispatcher's authentication step ({@code SecurityContextFilter}, order -100). */
@@ -369,7 +398,11 @@ public class IdentityProviderAutoConfiguration {
         };
     }
 
-    record ProtocolLimits(ProtocolRateLimitFilter filter) {
+    /**
+     * Filters shared by both chains. They are deliberately not {@code Filter} beans: Spring Boot
+     * would also register such beans for every path, {@code /api/**} included.
+     */
+    record ProtocolLimits(ProtocolRateLimitFilter filter, HostedLoginSessionFilter loginSession) {
     }
 
     /** Credentials of the tenant console client, shared by the authorization server and the BFF. */

@@ -15,6 +15,9 @@ function repository(overrides: Partial<HostedLoginRepository> = {}): HostedLogin
     totp: vi.fn(async (): Promise<LoginStepResponse> => ({
       step: 'done', continueUrl: `${ORIGIN}/oauth2/authorize?client_id=tenant-console`,
     })),
+    select: vi.fn(async (): Promise<LoginStepResponse> => ({
+      step: 'done', continueUrl: `${ORIGIN}/oauth2/authorize?client_id=tenant-console`,
+    })),
     restart: vi.fn(async (): Promise<LoginStepResponse> => ({ step: 'identify' })),
     signOut: vi.fn(async (): Promise<LoginStepResponse> => ({ step: 'identify' })),
     ...overrides,
@@ -92,5 +95,45 @@ describe('HostedLoginApp', () => {
 
     expect(await screen.findByText('The sign-in expired or finished in another window. Sign in again.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign in again' })).toBeTruthy();
+  });
+
+  it('lets staff of several tenants choose one with a one-time ticket', async () => {
+    const options = [
+      { ticket: 't-clinic', tenantName: 'Clinic', tenantCode: 'clinic', memberType: 'MEMBER' },
+      { ticket: 't-hospital', tenantName: 'Hospital', tenantCode: 'hospital', memberType: 'OWNER' },
+    ];
+    const repo = repository({ totp: vi.fn(async () => ({ step: 'select-tenant' as const, options })) });
+    const navigate = renderApp(repo);
+
+    await enter('Email', 'multi@example.test', 'Next');
+    await enter('Password', 'secret password', 'Sign in');
+    await enter('Verification code', '123456', 'Verify');
+    expect(await screen.findByText('Choose a tenant')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('t-hospital');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Hospital（Owner）' }));
+    });
+
+    expect(repo.select).toHaveBeenCalledWith('t-hospital');
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(`${ORIGIN}/oauth2/authorize?client_id=tenant-console`));
+  });
+
+  it('fetches fresh tickets when a choice has expired', async () => {
+    const first = [{ ticket: 'old', tenantName: 'Clinic', tenantCode: 'clinic', memberType: 'MEMBER' }];
+    const fresh = [{ ticket: 'new', tenantName: 'Clinic', tenantCode: 'clinic', memberType: 'MEMBER' }];
+    const state = vi.fn()
+      .mockResolvedValueOnce({ step: 'select-tenant', options: first })
+      .mockResolvedValueOnce({ step: 'select-tenant', options: fresh });
+    const repo = repository({ state, select: vi.fn(async () => ({ step: 'select-tenant' as const, error: 'ticket_invalid' })) });
+    renderApp(repo);
+
+    const clinic = await screen.findByRole('button', { name: 'Clinic（Member）' });
+    await act(async () => {
+      fireEvent.click(clinic);
+    });
+
+    expect(await screen.findByText('That choice expired. Choose again.')).toBeTruthy();
+    expect(repo.select).toHaveBeenCalledWith('old');
+    expect(state).toHaveBeenCalledTimes(2);
   });
 });

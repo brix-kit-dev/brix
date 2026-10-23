@@ -21,9 +21,22 @@ import type {
 } from '@brix-sdk/runtime-sdk-api-web';
 import type { AuthCapabilityConfig } from './AuthCapabilityImpl';
 
+/** An Actor context of the signed-in identity, as the BFF session lists it. */
+export interface BffContextOption {
+  readonly contextId: string;
+  readonly memberId: string;
+  readonly tenantId: string;
+  readonly tenantCode: string;
+  readonly tenantName: string;
+  readonly memberType: string;
+  readonly current: boolean;
+}
+
 export interface BffSessionAuthStateOptions {
   /** @default '/bff/session' */
   readonly sessionUrl?: string;
+  /** @default '/bff/switch' */
+  readonly switchUrl?: string;
   /** @default '/bff/login' */
   readonly loginUrl?: string;
   /** @default '/bff/logout' */
@@ -33,6 +46,8 @@ export interface BffSessionAuthStateOptions {
   readonly fetchFn?: typeof fetch;
   /** Full-page navigation; defaults to `window.location.assign`. */
   readonly navigate?: (url: string) => void;
+  /** This console's origin; redirects elsewhere are refused. Defaults to `window.location.origin`. */
+  readonly origin?: string;
 }
 
 export interface BffSessionAuthState extends AuthCapabilityConfig {
@@ -42,6 +57,14 @@ export interface BffSessionAuthState extends AuthCapabilityConfig {
   csrfToken(): string | null;
   /** Sends the browser to the BFF login; it returns to `returnTo` on this console afterwards. */
   redirectToLogin(returnTo: string): void;
+  /** The identity's Actor contexts, the current one included. */
+  contexts(): readonly BffContextOption[];
+  /**
+   * Switches to another Actor context of the same identity through the BFF (multi-tenant T-26):
+   * the browser leaves for a silent re-authorization and comes back to `returnTo` with a new
+   * session, so no state of the previous context survives.
+   */
+  switchContext(contextId: string, returnTo: string): Promise<void>;
 }
 
 interface BffSessionBody {
@@ -56,6 +79,7 @@ interface BffSessionBody {
     readonly memberType?: string;
   };
   readonly permissions?: readonly string[];
+  readonly contexts?: readonly Partial<BffContextOption>[];
   readonly authentication?: { readonly acr?: string; readonly amr?: readonly string[]; readonly authTime?: string };
   readonly expiresAt?: string;
 }
@@ -73,6 +97,7 @@ const ANONYMOUS: InternalAuthState = {
 
 export function createBffSessionAuthState(options: BffSessionAuthStateOptions = {}): BffSessionAuthState {
   const sessionUrl = options.sessionUrl ?? '/bff/session';
+  const switchUrl = options.switchUrl ?? '/bff/switch';
   const loginUrl = options.loginUrl ?? '/bff/login';
   const logoutUrl = options.logoutUrl ?? '/bff/logout';
   const csrfHeaderName = options.csrfHeaderName ?? 'X-Brix-CSRF';
@@ -81,6 +106,7 @@ export function createBffSessionAuthState(options: BffSessionAuthStateOptions = 
   const handlers = new Set<AuthChangeHandler>();
   let state: InternalAuthState = { ...ANONYMOUS, loading: true };
   let csrf: string | null = null;
+  let contexts: readonly BffContextOption[] = [];
 
   function publish(next: InternalAuthState): void {
     const previous = state;
@@ -124,11 +150,31 @@ export function createBffSessionAuthState(options: BffSessionAuthStateOptions = 
       }
       const next = body?.authenticated === true ? fromSession(body) : null;
       csrf = next ? readText(body?.csrfToken) ?? null : null;
+      contexts = next ? readContexts(body?.contexts) : [];
       publish(next ?? ANONYMOUS);
       return next !== null;
     },
     csrfToken: () => csrf,
     redirectToLogin,
+    contexts: () => contexts,
+    async switchContext(contextId: string, returnTo: string): Promise<void> {
+      const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
+      if (csrf) {
+        headers[csrfHeaderName] = csrf;
+      }
+      const response = await fetchFn(switchUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify({ contextId, returnTo }),
+      });
+      const body = (await response.json().catch(() => null)) as { redirect?: unknown; error?: unknown } | null;
+      const origin = options.origin ?? window.location.origin;
+      if (!response.ok || typeof body?.redirect !== 'string' || !body.redirect.startsWith(`${origin}/`)) {
+        throw new Error(typeof body?.error === 'string' ? body.error : 'context_switch_failed');
+      }
+      navigate(body.redirect);
+    },
     login: async (): Promise<LoginResult> => {
       redirectToLogin(window.location.pathname + window.location.search);
       return { success: false, errorCode: 'auth.redirect' };
@@ -185,6 +231,25 @@ function fromSession(body: BffSessionBody): InternalAuthState | null {
     activeContext,
     sessionState: 'authenticated',
   };
+}
+
+function readContexts(value: readonly Partial<BffContextOption>[] | undefined): readonly BffContextOption[] {
+  return (value ?? []).flatMap((option) => {
+    const contextId = readText(option.contextId);
+    const tenantId = readText(option.tenantId);
+    if (!contextId || !tenantId) {
+      return [];
+    }
+    return [{
+      contextId,
+      tenantId,
+      memberId: readText(option.memberId) ?? '',
+      tenantCode: readText(option.tenantCode) ?? tenantId,
+      tenantName: readText(option.tenantName) ?? tenantId,
+      memberType: readText(option.memberType) ?? '',
+      current: option.current === true,
+    }];
+  });
 }
 
 function toAuthState(internal: InternalAuthState): AuthState {

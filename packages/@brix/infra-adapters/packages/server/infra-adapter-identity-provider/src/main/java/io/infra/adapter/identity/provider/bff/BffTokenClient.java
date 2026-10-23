@@ -98,16 +98,26 @@ public final class BffTokenClient {
 
     /** The authorization request for a new login; its URI is where the browser goes next. */
     OAuth2AuthorizationRequest authorizationRequest(String state, String nonce, String codeVerifier) {
+        return authorizationRequest(state, nonce, codeVerifier, Map.of());
+    }
+
+    /**
+     * The authorization request with extra parameters, for example {@code prompt=none} and the
+     * target context of a switch.
+     */
+    OAuth2AuthorizationRequest authorizationRequest(String state, String nonce, String codeVerifier,
+                                                    Map<String, String> extraParameters) {
+        Map<String, Object> parameters = new java.util.LinkedHashMap<>(extraParameters);
+        parameters.put(OidcParameterNames.NONCE, nonce);
+        parameters.put(PkceParameterNames.CODE_CHALLENGE, s256(codeVerifier));
+        parameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256");
         return OAuth2AuthorizationRequest.authorizationCode()
                 .authorizationUri(issuer + "/oauth2/authorize")
                 .clientId(clientId)
                 .redirectUri(redirectUri())
                 .scopes(Set.of("openid", "profile", "email"))
                 .state(state)
-                .additionalParameters(Map.of(
-                        OidcParameterNames.NONCE, nonce,
-                        PkceParameterNames.CODE_CHALLENGE, s256(codeVerifier),
-                        PkceParameterNames.CODE_CHALLENGE_METHOD, "S256"))
+                .additionalParameters(parameters)
                 .attributes(Map.of(PkceParameterNames.CODE_VERIFIER, codeVerifier))
                 .build();
     }

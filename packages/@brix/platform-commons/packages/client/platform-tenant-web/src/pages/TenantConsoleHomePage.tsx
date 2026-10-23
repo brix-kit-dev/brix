@@ -13,11 +13,19 @@
 
 import { useAuth, useRuntimeContext, useUI } from '@brix-sdk/runtime-sdk-react';
 import { AuthCapabilityType, type AuthCapability } from '@brix-sdk/runtime-sdk-api-web';
+import { useActorContexts } from '../hooks/useActorContexts';
+
+const MEMBER_TYPE_LABELS: Readonly<Record<string, string>> = {
+  OWNER: '所有者',
+  ADMIN: '管理员',
+  MEMBER: '成员',
+};
 
 export function TenantConsoleHomePage() {
   const auth = useAuth();
   const runtime = useRuntimeContext();
-  const { Card, Stack, Typography, Tag } = useUI();
+  const { Card, Stack, Typography, Tag, Button, Alert } = useUI();
+  const contexts = useActorContexts();
   const capability = runtime.getCapability<AuthCapability>(AuthCapabilityType);
   const tenant = capability?.getCurrentTenant?.() ?? null;
   const actor = capability?.getVerifiedActorContext() ?? null;
@@ -47,6 +55,30 @@ export function TenantConsoleHomePage() {
           )}
         </Stack>
       </Card>
+      {contexts.others.length > 0 ? (
+        <Card>
+          <Stack spacing={1} style={{ padding: 16 }}>
+            <Typography variant="subtitle2">切换租户</Typography>
+            {contexts.error ? <Alert severity="error">切换失败，请刷新页面后重试。</Alert> : null}
+            {contexts.others.map((context) => (
+              <Stack key={context.contextId} direction="row" spacing={1} align="center" justify="space-between">
+                <Typography variant="body2">
+                  {context.tenant.name}（{MEMBER_TYPE_LABELS[context.roleType] ?? context.roleType}）
+                </Typography>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  loading={contexts.switching}
+                  disabled={contexts.switching}
+                  onClick={() => void contexts.switchTo(context.contextId)}
+                >
+                  切换
+                </Button>
+              </Stack>
+            ))}
+          </Stack>
+        </Card>
+      ) : null}
     </Stack>
   );
 }

@@ -6,7 +6,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSubmitGuard } from '@brix-sdk/runtime-sdk-react';
-import type { HostedLoginRepository, LoginStepName, LoginStepResponse } from '../repositories/HostedLoginRepository';
+import type {
+  HostedLoginRepository,
+  LoginOption,
+  LoginStepName,
+  LoginStepResponse,
+} from '../repositories/HostedLoginRepository';
 
 export interface HostedLoginViewModel {
   readonly step: LoginStepName | 'loading';
@@ -15,9 +20,12 @@ export interface HostedLoginViewModel {
   readonly submitting: boolean;
   /** The identifier entered in this page, shown on the following steps. */
   readonly identifier: string | null;
+  /** Tenants to choose from, each with a one-time ticket. */
+  readonly options: readonly LoginOption[];
   identify(identifier: string): Promise<void>;
   password(password: string): Promise<void>;
   totp(code: string): Promise<void>;
+  select(ticket: string): Promise<void>;
   restart(): Promise<void>;
   signOut(): Promise<void>;
 }
@@ -39,6 +47,7 @@ export function useHostedLogin(
   const [step, setStep] = useState<LoginStepName | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [identifier, setIdentifier] = useState<string | null>(null);
+  const [options, setOptions] = useState<readonly LoginOption[]>([]);
   const { submitting, guard } = useSubmitGuard();
 
   const apply = useCallback((response: LoginStepResponse) => {
@@ -53,6 +62,9 @@ export function useHostedLogin(
     }
     if (response.step) {
       setStep(response.step);
+    }
+    if (response.options) {
+      setOptions(response.options);
     }
     setError(response.error ?? null);
   }, [navigate, origin]);
@@ -91,12 +103,22 @@ export function useHostedLogin(
     error,
     submitting,
     identifier,
+    options,
     identify: async (value) => {
       setIdentifier(value.trim());
       await run(() => repository.identify(value));
     },
     password: (value) => run(() => repository.password(value)),
     totp: (value) => run(() => repository.totp(value.replace(/\s+/g, ''))),
+    select: (ticket) => run(async () => {
+      const response = await repository.select(ticket);
+      if (response.error === 'ticket_invalid' || response.error === 'ticket_used') {
+        // Tickets are one-time: fetch fresh ones and keep the error visible.
+        const fresh = await repository.state();
+        return { ...fresh, error: response.error };
+      }
+      return response;
+    }),
     restart: async () => {
       setIdentifier(null);
       await run(() => repository.restart());

@@ -47,7 +47,19 @@ class TestCapabilities {
     static final String STAFF_EMAIL = "staff@example.test";
     static final String STAFF_PASSWORD = "correct horse battery";
     static final long TENANT_ID = 42L;
-    static final String CONTEXT_ID = UUID.nameUUIDFromBytes("ctx-staff".getBytes(StandardCharsets.UTF_8)).toString();
+    static final String CONTEXT_ID = context("ctx-staff");
+    /** Staff of two tenants (multi-tenant §9.3 selection, T-26 switching). */
+    static final long MULTI_ID = 22L;
+    static final String MULTI_EMAIL = "multi@example.test";
+    static final long OTHER_TENANT_ID = 43L;
+    static final String MULTI_CONTEXT_A = context("ctx-multi-a");
+    static final String MULTI_CONTEXT_B = context("ctx-multi-b");
+    /** Another person's Actor context, never reachable by the staff above. */
+    static final String FOREIGN_CONTEXT = context("ctx-foreign");
+
+    private static String context(String seed) {
+        return UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8)).toString();
+    }
 
     @Bean
     InMemoryStateStore stateStore() {
@@ -311,28 +323,34 @@ class TestCapabilities {
 
         @Override
         public Optional<IdentityRecord> findIdentityByEmail(String email) {
-            return STAFF_EMAIL.equals(email) ? findIdentityById(STAFF_ID) : Optional.empty();
+            if (STAFF_EMAIL.equals(email)) {
+                return findIdentityById(STAFF_ID);
+            }
+            return MULTI_EMAIL.equals(email) ? findIdentityById(MULTI_ID) : Optional.empty();
         }
 
         @Override
         public Optional<IdentityRecord> findIdentityById(Long id) {
-            if (!Long.valueOf(STAFF_ID).equals(id)) {
-                return Optional.empty();
+            if (Long.valueOf(STAFF_ID).equals(id)) {
+                return Optional.of(new IdentityRecord(STAFF_ID, STAFF_EMAIL, "staff", "h:" + STAFF_PASSWORD,
+                        status, false, 3L));
             }
-            return Optional.of(new IdentityRecord(STAFF_ID, STAFF_EMAIL, "staff", "h:" + STAFF_PASSWORD,
-                    status, false, 3L));
+            if (Long.valueOf(MULTI_ID).equals(id)) {
+                return Optional.of(new IdentityRecord(MULTI_ID, MULTI_EMAIL, "multi", "h:" + STAFF_PASSWORD,
+                        "ACTIVE", false, 1L));
+            }
+            return Optional.empty();
         }
 
         @Override
         public boolean isTotpEnabled(Long identityId) {
-            return Long.valueOf(STAFF_ID).equals(identityId);
+            return findIdentityById(identityId).isPresent();
         }
 
         @Override
         public boolean verifyTotp(Long identityId, String code) {
             // Any code "1xxxxx" is valid once; tests use a fresh code per login.
-            return Long.valueOf(STAFF_ID).equals(identityId) && code != null && code.matches("1\\d{5}")
-                    && usedCodes.add(code);
+            return isTotpEnabled(identityId) && code != null && code.matches("1\\d{5}") && usedCodes.add(code);
         }
 
         @Override
@@ -388,9 +406,13 @@ class TestCapabilities {
         }
     }
 
-    /** The staff identity is an active MEMBER of one tenant. */
+    /**
+     * The staff identity is an active MEMBER of one tenant; the multi-tenant staff is a MEMBER of
+     * tenant 42 and the OWNER of tenant 43; another person is a member of tenant 44.
+     */
     static final class FakeTenants implements TenantAccessCapability {
 
+        /** Switches the single-tenant staff membership off. */
         volatile boolean active = true;
 
         TenantMembershipRecord membership() {
@@ -398,9 +420,24 @@ class TestCapabilities {
                     Instant.parse("2026-10-01T00:00:00Z"), CONTEXT_ID, 3L);
         }
 
+        private List<TenantMembershipRecord> all() {
+            Instant joined = Instant.parse("2026-10-01T00:00:00Z");
+            List<TenantMembershipRecord> records = new java.util.ArrayList<>(List.of(
+                    new TenantMembershipRecord(8L, TENANT_ID, "clinic", "Clinic", MULTI_ID, "MEMBER", "ACTIVE",
+                            joined, MULTI_CONTEXT_A, 1L),
+                    new TenantMembershipRecord(9L, OTHER_TENANT_ID, "hospital", "Hospital", MULTI_ID, "OWNER",
+                            "ACTIVE", joined, MULTI_CONTEXT_B, 1L),
+                    new TenantMembershipRecord(10L, 44L, "foreign", "Foreign", 23L, "OWNER", "ACTIVE", joined,
+                            FOREIGN_CONTEXT, 1L)));
+            if (active) {
+                records.add(membership());
+            }
+            return records;
+        }
+
         @Override
         public List<TenantMembershipRecord> getActiveMemberships(Long identityId) {
-            return active && Long.valueOf(STAFF_ID).equals(identityId) ? List.of(membership()) : List.of();
+            return all().stream().filter(m -> m.identityId().equals(identityId)).toList();
         }
 
         @Override
@@ -415,7 +452,7 @@ class TestCapabilities {
 
         @Override
         public Optional<TenantMembershipRecord> findMembershipByContextId(String contextId) {
-            return active && CONTEXT_ID.equals(contextId) ? Optional.of(membership()) : Optional.empty();
+            return all().stream().filter(m -> m.contextId().equals(contextId)).findFirst();
         }
 
         @Override

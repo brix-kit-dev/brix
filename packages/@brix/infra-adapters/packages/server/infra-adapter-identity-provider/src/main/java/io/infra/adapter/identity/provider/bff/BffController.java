@@ -23,11 +23,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.infra.adapter.identity.provider.IdentityProviderProperties;
+import io.infra.adapter.identity.provider.authorization.HostedLoginSessionFilter;
+import io.infra.adapter.identity.provider.support.ContextSwitchIntents;
+import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.infra.adapter.identity.provider.support.Secrets;
 import io.runtime.sdk.capability.TenantAccessCapability;
 import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
@@ -41,7 +45,10 @@ import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
  *   <li>{@code GET /bff/login} starts authorization code + PKCE and sends the browser to the
  *       authorization endpoint;</li>
  *   <li>{@code GET /bff/callback} finishes it and opens the session;</li>
- *   <li>{@code GET /bff/session} describes the session: identity, context, authentication;</li>
+ *   <li>{@code GET /bff/session} describes the session: identity, context, the identity's other
+ *       Actor contexts, effective permissions, authentication;</li>
+ *   <li>{@code POST /bff/switch} re-authorizes silently ({@code prompt=none}) for another Actor
+ *       context of the same identity (identity-auth {@code BRX-IA-FLOW-004}, multi-tenant T-26);</li>
  *   <li>{@code POST /bff/logout} ends the BFF session, revokes the refresh token and ends the
  *       login session of the identity protocol surface ({@code BRX-IA-SESSION-005}).</li>
  * </ul>
@@ -64,16 +71,21 @@ public class BffController {
     private final BffTokenClient tokens;
     private final BffTokenRefresher refresher;
     private final TenantAccessCapability tenants;
+    private final LoginSessionRevocations revocations;
+    private final ContextSwitchIntents switchIntents;
     private final IdentityProviderProperties properties;
     private final String issuer;
     private final Clock clock;
 
     public BffController(BffSessionStore sessions, BffTokenClient tokens, BffTokenRefresher refresher,
-                         TenantAccessCapability tenants, IdentityProviderProperties properties, Clock clock) {
+                         TenantAccessCapability tenants, LoginSessionRevocations revocations,
+                         ContextSwitchIntents switchIntents, IdentityProviderProperties properties, Clock clock) {
         this.sessions = Objects.requireNonNull(sessions, "sessions must not be null");
         this.tokens = Objects.requireNonNull(tokens, "tokens must not be null");
         this.refresher = Objects.requireNonNull(refresher, "refresher must not be null");
         this.tenants = Objects.requireNonNull(tenants, "tenants must not be null");
+        this.revocations = Objects.requireNonNull(revocations, "revocations must not be null");
+        this.switchIntents = Objects.requireNonNull(switchIntents, "switchIntents must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.issuer = properties.requireIssuerOrigin();
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -102,6 +114,11 @@ public class BffController {
         BffCookies.clear(response, BffCookies.LOGIN_BINDING, "Lax");
         if (error != null) {
             audit.info("event=identity.bff.login_failed reason=authorization_error error={}", errorCode(error));
+            if ("login_required".equals(error) && pending.isPresent()) {
+                // A silent switch found no login session: log in again and return to the same page.
+                return redirect(issuer + "/bff/login?returnTo="
+                        + java.net.URLEncoder.encode(pending.get().returnTo(), java.nio.charset.StandardCharsets.UTF_8));
+            }
             return failure(errorCode(error));
         }
         if (pending.isEmpty() || code == null) {
@@ -122,11 +139,15 @@ public class BffController {
         Jwt idToken = tokenSet.idToken();
         Optional<TenantMembershipRecord> membership = tenants.findMembershipByContextId(idToken.getClaimAsString("cid"))
                 .filter(record -> String.valueOf(record.identityId()).equals(idToken.getSubject()));
-        if (membership.isEmpty()) {
+        String target = pending.get().targetContextId();
+        if (membership.isEmpty() || (target != null && !target.equals(membership.get().contextId()))) {
             revokeQuietly(tokenSet.refreshToken());
             return failure("context_unavailable");
         }
-        BffCookies.read(request, BffCookies.SESSION).ifPresent(sessions::delete);
+        // The new session replaces this browser's previous one; its token family ends with it.
+        Optional<String> previousId = BffCookies.read(request, BffCookies.SESSION);
+        previousId.flatMap(sessions::find).ifPresent(previous -> revokeQuietly(previous.refreshToken()));
+        previousId.ifPresent(sessions::delete);
         Instant now = clock.instant();
         BffSession session = new BffSession(
                 Secrets.randomToken(32),
@@ -152,9 +173,48 @@ public class BffController {
                 idToken.getClaimAsString("sid"));
         String sessionId = sessions.create(session);
         BffCookies.write(response, BffCookies.SESSION, sessionId, Duration.ofSeconds(-1), "Strict");
-        audit.info("event=identity.bff.session_created identity={} tenant={} acr={}",
-                session.subject(), session.tenantId(), session.acr());
+        audit.info("event=identity.bff.session_created identity={} tenant={} acr={} switch={}",
+                session.subject(), session.tenantId(), session.acr(), target != null);
         return redirect(issuer + pending.get().returnTo());
+    }
+
+    /**
+     * Starts a silent re-authorization for another Actor context of the session's identity.
+     * The browser follows the returned URI; the callback replaces the session and its tokens,
+     * and the console reloads with clean state. The authorization endpoint switches the login
+     * session only for the intent recorded here, never for a link alone.
+     */
+    @PostMapping(path = "/switch", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> switchContext(@RequestBody(required = false) SwitchRequest body,
+                                                             HttpServletRequest request,
+                                                             HttpServletResponse response) {
+        Optional<BffSession> found = BffCookies.read(request, BffCookies.SESSION).flatMap(sessions::find);
+        if (found.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "session_required"));
+        }
+        BffSession session = found.get();
+        if (!Secrets.matches(session.csrfToken(), request.getHeader(CSRF_HEADER))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "csrf_invalid"));
+        }
+        String target = body == null ? null : body.contextId();
+        boolean sameIdentityActorContext = target != null && !target.equals(session.contextId())
+                && activeMemberships(session.subject()).stream().anyMatch(m -> target.equals(m.contextId()));
+        if (!sameIdentityActorContext) {
+            audit.warn("event=identity.bff.switch_denied identity={}", session.subject());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "context_not_available"));
+        }
+        String state = Secrets.randomToken(32);
+        String nonce = Secrets.randomToken(32);
+        String codeVerifier = Secrets.randomToken(48);
+        String binding = Secrets.randomToken(32);
+        sessions.savePending(state, new PendingLogin(codeVerifier, nonce, safeReturnTo(body.returnTo()),
+                Secrets.sha256(binding), clock.instant().getEpochSecond(), target));
+        BffCookies.write(response, BffCookies.LOGIN_BINDING, binding, LOGIN_BINDING_TTL, "Lax");
+        switchIntents.expect(session.sid(), target);
+        String redirect = tokens.authorizationRequest(state, nonce, codeVerifier,
+                Map.of("prompt", "none", HostedLoginSessionFilter.CONTEXT_PARAMETER, target))
+                .getAuthorizationRequestUri();
+        return ResponseEntity.ok(Map.of("redirect", redirect));
     }
 
     @GetMapping(path = "/session", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -187,6 +247,17 @@ public class BffController {
         body.put("identity", identity);
         body.put("context", context);
         body.put("permissions", effectivePermissions(session));
+        body.put("contexts", activeMemberships(session.subject()).stream().map(membership -> {
+            Map<String, Object> option = new LinkedHashMap<>();
+            option.put("contextId", membership.contextId());
+            option.put("memberId", String.valueOf(membership.memberId()));
+            option.put("tenantId", String.valueOf(membership.tenantId()));
+            option.put("tenantCode", membership.tenantCode());
+            option.put("tenantName", membership.tenantName());
+            option.put("memberType", membership.memberType());
+            option.put("current", membership.contextId().equals(session.contextId()));
+            return option;
+        }).toList());
         body.put("authentication", authentication);
         body.put("expiresAt", Instant.ofEpochSecond(session.absoluteExpiresAt()).toString());
         return body;
@@ -221,6 +292,7 @@ public class BffController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "csrf_invalid"));
             }
             revokeQuietly(found.get().refreshToken());
+            revocations.revoke(found.get().sid());
             sessions.delete(id.get());
             audit.info("event=identity.bff.logout identity={}", found.get().subject());
         }
@@ -230,6 +302,17 @@ public class BffController {
         }
         id.ifPresent(value -> BffCookies.clear(response, BffCookies.SESSION, "Strict"));
         return ResponseEntity.ok(Map.of("loggedOut", true));
+    }
+
+    /** The identity's active Actor contexts, the only ones a switch may target (multi-tenant T-26). */
+    private List<TenantMembershipRecord> activeMemberships(String subject) {
+        try {
+            return tenants.getActiveMemberships(Long.valueOf(subject)).stream()
+                    .filter(membership -> "ACTIVE".equals(membership.status()) && membership.contextId() != null)
+                    .toList();
+        } catch (NumberFormatException e) {
+            return List.of();
+        }
     }
 
     /** Revocation is best effort: the server-side session is deleted either way. */
@@ -268,5 +351,9 @@ public class BffController {
 
     private static ResponseEntity<Void> redirect(String location) {
         return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(location)).build();
+    }
+
+    /** Target of a context switch and the console page to return to. */
+    public record SwitchRequest(String contextId, String returnTo) {
     }
 }

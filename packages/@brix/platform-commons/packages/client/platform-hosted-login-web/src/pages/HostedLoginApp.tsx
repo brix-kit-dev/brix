@@ -16,7 +16,7 @@ export interface HostedLoginAppProps {
   readonly navigate: (url: string) => void;
 }
 
-const RESULT_STEPS = new Set(['no-tenant', 'multiple-tenants', 'password-change-required', 'mfa-setup-required']);
+const RESULT_STEPS = new Set(['no-tenant', 'password-change-required', 'mfa-setup-required']);
 const LOGIN_ERRORS = new Set(['login_expired', 'token_exchange_failed', 'context_unavailable', 'access_denied']);
 
 export function HostedLoginApp({ repository, location, navigate }: HostedLoginAppProps) {
@@ -43,7 +43,38 @@ function LoginFlow({ repository, navigate, origin }: {
   if (RESULT_STEPS.has(model.step)) {
     return <ResultStep model={model} />;
   }
+  if (model.step === 'select-tenant') {
+    return <SelectTenantStep model={model} />;
+  }
   return <CredentialStep model={model} />;
+}
+
+function SelectTenantStep({ model }: { readonly model: HostedLoginViewModel }) {
+  const { Stack, Typography, Button, Alert } = useUI();
+  const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
+  return (
+    <Frame>
+      <Stack spacing={2}>
+        {model.identifier ? <Typography variant="body2" color="textSecondary">{model.identifier}</Typography> : null}
+        <Typography variant="subtitle1">{t('select.title')}</Typography>
+        {model.error ? <Alert severity="error">{t(`error.${model.error}`, t('error.unavailable'))}</Alert> : null}
+        {model.options.map((option) => (
+          <Button
+            key={option.ticket}
+            variant="secondary"
+            fullWidth
+            disabled={model.submitting}
+            onClick={() => void model.select(option.ticket)}
+          >
+            {option.tenantName}（{t(`memberType.${option.memberType}`, option.memberType)}）
+          </Button>
+        ))}
+        <Button variant="text" fullWidth disabled={model.submitting} onClick={() => void model.signOut()}>
+          {t('account.switch')}
+        </Button>
+      </Stack>
+    </Frame>
+  );
 }
 
 function CredentialStep({ model }: { readonly model: HostedLoginViewModel }) {

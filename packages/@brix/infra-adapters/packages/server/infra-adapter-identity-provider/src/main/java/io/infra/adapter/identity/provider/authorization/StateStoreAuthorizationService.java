@@ -24,8 +24,11 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.infra.adapter.identity.provider.support.EncryptedStateStore;
+import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.infra.adapter.identity.provider.support.Secrets;
 
 /**
@@ -34,8 +37,13 @@ import io.infra.adapter.identity.provider.support.Secrets;
  * authorization records).
  *
  * <p>A record is found by its ID or by the SHA-256 of one of its token values; the lookup
- * only succeeds when the record still holds that exact token, so a rotated-out refresh token
- * or a replaced code no longer resolves. Records expire with their longest-lived token.</p>
+ * only succeeds when the record still holds that exact token. Records expire with their
+ * longest-lived token.</p>
+ *
+ * <p>Refresh tokens rotate on every use. A rotated-out refresh token that is presented again
+ * means the token family leaked: the whole authorization is removed and its login session is
+ * revoked, so every holder has to log in again (root {@code BRX-RS-SECURITY-005}, identity-auth
+ * {@code BRX-IA-SESSION-001}, multi-tenant §9.3 Phase 5).</p>
  *
  * <p>Only the attributes of the authorization code flow are kept: the authorization request
  * and the {@link HostedLoginAuthentication} principal. Saving any other attribute fails.</p>
@@ -49,19 +57,23 @@ public final class StateStoreAuthorizationService implements OAuth2Authorization
     private static final String PRINCIPAL_ATTRIBUTE = Principal.class.getName();
     private static final String REQUEST_ATTRIBUTE = OAuth2AuthorizationRequest.class.getName();
     private static final Duration MIN_TTL = Duration.ofMinutes(1);
+    private static final Logger audit = LoggerFactory.getLogger("brix.identity.audit");
 
     private final EncryptedStateStore store;
     private final RegisteredClientRepository clients;
+    private final LoginSessionRevocations revocations;
     private final Supplier<Instant> clock;
 
-    public StateStoreAuthorizationService(EncryptedStateStore store, RegisteredClientRepository clients) {
-        this(store, clients, Instant::now);
+    public StateStoreAuthorizationService(EncryptedStateStore store, RegisteredClientRepository clients,
+                                          LoginSessionRevocations revocations) {
+        this(store, clients, revocations, Instant::now);
     }
 
     StateStoreAuthorizationService(EncryptedStateStore store, RegisteredClientRepository clients,
-                                   Supplier<Instant> clock) {
+                                   LoginSessionRevocations revocations, Supplier<Instant> clock) {
         this.store = Objects.requireNonNull(store, "store must not be null");
         this.clients = Objects.requireNonNull(clients, "clients must not be null");
+        this.revocations = Objects.requireNonNull(revocations, "revocations must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -73,7 +85,8 @@ public final class StateStoreAuthorizationService implements OAuth2Authorization
         for (StoredToken token : stored.tokens()) {
             Duration tokenTtl = token.expiresAt() == null ? ttl
                     : max(Duration.between(clock.get(), Instant.ofEpochSecond(token.expiresAt())), MIN_TTL);
-            store.put(TOKEN_INDEX + Secrets.sha256(token.value()), stored.id(), tokenTtl);
+            // Entries of rotated-out tokens stay until they expire, so a replay is recognized.
+            store.put(TOKEN_INDEX + Secrets.sha256(token.value()), new TokenIndex(token.kind(), stored.id()), tokenTtl);
         }
     }
 
@@ -101,21 +114,37 @@ public final class StateStoreAuthorizationService implements OAuth2Authorization
         if (token == null || token.isBlank()) {
             return null;
         }
-        Optional<String> id = store.get(TOKEN_INDEX + Secrets.sha256(token), String.class);
-        if (id.isEmpty()) {
+        Optional<TokenIndex> index = store.get(TOKEN_INDEX + Secrets.sha256(token), TokenIndex.class);
+        if (index.isEmpty() || !StoredToken.kindsFor(tokenType).contains(index.get().kind())) {
             return null;
         }
-        OAuth2Authorization authorization = findById(id.get());
+        OAuth2Authorization authorization = findById(index.get().authorizationId());
         if (authorization == null) {
             return null;
         }
-        for (String kind : StoredToken.kindsFor(tokenType)) {
-            OAuth2Authorization.Token<?> held = authorization.getToken(StoredToken.typeOf(kind));
-            if (held != null && Secrets.matches(held.getToken().getTokenValue(), token)) {
-                return authorization;
-            }
+        OAuth2Authorization.Token<?> held = authorization.getToken(StoredToken.typeOf(index.get().kind()));
+        if (held != null && Secrets.matches(held.getToken().getTokenValue(), token)) {
+            return authorization;
+        }
+        if ("refresh".equals(index.get().kind())) {
+            revokeFamily(authorization);
         }
         return null;
+    }
+
+    /** A rotated-out refresh token came back: end the authorization and the login session behind it. */
+    private void revokeFamily(OAuth2Authorization authorization) {
+        remove(authorization);
+        Object principal = authorization.getAttribute(PRINCIPAL_ATTRIBUTE);
+        if (principal instanceof HostedLoginAuthentication login) {
+            revocations.revoke(login.getSid());
+        }
+        audit.warn("event=identity.token.refresh_replay authorization_client={} identity={}",
+                authorization.getRegisteredClientId(), authorization.getPrincipalName());
+    }
+
+    /** Index entry of one token value: which kind of token it is and whose authorization holds it. */
+    record TokenIndex(String kind, String authorizationId) {
     }
 
     private OAuth2Authorization toAuthorization(StoredAuthorization stored) {

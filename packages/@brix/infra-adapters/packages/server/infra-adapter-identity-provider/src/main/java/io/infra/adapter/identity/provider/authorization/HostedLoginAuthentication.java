@@ -69,6 +69,15 @@ public final class HostedLoginAuthentication extends AbstractAuthenticationToken
         return null;
     }
 
+    /**
+     * The same login (identity, authentication event, login session) in another Actor context of
+     * that identity (multi-tenant T-26); the caller has checked the membership.
+     */
+    public HostedLoginAuthentication withContext(String targetContextId, Long targetTenantId) {
+        return new HostedLoginAuthentication(identityId, username, email, acr, amr, authTime, sid,
+                contextKind, targetContextId, targetTenantId);
+    }
+
     public AuthenticationContext authenticationContext() {
         return new AuthenticationContext(acr, amr, authTime, sid);
     }

@@ -23,6 +23,7 @@ export {
   FirstOwnerInvitationPage,
 } from './pages/FirstOwnerInvitationPage';
 export { TenantConsoleHomePage } from './pages/TenantConsoleHomePage';
+export { useActorContexts, type UseActorContextsResult } from './hooks/useActorContexts';
 export {
   useAcceptFirstOwnerInvitation,
   type UseAcceptFirstOwnerInvitationResult,
