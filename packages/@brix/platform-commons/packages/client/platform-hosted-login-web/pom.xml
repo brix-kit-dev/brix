@@ -17,7 +17,8 @@
         Packages the built hosted login UI (dist/, from `pnpm build`) on the classpath at
         META-INF/brix/hosted-login/, where the identity protocol surface serves it under /auth/**
         (frontend BRX-FE-AUTH-004). Build the UI before this module; without dist/ the jar is
-        empty and the login page answers that the UI is not installed.
+        empty and the login page answers that the UI is not installed. Deploy builds pass
+        -Dbrix.requireHostedLoginUi, which fails the build instead.
     </description>
 
     <build>
@@ -28,5 +29,70 @@
                 <filtering>false</filtering>
             </resource>
         </resources>
+        <plugins>
+            <plugin>
+                <!-- Bundle names carry content hashes: drop the previous build's copy first, so the
+                     jar holds exactly the current dist/ and no stale bundle. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>2.5</version>
+                <executions>
+                    <execution>
+                        <id>drop-previous-ui</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.build.outputDirectory}/META-INF/brix/hosted-login</directory>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <!-- A deployable build must not ship a jar without the UI. -->
+            <id>require-hosted-login-ui</id>
+            <activation>
+                <property>
+                    <name>brix.requireHostedLoginUi</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>3.4.1</version>
+                        <executions>
+                            <execution>
+                                <id>require-hosted-login-ui</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <files>
+                                                <file>${project.basedir}/dist/index.html</file>
+                                            </files>
+                                            <message>The hosted login UI is not built. Run `pnpm --filter @brix-sdk/platform-hosted-login-web build` first.</message>
+                                        </requireFilesExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
