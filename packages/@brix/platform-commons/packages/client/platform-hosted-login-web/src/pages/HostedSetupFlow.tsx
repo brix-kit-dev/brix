@@ -11,7 +11,7 @@ import { HOSTED_LOGIN_NAMESPACE } from '../i18n/messages';
 import { useHostedSetup, type HostedSetupViewModel } from '../hooks/useHostedSetup';
 import type { HostedSetupRepository } from '../repositories/HostedSetupRepository';
 import type { QrCodeRenderer } from '../qrCode';
-import { Frame } from './Frame';
+import { Frame, primaryButtonStyle } from './Frame';
 
 const FIRST_OWNER_SETUP = 'TENANT_FIRST_OWNER_SETUP';
 
@@ -64,7 +64,7 @@ function PasswordStep({ model }: { readonly model: HostedSetupViewModel }) {
 
   return (
     <Frame title={t('setup.title')} subtitle={t('setup.subtitle')}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         {model.email ? <Typography variant="body2" color="textSecondary">{model.email}</Typography> : null}
         {model.error ? <Alert severity="error">{t(`error.${model.error}`, t('error.unavailable'))}</Alert> : null}
         {/* Lets password managers save the new password for this account. */}
@@ -78,6 +78,8 @@ function PasswordStep({ model }: { readonly model: HostedSetupViewModel }) {
           autoFocus
           fullWidth
           required
+          size="large"
+          startAdornment="lock"
           maxLength={128}
           disabled={model.submitting}
           onChange={(event) => setPassword(event.target.value)}
@@ -91,6 +93,8 @@ function PasswordStep({ model }: { readonly model: HostedSetupViewModel }) {
           value={confirmation}
           fullWidth
           required
+          size="large"
+          startAdornment="lock"
           maxLength={128}
           disabled={model.submitting}
           onChange={(event) => setConfirmation(event.target.value)}
@@ -98,7 +102,7 @@ function PasswordStep({ model }: { readonly model: HostedSetupViewModel }) {
         />
         <Typography variant="body2" color="textSecondary">{t('setup.password.hint')}</Typography>
         <Button variant="primary" fullWidth loading={model.submitting} disabled={!password || !confirmation}
-          onClick={() => void submit()}>
+          style={primaryButtonStyle} onClick={() => void submit()}>
           {t('setup.password.submit')}
         </Button>
       </Stack>
@@ -143,14 +147,14 @@ function TotpStep({ model, qrCode }: { readonly model: HostedSetupViewModel; rea
 
   return (
     <Frame title={t('setup.title')} subtitle={t('setup.totp.subtitle')}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         <Typography variant="body2">{t('setup.totp.hint')}</Typography>
         {image ? (
           <img src={image} alt={t('setup.totp.qrAlt')} width={192} height={192}
             style={{ alignSelf: 'center', imageRendering: 'pixelated' }} />
         ) : null}
         {secret ? (
-          <Stack spacing={0.5}>
+          <Stack spacing={4}>
             <Typography variant="body2" color="textSecondary">{t('setup.totp.manual')}</Typography>
             <Typography variant="body2" style={{ fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all' }}>
               {secret}
@@ -166,6 +170,8 @@ function TotpStep({ model, qrCode }: { readonly model: HostedSetupViewModel; rea
           value={code}
           fullWidth
           required
+          size="large"
+          startAdornment="security"
           maxLength={8}
           disabled={model.submitting}
           onChange={(event) => setCode(event.target.value)}
@@ -176,7 +182,8 @@ function TotpStep({ model, qrCode }: { readonly model: HostedSetupViewModel; rea
             }
           }}
         />
-        <Button variant="primary" fullWidth loading={model.submitting} disabled={!code.trim()} onClick={() => void submit()}>
+        <Button variant="primary" fullWidth loading={model.submitting} disabled={!code.trim()}
+          style={primaryButtonStyle} onClick={() => void submit()}>
           {t('setup.totp.submit')}
         </Button>
       </Stack>
@@ -189,7 +196,7 @@ function DoneStep({ model }: { readonly model: HostedSetupViewModel }) {
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
     <Frame title={t('setup.done.title')}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         {model.purpose === FIRST_OWNER_SETUP ? (
           <>
             <Typography variant="body2">{t('setup.done.firstOwner')}</Typography>
@@ -208,7 +215,7 @@ function InvalidStep() {
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
     <Frame title={t('setup.invalid.title')}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         <Typography variant="body2">{t('setup.invalid.body')}</Typography>
       </Stack>
     </Frame>

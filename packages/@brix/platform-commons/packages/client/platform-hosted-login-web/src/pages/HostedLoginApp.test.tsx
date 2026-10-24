@@ -206,4 +206,33 @@ describe('HostedLoginApp', () => {
     expect(repo.select).toHaveBeenCalledWith('old');
     expect(state).toHaveBeenCalledTimes(2);
   });
+  it('carries the SHINWA sign-in look: brand panel, footer and icons that all resolve', async () => {
+    renderApp(repository());
+    await screen.findByLabelText('Email', { exact: false });
+
+    expect(screen.getByText('BRIX FRAMEWORK')).toBeTruthy();
+    expect(screen.getByText('A SHINWA platform product')).toBeTruthy();
+    expect(screen.getByAltText('SHINWA')).toBeTruthy();
+    const icons = Array.from(document.querySelectorAll('svg[data-icon]'));
+    expect(icons.map((icon) => icon.getAttribute('data-icon'))).toEqual(expect.arrayContaining(['security', 'person']));
+    expect(icons.every((icon) => icon.getAttribute('data-icon-found') === 'true')).toBe(true);
+  });
+
+  it('shows the password on request and starts hidden again at the next attempt', async () => {
+    renderApp(repository());
+    await enter('Email', 'staff@example.test', 'Next');
+    const field = await screen.findByLabelText('Password', { exact: false });
+    expect((field as HTMLInputElement).type).toBe('password');
+    expect(document.querySelector('svg[data-icon="lock"]')?.getAttribute('data-icon-found')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    expect((screen.getByLabelText('Password', { exact: false }) as HTMLInputElement).type).toBe('text');
+    expect(screen.getByRole('button', { name: 'Hide' }).getAttribute('aria-pressed')).toBe('true');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Use another account' }));
+    });
+    await enter('Email', 'other@example.test', 'Next');
+    expect(((await screen.findByLabelText('Password', { exact: false })) as HTMLInputElement).type).toBe('password');
+  });
 });

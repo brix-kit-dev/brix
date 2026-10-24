@@ -1,5 +1,6 @@
-/* Hosted login pages. The CSP allows stylesheets from this origin only, so animations the
-   UI components would declare inline are declared here. */
+/* Hosted login pages. The CSP allows stylesheets from this origin only, so the layout rules of the
+   SHINWA sign-in look, and animations the UI components would declare inline, are declared here.
+   Colors come from the design tokens in the page frame (pages/Frame.tsx). */
 *,
 *::before,
 *::after {
@@ -10,16 +11,131 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: #f5f6f8;
-  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans", "Noto Sans CJK SC", sans-serif;
+  /* surface.page of the design tokens, before the page frame renders */
+  background: #f5f5f5;
+  font-family: "Inter", "Roboto", "Helvetica", "Arial", "PingFang SC", "Hiragino Sans", "Noto Sans CJK SC", sans-serif;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* The page grows with its content (the setup page with its QR code is taller than a phone screen),
+   so only the horizontal overflow of the backdrop is clipped. */
+.hosted-shell {
+  min-height: 100vh;
+  position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 12vh 16px 32px;
+  overflow-x: hidden;
+  background-size: 120% 120%;
+  padding: clamp(16px, 4vh, 32px) clamp(16px, 4vw, 32px);
+}
+
+.hosted-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hosted-stage {
+  width: 100%;
+  max-width: 1260px;
+  display: grid;
+  grid-template-columns: minmax(600px, 1fr) minmax(360px, 428px);
+  gap: 64px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.hosted-brand {
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 620px;
+}
+
+.hosted-brand-title {
+  font-size: 3rem;
+  line-height: 1.14;
+}
+
+.hosted-card {
+  justify-self: end;
+}
+
+/* The native Typography clears its own bottom margin, which brings back the browser's default margin
+   of its heading and paragraph elements; on the hosted pages spacing comes from the Stack gaps. */
+.hosted-card :is(h1, h2, h3, h4, h5, h6, p) {
+  margin-bottom: 0;
+}
+
+@media (max-width: 1080px) {
+  .hosted-shell {
+    padding: 24px;
+  }
+
+  .hosted-stage {
+    max-width: 428px;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .hosted-brand {
+    display: none !important;
+  }
+
+  .hosted-card {
+    justify-self: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .hosted-shell {
+    padding: 20px 16px;
+  }
+
+  .hosted-card {
+    padding: 34px 22px 26px !important;
+  }
+
+  .hosted-title {
+    font-size: 1.85rem !important;
+  }
+
+  .hosted-footer {
+    flex-direction: column;
+    gap: 10px !important;
+  }
+}
+
+/* Show/hide toggle on top of the password field, as on the platform sign-in page. */
+.hosted-password-field {
+  position: relative;
+}
+
+.hosted-password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 2px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.hosted-password-toggle:disabled {
+  cursor: default;
 }
 
 @keyframes spin {

@@ -5,14 +5,15 @@
  * pages. Credentials are only ever entered here (root BRX-RS-UI-018, identity-auth IA-2).
  */
 
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useI18n, useUI } from '@brix-sdk/runtime-sdk-react';
 import { HOSTED_LOGIN_NAMESPACE } from '../i18n/messages';
 import { useHostedLogin, type HostedLoginViewModel, type InvitationMode } from '../hooks/useHostedLogin';
 import type { HostedLoginRepository } from '../repositories/HostedLoginRepository';
 import type { HostedSetupRepository } from '../repositories/HostedSetupRepository';
 import { renderQrCode, type QrCodeRenderer } from '../qrCode';
-import { Frame } from './Frame';
+import { hostedLoginTokens } from '../theme';
+import { Frame, primaryButtonStyle } from './Frame';
 import { HostedSetupFlow } from './HostedSetupFlow';
 
 export interface HostedLoginAppProps {
@@ -82,7 +83,7 @@ function SelectTenantStep({ model }: { readonly model: HostedLoginViewModel }) {
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
     <Frame>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         {model.identifier ? <Typography variant="body2" color="textSecondary">{model.identifier}</Typography> : null}
         <Typography variant="subtitle1">{t('select.title')}</Typography>
         {model.error ? <Alert severity="error">{t(`error.${model.error}`, t('error.unavailable'))}</Alert> : null}
@@ -90,6 +91,7 @@ function SelectTenantStep({ model }: { readonly model: HostedLoginViewModel }) {
           <Button
             key={option.ticket}
             variant="secondary"
+            size="large"
             fullWidth
             disabled={model.submitting}
             onClick={() => void model.select(option.ticket)}
@@ -106,15 +108,21 @@ function SelectTenantStep({ model }: { readonly model: HostedLoginViewModel }) {
 }
 
 function CredentialStep({ model }: { readonly model: HostedLoginViewModel }) {
-  const { Stack, Typography, Input, Button, Alert } = useUI();
+  const { Stack, Typography, Input, Button, Alert, Icon } = useUI();
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   const [value, setValue] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const step = model.step as 'identify' | 'password' | 'totp';
   const field = useMemo(() => ({
-    identify: { type: 'email' as const, autoComplete: 'username', name: 'username' },
-    password: { type: 'password' as const, autoComplete: 'current-password', name: 'password' },
-    totp: { type: 'text' as const, autoComplete: 'one-time-code', name: 'one-time-code' },
+    identify: { type: 'email' as const, autoComplete: 'username', name: 'username', icon: 'person' },
+    password: { type: 'password' as const, autoComplete: 'current-password', name: 'password', icon: 'lock' },
+    totp: { type: 'text' as const, autoComplete: 'one-time-code', name: 'one-time-code', icon: 'security' },
   })[step], [step]);
+  const toggleLabel = t(showPassword ? 'password.hide' : 'password.show');
+  useEffect(() => {
+    // A password shown once starts hidden again at the next attempt.
+    setShowPassword(false);
+  }, [step]);
 
   const submit = async () => {
     if (!value.trim() || model.submitting) {
@@ -144,29 +152,49 @@ function CredentialStep({ model }: { readonly model: HostedLoginViewModel }) {
   return (
     <Frame title={model.invitation ? t('invitation.title') : undefined}
       subtitle={model.invitation ? t('invitation.subtitle') : undefined}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         {model.invitation ? <Typography variant="subtitle1">{model.invitation.tenantName}</Typography> : null}
         {model.identifier && step !== 'identify' ? (
           <Typography variant="body2" color="textSecondary">{model.identifier}</Typography>
         ) : null}
         {step === 'totp' ? <Typography variant="body2">{t('totp.hint')}</Typography> : null}
         {model.error ? <Alert severity="error">{t(`error.${model.error}`, t('error.unavailable'))}</Alert> : null}
-        <Input
-          key={step}
-          type={field.type}
-          name={field.name}
-          autoComplete={field.autoComplete}
-          label={t(`${step}.label`)}
-          value={value}
-          autoFocus
-          fullWidth
-          required
-          maxLength={step === 'totp' ? 8 : 254}
-          disabled={model.submitting}
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={onKeyDown}
-        />
-        <Button variant="primary" fullWidth loading={model.submitting} disabled={!value.trim()} onClick={() => void submit()}>
+        <div className="hosted-password-field">
+          <Input
+            key={step}
+            type={step === 'password' && showPassword ? 'text' : field.type}
+            name={field.name}
+            autoComplete={field.autoComplete}
+            label={t(`${step}.label`)}
+            placeholder={t(`${step}.placeholder`)}
+            value={value}
+            autoFocus
+            fullWidth
+            required
+            size="large"
+            startAdornment={field.icon}
+            maxLength={step === 'totp' ? 8 : 254}
+            disabled={model.submitting}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={onKeyDown}
+          />
+          {step === 'password' ? (
+            <button
+              type="button"
+              className="hosted-password-toggle"
+              style={{ color: hostedLoginTokens.colors.text.secondary }}
+              aria-label={toggleLabel}
+              title={toggleLabel}
+              aria-pressed={showPassword}
+              disabled={model.submitting}
+              onClick={() => setShowPassword((shown) => !shown)}
+            >
+              <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={22} color="currentColor" />
+            </button>
+          ) : null}
+        </div>
+        <Button variant="primary" fullWidth loading={model.submitting} disabled={!value.trim()}
+          style={primaryButtonStyle} onClick={() => void submit()}>
           {t(`${step}.submit`)}
         </Button>
         {/* An invitation is for the invited email only, so there is no other account to use. */}
@@ -185,7 +213,7 @@ function ResultStep({ model }: { readonly model: HostedLoginViewModel }) {
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
     <Frame title={model.invitation ? t('invitation.title') : undefined}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         <Typography variant="h6">{t(`result.${model.step}.title`)}</Typography>
         {model.invitation ? <Typography variant="body2" color="textSecondary">{model.invitation.inviteeEmail}</Typography> : null}
         <Typography variant="body2">{t(`result.${model.step}.body`)}</Typography>
@@ -204,7 +232,7 @@ function InvitationErrorPage({ reason }: { readonly reason: string }) {
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
     <Frame title={t('invitationError.title')}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         <Typography variant="body2">{t(`invitationError.${reason}`)}</Typography>
       </Stack>
     </Frame>
@@ -216,9 +244,9 @@ function LoginErrorPage({ reason }: { readonly reason: string }) {
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
     <Frame title={t('loginError.title')}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         <Typography variant="body2">{t(`loginError.${reason}`)}</Typography>
-        <Button variant="primary" fullWidth onClick={() => window.location.assign('/bff/login')}>
+        <Button variant="primary" fullWidth style={primaryButtonStyle} onClick={() => window.location.assign('/bff/login')}>
           {t('loginError.retry')}
         </Button>
       </Stack>
@@ -231,7 +259,7 @@ function SignedOutPage() {
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
     <Frame title={t('signedOut.title')}>
-      <Stack spacing={2}>
+      <Stack spacing={16}>
         <Typography variant="body2">{t('signedOut.body')}</Typography>
       </Stack>
     </Frame>
