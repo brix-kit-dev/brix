@@ -6,10 +6,12 @@
 package io.brix.platform.identity.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +27,7 @@ import io.brix.platform.identity.enums.IdentityStatus;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
 import io.brix.platform.identity.repository.SetupTokenRepository;
+import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.NotificationRequest;
 import io.runtime.sdk.capability.NotificationTemplateKeys;
@@ -64,7 +67,33 @@ class IdentityFirstOwnerInviteeSetupCapabilityImplTest {
         ArgumentCaptor<NotificationRequest> request = ArgumentCaptor.forClass(NotificationRequest.class);
         verify(notification).send(request.capture());
         assertEquals(NotificationTemplateKeys.TENANT_OWNER_SETUP_INITIAL, request.getValue().templateKey());
-        assertTrue(request.getValue().variables().get("setupUrl").startsWith(SETUP_BASE_URL + "?token="));
+        String setupUrl = request.getValue().variables().get("setupUrl");
+        assertTrue(setupUrl.startsWith(SETUP_BASE_URL + "#token="), "the token rides in the fragment");
+        assertTrue(!setupUrl.contains("?"), "no token in a query string (frontend FE-7)");
+    }
+
+    /** The link opens the hosted setup page, never a /platform/** page (identity-auth BRX-IA-ONBOARD-002). */
+    @Test
+    void aSetupBaseUrlOnThePlatformConsoleIsRejected() {
+        IdentityFirstOwnerInviteeSetupCapabilityImpl platformPage = new IdentityFirstOwnerInviteeSetupCapabilityImpl(
+            identityRepository,
+            platformAdminRepository,
+            setupTokenRepository,
+            Optional.of(notification),
+            idGenerator,
+            "https://tenant.example.invalid/platform/setup",
+            unitOfWork);
+        when(identityRepository.findByEmail("owner@example.com")).thenReturn(Optional.empty());
+        when(identityRepository.save(any(Identity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(platformAdminRepository.findByIdentityId(any())).thenReturn(Optional.empty());
+        when(idGenerator.nextId()).thenReturn(10L, 11L);
+
+        FirstOwnerInviteeIdentitySetupCapability.IdentitySetupException failure = assertThrows(
+            FirstOwnerInviteeIdentitySetupCapability.IdentitySetupException.class,
+            () -> platformPage.sendSetupIfRequired(5L, "owner@example.com", "platform-identity:1", "en"));
+
+        assertEquals("FIRST_OWNER_SETUP_BASE_URL_INVALID", failure.code());
+        verify(notification, never()).send(any());
     }
 
     @Test

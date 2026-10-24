@@ -6,30 +6,22 @@
 package io.brix.platform.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 
 import org.junit.jupiter.api.Test;
 
-import io.brix.platform.auth.endpoint.LoginRequestDto;
-import io.brix.platform.auth.endpoint.LoginResponseDto;
-import io.runtime.sdk.capability.AuthFlowCapability;
-import io.runtime.sdk.capability.AuthFlowCapability.LoginResult;
-import io.runtime.sdk.capability.AuthFlowCapability.LoginStatus;
+import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.EndpointHandler;
-import io.runtime.sdk.plugin.EndpointInvocation;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.ManagedTask;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
@@ -50,72 +42,28 @@ class PlatformAuthPluginTest {
         assertInstanceOf(PlatformAuthPlugin.class, plugins.get(0));
     }
 
+    /** identity-auth IA-1: no endpoint takes a password and returns tokens. */
     @Test
-    void manifestDeclaresActorLoginRuntimeEntry() throws IOException {
+    void manifestDeclaresNoEndpointAndNoPasswordForTokenEntry() throws IOException {
         String manifest = activeManifest();
 
         assertTrue(manifest.contains("pluginId: platform-auth"));
-        assertTrue(manifest.contains("endpointId: " + PlatformAuthPlugin.ENDPOINT_ACTOR_LOGIN));
-        assertTrue(manifest.contains("method: POST"));
-        assertTrue(manifest.contains("path: /api/auth/login/actor"));
-        assertTrue(manifest.contains("mode: anonymous"));
-        assertTrue(manifest.contains("mode: forbidden"));
-        assertTrue(manifest.contains("id: " + AuthFlowCapability.class.getName()));
+        assertTrue(manifest.contains("provides: []"));
+        assertFalse(manifest.contains("endpointId:"));
+        assertFalse(manifest.contains("/api/auth/login"));
+        assertTrue(manifest.contains("storageId: platform_auth"), "the plugin still owns its schema");
     }
 
     @Test
-    void pluginBindsActorLoginEndpointToRuntimeCapability() {
-        AuthFlowCapability authFlow = org.mockito.Mockito.mock(AuthFlowCapability.class);
-        when(authFlow.loginActor(any())).thenReturn(new LoginResult(
-            LoginStatus.SELECT_TENANT,
-            null,
-            null,
-            0L,
-            "identity-token",
-            List.of(),
-            42L,
-            "First Owner",
-            "owner@example.invalid",
-            null,
-            List.of(),
-            List.of(),
-            false,
-            false));
-
+    void pluginBindsNoRuntimeEntryAndStartsWithoutCapabilities() {
         PlatformAuthPlugin plugin = new PlatformAuthPlugin();
         RecordingBootstrap bootstrap = new RecordingBootstrap();
+
         plugin.configure(bootstrap);
-        plugin.onStart(new TestPluginContext(authFlow));
+        plugin.onStart(new EmptyPluginContext());
 
-        EndpointHandler<EndpointInvocation<LoginRequestDto>, LoginResponseDto> handler =
-            cast(bootstrap.endpoints.get(PlatformAuthPlugin.ENDPOINT_ACTOR_LOGIN));
-        LoginResponseDto response = handler.handle(invocation(
-            new LoginRequestDto("owner@example.invalid", "Password!2026"),
-            Optional.empty()));
-
-        assertEquals("SELECT_TENANT", response.status());
-        assertEquals("identity-token", response.identityToken());
-        assertEquals(42L, response.identityId());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static EndpointHandler<EndpointInvocation<LoginRequestDto>, LoginResponseDto> cast(
-            EndpointHandler<?, ?> handler) {
-        return (EndpointHandler<EndpointInvocation<LoginRequestDto>, LoginResponseDto>) handler;
-    }
-
-    private static EndpointInvocation<LoginRequestDto> invocation(
-            LoginRequestDto body,
-            Optional<String> tenantId) {
-        return new EndpointInvocation<>(
-            body,
-            Map.of(),
-            Map.of(),
-            Map.of("x-forwarded-for", List.of("203.0.113.10")),
-            tenantId,
-            Optional.empty(),
-            Optional.empty(),
-            Instant.now().plusSeconds(30));
+        assertTrue(bootstrap.bound.isEmpty());
+        assertEquals(BrixHealth.Status.UP, plugin.health().status());
     }
 
     private String activeManifest() throws IOException {
@@ -129,44 +77,43 @@ class PlatformAuthPluginTest {
     }
 
     private static final class RecordingBootstrap implements PluginBootstrapContext {
-        private final Map<String, EndpointHandler<?, ?>> endpoints = new LinkedHashMap<>();
+        private final List<String> bound = new ArrayList<>();
 
         @Override
         public void bindEndpoint(String manifestEndpointId, EndpointHandler<?, ?> handler) {
-            endpoints.put(manifestEndpointId, handler);
+            bound.add(manifestEndpointId);
         }
 
         @Override
         public void bindQueryHandler(String manifestQueryId, QueryHandler<?, ?> handler) {
+            bound.add(manifestQueryId);
         }
 
         @Override
         public void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler) {
+            bound.add(manifestCommandId);
         }
 
         @Override
         public void bindEventHandler(String manifestSubscriptionId, EventHandler<?> handler) {
+            bound.add(manifestSubscriptionId);
         }
 
         @Override
         public void bindTask(String manifestTaskId, ManagedTask task) {
+            bound.add(manifestTaskId);
         }
     }
 
-    private record TestPluginContext(AuthFlowCapability authFlow) implements PluginContext {
+    private static final class EmptyPluginContext implements PluginContext {
         @Override
         public <C> C require(Class<C> capabilityType) {
-            if (!capabilityType.equals(AuthFlowCapability.class)) {
-                throw new IllegalArgumentException("Unsupported capability: " + capabilityType.getName());
-            }
-            return capabilityType.cast(authFlow);
+            throw new IllegalArgumentException("Unsupported capability: " + capabilityType.getName());
         }
 
         @Override
         public <C> Optional<C> find(Class<C> capabilityType) {
-            return capabilityType.equals(AuthFlowCapability.class)
-                ? Optional.of(capabilityType.cast(authFlow))
-                : Optional.empty();
+            return Optional.empty();
         }
 
         @Override

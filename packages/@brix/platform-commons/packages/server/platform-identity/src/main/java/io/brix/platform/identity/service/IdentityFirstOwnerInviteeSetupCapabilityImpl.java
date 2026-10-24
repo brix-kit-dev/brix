@@ -168,12 +168,14 @@ public class IdentityFirstOwnerInviteeSetupCapabilityImpl implements FirstOwnerI
             () -> failure(
                 "NOTIFICATION_PROVIDER_MISSING",
                 "NotificationCapability is required for FIRST_OWNER invitations"));
+        // The token rides in the fragment: browsers never send it to a server or in a Referer, and
+        // the hosted setup page reads it into memory only (frontend BRX-FE-ROUTE-004, FE-7).
         String setupUrl = UriComponentsBuilder.fromUriString(requireBaseUrl(
                 setupBaseUrl,
                 "FIRST_OWNER_SETUP_BASE_URL_NOT_CONFIGURED",
                 "FIRST_OWNER_SETUP_BASE_URL_INVALID",
                 "FIRST_OWNER setup base URL"))
-            .queryParam("token", rawToken)
+            .fragment("token=" + rawToken)
             .build(true)
             .toUriString();
         notification.send(new NotificationRequest(
@@ -199,13 +201,20 @@ public class IdentityFirstOwnerInviteeSetupCapabilityImpl implements FirstOwnerI
             if (scheme == null
                     || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))
                     || uri.getHost() == null
-                    || containsTokenQuery(uri.getRawQuery())) {
+                    || containsTokenQuery(uri.getRawQuery())
+                    || uri.getRawFragment() != null
+                    || isPlatformConsolePath(uri.getPath())) {
                 throw failure(invalidCode, description + " is invalid");
             }
             return normalized;
         } catch (URISyntaxException ex) {
             throw failure(invalidCode, description + " is invalid");
         }
+    }
+
+    /** Invitee setup opens the hosted setup page, never a page under /platform/** (BRX-IA-ONBOARD-002). */
+    private static boolean isPlatformConsolePath(String path) {
+        return path != null && (path.equals("/platform") || path.startsWith("/platform/"));
     }
 
     private static boolean containsTokenQuery(String rawQuery) {

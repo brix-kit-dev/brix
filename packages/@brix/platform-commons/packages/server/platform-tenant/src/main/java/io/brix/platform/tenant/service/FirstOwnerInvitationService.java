@@ -423,12 +423,14 @@ public class FirstOwnerInvitationService {
             () -> new TenantAdministrationException(
                 "NOTIFICATION_PROVIDER_MISSING",
                 "NotificationCapability is required for FIRST_OWNER invitations"));
+        // The token rides in the fragment: browsers never send it to a server or in a Referer, and
+        // the hosted invitation page reads it into memory only (frontend BRX-FE-ROUTE-004, FE-7).
         String inviteUrl = UriComponentsBuilder.fromUriString(requireBaseUrl(
                 inviteBaseUrl,
                 "FIRST_OWNER_INVITE_BASE_URL_NOT_CONFIGURED",
                 "FIRST_OWNER_INVITE_BASE_URL_INVALID",
                 "FIRST_OWNER invitation base URL"))
-            .queryParam("token", rawToken)
+            .fragment("token=" + rawToken)
             .build(true)
             .toUriString();
         notification.send(new NotificationRequest(
@@ -456,7 +458,9 @@ public class FirstOwnerInvitationService {
             if (scheme == null
                     || (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme))
                     || uri.getHost() == null
-                    || containsTokenQuery(uri.getRawQuery())) {
+                    || containsTokenQuery(uri.getRawQuery())
+                    || uri.getRawFragment() != null
+                    || isPlatformConsolePath(uri.getPath())) {
                 throw new TenantAdministrationException(
                     invalidCode,
                     description + " is invalid");
@@ -467,6 +471,14 @@ public class FirstOwnerInvitationService {
                 invalidCode,
                 description + " is invalid");
         }
+    }
+
+    /**
+     * The invitation opens the hosted invitation page of the identity protocol surface, never a
+     * page under /platform/** (identity-auth BRX-IA-ONBOARD-002, multi-tenant 5.1 §11.3).
+     */
+    private static boolean isPlatformConsolePath(String path) {
+        return path != null && (path.equals("/platform") || path.startsWith("/platform/"));
     }
 
     private static boolean containsTokenQuery(String rawQuery) {

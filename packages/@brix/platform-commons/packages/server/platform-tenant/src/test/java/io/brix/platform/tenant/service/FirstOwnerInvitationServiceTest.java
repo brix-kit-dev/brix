@@ -22,6 +22,8 @@ import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -173,7 +175,7 @@ class FirstOwnerInvitationServiceTest {
         verify(notificationCapability).send(notification.capture());
         assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());
         String inviteUrl = notification.getValue().variables().get("inviteUrl");
-        assertTrue(inviteUrl.startsWith("https://console.example.test/invite?token="));
+        assertTrue(inviteUrl.startsWith("https://console.example.test/invite#token="), "the token rides in the fragment");
     }
 
     @Test
@@ -201,7 +203,7 @@ class FirstOwnerInvitationServiceTest {
         verify(notificationCapability).send(notification.capture());
         assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());
         String inviteUrl = notification.getValue().variables().get("inviteUrl");
-        assertTrue(inviteUrl.startsWith("https://console.example.test/invite?token="));
+        assertTrue(inviteUrl.startsWith("https://console.example.test/invite#token="), "the token rides in the fragment");
         assertFalse(inviteUrl.contains(oldRawToken));
     }
 
@@ -235,12 +237,21 @@ class FirstOwnerInvitationServiceTest {
         verify(notificationCapability).send(notification.capture());
         assertEquals(NotificationTemplateKeys.TENANT_OWNER_INVITATION_INITIAL, notification.getValue().templateKey());
         String inviteUrl = notification.getValue().variables().get("inviteUrl");
-        assertTrue(inviteUrl.startsWith("https://console.example.test/invite?token="));
+        assertTrue(inviteUrl.startsWith("https://console.example.test/invite#token="), "the token rides in the fragment");
         assertFalse(inviteUrl.contains(oldRawToken));
     }
 
-    @Test
-    void createRejectsConfiguredInviteBaseUrlWithTokenParameter() {
+    /**
+     * The token must not end up in a query string or behind a configured fragment, and the link
+     * opens the hosted invitation page, never a /platform/** page (identity-auth BRX-IA-ONBOARD-002).
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "https://console.example.test/invite?token=caller",
+        "https://console.example.test/invite#section",
+        "https://console.example.test/platform/first-owner/accept",
+        "https://console.example.test/platform"})
+    void createRejectsAnInviteBaseUrlThatIsNotAHostedPage(String inviteBaseUrl) {
         service = new FirstOwnerInvitationService(
             invitationRepository,
             tenantRepository,
@@ -253,7 +264,7 @@ class FirstOwnerInvitationServiceTest {
             Optional.of(notificationCapability),
             idGenerator,
             new ObjectMapper(),
-            "https://console.example.test/invite?token=caller");
+            inviteBaseUrl);
         Tenant tenant = pendingTenant(100L);
         when(tenantRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(tenant));
         when(invitationRepository.findLatestByTenantAndPurposeForUpdate(

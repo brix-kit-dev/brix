@@ -33,6 +33,10 @@ public interface TenantInvitationRepository extends JpaRepository<TenantInvitati
     @Query("SELECT i FROM TenantInvitation i WHERE i.tokenHash = :tokenHash")
     Optional<TenantInvitation> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
+    /** Reads an invitation by its token without locking it, for showing it before acceptance. */
+    @Query("SELECT i FROM TenantInvitation i WHERE i.tokenHash = :tokenHash")
+    Optional<TenantInvitation> findByTokenHash(@Param("tokenHash") String tokenHash);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT i FROM TenantInvitation i

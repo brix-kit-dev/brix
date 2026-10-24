@@ -6,7 +6,8 @@
 package io.brix.platform.identity.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,7 +30,6 @@ import io.brix.platform.identity.security.SecretHashing;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TotpCapability;
-import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 
 class PlatformIdentityAdministrationSetupServiceTest {
 
@@ -45,37 +45,31 @@ class PlatformIdentityAdministrationSetupServiceTest {
     private final ApplicationEventPublisher eventPublisher = org.mockito.Mockito.mock(ApplicationEventPublisher.class);
     private final AuditService auditService = org.mockito.Mockito.mock(AuditService.class);
 
+    /**
+     * FIRST_OWNER invitees set up on the hosted setup page of the identity protocol surface
+     * (identity-auth BRX-IA-ONBOARD-002, M1 slice 3); the platform setup path no longer takes
+     * their tokens.
+     */
     @Test
-    void tenantFirstOwnerSetupActivatesIdentityWithoutPlatformAdminGrant() {
+    void tenantFirstOwnerSetupTokensAreNotAcceptedOnThePlatformSetupPath() {
         String rawToken = "tenant-owner-setup-token";
         SetupToken token = setupToken(77L, SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP);
         Identity identity = pendingIdentity(77L);
         when(setupTokenRepository.findByTokenHash(SecretHashing.sha256Base64Url(rawToken)))
             .thenReturn(Optional.of(token));
         when(identityRepository.findById(77L)).thenReturn(Optional.of(identity));
-        when(totpCapability.generateSecret()).thenReturn("SECRET");
-        when(encryptionCapability.encryptSecret("SECRET")).thenReturn("encrypted-secret");
-        when(encryptionCapability.decryptSecret("encrypted-secret")).thenReturn("SECRET");
-        when(totpCapability.validateCode("SECRET", "123456")).thenReturn(true);
-        when(passwordCapability.hash("Password!2026")).thenReturn("hashed-password");
 
         var service = service();
-        var challenge = service.initTotp(rawToken);
-        var completion = service.completeSetup(new CompletePlatformSetupCommand(
-            rawToken,
-            challenge.challengeId(),
-            "Password!2026",
-            "123456"));
 
-        assertTrue(completion.activated());
-        assertEquals("hashed-password", identity.getPasswordHash());
-        assertEquals(IdentityStatus.ACTIVE, identity.getStatus());
-        assertTrue(identity.isEmailVerified());
-        assertTrue(identity.isMfaEnabled());
-        assertTrue(token.getUsedAt() != null);
-        verify(platformAdminRepository, never()).save(any());
+        assertThrows(IllegalArgumentException.class, () -> service.validateSetupToken(rawToken));
+        assertThrows(IllegalArgumentException.class, () -> service.initTotp(rawToken));
+        assertThrows(IllegalArgumentException.class, () -> service.completeSetup(new CompletePlatformSetupCommand(
+            rawToken, "challenge", "Password!2026", "123456")));
+        assertEquals(IdentityStatus.PENDING_SETUP, identity.getStatus());
+        assertNull(token.getUsedAt());
+        verify(identityRepository, never()).save(any());
         verify(bootstrapCompletionListener, never()).completeIfEligible(any());
-        verify(eventPublisher).publishEvent(new FirstOwnerInviteeSetupCompletedEvent(77L));
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     private PlatformIdentityAdministrationService service() {

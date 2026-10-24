@@ -1,25 +1,41 @@
 /**
  * @file Hosted login pages
- * @description Identifier, password and TOTP steps of the staff login, plus the result and
- * error pages. Credentials are only ever entered here (root BRX-RS-UI-018, identity-auth IA-2).
+ * @description Identifier, password and TOTP steps of the staff login, the same steps for a
+ * FIRST_OWNER invitation link, the setup of an invitee's account, plus the result and error
+ * pages. Credentials are only ever entered here (root BRX-RS-UI-018, identity-auth IA-2).
  */
 
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { useI18n, useUI } from '@brix-sdk/runtime-sdk-react';
 import { HOSTED_LOGIN_NAMESPACE } from '../i18n/messages';
-import { useHostedLogin, type HostedLoginViewModel } from '../hooks/useHostedLogin';
+import { useHostedLogin, type HostedLoginViewModel, type InvitationMode } from '../hooks/useHostedLogin';
 import type { HostedLoginRepository } from '../repositories/HostedLoginRepository';
+import type { HostedSetupRepository } from '../repositories/HostedSetupRepository';
+import { renderQrCode, type QrCodeRenderer } from '../qrCode';
+import { Frame } from './Frame';
+import { HostedSetupFlow } from './HostedSetupFlow';
 
 export interface HostedLoginAppProps {
   readonly repository: HostedLoginRepository;
+  readonly setupRepository: HostedSetupRepository;
   readonly location: Pick<Location, 'pathname' | 'search' | 'origin'>;
   readonly navigate: (url: string) => void;
+  /** One-time token of a setup or invitation link, already removed from the address bar. */
+  readonly linkToken?: string | null;
+  readonly qrCode?: QrCodeRenderer;
 }
 
-const RESULT_STEPS = new Set(['no-tenant', 'password-change-required', 'mfa-setup-required']);
+const RESULT_STEPS = new Set([
+  'no-tenant', 'password-change-required', 'mfa-setup-required', 'invitation-setup-required',
+]);
 const LOGIN_ERRORS = new Set(['login_expired', 'token_exchange_failed', 'context_unavailable', 'access_denied']);
+const INVITATION_ERRORS = new Set([
+  'invitation_invalid', 'invitation_taken', 'invitation_quota', 'invitation_mismatch', 'too_many_attempts',
+]);
 
-export function HostedLoginApp({ repository, location, navigate }: HostedLoginAppProps) {
+export function HostedLoginApp({
+  repository, setupRepository, location, navigate, linkToken = null, qrCode = renderQrCode,
+}: HostedLoginAppProps) {
   if (location.pathname.startsWith('/auth/error')) {
     const reason = new URLSearchParams(location.search).get('reason') ?? '';
     return <LoginErrorPage reason={LOGIN_ERRORS.has(reason) ? reason : 'default'} />;
@@ -27,18 +43,30 @@ export function HostedLoginApp({ repository, location, navigate }: HostedLoginAp
   if (location.pathname.startsWith('/auth/signed-out')) {
     return <SignedOutPage />;
   }
+  if (location.pathname.startsWith('/auth/setup')) {
+    return <HostedSetupFlow repository={setupRepository} token={linkToken} qrCode={qrCode} />;
+  }
+  if (location.pathname.startsWith('/auth/invitation')) {
+    return <LoginFlow repository={repository} navigate={navigate} origin={location.origin}
+      invitation={{ token: linkToken }} />;
+  }
   return <LoginFlow repository={repository} navigate={navigate} origin={location.origin} />;
 }
 
-function LoginFlow({ repository, navigate, origin }: {
+function LoginFlow({ repository, navigate, origin, invitation }: {
   readonly repository: HostedLoginRepository;
   readonly navigate: (url: string) => void;
   readonly origin: string;
+  readonly invitation?: InvitationMode;
 }) {
-  const model = useHostedLogin(repository, navigate, origin);
+  const model = useHostedLogin(repository, navigate, origin, invitation);
   const { Spin } = useUI();
+  const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   if (model.step === 'loading' || model.step === 'done') {
-    return <Frame><Spin /></Frame>;
+    return <Frame title={invitation ? t('invitation.title') : undefined}><Spin /></Frame>;
+  }
+  if (model.step === 'invitation-invalid') {
+    return <InvitationErrorPage reason={INVITATION_ERRORS.has(model.error ?? '') ? model.error ?? '' : 'default'} />;
   }
   if (RESULT_STEPS.has(model.step)) {
     return <ResultStep model={model} />;
@@ -114,8 +142,10 @@ function CredentialStep({ model }: { readonly model: HostedLoginViewModel }) {
   };
 
   return (
-    <Frame>
+    <Frame title={model.invitation ? t('invitation.title') : undefined}
+      subtitle={model.invitation ? t('invitation.subtitle') : undefined}>
       <Stack spacing={2}>
+        {model.invitation ? <Typography variant="subtitle1">{model.invitation.tenantName}</Typography> : null}
         {model.identifier && step !== 'identify' ? (
           <Typography variant="body2" color="textSecondary">{model.identifier}</Typography>
         ) : null}
@@ -139,7 +169,8 @@ function CredentialStep({ model }: { readonly model: HostedLoginViewModel }) {
         <Button variant="primary" fullWidth loading={model.submitting} disabled={!value.trim()} onClick={() => void submit()}>
           {t(`${step}.submit`)}
         </Button>
-        {step !== 'identify' ? (
+        {/* An invitation is for the invited email only, so there is no other account to use. */}
+        {step !== 'identify' && !model.invitation ? (
           <Button variant="text" fullWidth disabled={model.submitting} onClick={() => void model.restart()}>
             {t('account.switch')}
           </Button>
@@ -153,13 +184,28 @@ function ResultStep({ model }: { readonly model: HostedLoginViewModel }) {
   const { Stack, Typography, Button } = useUI();
   const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
   return (
-    <Frame>
+    <Frame title={model.invitation ? t('invitation.title') : undefined}>
       <Stack spacing={2}>
         <Typography variant="h6">{t(`result.${model.step}.title`)}</Typography>
+        {model.invitation ? <Typography variant="body2" color="textSecondary">{model.invitation.inviteeEmail}</Typography> : null}
         <Typography variant="body2">{t(`result.${model.step}.body`)}</Typography>
-        <Button variant="secondary" fullWidth disabled={model.submitting} onClick={() => void model.signOut()}>
-          {t('account.switch')}
-        </Button>
+        {model.invitation ? null : (
+          <Button variant="secondary" fullWidth disabled={model.submitting} onClick={() => void model.signOut()}>
+            {t('account.switch')}
+          </Button>
+        )}
+      </Stack>
+    </Frame>
+  );
+}
+
+function InvitationErrorPage({ reason }: { readonly reason: string }) {
+  const { Stack, Typography } = useUI();
+  const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
+  return (
+    <Frame title={t('invitationError.title')}>
+      <Stack spacing={2}>
+        <Typography variant="body2">{t(`invitationError.${reason}`)}</Typography>
       </Stack>
     </Frame>
   );
@@ -189,21 +235,5 @@ function SignedOutPage() {
         <Typography variant="body2">{t('signedOut.body')}</Typography>
       </Stack>
     </Frame>
-  );
-}
-
-function Frame({ title, children }: { readonly title?: string; readonly children: ReactNode }) {
-  const { Paper, Stack, Typography } = useUI();
-  const { t } = useI18n(HOSTED_LOGIN_NAMESPACE);
-  return (
-    <Paper elevation={1} style={{ width: '100%', maxWidth: 400, padding: 32 }}>
-      <Stack spacing={3}>
-        <Stack spacing={0.5}>
-          <Typography variant="h5" component="h1">{title ?? t('title')}</Typography>
-          {title ? null : <Typography variant="body2" color="textSecondary">{t('subtitle')}</Typography>}
-        </Stack>
-        {children}
-      </Stack>
-    </Paper>
   );
 }

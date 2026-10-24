@@ -123,7 +123,7 @@ export class AuthCapabilityImpl implements AuthCapability {
       return false;
     }
     // BFF sessions keep tokens on the server (root S-20); the browser only knows the session.
-    // Installed tokens remain for the exempted legacy flows (EX-2026-001/002).
+    // Installed tokens remain for the exempted legacy platform console (EX-2026-002).
     return state.token !== null || state.sessionState === 'authenticated';
   }
   

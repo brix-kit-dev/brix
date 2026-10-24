@@ -56,6 +56,19 @@ class TestCapabilities {
     static final String MULTI_CONTEXT_B = context("ctx-multi-b");
     /** Another person's Actor context, never reachable by the staff above. */
     static final String FOREIGN_CONTEXT = context("ctx-foreign");
+    /** An active identity without tenants that accepts the FIRST_OWNER invitation of tenant 45. */
+    static final long OWNER_ID = 24L;
+    static final String OWNER_EMAIL = "owner@clinic.test";
+    static final long NEW_TENANT_ID = 45L;
+    static final String NEW_TENANT_CONTEXT = context("ctx-new-owner");
+    static final String INVITATION_TOKEN = "invitation-token-0123456789abcdefghij";
+    /** An invitation whose tenant another identity took over meanwhile. */
+    static final String TAKEN_INVITATION_TOKEN = "invitation-token-taken-0123456789abc";
+    /** A FIRST_OWNER invitee still being set up, and the token of its setup link. */
+    static final long INVITEE_ID = 25L;
+    static final String INVITEE_EMAIL = "invitee@clinic.test";
+    static final String SETUP_TOKEN = "setup-token-0123456789abcdefghijklmn";
+    static final String INVITEE_INVITATION_TOKEN = "invitation-token-invitee-0123456789";
 
     private static String context(String seed) {
         return UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8)).toString();
@@ -279,9 +292,17 @@ class TestCapabilities {
             throw new UnsupportedOperationException();
         }
 
+        /** Like the platform issuer: {@code aud=brix-identity} with the pre-context actions. */
         @Override
         public String issueIdentityToken(IdentityTokenRequest request) {
-            throw new UnsupportedOperationException();
+            Map<String, Object> claims = new LinkedHashMap<>();
+            claims.put("iss", "brix-auth-center");
+            claims.put("sub", String.valueOf(request.identityId()));
+            claims.put("aud", "brix-identity");
+            claims.put("token_type", "identity");
+            claims.put("email", request.email());
+            claims.put("allowed_actions", List.of("select_context", "register_tenant", "first_owner_accept"));
+            return sign(claims).value();
         }
 
         @Override
@@ -324,11 +345,21 @@ class TestCapabilities {
         final Set<String> usedCodes = ConcurrentHashMap.newKeySet();
         volatile String status = "ACTIVE";
         volatile Instant lockedUntil;
+        /** The FIRST_OWNER invitee being set up through the hosted setup page. */
+        volatile String inviteeStatus = "PENDING_SETUP";
+        volatile String inviteePasswordHash;
+        volatile boolean inviteeEnrolled;
 
         @Override
         public Optional<IdentityRecord> findIdentityByEmail(String email) {
             if (STAFF_EMAIL.equals(email)) {
                 return findIdentityById(STAFF_ID);
+            }
+            if (OWNER_EMAIL.equals(email)) {
+                return findIdentityById(OWNER_ID);
+            }
+            if (INVITEE_EMAIL.equals(email)) {
+                return findIdentityById(INVITEE_ID);
             }
             return MULTI_EMAIL.equals(email) ? findIdentityById(MULTI_ID) : Optional.empty();
         }
@@ -343,12 +374,67 @@ class TestCapabilities {
                 return Optional.of(new IdentityRecord(MULTI_ID, MULTI_EMAIL, "multi", "h:" + STAFF_PASSWORD,
                         "ACTIVE", false, 1L));
             }
+            if (Long.valueOf(OWNER_ID).equals(id)) {
+                return Optional.of(new IdentityRecord(OWNER_ID, OWNER_EMAIL, "owner", "h:" + STAFF_PASSWORD,
+                        "ACTIVE", false, 1L));
+            }
+            if (Long.valueOf(INVITEE_ID).equals(id)) {
+                return Optional.of(new IdentityRecord(INVITEE_ID, INVITEE_EMAIL, "invitee", inviteePasswordHash,
+                        inviteeStatus, false, 1L));
+            }
             return Optional.empty();
         }
 
         @Override
         public boolean isTotpEnabled(Long identityId) {
+            if (Long.valueOf(INVITEE_ID).equals(identityId)) {
+                return "ACTIVE".equals(inviteeStatus);
+            }
             return findIdentityById(identityId).isPresent();
+        }
+
+        @Override
+        public Optional<CredentialSetupRecord> findCredentialSetup(String setupToken) {
+            return SETUP_TOKEN.equals(setupToken) && "PENDING_SETUP".equals(inviteeStatus)
+                    ? Optional.of(new CredentialSetupRecord(INVITEE_ID, INVITEE_EMAIL, "TENANT_FIRST_OWNER_SETUP",
+                            Instant.now().plusSeconds(3600)))
+                    : Optional.empty();
+        }
+
+        /** Like the identity Owner's policy, for the cases the tests use. */
+        @Override
+        public Optional<PasswordRejection> rejectNewPassword(Long identityId, String password) {
+            if (password == null || password.codePointCount(0, password.length()) < 8) {
+                return Optional.of(PasswordRejection.TOO_SHORT);
+            }
+            if ("password1".equalsIgnoreCase(password)) {
+                return Optional.of(PasswordRejection.BREACHED);
+            }
+            return password.toLowerCase(java.util.Locale.ROOT).contains("invitee")
+                    ? Optional.of(PasswordRejection.CONTAINS_ACCOUNT_NAME) : Optional.empty();
+        }
+
+        @Override
+        public Optional<String> beginTotpEnrollment(String setupToken) {
+            if (findCredentialSetup(setupToken).isEmpty()) {
+                return Optional.empty();
+            }
+            inviteeEnrolled = true;
+            return Optional.of("otpauth://totp/Brix:invitee%40clinic.test?secret=JBSWY3DPEHPK3PXP&issuer=Brix");
+        }
+
+        /** A code {@code 1xxxxx} of the enrolled secret completes the setup once. */
+        @Override
+        public CredentialSetupOutcome completeCredentialSetup(String setupToken, String passwordHash, String totpCode) {
+            if (findCredentialSetup(setupToken).isEmpty()) {
+                return CredentialSetupOutcome.INVALID_TOKEN;
+            }
+            if (!inviteeEnrolled || totpCode == null || !totpCode.matches("1\\d{5}") || !usedCodes.add(totpCode)) {
+                return CredentialSetupOutcome.INVALID_CODE;
+            }
+            inviteePasswordHash = passwordHash;
+            inviteeStatus = "ACTIVE";
+            return CredentialSetupOutcome.COMPLETED;
         }
 
         @Override
@@ -419,12 +505,15 @@ class TestCapabilities {
 
     /**
      * The staff identity is an active MEMBER of one tenant; the multi-tenant staff is a MEMBER of
-     * tenant 42 and the OWNER of tenant 43; another person is a member of tenant 44.
+     * tenant 42 and the OWNER of tenant 43; another person is a member of tenant 44. The owner
+     * identity becomes the OWNER of tenant 45 when its FIRST_OWNER invitation is accepted.
      */
     static final class FakeTenants implements TenantAccessCapability {
 
         /** Switches the single-tenant staff membership off. */
         volatile boolean active = true;
+        /** Set by the tenant Owner's acceptance entry (the test API probe) once it accepted. */
+        volatile boolean invitationAccepted;
 
         TenantMembershipRecord membership() {
             return new TenantMembershipRecord(7L, TENANT_ID, "clinic", "Clinic", STAFF_ID, "MEMBER", "ACTIVE",
@@ -443,7 +532,27 @@ class TestCapabilities {
             if (active) {
                 records.add(membership());
             }
+            if (invitationAccepted) {
+                records.add(new TenantMembershipRecord(11L, NEW_TENANT_ID, "new-clinic", "New Clinic", OWNER_ID,
+                        "OWNER", "ACTIVE", Instant.now(), NEW_TENANT_CONTEXT, 1L));
+            }
             return records;
+        }
+
+        /** Pending invitations: tenant 45 for the owner, one already taken, one for the invitee. */
+        @Override
+        public Optional<FirstOwnerInvitationRecord> findPendingFirstOwnerInvitation(String invitationToken) {
+            Instant expires = Instant.now().plusSeconds(86_400);
+            if (INVITATION_TOKEN.equals(invitationToken) && !invitationAccepted) {
+                return Optional.of(new FirstOwnerInvitationRecord(NEW_TENANT_ID, "New Clinic", OWNER_EMAIL, expires));
+            }
+            if (TAKEN_INVITATION_TOKEN.equals(invitationToken)) {
+                return Optional.of(new FirstOwnerInvitationRecord(47L, "Taken Clinic", OWNER_EMAIL, expires));
+            }
+            if (INVITEE_INVITATION_TOKEN.equals(invitationToken)) {
+                return Optional.of(new FirstOwnerInvitationRecord(46L, "Invitee Clinic", INVITEE_EMAIL, expires));
+            }
+            return Optional.empty();
         }
 
         @Override

@@ -12,22 +12,11 @@ import {
 } from './index';
 
 describe('platform-tenant UI manifest', () => {
-  it('declares the FIRST_OWNER accept route as a tenant-owned actor entry', () => {
+  it('serves no invitee page: FIRST_OWNER invitees use the hosted pages (identity-auth BRX-IA-ONBOARD-002)', () => {
     validatePlatformTenantUiManifest();
 
-    const route = PLATFORM_TENANT_UI_MANIFEST.routes.find(
-      item => item.routeId === 'platform-tenant.first-owner-accept',
-    );
-
-    expect(route).toMatchObject({
-      path: PLATFORM_TENANT_ROUTES.FIRST_OWNER_ACCEPT,
-      componentExport: 'FirstOwnerInvitationPage',
-      guardPolicy: 'actor-authenticated',
-      authContext: 'actor',
-      tenantContext: 'forbidden',
-      referrerPolicy: 'no-referrer',
-      permissions: [],
-    });
+    expect(PLATFORM_TENANT_UI_MANIFEST.routes.map(route => route.routeId)).toEqual(['platform-tenant.console-home']);
+    expect(PLATFORM_TENANT_UI_MANIFEST.routes.some(route => route.path.startsWith('/platform/'))).toBe(false);
   });
 
   it('declares the staff console home as an Actor route admitted by tenant permissions', () => {
@@ -46,10 +35,7 @@ describe('platform-tenant UI manifest', () => {
   it('publishes a Host-consumable route snapshot', () => {
     const snapshot = createPlatformTenantRouteSnapshot();
 
-    expect(snapshot.map(route => route.path)).toEqual([
-      '/platform/first-owner/accept',
-      '/tenant',
-    ]);
+    expect(snapshot.map(route => route.path)).toEqual(['/tenant']);
     expect(snapshot[0]?.element).toBeDefined();
   });
 });

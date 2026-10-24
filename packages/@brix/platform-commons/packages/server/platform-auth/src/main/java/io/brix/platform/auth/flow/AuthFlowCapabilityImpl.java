@@ -219,6 +219,7 @@ public class AuthFlowCapabilityImpl implements AuthFlowCapability {
     }
 
     @Override
+    @Deprecated(since = "3.2.0", forRemoval = true)
     public LoginResult loginActor(LoginCommand command) {
         IdentityRecord identity = authenticateIdentity(command);
         List<TenantMembershipRecord> memberships =

@@ -46,7 +46,12 @@ public class HostedLoginPages {
             + "img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; "
             + "form-action 'self'; base-uri 'none'; object-src 'none'";
 
-    @GetMapping({"/auth", "/auth/login", "/auth/error", "/auth/signed-out"})
+    /**
+     * The pages of the hosted login module. {@code /auth/setup} and {@code /auth/invitation} take
+     * their one-time token in the URL fragment, which never reaches this server
+     * (identity-auth {@code BRX-IA-ONBOARD-003}).
+     */
+    @GetMapping({"/auth", "/auth/login", "/auth/error", "/auth/signed-out", "/auth/setup", "/auth/invitation"})
     public ResponseEntity<String> page() throws IOException {
         Resource index = new ClassPathResource(ROOT + "index.html");
         if (!index.exists()) {

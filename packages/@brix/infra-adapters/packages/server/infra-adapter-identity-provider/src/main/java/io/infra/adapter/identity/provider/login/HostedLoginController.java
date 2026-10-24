@@ -47,6 +47,7 @@ import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.TenantAccessCapability;
+import io.runtime.sdk.capability.TenantAccessCapability.FirstOwnerInvitationRecord;
 import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
 
 /**
@@ -66,6 +67,11 @@ import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
  * <p>The login session cookie is the only client state; no token is returned here
  * ({@code BRX-IA-FLOW-003}). After the last step the browser continues the saved authorization
  * request, which returns a code to the BFF.</p>
+ *
+ * <p>A FIRST_OWNER invitation link opens the same steps for the invited email
+ * ({@code BRX-IA-ONBOARD-002}); after both factors the tenant Owner's acceptance entry accepts the
+ * invitation, and the login completes in the tenant it activated, so the invitee lands in the
+ * console without signing in again.</p>
  *
  * @since 3.2.0
  */
@@ -87,14 +93,20 @@ public class HostedLoginController {
     static final String STEP_SELECT_TENANT = "select-tenant";
     static final String STEP_PASSWORD_CHANGE_REQUIRED = "password-change-required";
     static final String STEP_MFA_SETUP_REQUIRED = "mfa-setup-required";
+    static final String STEP_INVITATION_INVALID = "invitation-invalid";
+    static final String STEP_INVITATION_SETUP_REQUIRED = "invitation-setup-required";
+    private static final String PENDING_SETUP = "PENDING_SETUP";
+    private static final int MAX_TOKEN_LENGTH = 512;
 
     private final IdentityAccountCapability identities;
     private final PasswordCapability passwords;
     private final TenantAccessCapability tenants;
+    private final InvitationAcceptance invitations;
     private final IdentityProviderProperties properties;
     private final String issuer;
     private final SourceRateLimiter failures;
     private final SourceRateLimiter selections;
+    private final SourceRateLimiter invitationLookups;
     private final SelectionTickets tickets;
     private final LoginSessionRevocations revocations;
     private final Clock clock;
@@ -104,17 +116,20 @@ public class HostedLoginController {
     private volatile String timingHash;
 
     public HostedLoginController(IdentityAccountCapability identities, PasswordCapability passwords,
-                                 TenantAccessCapability tenants, IdentityProviderProperties properties,
-                                 EncryptedStateStore store, LoginSessionRevocations revocations, Clock clock) {
+                                 TenantAccessCapability tenants, InvitationAcceptance invitations,
+                                 IdentityProviderProperties properties, EncryptedStateStore store,
+                                 LoginSessionRevocations revocations, Clock clock) {
         this.identities = Objects.requireNonNull(identities, "identities must not be null");
         this.passwords = Objects.requireNonNull(passwords, "passwords must not be null");
         this.tenants = Objects.requireNonNull(tenants, "tenants must not be null");
+        this.invitations = Objects.requireNonNull(invitations, "invitations must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.issuer = properties.requireIssuerOrigin();
         this.failures = new SourceRateLimiter(properties.getLogin().getMaxFailuresPerAccountAndSource(),
                 properties.getLogin().getThrottleWindow(), clock);
         // §9.3 (3): selection is throttled per identity against probing other contexts.
         this.selections = new SourceRateLimiter(10, properties.getLogin().getThrottleWindow(), clock);
+        this.invitationLookups = new SourceRateLimiter(20, properties.getLogin().getThrottleWindow(), clock);
         this.tickets = new SelectionTickets(store, clock);
         this.revocations = Objects.requireNonNull(revocations, "revocations must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -132,7 +147,44 @@ public class HostedLoginController {
             // A reload gets fresh tickets; the earlier ones stop working.
             return new LoginStep(STEP_SELECT_TENANT, csrf(request), null, null, options(tx.get(), request));
         }
-        return new LoginStep(tx.map(LoginTransaction::step).orElse(STEP_IDENTIFY), csrf(request), null, null, null);
+        return new LoginStep(tx.map(LoginTransaction::step).orElse(STEP_IDENTIFY), csrf(request), null, null, null,
+                tx.map(HostedLoginController::summary).orElse(null));
+    }
+
+    /**
+     * Opens the login of a FIRST_OWNER invitation link (identity-auth {@code BRX-IA-ONBOARD-002}).
+     * The page sends the token it read from the link's fragment once; the identifier is the invited
+     * email. An invitation that can no longer be accepted ends here, before any credential is
+     * asked for. Acceptance itself happens after both factors, in the tenant Owner.
+     */
+    @PostMapping("/invitation")
+    public ResponseEntity<LoginStep> invitation(@RequestBody InvitationRequest body, HttpServletRequest request) {
+        String token = body == null || body.token() == null ? null : body.token().trim();
+        if (token == null || token.isEmpty() || token.length() > MAX_TOKEN_LENGTH) {
+            return reply(HttpStatus.BAD_REQUEST, STEP_INVITATION_INVALID, "invitation_invalid");
+        }
+        if (!invitationLookups.tryAcquire("invitation|" + request.getRemoteAddr())) {
+            return reply(HttpStatus.TOO_MANY_REQUESTS, STEP_INVITATION_INVALID, "too_many_attempts");
+        }
+        Optional<FirstOwnerInvitationRecord> found = tenants.findPendingFirstOwnerInvitation(token);
+        String identifier = found.map(invitation -> normalize(invitation.inviteeEmail())).orElse(null);
+        if (identifier == null) {
+            audit.info("event=identity.invitation.invalid source={}", request.getRemoteAddr());
+            return reply(HttpStatus.NOT_FOUND, STEP_INVITATION_INVALID, "invitation_invalid");
+        }
+        FirstOwnerInvitationRecord invitation = found.get();
+        InvitationSummary summary = new InvitationSummary(invitation.tenantName(), identifier);
+        Optional<IdentityRecord> identity = identities.findIdentityByEmail(identifier);
+        HttpSession session = request.getSession();
+        if (identity.isEmpty() || PENDING_SETUP.equals(identity.get().status())) {
+            // The invitee sets the account up first; completing that setup sends the link anew.
+            session.removeAttribute(TRANSACTION);
+            return ResponseEntity.ok(new LoginStep(STEP_INVITATION_SETUP_REQUIRED, null, null, null, null, summary));
+        }
+        session.setAttribute(TRANSACTION, new LoginTransaction(identifier, identity.get().id(), clock.instant(),
+                STEP_PASSWORD, new LoginTransaction.Invitation(token, invitation.tenantId(), invitation.tenantName())));
+        audit.info("event=identity.invitation.opened identity={} tenant={}", identity.get().id(), invitation.tenantId());
+        return ResponseEntity.ok(new LoginStep(STEP_PASSWORD, null, null, null, null, summary));
     }
 
     @PostMapping("/identify")
@@ -206,6 +258,9 @@ public class HostedLoginController {
         }
         clearExpiredLock(identity);
         tx.authenticated(clock.instant(), Secrets.randomToken(16));
+        if (tx.invitation() != null) {
+            return acceptInvitation(tx, identity, request, response);
+        }
         List<TenantMembershipRecord> memberships = activeMemberships(identity.id());
         if (memberships.size() == 1) {
             return ResponseEntity.ok(complete(tx, identity, memberships.get(0), request, response));
@@ -270,6 +325,32 @@ public class HostedLoginController {
         audit.info("event=identity.login.succeeded identity={} tenant={} acr={} source={}",
                 identity.id(), membership.tenantId(), authentication.getAcr(), request.getRemoteAddr());
         return new LoginStep(STEP_DONE, null, continueUrl(request, response), null, null);
+    }
+
+    /**
+     * Accepts the invitation of this login through the tenant Owner and completes the login in the
+     * tenant it activated. A refused invitation ends the login: the page asks for the link anew.
+     */
+    private ResponseEntity<LoginStep> acceptInvitation(LoginTransaction tx, IdentityRecord identity,
+                                                       HttpServletRequest request, HttpServletResponse response) {
+        LoginTransaction.Invitation invitation = tx.invitation();
+        InvitationAcceptance.Outcome outcome = invitations.accept(identity, invitation.token());
+        if (!outcome.isAccepted()) {
+            request.getSession().removeAttribute(TRANSACTION);
+            audit.warn("event=identity.invitation.refused identity={} tenant={} reason={}",
+                    identity.id(), invitation.tenantId(), outcome.error());
+            return reply(HttpStatus.CONFLICT, STEP_INVITATION_INVALID, outcome.error());
+        }
+        audit.info("event=identity.invitation.accepted identity={} tenant={}", identity.id(), outcome.tenantId());
+        Optional<TenantMembershipRecord> membership = tenants.findMembership(identity.id(), outcome.tenantId())
+                .filter(record -> ACTIVE.equals(record.status()) && record.contextId() != null);
+        if (membership.isEmpty()) {
+            // Accepted, but the new context cannot be read yet; a regular login finds it.
+            request.getSession().removeAttribute(TRANSACTION);
+            return ResponseEntity.ok(new LoginStep(STEP_DONE, null,
+                    issuer + properties.getTenantConsole().getAppPath(), null, null));
+        }
+        return ResponseEntity.ok(complete(tx, identity, membership.get(), request, response));
     }
 
     /**
@@ -396,10 +477,29 @@ public class HostedLoginController {
         return ResponseEntity.status(status).body(new LoginStep(step, null, null, error, null));
     }
 
+    private static InvitationSummary summary(LoginTransaction tx) {
+        return tx.invitation() == null ? null : new InvitationSummary(tx.invitation().tenantName(), tx.identifier());
+    }
+
     /** One step of the hosted login as seen by the page. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record LoginStep(String step, String csrfToken, String continueUrl, String error,
-                            List<ContextOption> options) {
+                            List<ContextOption> options, InvitationSummary invitation) {
+
+        public LoginStep(String step, String csrfToken, String continueUrl, String error, List<ContextOption> options) {
+            this(step, csrfToken, continueUrl, error, options, null);
+        }
+    }
+
+    /** The invitation a login accepts, as the page shows it: no token, no tenant ID. */
+    public record InvitationSummary(String tenantName, String inviteeEmail) {
+    }
+
+    public record InvitationRequest(String token) {
+        @Override
+        public String toString() {
+            return "InvitationRequest[token=<redacted>]";
+        }
     }
 
     /** A tenant the identity may enter, offered with a one-time selection ticket. */

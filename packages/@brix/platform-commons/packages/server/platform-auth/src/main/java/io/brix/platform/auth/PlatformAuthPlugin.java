@@ -7,37 +7,35 @@ package io.brix.platform.auth;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.brix.platform.auth.endpoint.ActorLoginHandler;
-import io.runtime.sdk.capability.AuthFlowCapability;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
 import io.runtime.sdk.plugin.PluginContext;
 
 /**
- * Runtime Shell plugin provider for public authentication endpoints.
+ * Runtime Shell plugin provider of platform-auth, the Data Owner of the {@code platform_auth}
+ * schema.
+ *
+ * <p>It publishes no endpoint. Its only one, {@code POST /api/auth/login/actor}, took a password
+ * and returned tokens to the browser; staff now sign in through the hosted login of the identity
+ * protocol surface (identity-auth {@code BRX-IA-FLOW-006}, IA-1; M1 slice 3).</p>
  */
 public final class PlatformAuthPlugin implements BrixPlugin {
 
-    public static final String ENDPOINT_ACTOR_LOGIN = "platform-auth.login.actor.v1";
-
-    private final AtomicReference<AuthFlowCapability> authFlow = new AtomicReference<>();
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.unknown("Not started"));
 
     @Override
     public void configure(PluginBootstrapContext bootstrap) {
-        bootstrap.bindEndpoint(ENDPOINT_ACTOR_LOGIN, new ActorLoginHandler(authFlow::get));
+        // No Runtime Entry to bind.
     }
 
     @Override
     public void onStart(PluginContext context) {
-        authFlow.set(context.require(AuthFlowCapability.class));
         health.set(BrixHealth.up());
     }
 
     @Override
     public void onStop() {
-        authFlow.set(null);
         health.set(BrixHealth.down("Stopped"));
     }
 

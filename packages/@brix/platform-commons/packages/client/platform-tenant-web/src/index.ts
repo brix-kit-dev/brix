@@ -6,10 +6,11 @@
 /**
  * Public barrel for the ACTIVE tenant web plugin surface.
  *
- * The root contract intentionally exposes only manifest-backed route assembly
- * and the FIRST_OWNER invitation acceptance workflow. Tenant selector,
- * switcher, context-provider and view-mode helpers must be reintroduced only
- * through the ACTIVE multi-tenant/auth contracts.
+ * The root contract exposes the manifest-backed route assembly of the staff console. FIRST_OWNER
+ * invitees set up their account and accept on the hosted pages of the identity protocol surface
+ * (identity-auth BRX-IA-ONBOARD-002), not in this plugin. Tenant selector, switcher,
+ * context-provider and view-mode helpers must be reintroduced only through the ACTIVE
+ * multi-tenant/auth contracts.
  */
 
 export * from './constants';
@@ -19,24 +20,5 @@ export {
   type PlatformTenantRouteEntry,
   type PlatformTenantRouteSnapshotEntry,
 } from './module';
-export {
-  FirstOwnerInvitationPage,
-} from './pages/FirstOwnerInvitationPage';
 export { TenantConsoleHomePage } from './pages/TenantConsoleHomePage';
 export { useActorContexts, type UseActorContextsResult } from './hooks/useActorContexts';
-export {
-  useAcceptFirstOwnerInvitation,
-  type UseAcceptFirstOwnerInvitationResult,
-} from './hooks/useAcceptFirstOwnerInvitation';
-export {
-  createTenantInvitationRepository,
-  type AcceptFirstOwnerInvitationRequest,
-  type AcceptFirstOwnerInvitationOptions,
-  type FirstOwnerAcceptanceDto,
-  type TenantInvitationRepository,
-} from './repositories/TenantInvitationRepository';
-export {
-  createFirstOwnerIdentityRepository,
-  type FirstOwnerIdentityLoginRequest,
-  type FirstOwnerIdentityRepository,
-} from './repositories/FirstOwnerIdentityRepository';

@@ -30,7 +30,7 @@ import io.infra.adapter.identity.provider.support.Secrets;
  * process, which validates it like any other token ({@code BRX-RS-SECURITY-004}).
  *
  * <p>Requests that already carry an {@code Authorization} header keep it (the exempted
- * legacy flows, EX-2026-001/002). Requests without a live session continue without
+ * legacy platform console, EX-2026-002). Requests without a live session continue without
  * credentials, so protected endpoints answer 401 as before.</p>
  *
  * @since 3.2.0

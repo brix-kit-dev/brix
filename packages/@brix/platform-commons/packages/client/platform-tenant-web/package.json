@@ -1,7 +1,7 @@
 {
   "name": "@brix-sdk/platform-tenant-web",
   "version": "3.2.0",
-  "description": "Tenant web plugin contract for FIRST_OWNER activation and manifest-backed route assembly",
+  "description": "Tenant web plugin contract: manifest-backed route assembly of the staff console",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -51,8 +51,6 @@
     "brix",
     "platform",
     "tenant",
-    "first-owner",
-    "activation",
     "runtime-shell"
   ],
   "author": "Brix Platform Authors",

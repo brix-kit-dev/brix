@@ -10,16 +10,23 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 
+import io.brix.platform.auth.AuditAction;
 import io.brix.platform.identity.dto.AuditEvent;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
+import io.brix.platform.identity.entity.SetupToken;
 import io.brix.platform.identity.enums.IdentityStatus;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
+import io.brix.platform.identity.repository.SetupTokenRepository;
+import io.brix.platform.identity.security.PasswordPolicy;
+import io.brix.platform.identity.security.SecretHashing;
 import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
 import io.runtime.sdk.capability.IdentityAccountCapability.LoginFailureRecord;
@@ -27,6 +34,7 @@ import io.runtime.sdk.capability.IdentityAccountCapability.PlatformAdminRecord;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TotpCapability;
 import io.runtime.sdk.capability.UnitOfWork;
+import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 
 /**
  * Identity-owned implementation for global credentials and platform-admin grants.
@@ -34,10 +42,16 @@ import io.runtime.sdk.capability.UnitOfWork;
  * <p>Other platform modules still call this capability directly instead of through a runtime
  * entry, so every method opens the identity owner's own unit of work. A caller's transaction is
  * suspended for the duration of the call (root blueprint BRX-RS-DATA-029).</p>
+ *
+ * <p>It also completes the credential setups of the hosted setup page (identity-auth
+ * {@code BRX-IA-ONBOARD-002}): FIRST_OWNER invitees set their password and bind TOTP there, never
+ * on a {@code /platform/**} page. Platform administrators keep their own setup until M1 slice 4.</p>
  */
 public class IdentityAccountCapabilityImpl implements IdentityAccountCapability {
 
     private static final Logger log = LoggerFactory.getLogger(IdentityAccountCapabilityImpl.class);
+    /** Setup purposes the hosted setup page completes. */
+    private static final Set<String> HOSTED_SETUP_PURPOSES = Set.of(SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP);
 
     private final IdentityRepository identityRepository;
     private final PlatformAdminRepository platformAdminRepository;
@@ -45,6 +59,28 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
     private final UnitOfWork unitOfWork;
     private final Optional<TotpCapability> totpCapability;
     private final Optional<SecretEncryptionCapability> secretEncryptionCapability;
+    private final CredentialSetup credentialSetup;
+
+    /**
+     * What completing credential setups needs besides the identities: the setup tokens, the
+     * password policy and the publisher of the setup-completed event the tenant Owner listens to.
+     *
+     * @param setupTokens one-time setup tokens of the identity Owner
+     * @param passwordPolicy security profile for new passwords
+     * @param events publisher of {@link FirstOwnerInviteeSetupCompletedEvent}
+     */
+    public record CredentialSetup(SetupTokenRepository setupTokens, PasswordPolicy passwordPolicy,
+                                  ApplicationEventPublisher events) {
+        public CredentialSetup {
+            Objects.requireNonNull(setupTokens, "setupTokens must not be null");
+            Objects.requireNonNull(passwordPolicy, "passwordPolicy must not be null");
+            Objects.requireNonNull(events, "events must not be null");
+        }
+    }
+
+    /** A usable setup token and the identity it sets up. */
+    private record PendingSetup(SetupToken token, Identity identity) {
+    }
 
     public IdentityAccountCapabilityImpl(
             IdentityRepository identityRepository,
@@ -62,6 +98,22 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
             UnitOfWork unitOfWork,
             Optional<TotpCapability> totpCapability,
             Optional<SecretEncryptionCapability> secretEncryptionCapability) {
+        this(identityRepository, platformAdminRepository, auditService, unitOfWork,
+                totpCapability, secretEncryptionCapability, null);
+    }
+
+    /**
+     * Creates the capability; without {@code credentialSetup} it completes no credential setup
+     * and accepts no new password.
+     */
+    public IdentityAccountCapabilityImpl(
+            IdentityRepository identityRepository,
+            PlatformAdminRepository platformAdminRepository,
+            Optional<AuditService> auditService,
+            UnitOfWork unitOfWork,
+            Optional<TotpCapability> totpCapability,
+            Optional<SecretEncryptionCapability> secretEncryptionCapability,
+            CredentialSetup credentialSetup) {
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
         this.auditService = auditService;
@@ -69,6 +121,136 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
         this.totpCapability = totpCapability == null ? Optional.empty() : totpCapability;
         this.secretEncryptionCapability =
                 secretEncryptionCapability == null ? Optional.empty() : secretEncryptionCapability;
+        this.credentialSetup = credentialSetup;
+    }
+
+    @Override
+    public Optional<CredentialSetupRecord> findCredentialSetup(String setupToken) {
+        if (credentialSetup == null || isBlank(setupToken)) {
+            return Optional.empty();
+        }
+        return unitOfWork.readOnly(() -> pendingSetup(setupToken, false).map(found -> new CredentialSetupRecord(
+                found.identity().getId(),
+                found.identity().getEmail(),
+                found.token().getPurpose(),
+                found.token().getExpiresAt().toInstant())));
+    }
+
+    @Override
+    public Optional<PasswordRejection> rejectNewPassword(Long identityId, String password) {
+        if (credentialSetup == null || identityId == null) {
+            return Optional.of(PasswordRejection.UNAVAILABLE);
+        }
+        Optional<Identity> identity = unitOfWork.readOnly(() -> identityRepository.findById(identityId));
+        return identity.isEmpty()
+                ? Optional.of(PasswordRejection.UNAVAILABLE)
+                : credentialSetup.passwordPolicy().check(password, identity.get().getEmail(), identity.get().getUsername());
+    }
+
+    @Override
+    public Optional<String> beginTotpEnrollment(String setupToken) {
+        if (!canSetUp() || isBlank(setupToken)) {
+            return Optional.empty();
+        }
+        return unitOfWork.required(() -> pendingSetup(setupToken, true).map(found -> {
+            Identity identity = found.identity();
+            String secret = totpCapability.get().generateSecret();
+            // The factor stays unbound until the setup completes with a code of this secret.
+            identity.setMfaSecretEncrypted(secretEncryptionCapability.get().encryptSecret(secret));
+            identity.setMfaEnabled(false);
+            identityRepository.save(identity);
+            return totpCapability.get().buildOtpauthUri(identity.getEmail(), secret);
+        }));
+    }
+
+    @Override
+    public CredentialSetupOutcome completeCredentialSetup(String setupToken, String passwordHash, String totpCode) {
+        if (!canSetUp()) {
+            return CredentialSetupOutcome.UNAVAILABLE;
+        }
+        if (isBlank(passwordHash)) {
+            throw new IllegalArgumentException("passwordHash is required");
+        }
+        if (isBlank(setupToken)) {
+            return CredentialSetupOutcome.INVALID_TOKEN;
+        }
+        return unitOfWork.required(() -> {
+            Optional<PendingSetup> found = pendingSetup(setupToken, true);
+            if (found.isEmpty()) {
+                return CredentialSetupOutcome.INVALID_TOKEN;
+            }
+            Identity identity = found.get().identity();
+            String encryptedSecret = identity.getMfaSecretEncrypted();
+            if (isBlank(encryptedSecret) || isBlank(totpCode)) {
+                return CredentialSetupOutcome.INVALID_CODE;
+            }
+            OptionalLong step = totpCapability.get().matchTimeStep(
+                    secretEncryptionCapability.get().decryptSecret(encryptedSecret), totpCode.trim());
+            if (step.isEmpty()) {
+                return CredentialSetupOutcome.INVALID_CODE;
+            }
+            OffsetDateTime now = OffsetDateTime.now();
+            identity.setPasswordHash(passwordHash);
+            identity.setPasswordMustChange(false);
+            identity.verifyEmail();
+            identity.setStatus(IdentityStatus.ACTIVE);
+            identity.setMfaEnabled(true);
+            identity.setMfaBoundAt(now);
+            // RFC 6238 §5.2: the code that completed the setup cannot also sign in.
+            identity.setMfaLastUsedStep(step.getAsLong());
+            identity.setTokenVersion(identity.getTokenVersion() + 1);
+            identityRepository.save(identity);
+            SetupToken token = found.get().token();
+            token.setUsedAt(now);
+            credentialSetup.setupTokens().save(token);
+            audit(identity.getId(), AuditAction.IDENTITY_PASSWORD_SET, "IDENTITY", "Identity password set.");
+            audit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", "Identity TOTP bound.");
+            audit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", "Setup token consumed.");
+            audit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", "Identity activated.");
+            if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose())) {
+                // After commit the tenant Owner sends the invitation link (FirstOwnerInvitationService).
+                credentialSetup.events().publishEvent(new FirstOwnerInviteeSetupCompletedEvent(identity.getId()));
+            }
+            return CredentialSetupOutcome.COMPLETED;
+        });
+    }
+
+    /**
+     * The setup a raw token opens: a hosted setup purpose, not used, superseded or expired, for an
+     * identity still being set up that holds no platform administrator grant.
+     */
+    private Optional<PendingSetup> pendingSetup(String rawToken, boolean forUpdate) {
+        String hash = SecretHashing.sha256Base64Url(rawToken);
+        Optional<SetupToken> token = forUpdate
+                ? credentialSetup.setupTokens().findByTokenHashForUpdate(hash)
+                : credentialSetup.setupTokens().findByTokenHash(hash);
+        return token
+                .filter(found -> HOSTED_SETUP_PURPOSES.contains(found.getPurpose()))
+                .filter(found -> found.isUsable(OffsetDateTime.now()))
+                .flatMap(found -> identityRepository.findById(found.getIdentityId())
+                        .filter(identity -> identity.getStatus() == IdentityStatus.PENDING_SETUP)
+                        .filter(identity -> platformAdminRepository.findByIdentityId(identity.getId())
+                                .filter(PlatformAdmin::isActive).isEmpty())
+                        .map(identity -> new PendingSetup(found, identity)));
+    }
+
+    private boolean canSetUp() {
+        return credentialSetup != null && totpCapability.isPresent() && secretEncryptionCapability.isPresent();
+    }
+
+    private void audit(Long identityId, String action, String resourceType, String description) {
+        auditService.ifPresent(sink -> sink.log(AuditEvent.builder()
+                .createdBy(identityId)
+                .action(action)
+                .resourceType(resourceType)
+                .resourceId(String.valueOf(identityId))
+                .description(description)
+                .success(true)
+                .build()));
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     @Override

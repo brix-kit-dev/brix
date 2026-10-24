@@ -96,8 +96,6 @@ export function PlatformSetupPage(): JSX.Element {
     setup.validateResult?.username ??
     setup.validateResult?.loginId ??
     "";
-  const isTenantFirstOwnerSetup =
-    setup.validateResult?.purpose === "TENANT_FIRST_OWNER_SETUP";
   const passwordRequirements = [
     {
       label: tt(I18N_KEYS.changePassword.requirementLength),
@@ -190,17 +188,10 @@ export function PlatformSetupPage(): JSX.Element {
 
   return (
     <AdminPageShell maxWidth={1060}>
+      {/* Platform administrators only: FIRST_OWNER invitees set up on the hosted setup page. */}
       <PageHeader
-        title={tt(
-          isTenantFirstOwnerSetup
-            ? I18N_KEYS.setup.tenantOwnerTitle
-            : I18N_KEYS.setup.title,
-        )}
-        subtitle={tt(
-          isTenantFirstOwnerSetup
-            ? I18N_KEYS.setup.tenantOwnerSubtitle
-            : I18N_KEYS.setup.subtitle,
-        )}
+        title={tt(I18N_KEYS.setup.title)}
+        subtitle={tt(I18N_KEYS.setup.subtitle)}
       />
       <Card
         style={{
@@ -327,27 +318,21 @@ export function PlatformSetupPage(): JSX.Element {
                     lineHeight: t.typography.bodyMedium.lineHeight,
                   }}
                 >
-                  {tt(
-                    isTenantFirstOwnerSetup
-                      ? I18N_KEYS.setup.tenantOwnerSuccessBody
-                      : I18N_KEYS.setup.successBody,
-                  )}
+                  {tt(I18N_KEYS.setup.successBody)}
                 </p>
               </div>
-              {!isTenantFirstOwnerSetup ? (
-                <div style={{ justifySelf: "start" }}>
-                  <Button
-                    type="button"
-                    size="small"
-                    startIcon="login"
-                    onClick={() =>
-                      navigate(PLATFORM_ADMIN_ROUTES.LOGIN, { replace: true })
-                    }
-                  >
-                    {tt(I18N_KEYS.login.submit)}
-                  </Button>
-                </div>
-              ) : null}
+              <div style={{ justifySelf: "start" }}>
+                <Button
+                  type="button"
+                  size="small"
+                  startIcon="login"
+                  onClick={() =>
+                    navigate(PLATFORM_ADMIN_ROUTES.LOGIN, { replace: true })
+                  }
+                >
+                  {tt(I18N_KEYS.login.submit)}
+                </Button>
+              </div>
             </section>
           </div>
         ) : (

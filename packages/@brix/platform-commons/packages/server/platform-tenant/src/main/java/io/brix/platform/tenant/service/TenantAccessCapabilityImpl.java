@@ -31,10 +31,15 @@ import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantMember;
 import io.brix.platform.tenant.entity.TenantPrincipal;
+import io.brix.platform.tenant.enums.InvitationPurpose;
+import io.brix.platform.tenant.enums.TenantStatus;
+import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
+import io.brix.platform.tenant.security.SecretHashing;
 import io.runtime.sdk.capability.TenantAccessCapability;
+import io.runtime.sdk.capability.TenantAccessCapability.FirstOwnerInvitationRecord;
 import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
 import io.runtime.sdk.capability.TenantAccessCapability.TenantPrincipalRecord;
 
@@ -54,13 +59,45 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
     private final TenantMemberRepository memberRepository;
     private final TenantPrincipalRepository principalRepository;
     private final TenantRepository tenantRepository;
+    private final TenantInvitationRepository invitationRepository;
 
     public TenantAccessCapabilityImpl(TenantMemberRepository memberRepository,
                                       TenantPrincipalRepository principalRepository,
-                                      TenantRepository tenantRepository) {
+                                      TenantRepository tenantRepository,
+                                      TenantInvitationRepository invitationRepository) {
         this.memberRepository = memberRepository;
         this.principalRepository = principalRepository;
         this.tenantRepository = tenantRepository;
+        this.invitationRepository = invitationRepository;
+    }
+
+    /**
+     * Shows a FIRST_OWNER invitation to the hosted invitation page before the invitee signs in.
+     * It reads only; the acceptance entry locks the invitation, tenant and quota again and checks
+     * everything anew (multi-tenant 5.1 §5.7).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    @CrossTenantAccess(
+            reason = "The hosted invitation page resolves a FIRST_OWNER invitation by its one-time token before any tenant context exists.",
+            approval = "identity-auth-1.0:BRX-IA-ONBOARD-002",
+            readOnly = true)
+    public Optional<FirstOwnerInvitationRecord> findPendingFirstOwnerInvitation(String invitationToken) {
+        if (invitationToken == null || invitationToken.isBlank()) {
+            return Optional.empty();
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        // Hashed exactly as the acceptance entry hashes it.
+        return invitationRepository.findByTokenHash(SecretHashing.sha256Base64Url(invitationToken))
+                .filter(invitation -> invitation.getInvitationPurpose() == InvitationPurpose.FIRST_OWNER)
+                .filter(invitation -> invitation.isPendingNow(now))
+                .flatMap(invitation -> tenantRepository.findById(invitation.getTenantId())
+                        .filter(tenant -> tenant.getStatus() == TenantStatus.PENDING_ACTIVATION)
+                        .map(tenant -> new FirstOwnerInvitationRecord(
+                                tenant.getId(),
+                                tenant.getName(),
+                                invitation.getInviteeEmail(),
+                                invitation.getExpiresAt().toInstant())));
     }
 
     @Override

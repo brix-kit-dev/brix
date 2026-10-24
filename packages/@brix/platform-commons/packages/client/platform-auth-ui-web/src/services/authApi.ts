@@ -33,24 +33,17 @@ export interface LoginRequestPayload {
   rememberMe?: boolean;
 }
 
-export interface SelectTenantPayload {
-  tenantId?: string;
-  selectionTicket?: string;
-  principalId?: string;
-}
-
 export interface ChangePasswordPayload {
   oldPassword: string;
   newPassword: string;
 }
 
+/**
+ * Staff no longer sign in or choose a tenant here: that happens on the hosted login of the
+ * identity protocol surface (identity-auth BRX-IA-FLOW-006, IA-1; M1 slice 3).
+ */
 export interface AuthApi {
   login(payload: LoginRequestPayload): Promise<LoginResult>;
-  loginActor(payload: LoginRequestPayload): Promise<LoginResult>;
-  loginSubject(payload: LoginRequestPayload): Promise<LoginResult>;
-  selectTenant(payload: SelectTenantPayload, identityToken: string): Promise<LoginResult>;
-  selectContext(payload: SelectTenantPayload, identityToken: string): Promise<LoginResult>;
-  switchContext(payload: SelectTenantPayload, identityToken: string): Promise<LoginResult>;
   refresh(refreshToken: string): Promise<LoginResult>;
   changePassword(payload: ChangePasswordPayload, accessToken: string): Promise<void>;
   loginWithGoogleIdToken(idToken: string): Promise<LoginResult>;
@@ -152,38 +145,6 @@ export function createAuthApi(options: CreateAuthApiOptions = {}): AuthApi {
   const api: AuthApi = {
     async login(payload) {
       return toLoginResult(await postJson<LoginResponseDtoRaw>('/api/auth/login', payload));
-    },
-    async loginActor(payload) {
-      return toLoginResult(await postJson<LoginResponseDtoRaw>('/api/auth/login/actor', payload));
-    },
-    async loginSubject(payload) {
-      return toLoginResult(await postJson<LoginResponseDtoRaw>('/api/auth/login/subject', payload));
-    },
-    async selectTenant(payload, identityToken) {
-      if (!identityToken) {
-        throw new AuthApiError('identityToken is required', 400, 'IDENTITY_TOKEN_REQUIRED');
-      }
-      return toLoginResult(await postJson<LoginResponseDtoRaw>(
-        '/api/auth/select-tenant',
-        { tenantId: payload.tenantId },
-        identityToken,
-      ));
-    },
-    async selectContext(payload, identityToken) {
-      if (!identityToken) {
-        throw new AuthApiError('identityToken is required', 400, 'IDENTITY_TOKEN_REQUIRED');
-      }
-      if (!payload.selectionTicket) {
-        throw new AuthApiError('selectionTicket is required', 400, 'SELECTION_TICKET_REQUIRED');
-      }
-      return toLoginResult(await postJson<LoginResponseDtoRaw>(
-        '/api/auth/select-context',
-        { selectionTicket: payload.selectionTicket },
-        identityToken,
-      ));
-    },
-    async switchContext(payload, identityToken) {
-      return api.selectContext(payload, identityToken);
     },
     async refresh(refreshToken) {
       return toLoginResult(await postJson<LoginResponseDtoRaw>('/api/auth/refresh', { refreshToken }));

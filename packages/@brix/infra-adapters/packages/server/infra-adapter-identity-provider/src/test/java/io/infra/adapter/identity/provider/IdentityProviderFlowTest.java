@@ -77,11 +77,19 @@ class IdentityProviderFlowTest {
     @Autowired
     IdentityProviderAutoConfiguration.TenantConsoleClient client;
 
+    @Autowired
+    ApiProbe api;
+
     @BeforeEach
     void reset() {
         tenants.active = true;
+        tenants.invitationAccepted = false;
         identities.status = "ACTIVE";
         identities.lockedUntil = null;
+        identities.inviteeStatus = "PENDING_SETUP";
+        identities.inviteePasswordHash = null;
+        identities.inviteeEnrolled = false;
+        api.acceptances.clear();
     }
 
     @Test
@@ -330,6 +338,12 @@ class IdentityProviderFlowTest {
         Browser browser = new Browser();
         Browser.Response first = browser.get(ISSUER + "/auth/login");
         Browser.Response second = browser.get(ISSUER + "/auth/error?reason=login_expired");
+        for (String page : new String[] {"/auth/setup", "/auth/invitation"}) {
+            Browser.Response hosted = browser.get(ISSUER + page);
+            assertThat(hosted.status()).as(page).isEqualTo(200);
+            assertThat(hosted.header("Referrer-Policy")).as(page).isEqualTo("no-referrer");
+            assertThat(hosted.header("Content-Security-Policy")).as(page).contains("frame-ancestors 'none'");
+        }
 
         assertThat(first.status()).isEqualTo(200);
         String policy = first.header("Content-Security-Policy");
@@ -527,6 +541,162 @@ class IdentityProviderFlowTest {
         return browser;
     }
 
+    /**
+     * identity-auth BRX-IA-ONBOARD-002/003 and BRX-IA-CRED-001: the invitee sets a password and
+     * binds TOTP on the hosted setup page; the token is sent once and never comes back.
+     */
+    @Test
+    void aFirstOwnerInviteeSetsUpTheAccountOnTheHostedSetupPage() {
+        Browser browser = new Browser();
+        Browser.Response state = browser.get(ISSUER + "/auth/api/setup/state");
+        assertThat(state.json().get("step").asString()).isEqualTo("setup-start");
+        assertThat(state.header("Referrer-Policy")).isEqualTo("no-referrer");
+        String csrf = state.json().get("csrfToken").asString();
+
+        assertThat(browser.post(ISSUER + "/auth/api/setup/start", "{\"token\":\"" + TestCapabilities.SETUP_TOKEN + "\"}")
+                .status()).as("CSRF is required").isEqualTo(403);
+        Browser.Response wrong = browser.post(ISSUER + "/auth/api/setup/start", "{\"token\":\"not-a-setup-token\"}",
+                "X-CSRF-TOKEN", csrf);
+        assertThat(wrong.status()).isEqualTo(404);
+        assertThat(wrong.json().get("step").asString()).isEqualTo("setup-invalid");
+
+        Browser.Response started = browser.post(ISSUER + "/auth/api/setup/start",
+                "{\"token\":\"" + TestCapabilities.SETUP_TOKEN + "\"}", "X-CSRF-TOKEN", csrf);
+        assertThat(started.status()).isEqualTo(200);
+        assertThat(started.json().get("step").asString()).isEqualTo("setup-password");
+        assertThat(started.json().get("email").asString()).isEqualTo(TestCapabilities.INVITEE_EMAIL);
+
+        assertThat(setupPassword(browser, csrf, "password1").json().get("error").asString())
+                .isEqualTo("password_breached");
+        assertThat(setupPassword(browser, csrf, "short").json().get("error").asString())
+                .isEqualTo("password_too_short");
+        assertThat(setupPassword(browser, csrf, "invitee clinic 2026").json().get("error").asString())
+                .isEqualTo("password_contains_account_name");
+        Browser.Response enrollment = setupPassword(browser, csrf, "violet kettle harbour");
+        assertThat(enrollment.status()).isEqualTo(200);
+        assertThat(enrollment.json().get("step").asString()).isEqualTo("setup-totp");
+        String otpauth = enrollment.json().get("otpauthUri").asString();
+        assertThat(otpauth).startsWith("otpauth://totp/");
+        assertThat(browser.get(ISSUER + "/auth/api/setup/state").json().get("otpauthUri").asString())
+                .as("a reload shows the same secret").isEqualTo(otpauth);
+        assertThat(identities.inviteeStatus).as("nothing is set before the code").isEqualTo("PENDING_SETUP");
+
+        Browser.Response badCode = browser.post(ISSUER + "/auth/api/setup/complete", "{\"code\":\"000000\"}",
+                "X-CSRF-TOKEN", csrf);
+        assertThat(badCode.status()).isEqualTo(401);
+        assertThat(badCode.json().get("error").asString()).isEqualTo("invalid_code");
+
+        Browser.Response done = browser.post(ISSUER + "/auth/api/setup/complete",
+                "{\"code\":\"" + CODES.incrementAndGet() + "\"}", "X-CSRF-TOKEN", csrf);
+        assertThat(done.status()).isEqualTo(200);
+        assertThat(done.json().get("step").asString()).isEqualTo("setup-done");
+        assertThat(done.json().get("purpose").asString()).isEqualTo("TENANT_FIRST_OWNER_SETUP");
+        assertThat(identities.inviteeStatus).isEqualTo("ACTIVE");
+        assertThat(identities.inviteePasswordHash).as("the hash of the accepted password")
+                .isEqualTo("h:violet kettle harbour");
+
+        assertThat(browser.post(ISSUER + "/auth/api/setup/start", "{\"token\":\"" + TestCapabilities.SETUP_TOKEN + "\"}",
+                "X-CSRF-TOKEN", csrf).status()).as("a completed setup cannot be opened again").isEqualTo(404);
+        for (String response : browser.received) {
+            assertThat(response).doesNotContain(TestCapabilities.SETUP_TOKEN).doesNotContain("violet kettle");
+        }
+    }
+
+    /**
+     * identity-auth BRX-IA-ONBOARD-002 and multi-tenant 5.1 §5.7: after both factors the tenant
+     * Owner's own acceptance entry accepts the invitation as an Identity Token the browser never
+     * sees, and the invitee lands in the new tenant without signing in again.
+     */
+    @Test
+    void aFirstOwnerAcceptsTheInvitationAfterBothFactorsAndLandsInTheNewTenant() {
+        Browser browser = new Browser();
+        String csrf = startHostedLogin(browser);
+        Browser.Response opened = browser.post(ISSUER + "/auth/api/invitation",
+                "{\"token\":\"" + TestCapabilities.INVITATION_TOKEN + "\"}", "X-CSRF-TOKEN", csrf);
+        assertThat(opened.status()).isEqualTo(200);
+        assertThat(opened.json().get("step").asString()).isEqualTo("password");
+        assertThat(opened.json().at("/invitation/tenantName").asString()).isEqualTo("New Clinic");
+        assertThat(opened.json().at("/invitation/inviteeEmail").asString()).isEqualTo(TestCapabilities.OWNER_EMAIL);
+        assertThat(opened.body()).doesNotContain(String.valueOf(TestCapabilities.NEW_TENANT_ID));
+        assertThat(browser.get(ISSUER + "/auth/api/state").json().at("/invitation/tenantName").asString())
+                .as("a reload keeps the invitation").isEqualTo("New Clinic");
+
+        assertThat(password(browser, csrf, TestCapabilities.STAFF_PASSWORD).json().get("step").asString())
+                .isEqualTo("totp");
+        assertThat(api.acceptances).as("nothing is accepted before the second factor").isEmpty();
+        Browser.Response done = browser.post(ISSUER + "/auth/api/totp",
+                "{\"code\":\"" + CODES.incrementAndGet() + "\"}", "X-CSRF-TOKEN", csrf);
+        assertThat(done.status()).isEqualTo(200);
+        assertThat(done.json().get("step").asString()).isEqualTo("done");
+        assertThat(done.json().get("continueUrl").asString()).isEqualTo(ISSUER + "/tenant");
+
+        assertThat(api.acceptances).hasSize(1);
+        Map<String, Object> acceptance = api.acceptances.get(0);
+        assertThat(acceptance).containsEntry("invitationToken", TestCapabilities.INVITATION_TOKEN);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> claims = (Map<String, Object>) acceptance.get("claims");
+        assertThat(claims).containsEntry("aud", "brix-identity")
+                .containsEntry("sub", String.valueOf(TestCapabilities.OWNER_ID));
+        assertThat(claims.get("allowed_actions").toString()).contains("first_owner_accept");
+
+        Browser.Response start = browser.get(ISSUER + "/bff/login");
+        Browser.Response code = browser.get(start.location(), "Accept", "text/html");
+        assertThat(code.location()).as("the login session is already open").startsWith(ISSUER + "/bff/callback?code=");
+        browser.get(code.location());
+        JsonNode session = browser.get(ISSUER + "/bff/session").json();
+        assertThat(session.at("/context/tenantId").asString()).isEqualTo(String.valueOf(TestCapabilities.NEW_TENANT_ID));
+        assertThat(session.at("/context/memberType").asString()).isEqualTo("OWNER");
+        assertThat(session.at("/context/contextId").asString()).isEqualTo(TestCapabilities.NEW_TENANT_CONTEXT);
+
+        // S-20: the browser never receives the Identity Token; the invitation token never comes back.
+        for (String response : browser.received) {
+            assertThat(response).doesNotContain("eyJ").doesNotContain(TestCapabilities.INVITATION_TOKEN);
+        }
+    }
+
+    @Test
+    void anInvitationThatCannotBeAcceptedEndsBeforeAnyCredential() {
+        Browser browser = new Browser();
+        String csrf = startHostedLogin(browser);
+        Browser.Response unknown = browser.post(ISSUER + "/auth/api/invitation", "{\"token\":\"not-an-invitation\"}",
+                "X-CSRF-TOKEN", csrf);
+        assertThat(unknown.status()).isEqualTo(404);
+        assertThat(unknown.json().get("step").asString()).isEqualTo("invitation-invalid");
+        assertThat(password(browser, csrf, TestCapabilities.STAFF_PASSWORD).status())
+                .as("no login was opened").isEqualTo(409);
+
+        Browser.Response notSetUp = browser.post(ISSUER + "/auth/api/invitation",
+                "{\"token\":\"" + TestCapabilities.INVITEE_INVITATION_TOKEN + "\"}", "X-CSRF-TOKEN", csrf);
+        assertThat(notSetUp.status()).isEqualTo(200);
+        assertThat(notSetUp.json().get("step").asString()).as("the invitee sets the account up first")
+                .isEqualTo("invitation-setup-required");
+        assertThat(password(browser, csrf, TestCapabilities.STAFF_PASSWORD).status()).isEqualTo(409);
+        assertThat(api.acceptances).isEmpty();
+    }
+
+    @Test
+    void aRefusedAcceptanceEndsTheLoginWithoutALoginSession() {
+        Browser browser = new Browser();
+        String csrf = startHostedLogin(browser);
+        browser.post(ISSUER + "/auth/api/invitation", "{\"token\":\"" + TestCapabilities.TAKEN_INVITATION_TOKEN + "\"}",
+                "X-CSRF-TOKEN", csrf);
+        password(browser, csrf, TestCapabilities.STAFF_PASSWORD);
+        Browser.Response refused = browser.post(ISSUER + "/auth/api/totp",
+                "{\"code\":\"" + CODES.incrementAndGet() + "\"}", "X-CSRF-TOKEN", csrf);
+
+        assertThat(refused.status()).isEqualTo(409);
+        assertThat(refused.json().get("step").asString()).isEqualTo("invitation-invalid");
+        assertThat(refused.json().get("error").asString()).isEqualTo("invitation_taken");
+        assertThat(api.acceptances).hasSize(1);
+        assertThat(browser.get(ISSUER + "/auth/api/state").json().get("step").asString())
+                .as("no login session was opened").isEqualTo("identify");
+    }
+
+    private static Browser.Response setupPassword(Browser browser, String csrf, String value) {
+        return browser.post(ISSUER + "/auth/api/setup/password", "{\"password\":\"" + value + "\"}",
+                "X-CSRF-TOKEN", csrf);
+    }
+
     private Browser loggedIn() {
         Browser browser = new Browser();
         Browser.Response start = browser.get(ISSUER + "/bff/login");
@@ -613,14 +783,48 @@ class IdentityProviderFlowTest {
     static class TestApplication {
 
         @Bean
-        ApiProbe apiProbe() {
-            return new ApiProbe();
+        ApiProbe apiProbe(TestCapabilities.FakeTenants tenants) {
+            return new ApiProbe(tenants);
         }
     }
 
     /** Stands in for the Dispatcher: shows which bearer token reached {@code /api/**}. */
     @RestController
     static class ApiProbe {
+
+        /** Every call of the FIRST_OWNER acceptance entry: the bearer's claims and the invitation token. */
+        final java.util.List<Map<String, Object>> acceptances = new java.util.concurrent.CopyOnWriteArrayList<>();
+        private final TestCapabilities.FakeTenants tenants;
+
+        ApiProbe(TestCapabilities.FakeTenants tenants) {
+            this.tenants = tenants;
+        }
+
+        /**
+         * Answers like the tenant Owner's FIRST_OWNER acceptance entry: it needs an Identity Token
+         * that allows {@code first_owner_accept}; only the pending invitation of tenant 45 succeeds.
+         */
+        @PostMapping("/api/tenant/first-owner-invitations/accept")
+        org.springframework.http.ResponseEntity<Map<String, Object>> acceptFirstOwner(
+                @RequestHeader(value = "Authorization", required = false) String authorization,
+                @org.springframework.web.bind.annotation.RequestBody Map<String, Object> body) {
+            Map<String, Object> claims = claims(authorization);
+            acceptances.add(Map.of("claims", claims, "invitationToken", String.valueOf(body.get("invitationToken"))));
+            boolean identityToken = "brix-identity".equals(claims.get("aud"))
+                    && claims.get("allowed_actions") instanceof java.util.List<?> actions
+                    && actions.contains("first_owner_accept");
+            if (!identityToken) {
+                return org.springframework.http.ResponseEntity.status(403)
+                        .body(Map.of("errorCode", "FIRST_OWNER_ACTOR_IDENTITY_REQUIRED", "message", "identity required"));
+            }
+            if (!TestCapabilities.INVITATION_TOKEN.equals(body.get("invitationToken"))) {
+                return org.springframework.http.ResponseEntity.status(409)
+                        .body(Map.of("errorCode", "TENANT_NOT_PENDING_ACTIVATION", "message", "not pending"));
+            }
+            tenants.invitationAccepted = true;
+            return org.springframework.http.ResponseEntity.ok(Map.of("tenantId", String.valueOf(TestCapabilities.NEW_TENANT_ID),
+                    "memberId", "11", "profileId", "12", "tenantStatus", "ACTIVE"));
+        }
 
         @GetMapping("/api/test/whoami")
         Map<String, Object> whoami(@RequestHeader(value = "Authorization", required = false) String authorization) {

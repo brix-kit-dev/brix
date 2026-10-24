@@ -71,8 +71,11 @@ import io.infra.adapter.identity.provider.bff.BffSessionRelayFilter;
 import io.infra.adapter.identity.provider.bff.BffSessionStore;
 import io.infra.adapter.identity.provider.bff.BffTokenClient;
 import io.infra.adapter.identity.provider.bff.BffTokenRefresher;
+import io.infra.adapter.identity.provider.login.DispatcherInvitationAcceptance;
 import io.infra.adapter.identity.provider.login.HostedLoginController;
 import io.infra.adapter.identity.provider.login.HostedLoginPages;
+import io.infra.adapter.identity.provider.login.HostedSetupController;
+import io.infra.adapter.identity.provider.login.InvitationAcceptance;
 import io.infra.adapter.identity.provider.support.ContextSwitchIntents;
 import io.infra.adapter.identity.provider.support.EncryptedStateStore;
 import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
@@ -330,14 +333,32 @@ public class IdentityProviderAutoConfiguration {
         };
     }
 
+    /** Accepts FIRST_OWNER invitations through the tenant Owner's own entry, over the loopback interface. */
+    @Bean
+    InvitationAcceptance identityProviderInvitationAcceptance(JwtIssuerCapability issuer,
+                                                             IdentityProviderProperties properties,
+                                                             Environment environment) {
+        return new DispatcherInvitationAcceptance(issuer, internalBaseUrl(properties, environment),
+                properties.getTenantConsole().getFirstOwnerAcceptPath());
+    }
+
     @Bean
     HostedLoginController identityProviderHostedLogin(IdentityAccountCapability identities,
                                                       PasswordCapability passwords,
                                                       TenantAccessCapability tenants,
+                                                      InvitationAcceptance invitations,
                                                       IdentityProviderProperties properties,
                                                       EncryptedStateStore store,
                                                       LoginSessionRevocations revocations) {
-        return new HostedLoginController(identities, passwords, tenants, properties, store, revocations, CLOCK);
+        return new HostedLoginController(identities, passwords, tenants, invitations, properties, store,
+                revocations, CLOCK);
+    }
+
+    @Bean
+    HostedSetupController identityProviderHostedSetup(IdentityAccountCapability identities,
+                                                      PasswordCapability passwords,
+                                                      IdentityProviderProperties properties) {
+        return new HostedSetupController(identities, passwords, properties, CLOCK);
     }
 
     @Bean

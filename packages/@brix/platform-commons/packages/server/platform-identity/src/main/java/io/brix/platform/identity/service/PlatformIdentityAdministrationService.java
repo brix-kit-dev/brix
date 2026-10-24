@@ -39,7 +39,6 @@ import io.brix.platform.identity.security.SecretHashing;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TotpCapability;
-import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 
 /**
  * Owner-side implementation of platform setup identity operations.
@@ -120,11 +119,8 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         }
         Optional<PlatformAdmin> admin = platformAdminRepository.findByIdentityId(identity.getId())
                 .filter(PlatformAdmin::isActive);
-        if (SetupTokenPurposes.INITIAL_SETUP.equals(token.getPurpose()) && admin.isEmpty()) {
+        if (admin.isEmpty()) {
             throw new IllegalStateException("platform admin grant is missing");
-        }
-        if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose()) && admin.isPresent()) {
-            throw new IllegalStateException("tenant first-owner setup token is not valid for platform admin identity");
         }
         PasswordCapability password = passwordCapability.orElseThrow(
                 () -> new IllegalStateException("PasswordCapability is required"));
@@ -159,12 +155,8 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         writeAudit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", "Identity TOTP bound.");
         writeAudit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", "Setup token consumed.");
         writeAudit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", "Identity activated.");
-        if (SetupTokenPurposes.INITIAL_SETUP.equals(token.getPurpose())) {
-            bootstrapCompletionListener.completeIfEligible(identity.getId());
-            eventPublisher.publishEvent(new BootstrapCompletionListener.IdentitySetupCompletedEvent(identity.getId()));
-        } else if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose())) {
-            eventPublisher.publishEvent(new FirstOwnerInviteeSetupCompletedEvent(identity.getId()));
-        }
+        bootstrapCompletionListener.completeIfEligible(identity.getId());
+        eventPublisher.publishEvent(new BootstrapCompletionListener.IdentitySetupCompletedEvent(identity.getId()));
         return new PlatformSetupCompletionView(true);
     }
 
@@ -217,9 +209,12 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         return token;
     }
 
+    /**
+     * Platform administrators only. FIRST_OWNER invitees set up on the hosted setup page of the
+     * identity protocol surface (identity-auth BRX-IA-ONBOARD-002, M1 slice 3), never here.
+     */
     private static boolean isSupportedPurpose(String purpose) {
-        return SetupTokenPurposes.INITIAL_SETUP.equals(purpose)
-                || SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(purpose);
+        return SetupTokenPurposes.INITIAL_SETUP.equals(purpose);
     }
 
     private Identity requireIdentity(Long identityId) {

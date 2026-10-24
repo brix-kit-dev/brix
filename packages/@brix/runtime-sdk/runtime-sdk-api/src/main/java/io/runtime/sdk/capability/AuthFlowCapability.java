@@ -76,7 +76,12 @@ public interface AuthFlowCapability {
      * @return login result
      * @throws AuthFlowException when authentication fails or no active Actor context exists
      * @since 3.2.2
+     * @deprecated Since 3.2.0 (identity-auth M1 slice 3). Staff sign in through the hosted login of
+     *             the identity protocol surface with authorization code + PKCE; no endpoint takes a
+     *             password and returns tokens any more (identity-auth {@code BRX-IA-FLOW-006}, IA-1).
+     *             Scheduled for removal in the next major version.
      */
+    @Deprecated(since = "3.2.0", forRemoval = true)
     default LoginResult loginActor(LoginCommand command) {
         return login(command);
     }

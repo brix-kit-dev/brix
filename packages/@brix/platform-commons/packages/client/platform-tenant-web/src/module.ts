@@ -11,7 +11,6 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react';
-import { FirstOwnerInvitationPage } from './pages/FirstOwnerInvitationPage';
 import { TenantConsoleHomePage } from './pages/TenantConsoleHomePage';
 import {
   PLATFORM_TENANT_UI_MANIFEST,
@@ -80,7 +79,7 @@ class RouteErrorBoundary extends Component<
           fontFamily: 'system-ui, sans-serif',
         },
       },
-      '租户邀请页面加载失败，请刷新页面后重试。',
+      '租户页面加载失败，请刷新页面后重试。',
     );
   }
 }
@@ -117,8 +116,6 @@ function createRouteElement(route: PlatformTenantRouteDeclaration): ReactNode {
 
 function componentFor(componentExport: PlatformTenantRouteComponentExport): ComponentType {
   switch (componentExport) {
-    case 'FirstOwnerInvitationPage':
-      return FirstOwnerInvitationPage;
     case 'TenantConsoleHomePage':
       return TenantConsoleHomePage;
   }

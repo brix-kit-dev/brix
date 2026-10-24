@@ -15,31 +15,12 @@ modules:
     artifactId: platform-auth
     version: 3.2.0
     moduleKind: plugin-server
+# No endpoint: staff sign in through the hosted login of the identity protocol surface, and no
+# entry takes a password and returns tokens (identity-auth IA-1, M1 slice 3).
 endpoints:
-  provides:
-    - endpointId: platform-auth.login.actor.v1
-      transport: http
-      method: POST
-      path: /api/auth/login/actor
-      request:
-        schemaRef: brix://schemas/platform-auth/login-request/1.0.0
-      response:
-        schemaRef: brix://schemas/platform-auth/login-response/1.0.0
-      handlerId: platform-auth.login.actor.v1
-      authentication:
-        mode: anonymous
-      authorization:
-        policyRef: auth:login:actor
-      tenantContext:
-        mode: forbidden
-      timeout:
-        policyRef: interactive-write
-      idempotency:
-        mode: not-applicable
+  provides: []
 capabilities:
-  required:
-    - id: io.runtime.sdk.capability.AuthFlowCapability
-      version: ">=3.2.0 <4.0.0"
+  required: []
   optional: []
 queries:
   provides: []
@@ -58,8 +39,7 @@ data:
   storageId: platform_auth
   schema: platform-auth
   migrationLocation: db/migration/platform-auth
-permissions:
-  - id: auth:login:actor
+permissions: []
 config: []
 ui:
   web:

@@ -105,6 +105,12 @@ public class IdentityProviderProperties {
         private String contextPath = "/api/tenant/session";
 
         /**
+         * Tenant Owner entry that accepts a FIRST_OWNER invitation (multi-tenant 5.1
+         * BRX-TENANT-ENTRY-005); the hosted invitation page calls it after both factors.
+         */
+        private String firstOwnerAcceptPath = "/api/tenant/first-owner-invitations/accept";
+
+        /**
          * Client secret of the BFF. When empty, every process generates its own secret; the
          * BFF only calls the token endpoint of its own process.
          */
@@ -112,6 +118,14 @@ public class IdentityProviderProperties {
 
         public String getAppPath() {
             return appPath;
+        }
+
+        public String getFirstOwnerAcceptPath() {
+            return firstOwnerAcceptPath;
+        }
+
+        public void setFirstOwnerAcceptPath(String firstOwnerAcceptPath) {
+            this.firstOwnerAcceptPath = firstOwnerAcceptPath;
         }
 
         public void setAppPath(String appPath) {
@@ -162,12 +176,22 @@ public class IdentityProviderProperties {
     public static class Login {
 
         private Duration transactionTimeout = Duration.ofMinutes(10);
+        /** A credential setup may take longer: the invitee may first install an authenticator app. */
+        private Duration setupTimeout = Duration.ofMinutes(30);
         private int maxFailuresPerAccountAndSource = 5;
         private int maxRequestsPerSourcePerMinute = 300;
         private Duration throttleWindow = Duration.ofMinutes(15);
 
         public Duration getTransactionTimeout() {
             return transactionTimeout;
+        }
+
+        public Duration getSetupTimeout() {
+            return setupTimeout;
+        }
+
+        public void setSetupTimeout(Duration setupTimeout) {
+            this.setupTimeout = setupTimeout;
         }
 
         public void setTransactionTimeout(Duration transactionTimeout) {

@@ -73,12 +73,9 @@ export {
   type RegisterFormResult,
 } from './components/RegisterForm';
 
-// S5+ — TenantSelector for the SELECT_TENANT login step.
-export {
-  TenantSelector,
-  type TenantSelectorProps,
-  type TenantSelectorLabels,
-} from './components/TenantSelector';
+// Staff and end users sign in, choose a tenant and accept invitations on the hosted login of the
+// identity protocol surface (identity-auth BRX-IA-FLOW-001..006, M1 slice 3); the console-side
+// actor/subject login pages, their tenant selector and login coordinator are gone.
 
 // ============================================================================
 // Hooks Exports
@@ -99,20 +96,6 @@ export {
   type AuthStorageAdapter,
 } from './hooks/useGoogleAuth';
 
-// S5+ — Login three-state coordinator hook (CREDENTIALS / SELECT_TENANT / COMPLETE).
-export {
-  useLoginCoordinator,
-  type LoginCoordinatorStep,
-  type LoginCoordinatorState,
-  type UseLoginCoordinatorOptions,
-  type UseLoginCoordinatorReturn,
-} from './hooks/useLoginCoordinator';
-export {
-  useTenantLoginFlow,
-  type UseTenantLoginFlowOptions,
-  type UseTenantLoginFlowResult,
-} from './hooks/useTenantLoginFlow';
-
 // ============================================================================
 // Pre-assembled Page Exports
 // ============================================================================
@@ -122,12 +105,6 @@ export {
   createSimpleLoginPage,
   createSimpleRegisterPage,
   OAuthCallbackPage,
-  ActorLoginPage,
-  SubjectLoginPage,
-  ActorContextSelectorPage,
-  InvitationAcceptPage,
-  SubjectNoTenantState,
-  TENANT_ACCESS_ROUTES,
   type OAuthCallbackPageProps,
   type LoginPageConfig,
   type SimpleLoginPageConfig,
@@ -135,10 +112,6 @@ export {
   type AuthService,
   type NavigationService,
   type LoginPageRoutes,
-  type TenantAccessPageConfig,
-  type ActorContextSelectorPageProps,
-  type SubjectNoTenantStateProps,
-  type InvitationAcceptPageProps,
 } from './pages';
 export {
   createGoogleCallbackPage,
@@ -151,9 +124,9 @@ export {
 // ============================================================================
 
 /**
- * S5 — Auth REST 端点 fetch 包装。封装 /api/auth/{login,select-tenant,
- * refresh,change-password,login/google}，所有响应统一映射为
- * {@link LoginResult}（与后端 LoginResponseDto 字段对齐）。
+ * S5 — Auth REST 端点 fetch 包装。封装 /api/auth/{login,refresh,change-password,login/google}，
+ * 所有响应统一映射为 {@link LoginResult}（与后端 LoginResponseDto 字段对齐）。员工的 actor 登录与
+ * 上下文选择已迁入身份协议面的托管登录（identity-auth M1 切片 3）。
  */
 export {
   createAuthApi,
@@ -161,6 +134,5 @@ export {
   type AuthApi,
   type CreateAuthApiOptions,
   type LoginRequestPayload,
-  type SelectTenantPayload,
   type ChangePasswordPayload,
 } from './services/authApi';

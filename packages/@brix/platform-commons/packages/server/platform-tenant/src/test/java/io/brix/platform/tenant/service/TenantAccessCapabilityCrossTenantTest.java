@@ -10,7 +10,8 @@ import io.brix.platform.tenant.annotation.CrossTenantAccess;
 /**
  * Login and token flows resolve memberships and principalships before any tenant context
  * exists; those identity-scoped reads must be declared read-only cross-tenant access, or the
- * tenant SQL guard rejects them (token issuance and the Dispatcher's authz-version check).
+ * tenant SQL guard rejects them (token issuance and the Dispatcher's authz-version check). The
+ * hosted invitation page likewise reads a FIRST_OWNER invitation by its token.
  */
 class TenantAccessCapabilityCrossTenantTest {
 
@@ -19,7 +20,8 @@ class TenantAccessCapabilityCrossTenantTest {
         for (String method : new String[] {"getActiveMemberships", "getActivePrincipalships"}) {
             assertReadOnlyCrossTenant(TenantAccessCapabilityImpl.class.getMethod(method, Long.class));
         }
-        for (String method : new String[] {"findMembershipByContextId", "findPrincipalshipByContextId"}) {
+        for (String method : new String[] {
+                "findMembershipByContextId", "findPrincipalshipByContextId", "findPendingFirstOwnerInvitation"}) {
             assertReadOnlyCrossTenant(TenantAccessCapabilityImpl.class.getMethod(method, String.class));
         }
     }

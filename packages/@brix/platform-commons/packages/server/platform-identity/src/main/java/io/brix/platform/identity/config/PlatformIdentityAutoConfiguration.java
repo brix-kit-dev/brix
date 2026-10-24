@@ -28,6 +28,7 @@ import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
 import io.brix.platform.identity.repository.PlatformAuditLogRepository;
 import io.brix.platform.identity.repository.SetupTokenRepository;
+import io.brix.platform.identity.security.PasswordPolicy;
 import io.brix.platform.identity.service.AuditService;
 import io.brix.platform.identity.service.BootstrapCompletionListener;
 import io.brix.platform.identity.service.IdentityAccountCapabilityImpl;
@@ -74,20 +75,35 @@ public class PlatformIdentityAutoConfiguration {
                 idGenerator);
     }
 
+    /** New passwords per identity-auth BRX-IA-CRED-001; the limits belong to the security profile. */
+    @Bean
+    @ConditionalOnMissingBean(PasswordPolicy.class)
+    public PasswordPolicy platformIdentityPasswordPolicy(
+            @Value("${brix.identity.password.min-length:" + PasswordPolicy.MIN_LENGTH_WITH_SECOND_FACTOR + "}")
+                    int minLength,
+            @Value("${brix.identity.password.max-length:" + PasswordPolicy.DEFAULT_MAX_LENGTH + "}")
+                    int maxLength) {
+        return new PasswordPolicy(minLength, maxLength);
+    }
+
     @Bean
     @ConditionalOnMissingBean(IdentityAccountCapability.class)
     public IdentityAccountCapability identityAccountCapability(
             PersistenceCapability persistence,
             ObjectProvider<AuditService> auditServiceProvider,
             ObjectProvider<TotpCapability> totpCapabilityProvider,
-            ObjectProvider<SecretEncryptionCapability> secretEncryptionProvider) {
+            ObjectProvider<SecretEncryptionCapability> secretEncryptionProvider,
+            PasswordPolicy passwordPolicy,
+            ApplicationEventPublisher eventPublisher) {
         return new IdentityAccountCapabilityImpl(
                 persistence.repository(IdentityRepository.class),
                 persistence.repository(PlatformAdminRepository.class),
                 Optional.ofNullable(auditServiceProvider.getIfAvailable()),
                 persistence.unitOfWork(),
                 Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
-                Optional.ofNullable(secretEncryptionProvider.getIfAvailable()));
+                Optional.ofNullable(secretEncryptionProvider.getIfAvailable()),
+                new IdentityAccountCapabilityImpl.CredentialSetup(
+                        persistence.repository(SetupTokenRepository.class), passwordPolicy, eventPublisher));
     }
 
     @Bean

@@ -13,7 +13,15 @@ export type LoginStepName =
   | 'no-tenant'
   | 'select-tenant'
   | 'password-change-required'
-  | 'mfa-setup-required';
+  | 'mfa-setup-required'
+  | 'invitation-invalid'
+  | 'invitation-setup-required';
+
+/** The FIRST_OWNER invitation a login accepts, as the API shows it: no token, no tenant ID. */
+export interface InvitationSummary {
+  readonly tenantName: string;
+  readonly inviteeEmail: string;
+}
 
 /** A tenant to enter, offered with a one-time selection ticket (multi-tenant 5.1 §9.3). */
 export interface LoginOption {
@@ -28,10 +36,13 @@ export interface LoginStepResponse {
   readonly continueUrl?: string;
   readonly error?: string;
   readonly options?: readonly LoginOption[];
+  readonly invitation?: InvitationSummary;
 }
 
 export interface HostedLoginRepository {
   state(): Promise<LoginStepResponse>;
+  /** Opens the login of a FIRST_OWNER invitation link; the token is sent this once. */
+  openInvitation(token: string): Promise<LoginStepResponse>;
   identify(identifier: string): Promise<LoginStepResponse>;
   password(password: string): Promise<LoginStepResponse>;
   totp(code: string): Promise<LoginStepResponse>;
@@ -49,6 +60,8 @@ const STEPS: readonly LoginStepName[] = [
   'select-tenant',
   'password-change-required',
   'mfa-setup-required',
+  'invitation-invalid',
+  'invitation-setup-required',
 ];
 
 export function createHostedLoginRepository(
@@ -93,11 +106,13 @@ export function createHostedLoginRepository(
       error,
       continueUrl: typeof payload?.continueUrl === 'string' ? payload.continueUrl : undefined,
       options: readOptions(payload?.options),
+      invitation: readInvitation(payload?.invitation),
     };
   }
 
   return {
     state: () => call('/state', 'GET'),
+    openInvitation: (token) => call('/invitation', 'POST', { token }),
     identify: (identifier) => call('/identify', 'POST', { identifier }),
     password: (password) => call('/password', 'POST', { password }),
     totp: (code) => call('/totp', 'POST', { code }),
@@ -105,6 +120,13 @@ export function createHostedLoginRepository(
     restart: () => call('/restart', 'POST', {}),
     signOut: () => call('/sign-out', 'POST', {}),
   };
+}
+
+function readInvitation(value: unknown): InvitationSummary | undefined {
+  const invitation = value as Record<string, unknown> | null | undefined;
+  return typeof invitation?.tenantName === 'string' && typeof invitation.inviteeEmail === 'string'
+    ? { tenantName: invitation.tenantName, inviteeEmail: invitation.inviteeEmail }
+    : undefined;
 }
 
 function readOptions(value: unknown): readonly LoginOption[] | undefined {

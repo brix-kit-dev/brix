@@ -18,7 +18,10 @@ package io.brix.platform.identity.repository;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,6 +32,11 @@ import io.brix.platform.identity.entity.SetupToken;
 public interface SetupTokenRepository extends JpaRepository<SetupToken, Long> {
 
     Optional<SetupToken> findByTokenHash(String tokenHash);
+
+    /** The token row locked for the rest of the transaction, so one setup completes only once. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM PlatformIdentitySetupToken t WHERE t.tokenHash = :tokenHash")
+    Optional<SetupToken> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PlatformIdentitySetupToken t SET t.usedAt = :usedAt, t.updatedAt = :usedAt "
