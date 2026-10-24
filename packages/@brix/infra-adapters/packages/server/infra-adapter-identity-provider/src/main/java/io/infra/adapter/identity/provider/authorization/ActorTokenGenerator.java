@@ -22,6 +22,7 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Refr
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 
+import io.infra.adapter.identity.provider.support.IdentityStates;
 import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
@@ -40,7 +41,8 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>Before every access or ID token the identity and the selected membership are read again
  * through Layer 2A contracts; a disabled identity, a membership that is no longer active or a
- * revoked login session ends the authorization ({@code invalid_grant}). Access tokens carry the Actor claims of
+ * revoked login session ends the authorization ({@code invalid_grant}); the temporary lock of
+ * another entry does not (root {@code BRX-RS-SECURITY-014}). Access tokens carry the Actor claims of
  * multi-tenant §8 plus {@code acr}, {@code amr}, {@code auth_time} and {@code sid} and no
  * permission list (multi-tenant T-30). Refresh tokens are opaque random values.</p>
  *
@@ -49,7 +51,6 @@ import tools.jackson.databind.json.JsonMapper;
 public final class ActorTokenGenerator implements OAuth2TokenGenerator<OAuth2Token> {
 
     static final OAuth2TokenType ID_TOKEN = new OAuth2TokenType(OidcParameterNames.ID_TOKEN);
-    private static final String IDENTITY_ACTIVE = "ACTIVE";
     private static final String MEMBERSHIP_ACTIVE = "ACTIVE";
 
     private final JwtIssuerCapability issuer;
@@ -122,7 +123,7 @@ public final class ActorTokenGenerator implements OAuth2TokenGenerator<OAuth2Tok
 
     private IdentityRecord activeIdentity(HostedLoginAuthentication principal) {
         return identities.findIdentityById(principal.getIdentityId())
-                .filter(identity -> IDENTITY_ACTIVE.equals(identity.status()))
+                .filter(identity -> IdentityStates.maySignIn(identity.status()))
                 .orElseThrow(() -> invalidGrant("The identity is no longer active"));
     }
 

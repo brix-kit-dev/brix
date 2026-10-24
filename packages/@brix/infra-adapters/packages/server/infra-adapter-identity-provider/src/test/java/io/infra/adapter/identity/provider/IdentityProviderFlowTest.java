@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -68,6 +69,9 @@ class IdentityProviderFlowTest {
     TestCapabilities.FakeTenants tenants;
 
     @Autowired
+    TestCapabilities.FakeIdentities identities;
+
+    @Autowired
     BffSessionStore sessions;
 
     @Autowired
@@ -76,6 +80,8 @@ class IdentityProviderFlowTest {
     @BeforeEach
     void reset() {
         tenants.active = true;
+        identities.status = "ACTIVE";
+        identities.lockedUntil = null;
     }
 
     @Test
@@ -194,6 +200,60 @@ class IdentityProviderFlowTest {
         identify(other, otherCsrf, TestCapabilities.STAFF_EMAIL);
         assertThat(password(other, otherCsrf, TestCapabilities.STAFF_PASSWORD).status())
                 .as("another account from the same source is not locked").isEqualTo(200);
+    }
+
+    @Test
+    void aLockSetByAnotherEntryDoesNotKeepStaffOut() {
+        identities.status = "LOCKED";
+        identities.lockedUntil = Instant.now().plusSeconds(600);
+
+        Browser browser = loggedIn();
+        assertThat(identities.status).as("the lock stays in place for the entry that set it").isEqualTo("LOCKED");
+
+        String sessionId = browser.cookies.get(BffCookies.SESSION);
+        sessions.save(sessionId, expire(sessions.find(sessionId).orElseThrow()));
+        assertThat(apiClaims(browser.get(ISSUER + "/api/test/whoami"))).as("tokens are still renewed")
+                .containsEntry("sub", String.valueOf(TestCapabilities.STAFF_ID));
+    }
+
+    @Test
+    void anExpiredLockIsClearedOnlyAfterBothFactors() {
+        identities.status = "LOCKED";
+        identities.lockedUntil = Instant.now().minusSeconds(60);
+        Browser browser = new Browser();
+        String csrf = startHostedLogin(browser);
+        identify(browser, csrf, TestCapabilities.STAFF_EMAIL);
+
+        assertThat(password(browser, csrf, "not the password").status()).isEqualTo(401);
+        assertThat(password(browser, csrf, TestCapabilities.STAFF_PASSWORD).json().get("step").asString())
+                .isEqualTo("totp");
+        assertThat(identities.status).as("nothing changes before the second factor").isEqualTo("LOCKED");
+
+        Browser.Response done = browser.post(ISSUER + "/auth/api/totp",
+                "{\"code\":\"" + CODES.incrementAndGet() + "\"}", "X-CSRF-TOKEN", csrf);
+        assertThat(done.json().get("step").asString()).isEqualTo("done");
+        assertThat(identities.status).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void identitiesThatAreDisabledOrNotSetUpNeitherSignInNorRenewTokens() {
+        Browser browser = loggedIn();
+        String sessionId = browser.cookies.get(BffCookies.SESSION);
+        identities.status = "DISABLED";
+        sessions.save(sessionId, expire(sessions.find(sessionId).orElseThrow()));
+        assertThat(apiClaims(browser.get(ISSUER + "/api/test/whoami"))).isEmpty();
+        assertThat(sessions.find(sessionId)).isEmpty();
+
+        for (String status : new String[] {"DISABLED", "PENDING_SETUP"}) {
+            identities.status = status;
+            Browser other = new Browser();
+            String csrf = startHostedLogin(other);
+            identify(other, csrf, TestCapabilities.STAFF_EMAIL);
+            Browser.Response refused = password(other, csrf, TestCapabilities.STAFF_PASSWORD);
+            assertThat(refused.status()).as(status).isEqualTo(401);
+            assertThat(refused.json().get("error").asString()).as("the same answer as a wrong password")
+                    .isEqualTo("invalid_credentials");
+        }
     }
 
     @Test

@@ -315,11 +315,15 @@ class TestCapabilities {
         }
     }
 
-    /** One active staff identity with a bound TOTP factor; each code works once. */
+    /**
+     * One staff identity with a bound TOTP factor; each code works once. Tests set its status and,
+     * for {@code LOCKED}, when the temporary lock of another entry ends.
+     */
     static final class FakeIdentities implements IdentityAccountCapability {
 
         final Set<String> usedCodes = ConcurrentHashMap.newKeySet();
         volatile String status = "ACTIVE";
+        volatile Instant lockedUntil;
 
         @Override
         public Optional<IdentityRecord> findIdentityByEmail(String email) {
@@ -378,9 +382,16 @@ class TestCapabilities {
         public void recordSuccessfulLogin(Long identityId, String clientIp) {
         }
 
+        /** Like the identity Owner: only a lock that has run out is cleared. */
         @Override
         public boolean unlockExpiredLoginLock(Long identityId, Instant now) {
-            return false;
+            if (!Long.valueOf(STAFF_ID).equals(identityId) || !"LOCKED".equals(status) || lockedUntil == null
+                    || now.isBefore(lockedUntil)) {
+                return false;
+            }
+            status = "ACTIVE";
+            lockedUntil = null;
+            return true;
         }
 
         @Override

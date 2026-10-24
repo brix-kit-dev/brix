@@ -39,6 +39,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.infra.adapter.identity.provider.IdentityProviderProperties;
 import io.infra.adapter.identity.provider.authorization.HostedLoginAuthentication;
 import io.infra.adapter.identity.provider.support.EncryptedStateStore;
+import io.infra.adapter.identity.provider.support.IdentityStates;
 import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.infra.adapter.identity.provider.support.Secrets;
 import io.infra.adapter.identity.provider.support.SourceRateLimiter;
@@ -55,7 +56,9 @@ import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
  * <p>Responses never reveal whether an account exists (IA-7): an unknown identifier passes the
  * identifier step like a known one and fails the password step with the same error after the
  * same password-hash work. Failed attempts are throttled per account and source only
- * (root {@code BRX-RS-SECURITY-014}); they never lock the identity elsewhere. Staff always need
+ * (root {@code BRX-RS-SECURITY-014}); they never lock the identity elsewhere, and the temporary
+ * lock another entry set does not keep staff out here (an expired one is cleared after both
+ * factors, as the legacy logins do). Staff always need
  * the second factor ({@code BRX-IA-MFA-002}). One Actor context is selected automatically;
  * with several, the page chooses with one-time selection tickets (multi-tenant 5.1 §9.3); the
  * stable contextId never reaches the page before tokens exist.</p>
@@ -158,7 +161,7 @@ public class HostedLoginController {
         String password = body == null ? null : body.password();
         IdentityRecord identity = tx.identityId() == null ? null
                 : identities.findIdentityById(tx.identityId()).orElse(null);
-        if (!passwordMatches(identity, password) || !ACTIVE.equals(identity.status())) {
+        if (!passwordMatches(identity, password) || !IdentityStates.maySignIn(identity.status())) {
             failures.tryAcquire(throttleKey);
             audit.info("event=identity.login.failed step=password identity={} source={}",
                     tx.identityId(), request.getRemoteAddr());
@@ -196,11 +199,12 @@ public class HostedLoginController {
         }
         failures.reset(throttleKey);
         IdentityRecord identity = identities.findIdentityById(tx.identityId())
-                .filter(record -> ACTIVE.equals(record.status())).orElse(null);
+                .filter(record -> IdentityStates.maySignIn(record.status())).orElse(null);
         if (identity == null) {
             request.getSession().removeAttribute(TRANSACTION);
             return reply(HttpStatus.UNAUTHORIZED, STEP_IDENTIFY, "invalid_credentials");
         }
+        clearExpiredLock(identity);
         tx.authenticated(clock.instant(), Secrets.randomToken(16));
         List<TenantMembershipRecord> memberships = activeMemberships(identity.id());
         if (memberships.size() == 1) {
@@ -244,7 +248,7 @@ public class HostedLoginController {
                         .filter(record -> tx.identityId().equals(record.identityId()))
                 : Optional.empty();
         IdentityRecord identity = identities.findIdentityById(tx.identityId())
-                .filter(record -> ACTIVE.equals(record.status())).orElse(null);
+                .filter(record -> IdentityStates.maySignIn(record.status())).orElse(null);
         if (membership.isEmpty() || identity == null) {
             return reply(HttpStatus.UNAUTHORIZED, STEP_SELECT_TENANT, "ticket_invalid");
         }
@@ -266,6 +270,17 @@ public class HostedLoginController {
         audit.info("event=identity.login.succeeded identity={} tenant={} acr={} source={}",
                 identity.id(), membership.tenantId(), authentication.getAcr(), request.getRemoteAddr());
         return new LoginStep(STEP_DONE, null, continueUrl(request, response), null, null);
+    }
+
+    /**
+     * Clears the temporary lock of another entry once it has run out, as the legacy logins do;
+     * only after both factors, so an unauthenticated request never changes the identity.
+     */
+    private void clearExpiredLock(IdentityRecord identity) {
+        if (IdentityStates.isLocked(identity.status())
+                && identities.unlockExpiredLoginLock(identity.id(), clock.instant())) {
+            audit.info("event=identity.lock.expired_cleared identity={}", identity.id());
+        }
     }
 
     private List<TenantMembershipRecord> activeMemberships(Long identityId) {
