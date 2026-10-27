@@ -18,7 +18,6 @@ package io.brix.platform.tenant.repository;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import io.brix.platform.tenant.entity.BizUserProfile;
 
@@ -34,7 +33,6 @@ import io.brix.platform.tenant.entity.BizUserProfile;
  * @since 3.1.0
  * @see BizUserProfile
  */
-@Repository
 public interface BizUserProfileRepository extends JpaRepository<BizUserProfile, Long> {
 
     Optional<BizUserProfile> findByTenantIdAndMemberId(Long tenantId, Long memberId);

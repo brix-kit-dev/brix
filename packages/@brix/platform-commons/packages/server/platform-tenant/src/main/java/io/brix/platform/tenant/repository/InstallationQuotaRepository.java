@@ -21,12 +21,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import io.brix.platform.tenant.entity.InstallationQuota;
 import jakarta.persistence.LockModeType;
 
-@Repository
 public interface InstallationQuotaRepository extends JpaRepository<InstallationQuota, String> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

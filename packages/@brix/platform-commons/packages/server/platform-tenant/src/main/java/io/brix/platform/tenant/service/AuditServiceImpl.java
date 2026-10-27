@@ -17,9 +17,6 @@ package io.brix.platform.tenant.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 import io.brix.platform.tenant.annotation.CrossTenantAccess;
@@ -39,13 +36,10 @@ import io.brix.platform.tenant.repository.AuditLogRepository;
  * <p>Layer 2C: Implementation Layer - Platform Commons Service Implementation</p>
  *
  * <h3>Transaction Strategy</h3>
- * <p>Uses REQUIRES_NEW propagation to ensure audit logs are committed
- * independently of the calling transaction. This is critical for compliance:
- * <ul>
- *   <li>Failed operations are still logged for security analysis</li>
- *   <li>Audit trail is preserved even if business transaction rolls back</li>
- *   <li>No audit data loss due to transaction failures</li>
- * </ul>
+ * <p>The audit log uses the caller's platform-tenant unit of work: the audit row commits or rolls
+ * back with the business change. A unit of work cannot start an independent nested
+ * transaction of the same owner (BRX-RS-DATA-029); an audit record that must survive
+ * a rollback goes through the outbox instead.</p>
  *
  * <h3>ID Generation</h3>
  * <p>Audit log IDs are generated using the Snowflake algorithm, ensuring:
@@ -78,7 +72,6 @@ import io.brix.platform.tenant.repository.AuditLogRepository;
  * @see AuditLog
  * @see AuditEvent
  */
-@Service
 public class AuditServiceImpl implements AuditService {
 
     private static final Logger log = LoggerFactory.getLogger(AuditServiceImpl.class);
@@ -105,17 +98,13 @@ public class AuditServiceImpl implements AuditService {
      *   <li>Validates that the event and required fields are not null</li>
      *   <li>Generates a Snowflake ID for the audit log entry</li>
      *   <li>Converts the AuditEvent DTO to AuditLog entity</li>
-     *   <li>Persists the entity within a new transaction</li>
+     *   <li>Persists the entity in the caller's unit of work</li>
      *   <li>Returns the persisted entity with generated ID and timestamp</li>
      * </ol>
      *
      * <h4>Transaction Behavior</h4>
-     * <p>This method uses REQUIRES_NEW propagation. This means:
-     * <ul>
-     *   <li>A new transaction is started regardless of existing transaction state</li>
-     *   <li>The audit log is committed independently</li>
-     *   <li>If the caller's transaction rolls back, the audit log is still persisted</li>
-     * </ul>
+     * <p>Joins the caller's platform-tenant unit of work, so the audit log commits
+     * or rolls back with the caller (BRX-RS-DATA-029).</p>
      *
      * <h4>Validation Rules</h4>
      * <ul>
@@ -129,7 +118,6 @@ public class AuditServiceImpl implements AuditService {
      * @throws IllegalArgumentException if validation fails
      */
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CrossTenantAccess(reason = "Audit logging is a cross-cutting platform concern: "
             + "events may originate from tenant-scoped business flows (tenantId set) "
             + "or from platform-level flows such as super-admin login (tenantId null). "

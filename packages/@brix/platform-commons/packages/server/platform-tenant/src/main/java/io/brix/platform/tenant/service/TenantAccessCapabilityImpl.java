@@ -24,8 +24,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.entity.Tenant;
@@ -42,6 +40,7 @@ import io.runtime.sdk.capability.TenantAccessCapability;
 import io.runtime.sdk.capability.TenantAccessCapability.FirstOwnerInvitationRecord;
 import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
 import io.runtime.sdk.capability.TenantAccessCapability.TenantPrincipalRecord;
+import io.runtime.sdk.capability.UnitOfWork;
 
 /**
  * Tenant-owned implementation for identity-driven tenant context discovery.
@@ -53,22 +52,24 @@ import io.runtime.sdk.capability.TenantAccessCapability.TenantPrincipalRecord;
  * @author Brix Platform Team
  * @since 3.2.0
  */
-@Service
 public class TenantAccessCapabilityImpl implements TenantAccessCapability {
 
     private final TenantMemberRepository memberRepository;
     private final TenantPrincipalRepository principalRepository;
     private final TenantRepository tenantRepository;
     private final TenantInvitationRepository invitationRepository;
+    private final UnitOfWork unitOfWork;
 
     public TenantAccessCapabilityImpl(TenantMemberRepository memberRepository,
                                       TenantPrincipalRepository principalRepository,
                                       TenantRepository tenantRepository,
-                                      TenantInvitationRepository invitationRepository) {
+                                      TenantInvitationRepository invitationRepository,
+                                      UnitOfWork unitOfWork) {
         this.memberRepository = memberRepository;
         this.principalRepository = principalRepository;
         this.tenantRepository = tenantRepository;
         this.invitationRepository = invitationRepository;
+        this.unitOfWork = unitOfWork;
     }
 
     /**
@@ -77,7 +78,6 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
      * everything anew (multi-tenant 5.1 §5.7).
      */
     @Override
-    @Transactional(readOnly = true)
     @CrossTenantAccess(
             reason = "The hosted invitation page resolves a FIRST_OWNER invitation by its one-time token before any tenant context exists.",
             approval = "identity-auth-1.0:BRX-IA-ONBOARD-002",
@@ -88,7 +88,8 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
         }
         OffsetDateTime now = OffsetDateTime.now();
         // Hashed exactly as the acceptance entry hashes it.
-        return invitationRepository.findByTokenHash(SecretHashing.sha256Base64Url(invitationToken))
+        String tokenHash = SecretHashing.sha256Base64Url(invitationToken);
+        return unitOfWork.readOnly(() -> invitationRepository.findByTokenHash(tokenHash)
                 .filter(invitation -> invitation.getInvitationPurpose() == InvitationPurpose.FIRST_OWNER)
                 .filter(invitation -> invitation.isPendingNow(now))
                 .flatMap(invitation -> tenantRepository.findById(invitation.getTenantId())
@@ -97,16 +98,19 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
                                 tenant.getId(),
                                 tenant.getName(),
                                 invitation.getInviteeEmail(),
-                                invitation.getExpiresAt().toInstant())));
+                                invitation.getExpiresAt().toInstant()))));
     }
 
     @Override
-    @Transactional(readOnly = true)
     @CrossTenantAccess(
             reason = "Identity login flow must enumerate active tenant memberships by identity_id before a tenant is selected.",
             approval = "BRIX-ARCH-3.0.10-ACTOR-TENANT-DISCOVERY",
             readOnly = true)
     public List<TenantMembershipRecord> getActiveMemberships(Long identityId) {
+        return unitOfWork.readOnly(() -> getActiveMembershipsInUnitOfWork(identityId));
+    }
+
+    private List<TenantMembershipRecord> getActiveMembershipsInUnitOfWork(Long identityId) {
         List<TenantMember> members = memberRepository.findActiveByIdentityId(identityId);
         if (members.isEmpty()) {
             return List.of();
@@ -143,12 +147,15 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
     }
 
     @Override
-    @Transactional(readOnly = true)
     @CrossTenantAccess(
             reason = "Subject login flow must enumerate active tenant principalships by identity_id before a tenant is selected.",
             approval = "BRIX-ARCH-3.0.10-SUBJECT-TENANT-DISCOVERY",
             readOnly = true)
     public List<TenantPrincipalRecord> getActivePrincipalships(Long identityId) {
+        return unitOfWork.readOnly(() -> getActivePrincipalshipsInUnitOfWork(identityId));
+    }
+
+    private List<TenantPrincipalRecord> getActivePrincipalshipsInUnitOfWork(Long identityId) {
         List<TenantPrincipal> principals = principalRepository.findActiveByIdentityId(identityId);
         if (principals.isEmpty()) {
             return List.of();
@@ -186,9 +193,8 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<TenantMembershipRecord> findMembership(Long identityId, Long tenantId) {
-        return memberRepository.findByTenantIdAndIdentityId(tenantId, identityId)
+        return unitOfWork.readOnly(() -> memberRepository.findByTenantIdAndIdentityId(tenantId, identityId)
                 .filter(TenantMember::isActive)
                 .map(m -> {
                     Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
@@ -202,13 +208,12 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
                             m.getContextId() != null ? m.getContextId().toString() : null,
                             m.getAuthzVersion() != null ? m.getAuthzVersion() : 1L
                     );
-                });
+                }));
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<TenantPrincipalRecord> findPrincipalship(Long identityId, Long tenantId) {
-        return principalRepository.findByTenantIdAndIdentityId(tenantId, identityId)
+        return unitOfWork.readOnly(() -> principalRepository.findByTenantIdAndIdentityId(tenantId, identityId)
                 .filter(TenantPrincipal::isActive)
                 .map(p -> {
                     Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
@@ -223,50 +228,50 @@ public class TenantAccessCapabilityImpl implements TenantAccessCapability {
                             p.getContextId() != null ? p.getContextId().toString() : null,
                             p.getAuthzVersion() != null ? p.getAuthzVersion() : 1L
                     );
-                });
+                }));
     }
 
     @Override
-    @Transactional(readOnly = true)
     @CrossTenantAccess(
             reason = "Token issuance and validation resolve the selected Actor context by its globally unique contextId before any tenant context exists.",
             approval = "BRIX-ARCH-3.0.10-ACTOR-TENANT-DISCOVERY",
             readOnly = true)
     public Optional<TenantMembershipRecord> findMembershipByContextId(String contextId) {
-        return parseUuid(contextId)
-                .flatMap(memberRepository::findByContextId)
+        return parseUuid(contextId).flatMap(id -> unitOfWork.readOnly(() -> memberRepository.findByContextId(id)
                 .filter(TenantMember::isActive)
-                .flatMap(m -> findMembership(m.getIdentityId(), m.getTenantId()));
+                .flatMap(m -> findMembership(m.getIdentityId(), m.getTenantId()))));
     }
 
     @Override
-    @Transactional(readOnly = true)
     @CrossTenantAccess(
             reason = "Token issuance and validation resolve the selected Subject context by its globally unique contextId before any tenant context exists.",
             approval = "BRIX-ARCH-3.0.10-SUBJECT-TENANT-DISCOVERY",
             readOnly = true)
     public Optional<TenantPrincipalRecord> findPrincipalshipByContextId(String contextId) {
-        return parseUuid(contextId)
-                .flatMap(principalRepository::findByContextId)
+        return parseUuid(contextId).flatMap(id -> unitOfWork.readOnly(() -> principalRepository.findByContextId(id)
                 .filter(TenantPrincipal::isActive)
-                .flatMap(p -> findPrincipalship(p.getIdentityId(), p.getTenantId()));
+                .flatMap(p -> findPrincipalship(p.getIdentityId(), p.getTenantId()))));
     }
 
     @Override
-    @Transactional
     public void touchMemberAccess(Long memberId) {
-        memberRepository.findById(memberId).ifPresent(m -> {
-            m.setUpdatedAt(OffsetDateTime.now());
-            memberRepository.save(m);
+        unitOfWork.required(() -> {
+            memberRepository.findById(memberId).ifPresent(m -> {
+                m.setUpdatedAt(OffsetDateTime.now());
+                memberRepository.save(m);
+            });
+            return null;
         });
     }
 
     @Override
-    @Transactional
     public void touchPrincipalAccess(Long principalId) {
-        principalRepository.findById(principalId).ifPresent(p -> {
-            p.recordAccess();
-            principalRepository.save(p);
+        unitOfWork.required(() -> {
+            principalRepository.findById(principalId).ifPresent(p -> {
+                p.recordAccess();
+                principalRepository.save(p);
+            });
+            return null;
         });
     }
 

@@ -17,8 +17,6 @@ package io.brix.platform.tenant.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 import io.brix.platform.tenant.annotation.CrossTenantAccess;
@@ -86,7 +84,6 @@ import jakarta.persistence.EntityNotFoundException;
  * @see TenantProvisioningService
  * @see IdGenerator
  */
-@Service
 public class TenantProvisioningServiceImpl implements TenantProvisioningService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantProvisioningServiceImpl.class);
@@ -175,7 +172,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      * @return the created tenant entity
      */
     @Override
-    @Transactional
         @CrossTenantAccess(
             reason = "Platform tenant provisioning creates only the pending tenant boundary and root organization before a tenant-scoped context exists. FIRST_OWNER/Profile creation is deferred to the invitation acceptance transaction.",
             approval = "BRX-TENANT-OWNER-004-PHASE3")
@@ -249,7 +245,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      * @param tenantId the ID of the tenant to suspend
      */
     @Override
-    @Transactional
     public void suspendTenant(Long tenantId) {
         if (tenantId == null) {
             throw new IllegalArgumentException("Tenant ID cannot be null");
@@ -293,7 +288,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      * @param tenantId the ID of the tenant to activate
      */
     @Override
-    @Transactional
     public void activateTenant(Long tenantId) {
         if (tenantId == null) {
             throw new IllegalArgumentException("Tenant ID cannot be null");
@@ -322,7 +316,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
     }
 
     @Override
-    @Transactional
     public void terminateTenant(Long tenantId) {
         if (tenantId == null) {
             throw new IllegalArgumentException("Tenant ID cannot be null");

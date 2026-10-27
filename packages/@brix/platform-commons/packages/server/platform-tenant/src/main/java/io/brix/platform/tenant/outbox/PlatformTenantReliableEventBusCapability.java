@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Objects;
 
 import org.slf4j.MDC;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -35,9 +34,11 @@ import io.runtime.sdk.event.IntegrationEvent;
  * Owner-scoped reliable EventBus policy for {@code platform-tenant} producers.
  *
  * <p>The service layer only sees the L2A {@link EventBusCapability}. This
- * component validates the active manifest declaration, requires an active local
- * transaction for durable events, builds the canonical producer envelope and
- * appends the owner outbox record through the owner repository.</p>
+ * component validates the active manifest declaration, builds the canonical
+ * producer envelope and appends the owner outbox record through the owner
+ * repository. That repository only works inside a platform-tenant unit of work,
+ * so a durable event is written in the same transaction as the business change,
+ * or not at all.</p>
  *
  * @author Brix Platform Team
  * @since 3.2.0
@@ -101,10 +102,6 @@ public final class PlatformTenantReliableEventBusCapability implements EventBusC
         if (policy.reliability() == EventReliability.BEST_EFFORT) {
             throw new EventPublishException(event.getEventId(),
                 "platform-tenant reliable EventBus does not provide BEST_EFFORT transport", null);
-        }
-        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new EventPublishException(event.getEventId(),
-                "CRITICAL/STANDARD integration events require an active owner transaction", null);
         }
         outboxRepository.save(toOutbox(event, policy));
     }

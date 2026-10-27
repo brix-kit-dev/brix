@@ -18,8 +18,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.PageRequest;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import tools.jackson.core.JacksonException;
@@ -122,7 +120,6 @@ public class FirstOwnerInvitationService {
      * @param command create command
      * @return invitation view without token material
      */
-    @Transactional
     public FirstOwnerInvitationView create(CreateFirstOwnerInvitationCommand command) {
         Tenant tenant = lockTenant(command.tenantId());
         requirePendingTenant(tenant);
@@ -158,7 +155,6 @@ public class FirstOwnerInvitationService {
      * @param tenantId tenant identifier
      * @return latest invitation view when one exists
      */
-    @Transactional(readOnly = true)
     public Optional<FirstOwnerInvitationView> latest(Long tenantId) {
         if (tenantId == null) {
             throw new IllegalArgumentException("tenantId is required");
@@ -182,7 +178,6 @@ public class FirstOwnerInvitationService {
      * @param command resend command
      * @return replacement invitation view without token material
      */
-    @Transactional
     public FirstOwnerInvitationView resend(ResendFirstOwnerInvitationCommand command) {
         Tenant tenant = lockTenant(command.tenantId());
         requirePendingTenant(tenant);
@@ -218,7 +213,6 @@ public class FirstOwnerInvitationService {
      *
      * @param command revoke command
      */
-    @Transactional
     public void revoke(RevokeFirstOwnerInvitationCommand command) {
         TenantInvitation invitation = invitationRepository.findById(command.invitationId())
             .orElseThrow(() -> new TenantAdministrationException(
@@ -241,7 +235,6 @@ public class FirstOwnerInvitationService {
      * @param command acceptance command
      * @return acceptance result
      */
-    @Transactional
     public FirstOwnerAcceptanceResult accept(AcceptFirstOwnerInvitationCommand command) {
         OffsetDateTime now = OffsetDateTime.now();
         TenantInvitation invitation = invitationRepository.findByTokenHashForUpdate(
@@ -307,7 +300,6 @@ public class FirstOwnerInvitationService {
      * @param identityId activated invitee identity id
      * @return invitations for which a new acceptance link was delivered
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<FirstOwnerInvitationView> sendPendingInvitationsAfterSetup(Long identityId) {
         String inviteeEmail = withIdentitySetupErrors(
             () -> inviteeIdentitySetupCapability.requireActiveIdentityEmail(identityId));

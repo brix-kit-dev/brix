@@ -26,7 +26,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.MDC;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -38,6 +37,7 @@ import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.event.IntegrationEvent;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 
 @ExtendWith(MockitoExtension.class)
 class PlatformTenantReliableEventBusCapabilityTest {
@@ -57,27 +57,25 @@ class PlatformTenantReliableEventBusCapabilityTest {
     @AfterEach
     void tearDown() {
         MDC.clear();
-        TransactionSynchronizationManager.setActualTransactionActive(false);
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
     }
 
     @Test
     void criticalEventWithoutActiveOwnerTransactionFailsFast() {
         TenantFirstOwnerAcceptedEvent event = new TenantFirstOwnerAcceptedEvent(100L, 200L, 300L, 400L);
+        // What the owner repository does outside a platform-tenant unit of work.
+        when(outboxRepository.save(any(PlatformTenantOutbox.class))).thenThrow(new PersistenceCapabilityException(
+            PersistenceCapabilityException.Code.UNIT_OF_WORK_MISSING, Map.of("owner", "platform-tenant")));
 
-        EventPublishException failure = assertThrows(
-            EventPublishException.class,
+        PersistenceCapabilityException failure = assertThrows(
+            PersistenceCapabilityException.class,
             () -> capability.publishIntegration(event));
 
-        assertEquals(event.getEventId(), failure.getEventId());
-        verify(outboxRepository, never()).save(any(PlatformTenantOutbox.class));
+        assertEquals(PersistenceCapabilityException.Code.UNIT_OF_WORK_MISSING, failure.code());
+        verify(outboxRepository).save(any(PlatformTenantOutbox.class));
     }
 
     @Test
     void criticalEventAppendsCanonicalOutboxInsideOwnerTransaction() throws Exception {
-        beginOwnerTransaction();
         MDC.put("tracestate", "brix=tenant");
         TenantFirstOwnerAcceptedEvent event = new TenantFirstOwnerAcceptedEvent(100L, 200L, 300L, 400L);
         event.withCorrelationId("corr-1")
@@ -120,7 +118,6 @@ class PlatformTenantReliableEventBusCapabilityTest {
 
     @Test
     void undeclaredPlatformTenantEventIsRejectedBeforeAppend() {
-        beginOwnerTransaction();
         IntegrationEvent event = new IntegrationEvent(TenantFirstOwnerAcceptedEvent.SOURCE_MODULE, "100") {
             private static final long serialVersionUID = 1L;
 
@@ -148,10 +145,4 @@ class PlatformTenantReliableEventBusCapabilityTest {
         assertTrue(failure.getMessage().contains("storage, outbox, and inbox"));
     }
 
-    private static void beginOwnerTransaction() {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.initSynchronization();
-        }
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-    }
 }

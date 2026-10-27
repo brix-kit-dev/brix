@@ -21,8 +21,6 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 import io.brix.platform.tenant.core.IdGenerator;
@@ -58,7 +56,6 @@ import io.runtime.sdk.event.tenant.PrincipalJoinedEvent;
  * @author Brix Platform Team
  * @since 3.2.0
  */
-@Service
 public class PrincipalAdmissionServiceImpl implements PrincipalAdmissionService {
 
     private static final Logger log = LoggerFactory.getLogger(PrincipalAdmissionServiceImpl.class);
@@ -76,7 +73,6 @@ public class PrincipalAdmissionServiceImpl implements PrincipalAdmissionService 
     }
 
     @Override
-    @Transactional
     public TenantPrincipal admit(Long tenantId, Long identityId, PrincipalType principalType,
                                   AdmissionMode admissionMode, String displayName) {
         Assert.notNull(tenantId, "Tenant ID must not be null");

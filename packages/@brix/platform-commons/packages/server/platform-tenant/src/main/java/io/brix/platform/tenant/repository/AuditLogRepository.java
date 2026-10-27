@@ -23,7 +23,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import io.brix.platform.tenant.entity.AuditLog;
 
@@ -51,7 +50,6 @@ import io.brix.platform.tenant.entity.AuditLog;
  * @since 3.1.0
  * @see AuditLog
  */
-@Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     /**

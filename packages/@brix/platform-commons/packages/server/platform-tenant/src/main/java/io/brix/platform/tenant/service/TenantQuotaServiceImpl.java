@@ -17,8 +17,6 @@ package io.brix.platform.tenant.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.tenant.dto.TenantUsageSummary;
 import io.brix.platform.tenant.entity.InstallationQuota;
@@ -47,7 +45,6 @@ import io.runtime.sdk.capability.TenantQuotaCapability.InstallationQuotaSnapshot
  * @author Brix Platform Team
  * @since 3.2.0
  */
-@Service
 public class TenantQuotaServiceImpl implements TenantQuotaService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantQuotaServiceImpl.class);
@@ -68,7 +65,6 @@ public class TenantQuotaServiceImpl implements TenantQuotaService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public void checkUserQuota(Long tenantId) {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found: " + tenantId));
@@ -87,7 +83,6 @@ public class TenantQuotaServiceImpl implements TenantQuotaService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public void checkPrincipalQuota(Long tenantId) {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found: " + tenantId));
@@ -106,7 +101,6 @@ public class TenantQuotaServiceImpl implements TenantQuotaService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public TenantUsageSummary getUsageSummary(Long tenantId) {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found: " + tenantId));
@@ -123,7 +117,6 @@ public class TenantQuotaServiceImpl implements TenantQuotaService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public InstallationQuotaSnapshot getInstallationQuota() {
         InstallationQuota quota = installationQuotaRepository
                 .findById(InstallationQuota.DEFAULT_INSTALLATION_ID)

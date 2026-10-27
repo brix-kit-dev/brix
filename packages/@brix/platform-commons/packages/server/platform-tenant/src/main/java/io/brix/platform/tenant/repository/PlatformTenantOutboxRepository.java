@@ -7,7 +7,6 @@
 package io.brix.platform.tenant.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import io.brix.platform.tenant.entity.PlatformTenantOutbox;
 
@@ -17,6 +16,5 @@ import io.brix.platform.tenant.entity.PlatformTenantOutbox;
  * @author Brix Platform Team
  * @since 3.2.0
  */
-@Repository
 public interface PlatformTenantOutboxRepository extends JpaRepository<PlatformTenantOutbox, String> {
 }

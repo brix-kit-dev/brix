@@ -11,7 +11,6 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.brix.platform.tenant.dto.CreateTenantRequest;
 import io.brix.platform.tenant.entity.Tenant;
@@ -65,7 +64,6 @@ public class TenantAdministrationService implements TenantAdministration {
     }
 
     @Override
-    @Transactional
     public TenantAdministrationTenant createPendingTenant(CreatePendingTenantCommand command) {
         Tenant tenant = tenantProvisioningService.createTenant(
             CreateTenantRequest.builder()
@@ -80,7 +78,6 @@ public class TenantAdministrationService implements TenantAdministration {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public PlatformPageView<PlatformTenantView> listTenants(PlatformPageRequest request) {
         InstallationQuotaSnapshot quota = tenantQuotaService.getInstallationQuota();
         Page<Tenant> page = findPlatformAdminTenantPage(
@@ -100,7 +97,6 @@ public class TenantAdministrationService implements TenantAdministration {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public InstallationQuotaView installationQuota() {
         InstallationQuotaSnapshot quota = tenantQuotaService.getInstallationQuota();
         return new InstallationQuotaView(
@@ -129,7 +125,6 @@ public class TenantAdministrationService implements TenantAdministration {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(Long tenantId) {
         return firstOwnerInvitationService.latest(tenantId);
     }

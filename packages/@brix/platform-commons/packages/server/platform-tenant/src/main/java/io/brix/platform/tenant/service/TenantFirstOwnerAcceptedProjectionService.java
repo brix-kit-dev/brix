@@ -11,15 +11,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.transaction.annotation.Transactional;
-
 import io.brix.platform.tenant.entity.PlatformTenantInbox;
 import io.brix.platform.tenant.entity.PlatformTenantInboxId;
 import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
 import io.brix.platform.tenant.repository.PlatformTenantInboxRepository;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
+import io.runtime.sdk.capability.UnitOfWork;
 
 /**
  * Consumer Owner handler for {@code TenantFirstOwnerAccepted}.
@@ -27,7 +24,9 @@ import io.brix.platform.tenant.repository.PlatformTenantInboxRepository;
  * <p>The method inserts the canonical Inbox receipt and writes the first-owner
  * projection in one {@code platform-tenant} local transaction. A duplicate
  * {@code (handlerId,messageId)} receipt returns without invoking the side
- * effect, which is the durable idempotency boundary for broker retries.</p>
+ * effect, which is the durable idempotency boundary for broker retries.
+ * Deliveries of the same message in this process wait for each other until the
+ * unit of work has committed or rolled back.</p>
  *
  * @author Brix Platform Team
  * @since 3.2.0
@@ -39,6 +38,7 @@ public class TenantFirstOwnerAcceptedProjectionService {
 
     private final PlatformTenantInboxRepository inboxRepository;
     private final FirstOwnerProjectionWriter projectionWriter;
+    private final UnitOfWork unitOfWork;
     private final ConcurrentMap<String, ReentrantLock> messageLocks = new ConcurrentHashMap<>();
 
     /**
@@ -49,9 +49,11 @@ public class TenantFirstOwnerAcceptedProjectionService {
      */
     public TenantFirstOwnerAcceptedProjectionService(
             PlatformTenantInboxRepository inboxRepository,
-            FirstOwnerProjectionWriter projectionWriter) {
+            FirstOwnerProjectionWriter projectionWriter,
+            UnitOfWork unitOfWork) {
         this.inboxRepository = Objects.requireNonNull(inboxRepository, "inboxRepository must not be null");
         this.projectionWriter = Objects.requireNonNull(projectionWriter, "projectionWriter must not be null");
+        this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
     }
 
     /**
@@ -61,7 +63,6 @@ public class TenantFirstOwnerAcceptedProjectionService {
      * @return {@code true} when a new side effect was written; {@code false}
      * when this was a duplicate delivery
      */
-    @Transactional
     public boolean handle(TenantFirstOwnerAcceptedEvent event) {
         Objects.requireNonNull(event, "event must not be null");
         return handle(event.getEventId(), event);
@@ -75,55 +76,45 @@ public class TenantFirstOwnerAcceptedProjectionService {
      * @param event delivered event
      * @return {@code true} when a new side effect was written
      */
-    @Transactional
     public boolean handle(String messageId, TenantFirstOwnerAcceptedEvent event) {
         Objects.requireNonNull(event, "event must not be null");
         requireText(messageId, "messageId");
         ReentrantLock lock = messageLocks.computeIfAbsent(messageId, ignored -> new ReentrantLock());
         lock.lock();
-        boolean releaseAfterTransaction = registerLockRelease(messageId, lock);
         try {
-            PlatformTenantInboxId inboxId = new PlatformTenantInboxId(HANDLER_ID, messageId);
-            if (inboxRepository.existsById(inboxId)) {
-                return false;
-            }
-            try {
-                PlatformTenantInbox inbox = PlatformTenantInbox.processedEvent(
-                    HANDLER_ID,
-                    messageId,
-                    TenantFirstOwnerAcceptedEvent.EVENT_TYPE,
-                    SCHEMA_VERSION,
-                    event.tenantIdValue());
-                inboxRepository.saveAndFlush(inbox);
-            } catch (DataIntegrityViolationException ex) {
-                return false;
-            }
-            projectionWriter.write(messageId, event);
-            return true;
+            return unitOfWork.required(() -> consume(messageId, event));
         } finally {
-            if (!releaseAfterTransaction) {
-                releaseLock(messageId, lock);
-            }
+            releaseLock(messageId, lock);
         }
+    }
+
+    private boolean consume(String messageId, TenantFirstOwnerAcceptedEvent event) {
+        PlatformTenantInboxId inboxId = new PlatformTenantInboxId(HANDLER_ID, messageId);
+        if (inboxRepository.existsById(inboxId)) {
+            return false;
+        }
+        try {
+            PlatformTenantInbox inbox = PlatformTenantInbox.processedEvent(
+                HANDLER_ID,
+                messageId,
+                TenantFirstOwnerAcceptedEvent.EVENT_TYPE,
+                SCHEMA_VERSION,
+                event.tenantIdValue());
+            inboxRepository.saveAndFlush(inbox);
+        } catch (PersistenceCapabilityException ex) {
+            if (ex.code() != PersistenceCapabilityException.Code.UNIQUE_CONSTRAINT_VIOLATION) {
+                throw ex;
+            }
+            return false;
+        }
+        projectionWriter.write(messageId, event);
+        return true;
     }
 
     private static void requireText(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
         }
-    }
-
-    private boolean registerLockRelease(String messageId, ReentrantLock lock) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return false;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                releaseLock(messageId, lock);
-            }
-        });
-        return true;
     }
 
     private void releaseLock(String messageId, ReentrantLock lock) {

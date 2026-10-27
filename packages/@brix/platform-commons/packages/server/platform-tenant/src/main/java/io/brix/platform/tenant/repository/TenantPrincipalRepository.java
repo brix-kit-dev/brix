@@ -21,7 +21,6 @@ import io.brix.platform.tenant.enums.PrincipalType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
@@ -45,7 +44,6 @@ import java.util.UUID;
  * @since 3.2.0
  * @see TenantPrincipal
  */
-@Repository
 public interface TenantPrincipalRepository extends JpaRepository<TenantPrincipal, Long> {
 
     /**

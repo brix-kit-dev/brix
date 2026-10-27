@@ -64,6 +64,7 @@ import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.brix.platform.tenant.service.FirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
+import io.brix.platform.tenant.support.TransactionTemplateUnitOfWork;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 
 @DataJpaTest(properties = {
@@ -148,7 +149,8 @@ class PlatformTenantPersistentInboxE2ETest {
             throw new IllegalStateException("projection-writer-failed");
         };
         TenantFirstOwnerAcceptedProjectionService failingService =
-            new TenantFirstOwnerAcceptedProjectionService(inboxRepository, failingWriter);
+            new TenantFirstOwnerAcceptedProjectionService(
+                inboxRepository, failingWriter, new TransactionTemplateUnitOfWork(transactionManager));
 
         assertThrows(IllegalStateException.class, () -> committed(() -> failingService.handle(event)));
 
@@ -165,10 +167,12 @@ class PlatformTenantPersistentInboxE2ETest {
         TenantFirstOwnerAcceptedEvent event = new TenantFirstOwnerAcceptedEvent(102L, 202L, 302L, 402L);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
+        // The service is the consumer's transaction boundary: each delivery opens its own unit
+        // of work, and the second waits until the first has committed.
         Callable<Boolean> delivery = () -> {
             ready.countDown();
             start.await();
-            return committed(() -> service.handle(event));
+            return service.handle(event);
         };
         var executor = Executors.newFixedThreadPool(2);
         try {
@@ -217,7 +221,8 @@ class PlatformTenantPersistentInboxE2ETest {
     private TenantFirstOwnerAcceptedProjectionService projectionService() {
         return new TenantFirstOwnerAcceptedProjectionService(
             inboxRepository,
-            new JpaFirstOwnerProjectionWriter(projectionRepository));
+            new JpaFirstOwnerProjectionWriter(projectionRepository),
+            new TransactionTemplateUnitOfWork(transactionManager));
     }
 
     private FirstOwnerInvitationService firstOwnerInvitationService() {

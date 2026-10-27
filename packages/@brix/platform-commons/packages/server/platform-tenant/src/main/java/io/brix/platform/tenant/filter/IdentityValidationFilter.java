@@ -26,6 +26,7 @@ import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
+import io.runtime.sdk.capability.UnitOfWork;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -92,6 +93,7 @@ public class IdentityValidationFilter extends OncePerRequestFilter {
     private final SecurityContextHolder securityContextHolder;
     private final TenantMemberRepository tenantMemberRepository;
     private final TenantPrincipalRepository tenantPrincipalRepository;
+    private final UnitOfWork unitOfWork;
 
     /**
      * Creates a new IdentityValidationFilter.
@@ -99,13 +101,17 @@ public class IdentityValidationFilter extends OncePerRequestFilter {
      * @param securityContextHolder    thread-local security context populated by SecurityContextFilter
      * @param tenantMemberRepository   repository for sys_tenant_member lookups
      * @param tenantPrincipalRepository repository for sys_tenant_principal lookups
+     * @param unitOfWork                the platform-tenant unit of work; the filter runs before any
+     *                                  Runtime entry point, so it opens a read-only one for its lookups
      */
     public IdentityValidationFilter(SecurityContextHolder securityContextHolder,
                                     TenantMemberRepository tenantMemberRepository,
-                                    TenantPrincipalRepository tenantPrincipalRepository) {
+                                    TenantPrincipalRepository tenantPrincipalRepository,
+                                    UnitOfWork unitOfWork) {
         this.securityContextHolder = securityContextHolder;
         this.tenantMemberRepository = tenantMemberRepository;
         this.tenantPrincipalRepository = tenantPrincipalRepository;
+        this.unitOfWork = unitOfWork;
     }
 
     /**
@@ -160,7 +166,8 @@ public class IdentityValidationFilter extends OncePerRequestFilter {
             Long id = Long.parseLong(memberId);
             // The lookup is scoped to the verified tenant, so it also satisfies the tenant SQL
             // guard while no tenant context exists yet.
-            boolean exists = tenantId != null && tenantMemberRepository.existsByIdAndTenantId(id, Long.parseLong(tenantId));
+            boolean exists = tenantId != null && unitOfWork.readOnly(
+                    () -> tenantMemberRepository.existsByIdAndTenantId(id, Long.parseLong(tenantId)));
             if (!exists) {
                 logger.warn("JWT mid={} references non-existent sys_tenant_member record, uri={}",
                         memberId, request.getRequestURI());
@@ -183,8 +190,8 @@ public class IdentityValidationFilter extends OncePerRequestFilter {
     private boolean validatePrincipalId(String principalId, String tenantId, HttpServletRequest request) {
         try {
             Long id = Long.parseLong(principalId);
-            boolean exists = tenantId != null
-                    && tenantPrincipalRepository.existsByIdAndTenantId(id, Long.parseLong(tenantId));
+            boolean exists = tenantId != null && unitOfWork.readOnly(
+                    () -> tenantPrincipalRepository.existsByIdAndTenantId(id, Long.parseLong(tenantId)));
             if (!exists) {
                 logger.warn("JWT pid={} references non-existent sys_tenant_principal record, uri={}",
                         principalId, request.getRequestURI());

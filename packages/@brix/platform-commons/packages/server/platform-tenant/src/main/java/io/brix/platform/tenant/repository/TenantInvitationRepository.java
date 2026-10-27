@@ -13,7 +13,6 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import io.brix.platform.tenant.entity.TenantInvitation;
 import io.brix.platform.tenant.enums.InvitationPurpose;
@@ -26,7 +25,6 @@ import jakarta.persistence.LockModeType;
  * @author Brix Platform Team
  * @since 3.2.0
  */
-@Repository
 public interface TenantInvitationRepository extends JpaRepository<TenantInvitation, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

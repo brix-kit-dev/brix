@@ -22,7 +22,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import io.brix.platform.tenant.entity.TenantMember;
 import io.brix.platform.tenant.enums.MemberStatus;
@@ -46,7 +45,6 @@ import io.brix.platform.tenant.enums.TenantMemberType;
  * @since 3.1.0
  * @see TenantMember
  */
-@Repository
 public interface TenantMemberRepository extends JpaRepository<TenantMember, Long> {
 
     /**

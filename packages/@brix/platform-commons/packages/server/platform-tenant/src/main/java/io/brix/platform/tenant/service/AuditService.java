@@ -59,12 +59,11 @@ import io.brix.platform.tenant.entity.AuditLog;
  *
  * <h3>Usage Example</h3>
  * <pre>{@code
- * @Service
  * public class TenantOnboardingService {
  *     private final TenantProvisioningService provisioningService;
  *     private final AuditService auditService;
  *
- *     @Transactional
+ *     // Runs inside the platform-tenant unit of work of the calling entry point.
  *     public Tenant createTenant(CreateTenantRequest request, Long operatorId) {
  *         Tenant tenant = provisioningService.createTenant(request);
  *
@@ -84,9 +83,10 @@ import io.brix.platform.tenant.entity.AuditLog;
  * }</pre>
  *
  * <h3>Transaction Considerations</h3>
- * <p>The {@link #log} method uses REQUIRES_NEW propagation to ensure audit logs
- * are persisted even if the encompassing transaction rolls back. This is critical
- * for compliance - failed operations should still be recorded.
+ * <p>The {@link #log} method uses the caller's platform-tenant unit of work: the audit row commits or rolls
+ * back with the business change. A unit of work cannot start an independent nested
+ * transaction of the same owner (BRX-RS-DATA-029); an audit record that must survive
+ * a rollback goes through the outbox instead.
  *
  * @author Brix Platform Team
  * @since 3.1.0
@@ -117,12 +117,8 @@ public interface AuditService {
      * </ul>
      *
      * <h4>Transaction Behavior</h4>
-     * <p>Uses REQUIRES_NEW propagation:
-     * <ul>
-     *   <li>Creates a new transaction for the log operation</li>
-     *   <li>Audit log persists even if caller's transaction rolls back</li>
-     *   <li>Ensures failed operations are recorded for security analysis</li>
-     * </ul>
+     * <p>Writes inside the caller's platform-tenant unit of work and commits or rolls
+     * back with it (BRX-RS-DATA-029).</p>
      *
      * <h4>Error Handling</h4>
      * <p>If logging fails (e.g., database error), the exception is propagated to the caller.

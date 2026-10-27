@@ -7,6 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -16,13 +18,16 @@ import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
+import io.brix.platform.tenant.support.RecordingUnitOfWork;
 
 class IdentityValidationFilterTest {
 
     private final SecurityContextHolder context = new SecurityContextHolder();
     private final TenantMemberRepository members = mock(TenantMemberRepository.class);
     private final TenantPrincipalRepository principals = mock(TenantPrincipalRepository.class);
-    private final IdentityValidationFilter filter = new IdentityValidationFilter(context, members, principals);
+    private final RecordingUnitOfWork unitOfWork = new RecordingUnitOfWork();
+    private final IdentityValidationFilter filter =
+            new IdentityValidationFilter(context, members, principals, unitOfWork);
 
     @Test
     void checksTheMemberInsideTheTokensTenant() throws Exception {
@@ -33,6 +38,8 @@ class IdentityValidationFilterTest {
 
         assertEquals(200, response.getStatus());
         verify(members, never()).existsById(anyLong());
+        // The filter runs before any Runtime entry point, so it opens its own read-only unit of work.
+        assertEquals(List.of("readOnly"), unitOfWork.modes());
     }
 
     @Test

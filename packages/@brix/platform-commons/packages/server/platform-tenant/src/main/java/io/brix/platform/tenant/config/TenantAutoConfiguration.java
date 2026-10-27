@@ -30,19 +30,20 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.task.TaskDecorator;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import tools.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
+import io.brix.platform.tenant.aspect.CrossTenantAccessAspect;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.core.SnowflakeIdGenerator;
 import io.brix.platform.tenant.decorator.TenantTaskDecorator;
 import io.brix.platform.tenant.filter.IdentityValidationFilter;
+import io.brix.platform.tenant.interceptor.TenantInterceptorConfig;
 import io.brix.platform.tenant.outbox.PlatformTenantReliableEventBusCapability;
 import io.brix.platform.tenant.repository.AuditLogRepository;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
@@ -62,15 +63,20 @@ import io.brix.platform.tenant.service.FirstOwnerInviteeSetupCompletedListener;
 import io.brix.platform.tenant.service.FirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
+import io.brix.platform.tenant.service.PrincipalAdmissionService;
+import io.brix.platform.tenant.service.PrincipalAdmissionServiceImpl;
 import io.brix.platform.tenant.service.TenantAdministrationService;
 import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
 import io.brix.platform.tenant.service.TenantQuotaService;
+import io.brix.platform.tenant.service.TenantQuotaServiceImpl;
+import io.brix.platform.tenant.service.TenantAccessCapabilityImpl;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.TenantCapability;
 import io.runtime.sdk.capability.NotificationCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
 
 /**
  * Auto-configuration for multi-tenant infrastructure.
@@ -109,13 +115,13 @@ import io.runtime.sdk.capability.NotificationCapability;
  * to override defaults. For example, a Kubernetes deployment might provide a custom
  * IdGenerator that derives worker ID from pod ordinal.
  *
- * <h3>Component Scanning</h3>
- * <p>This configuration enables:
- * <ul>
- *   <li>JPA repositories in {@code io.brix.platform.tenant.repository}</li>
- *   <li>Entity scanning in {@code io.brix.platform.tenant.entity}</li>
- *   <li>Component scanning for services, validation, and interceptors</li>
- * </ul>
+ * <h3>Persistence</h3>
+ * <p>Entities in {@code io.brix.platform.tenant.entity} join the shared persistence unit.
+ * Repositories come only from the owner-scoped {@link PersistenceCapability}
+ * (BRX-RS-DATA-026), and transactions are platform-tenant units of work: the Runtime
+ * opens them around HTTP entry points and internal contract calls, and the beans that
+ * other code calls directly open their own (BRX-RS-DATA-028). The cross-tenant aspect
+ * and the tenant SQL guard are imported explicitly; nothing is component-scanned.
  *
  * <h3>Usage</h3>
  * <p>This auto-configuration is activated automatically when platform-tenant
@@ -147,17 +153,13 @@ import io.runtime.sdk.capability.NotificationCapability;
  * @see io.brix.platform.tenant.interceptor.TenantInterceptorConfig
  */
 @AutoConfiguration
-@EnableJpaRepositories(basePackages = "io.brix.platform.tenant.repository")
 @EntityScan(basePackages = "io.brix.platform.tenant.entity")
 @EnableConfigurationProperties({
     FirstOwnerInvitationProperties.class
 })
-@ComponentScan(basePackages = {
-    "io.brix.platform.tenant.aspect",
-    "io.brix.platform.tenant.service",
-    "io.brix.platform.tenant.validation",
-    "io.brix.platform.tenant.interceptor",
-    "io.brix.platform.tenant.filter"
+@Import({
+    CrossTenantAccessAspect.class,
+    TenantInterceptorConfig.class
 })
 public class TenantAutoConfiguration {
 
@@ -296,9 +298,8 @@ public class TenantAutoConfiguration {
 
     // ========================================================================
     // Service Beans
-    // Note: Services are also registered via @Service annotation and component
-    // scanning. These explicit beans serve as documentation and allow easy
-    // customization through @ConditionalOnMissingBean.
+    // Every service is created here with repositories from PersistenceCapability;
+    // @ConditionalOnMissingBean keeps them replaceable.
     // ========================================================================
 
     /**
@@ -307,40 +308,68 @@ public class TenantAutoConfiguration {
      * <p>This service handles complete tenant lifecycle including creation
      * (with member and organization), suspension, and activation.
      *
-     * @param tenantRepository repository for tenant operations
-     * @param tenantMemberRepository repository for member operations
-     * @param organizationRepository repository for organization operations
+     * @param persistence owner-scoped persistence of platform-tenant
      * @param idGenerator ID generator for new entities
      * @return configured TenantProvisioningService
      */
     @Bean
     @ConditionalOnMissingBean(TenantProvisioningService.class)
     public TenantProvisioningService tenantProvisioningService(
-            TenantRepository tenantRepository,
-            TenantMemberRepository tenantMemberRepository,
-            InstallationQuotaRepository installationQuotaRepository,
-            OrganizationRepository organizationRepository,
-            BizUserProfileRepository bizUserProfileRepository,
+            PersistenceCapability persistence,
             IdGenerator idGenerator) {
         log.debug("Registering TenantProvisioningService");
         return new TenantProvisioningServiceImpl(
-            tenantRepository,
-            tenantMemberRepository,
-            installationQuotaRepository,
-            organizationRepository,
-            bizUserProfileRepository,
+            persistence.repository(TenantRepository.class),
+            persistence.repository(TenantMemberRepository.class),
+            persistence.repository(InstallationQuotaRepository.class),
+            persistence.repository(OrganizationRepository.class),
+            persistence.repository(BizUserProfileRepository.class),
             idGenerator
         );
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TenantQuotaService.class)
+    public TenantQuotaService tenantQuotaService(PersistenceCapability persistence) {
+        return new TenantQuotaServiceImpl(
+            persistence.repository(TenantRepository.class),
+            persistence.repository(TenantMemberRepository.class),
+            persistence.repository(TenantPrincipalRepository.class),
+            persistence.repository(InstallationQuotaRepository.class));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(PrincipalAdmissionService.class)
+    public PrincipalAdmissionService principalAdmissionService(
+            PersistenceCapability persistence,
+            IdGenerator idGenerator,
+            EventBusCapability eventBus) {
+        return new PrincipalAdmissionServiceImpl(
+            persistence.repository(TenantPrincipalRepository.class),
+            idGenerator,
+            eventBus);
+    }
+
+    /**
+     * Membership and principal lookups for the identity protocol surface and platform-auth.
+     * Callers reach it outside any Runtime entry point, so each method opens its own
+     * platform-tenant unit of work.
+     */
+    @Bean
+    @ConditionalOnMissingBean(TenantAccessCapabilityImpl.class)
+    public TenantAccessCapabilityImpl tenantAccessCapability(PersistenceCapability persistence) {
+        return new TenantAccessCapabilityImpl(
+            persistence.repository(TenantMemberRepository.class),
+            persistence.repository(TenantPrincipalRepository.class),
+            persistence.repository(TenantRepository.class),
+            persistence.repository(TenantInvitationRepository.class),
+            persistence.unitOfWork());
     }
 
     /**
      * Creates the FIRST_OWNER invitation workflow service.
      *
-     * @param invitationRepository tenant invitation repository
-     * @param tenantRepository tenant repository
-     * @param tenantMemberRepository tenant member repository
-     * @param installationQuotaRepository installation quota repository
-     * @param bizUserProfileRepository profile repository
+     * @param persistence owner-scoped persistence of platform-tenant
      * @param platformTenantEventBusCapability owner-scoped reliable EventBus
      * @param notificationCapabilityProvider managed notification capability provider
      * @param idGenerator ID generator
@@ -349,27 +378,22 @@ public class TenantAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(FirstOwnerInvitationService.class)
     public FirstOwnerInvitationService firstOwnerInvitationService(
-            TenantInvitationRepository invitationRepository,
-            TenantRepository tenantRepository,
-            TenantMemberRepository tenantMemberRepository,
+            PersistenceCapability persistence,
             FirstOwnerInviteeIdentitySetupCapability firstOwnerInviteeIdentitySetupCapability,
-            InstallationQuotaRepository installationQuotaRepository,
-            BizUserProfileRepository bizUserProfileRepository,
             @Qualifier("platformTenantEventBusCapability") EventBusCapability platformTenantEventBusCapability,
-            TenantAuditLogRepository auditLogRepository,
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
             IdGenerator idGenerator,
             ObjectMapper objectMapper,
             FirstOwnerInvitationProperties firstOwnerInvitationProperties) {
         return new FirstOwnerInvitationService(
-            invitationRepository,
-            tenantRepository,
-            tenantMemberRepository,
+            persistence.repository(TenantInvitationRepository.class),
+            persistence.repository(TenantRepository.class),
+            persistence.repository(TenantMemberRepository.class),
             firstOwnerInviteeIdentitySetupCapability,
-            installationQuotaRepository,
-            bizUserProfileRepository,
+            persistence.repository(InstallationQuotaRepository.class),
+            persistence.repository(BizUserProfileRepository.class),
             platformTenantEventBusCapability,
-            auditLogRepository,
+            persistence.repository(TenantAuditLogRepository.class),
             Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
             idGenerator,
             objectMapper,
@@ -379,51 +403,56 @@ public class TenantAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(FirstOwnerInviteeSetupCompletedListener.class)
     public FirstOwnerInviteeSetupCompletedListener firstOwnerInviteeSetupCompletedListener(
-            FirstOwnerInvitationService firstOwnerInvitationService) {
-        return new FirstOwnerInviteeSetupCompletedListener(firstOwnerInvitationService);
+            FirstOwnerInvitationService firstOwnerInvitationService,
+            PersistenceCapability persistence) {
+        return new FirstOwnerInviteeSetupCompletedListener(firstOwnerInvitationService, persistence.unitOfWork());
     }
 
     /**
      * Creates the owner-scoped reliable EventBus for platform-tenant producers.
      *
-     * @param outboxRepository owner canonical outbox repository
+     * @param persistence owner-scoped persistence of platform-tenant
      * @param objectMapper JSON mapper
      * @return owner-scoped EventBus capability
      */
     @Bean(name = "platformTenantEventBusCapability")
     @ConditionalOnMissingBean(name = "platformTenantEventBusCapability")
     public EventBusCapability platformTenantEventBusCapability(
-            PlatformTenantOutboxRepository outboxRepository,
+            PersistenceCapability persistence,
             ObjectMapper objectMapper) {
-        return new PlatformTenantReliableEventBusCapability(outboxRepository, objectMapper);
+        return new PlatformTenantReliableEventBusCapability(
+            persistence.repository(PlatformTenantOutboxRepository.class), objectMapper);
     }
 
     /**
      * Creates the FIRST_OWNER accepted projection writer.
      *
-     * @param projectionRepository projection side-effect repository
+     * @param persistence owner-scoped persistence of platform-tenant
      * @return projection writer
      */
     @Bean
     @ConditionalOnMissingBean(FirstOwnerProjectionWriter.class)
-    public FirstOwnerProjectionWriter firstOwnerProjectionWriter(
-            PlatformTenantFirstOwnerProjectionRepository projectionRepository) {
-        return new JpaFirstOwnerProjectionWriter(projectionRepository);
+    public FirstOwnerProjectionWriter firstOwnerProjectionWriter(PersistenceCapability persistence) {
+        return new JpaFirstOwnerProjectionWriter(
+            persistence.repository(PlatformTenantFirstOwnerProjectionRepository.class));
     }
 
     /**
      * Creates the Consumer Owner handler for {@code TenantFirstOwnerAccepted}.
      *
-     * @param inboxRepository canonical Inbox repository
+     * @param persistence owner-scoped persistence of platform-tenant
      * @param projectionWriter projection side-effect writer
      * @return Consumer handler service
      */
     @Bean
     @ConditionalOnMissingBean(TenantFirstOwnerAcceptedProjectionService.class)
     public TenantFirstOwnerAcceptedProjectionService tenantFirstOwnerAcceptedProjectionService(
-            PlatformTenantInboxRepository inboxRepository,
+            PersistenceCapability persistence,
             FirstOwnerProjectionWriter projectionWriter) {
-        return new TenantFirstOwnerAcceptedProjectionService(inboxRepository, projectionWriter);
+        return new TenantFirstOwnerAcceptedProjectionService(
+            persistence.repository(PlatformTenantInboxRepository.class),
+            projectionWriter,
+            persistence.unitOfWork());
     }
 
     /**
@@ -439,12 +468,12 @@ public class TenantAutoConfiguration {
     public io.brix.platform.tenant.internal.TenantAdministration tenantAdministration(
             TenantProvisioningService tenantProvisioningService,
             FirstOwnerInvitationService firstOwnerInvitationService,
-            TenantRepository tenantRepository,
+            PersistenceCapability persistence,
             TenantQuotaService tenantQuotaService) {
         return new TenantAdministrationService(
             tenantProvisioningService,
             firstOwnerInvitationService,
-            tenantRepository,
+            persistence.repository(TenantRepository.class),
             tenantQuotaService);
     }
 
@@ -455,17 +484,17 @@ public class TenantAutoConfiguration {
      * Uses REQUIRES_NEW transaction propagation to ensure logs are committed
      * independently of the calling transaction.
      *
-     * @param auditLogRepository repository for audit log persistence
+     * @param persistence owner-scoped persistence of platform-tenant
      * @param idGenerator ID generator for audit log entries
      * @return configured AuditService
      */
     @Bean
     @ConditionalOnMissingBean(AuditService.class)
     public AuditService auditService(
-            AuditLogRepository auditLogRepository,
+            PersistenceCapability persistence,
             IdGenerator idGenerator) {
         log.debug("Registering AuditService");
-        return new AuditServiceImpl(auditLogRepository, idGenerator);
+        return new AuditServiceImpl(persistence.repository(AuditLogRepository.class), idGenerator);
     }
 
     // ========================================================================
@@ -484,8 +513,7 @@ public class TenantAutoConfiguration {
      * may not have all member/principal records populated.</p>
      *
      * @param securityContextHolder    thread-local security context
-     * @param tenantMemberRepository   repository for member lookups
-     * @param tenantPrincipalRepository repository for principal lookups
+     * @param persistence owner-scoped persistence of platform-tenant
      * @return configured IdentityValidationFilter
      */
     @Bean
@@ -497,13 +525,13 @@ public class TenantAutoConfiguration {
             matchIfMissing = true)
     public IdentityValidationFilter identityValidationFilter(
             SecurityContextHolder securityContextHolder,
-            TenantMemberRepository tenantMemberRepository,
-            TenantPrincipalRepository tenantPrincipalRepository) {
+            PersistenceCapability persistence) {
         log.info("Registering IdentityValidationFilter (P2-8: mid/pid dual-branch verification)");
         return new IdentityValidationFilter(
                 securityContextHolder,
-                tenantMemberRepository,
-                tenantPrincipalRepository);
+                persistence.repository(TenantMemberRepository.class),
+                persistence.repository(TenantPrincipalRepository.class),
+                persistence.unitOfWork());
     }
 
 }

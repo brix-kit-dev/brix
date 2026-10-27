@@ -66,6 +66,8 @@ capabilities:
   required:
     - id: io.runtime.sdk.capability.EventBusCapability
       version: ">=3.0.10 <4.0.0"
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
   optional:
     - id: io.brix.platform.tenant.internal.TenantAdministration
       version: ">=3.2.0 <4.0.0"
