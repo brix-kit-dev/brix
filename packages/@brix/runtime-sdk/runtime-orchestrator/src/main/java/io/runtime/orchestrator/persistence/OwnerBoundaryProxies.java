@@ -21,6 +21,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Objects;
 
+import io.runtime.sdk.capability.TenantTarget;
 import io.runtime.sdk.capability.UnitOfWork;
 
 /**
@@ -84,10 +85,27 @@ public final class OwnerBoundaryProxies {
                 return invokeObjectMethod(proxy, method, args);
             }
             try {
-                return unitOfWork.required(() -> invokeTarget(method, args));
+                return TenantScopes.within(scopeOf(args), () -> unitOfWork.required(() -> invokeTarget(method, args)));
             } catch (CheckedTargetFailure failure) {
                 throw failure.getCause();
             }
+        }
+
+        /**
+         * A request that names its tenant reaches that tenant only (multi-tenant §6.4, platform
+         * targeted operations); any other request is a platform operation that reaches no tenant
+         * data except a tenant it creates. A call that joins an open transaction of the same
+         * owner keeps that transaction's scope.
+         */
+        private static TenantScope scopeOf(Object[] args) {
+            if (args != null) {
+                for (Object argument : args) {
+                    if (argument instanceof TenantTarget target && target.targetTenantId() != null) {
+                        return TenantScope.tenant(target.targetTenantId());
+                    }
+                }
+            }
+            return TenantScope.platformOperation();
         }
 
         private Object invokeTarget(Method method, Object[] args) {

@@ -14,12 +14,13 @@ import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.UnitOfWork;
 
 /**
- * Test double that records which unit-of-work mode wrapped each call and whether a call ran inside
- * a unit of work.
+ * Test double that records which unit-of-work mode wrapped each call, the tenant scope requested
+ * for it, and whether a call ran inside a unit of work.
  */
 public final class RecordingPersistence implements PersistenceCapability, UnitOfWork {
 
     private final List<String> modes = new ArrayList<>();
+    private final List<TenantScope> scopes = new ArrayList<>();
     private int depth;
 
     @Override
@@ -52,6 +53,15 @@ public final class RecordingPersistence implements PersistenceCapability, UnitOf
     }
 
     /**
+     * Returns the tenant scope requested for each unit of work, in call order.
+     *
+     * @return recorded scopes
+     */
+    public List<TenantScope> scopes() {
+        return List.copyOf(scopes);
+    }
+
+    /**
      * Returns whether the current call runs inside a unit of work.
      *
      * @return true inside a unit of work
@@ -62,6 +72,7 @@ public final class RecordingPersistence implements PersistenceCapability, UnitOf
 
     private <T> T run(String mode, Supplier<T> work) {
         modes.add(mode);
+        scopes.add(TenantScopes.requested());
         depth++;
         try {
             return work.get();

@@ -17,6 +17,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.runtime.sdk.capability.TenantTarget;
+
 class OwnerBoundaryProxiesTest {
 
     @Test
@@ -81,11 +83,45 @@ class OwnerBoundaryProxiesTest {
             () -> OwnerBoundaryProxies.wrap(rawGreeting, new Object(), persistence.unitOfWork()));
     }
 
+    @Test
+    void aRequestNamingItsTenantReachesThatTenantOnly() {
+        RecordingPersistence persistence = new RecordingPersistence();
+        TenantCommands boundary = OwnerBoundaryProxies.wrap(
+            TenantCommands.class, (label, target) -> label, persistence.unitOfWork());
+
+        boundary.apply("resend", new Target(42L));
+
+        assertEquals(List.of(TenantScope.tenant(42L)), persistence.scopes());
+        assertEquals(TenantScope.none(), TenantScopes.requested(), "the scope must not outlive the call");
+    }
+
+    @Test
+    void otherRequestsArePlatformOperations() {
+        RecordingPersistence persistence = new RecordingPersistence();
+        Greeting greeting = OwnerBoundaryProxies.wrap(Greeting.class, name -> name, persistence.unitOfWork());
+        TenantCommands commands = OwnerBoundaryProxies.wrap(
+            TenantCommands.class, (label, target) -> label, persistence.unitOfWork());
+
+        greeting.greet("brix");
+        commands.apply("create", new Target(null));
+        commands.apply("create", null);
+
+        assertEquals(List.of(TenantScope.platformOperation(), TenantScope.platformOperation(),
+            TenantScope.platformOperation()), persistence.scopes());
+    }
+
     interface Greeting {
         String greet(String name);
     }
 
     interface Loader {
         String load() throws IOException;
+    }
+
+    interface TenantCommands {
+        String apply(String label, Target target);
+    }
+
+    record Target(Long targetTenantId) implements TenantTarget {
     }
 }

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -170,6 +171,31 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
         assertDenied(403, EndpointAccessDeniedException.TENANT_CONTEXT_REQUIRED,
             tenantCaller(null, "actor", "MEMBER", "77"));
         assertEquals("handled", invoke(tenantCaller("42", "actor", "MEMBER", "77")));
+    }
+
+    @Test
+    void invocationBoundaryReceivesTheVerifiedInvocation() {
+        List<Optional<String>> boundaryTenants = new ArrayList<>();
+        DefaultPluginEndpointDispatcher bounded = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5),
+            new EndpointInvocationBoundary() {
+                @Override
+                public Object invoke(EndpointRoute route, Supplier<Object> handlerCall) {
+                    throw new AssertionError("the dispatcher must pass the verified invocation");
+                }
+
+                @Override
+                public Object invoke(
+                        EndpointRoute route, EndpointInvocation<?> invocation, Supplier<Object> handlerCall) {
+                    boundaryTenants.add(invocation.tenantId());
+                    return handlerCall.get();
+                }
+            });
+        bounded.replaceSnapshot(List.of(new EndpointRoute("platform-admin", "platform.tenants.create.v1", "POST",
+            "/api/platform/tenants", tenantEndpoint("tenant-actor", ORDER_READ), handler)), grants());
+
+        assertEquals("handled", bounded.invoke("POST", "/api/platform/tenants", Map.of("code", "acme"), Map.of(),
+            tenantCaller("42", "actor", "MEMBER", "77")));
+        assertEquals(List.of(Optional.of("42")), boundaryTenants);
     }
 
     @Test

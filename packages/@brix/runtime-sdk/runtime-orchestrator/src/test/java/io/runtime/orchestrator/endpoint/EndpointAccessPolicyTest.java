@@ -13,9 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+
+import io.runtime.orchestrator.persistence.TenantAccessPolicy;
 
 class EndpointAccessPolicyTest {
 
@@ -177,6 +180,34 @@ class EndpointAccessPolicyTest {
             Map.of("mode", "required", "policyRef", "tenant-subject"), permission, requiredTenant);
         assertEquals(EndpointAccessPolicy.TokenPolicy.TENANT_ACTOR, actor.tokenPolicy());
         assertEquals(EndpointAccessPolicy.TokenPolicy.TENANT_SUBJECT, subject.tokenPolicy());
+    }
+
+    @Test
+    void sourcePolicyRefNamesARegisteredCrossTenantPolicy() {
+        Map<String, Object> anonymous = Map.of("mode", "anonymous");
+        Map<String, Object> tokenEntry = Map.of("policyRef", "first-owner-invitation");
+
+        EndpointAccessPolicy resolution = EndpointAccessPolicy.fromDeclaration(anonymous, tokenEntry,
+            Map.of("mode", "forbidden", "sourcePolicyRef", "first-owner-invitation-resolution"));
+        EndpointAccessPolicy authenticatedTenant = EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "required", "policyRef", "tenant-actor"),
+            Map.of("permissions", List.of("example:order:read")),
+            Map.of("mode", "required", "sourcePolicyRef", "authenticated-tenant"));
+
+        assertEquals(Optional.of(TenantAccessPolicy.FIRST_OWNER_INVITATION_RESOLUTION),
+            resolution.tenantSourcePolicy());
+        assertEquals(Optional.empty(), authenticatedTenant.tenantSourcePolicy());
+        assertEquals(Optional.empty(),
+            EndpointAccessPolicy.fromDeclaration(anonymous, tokenEntry, FORBIDDEN_TENANT).tenantSourcePolicy());
+    }
+
+    @Test
+    void rejectsUnregisteredSourcePoliciesAndPoliciesOnTenantEntries() {
+        assertRejected(Map.of("mode", "anonymous"), Map.of("policyRef", "first-owner-invitation"),
+            Map.of("mode", "forbidden", "sourcePolicyRef", "any-tenant"));
+        assertRejected(Map.of("mode", "required", "policyRef", "tenant-actor"),
+            Map.of("permissions", List.of("example:order:read")),
+            Map.of("mode", "required", "sourcePolicyRef", "first-owner-invitation-resolution"));
     }
 
     private static void assertRejected(

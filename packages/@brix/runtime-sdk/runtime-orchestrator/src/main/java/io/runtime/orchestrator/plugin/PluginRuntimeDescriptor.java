@@ -477,13 +477,38 @@ public final class PluginRuntimeDescriptor {
                 String handlerId,
                 String retryPolicyRef,
                 String idempotencyPolicyRef) {
+            return eventSubscription(subscriptionId, eventType, schemaRange, handlerId, retryPolicyRef,
+                idempotencyPolicyRef, "");
+        }
+
+        /**
+         * Adds an event subscription declaration with its scope policy.
+         *
+         * @param subscriptionId subscription id
+         * @param eventType event contract id
+         * @param schemaRange accepted schema range
+         * @param handlerId handler id
+         * @param retryPolicyRef retry policy reference
+         * @param idempotencyPolicyRef idempotency policy reference
+         * @param scopePolicyRef scope policy reference
+         * @return this builder
+         */
+        public Builder eventSubscription(
+                String subscriptionId,
+                String eventType,
+                String schemaRange,
+                String handlerId,
+                String retryPolicyRef,
+                String idempotencyPolicyRef,
+                String scopePolicyRef) {
             EventSubscription subscription = new EventSubscription(
                 subscriptionId,
                 eventType,
                 schemaRange,
                 handlerId,
                 retryPolicyRef,
-                idempotencyPolicyRef);
+                idempotencyPolicyRef,
+                scopePolicyRef);
             if (!subscription.handlerId().isBlank()) {
                 eventSubscriptions.put(subscription.handlerId(), subscription);
                 eventHandlers.add(subscription.handlerId());
@@ -644,6 +669,7 @@ public final class PluginRuntimeDescriptor {
      * @param handlerId handler id
      * @param retryPolicyRef retry policy reference
      * @param idempotencyPolicyRef idempotency policy reference
+     * @param scopePolicyRef scope policy reference, such as a registered cross-tenant policy
      */
     public record EventSubscription(
             String subscriptionId,
@@ -651,7 +677,8 @@ public final class PluginRuntimeDescriptor {
             String schemaRange,
             String handlerId,
             String retryPolicyRef,
-            String idempotencyPolicyRef) {
+            String idempotencyPolicyRef,
+            String scopePolicyRef) {
 
         /**
          * Creates an event subscription declaration.
@@ -663,6 +690,20 @@ public final class PluginRuntimeDescriptor {
             handlerId = handlerId == null ? "" : handlerId.trim();
             retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
             idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
+            scopePolicyRef = scopePolicyRef == null ? "" : scopePolicyRef.trim();
+        }
+
+        /**
+         * Creates an event subscription declaration without a scope policy.
+         */
+        public EventSubscription(
+                String subscriptionId,
+                String eventType,
+                String schemaRange,
+                String handlerId,
+                String retryPolicyRef,
+                String idempotencyPolicyRef) {
+            this(subscriptionId, eventType, schemaRange, handlerId, retryPolicyRef, idempotencyPolicyRef, "");
         }
     }
 

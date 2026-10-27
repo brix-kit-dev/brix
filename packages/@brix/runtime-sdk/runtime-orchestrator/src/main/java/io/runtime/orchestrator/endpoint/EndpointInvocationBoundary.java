@@ -17,6 +17,8 @@ package io.runtime.orchestrator.endpoint;
 
 import java.util.function.Supplier;
 
+import io.runtime.sdk.plugin.EndpointInvocation;
+
 /**
  * Runtime policy applied around one endpoint handler invocation.
  *
@@ -37,6 +39,19 @@ public interface EndpointInvocationBoundary {
      * @return the handler result
      */
     Object invoke(EndpointRoute route, Supplier<Object> handlerCall);
+
+    /**
+     * Runs the handler call for {@code route} with the invocation the dispatcher built, so the
+     * boundary can bind what it verified, such as the tenant (root BRX-RS-DATA-011).
+     *
+     * @param route matched route
+     * @param invocation verified invocation passed to the handler
+     * @param handlerCall invokes the endpoint handler
+     * @return the handler result
+     */
+    default Object invoke(EndpointRoute route, EndpointInvocation<?> invocation, Supplier<Object> handlerCall) {
+        return invoke(route, handlerCall);
+    }
 
     /**
      * Returns a boundary that calls the handler directly.

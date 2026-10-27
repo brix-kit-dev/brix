@@ -228,7 +228,8 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         subscribe.getSchemaRange(),
                         subscribe.getHandlerId(),
                         subscribe.getRetryPolicyRef(),
-                        subscribe.getIdempotencyPolicyRef());
+                        subscribe.getIdempotencyPolicyRef(),
+                        subscribe.getScopePolicyRef());
                 }
             }
             if (manifest.getInternalContracts() != null) {

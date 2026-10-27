@@ -23,6 +23,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import io.runtime.orchestrator.persistence.TenantAccessPolicy;
+
 /**
  * Dispatcher security policy of one manifest-declared endpoint.
  *
@@ -44,6 +46,8 @@ import java.util.Set;
  * @param decision combination rule for {@code permissions}
  * @param authorizationPolicyRef named, non-permission authorization policy reference
  * @param tenantContext declared tenant context mode
+ * @param tenantSourcePolicy registered cross-tenant policy that supplies the tenant of an entry
+ *        without a tenant context ({@code tenantContext.sourcePolicyRef}, multi-tenant §6.4)
  * @author Runtime SDK Team
  * @since 3.2.0
  */
@@ -53,7 +57,25 @@ public record EndpointAccessPolicy(
         Set<String> permissions,
         PermissionDecision decision,
         String authorizationPolicyRef,
-        TenantContextMode tenantContext) {
+        TenantContextMode tenantContext,
+        Optional<TenantAccessPolicy> tenantSourcePolicy) {
+
+    /** The tenant source of an entry that requires a tenant context: the verified token. */
+    static final String AUTHENTICATED_TENANT = "authenticated-tenant";
+
+    /**
+     * Creates a policy whose tenant comes from the verified token, or that has none.
+     */
+    public EndpointAccessPolicy(
+            AuthenticationMode authentication,
+            TokenPolicy tokenPolicy,
+            Set<String> permissions,
+            PermissionDecision decision,
+            String authorizationPolicyRef,
+            TenantContextMode tenantContext) {
+        this(authentication, tokenPolicy, permissions, decision, authorizationPolicyRef, tenantContext,
+            Optional.empty());
+    }
 
     /**
      * Validates the policy and defensively copies the permission set.
@@ -71,6 +93,11 @@ public record EndpointAccessPolicy(
         decision = Objects.requireNonNull(decision, "decision must not be null");
         authorizationPolicyRef = authorizationPolicyRef == null ? "" : authorizationPolicyRef.trim();
         tenantContext = Objects.requireNonNull(tenantContext, "tenantContext must not be null");
+        tenantSourcePolicy = Objects.requireNonNull(tenantSourcePolicy, "tenantSourcePolicy must not be null");
+        if (tenantContext == TenantContextMode.REQUIRED && tenantSourcePolicy.isPresent()) {
+            throw new IllegalArgumentException("tenantContext.mode=required takes its tenant from the verified token; "
+                + "a cross-tenant policy cannot replace it");
+        }
         if (authentication != AuthenticationMode.REQUIRED && tokenPolicy != TokenPolicy.ANY_VERIFIED) {
             throw new IllegalArgumentException("authentication.policyRef '" + tokenPolicy.value()
                 + "' requires authentication.mode=required");
@@ -117,7 +144,17 @@ public record EndpointAccessPolicy(
             resourcePolicyRef.isEmpty()
                 ? text(authorization, "authorization", "policyRef")
                 : resourcePolicyRef,
-            TenantContextMode.fromValue(text(tenantContext, "tenantContext", "mode")));
+            TenantContextMode.fromValue(text(tenantContext, "tenantContext", "mode")),
+            tenantSourcePolicy(text(tenantContext, "tenantContext", "sourcePolicyRef")));
+    }
+
+    private static Optional<TenantAccessPolicy> tenantSourcePolicy(String reference) {
+        if (reference.isEmpty() || AUTHENTICATED_TENANT.equals(reference)) {
+            return Optional.empty();
+        }
+        return Optional.of(TenantAccessPolicy.byId(reference).orElseThrow(() -> new IllegalArgumentException(
+            "tenantContext.sourcePolicyRef '" + reference + "' is not a registered cross-tenant access "
+                + "(multi-tenant §6.4)")));
     }
 
     /**

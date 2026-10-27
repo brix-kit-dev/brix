@@ -20,17 +20,22 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
 import io.runtime.orchestrator.endpoint.EndpointInvocationBoundary;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.UnitOfWork;
+import io.runtime.sdk.plugin.EndpointInvocation;
 
 /**
- * Opens the owner unit of work around HTTP endpoint handlers (root blueprint BRX-RS-DATA-028).
+ * Opens the owner unit of work around HTTP endpoint handlers (root blueprint BRX-RS-DATA-028)
+ * and binds it to the tenant the dispatcher verified (BRX-RS-DATA-011, BRX-RS-DATA-040).
  *
  * <p>Safe methods ({@code GET}, {@code HEAD}) run in a read-only unit of work, every other method in
- * a read-write one. Routes whose module has no owner persistence, such as platform-operational
- * modules, are invoked directly.</p>
+ * a read-write one. An entry with a verified tenant reaches that tenant only; an entry whose
+ * {@code tenantContext.sourcePolicyRef} names a registered cross-tenant policy gets that policy;
+ * any other entry reaches no tenant data. Routes whose module has no owner persistence, such as
+ * platform-operational modules, are invoked directly.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -52,13 +57,45 @@ public final class OwnerUnitOfWorkEndpointBoundary implements EndpointInvocation
 
     @Override
     public Object invoke(EndpointRoute route, Supplier<Object> handlerCall) {
+        return invoke(route, null, handlerCall);
+    }
+
+    @Override
+    public Object invoke(EndpointRoute route, EndpointInvocation<?> invocation, Supplier<Object> handlerCall) {
         Optional<PersistenceCapability> persistence = ownerPersistence.forOwner(route.pluginId());
         if (persistence.isEmpty()) {
             return handlerCall.get();
         }
         UnitOfWork unitOfWork = persistence.get().unitOfWork();
-        return READ_ONLY_METHODS.contains(route.method())
+        return TenantScopes.within(scopeOf(route.accessPolicy(), invocation), () -> READ_ONLY_METHODS.contains(route.method())
             ? unitOfWork.readOnly(handlerCall)
-            : unitOfWork.required(handlerCall);
+            : unitOfWork.required(handlerCall));
+    }
+
+    /**
+     * Chooses the tenant scope of an endpoint call.
+     *
+     * @param policy declared access policy of the route
+     * @param invocation verified invocation, or {@code null} when the caller has none
+     * @return the scope the owner unit of work binds
+     */
+    static TenantScope scopeOf(EndpointAccessPolicy policy, EndpointInvocation<?> invocation) {
+        Optional<String> tenant = invocation == null ? Optional.empty() : invocation.tenantId();
+        if (policy.tenantContext() != EndpointAccessPolicy.TenantContextMode.FORBIDDEN && tenant.isPresent()) {
+            try {
+                return TenantScope.tenant(Long.valueOf(tenant.get()));
+            } catch (NumberFormatException e) {
+                return TenantScope.none();
+            }
+        }
+        if (policy.tenantSourcePolicy().isPresent()) {
+            TenantAccessPolicy source = policy.tenantSourcePolicy().get();
+            if (source.keyBoundByRuntime()) {
+                // The endpoint cannot bind the key such a policy needs; refuse tenant data instead.
+                return TenantScope.none();
+            }
+            return TenantScope.policy(source, null);
+        }
+        return TenantScope.none();
     }
 }

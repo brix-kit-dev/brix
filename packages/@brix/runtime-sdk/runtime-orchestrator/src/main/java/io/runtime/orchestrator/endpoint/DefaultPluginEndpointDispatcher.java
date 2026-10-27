@@ -171,7 +171,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         try {
             EndpointHandler<EndpointInvocation<Object>, Object> handler =
                 (EndpointHandler<EndpointInvocation<Object>, Object>) route.handler();
-            return invocationBoundary.invoke(route, () -> handler.handle(invocation));
+            return invocationBoundary.invoke(route, invocation, () -> handler.handle(invocation));
         } catch (ClassCastException e) {
             throw new EndpointDispatchException("Endpoint handler '" + route.endpointId()
                 + "' does not accept EndpointInvocation", e);

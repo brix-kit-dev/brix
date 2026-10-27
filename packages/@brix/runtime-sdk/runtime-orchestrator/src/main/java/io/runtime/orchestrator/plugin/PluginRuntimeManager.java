@@ -42,6 +42,7 @@ import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.EndpointHandler;
+import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
@@ -400,6 +401,43 @@ public final class PluginRuntimeManager {
     }
 
     /**
+     * Returns the event handlers of started plugins that subscribe to an event type, with the
+     * subscription each handler is bound for.
+     *
+     * @param eventType event contract id
+     * @return the bound subscriptions
+     */
+    public synchronized List<BoundEventHandler> eventHandlers(String eventType) {
+        List<BoundEventHandler> bound = new ArrayList<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() != PluginLifecycleState.STARTED) {
+                continue;
+            }
+            for (Map.Entry<String, EventHandler<?>> binding : plugin.eventHandlers.entrySet()) {
+                PluginRuntimeDescriptor.EventSubscription subscription =
+                    plugin.descriptor.eventSubscriptions().get(binding.getKey());
+                if (subscription != null && subscription.eventType().equals(eventType)) {
+                    bound.add(new BoundEventHandler(plugin.id(), subscription, binding.getValue()));
+                }
+            }
+        }
+        return List.copyOf(bound);
+    }
+
+    /**
+     * An event handler a plugin bound for one of its manifest subscriptions.
+     *
+     * @param pluginId owning plugin
+     * @param subscription the manifest subscription
+     * @param handler the bound handler
+     */
+    public record BoundEventHandler(
+            String pluginId,
+            PluginRuntimeDescriptor.EventSubscription subscription,
+            EventHandler<?> handler) {
+    }
+
+    /**
      * Returns plugin runtime states.
      *
      * @return immutable runtime state list
@@ -454,6 +492,7 @@ public final class PluginRuntimeManager {
             DefaultPluginBootstrapContext bootstrapContext = new DefaultPluginBootstrapContext(plugin.descriptor);
             plugin.provider.configure(bootstrapContext);
             plugin.endpointHandlers = bootstrapContext.endpoints();
+            plugin.eventHandlers = bootstrapContext.eventHandlers();
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
@@ -717,6 +756,7 @@ public final class PluginRuntimeManager {
         private final BrixPlugin provider;
         private final PluginRuntimeDescriptor descriptor;
         private Map<String, EndpointHandler<?, ?>> endpointHandlers = Map.of();
+        private Map<String, EventHandler<?>> eventHandlers = Map.of();
         private PluginRuntimeState state;
 
         private ManagedPlugin(BrixPlugin provider, PluginRuntimeDescriptor descriptor) {
