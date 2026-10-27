@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.brix.platform.tenant.endpoint.AcceptFirstOwnerInvitationHandler;
 import io.brix.platform.tenant.endpoint.TenantSessionHandler;
+import io.brix.platform.tenant.event.FirstOwnerInviteeSetupCompletedHandler;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
@@ -26,6 +27,7 @@ public final class PlatformTenantPlugin implements BrixPlugin {
 
     public static final String ENDPOINT_FIRST_OWNER_ACCEPT = "platform-tenant.first-owner.accept.v1";
     public static final String ENDPOINT_TENANT_SESSION = "platform-tenant.session.v1";
+    public static final String HANDLER_FIRST_OWNER_INVITEE_SETUP = "first-owner-invitee-setup.v1";
 
     private final AtomicReference<TenantAdministration> tenantAdministration = new AtomicReference<>();
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.unknown("Not started"));
@@ -36,6 +38,9 @@ public final class PlatformTenantPlugin implements BrixPlugin {
             ENDPOINT_FIRST_OWNER_ACCEPT,
             new AcceptFirstOwnerInvitationHandler(tenantAdministration::get));
         bootstrap.bindEndpoint(ENDPOINT_TENANT_SESSION, new TenantSessionHandler());
+        bootstrap.bindEventHandler(
+            HANDLER_FIRST_OWNER_INVITEE_SETUP,
+            new FirstOwnerInviteeSetupCompletedHandler(tenantAdministration::get));
     }
 
     @Override

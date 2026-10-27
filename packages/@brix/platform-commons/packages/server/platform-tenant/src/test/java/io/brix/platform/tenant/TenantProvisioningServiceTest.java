@@ -15,11 +15,9 @@
  */
 package io.brix.platform.tenant;
 
-import java.lang.reflect.Method;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -37,7 +35,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
 import io.brix.platform.tenant.entity.InstallationQuota;
@@ -121,18 +118,6 @@ class TenantProvisioningServiceTest {
     class CreateTenantTests {
 
         @Test
-        @DisplayName("createTenant should declare reviewed cross-tenant provisioning scope")
-        void createTenantShouldDeclareCrossTenantProvisioningScope() throws NoSuchMethodException {
-            Method method = TenantProvisioningServiceImpl.class.getMethod("createTenant", CreateTenantRequest.class);
-            CrossTenantAccess annotation = method.getAnnotation(CrossTenantAccess.class);
-
-            assertNotNull(annotation);
-            assertEquals("BRX-TENANT-OWNER-004-PHASE3", annotation.approval());
-            assertFalse(annotation.readOnly());
-            assertTrue(annotation.reason().contains("FIRST_OWNER/Profile creation is deferred"));
-        }
-
-        @Test
         @DisplayName("should create pending tenant without owner member or profile")
         void shouldCreatePendingTenantWithoutOwnerMemberOrProfile() {
             // Given
@@ -146,7 +131,7 @@ class TenantProvisioningServiceTest {
 
             when(tenantRepository.existsByCode("acme-corp")).thenReturn(false);
             when(idGenerator.nextId()).thenReturn(tenantId, orgId);
-            when(tenantRepository.save(any(Tenant.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tenantRepository.saveAndFlush(any(Tenant.class))).thenAnswer(inv -> inv.getArgument(0));
             when(organizationRepository.save(any(Organization.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -195,7 +180,7 @@ class TenantProvisioningServiceTest {
             );
 
             assertTrue(exception.getMessage().contains("already exists"));
-            verify(tenantRepository, never()).save(any());
+            verify(tenantRepository, never()).saveAndFlush(any());
         }
 
         @Test
@@ -215,7 +200,7 @@ class TenantProvisioningServiceTest {
             );
 
             assertTrue(exception.getMessage().contains("FIRST_OWNER invitation"));
-            verify(tenantRepository, never()).save(any());
+            verify(tenantRepository, never()).saveAndFlush(any());
         }
 
         @Test
@@ -229,7 +214,7 @@ class TenantProvisioningServiceTest {
 
             when(tenantRepository.existsByCode(any())).thenReturn(false);
             when(idGenerator.nextId()).thenReturn(1L, 2L);
-            when(tenantRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(tenantRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
             when(organizationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             // When

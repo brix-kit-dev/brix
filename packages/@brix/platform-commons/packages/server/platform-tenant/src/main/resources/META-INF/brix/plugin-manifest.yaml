@@ -32,6 +32,8 @@ endpoints:
         policyRef: tenant:first-owner:accept
       tenantContext:
         mode: forbidden
+        # The invitation token resolves the tenant (BRX-TENANT-ENTRY-005, multi-tenant §6.4).
+        sourcePolicyRef: first-owner-invitation-resolution
       timeout:
         policyRef: interactive-write
       idempotency:
@@ -96,6 +98,18 @@ events:
       concurrencyPolicyRef: tenant-first-owner-projection
       retryPolicyRef: event-standard
       idempotencyPolicyRef: persistent-inbox
+    # Delivered in process after the identity owner commits; scoped to that identity's pending
+    # FIRST_OWNER invitations (multi-tenant §6.4).
+    - subscriptionId: first-owner-invitee-setup
+      eventType: FirstOwnerInviteeSetupCompleted
+      schemaRange: ">=1.0.0 <2.0.0"
+      handlerId: first-owner-invitee-setup.v1
+      scopePolicyRef: first-owner-invitee-setup-fanout
+      publisherPolicyRef: platform-identity-owner
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: first-owner-invitee-setup
+      retryPolicyRef: no-retry
+      idempotencyPolicyRef: invitation-reissue
 tasks:
   provides: []
 internalContracts:

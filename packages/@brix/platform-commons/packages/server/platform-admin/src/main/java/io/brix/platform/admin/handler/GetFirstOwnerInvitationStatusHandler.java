@@ -6,6 +6,7 @@
  */
 package io.brix.platform.admin.handler;
 
+import io.brix.platform.tenant.internal.FirstOwnerInvitationLookup;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.runtime.orchestrator.operational.OperationalContext;
@@ -35,7 +36,7 @@ public final class GetFirstOwnerInvitationStatusHandler
     public FirstOwnerInvitationDto handle(EndpointInvocation<Void> invocation) {
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
         try {
-            return tenantAdministration.latestFirstOwnerInvitation(tenantId)
+            return tenantAdministration.latestFirstOwnerInvitation(new FirstOwnerInvitationLookup(tenantId))
                 .map(FirstOwnerInvitationDto::from)
                 .orElse(null);
         } catch (TenantAdministrationException ex) {

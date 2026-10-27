@@ -54,8 +54,23 @@ public interface TenantAdministration {
      *
      * @param tenantId tenant identifier
      * @return latest invitation view when one exists
+     * @deprecated a bare id names no target tenant, so the runtime binds no tenant scope and the
+     *     invitation table is refused; use {@link #latestFirstOwnerInvitation(FirstOwnerInvitationLookup)}
      */
+    @Deprecated
     Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(Long tenantId);
+
+    /**
+     * Returns the latest FIRST_OWNER invitation status for a tenant. The runtime binds the Data
+     * Owner's unit of work to the lookup's tenant (multi-tenant §6.4, platform targeted operations).
+     *
+     * @param lookup the tenant to look in
+     * @return latest invitation view when one exists
+     */
+    @SuppressWarnings("deprecation")
+    default Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(FirstOwnerInvitationLookup lookup) {
+        return latestFirstOwnerInvitation(lookup.tenantId());
+    }
 
     /**
      * Creates a FIRST_OWNER invitation and sends the managed notification.
@@ -87,4 +102,15 @@ public interface TenantAdministration {
      * @return acceptance result
      */
     FirstOwnerAcceptanceResult acceptFirstOwnerInvitation(AcceptFirstOwnerInvitationCommand command);
+
+    /**
+     * Sends the pending FIRST_OWNER invitations of an invitee who just completed identity setup.
+     * The runtime delivers the identity owner's fact with the {@code first-owner-invitee-setup-fanout}
+     * scope, keyed by that identity's e-mail (multi-tenant §6.4); this method only runs inside it.
+     *
+     * @param identityId identity that completed setup
+     */
+    default void sendPendingFirstOwnerInvitationsAfterSetup(Long identityId) {
+        throw new UnsupportedOperationException("This provider does not send FIRST_OWNER invitations");
+    }
 }

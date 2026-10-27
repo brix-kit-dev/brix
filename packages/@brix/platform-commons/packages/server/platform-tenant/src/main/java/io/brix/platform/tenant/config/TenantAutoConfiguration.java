@@ -16,7 +16,6 @@
 package io.brix.platform.tenant.config;
 
 import java.util.Optional;
-import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,26 +25,17 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.core.task.TaskDecorator;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import tools.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
-import io.brix.platform.tenant.aspect.CrossTenantAccessAspect;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.core.SnowflakeIdGenerator;
-import io.brix.platform.tenant.decorator.TenantTaskDecorator;
-import io.brix.platform.tenant.filter.IdentityValidationFilter;
-import io.brix.platform.tenant.interceptor.TenantInterceptorConfig;
 import io.brix.platform.tenant.outbox.PlatformTenantReliableEventBusCapability;
-import io.brix.platform.tenant.repository.AuditLogRepository;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
@@ -57,9 +47,6 @@ import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
-import io.brix.platform.tenant.service.AuditService;
-import io.brix.platform.tenant.service.AuditServiceImpl;
-import io.brix.platform.tenant.service.FirstOwnerInviteeSetupCompletedListener;
 import io.brix.platform.tenant.service.FirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.FirstOwnerInvitationService;
 import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
@@ -77,6 +64,7 @@ import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.TenantCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.TenantAccessCapability;
 
 /**
  * Auto-configuration for multi-tenant infrastructure.
@@ -92,22 +80,12 @@ import io.runtime.sdk.capability.PersistenceCapability;
  * <ul>
  *   <li>{@link IdGenerator} - Snowflake-based distributed ID generator</li>
  *   <li>{@link TenantProvisioningService} - Tenant lifecycle management</li>
- *   <li>{@link AuditService} - Audit event logging</li>
- *   <li>{@link TaskDecorator} - Tenant context propagation for async tasks</li>
- *   <li>{@link Executor} - Configured thread pool with tenant context support</li>
- *   <li>SQL Interceptors - Automatic tenant filtering (via TenantInterceptorConfig)</li>
+ *   <li>{@link TenantAccessCapability} - Login-time tenant access for the identity protocol surface</li>
  * </ul>
  *
  * <h3>Configuration Properties</h3>
  * <ul>
  *   <li>{@code brix.tenant.worker-id} - Snowflake worker ID (default: 1)</li>
- *   <li>{@code brix.tenant.datacenter-id} - Snowflake datacenter ID (default: 1)</li>
- *   <li>{@code brix.tenant.async.core-pool-size} - Async executor core pool size (default: 10)</li>
- *   <li>{@code brix.tenant.async.max-pool-size} - Async executor max pool size (default: 50)</li>
- *   <li>{@code brix.tenant.async.queue-capacity} - Async executor queue capacity (default: 100)</li>
- *   <li>{@code brix.tenant.interceptor.enabled} - Enable SQL tenant filtering (default: true)</li>
- *   <li>{@code brix.tenant.guard.enabled} - Enable SQL guard validation (default: true)</li>
- *   <li>{@code brix.tenant.guard.fail-on-violation} - Throw exception on violation (default: true)</li>
  * </ul>
  *
  * <h3>Conditional Bean Creation</h3>
@@ -119,47 +97,20 @@ import io.runtime.sdk.capability.PersistenceCapability;
  * <p>Entities in {@code io.brix.platform.tenant.entity} join the shared persistence unit.
  * Repositories come only from the owner-scoped {@link PersistenceCapability}
  * (BRX-RS-DATA-026), and transactions are platform-tenant units of work: the Runtime
- * opens them around HTTP entry points and internal contract calls, and the beans that
- * other code calls directly open their own (BRX-RS-DATA-028). The cross-tenant aspect
- * and the tenant SQL guard are imported explicitly; nothing is component-scanned.
- *
- * <h3>Usage</h3>
- * <p>This auto-configuration is activated automatically when platform-tenant
- * is on the classpath. No explicit configuration is required for basic usage.
- *
- * <pre>{@code
- * // In application.yml (optional customization):
- * brix:
- *   tenant:
- *     worker-id: ${HOSTNAME:1}
- *     datacenter-id: 1
- *     async:
- *       core-pool-size: 20
- *       max-pool-size: 100
- *       queue-capacity: 500
- *     interceptor:
- *       enabled: true
- *     guard:
- *       enabled: true
- *       fail-on-violation: true
- * }</pre>
+ * opens them around HTTP entry points, internal contract calls, event deliveries and the
+ * tenant access capability, and binds each to its tenant scope; the persistence adapter
+ * filters every statement by that scope (BRX-RS-DATA-028, BRX-RS-DATA-040). Nothing here
+ * sets a tenant context or is component-scanned.
  *
  * @author Brix Platform Team
  * @since 3.1.0
  * @see TenantProvisioningService
- * @see AuditService
  * @see IdGenerator
- * @see TenantTaskDecorator
- * @see io.brix.platform.tenant.interceptor.TenantInterceptorConfig
  */
 @AutoConfiguration
 @EntityScan(basePackages = "io.brix.platform.tenant.entity")
 @EnableConfigurationProperties({
     FirstOwnerInvitationProperties.class
-})
-@Import({
-    CrossTenantAccessAspect.class,
-    TenantInterceptorConfig.class
 })
 public class TenantAutoConfiguration {
 
@@ -177,23 +128,8 @@ public class TenantAutoConfiguration {
     @Value("${brix.tenant.worker-id:1}")
     private long workerId;
 
-    /**
-     * Async executor core pool size.
-     */
-    @Value("${brix.tenant.async.core-pool-size:10}")
-    private int corePoolSize;
 
-    /**
-     * Async executor maximum pool size.
-     */
-    @Value("${brix.tenant.async.max-pool-size:50}")
-    private int maxPoolSize;
 
-    /**
-     * Async executor queue capacity.
-     */
-    @Value("${brix.tenant.async.queue-capacity:100}")
-    private int queueCapacity;
 
     // ========================================================================
     // Core Infrastructure Beans
@@ -243,58 +179,6 @@ public class TenantAutoConfiguration {
         return new TenantCapabilityImpl(defaultTenantId, securityContextHolderProvider.getIfAvailable());
     }
 
-    /**
-     * Creates the TenantTaskDecorator bean for async context propagation.
-     *
-     * <p>This decorator ensures tenant context (tenant ID, user ID) is properly
-     * propagated when tasks are executed asynchronously via Spring's @Async
-     * annotation or TaskExecutor.
-     *
-     * @return TenantTaskDecorator instance
-     */
-    @Bean
-    @ConditionalOnMissingBean(name = "tenantTaskDecorator")
-    public TaskDecorator tenantTaskDecorator() {
-        log.debug("Registering TenantTaskDecorator for async context propagation");
-        return new TenantTaskDecorator();
-    }
-
-    /**
-     * Creates the tenant-aware async executor.
-     *
-     * <p>This executor is configured with TenantTaskDecorator to ensure tenant
-     * context is propagated to async threads. Use this executor for all async
-     * operations that require tenant context.
-     *
-     * <h4>Configuration</h4>
-     * <ul>
-     *   <li>Core pool size: Number of threads kept alive even when idle</li>
-     *   <li>Max pool size: Maximum number of threads allowed</li>
-     *   <li>Queue capacity: Number of tasks queued before creating new threads</li>
-     *   <li>Thread name prefix: For easier debugging and monitoring</li>
-     * </ul>
-     *
-     * @param tenantTaskDecorator the decorator for context propagation
-     * @return configured ThreadPoolTaskExecutor
-     */
-    @Bean(name = "tenantAwareExecutor")
-    @ConditionalOnMissingBean(name = "tenantAwareExecutor")
-    public Executor tenantAwareExecutor(TaskDecorator tenantTaskDecorator) {
-        log.info("Initializing tenant-aware async executor: corePoolSize={}, maxPoolSize={}, queueCapacity={}",
-                corePoolSize, maxPoolSize, queueCapacity);
-
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(corePoolSize);
-        executor.setMaxPoolSize(maxPoolSize);
-        executor.setQueueCapacity(queueCapacity);
-        executor.setThreadNamePrefix("tenant-async-");
-        executor.setTaskDecorator(tenantTaskDecorator);
-        executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(60);
-        executor.initialize();
-
-        return executor;
-    }
 
     // ========================================================================
     // Service Beans
@@ -356,8 +240,8 @@ public class TenantAutoConfiguration {
      * platform-tenant unit of work.
      */
     @Bean
-    @ConditionalOnMissingBean(TenantAccessCapabilityImpl.class)
-    public TenantAccessCapabilityImpl tenantAccessCapability(PersistenceCapability persistence) {
+    @ConditionalOnMissingBean(TenantAccessCapability.class)
+    public TenantAccessCapability tenantAccessCapability(PersistenceCapability persistence) {
         return new TenantAccessCapabilityImpl(
             persistence.repository(TenantMemberRepository.class),
             persistence.repository(TenantPrincipalRepository.class),
@@ -400,13 +284,6 @@ public class TenantAutoConfiguration {
             firstOwnerInvitationProperties.getInviteBaseUrl());
     }
 
-    @Bean
-    @ConditionalOnMissingBean(FirstOwnerInviteeSetupCompletedListener.class)
-    public FirstOwnerInviteeSetupCompletedListener firstOwnerInviteeSetupCompletedListener(
-            FirstOwnerInvitationService firstOwnerInvitationService,
-            PersistenceCapability persistence) {
-        return new FirstOwnerInviteeSetupCompletedListener(firstOwnerInvitationService, persistence.unitOfWork());
-    }
 
     /**
      * Creates the owner-scoped reliable EventBus for platform-tenant producers.
@@ -477,61 +354,6 @@ public class TenantAutoConfiguration {
             tenantQuotaService);
     }
 
-    /**
-     * Creates the AuditService bean.
-     *
-     * <p>This service handles synchronous audit logging to the biz_audit_log table.
-     * Uses REQUIRES_NEW transaction propagation to ensure logs are committed
-     * independently of the calling transaction.
-     *
-     * @param persistence owner-scoped persistence of platform-tenant
-     * @param idGenerator ID generator for audit log entries
-     * @return configured AuditService
-     */
-    @Bean
-    @ConditionalOnMissingBean(AuditService.class)
-    public AuditService auditService(
-            PersistenceCapability persistence,
-            IdGenerator idGenerator) {
-        log.debug("Registering AuditService");
-        return new AuditServiceImpl(persistence.repository(AuditLogRepository.class), idGenerator);
-    }
 
-    // ========================================================================
-    // Security Filters
-    // ========================================================================
-
-    /**
-     * Creates the IdentityValidationFilter bean.
-     *
-     * <p>P2-8 (R16.14): Validates that JWT mid/pid claims reference real records
-     * in sys_tenant_member / sys_tenant_principal. Runs after SecurityContextFilter
-     * to verify identity existence post-JWT-crypto-validation.</p>
-     *
-     * <p>Conditionally enabled via {@code brix.tenant.identity-validation.enabled}
-     * (default: true). Disable for development environments where the database
-     * may not have all member/principal records populated.</p>
-     *
-     * @param securityContextHolder    thread-local security context
-     * @param persistence owner-scoped persistence of platform-tenant
-     * @return configured IdentityValidationFilter
-     */
-    @Bean
-    @ConditionalOnMissingBean(IdentityValidationFilter.class)
-    @ConditionalOnProperty(
-            prefix = "brix.tenant.identity-validation",
-            name = "enabled",
-            havingValue = "true",
-            matchIfMissing = true)
-    public IdentityValidationFilter identityValidationFilter(
-            SecurityContextHolder securityContextHolder,
-            PersistenceCapability persistence) {
-        log.info("Registering IdentityValidationFilter (P2-8: mid/pid dual-branch verification)");
-        return new IdentityValidationFilter(
-                securityContextHolder,
-                persistence.repository(TenantMemberRepository.class),
-                persistence.repository(TenantPrincipalRepository.class),
-                persistence.unitOfWork());
-    }
 
 }

@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import io.brix.platform.tenant.annotation.CrossTenantAccess;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.dto.CreateTenantRequest;
 import io.brix.platform.tenant.entity.InstallationQuota;
@@ -172,9 +171,6 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
      * @return the created tenant entity
      */
     @Override
-        @CrossTenantAccess(
-            reason = "Platform tenant provisioning creates only the pending tenant boundary and root organization before a tenant-scoped context exists. FIRST_OWNER/Profile creation is deferred to the invitation acceptance transaction.",
-            approval = "BRX-TENANT-OWNER-004-PHASE3")
     public Tenant createTenant(CreateTenantRequest request) {
         // =====================================================================
         // Phase 1: Request Validation
@@ -203,7 +199,9 @@ public class TenantProvisioningServiceImpl implements TenantProvisioningService 
         tenant.setId(idGenerator.nextId());
         tenant.setStatus(TenantStatus.PENDING_ACTIVATION);
         
-        tenant = tenantRepository.save(tenant);
+        // Flushed first: inserting the tenant row binds the platform operation to the new tenant
+        // (multi-tenant §6.4), which the root organization below belongs to.
+        tenant = tenantRepository.saveAndFlush(tenant);
         log.debug("Created tenant: id={}, code={}", tenant.getId(), tenant.getCode());
 
         // =====================================================================

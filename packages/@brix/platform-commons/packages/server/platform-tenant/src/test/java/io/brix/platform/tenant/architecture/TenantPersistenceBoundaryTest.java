@@ -14,11 +14,11 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 
-import io.brix.platform.tenant.service.FirstOwnerInviteeSetupCompletedListener;
 
 /**
  * platform-tenant reaches its data only through PersistenceCapability repositories inside
- * owner units of work (runtime-shell 3.2.0 §7).
+ * owner units of work (runtime-shell 3.2.0 §7), and leaves tenant isolation to the runtime and
+ * the persistence adapter.
  */
 class TenantPersistenceBoundaryTest {
 
@@ -42,10 +42,7 @@ class TenantPersistenceBoundaryTest {
 
     @Test
     void tenantDoesNotUseFrameworkTransactions() {
-        // The setup-completed listener only listens for identity's commit; it opens no transaction
-        // itself. Signalling across owners through the outbox would remove it (BRX-RS-DATA-029).
         noClasses()
-            .that().doNotBelongToAnyOf(FirstOwnerInviteeSetupCompletedListener.class)
             .should().dependOnClassesThat().resideInAnyPackage("org.springframework.transaction..")
             .because("transactions are owner units of work opened by the runtime (BRX-RS-DATA-028)")
             .check(TENANT);
@@ -65,6 +62,18 @@ class TenantPersistenceBoundaryTest {
         noMethods()
             .should().beAnnotatedWith("org.springframework.data.jpa.repository.query.Procedure")
             .because("native SQL and stored procedures are outside the persistence API whitelist")
+            .check(TENANT);
+    }
+
+    @Test
+    void tenantNeitherFiltersNorGuardsTenantsItself() {
+        noClasses()
+            .should().dependOnClassesThat().haveFullyQualifiedName("org.hibernate.Filter")
+            .orShould().dependOnClassesThat().haveFullyQualifiedName("org.hibernate.resource.jdbc.spi.StatementInspector")
+            .orShould().dependOnClassesThat().resideInAnyPackage("org.hibernate.event..", "org.hibernate.boot..")
+            .orShould().dependOnClassesThat().resideInAnyPackage("org.aspectj..")
+            .because("the runtime binds the tenant scope and the persistence adapter enforces it "
+                + "(BRX-RS-DATA-040, multi-tenant T-21)")
             .check(TENANT);
     }
 

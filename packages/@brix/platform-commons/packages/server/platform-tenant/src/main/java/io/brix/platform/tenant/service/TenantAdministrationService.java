@@ -125,6 +125,7 @@ public class TenantAdministrationService implements TenantAdministration {
     }
 
     @Override
+    @Deprecated
     public Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(Long tenantId) {
         return firstOwnerInvitationService.latest(tenantId);
     }
@@ -147,6 +148,11 @@ public class TenantAdministrationService implements TenantAdministration {
     @Override
     public FirstOwnerAcceptanceResult acceptFirstOwnerInvitation(AcceptFirstOwnerInvitationCommand command) {
         return firstOwnerInvitationService.accept(command);
+    }
+
+    @Override
+    public void sendPendingFirstOwnerInvitationsAfterSetup(Long identityId) {
+        firstOwnerInvitationService.sendPendingInvitationsAfterSetup(identityId);
     }
 
     private static PlatformTenantView toView(Tenant tenant, InstallationQuotaSnapshot quota) {
