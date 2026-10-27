@@ -120,6 +120,10 @@ export const NativeButton: FC<ButtonProps> = ({
 }) => {
   // Determine if button is interactive
   const isDisabled = disabled || loading;
+  // Beside the button's text an icon is decorative; an icon-only button keeps the icon's name.
+  const iconLabel = children !== undefined && children !== null && children !== false && children !== ''
+    ? ''
+    : undefined;
 
   // Get size-specific styles
   const sizeStyle = SIZE_STYLES[size];
@@ -163,7 +167,7 @@ export const NativeButton: FC<ButtonProps> = ({
 
       {/* Start icon */}
       {!loading && startIcon && (
-        <NativeIcon name={startIcon} size="small" />
+        <NativeIcon name={startIcon} size="small" aria-label={iconLabel} />
       )}
 
       {/* Button text content */}
@@ -171,7 +175,7 @@ export const NativeButton: FC<ButtonProps> = ({
 
       {/* End icon */}
       {!loading && endIcon && (
-        <NativeIcon name={endIcon} size="small" />
+        <NativeIcon name={endIcon} size="small" aria-label={iconLabel} />
       )}
 
       {/* Inline keyframes for loading spinner */}

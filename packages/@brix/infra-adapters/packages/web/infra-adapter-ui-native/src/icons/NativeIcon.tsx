@@ -116,7 +116,9 @@ export const NativeIcon: FC<IconProps> = ({
   // Determine viewBox (default to 24x24 for Material Design icons)
   const viewBox = iconDef.viewBox ?? '0 0 24 24';
 
-  // Use icon name as default aria-label if not provided
+  // Use icon name as default aria-label if not provided; an empty one marks a decorative icon
+  // (beside a text that already says what it means), which screen readers skip.
+  const decorative = ariaLabel === '';
   const accessibleLabel = ariaLabel ?? name;
 
   // Check if icon exists for potential warning
@@ -134,8 +136,9 @@ export const NativeIcon: FC<IconProps> = ({
       style={svgStyle}
       className={className}
       onClick={handleClick}
-      aria-label={accessibleLabel}
-      role="img"
+      aria-label={decorative ? undefined : accessibleLabel}
+      aria-hidden={decorative ? true : undefined}
+      role={decorative ? undefined : 'img'}
       focusable={onClick ? 'true' : 'false'}
       tabIndex={onClick ? 0 : undefined}
       data-icon={name}

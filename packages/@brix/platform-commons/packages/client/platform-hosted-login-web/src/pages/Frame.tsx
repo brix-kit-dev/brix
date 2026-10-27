@@ -1,9 +1,10 @@
 /**
  * @file Hosted page frame
- * @description The SHINWA-branded shell every hosted login, setup and invitation page renders in:
+ * @description The SHINWA-branded shell every hosted sign-in and invitation page renders in:
  * the same layout, design tokens and brand footer as the platform console's sign-in page, so
- * every console's users meet one sign-in look. Layout rules live in styles.css, because the
- * strict CSP of the hosted pages allows no inline style element.
+ * every console's users meet one sign-in look. The setup pages use the layout of the platform
+ * setup page instead (SetupLayout). Layout rules live in styles.css, because the strict CSP of
+ * the hosted pages allows no inline style element.
  */
 
 import type { CSSProperties, ReactNode } from 'react';

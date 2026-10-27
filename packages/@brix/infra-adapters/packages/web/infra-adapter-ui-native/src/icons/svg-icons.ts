@@ -298,6 +298,13 @@ export const businessIcons: Record<string, SvgIconDef> = {
   },
 
   /**
+   * Mail/Envelope Icon
+   */
+  mail: {
+    path: 'M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
+  },
+
+  /**
    * Booking/Calendar Icon
    */
   booking: {
@@ -414,6 +421,13 @@ export const actionIcons: Record<string, SvgIconDef> = {
   },
 
   /**
+   * Arrow Forward (Continue) Icon
+   */
+  arrow_forward: {
+    path: 'M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z',
+  },
+
+  /**
    * Refresh Icon
    */
   refresh: {
@@ -526,6 +540,13 @@ export const statusIcons: Record<string, SvgIconDef> = {
   pending: {
     path: 'M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zm-4-5l-4-4V4h8v3.5l-4 4z',
   },
+
+  /**
+   * Link Off (Broken Link) Icon
+   */
+  link_off: {
+    path: 'M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.43-.98 2.63-2.31 2.98l1.46 1.46C20.88 15.61 22 13.95 22 12c0-2.76-2.24-5-5-5zm-1 4h-2.19l2 2H16zM2 4.27l3.11 3.11C3.29 8.12 2 9.91 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73L13 15.27V17h1.73l4.01 4L20 19.74 3.27 3 2 4.27z',
+  },
 };
 
 // ============================================================================
@@ -551,6 +572,9 @@ export const SVG_ICON_REGISTRY: Record<string, SvgIconDef> = {
   default: fileIcons.document as SvgIconDef,
   // Material Design name of the user icon (login forms)
   person: userIcons.user as SvgIconDef,
+  // Material Design names the account setup pages use
+  account_circle: userIcons.account as SvgIconDef,
+  check_circle: statusIcons.success as SvgIconDef,
 };
 
 /**

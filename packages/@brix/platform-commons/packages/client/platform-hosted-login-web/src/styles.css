@@ -20,8 +20,8 @@ body {
   min-height: 100vh;
 }
 
-/* The page grows with its content (the setup page with its QR code is taller than a phone screen),
-   so only the horizontal overflow of the backdrop is clipped. */
+/* The page grows with its content (a page taller than a phone screen scrolls), so only the
+   horizontal overflow of the backdrop is clipped. */
 .hosted-shell {
   min-height: 100vh;
   position: relative;
@@ -111,6 +111,50 @@ body {
   .hosted-footer {
     flex-direction: column;
     gap: 10px !important;
+  }
+}
+
+/* Setup pages: the layout of the platform administrator setup page (pages/SetupLayout.tsx), with the
+   same widths, gaps and breakpoints (the md and sm breakpoints of the design tokens: 900px, 600px). */
+.hosted-setup-shell {
+  min-height: 100vh;
+  padding: 32px 16px;
+}
+
+.hosted-setup-content {
+  width: 100%;
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+.hosted-setup-password-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 32px;
+  align-items: stretch;
+}
+
+.hosted-setup-totp-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .hosted-setup-password-grid,
+  .hosted-setup-totp-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hosted-setup-panel {
+    padding: 16px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .hosted-setup-shell {
+    padding: 16px 4px;
   }
 }
 
