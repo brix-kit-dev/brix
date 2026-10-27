@@ -31,6 +31,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 import io.runtime.sdk.capability.UnitOfWork;
 
@@ -57,6 +58,7 @@ final class OwnerUnitOfWork implements UnitOfWork {
     private final PersistenceFailureTranslator failureTranslator;
     private final TransactionTemplate readWriteTransactions;
     private final TransactionTemplate readOnlyTransactions;
+    private final OwnerTenantTables tenantTables;
 
     OwnerUnitOfWork(
             String ownerId,
@@ -64,8 +66,10 @@ final class OwnerUnitOfWork implements UnitOfWork {
             EntityManager sharedEntityManager,
             PlatformTransactionManager transactionManager,
             Duration transactionTimeout,
-            PersistenceFailureTranslator failureTranslator) {
+            PersistenceFailureTranslator failureTranslator,
+            OwnerTenantTables tenantTables) {
         this.ownerId = Objects.requireNonNull(ownerId, "ownerId must not be null");
+        this.tenantTables = Objects.requireNonNull(tenantTables, "tenantTables must not be null");
         this.entityManagerFactory = Objects.requireNonNull(entityManagerFactory, "entityManagerFactory must not be null");
         this.sharedEntityManager = Objects.requireNonNull(sharedEntityManager, "sharedEntityManager must not be null");
         this.failureTranslator = Objects.requireNonNull(failureTranslator, "failureTranslator must not be null");
@@ -103,7 +107,10 @@ final class OwnerUnitOfWork implements UnitOfWork {
         EntityManagerHolder requestEntityManager = detachRequestEntityManager();
         try {
             return transactions.execute(status -> {
-                OwnerTransactionScope scope = OwnerTransactionScope.open(ownerId, readOnly, status);
+                // A new transaction binds the scope the runtime requested; a joined one keeps its own.
+                TenantScopeState tenancy = new TenantScopeState(TenantScopes.requested(), tenantTables);
+                OwnerTransactionScope scope = OwnerTransactionScope.open(ownerId, readOnly, status, tenancy);
+                tenancy.syncFilters(session());
                 if (!readOnly) {
                     return work.get();
                 }
@@ -145,13 +152,18 @@ final class OwnerUnitOfWork implements UnitOfWork {
     /**
      * An entity manager bound outside any transaction belongs to the request, not to this owner. It
      * is detached so the owner transaction gets its own persistence context, and rebound afterwards.
+     *
+     * <p>A holder still synchronized with a transaction belongs to a transaction that is
+     * completing: a commit callback, such as an after-commit event listener, starts this unit of
+     * work. It stays bound so that Spring suspends it with its connection. Spring reports no actual
+     * transaction there once an earlier unit of work of the same callback has finished.</p>
      */
     private EntityManagerHolder detachRequestEntityManager() {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             return null;
         }
         Object resource = TransactionSynchronizationManager.getResource(entityManagerFactory);
-        if (resource instanceof EntityManagerHolder holder) {
+        if (resource instanceof EntityManagerHolder holder && !holder.isSynchronizedWithTransaction()) {
             TransactionSynchronizationManager.unbindResource(entityManagerFactory);
             return holder;
         }

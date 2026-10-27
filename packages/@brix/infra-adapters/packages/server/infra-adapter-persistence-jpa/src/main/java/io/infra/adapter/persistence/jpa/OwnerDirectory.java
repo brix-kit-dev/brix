@@ -22,12 +22,15 @@ import java.security.CodeSource;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
 
 import io.runtime.manifest.loader.ManifestLoadException;
 import io.runtime.manifest.loader.PluginManifestLoader;
@@ -121,15 +124,29 @@ final class OwnerDirectory {
      * @param ownerId plugin id
      * @param storageId manifest {@code data.storageId}, or {@code null} when the plugin owns no data
      * @param declaresPersistence whether the manifest declares {@link PersistenceCapability}
+     * @param custodianTables manifest {@code data.outbox} and {@code data.inbox} tables
      */
-    record OwnerDeclaration(String ownerId, String storageId, boolean declaresPersistence) {
+    record OwnerDeclaration(
+            String ownerId, String storageId, boolean declaresPersistence, Set<String> custodianTables) {
+
+        OwnerDeclaration {
+            custodianTables = Set.copyOf(custodianTables);
+        }
 
         static OwnerDeclaration of(PluginManifest manifest) {
-            String storageId = manifest.getData() == null ? null : manifest.getData().getStorageId();
+            PluginManifest.DataSection data = manifest.getData();
+            Set<String> custodianTables = new LinkedHashSet<>();
+            if (data != null) {
+                Stream.of(data.getOutbox(), data.getInbox())
+                    .filter(table -> table != null && !table.isBlank())
+                    .map(OwnerTenantTables::normalize)
+                    .forEach(custodianTables::add);
+            }
             return new OwnerDeclaration(
                 manifest.getMetadata().getPluginId(),
-                storageId,
-                declaresPersistence(manifest));
+                data == null ? null : data.getStorageId(),
+                declaresPersistence(manifest),
+                custodianTables);
         }
 
         private static boolean declaresPersistence(PluginManifest manifest) {

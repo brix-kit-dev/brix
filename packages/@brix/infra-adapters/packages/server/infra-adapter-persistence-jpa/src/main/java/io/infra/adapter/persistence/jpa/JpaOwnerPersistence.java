@@ -69,7 +69,7 @@ final class JpaOwnerPersistence implements PersistenceCapability {
         this.repositoryFactory = new JpaRepositoryFactory(
             Objects.requireNonNull(sharedEntityManager, "sharedEntityManager must not be null"));
         this.repositoryFactory.addRepositoryProxyPostProcessor((proxyFactory, repositoryInformation) ->
-            proxyFactory.addAdvice(new OwnerRepositoryInterceptor(ownerId, failureTranslator)));
+            proxyFactory.addAdvice(new OwnerRepositoryInterceptor(ownerId, sharedEntityManager, failureTranslator)));
     }
 
     @Override

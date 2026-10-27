@@ -9,6 +9,7 @@ package io.infra.adapter.persistence.jpa.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
@@ -22,16 +23,20 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import io.infra.adapter.persistence.jpa.fixture.OwnedNote;
-import io.infra.adapter.persistence.jpa.fixture.OwnedNoteRepository;
+import io.infra.adapter.persistence.jpa.config.tenant.TenantRecord;
+import io.infra.adapter.persistence.jpa.config.tenant.TenantRecordRepository;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.persistence.TenantScope;
+import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 
 class JpaPersistenceAutoConfigurationTest {
 
     private final ApplicationContextRunner jpaRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(
             DataSourceAutoConfiguration.class,
+            TenantStatementVerifierAutoConfiguration.class,
             HibernateJpaAutoConfiguration.class,
             JpaPersistenceAutoConfiguration.class))
         .withPropertyValues(
@@ -55,16 +60,32 @@ class JpaPersistenceAutoConfigurationTest {
     }
 
     @Test
-    void ownerRepositoriesWorkThroughTheInjectedCapability() {
+    void ownerRepositoriesWorkInsideTheirTenant() {
         contextRunner.run(context -> {
             PersistenceCapability persistence = context.getBean(OwnerModuleConfiguration.InjectedPersistence.class)
                 .persistence();
-            OwnedNoteRepository notes = persistence.repository(OwnedNoteRepository.class);
+            TenantRecordRepository records = persistence.repository(TenantRecordRepository.class);
 
-            persistence.unitOfWork().required(() -> notes.save(new OwnedNote(1L, "n-1", "stored")));
+            TenantScopes.within(TenantScope.tenant(7L), () -> persistence.unitOfWork()
+                .required(() -> records.save(new TenantRecord(1L, 7L, "stored"))));
 
-            assertEquals("stored", persistence.unitOfWork()
-                .readOnly(() -> notes.findByCode("n-1").orElseThrow().getText()));
+            assertEquals("stored", TenantScopes.within(TenantScope.tenant(7L), () -> persistence.unitOfWork()
+                .readOnly(() -> records.findByLabel("stored").orElseThrow().getLabel())));
+            assertFalse(TenantScopes.within(TenantScope.tenant(8L), () -> persistence.unitOfWork()
+                .readOnly(() -> records.findByLabel("stored").isPresent())));
+        });
+    }
+
+    @Test
+    void tenantRowsNeedATenantScope() {
+        contextRunner.run(context -> {
+            PersistenceCapability persistence = context.getBean(OwnerModuleConfiguration.InjectedPersistence.class)
+                .persistence();
+            TenantRecordRepository records = persistence.repository(TenantRecordRepository.class);
+
+            PersistenceCapabilityException failure = assertThrows(PersistenceCapabilityException.class,
+                () -> persistence.unitOfWork().readOnly(() -> records.findByLabel("stored")));
+            assertEquals(PersistenceCapabilityException.Code.TENANT_SCOPE_REQUIRED, failure.code());
         });
     }
 
@@ -86,7 +107,7 @@ class JpaPersistenceAutoConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @EntityScan(basePackageClasses = OwnedNote.class)
+    @EntityScan(basePackageClasses = TenantRecord.class)
     static class OwnerModuleConfiguration {
 
         @Bean

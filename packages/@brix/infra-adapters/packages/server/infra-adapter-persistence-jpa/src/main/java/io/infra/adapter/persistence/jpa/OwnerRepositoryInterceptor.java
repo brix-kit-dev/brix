@@ -18,8 +18,11 @@ package io.infra.adapter.persistence.jpa;
 import java.util.Map;
 import java.util.Objects;
 
+import jakarta.persistence.EntityManager;
+
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.hibernate.Session;
 
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 
@@ -28,26 +31,35 @@ import io.runtime.sdk.capability.PersistenceCapabilityException;
  *
  * <p>A repository may only be used inside a unit of work of its own owner (root blueprint
  * BRX-RS-DATA-028), which also prevents one owner's repository from running in another owner's
- * transaction. Failures are translated into stable error codes (BRX-RS-DATA-042).</p>
+ * transaction. Before each call the session's tenant filters are brought in line with the
+ * transaction's tenant scope, including tenants a policy has just bound (BRX-RS-DATA-040).
+ * Failures are translated into stable error codes (BRX-RS-DATA-042).</p>
  */
 final class OwnerRepositoryInterceptor implements MethodInterceptor {
 
     private final String ownerId;
+    private final EntityManager sharedEntityManager;
     private final PersistenceFailureTranslator failureTranslator;
 
-    OwnerRepositoryInterceptor(String ownerId, PersistenceFailureTranslator failureTranslator) {
+    OwnerRepositoryInterceptor(
+            String ownerId,
+            EntityManager sharedEntityManager,
+            PersistenceFailureTranslator failureTranslator) {
         this.ownerId = Objects.requireNonNull(ownerId, "ownerId must not be null");
+        this.sharedEntityManager = Objects.requireNonNull(sharedEntityManager, "sharedEntityManager must not be null");
         this.failureTranslator = Objects.requireNonNull(failureTranslator, "failureTranslator must not be null");
     }
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
-        if (OwnerTransactionScope.joinable(ownerId) == null) {
+        OwnerTransactionScope scope = OwnerTransactionScope.joinable(ownerId);
+        if (scope == null) {
             throw new PersistenceCapabilityException(
                 PersistenceCapabilityException.Code.UNIT_OF_WORK_MISSING,
                 Map.of("owner", ownerId));
         }
         try {
+            scope.tenancy().syncFilters(sharedEntityManager.unwrap(Session.class));
             return invocation.proceed();
         } catch (RuntimeException failure) {
             throw failureTranslator.translateRepositoryFailure(ownerId, failure);

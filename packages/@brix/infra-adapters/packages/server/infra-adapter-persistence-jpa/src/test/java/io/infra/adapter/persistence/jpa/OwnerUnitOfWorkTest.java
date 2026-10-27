@@ -166,4 +166,25 @@ class OwnerUnitOfWorkTest {
         assertEquals(2L, environment.count(OwnedNote.class));
         assertTrue(unitOfWork.readOnly(() -> notes.findByCode("n-2")).isPresent());
     }
+
+    @Test
+    void unitsOfWorkStartedOneAfterAnotherFromACompletionCallbackEachRunInTheirOwnTransaction() {
+        UnitOfWork otherOwner = environment.unitOfWork("owner-b");
+
+        // As an after-commit event listener does: read from one owner, then write in another.
+        unitOfWork.required(() -> {
+            notes.save(new OwnedNote(1L, "n-1", "first"));
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    otherOwner.readOnly(() -> null);
+                    unitOfWork.required(() -> notes.save(new OwnedNote(2L, "n-2", "after completion")));
+                }
+            });
+            return null;
+        });
+
+        assertEquals(2L, environment.count(OwnedNote.class));
+        assertTrue(unitOfWork.readOnly(() -> notes.findByCode("n-2")).isPresent());
+    }
 }

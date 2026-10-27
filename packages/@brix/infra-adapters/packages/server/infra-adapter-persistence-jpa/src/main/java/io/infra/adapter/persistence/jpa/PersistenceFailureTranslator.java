@@ -74,7 +74,8 @@ final class PersistenceFailureTranslator {
      * errors, so anything that is not already translated becomes {@link Code#FAILURE}.</p>
      */
     PersistenceCapabilityException translateRepositoryFailure(String ownerId, RuntimeException failure) {
-        if (failure instanceof PersistenceCapabilityException translated) {
+        PersistenceCapabilityException translated = translatedCause(failure);
+        if (translated != null) {
             return translated;
         }
         DataAccessException dataAccess = failure instanceof DataAccessException known
@@ -89,6 +90,10 @@ final class PersistenceFailureTranslator {
      * <p>Failures of the work itself, such as business exceptions, are returned unchanged.</p>
      */
     RuntimeException translateUnitOfWorkFailure(String ownerId, RuntimeException failure) {
+        PersistenceCapabilityException translated = translatedCause(failure);
+        if (translated != null) {
+            return translated;
+        }
         if (failure instanceof DataAccessException dataAccess) {
             return translate(ownerId, failure, dataAccess);
         }
@@ -96,6 +101,22 @@ final class PersistenceFailureTranslator {
             return translate(ownerId, failure, null);
         }
         return failure;
+    }
+
+    /**
+     * Finds an already translated failure, also when Hibernate or Spring wrapped it: the tenant
+     * guard raises one from inside a flush, and its code must survive the wrapping.
+     */
+    private static PersistenceCapabilityException translatedCause(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof PersistenceCapabilityException translated) {
+                return translated;
+            }
+            if (cause.getCause() == cause) {
+                break;
+            }
+        }
+        return null;
     }
 
     private PersistenceCapabilityException translate(

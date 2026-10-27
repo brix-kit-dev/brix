@@ -23,8 +23,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import javax.sql.DataSource;
@@ -89,17 +92,25 @@ final class OwnerPersistenceValidator implements AutoCloseable {
         AvailableSettings.JAKARTA_JTA_DATASOURCE,
         AvailableSettings.JAKARTA_NON_JTA_DATASOURCE);
 
+    private static final Pattern JPQL_INSERT = Pattern.compile("^insert\\s+into\\s+([a-z_][a-z0-9_.$]*)");
+    private static final Pattern JPQL_UPDATE = Pattern.compile(
+        "^update\\s+([a-z_][a-z0-9_.$]*)(?:\\s+(?:as\\s+)?([a-z_][a-z0-9_$]*))?\\s+set\\s+(.*?)(?:\\bwhere\\b|$)",
+        Pattern.DOTALL);
+
     private final String ownerId;
     private final Set<Class<?>> ownerTypes;
     private final EntityManagerFactory validationEntityManagerFactory;
+    private final OwnerTenantTables tenantTables;
 
     private OwnerPersistenceValidator(
             String ownerId,
             Set<Class<?>> ownerTypes,
-            EntityManagerFactory validationEntityManagerFactory) {
+            EntityManagerFactory validationEntityManagerFactory,
+            OwnerTenantTables tenantTables) {
         this.ownerId = ownerId;
         this.ownerTypes = ownerTypes;
         this.validationEntityManagerFactory = validationEntityManagerFactory;
+        this.tenantTables = tenantTables;
     }
 
     /**
@@ -110,6 +121,8 @@ final class OwnerPersistenceValidator implements AutoCloseable {
      * @param applicationEntityManagerFactory the shared persistence unit whose settings are reused
      * @param dataSource data source used for schema validation
      * @param validateSchema whether the owner's tables are checked against the database
+     * @param globalTables tables without {@code tenant_id} that multi-tenant §6.1 registers
+     * @param custodianTables outbox and inbox tables the owner's manifest declares
      * @return the validator
      */
     static OwnerPersistenceValidator create(
@@ -117,12 +130,14 @@ final class OwnerPersistenceValidator implements AutoCloseable {
             Set<Class<?>> ownerTypes,
             EntityManagerFactory applicationEntityManagerFactory,
             DataSource dataSource,
-            boolean validateSchema) {
+            boolean validateSchema,
+            Set<String> globalTables,
+            Set<String> custodianTables) {
         Objects.requireNonNull(ownerId, "ownerId must not be null");
         Set<Class<?>> types = Set.copyOf(Objects.requireNonNull(ownerTypes, "ownerTypes must not be null"));
         types.forEach(type -> checkManagedType(ownerId, type));
         if (types.isEmpty()) {
-            return new OwnerPersistenceValidator(ownerId, types, null);
+            return new OwnerPersistenceValidator(ownerId, types, null, OwnerTenantTables.none(ownerId));
         }
         LocalContainerEntityManagerFactoryBean factory = new LocalContainerEntityManagerFactoryBean();
         factory.setPersistenceUnitName("brix-owner-validation:" + ownerId);
@@ -138,7 +153,20 @@ final class OwnerPersistenceValidator implements AutoCloseable {
         } catch (RuntimeException failure) {
             throw rejected(ownerId, "owner persistence unit failed validation", failure);
         }
-        return new OwnerPersistenceValidator(ownerId, types, factory.getObject());
+        EntityManagerFactory validation = factory.getObject();
+        OwnerTenantTables tenantTables;
+        try {
+            tenantTables = OwnerTenantTables.classify(ownerId, types, validation, globalTables, custodianTables);
+        } catch (RuntimeException failure) {
+            validation.close();
+            throw failure;
+        }
+        return new OwnerPersistenceValidator(ownerId, types, validation, tenantTables);
+    }
+
+    /** How the tenant filter treats each of the owner's tables. */
+    OwnerTenantTables tenantTables() {
+        return tenantTables;
     }
 
     /**
@@ -191,6 +219,39 @@ final class OwnerPersistenceValidator implements AutoCloseable {
             throw rejected(ownerId, location
                 + " clears the persistence context without flushing it first", null);
         }
+        if (modifying != null && query != null) {
+            checkTenantWrite(location, query.value());
+        }
+    }
+
+    /**
+     * Rejects the two JPQL writes the tenant filter cannot contain: an update that assigns the
+     * tenant attribute moves rows to another tenant, and an insert writes rows the entity
+     * listeners never see, so either can reach any tenant (root BRX-RS-DATA-040).
+     */
+    private void checkTenantWrite(String location, String jpql) {
+        String statement = jpql.trim().toLowerCase(Locale.ROOT);
+        Matcher insert = JPQL_INSERT.matcher(statement);
+        if (insert.find() && tenantTables.tenantAttribute(entityName(insert.group(1))).isPresent()) {
+            throw rejected(ownerId, location + " inserts into a tenant entity with a bulk query", null);
+        }
+        Matcher update = JPQL_UPDATE.matcher(statement);
+        if (update.find()) {
+            String alias = update.group(2);
+            String assignments = update.group(3);
+            tenantTables.tenantAttribute(entityName(update.group(1))).ifPresent(attribute -> {
+                String target = (alias == null || "set".equals(alias) ? "" : Pattern.quote(alias) + "\\.")
+                    + Pattern.quote(attribute.toLowerCase(Locale.ROOT));
+                if (Pattern.compile("(?:^|[,\\s])" + target + "\\s*=").matcher(assignments).find()) {
+                    throw rejected(ownerId, location + " assigns the tenant attribute in a bulk update", null);
+                }
+            });
+        }
+    }
+
+    private static String entityName(String reference) {
+        int dot = reference.lastIndexOf('.');
+        return dot >= 0 ? reference.substring(dot + 1) : reference;
     }
 
     private static void checkManagedType(String ownerId, Class<?> type) {

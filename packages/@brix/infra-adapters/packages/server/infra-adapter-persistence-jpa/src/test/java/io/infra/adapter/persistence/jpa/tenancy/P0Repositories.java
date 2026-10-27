@@ -61,10 +61,18 @@ public final class P0Repositories {
         @Modifying(clearAutomatically = true, flushAutomatically = true)
         @Query("delete from P0Note n where n.text like :prefix")
         int bulkDeleteNotes(@Param("prefix") String prefix);
+    }
+
+    /** Assigns the tenant in a bulk update; rejected when the repository is created. */
+    public interface TenantMovingRepository extends JpaRepository<P0Doc, Long> {
 
         @Modifying(clearAutomatically = true, flushAutomatically = true)
         @Query("update P0Doc d set d.tenantId = :tenant")
         int bulkMoveToTenant(@Param("tenant") Long tenant);
+    }
+
+    /** Inserts tenant rows with a bulk query; rejected when the repository is created. */
+    public interface TenantCopyingRepository extends JpaRepository<P0Note, Long> {
 
         @Modifying(clearAutomatically = true, flushAutomatically = true)
         @Query("insert into P0Note (id, tenantId, text) select d.id + 5000, :tenant, d.title from P0Doc d")
@@ -92,6 +100,15 @@ public final class P0Repositories {
     }
 
     public interface GlobalRepository extends JpaRepository<P0Global, Long> {
+    }
+
+    public interface MemberRepository extends JpaRepository<P0Member, Long> {
+    }
+
+    public interface TenantRegistryRepository extends JpaRepository<P0Tenant, Long> {
+    }
+
+    public interface ProjectionRepository extends JpaRepository<P0Projection, Long> {
     }
 
     public interface TitleView {

@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.sql.DataSource;
 
@@ -29,6 +31,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import io.infra.adapter.persistence.jpa.fixture.ForeignNote;
 import io.infra.adapter.persistence.jpa.fixture.OwnedNote;
+import io.runtime.orchestrator.persistence.TenantIsolationRegister;
 
 /**
  * A shared JPA persistence unit on an in-memory database, set up the way the host sets it up.
@@ -36,6 +39,12 @@ import io.infra.adapter.persistence.jpa.fixture.OwnedNote;
 final class JpaTestEnvironment implements AutoCloseable {
 
     static final Duration TRANSACTION_TIMEOUT = Duration.ofSeconds(5);
+
+    /** Fixture tables without tenant_id; production only accepts the global tables of multi-tenant §6.1. */
+    static final Set<String> GLOBAL_TABLES = Stream.concat(
+            TenantIsolationRegister.GLOBAL_TABLES.stream(),
+            Stream.of("owned_note", "foreign_note", "linked_note", "pinned_note", "generated_note", "formula_note"))
+        .collect(Collectors.toUnmodifiableSet());
 
     final DataSource dataSource;
     final EntityManagerFactory entityManagerFactory;
@@ -68,12 +77,13 @@ final class JpaTestEnvironment implements AutoCloseable {
             sharedEntityManager,
             transactionManager,
             TRANSACTION_TIMEOUT,
-            failureTranslator);
+            failureTranslator,
+            OwnerTenantTables.none(ownerId));
     }
 
     JpaOwnerPersistence persistence(String ownerId, Set<Class<?>> ownerTypes) {
         OwnerPersistenceValidator validator = OwnerPersistenceValidator.create(
-            ownerId, ownerTypes, entityManagerFactory, dataSource, true);
+            ownerId, ownerTypes, entityManagerFactory, dataSource, true, GLOBAL_TABLES, Set.of());
         return new JpaOwnerPersistence(
             ownerId,
             type -> ownerId,

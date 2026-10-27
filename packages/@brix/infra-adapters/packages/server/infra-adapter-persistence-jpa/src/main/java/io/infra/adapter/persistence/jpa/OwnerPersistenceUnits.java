@@ -40,6 +40,7 @@ import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.persistence.TenantIsolationRegister;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 
@@ -63,6 +64,7 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     private final OwnerDirectory owners;
     private final EntityManager sharedEntityManager;
     private final PersistenceFailureTranslator failureTranslator;
+    private final Set<String> globalTables;
     private final ConcurrentMap<String, JpaOwnerPersistence> units = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, OwnerPersistenceValidator> validators = new ConcurrentHashMap<>();
 
@@ -83,6 +85,23 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             Duration transactionTimeout,
             boolean validateSchema,
             ClassLoader classLoader) {
+        this(entityManagerFactory, transactionManager, dataSource, transactionTimeout, validateSchema, classLoader,
+            TenantIsolationRegister.GLOBAL_TABLES);
+    }
+
+    /**
+     * Creates the owner persistence registry with an explicit list of global tables; production
+     * uses the list of multi-tenant §6.1, tests add the tables of their fixtures.
+     */
+    OwnerPersistenceUnits(
+            EntityManagerFactory entityManagerFactory,
+            JpaTransactionManager transactionManager,
+            DataSource dataSource,
+            Duration transactionTimeout,
+            boolean validateSchema,
+            ClassLoader classLoader,
+            Set<String> globalTables) {
+        this.globalTables = Set.copyOf(Objects.requireNonNull(globalTables, "globalTables must not be null"));
         this.entityManagerFactory = Objects.requireNonNull(entityManagerFactory, "entityManagerFactory must not be null");
         this.transactionManager = Objects.requireNonNull(transactionManager, "transactionManager must not be null");
         if (transactionManager.getEntityManagerFactory() != entityManagerFactory) {
@@ -139,7 +158,8 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     private JpaOwnerPersistence create(OwnerDeclaration owner) {
         Set<Class<?>> ownerTypes = managedTypesOf(owner.ownerId());
         OwnerPersistenceValidator validator = OwnerPersistenceValidator.create(
-            owner.ownerId(), ownerTypes, entityManagerFactory, dataSource, validateSchema);
+            owner.ownerId(), ownerTypes, entityManagerFactory, dataSource, validateSchema,
+            globalTables, owner.custodianTables());
         validators.put(owner.ownerId(), validator);
         OwnerUnitOfWork unitOfWork = new OwnerUnitOfWork(
             owner.ownerId(),
@@ -147,9 +167,10 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             sharedEntityManager,
             transactionManager,
             transactionTimeout,
-            failureTranslator);
-        log.info("Owner persistence unit '{}' ready with {} managed types (storageId={})",
-            owner.ownerId(), ownerTypes.size(), owner.storageId());
+            failureTranslator,
+            validator.tenantTables());
+        log.info("Owner persistence unit '{}' ready with {} managed types and tenant tables {} (storageId={})",
+            owner.ownerId(), ownerTypes.size(), validator.tenantTables().tenantTables(), owner.storageId());
         return new JpaOwnerPersistence(
             owner.ownerId(),
             type -> owners.ownerOf(type).map(OwnerDeclaration::ownerId).orElse(null),

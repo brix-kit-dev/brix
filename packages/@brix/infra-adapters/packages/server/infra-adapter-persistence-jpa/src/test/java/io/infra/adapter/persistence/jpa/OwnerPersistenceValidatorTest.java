@@ -129,7 +129,8 @@ class OwnerPersistenceValidatorTest {
 
     private OwnerPersistenceValidator validator(Set<Class<?>> ownerTypes, boolean validateSchema) {
         return OwnerPersistenceValidator.create(
-            "owner-a", ownerTypes, environment.entityManagerFactory, environment.dataSource, validateSchema);
+            "owner-a", ownerTypes, environment.entityManagerFactory, environment.dataSource, validateSchema,
+            JpaTestEnvironment.GLOBAL_TABLES, Set.of());
     }
 
     private static void assertRejected(Executable executable, String reason) {

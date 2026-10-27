@@ -11,9 +11,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** Tenant table reached by a secret key or by invitee e-mail, like sys_tenant_invitation. */
+/** Maps the keyed table of the invitation policies (multi-tenant §6.4). */
 @Entity(name = "P0Invite")
-@Table(name = "p0_invite")
+@Table(name = "sys_tenant_invitation")
 public class P0Invite {
 
     @Id

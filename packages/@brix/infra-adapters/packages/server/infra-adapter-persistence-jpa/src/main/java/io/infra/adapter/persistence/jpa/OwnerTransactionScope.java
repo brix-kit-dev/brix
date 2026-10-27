@@ -34,23 +34,27 @@ final class OwnerTransactionScope implements TransactionSynchronization {
     private final String ownerId;
     private final boolean transactionReadOnly;
     private final TransactionStatus status;
+    private final TenantScopeState tenancy;
     private int readOnlySections;
     private boolean completing;
 
-    private OwnerTransactionScope(String ownerId, boolean transactionReadOnly, TransactionStatus status) {
+    private OwnerTransactionScope(
+            String ownerId, boolean transactionReadOnly, TransactionStatus status, TenantScopeState tenancy) {
         this.ownerId = ownerId;
         this.transactionReadOnly = transactionReadOnly;
         this.status = status;
+        this.tenancy = tenancy;
     }
 
     /**
      * Binds a new scope to the transaction that has just been started for {@code ownerId}.
      */
-    static OwnerTransactionScope open(String ownerId, boolean readOnly, TransactionStatus status) {
+    static OwnerTransactionScope open(
+            String ownerId, boolean readOnly, TransactionStatus status, TenantScopeState tenancy) {
         if (TransactionSynchronizationManager.hasResource(RESOURCE_KEY)) {
             throw new IllegalStateException("An owner unit of work is already bound to this transaction");
         }
-        OwnerTransactionScope scope = new OwnerTransactionScope(ownerId, readOnly, status);
+        OwnerTransactionScope scope = new OwnerTransactionScope(ownerId, readOnly, status, tenancy);
         TransactionSynchronizationManager.bindResource(RESOURCE_KEY, scope);
         TransactionSynchronizationManager.registerSynchronization(scope);
         return scope;
@@ -70,6 +74,23 @@ final class OwnerTransactionScope implements TransactionSynchronization {
             return scope;
         }
         return null;
+    }
+
+    /**
+     * Returns the owner transaction active on this thread, whichever owner it belongs to. Unlike
+     * {@link #joinable(String)} it still returns a completing transaction: Spring signals
+     * completion before the commit flushes, and the flushed writes belong to this scope.
+     *
+     * @return the scope, or {@code null} outside owner units of work
+     */
+    static OwnerTransactionScope current() {
+        Object resource = TransactionSynchronizationManager.getResource(RESOURCE_KEY);
+        return resource instanceof OwnerTransactionScope scope ? scope : null;
+    }
+
+    /** The tenant scope this transaction is bound to. */
+    TenantScopeState tenancy() {
+        return tenancy;
     }
 
     boolean readOnly() {
