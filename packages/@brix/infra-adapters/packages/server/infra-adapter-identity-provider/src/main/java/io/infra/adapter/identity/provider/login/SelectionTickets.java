@@ -39,10 +39,15 @@ final class SelectionTickets {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
-    String issue(LoginTransaction transaction, String contextId) {
+    /**
+     * Issues a one-time ticket for a context the login offered; the context's tenant travels with
+     * it, so redeeming resolves the context inside that tenant (multi-tenant §6.4).
+     */
+    String issue(LoginTransaction transaction, String contextId, Long tenantId) {
         String ticket = Secrets.randomToken(32);
         store.put(TICKET + Secrets.sha256(ticket), new Ticket(transaction.id(), transaction.identityId(),
-                transaction.ticketGeneration(), contextId, clock.instant().plus(TTL).getEpochSecond()), TTL);
+                transaction.ticketGeneration(), contextId, tenantId,
+                clock.instant().plus(TTL).getEpochSecond()), TTL);
         return ticket;
     }
 
@@ -61,29 +66,31 @@ final class SelectionTickets {
         boolean bound = value.transactionId().equals(transaction.id())
                 && value.identityId().equals(transaction.identityId())
                 && value.generation() == transaction.ticketGeneration()
+                && value.tenantId() != null
                 && clock.instant().getEpochSecond() < value.expiresAt();
-        return bound ? Redemption.of(value.contextId()) : Redemption.invalid();
+        return bound ? Redemption.of(value.contextId(), value.tenantId()) : Redemption.invalid();
     }
 
-    record Ticket(String transactionId, Long identityId, int generation, String contextId, long expiresAt) {
+    record Ticket(String transactionId, Long identityId, int generation, String contextId, Long tenantId,
+            long expiresAt) {
         @Override
         public String toString() {
             return "Ticket{generation=" + generation + ", expiresAt=" + expiresAt + "}";
         }
     }
 
-    record Redemption(String contextId, boolean replayed) {
+    record Redemption(String contextId, Long tenantId, boolean replayed) {
 
-        static Redemption of(String contextId) {
-            return new Redemption(contextId, false);
+        static Redemption of(String contextId, Long tenantId) {
+            return new Redemption(contextId, tenantId, false);
         }
 
         static Redemption invalid() {
-            return new Redemption(null, false);
+            return new Redemption(null, null, false);
         }
 
         static Redemption replay() {
-            return new Redemption(null, true);
+            return new Redemption(null, null, true);
         }
 
         boolean valid() {

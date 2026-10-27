@@ -137,7 +137,8 @@ public class BffController {
             return failure("token_exchange_failed");
         }
         Jwt idToken = tokenSet.idToken();
-        Optional<TenantMembershipRecord> membership = tenants.findMembershipByContextId(idToken.getClaimAsString("cid"))
+        Optional<TenantMembershipRecord> membership = tenantOf(idToken)
+                .flatMap(tenantId -> tenants.findMembershipByContext(tenantId, idToken.getClaimAsString("cid")))
                 .filter(record -> String.valueOf(record.identityId()).equals(idToken.getSubject()));
         String target = pending.get().targetContextId();
         if (membership.isEmpty() || (target != null && !target.equals(membership.get().contextId()))) {
@@ -197,9 +198,10 @@ public class BffController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "csrf_invalid"));
         }
         String target = body == null ? null : body.contextId();
-        boolean sameIdentityActorContext = target != null && !target.equals(session.contextId())
-                && activeMemberships(session.subject()).stream().anyMatch(m -> target.equals(m.contextId()));
-        if (!sameIdentityActorContext) {
+        Optional<TenantMembershipRecord> targetMembership = target == null || target.equals(session.contextId())
+                ? Optional.empty()
+                : activeMemberships(session.subject()).stream().filter(m -> target.equals(m.contextId())).findFirst();
+        if (targetMembership.isEmpty()) {
             audit.warn("event=identity.bff.switch_denied identity={}", session.subject());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "context_not_available"));
         }
@@ -210,7 +212,7 @@ public class BffController {
         sessions.savePending(state, new PendingLogin(codeVerifier, nonce, safeReturnTo(body.returnTo()),
                 Secrets.sha256(binding), clock.instant().getEpochSecond(), target));
         BffCookies.write(response, BffCookies.LOGIN_BINDING, binding, LOGIN_BINDING_TTL, "Lax");
-        switchIntents.expect(session.sid(), target);
+        switchIntents.expect(session.sid(), target, targetMembership.get().tenantId());
         String redirect = tokens.authorizationRequest(state, nonce, codeVerifier,
                 Map.of("prompt", "none", HostedLoginSessionFilter.CONTEXT_PARAMETER, target))
                 .getAuthorizationRequestUri();
@@ -302,6 +304,15 @@ public class BffController {
         }
         id.ifPresent(value -> BffCookies.clear(response, BffCookies.SESSION, "Strict"));
         return ResponseEntity.ok(Map.of("loggedOut", true));
+    }
+
+    /** The tenant the ID token's context belongs to ({@code tid}). */
+    private static Optional<Long> tenantOf(Jwt idToken) {
+        try {
+            return Optional.ofNullable(idToken.getClaimAsString("tid")).map(Long::valueOf);
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
     /** The identity's active Actor contexts, the only ones a switch may target (multi-tenant T-26). */

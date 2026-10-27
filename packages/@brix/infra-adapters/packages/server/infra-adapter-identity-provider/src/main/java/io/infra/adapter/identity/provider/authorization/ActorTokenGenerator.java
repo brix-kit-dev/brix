@@ -128,7 +128,7 @@ public final class ActorTokenGenerator implements OAuth2TokenGenerator<OAuth2Tok
     }
 
     private TenantMembershipRecord activeMembership(HostedLoginAuthentication principal) {
-        return tenants.findMembershipByContextId(principal.getContextId())
+        return tenants.findMembershipByContext(principal.getTenantId(), principal.getContextId())
                 .filter(membership -> MEMBERSHIP_ACTIVE.equals(membership.status()))
                 .filter(membership -> principal.getIdentityId().equals(membership.identityId()))
                 .filter(membership -> principal.getTenantId().equals(membership.tenantId()))

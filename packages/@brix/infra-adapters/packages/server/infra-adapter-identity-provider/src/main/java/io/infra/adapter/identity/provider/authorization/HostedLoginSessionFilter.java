@@ -103,12 +103,12 @@ public final class HostedLoginSessionFilter extends OncePerRequestFilter {
         if (target == null || target.equals(login.getContextId())) {
             return;
         }
-        boolean requestedByBff = intents.consume(login.getSid(), target);
-        Optional<TenantMembershipRecord> membership = requestedByBff
-                ? tenants.findMembershipByContextId(target)
-                        .filter(record -> ACTIVE.equals(record.status()))
-                        .filter(record -> login.getIdentityId().equals(record.identityId()))
-                : Optional.empty();
+        Optional<Long> requestedTenant = intents.consume(login.getSid(), target);
+        boolean requestedByBff = requestedTenant.isPresent();
+        Optional<TenantMembershipRecord> membership = requestedTenant
+                .flatMap(tenantId -> tenants.findMembershipByContext(tenantId, target))
+                .filter(record -> ACTIVE.equals(record.status()))
+                .filter(record -> login.getIdentityId().equals(record.identityId()));
         if (membership.isEmpty()) {
             audit.warn("event=identity.context.switch_denied identity={} requested_by_bff={}",
                     login.getIdentityId(), requestedByBff);

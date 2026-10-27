@@ -23,10 +23,12 @@ class SelectionTicketsTest {
     @Test
     void aTicketIsHighEntropyAndWorksOnceThenCountsAsReplay() {
         LoginTransaction login = login(7L);
-        String ticket = tickets.issue(login, "ctx-a");
+        String ticket = tickets.issue(login, "ctx-a", 31L);
 
         assertThat(ticket).hasSizeGreaterThanOrEqualTo(43).doesNotContain("ctx-a");
-        assertThat(tickets.redeem(ticket, login).contextId()).isEqualTo("ctx-a");
+        SelectionTickets.Redemption redeemed = tickets.redeem(ticket, login);
+        assertThat(redeemed.contextId()).isEqualTo("ctx-a");
+        assertThat(redeemed.tenantId()).isEqualTo(31L);
         SelectionTickets.Redemption again = tickets.redeem(ticket, login);
         assertThat(again.valid()).isFalse();
         assertThat(again.replayed()).isTrue();
@@ -37,14 +39,14 @@ class SelectionTicketsTest {
         LoginTransaction login = login(7L);
         LoginTransaction otherLoginOfTheSameIdentity = login(7L);
 
-        String foreign = tickets.issue(login, "ctx-a");
+        String foreign = tickets.issue(login, "ctx-a", 31L);
         assertThat(tickets.redeem(foreign, otherLoginOfTheSameIdentity).valid()).isFalse();
 
-        String stale = tickets.issue(login, "ctx-a");
+        String stale = tickets.issue(login, "ctx-a", 31L);
         login.nextTicketGeneration();
         assertThat(tickets.redeem(stale, login).valid()).isFalse();
 
-        String late = tickets.issue(login, "ctx-a");
+        String late = tickets.issue(login, "ctx-a", 31L);
         clock.now = clock.now.plus(SelectionTickets.TTL).plusSeconds(1);
         assertThat(tickets.redeem(late, login).valid()).isFalse();
     }

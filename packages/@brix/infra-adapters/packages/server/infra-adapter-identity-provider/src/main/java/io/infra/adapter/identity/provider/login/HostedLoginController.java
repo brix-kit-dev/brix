@@ -298,7 +298,7 @@ public class HostedLoginController {
             return reply(HttpStatus.CONFLICT, STEP_SELECT_TENANT, "ticket_used");
         }
         Optional<TenantMembershipRecord> membership = redemption.valid()
-                ? tenants.findMembershipByContextId(redemption.contextId())
+                ? tenants.findMembershipByContext(redemption.tenantId(), redemption.contextId())
                         .filter(record -> ACTIVE.equals(record.status()))
                         .filter(record -> tx.identityId().equals(record.identityId()))
                 : Optional.empty();
@@ -377,7 +377,7 @@ public class HostedLoginController {
         tx.nextTicketGeneration();
         request.getSession().setAttribute(TRANSACTION, tx);
         return activeMemberships(tx.identityId()).stream()
-                .map(membership -> new ContextOption(tickets.issue(tx, membership.contextId()),
+                .map(membership -> new ContextOption(tickets.issue(tx, membership.contextId(), membership.tenantId()),
                         membership.tenantName(), membership.tenantCode(), membership.memberType()))
                 .toList();
     }

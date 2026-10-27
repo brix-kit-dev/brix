@@ -2,6 +2,7 @@ package io.infra.adapter.identity.provider.support;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Context switches the BFF asked for on behalf of a login session (by {@code sid}). The BFF
@@ -9,6 +10,9 @@ import java.util.Objects;
  * session's own identity; the authorization endpoint switches a login only when it uses up the
  * matching intent. The login session cookie goes along with top-level navigations from any site,
  * so without this a planted link could change the context of a login session.
+ *
+ * <p>The intent carries the tenant of the context, so the switch resolves the context inside that
+ * tenant (multi-tenant §6.4).</p>
  *
  * @since 3.2.0
  */
@@ -24,17 +28,22 @@ public final class ContextSwitchIntents {
         this.store = Objects.requireNonNull(store, "store must not be null");
     }
 
-    public void expect(String sid, String contextId) {
-        if (sid != null && !sid.isBlank() && contextId != null) {
-            store.put(INTENT + Secrets.sha256(sid), contextId, TTL);
+    public void expect(String sid, String contextId, Long tenantId) {
+        if (sid != null && !sid.isBlank() && contextId != null && tenantId != null) {
+            store.put(INTENT + Secrets.sha256(sid), new Intent(contextId, tenantId), TTL);
         }
     }
 
-    /** Uses up the login session's intent; true only when it names this context. */
-    public boolean consume(String sid, String contextId) {
+    /** Uses up the login session's intent; returns the context's tenant only when it names this context. */
+    public Optional<Long> consume(String sid, String contextId) {
         if (sid == null || sid.isBlank() || contextId == null) {
-            return false;
+            return Optional.empty();
         }
-        return store.take(INTENT + Secrets.sha256(sid), String.class).map(contextId::equals).orElse(false);
+        return store.take(INTENT + Secrets.sha256(sid), Intent.class)
+                .filter(intent -> contextId.equals(intent.contextId()))
+                .map(Intent::tenantId);
+    }
+
+    record Intent(String contextId, Long tenantId) {
     }
 }

@@ -26,6 +26,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -275,10 +276,13 @@ public class JwtValidator {
         if (contextId == null || contextId.isBlank()) {
             return;
         }
+        // The context is resolved inside the token's tenant (multi-tenant §6.4); a token whose
+        // tenant does not own the context is stale.
+        Long tenantId = tenantOf(user).orElseThrow(() -> staleAuthz("Context token carries no tenant"));
         if (user.getTokenRole() == TokenRole.ACTOR) {
             long mver = readLongClaim(claims, "mver");
             TenantAccessCapability.TenantMembershipRecord membership =
-                    tenantAccessCapability.findMembershipByContextId(contextId)
+                    tenantAccessCapability.findMembershipByContext(tenantId, contextId)
                             .orElseThrow(() -> staleAuthz("Actor context is no longer active"));
             if (!String.valueOf(membership.identityId()).equals(user.getUserId())
                     || !String.valueOf(membership.memberId()).equals(user.getMemberId())
@@ -288,13 +292,25 @@ public class JwtValidator {
         } else if (user.getTokenRole() == TokenRole.SUBJECT) {
             long pver = readLongClaim(claims, "pver");
             TenantAccessCapability.TenantPrincipalRecord principal =
-                    tenantAccessCapability.findPrincipalshipByContextId(contextId)
+                    tenantAccessCapability.findPrincipalshipByContext(tenantId, contextId)
                             .orElseThrow(() -> staleAuthz("Subject context is no longer active"));
             if (!String.valueOf(principal.identityId()).equals(user.getUserId())
                     || !String.valueOf(principal.principalId()).equals(user.getPrincipalId())
                     || pver != principal.authzVersion()) {
                 throw staleAuthz("Subject authorization version is stale");
             }
+        }
+    }
+
+    private static Optional<Long> tenantOf(AuthenticatedUser user) {
+        String tenantId = user.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Long.valueOf(tenantId.trim()));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
         }
     }
 
