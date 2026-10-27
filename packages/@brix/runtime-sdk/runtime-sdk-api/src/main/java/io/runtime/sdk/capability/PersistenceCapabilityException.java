@@ -57,6 +57,10 @@ public class PersistenceCapabilityException extends BrixException {
         UNIT_OF_WORK_MISSING("persistence.unit_of_work_missing"),
         /** A write was attempted inside a read-only scope. */
         READ_ONLY_VIOLATION("persistence.read_only_violation"),
+        /** Tenant data was reached without a tenant scope bound by the runtime (root BRX-RS-DATA-040). */
+        TENANT_SCOPE_REQUIRED("persistence.tenant_scope_required"),
+        /** A statement or a write left the tenant scope bound to the unit of work. */
+        TENANT_SCOPE_VIOLATION("persistence.tenant_scope_violation"),
         /** The requested repository violates the owner boundary or the persistence API whitelist. */
         REPOSITORY_REJECTED("persistence.repository_rejected"),
         /** Any other persistence failure. */

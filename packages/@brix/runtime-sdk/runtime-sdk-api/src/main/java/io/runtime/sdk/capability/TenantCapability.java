@@ -163,7 +163,11 @@ public interface TenantCapability {
      * @param tenantId the tenant ID to set, must not be null or blank
      * @throws IllegalArgumentException if tenantId is null or blank
      * @since 3.1.0
+     * @deprecated since 3.3.0, removed in 4.0.0. Plugins never set the tenant context
+     *     (multi-tenant T-21); the runtime binds the verified tenant to each unit of work and the
+     *     persistence adapter filters by it. The value set here no longer reaches data access.
      */
+    @Deprecated(since = "3.3.0", forRemoval = true)
     void setCurrentTenantId(String tenantId);
 
     // ==================== v1.2 Blueprint Methods (B2B2C Dual-Track Identity) ====================
