@@ -429,6 +429,57 @@ public final class PluginRuntimeManager {
     }
 
     /**
+     * Returns the plugin whose manifest declares the event type under {@code events.publishes}.
+     *
+     * @param eventType event type
+     * @return the only declaring plugin, or empty when none or several declare it
+     */
+    public synchronized Optional<String> eventPublisher(String eventType) {
+        List<String> publishers = plugins.values().stream()
+            .filter(plugin -> plugin.descriptor.eventPublications().containsKey(eventType))
+            .map(ManagedPlugin::id)
+            .toList();
+        return publishers.size() == 1 ? Optional.of(publishers.get(0)) : Optional.empty();
+    }
+
+    /**
+     * Returns every manifest subscription to the event type, whatever state its plugin is in, with the
+     * handler once the plugin has started and bound it.
+     *
+     * @param eventType event type
+     * @return the declared subscriptions
+     */
+    public synchronized List<EventSubscriber> eventSubscribers(String eventType) {
+        List<EventSubscriber> declared = new ArrayList<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            boolean started = plugin.state.lifecycleState() == PluginLifecycleState.STARTED;
+            for (PluginRuntimeDescriptor.EventSubscription subscription : plugin.descriptor.eventSubscriptions().values()) {
+                if (!subscription.eventType().equals(eventType)) {
+                    continue;
+                }
+                CreatedEventHandler created = started ? plugin.eventHandlers.get(subscription.handlerId()) : null;
+                declared.add(new EventSubscriber(plugin.id(), subscription, created == null
+                    ? null
+                    : new BoundEventHandler(plugin.id(), subscription, created.handler(), created.payloadType())));
+            }
+        }
+        return List.copyOf(declared);
+    }
+
+    /**
+     * A manifest subscription and, once bound, its handler.
+     *
+     * @param pluginId subscriber plugin
+     * @param subscription the manifest subscription
+     * @param handler the bound handler, or {@code null} while the plugin is not started or has not bound it
+     */
+    public record EventSubscriber(
+            String pluginId,
+            PluginRuntimeDescriptor.EventSubscription subscription,
+            BoundEventHandler handler) {
+    }
+
+    /**
      * An event handler a plugin bound for one of its manifest subscriptions.
      *
      * @param pluginId owning plugin
