@@ -20,9 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +45,9 @@ import io.runtime.sdk.event.IntegrationEvent;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
+import io.runtime.sdk.plugin.EventHandler;
+import io.runtime.sdk.plugin.EventInvocation;
+import io.runtime.sdk.plugin.HandlerFactory;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
 import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
@@ -186,6 +192,45 @@ class PluginRuntimeManagerTest {
             List.of("plugin-a"));
 
         assertThrows(PluginRuntimeException.class, manager::start);
+        assertFalse(plugin.started);
+        assertFalse(manager.ready());
+    }
+
+    @Test
+    void aSubscriptionIsServedByTheHandlerItsFactoryCreatedWithThePayloadTypeItNames() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(plugin), Map.of(plugin, subscriber()), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        manager.start();
+
+        List<PluginRuntimeManager.EventSubscriber> subscribers = manager.eventSubscribers("TenantFirstOwnerAccepted");
+        assertEquals(1, subscribers.size());
+        assertEquals("plugin-a", subscribers.get(0).pluginId());
+        assertTrue(subscribers.get(0).handler().handler() instanceof AcceptedHandler);
+        assertEquals(Accepted.class, subscribers.get(0).handler().payloadType());
+    }
+
+    @Test
+    void aHandlerThatDoesNotNameItsPayloadTypeStopsThePlugin() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection.v1", context -> invocation -> CompletableFuture.completedFuture(null));
+        PluginRuntimeManager manager = manager(
+            List.of(plugin), Map.of(plugin, subscriber()), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        assertThrows(PluginRuntimeException.class, manager::start);
+        assertFalse(manager.ready());
+    }
+
+    @Test
+    void aSubscriptionWithoutAHandlerFactoryStopsThePluginBeforeItStarts() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin), Map.of(plugin, subscriber()), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(plugin.configured);
         assertFalse(plugin.started);
         assertFalse(manager.ready());
     }
@@ -408,7 +453,28 @@ class PluginRuntimeManagerTest {
         return registry;
     }
 
+    private static PluginRuntimeDescriptor subscriber() {
+        return PluginRuntimeDescriptor.builder("plugin-a")
+            .data("platform_tenant", "platform_tenant_outbox", "platform_tenant_inbox")
+            .eventSubscription(
+                "projection", "TenantFirstOwnerAccepted", ">=1.0.0 <2.0.0", "projection.v1", "event-standard",
+                "persistent-inbox")
+            .build();
+    }
+
+    record Accepted(Long tenantId) {
+    }
+
+    static final class AcceptedHandler implements EventHandler<Accepted> {
+        @Override
+        public CompletionStage<Void> handle(EventInvocation<Accepted> invocation) {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
     static final class RecordingPlugin implements BrixPlugin {
+
+        private final Map<String, HandlerFactory<? extends EventHandler<?>>> eventHandlers = new LinkedHashMap<>();
 
         private boolean started;
         private boolean configured;
@@ -423,6 +489,7 @@ class PluginRuntimeManagerTest {
             if (endpointId != null) {
                 bootstrap.bindEndpoint(endpointId, request -> "ok");
             }
+            eventHandlers.forEach(bootstrap::bindEventHandlerFactory);
         }
 
         @Override

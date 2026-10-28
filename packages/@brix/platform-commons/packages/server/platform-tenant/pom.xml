@@ -180,7 +180,15 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
-        
+
+        <!-- The runtime's in-process event delivery, to consume this owner's outbox in the chain test -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Architecture Guard for architecture compliance tests -->
         <dependency>
             <groupId>io.brix</groupId>

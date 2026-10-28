@@ -519,6 +519,21 @@ public final class PluginRuntimeManager {
     }
 
     /**
+     * Every manifest subscription needs its handler factory bound in {@code configure} (root
+     * BRX-RS-MANIFEST-013); an unbound one would leave its events waiting in the publisher's outbox.
+     */
+    private static void requireBoundEventSubscriptions(ManagedPlugin plugin, Set<String> boundHandlerIds) {
+        List<String> unbound = plugin.descriptor.eventSubscriptions().keySet().stream()
+            .filter(handlerId -> !boundHandlerIds.contains(handlerId))
+            .sorted()
+            .toList();
+        if (!unbound.isEmpty()) {
+            throw new PluginRuntimeException("Plugin '" + plugin.id()
+                + "' binds no handler factory for its event subscription(s) " + unbound);
+        }
+    }
+
+    /**
      * Returns plugin runtime states.
      *
      * @return immutable runtime state list
@@ -572,6 +587,7 @@ public final class PluginRuntimeManager {
         try {
             DefaultPluginBootstrapContext bootstrapContext = new DefaultPluginBootstrapContext(plugin.descriptor);
             plugin.provider.configure(bootstrapContext);
+            requireBoundEventSubscriptions(plugin, bootstrapContext.eventHandlerFactories().keySet());
             plugin.endpointHandlers = bootstrapContext.endpoints();
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");

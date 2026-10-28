@@ -39,21 +39,16 @@ import io.brix.platform.tenant.outbox.PlatformTenantReliableEventBusCapability;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
-import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
-import io.brix.platform.tenant.repository.PlatformTenantInboxRepository;
 import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
 import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.repository.TenantRepository;
-import io.brix.platform.tenant.service.FirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.FirstOwnerInvitationService;
-import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
 import io.brix.platform.tenant.service.PrincipalAdmissionService;
 import io.brix.platform.tenant.service.PrincipalAdmissionServiceImpl;
 import io.brix.platform.tenant.service.TenantAdministrationService;
-import io.brix.platform.tenant.service.TenantFirstOwnerAcceptedProjectionService;
 import io.brix.platform.tenant.service.TenantProvisioningService;
 import io.brix.platform.tenant.service.TenantProvisioningServiceImpl;
 import io.brix.platform.tenant.service.TenantQuotaService;
@@ -299,37 +294,6 @@ public class TenantAutoConfiguration {
             ObjectMapper objectMapper) {
         return new PlatformTenantReliableEventBusCapability(
             persistence.repository(PlatformTenantOutboxRepository.class), objectMapper);
-    }
-
-    /**
-     * Creates the FIRST_OWNER accepted projection writer.
-     *
-     * @param persistence owner-scoped persistence of platform-tenant
-     * @return projection writer
-     */
-    @Bean
-    @ConditionalOnMissingBean(FirstOwnerProjectionWriter.class)
-    public FirstOwnerProjectionWriter firstOwnerProjectionWriter(PersistenceCapability persistence) {
-        return new JpaFirstOwnerProjectionWriter(
-            persistence.repository(PlatformTenantFirstOwnerProjectionRepository.class));
-    }
-
-    /**
-     * Creates the Consumer Owner handler for {@code TenantFirstOwnerAccepted}.
-     *
-     * @param persistence owner-scoped persistence of platform-tenant
-     * @param projectionWriter projection side-effect writer
-     * @return Consumer handler service
-     */
-    @Bean
-    @ConditionalOnMissingBean(TenantFirstOwnerAcceptedProjectionService.class)
-    public TenantFirstOwnerAcceptedProjectionService tenantFirstOwnerAcceptedProjectionService(
-            PersistenceCapability persistence,
-            FirstOwnerProjectionWriter projectionWriter) {
-        return new TenantFirstOwnerAcceptedProjectionService(
-            persistence.repository(PlatformTenantInboxRepository.class),
-            projectionWriter,
-            persistence.unitOfWork());
     }
 
     /**

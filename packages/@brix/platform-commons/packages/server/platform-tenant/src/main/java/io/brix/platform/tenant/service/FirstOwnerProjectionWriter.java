@@ -6,7 +6,7 @@
  */
 package io.brix.platform.tenant.service;
 
-import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
+import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedPayload;
 
 /**
  * Writes the business side effect for a consumed FIRST_OWNER accepted event.
@@ -20,8 +20,8 @@ public interface FirstOwnerProjectionWriter {
     /**
      * Writes the projection side effect in the active Consumer Owner transaction.
      *
-     * @param messageId canonical message id
-     * @param event accepted-owner event payload
+     * @param eventId the delivered event's id
+     * @param payload accepted-owner event payload
      */
-    void write(String messageId, TenantFirstOwnerAcceptedEvent event);
+    void write(String eventId, TenantFirstOwnerAcceptedPayload payload);
 }

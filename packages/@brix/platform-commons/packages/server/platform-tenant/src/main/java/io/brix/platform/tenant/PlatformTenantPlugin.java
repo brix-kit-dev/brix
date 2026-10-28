@@ -11,7 +11,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import io.brix.platform.tenant.endpoint.AcceptFirstOwnerInvitationHandler;
 import io.brix.platform.tenant.endpoint.TenantSessionHandler;
 import io.brix.platform.tenant.event.FirstOwnerInviteeSetupCompletedHandler;
+import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedProjectionHandler;
 import io.brix.platform.tenant.internal.TenantAdministration;
+import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
+import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
+import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
@@ -28,6 +32,7 @@ public final class PlatformTenantPlugin implements BrixPlugin {
     public static final String ENDPOINT_FIRST_OWNER_ACCEPT = "platform-tenant.first-owner.accept.v1";
     public static final String ENDPOINT_TENANT_SESSION = "platform-tenant.session.v1";
     public static final String HANDLER_FIRST_OWNER_INVITEE_SETUP = "first-owner-invitee-setup.v1";
+    public static final String HANDLER_FIRST_OWNER_PROJECTION = "tenant-first-owner-projection.v1";
 
     private final AtomicReference<TenantAdministration> tenantAdministration = new AtomicReference<>();
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.unknown("Not started"));
@@ -41,6 +46,10 @@ public final class PlatformTenantPlugin implements BrixPlugin {
         bootstrap.bindEventHandlerFactory(
             HANDLER_FIRST_OWNER_INVITEE_SETUP,
             context -> new FirstOwnerInviteeSetupCompletedHandler(tenantAdministration::get));
+        bootstrap.bindEventHandlerFactory(
+            HANDLER_FIRST_OWNER_PROJECTION,
+            context -> new TenantFirstOwnerAcceptedProjectionHandler(new JpaFirstOwnerProjectionWriter(
+                context.require(PersistenceCapability.class).repository(PlatformTenantFirstOwnerProjectionRepository.class))));
     }
 
     @Override

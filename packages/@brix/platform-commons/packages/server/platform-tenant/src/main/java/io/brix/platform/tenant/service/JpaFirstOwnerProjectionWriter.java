@@ -9,7 +9,7 @@ package io.brix.platform.tenant.service;
 import java.util.Objects;
 
 import io.brix.platform.tenant.entity.PlatformTenantFirstOwnerProjection;
-import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedEvent;
+import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedPayload;
 import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
 
 /**
@@ -35,13 +35,13 @@ public final class JpaFirstOwnerProjectionWriter implements FirstOwnerProjection
     }
 
     @Override
-    public void write(String messageId, TenantFirstOwnerAcceptedEvent event) {
-        Objects.requireNonNull(event, "event must not be null");
+    public void write(String eventId, TenantFirstOwnerAcceptedPayload payload) {
+        Objects.requireNonNull(payload, "payload must not be null");
         projectionRepository.save(PlatformTenantFirstOwnerProjection.create(
-            event.tenantIdValue(),
-            messageId,
-            event.memberId(),
-            event.profileId(),
-            event.invitationId()));
+            payload.tenantId(),
+            eventId,
+            payload.memberId(),
+            payload.profileId(),
+            payload.invitationId()));
     }
 }
