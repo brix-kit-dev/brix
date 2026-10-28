@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-audit/policy-use-record/1.0.0",
+  "title": "Cross-tenant policy use, written by the runtime policy audit writer",
+  "description": "The row runtime.tenant-policy-audit inserts into sys_platform_audit_log (root BRX-RS-DATA-045 to DATA-047). Columns are listed by name; id and created_at come from the table defaults. x-brix-classification marks each field (BRX-RS-SECURITY-008, DATA-046).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operator_identity_id",
+    "action",
+    "resource_type",
+    "affected_tenants",
+    "context",
+    "success",
+    "execution_identity",
+    "reason_code",
+    "trace_id",
+    "writer"
+  ],
+  "properties": {
+    "operator_identity_id": { "type": "integer", "x-brix-classification": "pseudonymous-identifier" },
+    "action": { "enum": ["LOGIN_TENANT_DISCOVERY", "FIRST_OWNER_INVITEE_SETUP_FANOUT"], "x-brix-classification": "operational" },
+    "resource_type": { "type": "string", "maxLength": 64, "x-brix-classification": "operational" },
+    "resource_id": { "type": ["string", "null"], "maxLength": 128, "x-brix-classification": "operational" },
+    "affected_tenants": { "type": "array", "items": { "type": "integer" }, "x-brix-classification": "internal-identifier" },
+    "context": {
+      "type": "object",
+      "description": "Typed keys only: entry and matched for discovery, subscription for the resend",
+      "additionalProperties": { "type": ["string", "integer"] },
+      "x-brix-classification": "operational"
+    },
+    "success": { "type": "boolean", "x-brix-classification": "operational" },
+    "error_code": { "type": ["string", "null"], "maxLength": 64, "x-brix-classification": "operational" },
+    "execution_identity": { "type": "string", "maxLength": 128, "x-brix-classification": "operational" },
+    "reason_code": { "type": "string", "maxLength": 64, "x-brix-classification": "operational" },
+    "trace_id": { "type": "string", "maxLength": 64, "x-brix-classification": "technical-identifier" },
+    "source_ip": { "type": ["string", "null"], "maxLength": 64, "x-brix-classification": "personal-masked" },
+    "user_agent": { "type": ["string", "null"], "maxLength": 256, "x-brix-classification": "personal" },
+    "writer": { "const": "runtime.tenant-policy-audit", "x-brix-classification": "operational" }
+  }
+}

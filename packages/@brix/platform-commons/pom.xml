@@ -99,6 +99,10 @@
         <module>packages/server/platform-common-starter</module>
         <!-- 平台身份与 Bootstrap Owner（正规源模块骨架） -->
         <module>packages/server/platform-identity</module>
+        <!-- 平台审计 Owner（super-admin §1.3a；api/core/server 三个制品，根 MANIFEST-005） -->
+        <module>packages/server/platform-audit/platform-audit-api</module>
+        <module>packages/server/platform-audit/platform-audit-core</module>
+        <module>packages/server/platform-audit/platform-audit-server</module>
         <!-- 多租户能力模块（Phase 1 MVP - 数据库骨架） -->
         <module>packages/server/platform-tenant</module>
         <!-- 平台能力模块 -->

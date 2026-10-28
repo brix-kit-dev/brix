@@ -24,10 +24,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.CodeSource;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.DeserializationFeature;
@@ -218,6 +220,66 @@ public final class PluginManifestLoader {
             throw new ManifestLoadException("Failed to load plugin manifest from same artifact as "
                 + anchorType.getName(), e);
         }
+    }
+
+    /**
+     * Finds the active manifest that lists, under {@code modules}, the artifact at {@code codeSource}.
+     *
+     * <p>An official plugin's {@code api} and {@code core} artifacts carry no descriptor of their own
+     * (root BRX-RS-MANIFEST-005); its {@code server} artifact's manifest lists them. An artifact is
+     * recognised by the Maven descriptor {@code META-INF/maven/{groupId}/{artifactId}/pom.properties}
+     * its build packages, so a class outside a packaged artifact (a build output directory) belongs to
+     * no listed module. The descriptor's version must equal the listed version.</p>
+     *
+     * @param codeSource code source location of the artifact
+     * @param classLoader loader that sees the artifact
+     * @param manifests active manifests to search
+     * @return the manifest listing the artifact, or empty when none does
+     * @throws ManifestLoadException when several manifests list it or the versions differ
+     */
+    public Optional<PluginManifest> findListingManifest(
+            URL codeSource, ClassLoader classLoader, Collection<PluginManifest> manifests) {
+        Objects.requireNonNull(codeSource, "codeSource must not be null");
+        Objects.requireNonNull(classLoader, "classLoader must not be null");
+        Objects.requireNonNull(manifests, "manifests must not be null");
+        List<PluginManifest> listing = new ArrayList<>();
+        for (PluginManifest manifest : manifests) {
+            for (PluginManifest.Module module : manifest.getModules()) {
+                if (module.getGroupId() == null || module.getArtifactId() == null) {
+                    continue;
+                }
+                String descriptor = "META-INF/maven/" + module.getGroupId() + "/" + module.getArtifactId() + "/pom.properties";
+                for (URL resource : resources(classLoader, descriptor)) {
+                    if (!belongsToCodeSource(resource, codeSource)) {
+                        continue;
+                    }
+                    String version = packagedVersion(resource);
+                    if (module.getVersion() != null && !module.getVersion().equals(version)) {
+                        throw new ManifestLoadException("Plugin " + manifest.getMetadata().getPluginId()
+                            + " lists " + module.getArtifactId() + " " + module.getVersion()
+                            + " but " + codeSource + " packages version " + version);
+                    }
+                    if (!listing.contains(manifest)) {
+                        listing.add(manifest);
+                    }
+                }
+            }
+        }
+        if (listing.size() > 1) {
+            throw new ManifestLoadException("Artifact " + codeSource + " is listed by more than one plugin: "
+                + listing.stream().map(manifest -> manifest.getMetadata().getPluginId()).toList());
+        }
+        return listing.stream().findFirst();
+    }
+
+    private static String packagedVersion(URL pomProperties) {
+        Properties properties = new Properties();
+        try (InputStream input = pomProperties.openStream()) {
+            properties.load(input);
+        } catch (IOException e) {
+            throw new ManifestLoadException("Failed to read " + pomProperties, e);
+        }
+        return properties.getProperty("version");
     }
 
     private static List<URL> resources(ClassLoader classLoader, String resourceName) {

@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.security.CodeSource;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
@@ -43,14 +44,16 @@ import io.runtime.sdk.capability.PersistenceCapability;
  *
  * <p>A class belongs to the owner whose manifest is packaged in the same artifact, which is the same
  * code-source rule the runtime uses to associate providers with their descriptors (root blueprint
- * BRX-RS-HOST-021). Owner identity is therefore never self-reported by plugin code.</p>
+ * BRX-RS-HOST-021). The api and core artifacts of a three-artifact plugin carry no manifest (root
+ * BRX-RS-MANIFEST-005); their classes belong to the owner whose manifest lists the artifact under
+ * {@code modules}. Owner identity is therefore never self-reported by plugin code.</p>
  */
 final class OwnerDirectory {
 
     private final ClassLoader classLoader;
     private final PluginManifestLoader manifestLoader;
     private final ConcurrentMap<String, Optional<OwnerDeclaration>> ownersByOrigin = new ConcurrentHashMap<>();
-    private volatile Map<String, OwnerDeclaration> ownersById;
+    private volatile Scan scan;
 
     OwnerDirectory(ClassLoader classLoader, PluginManifestLoader manifestLoader) {
         this.classLoader = Objects.requireNonNull(classLoader, "classLoader must not be null");
@@ -58,7 +61,8 @@ final class OwnerDirectory {
     }
 
     /**
-     * Returns the owner declared by the manifest packaged with {@code type}.
+     * Returns the owner declared by the manifest packaged with {@code type}, or by the manifest
+     * listing {@code type}'s artifact under {@code modules}.
      */
     Optional<OwnerDeclaration> ownerOf(Class<?> type) {
         Objects.requireNonNull(type, "type must not be null");
@@ -66,46 +70,57 @@ final class OwnerDirectory {
         if (source == null || source.getLocation() == null) {
             return Optional.empty();
         }
+        URL location = source.getLocation();
+        ClassLoader loader = type.getClassLoader() != null ? type.getClassLoader() : classLoader;
         return ownersByOrigin.computeIfAbsent(
-            source.getLocation().toExternalForm(),
-            origin -> manifestLoader.findActiveFromClasspath(type).map(OwnerDeclaration::of));
+            location.toExternalForm(),
+            origin -> manifestLoader.findActiveFromClasspath(type)
+                .or(() -> manifestLoader.findListingManifest(location, loader, scan().manifests()))
+                .map(OwnerDeclaration::of));
     }
 
     /**
      * Returns the owner with the given plugin id.
      */
     Optional<OwnerDeclaration> owner(String ownerId) {
-        return Optional.ofNullable(ownersById().get(ownerId));
+        return Optional.ofNullable(scan().owners().get(ownerId));
     }
 
-    private Map<String, OwnerDeclaration> ownersById() {
-        Map<String, OwnerDeclaration> snapshot = ownersById;
+    private Scan scan() {
+        Scan snapshot = scan;
         if (snapshot == null) {
             synchronized (this) {
-                snapshot = ownersById;
+                snapshot = scan;
                 if (snapshot == null) {
                     snapshot = scanManifests();
-                    ownersById = snapshot;
+                    scan = snapshot;
                 }
             }
         }
         return snapshot;
     }
 
-    private Map<String, OwnerDeclaration> scanManifests() {
+    private Scan scanManifests() {
         Map<String, OwnerDeclaration> owners = new LinkedHashMap<>();
+        List<PluginManifest> manifests = new ArrayList<>();
         for (URL resource : manifestResources()) {
-            OwnerDeclaration owner;
+            PluginManifest manifest;
             try (InputStream input = resource.openStream()) {
-                owner = OwnerDeclaration.of(manifestLoader.load(input));
+                manifest = manifestLoader.load(input);
             } catch (IOException e) {
                 throw new ManifestLoadException("Failed to read plugin manifest " + resource, e);
             }
+            OwnerDeclaration owner = OwnerDeclaration.of(manifest);
             if (owners.putIfAbsent(owner.ownerId(), owner) != null) {
                 throw new ManifestLoadException("Duplicate plugin id in active manifests: " + owner.ownerId());
             }
+            manifests.add(manifest);
         }
-        return Collections.unmodifiableMap(owners);
+        return new Scan(Collections.unmodifiableMap(owners), List.copyOf(manifests));
+    }
+
+    /** Active manifests on the classpath and the owners they declare. */
+    private record Scan(Map<String, OwnerDeclaration> owners, List<PluginManifest> manifests) {
     }
 
     private List<URL> manifestResources() {

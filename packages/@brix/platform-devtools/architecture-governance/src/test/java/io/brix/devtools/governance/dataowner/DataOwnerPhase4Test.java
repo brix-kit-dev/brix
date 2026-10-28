@@ -113,7 +113,6 @@ class DataOwnerPhase4Test {
                     "sys_bootstrap_state",
                     "biz_audit_log",
                     "biz_tenant_audit_log",
-                    "sys_platform_audit_log",
                     "platform_tenant_outbox",
                     "platform_tenant_inbox",
                     "platform_tenant_first_owner_projection",
@@ -122,6 +121,13 @@ class DataOwnerPhase4Test {
                 "db/migration/platform-tenant",
                 "platform_tenant_outbox",
                 "platform_tenant_inbox"),
+            new DataOwnerDefinition(
+                "platform-audit",
+                "packages/@brix/platform-commons/packages/server/platform-audit",
+                Set.of("sys_platform_audit_log"),
+                "db/migration/platform-audit",
+                "",
+                ""),
             new DataOwnerDefinition(
                 "app-booking",
                 "packages/@brix/enterprise-solutions/app-booking",

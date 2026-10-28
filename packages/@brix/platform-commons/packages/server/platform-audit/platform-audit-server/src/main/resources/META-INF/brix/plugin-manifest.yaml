@@ -1,0 +1,60 @@
+# Platform audit Data Owner (super-admin 4.0.1 §1.3a, §2.1): sole owner of sys_platform_audit_log.
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: platform-audit
+  name: platform-audit
+  version: 3.2.0
+  displayName: Platform Audit Data Owner
+  vendor: Brix Platform
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.2.0
+  supportedRange: ">=3.0.10 <4.0.0"
+modules:
+  - groupId: io.brix.platform
+    artifactId: platform-audit-api
+    version: 3.2.0
+    moduleKind: plugin-api
+  - groupId: io.brix.platform
+    artifactId: platform-audit-core
+    version: 3.2.0
+    moduleKind: plugin-core
+  - groupId: io.brix.platform
+    artifactId: platform-audit-server
+    version: 3.2.0
+    moduleKind: plugin-server
+endpoints:
+  provides: []
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
+  optional: []
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes: []
+  subscribes: []
+tasks:
+  provides: []
+internalContracts:
+  provides:
+    - contractId: brix.internal.platform.audit
+      contractType: io.brix.platform.audit.internal.PlatformAuditAdministration
+      contractVersion: 1.0.0
+      providerId: platform-audit.internal.audit-administration
+      owner: platform-audit
+data:
+  storageId: platform_audit
+  schema: platform-audit
+  migrationLocation: db/migration/platform-audit
+permissions: []
+config: []
+ui:
+  web:
+    enabled: false
