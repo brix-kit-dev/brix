@@ -26,9 +26,11 @@ import java.time.Instant;
  * @param actorIdentityId only this actor, or {@code null}
  * @param from earliest creation time (inclusive), or {@code null}
  * @param to latest creation time (exclusive), or {@code null}
+ * @param success only successful ({@code true}) or failed ({@code false}) records, or {@code null}; contract 1.1.0
  * @since 3.2.0
  */
-public record PlatformAuditQuery(int page, int size, String action, Long actorIdentityId, Instant from, Instant to) {
+public record PlatformAuditQuery(
+        int page, int size, String action, Long actorIdentityId, Instant from, Instant to, Boolean success) {
 
     /** Largest page the owner returns. */
     public static final int MAX_SIZE = 200;
@@ -44,5 +46,12 @@ public record PlatformAuditQuery(int page, int size, String action, Long actorId
         if (from != null && to != null && !from.isBefore(to)) {
             throw new PlatformAuditRejectedException(PlatformAuditRejectedException.QUERY_INVALID, "from must be before to");
         }
+    }
+
+    /**
+     * A query over records of either result, as in contract 1.0.0.
+     */
+    public PlatformAuditQuery(int page, int size, String action, Long actorIdentityId, Instant from, Instant to) {
+        this(page, size, action, actorIdentityId, from, to, null);
     }
 }

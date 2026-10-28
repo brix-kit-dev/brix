@@ -128,7 +128,11 @@ final class OwnerUnitOfWork implements UnitOfWork {
             succeeded = true;
             return result;
         } catch (RuntimeException failure) {
-            throw failureTranslator.translateUnitOfWorkFailure(ownerId, failure);
+            RuntimeException translated = failureTranslator.translateUnitOfWorkFailure(ownerId, failure);
+            if (translated instanceof PersistenceCapabilityException persistence) {
+                TenantIsolationMetrics.ownerFailure(ownerId, persistence.code().wireCode());
+            }
+            throw translated;
         } finally {
             Optional<String> crossTenantAccess = tenancy.crossTenantAccess();
             if (crossTenantAccess.isPresent()) {

@@ -78,5 +78,15 @@ public final class TenantIsolationMeterBinder implements MeterBinder, Disposable
                 .register(registry)
                 .increment();
         }
+
+        @Override
+        public void ownerFailure(String owner, String code) {
+            Counter.builder(TenantIsolationMetrics.OWNER_FAILURES)
+                .description("Owner transactions that failed in the database or the transaction manager")
+                .tag("owner", owner)
+                .tag("code", code)
+                .register(registry)
+                .increment();
+        }
     }
 }

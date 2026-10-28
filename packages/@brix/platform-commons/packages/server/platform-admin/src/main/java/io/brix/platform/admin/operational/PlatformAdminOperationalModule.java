@@ -17,6 +17,7 @@ import io.brix.platform.admin.handler.GetFirstOwnerInvitationStatusHandler;
 import io.brix.platform.admin.handler.GetInstallationQuotaHandler;
 import io.brix.platform.admin.handler.InitPlatformSetupTotpHandler;
 import io.brix.platform.admin.handler.ListPlatformAdminsHandler;
+import io.brix.platform.admin.handler.ListPlatformAuditLogsHandler;
 import io.brix.platform.admin.handler.ListPlatformTenantsHandler;
 import io.brix.platform.admin.handler.OpenBootstrapSessionHandler;
 import io.brix.platform.admin.handler.PlatformLoginHandler;
@@ -94,6 +95,9 @@ public final class PlatformAdminOperationalModule implements PlatformOperational
         bootstrap.bindEndpointHandlerFactory(
             "platform.tenants.first-owner-invitations.revoke",
             RevokeFirstOwnerInvitationHandler::new);
+        bootstrap.bindEndpointHandlerFactory(
+            "platform.audit-logs.list",
+            ListPlatformAuditLogsHandler::new);
     }
 
     @Override

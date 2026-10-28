@@ -130,6 +130,9 @@ public final class PlatformAuditService implements PlatformAuditAdministration {
             if (query.to() != null) {
                 predicates.add(builder.lessThan(root.get("createdAt"), query.to()));
             }
+            if (query.success() != null) {
+                predicates.add(builder.equal(root.get("success"), query.success()));
+            }
             return builder.and(predicates.toArray(Predicate[]::new));
         };
         Page<PlatformAuditLog> page = records.findAll(filter,

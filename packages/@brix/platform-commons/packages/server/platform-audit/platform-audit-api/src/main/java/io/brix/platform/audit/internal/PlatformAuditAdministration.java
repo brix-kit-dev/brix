@@ -31,8 +31,11 @@ public interface PlatformAuditAdministration {
     /** Stable contract identifier declared in the Runtime descriptor. */
     String CONTRACT_ID = "brix.internal.platform.audit";
 
-    /** Exact contract version. */
-    String CONTRACT_VERSION = "1.0.0";
+    /**
+     * Exact contract version. 1.1.0 (Minor, root CAP-019) adds the FIRST_OWNER invitation actions and
+     * the result filter of {@link PlatformAuditQuery}.
+     */
+    String CONTRACT_VERSION = "1.1.0";
 
     /**
      * Appends one platform audit record written by the owner itself.

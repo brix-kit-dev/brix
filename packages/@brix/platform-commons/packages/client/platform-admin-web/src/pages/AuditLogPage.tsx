@@ -184,7 +184,8 @@ export function AuditLogPage(): JSX.Element {
               {
                 key: 'reason',
                 header: tt(I18N_KEYS.audit.colReason),
-                render: (r) => r.reason ?? '—',
+                render: (r) =>
+                  r.errorCode ? `${r.reason ?? '—'} · ${r.errorCode}` : (r.reason ?? '—'),
               },
               {
                 key: 'ip',

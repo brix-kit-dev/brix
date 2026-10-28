@@ -30,12 +30,20 @@ internalContracts:
       versionRange: ">=1.0.0 <2.0.0"
       required: true
       privilegeAllowlistRef: platform-admin.auth-flow
+    # super-admin §5, §6 and multi-tenant T-3: the console's audit query and the audit of
+    # platform-admin's own writes go through the platform audit owner.
+    - contractId: brix.internal.platform.audit
+      contractType: io.brix.platform.audit.internal.PlatformAuditAdministration
+      versionRange: ">=1.1.0 <2.0.0"
+      required: true
+      privilegeAllowlistRef: platform-admin.platform-audit
 privileges:
   allowlist:
     - platform-admin.tenant-administration
     - platform-admin.bootstrap-administration
     - platform-admin.identity-administration
     - platform-admin.auth-flow
+    - platform-admin.platform-audit
 endpoints:
   provides:
     - endpointId: platform.bootstrap.status.v1
@@ -366,5 +374,27 @@ endpoints:
         policyRef: interactive-write
       idempotency:
         mode: required
+    - endpointId: platform.audit-logs.list.v1
+      transport: http
+      method: GET
+      path: /api/platform/audit-logs
+      request:
+        schemaRef: brix://schemas/empty/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-admin/platform-audit-page/1.0.0
+      handlerId: platform.audit-logs.list
+      authentication:
+        mode: required
+        policyRef: platform-token
+      authorization:
+        permissions:
+          - platform:audit:read
+        decision: all
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
 tasks:
   provides: []

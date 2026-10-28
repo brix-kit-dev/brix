@@ -24,6 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import io.brix.platform.admin.dto.CreatePlatformTenantRequest;
+import io.brix.platform.audit.api.PlatformAuditActions;
+import io.brix.platform.audit.internal.PlatformAuditAdministration;
+import io.brix.platform.audit.internal.RecordPlatformAuditCommand;
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.CreatePendingTenantCommand;
 import io.brix.platform.tenant.internal.FirstOwnerInvitationView;
@@ -41,7 +44,8 @@ import io.runtime.sdk.plugin.EndpointInvocation;
 class PlatformAdminTenantOperationalHandlerTest {
 
     private final TenantAdministration tenantAdministration = org.mockito.Mockito.mock(TenantAdministration.class);
-    private final OperationalContext context = new TestOperationalContext(tenantAdministration);
+    private final PlatformAuditAdministration audit = org.mockito.Mockito.mock(PlatformAuditAdministration.class);
+    private final OperationalContext context = new TestOperationalContext(tenantAdministration, audit);
 
     @Test
     void createTenantDelegatesToTenantAdministrationWithoutOwnerDataAccess() {
@@ -283,6 +287,111 @@ class PlatformAdminTenantOperationalHandlerTest {
         assertEquals("FIRST_OWNER_INVITATION_NOT_REVOKABLE", failure.errorCode());
     }
 
+    @Test
+    void aCreatedTenantIsWrittenToThePlatformAuditAfterTheOwnerCommitted() {
+        when(tenantAdministration.createPendingTenant(any())).thenReturn(
+            new TenantAdministrationTenant(42L, "acme", "Acme", "PENDING_ACTIVATION"));
+
+        new CreatePlatformTenantHandler(context).handle(invocation(
+            new CreatePlatformTenantRequest("acme", "Acme"), Map.of(), Optional.of("1001"), Optional.empty()));
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(tenantAdministration, audit);
+        order.verify(tenantAdministration).createPendingTenant(any());
+        RecordPlatformAuditCommand record = recorded(order);
+        assertEquals(PlatformAuditActions.TENANT_CREATED, record.action());
+        assertEquals(1001L, record.actorIdentityId());
+        assertEquals("platform-admin", record.executionIdentity());
+        assertEquals("TENANT", record.targetType());
+        assertEquals("42", record.targetId());
+        assertEquals(java.util.List.of(42L), record.affectedTenants());
+        assertEquals(true, record.success());
+        assertEquals("platform-operation", record.reasonCode());
+        assertEquals(null, record.errorCode());
+        org.junit.jupiter.api.Assertions.assertNotNull(record.traceId(), "a short trace id is replaced by a correlation id");
+    }
+
+    @Test
+    void aFailedInvitationIsRecordedAsAFailureAndItsOwnErrorIsReturned() {
+        when(tenantAdministration.createFirstOwnerInvitation(any())).thenThrow(
+            new TenantAdministrationException("TENANT_NOT_FOUND", "Tenant not found"));
+
+        EndpointHandlingException failure = assertThrows(EndpointHandlingException.class,
+            () -> new CreateFirstOwnerInvitationHandler(context).handle(invocation(
+                new CreateFirstOwnerInvitationRequest("owner@example.invalid", "en-US"),
+                Map.of("tenantId", "42"), Optional.of("1001"), Optional.empty())));
+
+        assertEquals("TENANT_NOT_FOUND", failure.errorCode());
+        RecordPlatformAuditCommand record = recorded(org.mockito.Mockito.inOrder(audit));
+        assertEquals(PlatformAuditActions.FIRST_OWNER_INVITATION_CREATED, record.action());
+        assertEquals(false, record.success());
+        assertEquals("tenant_not_found", record.errorCode());
+        assertEquals("INVITATION", record.targetType());
+        assertEquals(null, record.targetId());
+        assertEquals(java.util.List.of(42L), record.affectedTenants());
+    }
+
+    @Test
+    void whenTheRecordCannotBeWrittenTheRequestFailsButTheOwnersChangeStays() {
+        when(tenantAdministration.createPendingTenant(any())).thenReturn(
+            new TenantAdministrationTenant(42L, "acme", "Acme", "PENDING_ACTIVATION"));
+        when(audit.record(any())).thenThrow(new IllegalStateException("platform audit unavailable"));
+
+        EndpointHandlingException failure = assertThrows(EndpointHandlingException.class,
+            () -> new CreatePlatformTenantHandler(context).handle(invocation(
+                new CreatePlatformTenantRequest("acme", "Acme"), Map.of(), Optional.of("1001"), Optional.empty())));
+
+        assertEquals(503, failure.status());
+        assertEquals("PLATFORM_AUDIT_WRITE_FAILED", failure.errorCode());
+        verify(tenantAdministration).createPendingTenant(any());
+    }
+
+    @Test
+    void whenAFailedOperationCannotBeRecordedItsOwnErrorIsStillReturned() {
+        doThrow(new TenantAdministrationException("FIRST_OWNER_INVITATION_NOT_REVOKABLE", "not revokable"))
+            .when(tenantAdministration).revokeFirstOwnerInvitation(any());
+        IllegalStateException unavailable = new IllegalStateException("platform audit unavailable");
+        when(audit.record(any())).thenThrow(unavailable);
+
+        EndpointHandlingException failure = assertThrows(EndpointHandlingException.class,
+            () -> new RevokeFirstOwnerInvitationHandler(context).handle(invocation(
+                null, Map.of("tenantId", "42", "invitationId", "7"), Optional.of("1001"), Optional.empty())));
+
+        assertEquals("FIRST_OWNER_INVITATION_NOT_REVOKABLE", failure.errorCode());
+        assertEquals(unavailable, failure.getSuppressed()[0]);
+    }
+
+    @Test
+    void revokingAndResendingAreRecordedWithTheInvitation() {
+        when(tenantAdministration.resendFirstOwnerInvitation(any())).thenReturn(
+            new FirstOwnerInvitationView(9L, 42L, "owner@example.invalid", "PENDING", OffsetDateTime.now().plusDays(7)));
+
+        new RevokeFirstOwnerInvitationHandler(context).handle(invocation(
+            null, Map.of("tenantId", "42", "invitationId", "7"), Optional.of("1001"), Optional.empty()));
+        new ResendFirstOwnerInvitationHandler(context).handle(invocation(
+            new ResendFirstOwnerInvitationRequest("en-US"), Map.of("tenantId", "42"), Optional.of("1001"), Optional.empty()));
+
+        ArgumentCaptor<RecordPlatformAuditCommand> records = ArgumentCaptor.forClass(RecordPlatformAuditCommand.class);
+        verify(audit, org.mockito.Mockito.times(2)).record(records.capture());
+        assertEquals(PlatformAuditActions.FIRST_OWNER_INVITATION_REVOKED, records.getAllValues().get(0).action());
+        assertEquals("7", records.getAllValues().get(0).targetId());
+        assertEquals(PlatformAuditActions.FIRST_OWNER_INVITATION_RESENT, records.getAllValues().get(1).action());
+        assertEquals("9", records.getAllValues().get(1).targetId());
+    }
+
+    @Test
+    void aRequestRefusedBeforeTheOperationIsNotRecorded() {
+        assertThrows(EndpointHandlingException.class, () -> new CreatePlatformTenantHandler(context).handle(invocation(
+            new CreatePlatformTenantRequest("acme", "Acme"), Map.of(), Optional.of("1001"), Optional.of("tenant-a"))));
+
+        org.mockito.Mockito.verifyNoInteractions(audit);
+    }
+
+    private RecordPlatformAuditCommand recorded(org.mockito.InOrder order) {
+        ArgumentCaptor<RecordPlatformAuditCommand> record = ArgumentCaptor.forClass(RecordPlatformAuditCommand.class);
+        order.verify(audit).record(record.capture());
+        return record.getValue();
+    }
+
     private static <T> EndpointInvocation<T> invocation(
             T body,
             Map<String, String> pathVariables,
@@ -316,7 +425,8 @@ class PlatformAdminTenantOperationalHandlerTest {
             Instant.now().plusSeconds(30));
     }
 
-    private record TestOperationalContext(TenantAdministration tenantAdministration) implements OperationalContext {
+    private record TestOperationalContext(TenantAdministration tenantAdministration, PlatformAuditAdministration audit)
+            implements OperationalContext {
 
         @Override
         public OperationalModuleIdentity moduleIdentity() {
@@ -345,6 +455,9 @@ class PlatformAdminTenantOperationalHandlerTest {
 
         @Override
         public <C> C requireInternalContract(Class<C> contractType) {
+            if (contractType.equals(PlatformAuditAdministration.class)) {
+                return contractType.cast(audit);
+            }
             if (!contractType.equals(TenantAdministration.class)) {
                 throw new IllegalArgumentException("Unexpected contract type " + contractType.getName());
             }

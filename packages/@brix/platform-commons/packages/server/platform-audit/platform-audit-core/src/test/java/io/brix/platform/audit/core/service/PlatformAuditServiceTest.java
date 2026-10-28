@@ -118,6 +118,36 @@ class PlatformAuditServiceTest {
     }
 
     @Test
+    void anInvitationOperationIsAnOwnerRecordedAction() {
+        when(ids.generate()).thenReturn("374829105938497538");
+        when(records.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        for (String action : List.of(PlatformAuditActions.FIRST_OWNER_INVITATION_CREATED,
+                PlatformAuditActions.FIRST_OWNER_INVITATION_RESENT, PlatformAuditActions.FIRST_OWNER_INVITATION_REVOKED)) {
+            service.record(command(action, "INVITATION", "1035447706903908352", "trace-0001-abcd"));
+        }
+
+        verify(records, org.mockito.Mockito.times(3)).save(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theQueryCanKeepOnlyFailedRecords() {
+        when(records.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.query(new PlatformAuditQuery(0, 20, null, null, null, null, false));
+
+        ArgumentCaptor<Specification<PlatformAuditLog>> filter = ArgumentCaptor.forClass(Specification.class);
+        verify(records).findAll(filter.capture(), any(Pageable.class));
+        jakarta.persistence.criteria.Root<PlatformAuditLog> root = mock(jakarta.persistence.criteria.Root.class);
+        jakarta.persistence.criteria.CriteriaBuilder builder = mock(jakarta.persistence.criteria.CriteriaBuilder.class);
+        jakarta.persistence.criteria.Path<Object> success = mock(jakarta.persistence.criteria.Path.class);
+        when(root.get("success")).thenReturn(success);
+        filter.getValue().toPredicate(root, mock(jakarta.persistence.criteria.CriteriaQuery.class), builder);
+        verify(builder).equal(success, false);
+    }
+
+    @Test
     void theQueryRangeIsBounded() {
         assertThatThrownBy(() -> new PlatformAuditQuery(0, 0, null, null, null, null))
             .isInstanceOf(PlatformAuditRejectedException.class);

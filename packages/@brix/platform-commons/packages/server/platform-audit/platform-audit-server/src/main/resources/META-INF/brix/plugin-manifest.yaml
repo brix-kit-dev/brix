@@ -48,7 +48,7 @@ internalContracts:
   provides:
     - contractId: brix.internal.platform.audit
       contractType: io.brix.platform.audit.internal.PlatformAuditAdministration
-      contractVersion: 1.0.0
+      contractVersion: 1.1.0
       providerId: platform-audit.internal.audit-administration
       owner: platform-audit
 data:

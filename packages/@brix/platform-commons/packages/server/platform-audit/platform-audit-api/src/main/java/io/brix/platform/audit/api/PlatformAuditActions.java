@@ -49,6 +49,15 @@ public final class PlatformAuditActions {
     public static final String TENANT_CREATED = "TENANT_CREATED";
     public static final String TENANT_STATUS_CHANGED = "TENANT_STATUS_CHANGED";
 
+    /** A platform administrator sent a FIRST_OWNER invitation (super-admin §5; contract 1.1.0). */
+    public static final String FIRST_OWNER_INVITATION_CREATED = "FIRST_OWNER_INVITATION_CREATED";
+
+    /** A platform administrator resent a FIRST_OWNER invitation (super-admin §5; contract 1.1.0). */
+    public static final String FIRST_OWNER_INVITATION_RESENT = "FIRST_OWNER_INVITATION_RESENT";
+
+    /** A platform administrator revoked a FIRST_OWNER invitation (super-admin §5; contract 1.1.0). */
+    public static final String FIRST_OWNER_INVITATION_REVOKED = "FIRST_OWNER_INVITATION_REVOKED";
+
     /** Login-time Actor discovery (multi-tenant §6.3, §6.4 P-1). Written only by the runtime custodian. */
     public static final String LOGIN_TENANT_DISCOVERY = "LOGIN_TENANT_DISCOVERY";
 
@@ -65,7 +74,8 @@ public final class PlatformAuditActions {
         BOOTSTRAP_SESSION_OPENED, BOOTSTRAP_ADMIN_CREATED, BOOTSTRAP_ADMIN_DEACTIVATED,
         SETUP_TOKEN_ISSUED, SETUP_TOKEN_USED, SETUP_TOKEN_INVALID,
         IDENTITY_PASSWORD_SET, TOTP_BOUND, IDENTITY_ACTIVATED, IDENTITY_DISABLED, IDENTITY_LOCKED,
-        TENANT_CREATED, TENANT_STATUS_CHANGED);
+        TENANT_CREATED, TENANT_STATUS_CHANGED,
+        FIRST_OWNER_INVITATION_CREATED, FIRST_OWNER_INVITATION_RESENT, FIRST_OWNER_INVITATION_REVOKED);
 
     /** Every action id in the catalog. */
     public static final Set<String> ALL = Stream.concat(OWNER_RECORDED.stream(), POLICY_USES.stream())

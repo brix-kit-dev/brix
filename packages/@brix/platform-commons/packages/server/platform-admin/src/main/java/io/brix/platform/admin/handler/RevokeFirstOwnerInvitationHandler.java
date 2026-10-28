@@ -6,6 +6,7 @@
  */
 package io.brix.platform.admin.handler;
 
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.tenant.internal.RevokeFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
@@ -22,9 +23,11 @@ import io.runtime.sdk.plugin.EndpointInvocation;
 public final class RevokeFirstOwnerInvitationHandler implements EndpointHandler<EndpointInvocation<Void>, Void> {
 
     private final TenantAdministration tenantAdministration;
+    private final PlatformOperationAudit audit;
 
     public RevokeFirstOwnerInvitationHandler(OperationalContext context) {
         this.tenantAdministration = context.requireInternalContract(TenantAdministration.class);
+        this.audit = new PlatformOperationAudit(context);
     }
 
     @Override
@@ -32,15 +35,21 @@ public final class RevokeFirstOwnerInvitationHandler implements EndpointHandler<
         Long actorId = PlatformOperationalInvocationSupport.requirePlatformActorId(invocation);
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
         Long invitationId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "invitationId");
-        try {
-            tenantAdministration.revokeFirstOwnerInvitation(
-                new RevokeFirstOwnerInvitationCommand(
-                    tenantId,
-                    invitationId,
-                    PlatformOperationalInvocationSupport.platformOperatorRef(actorId)));
-        } catch (TenantAdministrationException ex) {
-            throw PlatformEndpointErrors.tenantAdministration(ex);
-        }
-        return null;
+        PlatformOperationAudit.Target invitation = new PlatformOperationAudit.Target("INVITATION", invitationId, tenantId);
+        return audit.<Void>run(invocation, actorId, PlatformAuditActions.FIRST_OWNER_INVITATION_REVOKED,
+            invitation,
+            revoked -> invitation,
+            () -> {
+                try {
+                    tenantAdministration.revokeFirstOwnerInvitation(
+                        new RevokeFirstOwnerInvitationCommand(
+                            tenantId,
+                            invitationId,
+                            PlatformOperationalInvocationSupport.platformOperatorRef(actorId)));
+                } catch (TenantAdministrationException ex) {
+                    throw PlatformEndpointErrors.tenantAdministration(ex);
+                }
+                return null;
+            });
     }
 }

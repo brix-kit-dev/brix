@@ -128,6 +128,27 @@ class TenantIsolationMetricsTest {
     }
 
     @Test
+    void anOwnerTransactionTheDatabaseRejectsIsCountedByOwnerAndCode() {
+        assertThrows(RuntimeException.class, () -> environment.write(tenants(T1), () -> {
+            environment.sharedEntityManager.persist(new P0Doc(101L, T1, 7L, "duplicate id", null));
+            return null;
+        }));
+
+        assertEquals(1.0, registry.get(TenantIsolationMetrics.OWNER_FAILURES)
+            .tags("owner", TenantTestEnvironment.OWNER, "code", "persistence.unique_constraint_violation")
+            .counter().count());
+    }
+
+    @Test
+    void aFailureTheOwnerRaisesItselfIsNotAnOwnerFailure() {
+        assertThrows(IllegalStateException.class, () -> environment.write(tenants(T1), () -> {
+            throw new IllegalStateException("the owner refuses");
+        }));
+
+        assertEquals(0.0, total(TenantIsolationMetrics.OWNER_FAILURES));
+    }
+
+    @Test
     void nothingIsCountedOnceTheBinderIsDestroyed() {
         binder.destroy();
 

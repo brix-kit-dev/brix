@@ -29,7 +29,10 @@ import org.slf4j.LoggerFactory;
  *       {@code scope}, {@code reason} and {@code code};</li>
  *   <li>{@value #POLICY_USES}: every owner transaction that ran under a registered cross-tenant
  *       policy or a platform operation, labelled {@code owner}, {@code policy} and
- *       {@code outcome}.</li>
+ *       {@code outcome};</li>
+ *   <li>{@value #OWNER_FAILURES}: every owner transaction the database or the transaction manager
+ *       failed, labelled {@code owner} and {@code code}. It is not an isolation counter, but it
+ *       travels the same way.</li>
  * </ul>
  *
  * <p>Every label has a small fixed set of values. Tenant ids, policy keys, tables and SQL stay in
@@ -50,6 +53,13 @@ public final class TenantIsolationMetrics {
      * (root BRX-RS-DATA-047), labelled {@code policy} and {@code reason}.
      */
     public static final String POLICY_AUDIT_FAILURES = "brix.tenant.isolation.policy.audit.failures";
+
+    /**
+     * Counter of owner transactions that failed in the database or the transaction manager, labelled
+     * {@code owner} and the stable {@code persistence.*} code. Business failures the owner raises
+     * itself are not counted. An alert on a single owner, such as the platform audit, starts here.
+     */
+    public static final String OWNER_FAILURES = "brix.persistence.owner.failures";
 
     private static final Logger log = LoggerFactory.getLogger(TenantIsolationMetrics.class);
     private static final Recorder NONE = new Recorder() {
@@ -96,6 +106,15 @@ public final class TenantIsolationMetrics {
          */
         default void policyAuditFailure(String policy, String reason) {
         }
+
+        /**
+         * Counts one owner transaction that failed in the database or the transaction manager.
+         *
+         * @param owner data owner
+         * @param code stable {@code persistence.*} error code
+         */
+        default void ownerFailure(String owner, String code) {
+        }
     }
 
     /** Stops sending counts to an installed recorder. */
@@ -140,6 +159,14 @@ public final class TenantIsolationMetrics {
             RECORDER.get().policyAuditFailure(policy, reason);
         } catch (RuntimeException failure) {
             log.debug("A policy audit failure was not counted", failure);
+        }
+    }
+
+    static void ownerFailure(String owner, String code) {
+        try {
+            RECORDER.get().ownerFailure(owner, code);
+        } catch (RuntimeException failure) {
+            log.debug("An owner transaction failure was not counted", failure);
         }
     }
 }

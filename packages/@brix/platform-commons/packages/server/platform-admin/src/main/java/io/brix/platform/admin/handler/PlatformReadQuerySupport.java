@@ -55,7 +55,7 @@ final class PlatformReadQuerySupport {
             firstQuery(invocation, "q", null));
     }
 
-    private static int intQuery(EndpointInvocation<?> invocation, String name, int defaultValue) {
+    static int intQuery(EndpointInvocation<?> invocation, String name, int defaultValue) {
         String value = firstQuery(invocation, name, null);
         if (value == null) {
             return defaultValue;
@@ -67,7 +67,7 @@ final class PlatformReadQuerySupport {
         }
     }
 
-    private static String firstQuery(EndpointInvocation<?> invocation, String name, String defaultValue) {
+    static String firstQuery(EndpointInvocation<?> invocation, String name, String defaultValue) {
         return invocation.queryParameters().getOrDefault(name, List.of()).stream()
             .filter(value -> value != null && !value.isBlank())
             .findFirst()

@@ -9,6 +9,7 @@ package io.brix.platform.admin.handler;
 import java.util.Map;
 
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.runtime.orchestrator.operational.OperationalContext;
@@ -25,9 +26,11 @@ public final class CreateFirstOwnerInvitationHandler
         implements EndpointHandler<EndpointInvocation<CreateFirstOwnerInvitationRequest>, FirstOwnerInvitationDto> {
 
     private final TenantAdministration tenantAdministration;
+    private final PlatformOperationAudit audit;
 
     public CreateFirstOwnerInvitationHandler(OperationalContext context) {
         this.tenantAdministration = context.requireInternalContract(TenantAdministration.class);
+        this.audit = new PlatformOperationAudit(context);
     }
 
     @Override
@@ -35,16 +38,21 @@ public final class CreateFirstOwnerInvitationHandler
         Long actorId = PlatformOperationalInvocationSupport.requirePlatformActorId(invocation);
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
         CreateFirstOwnerInvitationRequest request = request(invocation.body());
-        try {
-            return FirstOwnerInvitationDto.from(tenantAdministration.createFirstOwnerInvitation(
-                new CreateFirstOwnerInvitationCommand(
-                    tenantId,
-                    request.inviteeEmail(),
-                    PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
-                    request.locale())));
-        } catch (TenantAdministrationException ex) {
-            throw PlatformEndpointErrors.tenantAdministration(ex);
-        }
+        return audit.run(invocation, actorId, PlatformAuditActions.FIRST_OWNER_INVITATION_CREATED,
+            new PlatformOperationAudit.Target("INVITATION", null, tenantId),
+            sent -> new PlatformOperationAudit.Target("INVITATION", sent.invitationId(), tenantId),
+            () -> {
+                try {
+                    return FirstOwnerInvitationDto.from(tenantAdministration.createFirstOwnerInvitation(
+                        new CreateFirstOwnerInvitationCommand(
+                            tenantId,
+                            request.inviteeEmail(),
+                            PlatformOperationalInvocationSupport.platformOperatorRef(actorId),
+                            request.locale())));
+                } catch (TenantAdministrationException ex) {
+                    throw PlatformEndpointErrors.tenantAdministration(ex);
+                }
+            });
     }
 
     private static CreateFirstOwnerInvitationRequest request(Object body) {

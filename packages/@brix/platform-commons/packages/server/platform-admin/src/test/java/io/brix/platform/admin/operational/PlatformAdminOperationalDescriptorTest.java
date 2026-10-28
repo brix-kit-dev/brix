@@ -30,11 +30,11 @@ class PlatformAdminOperationalDescriptorTest {
         assertEquals("platform-admin", descriptor.identity().moduleId());
         assertEquals("platform-commons", descriptor.identity().owner());
         assertEquals(">=3.0.10 <4.0.0", descriptor.runtimeRange());
-        assertEquals(16, descriptor.endpoints().size());
+        assertEquals(17, descriptor.endpoints().size());
         assertTrue(descriptor.endpoints().values().stream()
             .allMatch(endpoint -> endpoint.path().startsWith("/api/platform/")));
 
-        assertEquals(4, descriptor.requiredContracts().size());
+        assertEquals(5, descriptor.requiredContracts().size());
         var tenantContract = descriptor.requiredContracts().get(0);
         assertEquals("brix.internal.tenant.administration", tenantContract.contractId());
         assertEquals("io.brix.platform.tenant.internal.TenantAdministration", tenantContract.contractType());
@@ -49,6 +49,12 @@ class PlatformAdminOperationalDescriptorTest {
                     .equals(contract.contractType())));
         assertTrue(descriptor.requiredContracts().stream()
             .anyMatch(contract -> "brix.internal.platform.auth-flow".equals(contract.contractId())));
+        // super-admin §5, §6 and multi-tenant T-3: the audit query and the audit of platform-admin's writes.
+        assertTrue(descriptor.requiredContracts().stream()
+            .anyMatch(contract -> "brix.internal.platform.audit".equals(contract.contractId())
+                && "io.brix.platform.audit.internal.PlatformAuditAdministration".equals(contract.contractType())
+                && "platform-admin.platform-audit".equals(contract.privilegeAllowlistRef())));
+        assertTrue(descriptor.endpoints().containsKey("platform.audit-logs.list.v1"));
         assertTrue(descriptor.endpoints().containsKey("platform.auth.login.v1"));
         assertTrue(descriptor.endpoints().containsKey("platform.auth.login.totp.v1"));
         assertTrue(descriptor.endpoints().containsKey("platform.admins.list.v1"));

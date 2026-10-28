@@ -35,13 +35,16 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
  * @param action          action code
  * @param targetType      type of resource affected
  * @param targetId        ID of the affected resource
- * @param tenantId        tenant ID; always null for platform-scoped audit rows
- * @param ip              remote IP address
- * @param userAgent       user agent string
+ * @param tenantId        tenants the record reached, comma separated; null for platform-scoped rows
+ * @param ip              masked client address (network prefix only), when recorded
+ * @param userAgent       user agent string, when recorded
  * @param result          SUCCESS or FAILURE
- * @param reason          audit description or failure reason
- * @param requestId       correlation ID
+ * @param reason          stable reason code
+ * @param requestId       trace id of the request, or the correlation id made for the record
  * @param createdAt       timestamp when the event was recorded
+ * @param errorCode       stable error code of a failed action, or null
+ * @param executionIdentity identity the action ran as, when recorded
+ * @param writer          registered writer of the row (super-admin §1.3a)
  * @author Brix Platform Team
  * @since 3.2.0
  */
@@ -55,12 +58,14 @@ public record PlatformAuditLogDto(
         String action,
         String targetType,
         String targetId,
-        @JsonSerialize(using = ToStringSerializer.class)
-        Long tenantId,
+        String tenantId,
         String ip,
         String userAgent,
         String result,
         String reason,
         String requestId,
-        OffsetDateTime createdAt
+        OffsetDateTime createdAt,
+        String errorCode,
+        String executionIdentity,
+        String writer
 ) {}

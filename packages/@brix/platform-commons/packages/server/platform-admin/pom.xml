@@ -71,6 +71,12 @@
             <artifactId>platform-identity</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The platform audit owner's contract only (super-admin §5, §6); never its core or server artifact. -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-audit-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Runtime SDK API: EndpointInvocation and BrixHealth contracts. -->
         <dependency>

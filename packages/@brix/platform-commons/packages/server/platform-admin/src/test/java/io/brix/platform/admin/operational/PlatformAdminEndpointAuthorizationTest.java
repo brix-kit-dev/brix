@@ -46,7 +46,8 @@ class PlatformAdminEndpointAuthorizationTest {
         "platform.tenants.first-owner-invitations.create.v1", "platform:tenant:first-owner-invite",
         "platform.tenants.first-owner-invitations.current.v1", "platform:tenant:first-owner-invite",
         "platform.tenants.first-owner-invitations.resend.v1", "platform:tenant:first-owner-invite",
-        "platform.tenants.first-owner-invitations.revoke.v1", "platform:tenant:first-owner-invite");
+        "platform.tenants.first-owner-invitations.revoke.v1", "platform:tenant:first-owner-invite",
+        "platform.audit-logs.list.v1", "platform:audit:read");
 
     private static final List<String> SUPER_ADMIN_PERMISSIONS =
         PlatformPermissions.defaultPermissionsFor(RoleCode.PLATFORM_SUPER_ADMIN);

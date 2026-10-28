@@ -215,6 +215,12 @@ export interface PlatformAuditLogDto {
   reason: string | null;
   requestId: string | null;
   createdAt: string;
+  /** Stable error code of a failed action. */
+  errorCode?: string | null;
+  /** Identity the action ran as, such as `platform-admin` or `runtime:policy:…`. */
+  executionIdentity?: string | null;
+  /** Registered writer of the row. */
+  writer?: string | null;
 }
 
 export interface AuditLogQuery extends PageRequest {
