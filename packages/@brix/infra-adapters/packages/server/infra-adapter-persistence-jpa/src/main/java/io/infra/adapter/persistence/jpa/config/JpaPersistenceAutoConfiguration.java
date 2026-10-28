@@ -40,6 +40,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.ClassUtils;
 
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
+import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.sdk.capability.IdGeneratorCapability;
@@ -97,6 +98,20 @@ public class JpaPersistenceAutoConfiguration {
      * @param ids the Host's id generator, the id source the platform audit owner also uses
      * @return the writer; it covers no action when no owner registers it
      */
+    /**
+     * The owners' persistent event inboxes, which the runtime's in-process event delivery writes in each
+     * subscriber's transaction (root BRX-RS-MESSAGE-025, P4 design D11).
+     *
+     * @param ownerPersistenceUnits owner persistence registry, which knows the active manifests
+     * @return the event inbox store
+     */
+    @Bean
+    @ConditionalOnBean(OwnerPersistenceUnits.class)
+    @ConditionalOnMissingBean(EventInboxStore.class)
+    public EventInboxStore eventInboxStore(OwnerPersistenceUnits ownerPersistenceUnits) {
+        return ownerPersistenceUnits.eventInboxStore();
+    }
+
     @Bean
     @ConditionalOnBean(OwnerPersistenceUnits.class)
     @ConditionalOnMissingBean(PolicyAuditWriter.class)

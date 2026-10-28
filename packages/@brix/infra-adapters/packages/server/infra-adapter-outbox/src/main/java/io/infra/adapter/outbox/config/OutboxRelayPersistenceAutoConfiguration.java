@@ -9,7 +9,6 @@ package io.infra.adapter.outbox.config;
 import javax.sql.DataSource;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -17,9 +16,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.ClassUtils;
 
 import io.infra.adapter.outbox.JdbcOutboxMessageStore;
+import io.infra.adapter.outbox.ManifestOutboxStoreRegistry;
 import io.runtime.orchestrator.outbox.OutboxMessageStore;
+import io.runtime.orchestrator.outbox.OutboxStoreRegistry;
 
 /**
  * Auto-configuration for broker-neutral Outbox relay persistence.
@@ -28,7 +30,6 @@ import io.runtime.orchestrator.outbox.OutboxMessageStore;
  * @since 3.0.10
  */
 @AutoConfiguration
-@ConditionalOnBean({DataSource.class, PlatformTransactionManager.class})
 @ConditionalOnProperty(prefix = "brix.outbox.relay.persistence", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(OutboxRelayPersistenceProperties.class)
 public class OutboxRelayPersistenceAutoConfiguration {
@@ -51,5 +52,16 @@ public class OutboxRelayPersistenceAutoConfiguration {
             new JdbcTemplate(dataSource),
             new TransactionTemplate(transactionManager),
             properties.getTableName());
+    }
+
+    /**
+     * One store for each owner outbox the plugin manifests declare (P4 design D12). Its dependencies are
+     * plain bean references, so it does not depend on the order in which auto-configurations run.
+     */
+    @Bean
+    @ConditionalOnMissingBean(OutboxStoreRegistry.class)
+    public OutboxStoreRegistry outboxStoreRegistry(DataSource dataSource, PlatformTransactionManager transactionManager) {
+        return new ManifestOutboxStoreRegistry(ClassUtils.getDefaultClassLoader(), new JdbcTemplate(dataSource),
+            new TransactionTemplate(transactionManager));
     }
 }

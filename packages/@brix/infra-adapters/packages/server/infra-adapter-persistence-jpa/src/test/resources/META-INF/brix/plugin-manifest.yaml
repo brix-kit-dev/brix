@@ -39,6 +39,8 @@ data:
   storageId: test_owner
   schema: test-owner
   migrationLocation: db/migration/test-owner
+  # JdbcEventInboxStoreTest: the owner's persistent event inbox.
+  inbox: test_owner_inbox
   # JdbcPolicyAuditWriterTest: covers login-time discovery only, so the other audited policy is uncovered.
   custodialWrites:
     - table: test_policy_audit

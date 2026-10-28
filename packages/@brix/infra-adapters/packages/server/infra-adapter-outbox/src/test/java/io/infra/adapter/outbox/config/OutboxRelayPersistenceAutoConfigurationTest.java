@@ -50,6 +50,7 @@ class OutboxRelayPersistenceAutoConfigurationTest {
                 event_id VARCHAR(64) NOT NULL,
                 message_kind VARCHAR(20) NOT NULL,
                 message_type VARCHAR(128) NOT NULL,
+                event_type VARCHAR(128) NOT NULL,
                 schema_version VARCHAR(16) NOT NULL,
                 reliability VARCHAR(20) NOT NULL,
                 producer_plugin_id VARCHAR(128) NOT NULL,

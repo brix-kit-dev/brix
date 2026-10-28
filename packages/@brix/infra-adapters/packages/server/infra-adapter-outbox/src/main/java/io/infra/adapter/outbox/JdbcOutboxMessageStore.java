@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -63,17 +64,20 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
     @Override
     public void append(CanonicalOutboxMessage message) {
         Objects.requireNonNull(message, "message must not be null");
+        // event_type is the canonical outbox's name of the message type (root MESSAGE-026); the payload
+        // column is JSON, so PostgreSQL needs an explicit cast from the bound text.
         jdbcTemplate.update("""
             INSERT INTO %s (
-                message_id, event_id, message_kind, message_type, schema_version,
+                message_id, event_id, message_kind, message_type, event_type, schema_version,
                 reliability, producer_plugin_id, scope, tenant_id, partition_key,
                 occurred_at, correlation_id, causation_id, traceparent, tracestate,
                 payload, status, available_at, attempt_count, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.formatted(tableName),
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?)
+            """.formatted(tableName, jsonPlaceholder()),
             message.messageId(),
             message.eventId(),
             message.messageKind(),
+            message.messageType(),
             message.messageType(),
             message.schemaVersion(),
             message.reliability(),
@@ -326,4 +330,19 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
         Timestamp timestamp = rs.getTimestamp(column);
         return timestamp == null ? null : OffsetDateTime.ofInstant(timestamp.toInstant(), ZoneOffset.UTC);
     }
+
+    private volatile String jsonPlaceholder;
+
+    private String jsonPlaceholder() {
+        String placeholder = jsonPlaceholder;
+        if (placeholder == null) {
+            String product = jdbcTemplate.execute(
+                (ConnectionCallback<String>) connection ->
+                    connection.getMetaData().getDatabaseProductName());
+            placeholder = "PostgreSQL".equals(product) ? "CAST(? AS JSONB)" : "?";
+            jsonPlaceholder = placeholder;
+        }
+        return placeholder;
+    }
+
 }

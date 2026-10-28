@@ -80,6 +80,19 @@ final class OwnerDirectory {
     }
 
     /**
+     * Returns the inbox table the owner's manifest declares under {@code data.inbox}.
+     */
+    Optional<String> inboxOf(String ownerId) {
+        return scan().manifests().stream()
+            .filter(manifest -> ownerId.equals(manifest.getMetadata().getPluginId()))
+            .map(PluginManifest::getData)
+            .filter(java.util.Objects::nonNull)
+            .map(PluginManifest.DataSection::getInbox)
+            .filter(inbox -> inbox != null && !inbox.isBlank())
+            .findFirst();
+    }
+
+    /**
      * Returns the owner with the given plugin id.
      */
     Optional<OwnerDeclaration> owner(String ownerId) {

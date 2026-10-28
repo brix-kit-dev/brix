@@ -49,6 +49,7 @@ class JdbcOutboxMessageStoreTest {
                 event_id VARCHAR(64) NOT NULL,
                 message_kind VARCHAR(20) NOT NULL,
                 message_type VARCHAR(128) NOT NULL,
+                event_type VARCHAR(128) NOT NULL,
                 schema_version VARCHAR(16) NOT NULL,
                 reliability VARCHAR(20) NOT NULL,
                 producer_plugin_id VARCHAR(128) NOT NULL,
@@ -151,11 +152,11 @@ class JdbcOutboxMessageStoreTest {
             OffsetDateTime claimUntil) {
         jdbcTemplate.update("""
             INSERT INTO platform_tenant_outbox (
-                message_id, event_id, message_kind, message_type, schema_version,
+                message_id, event_id, message_kind, message_type, event_type, schema_version,
                 reliability, producer_plugin_id, scope, tenant_id, partition_key,
                 occurred_at, correlation_id, payload, status, available_at,
                 attempt_count, claim_until, created_at
-            ) VALUES (?, ?, 'EVENT', 'TenantFirstOwnerAccepted', '1.0.0',
+            ) VALUES (?, ?, 'EVENT', 'TenantFirstOwnerAccepted', 'TenantFirstOwnerAccepted', '1.0.0',
                 'CRITICAL', 'platform-tenant', 'TENANT', 100, '100',
                 ?, ?, ?, ?, ?, ?, ?, ?)
             """,

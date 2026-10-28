@@ -204,7 +204,8 @@ public class KafkaAutoConfiguration {
     }
 
     /**
-     * Configures the canonical Outbox transport used by the L2B Relay.
+     * Configures the canonical Outbox transport used by the L2B Relay when {@code brix.outbox.relay.transport=kafka};
+     * by default the relay delivers events in process to the subscribers' inboxes (P4 design D11).
      *
      * @param kafkaTemplate Kafka template
      * @param topicResolver topic resolver
@@ -213,6 +214,7 @@ public class KafkaAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(OutboxTransport.class)
+    @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "transport", havingValue = "kafka")
     public OutboxTransport kafkaOutboxTransport(
             KafkaTemplate<String, String> kafkaTemplate,
             EventTopicResolver topicResolver,

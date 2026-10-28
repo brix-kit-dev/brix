@@ -40,6 +40,7 @@ import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
+import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
@@ -120,6 +121,16 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             entityManagerFactory instanceof EntityManagerFactoryInfo info && info.getJpaDialect() != null
                 ? info.getJpaDialect()
                 : new HibernateJpaDialect());
+    }
+
+    /**
+     * Makes the owners' persistent event inboxes (root BRX-RS-MESSAGE-025), the {@code data.inbox} tables of
+     * their manifests, written on each owner's current transaction.
+     *
+     * @return the event inbox store
+     */
+    public EventInboxStore eventInboxStore() {
+        return new JdbcEventInboxStore(owners, dataSource, java.time.Clock.systemUTC());
     }
 
     /**
