@@ -12,7 +12,7 @@ internalContracts:
   requires:
     - contractId: brix.internal.tenant.administration
       contractType: io.brix.platform.tenant.internal.TenantAdministration
-      versionRange: ">=1.0.0 <2.0.0"
+      versionRange: ">=1.1.0 <2.0.0"
       required: true
       privilegeAllowlistRef: platform-admin.tenant-administration
     - contractId: brix.internal.platform.bootstrap-administration

@@ -23,8 +23,11 @@ public interface TenantAdministration {
     /** Stable contract identifier declared in the Runtime descriptor. */
     String CONTRACT_ID = "brix.internal.tenant.administration";
 
-    /** Exact contract version for v3.0.10 Phase 3. */
-    String CONTRACT_VERSION = "1.0.0";
+    /**
+     * Exact contract version. 1.1.0 added the tenant-targeted invitation lookup and the invitee
+     * setup fan-out as default methods (root BRX-RS-CAP-019).
+     */
+    String CONTRACT_VERSION = "1.1.0";
 
     /**
      * Creates a pending tenant without creating a member, profile, or quota usage.
@@ -54,10 +57,11 @@ public interface TenantAdministration {
      *
      * @param tenantId tenant identifier
      * @return latest invitation view when one exists
-     * @deprecated a bare id names no target tenant, so the runtime binds no tenant scope and the
-     *     invitation table is refused; use {@link #latestFirstOwnerInvitation(FirstOwnerInvitationLookup)}
+     * @deprecated introduced in contract 1.0.0, deprecated in 1.1.0, removed in 2.0.0 (root
+     *     BRX-RS-CAP-022). A bare id names no target tenant, so the runtime binds no tenant scope and
+     *     the invitation table is refused; use {@link #latestFirstOwnerInvitation(FirstOwnerInvitationLookup)}
      */
-    @Deprecated
+    @Deprecated(since = "1.1.0")
     Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(Long tenantId);
 
     /**
@@ -66,6 +70,7 @@ public interface TenantAdministration {
      *
      * @param lookup the tenant to look in
      * @return latest invitation view when one exists
+     * @since contract 1.1.0
      */
     @SuppressWarnings("deprecation")
     default Optional<FirstOwnerInvitationView> latestFirstOwnerInvitation(FirstOwnerInvitationLookup lookup) {
@@ -109,6 +114,7 @@ public interface TenantAdministration {
      * scope, keyed by that identity's e-mail (multi-tenant §6.4); this method only runs inside it.
      *
      * @param identityId identity that completed setup
+     * @since contract 1.1.0
      */
     default void sendPendingFirstOwnerInvitationsAfterSetup(Long identityId) {
         throw new UnsupportedOperationException("This provider does not send FIRST_OWNER invitations");

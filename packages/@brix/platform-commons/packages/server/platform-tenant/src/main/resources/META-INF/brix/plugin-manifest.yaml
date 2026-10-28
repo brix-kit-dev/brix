@@ -116,7 +116,7 @@ internalContracts:
   provides:
     - contractId: brix.internal.tenant.administration
       contractType: io.brix.platform.tenant.internal.TenantAdministration
-      contractVersion: 1.0.0
+      contractVersion: 1.1.0
       providerId: platform-tenant.internal.tenant-administration
       owner: platform-tenant
 data:
