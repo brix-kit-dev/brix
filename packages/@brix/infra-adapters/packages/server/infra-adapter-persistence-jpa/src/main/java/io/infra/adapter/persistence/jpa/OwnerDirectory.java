@@ -86,6 +86,38 @@ final class OwnerDirectory {
         return Optional.ofNullable(scan().owners().get(ownerId));
     }
 
+    /**
+     * Returns the custodial writes the active manifests register for a custodian (root BRX-RS-DATA-045).
+     */
+    List<CustodialRegistration> custodialWrites(String custodian) {
+        List<CustodialRegistration> found = new ArrayList<>();
+        for (PluginManifest manifest : scan().manifests()) {
+            if (manifest.getData() == null) {
+                continue;
+            }
+            for (PluginManifest.CustodialWrite write : manifest.getData().getCustodialWrites()) {
+                if (custodian.equals(write.getCustodian())) {
+                    found.add(new CustodialRegistration(manifest.getMetadata().getPluginId(), write));
+                }
+            }
+        }
+        return found;
+    }
+
+    /** Class loader that sees every plugin manifest and the artifacts they list. */
+    ClassLoader classLoader() {
+        return classLoader;
+    }
+
+    /**
+     * A custodial write one owner registers.
+     *
+     * @param ownerId owner that holds the table
+     * @param write the registration
+     */
+    record CustodialRegistration(String ownerId, PluginManifest.CustodialWrite write) {
+    }
+
     private Scan scan() {
         Scan snapshot = scan;
         if (snapshot == null) {

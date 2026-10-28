@@ -40,6 +40,7 @@ import org.springframework.util.ClassUtils;
 
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.sdk.capability.PersistenceCapability;
 
 /**
@@ -84,6 +85,20 @@ public class JpaPersistenceAutoConfiguration {
             properties.getTransactionTimeout(),
             properties.isSchemaValidation(),
             ClassUtils.getDefaultClassLoader());
+    }
+
+    /**
+     * The runtime policy audit writer, a registered custodian of the platform audit table (root
+     * BRX-RS-DATA-045, DATA-047).
+     *
+     * @param ownerPersistenceUnits owner persistence registry, which knows the active manifests
+     * @return the writer; it covers no action when no owner registers it
+     */
+    @Bean
+    @ConditionalOnBean(OwnerPersistenceUnits.class)
+    @ConditionalOnMissingBean(PolicyAuditWriter.class)
+    public PolicyAuditWriter policyAuditWriter(OwnerPersistenceUnits ownerPersistenceUnits) {
+        return ownerPersistenceUnits.policyAuditWriter();
     }
 
     /**

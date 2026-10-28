@@ -40,6 +40,7 @@ import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
@@ -117,6 +118,16 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             entityManagerFactory instanceof EntityManagerFactoryInfo info && info.getJpaDialect() != null
                 ? info.getJpaDialect()
                 : new HibernateJpaDialect());
+    }
+
+    /**
+     * Makes the runtime policy audit writer over the custodial registration the active manifests
+     * declare (root BRX-RS-DATA-045, DATA-047). Without a registration it covers no action.
+     *
+     * @return the policy audit writer
+     */
+    public PolicyAuditWriter policyAuditWriter() {
+        return new JdbcPolicyAuditWriter(owners, entityManagerFactory, transactionManager, dataSource, transactionTimeout);
     }
 
     @Override

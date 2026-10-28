@@ -1085,6 +1085,7 @@ public class PluginManifest {
         private String migrationLocation;
         private String outbox;
         private String inbox;
+        private List<CustodialWrite> custodialWrites = new ArrayList<>();
 
         public String getStorageId() {
             return storageId;
@@ -1124,6 +1125,77 @@ public class PluginManifest {
 
         public void setInbox(String inbox) {
             this.inbox = inbox;
+        }
+
+        /** Custodial writes the owner allows on its tables (root BRX-RS-DATA-045); empty when none. */
+        public List<CustodialWrite> getCustodialWrites() {
+            return custodialWrites;
+        }
+
+        public void setCustodialWrites(List<CustodialWrite> custodialWrites) {
+            this.custodialWrites = custodialWrites != null ? custodialWrites : new ArrayList<>();
+        }
+    }
+
+    /**
+     * One custodial write an owner allows on one of its tables (root BRX-RS-DATA-045, MANIFEST-031):
+     * the registered custodian may run only the listed operations, on the listed columns, for the
+     * listed actions. The registration grants no read access.
+     */
+    public static class CustodialWrite {
+        private String table;
+        private String custodian;
+        private List<String> operations = new ArrayList<>();
+        private List<String> columns = new ArrayList<>();
+        private List<String> actions = new ArrayList<>();
+        private String recordSchemaRef;
+
+        public String getTable() {
+            return table;
+        }
+
+        public void setTable(String table) {
+            this.table = table;
+        }
+
+        public String getCustodian() {
+            return custodian;
+        }
+
+        public void setCustodian(String custodian) {
+            this.custodian = custodian;
+        }
+
+        public List<String> getOperations() {
+            return operations;
+        }
+
+        public void setOperations(List<String> operations) {
+            this.operations = operations != null ? operations : new ArrayList<>();
+        }
+
+        public List<String> getColumns() {
+            return columns;
+        }
+
+        public void setColumns(List<String> columns) {
+            this.columns = columns != null ? columns : new ArrayList<>();
+        }
+
+        public List<String> getActions() {
+            return actions;
+        }
+
+        public void setActions(List<String> actions) {
+            this.actions = actions != null ? actions : new ArrayList<>();
+        }
+
+        public String getRecordSchemaRef() {
+            return recordSchemaRef;
+        }
+
+        public void setRecordSchemaRef(String recordSchemaRef) {
+            this.recordSchemaRef = recordSchemaRef;
         }
     }
 

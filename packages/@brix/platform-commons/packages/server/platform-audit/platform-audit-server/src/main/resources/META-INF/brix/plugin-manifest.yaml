@@ -53,6 +53,29 @@ data:
   storageId: platform_audit
   schema: platform-audit
   migrationLocation: db/migration/platform-audit
+  # Root BRX-RS-DATA-045, DATA-047: the runtime policy audit writer may only insert these columns, for
+  # the two cross-tenant policy actions; V002's checks enforce the same rule in the database.
+  custodialWrites:
+    - table: sys_platform_audit_log
+      custodian: runtime.tenant-policy-audit
+      operations: [INSERT]
+      columns:
+        - operator_identity_id
+        - action
+        - resource_type
+        - resource_id
+        - affected_tenants
+        - context
+        - success
+        - error_code
+        - execution_identity
+        - reason_code
+        - trace_id
+        - source_ip
+        - user_agent
+        - writer
+      actions: [LOGIN_TENANT_DISCOVERY, FIRST_OWNER_INVITEE_SETUP_FANOUT]
+      recordSchemaRef: "brix://schemas/platform-audit/policy-use-record/1.0.0"
 permissions: []
 config: []
 ui:

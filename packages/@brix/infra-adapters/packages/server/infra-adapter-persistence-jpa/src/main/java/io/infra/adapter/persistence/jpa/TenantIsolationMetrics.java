@@ -45,6 +45,12 @@ public final class TenantIsolationMetrics {
     /** Counter of owner transactions under a cross-tenant policy or a platform operation. */
     public static final String POLICY_USES = "brix.tenant.isolation.policy.uses";
 
+    /**
+     * Counter of policy uses whose platform audit record could not be written, so the use failed
+     * (root BRX-RS-DATA-047), labelled {@code policy} and {@code reason}.
+     */
+    public static final String POLICY_AUDIT_FAILURES = "brix.tenant.isolation.policy.audit.failures";
+
     private static final Logger log = LoggerFactory.getLogger(TenantIsolationMetrics.class);
     private static final Recorder NONE = new Recorder() {
         @Override
@@ -81,6 +87,15 @@ public final class TenantIsolationMetrics {
          * @param outcome {@code success} or {@code failure}
          */
         void policyUse(String owner, String policy, String outcome);
+
+        /**
+         * Counts one policy use that failed because its platform audit record was not written.
+         *
+         * @param policy policy id
+         * @param reason {@code not_registered}, {@code integrity}, {@code timeout}, {@code unavailable} or {@code failure}
+         */
+        default void policyAuditFailure(String policy, String reason) {
+        }
     }
 
     /** Stops sending counts to an installed recorder. */
@@ -117,6 +132,14 @@ public final class TenantIsolationMetrics {
             RECORDER.get().policyUse(owner, policy, succeeded ? "success" : "failure");
         } catch (RuntimeException failure) {
             log.debug("A tenant policy use was not counted", failure);
+        }
+    }
+
+    static void policyAuditFailure(String policy, String reason) {
+        try {
+            RECORDER.get().policyAuditFailure(policy, reason);
+        } catch (RuntimeException failure) {
+            log.debug("A policy audit failure was not counted", failure);
         }
     }
 }

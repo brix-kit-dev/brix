@@ -44,6 +44,7 @@ import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.infra.adapter.identity.provider.support.Secrets;
 import io.infra.adapter.identity.provider.support.SourceRateLimiter;
 import io.runtime.sdk.capability.IdentityAccountCapability;
+import io.runtime.sdk.capability.TenantAccessCapability.DiscoveryContext;
 import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
 import io.runtime.sdk.capability.PasswordCapability;
 import io.runtime.sdk.capability.TenantAccessCapability;
@@ -261,7 +262,7 @@ public class HostedLoginController {
         if (tx.invitation() != null) {
             return acceptInvitation(tx, identity, request, response);
         }
-        List<TenantMembershipRecord> memberships = activeMemberships(identity.id());
+        List<TenantMembershipRecord> memberships = activeMemberships(identity.id(), request);
         if (memberships.size() == 1) {
             return ResponseEntity.ok(complete(tx, identity, memberships.get(0), request, response));
         }
@@ -364,8 +365,10 @@ public class HostedLoginController {
         }
     }
 
-    private List<TenantMembershipRecord> activeMemberships(Long identityId) {
-        return tenants.getActiveMemberships(identityId).stream()
+    /** Login-time discovery (multi-tenant §6.3); the runtime records it in the platform audit before it returns. */
+    private List<TenantMembershipRecord> activeMemberships(Long identityId, HttpServletRequest request) {
+        DiscoveryContext from = new DiscoveryContext(request.getRemoteAddr(), DiscoveryContext.Purpose.LOGIN, "hosted-login");
+        return tenants.getActiveMemberships(identityId, from).stream()
                 .filter(membership -> ACTIVE.equals(membership.status()) && membership.contextId() != null)
                 .sorted(Comparator.comparing(TenantMembershipRecord::tenantName,
                         Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
@@ -376,7 +379,7 @@ public class HostedLoginController {
     private List<ContextOption> options(LoginTransaction tx, HttpServletRequest request) {
         tx.nextTicketGeneration();
         request.getSession().setAttribute(TRANSACTION, tx);
-        return activeMemberships(tx.identityId()).stream()
+        return activeMemberships(tx.identityId(), request).stream()
                 .map(membership -> new ContextOption(tickets.issue(tx, membership.contextId(), membership.tenantId()),
                         membership.tenantName(), membership.tenantCode(), membership.memberType()))
                 .toList();

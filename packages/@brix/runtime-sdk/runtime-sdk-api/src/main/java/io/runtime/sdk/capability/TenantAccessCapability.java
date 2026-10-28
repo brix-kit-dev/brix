@@ -25,6 +25,40 @@ public interface TenantAccessCapability {
     List<TenantMembershipRecord> getActiveMemberships(Long identityId);
 
     /**
+     * Lists the identity's memberships at login or at a tenant switch, with where the request came
+     * from (multi-tenant §6.3). The runtime records every use in the platform audit before the result
+     * is returned and fails the call when it cannot (root BRX-RS-DATA-047); without a context the
+     * record has no source address.
+     *
+     * @param identityId authenticated identity
+     * @param context where the discovery comes from
+     * @return the identity's memberships
+     * @since 3.3.0
+     */
+    default List<TenantMembershipRecord> getActiveMemberships(Long identityId, DiscoveryContext context) {
+        return getActiveMemberships(identityId);
+    }
+
+    /**
+     * Where a login-time discovery comes from. The runtime masks the address before it stores it.
+     *
+     * @param sourceAddress client address as the protocol surface received it, or {@code null}
+     * @param purpose why the memberships are listed
+     * @param client the protocol surface entry, for example {@code hosted-login} or {@code bff}
+     * @since 3.3.0
+     */
+    record DiscoveryContext(String sourceAddress, Purpose purpose, String client) {
+
+        /** Why the memberships are listed. */
+        public enum Purpose {
+            /** Choosing the tenant after authentication. */
+            LOGIN,
+            /** Switching to another tenant of the same identity. */
+            SWITCH
+        }
+    }
+
+    /**
      * Lists the identity's subject principalships across every tenant.
      *
      * @deprecated since 3.3.0, removed in 4.0.0. Subject discovery is bound to the tenant of the

@@ -34,6 +34,7 @@ import io.infra.adapter.identity.provider.support.ContextSwitchIntents;
 import io.infra.adapter.identity.provider.support.LoginSessionRevocations;
 import io.infra.adapter.identity.provider.support.Secrets;
 import io.runtime.sdk.capability.TenantAccessCapability;
+import io.runtime.sdk.capability.TenantAccessCapability.DiscoveryContext;
 import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
 
 /**
@@ -200,7 +201,7 @@ public class BffController {
         String target = body == null ? null : body.contextId();
         Optional<TenantMembershipRecord> targetMembership = target == null || target.equals(session.contextId())
                 ? Optional.empty()
-                : activeMemberships(session.subject()).stream().filter(m -> target.equals(m.contextId())).findFirst();
+                : activeMemberships(session.subject(), request).stream().filter(m -> target.equals(m.contextId())).findFirst();
         if (targetMembership.isEmpty()) {
             audit.warn("event=identity.bff.switch_denied identity={}", session.subject());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "context_not_available"));
@@ -249,7 +250,7 @@ public class BffController {
         body.put("identity", identity);
         body.put("context", context);
         body.put("permissions", effectivePermissions(session));
-        body.put("contexts", activeMemberships(session.subject()).stream().map(membership -> {
+        body.put("contexts", activeMemberships(session.subject(), request).stream().map(membership -> {
             Map<String, Object> option = new LinkedHashMap<>();
             option.put("contextId", membership.contextId());
             option.put("memberId", String.valueOf(membership.memberId()));
@@ -316,9 +317,10 @@ public class BffController {
     }
 
     /** The identity's active Actor contexts, the only ones a switch may target (multi-tenant T-26). */
-    private List<TenantMembershipRecord> activeMemberships(String subject) {
+    private List<TenantMembershipRecord> activeMemberships(String subject, HttpServletRequest request) {
         try {
-            return tenants.getActiveMemberships(Long.valueOf(subject)).stream()
+            DiscoveryContext from = new DiscoveryContext(request.getRemoteAddr(), DiscoveryContext.Purpose.SWITCH, "bff");
+            return tenants.getActiveMemberships(Long.valueOf(subject), from).stream()
                     .filter(membership -> "ACTIVE".equals(membership.status()) && membership.contextId() != null)
                     .toList();
         } catch (NumberFormatException e) {

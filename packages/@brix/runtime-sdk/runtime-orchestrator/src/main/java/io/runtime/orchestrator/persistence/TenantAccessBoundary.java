@@ -9,13 +9,16 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.runtime.sdk.capability.TenantAccessCapability;
+import io.runtime.sdk.capability.TenantAccessCapability.DiscoveryContext;
+import io.runtime.sdk.capability.TenantAccessCapability.TenantMembershipRecord;
 
 /**
  * Binds every call the identity protocol surface makes to {@link TenantAccessCapability} to the
@@ -27,6 +30,9 @@ import io.runtime.sdk.capability.TenantAccessCapability;
  * and resolving a FIRST_OWNER invitation by its token is invitation resolution, the two
  * registered policies this capability uses. Any other method, including the ones RFC-006 and
  * RFC-007 retire, gets no tenant scope, so the persistence adapter refuses its tenant data.</p>
+ *
+ * <p>Every discovery is written to the platform audit before its result leaves the boundary (root
+ * BRX-RS-DATA-047). When the record cannot be written the call fails and the result is dropped.</p>
  */
 public final class TenantAccessBoundary {
 
@@ -36,20 +42,32 @@ public final class TenantAccessBoundary {
     }
 
     /**
-     * Wraps the Data Owner's implementation.
+     * Wraps the Data Owner's implementation without a policy audit writer: every discovery fails.
      *
      * @param target the platform-tenant implementation
      * @return the bounded capability
      */
     public static TenantAccessCapability wrap(TenantAccessCapability target) {
+        return wrap(target, () -> null);
+    }
+
+    /**
+     * Wraps the Data Owner's implementation.
+     *
+     * @param target the platform-tenant implementation
+     * @param writer supplies the policy audit writer when a policy is used; may supply {@code null}
+     * @return the bounded capability
+     */
+    public static TenantAccessCapability wrap(TenantAccessCapability target, Supplier<PolicyAuditWriter> writer) {
         Objects.requireNonNull(target, "target must not be null");
+        Objects.requireNonNull(writer, "writer must not be null");
         if (Proxy.isProxyClass(target.getClass()) && Proxy.getInvocationHandler(target) instanceof Handler) {
             return target;
         }
         return (TenantAccessCapability) Proxy.newProxyInstance(
             TenantAccessCapability.class.getClassLoader(),
             new Class<?>[] {TenantAccessCapability.class},
-            new Handler(target));
+            new Handler(target, writer));
     }
 
     /**
@@ -63,7 +81,7 @@ public final class TenantAccessBoundary {
         int arity = args == null ? 0 : args.length;
         switch (method.getName()) {
             case "getActiveMemberships":
-                return arity == 1 && args[0] instanceof Long identityId
+                return (arity == 1 || arity == 2) && args[0] instanceof Long identityId
                     ? TenantScope.policy(TenantAccessPolicy.LOGIN_TENANT_DISCOVERY, identityId)
                     : TenantScope.none();
             case "findPendingFirstOwnerInvitation":
@@ -88,9 +106,11 @@ public final class TenantAccessBoundary {
     private static final class Handler implements InvocationHandler {
 
         private final TenantAccessCapability target;
+        private final Supplier<PolicyAuditWriter> writer;
 
-        private Handler(TenantAccessCapability target) {
+        private Handler(TenantAccessCapability target, Supplier<PolicyAuditWriter> writer) {
             this.target = target;
+            this.writer = writer;
         }
 
         @Override
@@ -112,11 +132,24 @@ public final class TenantAccessBoundary {
             }
             if (scope instanceof TenantScope.Policy policy
                     && policy.policy() == TenantAccessPolicy.LOGIN_TENANT_DISCOVERY) {
-                audit.info("event=tenant.policy.used policy={} action={} identity={} matched={}",
-                    policy.policy().id(), policy.policy().auditAction().orElse(""), policy.key(),
-                    result instanceof Collection<?> found ? found.size() : 0);
+                recordDiscovery((Long) policy.key(), result, args.length == 2 ? args[1] : null);
             }
             return result;
+        }
+
+        private void recordDiscovery(Long identityId, Object result, Object discoveryContext) {
+            List<?> found = result instanceof List<?> list ? list : List.of();
+            List<Long> tenants = found.stream()
+                .filter(TenantMembershipRecord.class::isInstance)
+                .map(membership -> ((TenantMembershipRecord) membership).tenantId())
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+            PolicyUseRecord record = PolicyUseRecord.discovery(identityId, tenants, found.size(),
+                discoveryContext instanceof DiscoveryContext context ? context : null, PolicyUseRecord.currentTraceId());
+            PolicyAuditWriter.require(writer.get(), record);
+            audit.info("event=tenant.policy.used policy={} action={} identity={} matched={} trace={}",
+                record.policy().id(), record.action(), identityId, found.size(), record.traceId());
         }
 
         private Object invokeTarget(Method method, Object[] args) {

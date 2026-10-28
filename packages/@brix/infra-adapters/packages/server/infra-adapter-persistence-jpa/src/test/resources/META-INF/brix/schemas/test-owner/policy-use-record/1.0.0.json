@@ -1,0 +1,5 @@
+{
+  "$id": "brix://schemas/test-owner/policy-use-record/1.0.0",
+  "title": "Test copy of the platform audit policy-use record",
+  "type": "object"
+}

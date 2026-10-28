@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import io.runtime.orchestrator.persistence.TenantAccessPolicy;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
 import io.runtime.orchestrator.persistence.TenantScope;
+import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 
 /**
@@ -162,6 +163,7 @@ final class TenantScopeState {
         }
         bound.add(tenantId);
         version++;
+        TenantScopes.reportBound(tenantId);
         audit.info("event=tenant.policy.bound owner={} policy={} tenant={}",
             tables.ownerId(), policy.policy().id(), tenantId);
     }
@@ -181,6 +183,7 @@ final class TenantScopeState {
         }
         if (bound.add(tenantId)) {
             version++;
+            TenantScopes.reportBound(tenantId);
         }
     }
 

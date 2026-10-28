@@ -47,6 +47,16 @@ public final class PluginManifestValidator {
 
     private static final Pattern PLUGIN_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9-]*$");
     private static final Pattern STORAGE_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,30}$");
+    private static final Pattern SQL_NAME_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,62}$");
+    private static final Pattern ACTION_PATTERN = Pattern.compile("^[A-Z][A-Z0-9_]{0,63}$");
+    private static final Pattern SCHEMA_REF_PATTERN = Pattern.compile(
+        "^brix://schemas/[a-z][a-z0-9-]*/[a-z][a-z0-9-]*/\\d+\\.\\d+\\.\\d+$");
+
+    /**
+     * Runtime custodians root blueprint appendix A registers ({@code manifest.custodialWrites.runtimeCustodians}).
+     * Only these may appear in {@code data.custodialWrites[].custodian}.
+     */
+    public static final Set<String> RUNTIME_CUSTODIANS = Set.of("runtime.tenant-policy-audit");
     private static final Pattern SEMVER_PATTERN = Pattern.compile(
         "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\\+[0-9A-Za-z][0-9A-Za-z.-]*)?$");
     private static final Pattern RANGE_TOKEN_PATTERN = Pattern.compile(
@@ -261,6 +271,39 @@ public final class PluginManifestValidator {
         }
         if (data.getStorageId() != null && !STORAGE_ID_PATTERN.matcher(data.getStorageId()).matches()) {
             result.addError("data.storageId", "storageId must match [a-z][a-z0-9_]{0,30}");
+        }
+        validateCustodialWrites(data, result);
+    }
+
+    /** Root BRX-RS-MANIFEST-031. Whether the table is the owner's is checked where the owner's mapping is known. */
+    private void validateCustodialWrites(PluginManifest.DataSection data, ValidationResult result) {
+        List<PluginManifest.CustodialWrite> writes = data.getCustodialWrites();
+        if (!writes.isEmpty() && !hasText(data.getStorageId())) {
+            result.addError("data.custodialWrites", "Custodial writes need data.storageId: only a Data Owner registers them");
+        }
+        Set<String> registered = new HashSet<>();
+        for (int i = 0; i < writes.size(); i++) {
+            PluginManifest.CustodialWrite write = writes.get(i);
+            String field = "data.custodialWrites[" + i + "]";
+            requirePattern(result, field + ".table", write.getTable(), SQL_NAME_PATTERN);
+            if (!RUNTIME_CUSTODIANS.contains(write.getCustodian())) {
+                result.addError(field + ".custodian", "custodian must be one of " + RUNTIME_CUSTODIANS);
+            }
+            if (!List.of("INSERT").equals(write.getOperations())) {
+                result.addError(field + ".operations", "operations must be [INSERT]");
+            }
+            if (write.getColumns().isEmpty()
+                    || new HashSet<>(write.getColumns()).size() != write.getColumns().size()
+                    || !write.getColumns().stream().allMatch(column -> column != null && SQL_NAME_PATTERN.matcher(column).matches())) {
+                result.addError(field + ".columns", "columns must list distinct column names");
+            }
+            if (!write.getActions().stream().allMatch(action -> action != null && ACTION_PATTERN.matcher(action).matches())) {
+                result.addError(field + ".actions", "actions must be action ids");
+            }
+            requirePattern(result, field + ".recordSchemaRef", write.getRecordSchemaRef(), SCHEMA_REF_PATTERN);
+            if (!registered.add(write.getTable() + "|" + write.getCustodian())) {
+                result.addError(field, "table and custodian are registered more than once");
+            }
         }
     }
 

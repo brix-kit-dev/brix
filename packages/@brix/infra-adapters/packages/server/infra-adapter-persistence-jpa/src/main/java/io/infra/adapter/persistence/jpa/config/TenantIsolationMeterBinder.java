@@ -68,5 +68,15 @@ public final class TenantIsolationMeterBinder implements MeterBinder, Disposable
                 .register(registry)
                 .increment();
         }
+
+        @Override
+        public void policyAuditFailure(String policy, String reason) {
+            Counter.builder(TenantIsolationMetrics.POLICY_AUDIT_FAILURES)
+                .description("Cross-tenant policy uses that failed because their platform audit record was not written")
+                .tag("policy", policy)
+                .tag("reason", reason)
+                .register(registry)
+                .increment();
+        }
     }
 }
