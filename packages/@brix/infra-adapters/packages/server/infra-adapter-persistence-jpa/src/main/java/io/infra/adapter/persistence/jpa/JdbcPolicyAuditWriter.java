@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
@@ -46,6 +47,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.PolicyUseRecord;
+import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.error.PolicyAuditException;
 
 /**
@@ -54,27 +56,30 @@ import io.runtime.sdk.error.PolicyAuditException;
  *
  * <p>The registration is checked the first time the writer is asked about it, which the runtime's
  * startup check does in every host that uses the policies: one owner registers it, it grants every
- * column the writer writes, its record schema resolves, and an entity of that owner maps the table.
- * A record is one INSERT of a fixed column list into that table, for a registered action; id and
- * creation time come from the table's defaults. Each record commits in a local transaction of its own
- * on the shared transaction manager, so the caller's transaction is suspended (DATA-029, HOST-020).
- * The writer never reads the table.</p>
+ * column the writer writes, its record schema resolves, an entity of that owner maps the table, and
+ * the Host's {@link IdGeneratorCapability} produces numeric ids. A record is one INSERT of a fixed
+ * column list into that table, for a registered action. Its id comes from that generator, the same
+ * source the owner uses for its own rows (root BRX-RS-DATA-024, platform-audit design §5.2); the
+ * creation time comes from the table's default. Each record commits in a local transaction of its
+ * own on the shared transaction manager, so the caller's transaction is suspended (DATA-029,
+ * HOST-020). The writer never reads the table.</p>
  */
 final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
 
     /** Columns every record writes, in statement order; the registration must grant all of them. */
     static final List<String> COLUMNS = List.of(
-        "operator_identity_id", "action", "resource_type", "resource_id", "affected_tenants", "context", "success",
-        "error_code", "execution_identity", "reason_code", "trace_id", "source_ip", "user_agent", "writer");
+        "id", "operator_identity_id", "action", "resource_type", "resource_id", "affected_tenants", "context",
+        "success", "error_code", "execution_identity", "reason_code", "trace_id", "source_ip", "user_agent", "writer");
 
     private static final Set<String> JSON_COLUMNS = Set.of("affected_tenants", "context");
     private static final String SCHEMA_PREFIX = "brix://schemas/";
     private static final Logger audit = LoggerFactory.getLogger("brix.tenant.isolation.audit");
 
-    private static final Registration NONE = new Registration("", "", Set.of());
+    private static final Registration NONE = new Registration("", "", Set.of(), null);
 
     private final OwnerDirectory owners;
     private final EntityManagerFactory entityManagerFactory;
+    private final Supplier<IdGeneratorCapability> ids;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
     private volatile Registration registration;
@@ -85,9 +90,11 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
             EntityManagerFactory entityManagerFactory,
             JpaTransactionManager transactionManager,
             DataSource dataSource,
-            Duration timeout) {
+            Duration timeout,
+            Supplier<IdGeneratorCapability> ids) {
         this.owners = Objects.requireNonNull(owners, "owners must not be null");
         this.entityManagerFactory = Objects.requireNonNull(entityManagerFactory, "entityManagerFactory must not be null");
+        this.ids = Objects.requireNonNull(ids, "ids must not be null");
         this.jdbc = new JdbcTemplate(Objects.requireNonNull(dataSource, "dataSource must not be null"));
         this.transactions = new TransactionTemplate(Objects.requireNonNull(transactionManager, "transactionManager must not be null"));
         transactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -107,7 +114,8 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
             throw failed(record, "not_registered", null);
         }
         try {
-            transactions.executeWithoutResult(status -> jdbc.update(insert(), parameters(record)));
+            long id = numericId(registration().ids());
+            transactions.executeWithoutResult(status -> jdbc.update(insert(), parameters(id, record)));
         } catch (RuntimeException failure) {
             throw failed(record, reasonOf(failure), failure);
         }
@@ -120,7 +128,7 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
             synchronized (this) {
                 resolved = registration;
                 if (resolved == null) {
-                    resolved = resolve(owners, entityManagerFactory);
+                    resolved = resolve(owners, entityManagerFactory, ids);
                     registration = resolved;
                 }
             }
@@ -128,7 +136,8 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         return resolved;
     }
 
-    private static Registration resolve(OwnerDirectory owners, EntityManagerFactory entityManagerFactory) {
+    private static Registration resolve(
+            OwnerDirectory owners, EntityManagerFactory entityManagerFactory, Supplier<IdGeneratorCapability> ids) {
         List<OwnerDirectory.CustodialRegistration> found = owners.custodialWrites(CUSTODIAN);
         if (found.isEmpty()) {
             return NONE;
@@ -154,7 +163,22 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         if (!mapsTable(owners, entityManagerFactory, ownerId, write.getTable())) {
             throw new IllegalStateException(where + ", a table none of its entities maps (root BRX-RS-MANIFEST-031)");
         }
-        return new Registration(ownerId, write.getTable(), Set.copyOf(write.getActions()));
+        IdGeneratorCapability generator = ids.get();
+        if (generator == null) {
+            throw new IllegalStateException(where + ", but the Host has no IdGeneratorCapability for the record ids"
+                + " (root BRX-RS-DATA-024, platform-audit design §5.2)");
+        }
+        try {
+            numericId(generator);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException(where + ", but the Host's IdGeneratorCapability does not produce the"
+                + " numeric ids the table keys on", e);
+        }
+        return new Registration(ownerId, write.getTable(), Set.copyOf(write.getActions()), generator);
+    }
+
+    private static long numericId(IdGeneratorCapability generator) {
+        return Long.parseLong(generator.generate());
     }
 
     /** Resource that holds a record schema: {@code brix://schemas/a/b/1.0.0} is {@code META-INF/brix/schemas/a/b/1.0.0.json}. */
@@ -194,8 +218,9 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         };
     }
 
-    private static Object[] parameters(PolicyUseRecord record) {
+    private static Object[] parameters(long id, PolicyUseRecord record) {
         return new Object[] {
+            id,
             record.actorIdentityId(),
             record.action(),
             record.resourceType(),
@@ -260,7 +285,7 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         return new PolicyAuditException(parameters, cause);
     }
 
-    /** The custodial registration this writer works under. */
-    private record Registration(String ownerId, String table, Set<String> actions) {
+    /** The custodial registration this writer works under, with the id generator its records use. */
+    private record Registration(String ownerId, String table, Set<String> actions, IdGeneratorCapability ids) {
     }
 }

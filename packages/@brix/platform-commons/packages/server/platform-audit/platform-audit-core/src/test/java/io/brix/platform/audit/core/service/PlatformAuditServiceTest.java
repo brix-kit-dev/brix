@@ -36,31 +36,41 @@ import io.brix.platform.audit.internal.PlatformAuditPage;
 import io.brix.platform.audit.internal.PlatformAuditQuery;
 import io.brix.platform.audit.internal.PlatformAuditRejectedException;
 import io.brix.platform.audit.internal.RecordPlatformAuditCommand;
+import io.runtime.sdk.capability.IdGeneratorCapability;
 
 class PlatformAuditServiceTest {
 
     private final PlatformAuditLogRepository records = mock(PlatformAuditLogRepository.class);
-    private final PlatformAuditService service = new PlatformAuditService(records);
+    private final IdGeneratorCapability ids = mock(IdGeneratorCapability.class);
+    private final PlatformAuditService service = new PlatformAuditService(records, ids);
 
     @Test
     void anOwnerRecordIsStoredWithMaskedClientDataAndTheOwnerAsWriter() {
-        when(records.save(any())).thenAnswer(call -> {
-            PlatformAuditLog row = call.getArgument(0);
-            ReflectionTestUtils.setField(row, "id", 42L);
-            return row;
-        });
+        when(ids.generate()).thenReturn("374829105938497537");
+        when(records.save(any())).thenAnswer(call -> call.getArgument(0));
 
         long id = service.record(command(PlatformAuditActions.TENANT_CREATED, "TENANT", "910001", "trace-0001-abcd")).value();
 
         ArgumentCaptor<PlatformAuditLog> saved = ArgumentCaptor.forClass(PlatformAuditLog.class);
         verify(records).save(saved.capture());
         PlatformAuditEntryView view = saved.getValue().toView();
-        assertThat(id).isEqualTo(42L);
+        assertThat(id).isEqualTo(374829105938497537L);
+        assertThat(saved.getValue().isNew()).as("an assigned id must still insert").isTrue();
         assertThat(view.action()).isEqualTo(PlatformAuditActions.TENANT_CREATED);
         assertThat(view.sourceIp()).isEqualTo("203.0.113.0/24");
         assertThat(view.userAgent()).hasSize(256);
         assertThat(view.affectedTenants()).containsExactly(910001L);
         assertThat(view.writer()).isEqualTo(PlatformAuditWriters.OWNER);
+    }
+
+    @Test
+    void aNonNumericIdGeneratorIsRefused() {
+        when(ids.generate()).thenReturn("0b8f1c1e-4b1a-4c33-9d43-5d1f0c8d7f0e");
+
+        assertThatThrownBy(() -> service.record(command(PlatformAuditActions.TENANT_CREATED, "TENANT", "910001", "trace-0001-abcd")))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("numeric ids");
+        verify(records, never()).save(any());
     }
 
     @Test
@@ -90,9 +100,8 @@ class PlatformAuditServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     void theQueryReturnsNewestFirstAndKeepsOlderRowsReadable() {
-        PlatformAuditLog older = PlatformAuditLog.ownerRecord(PlatformAuditActions.IDENTITY_ACTIVATED, 7L, null,
-            "IDENTITY", "7", List.of(), true, null, null, null, null, null, PlatformAuditWriters.PLATFORM_IDENTITY);
-        ReflectionTestUtils.setField(older, "id", 1035351323601539072L);
+        PlatformAuditLog older = PlatformAuditLog.ownerRecord(1035351323601539072L, PlatformAuditActions.IDENTITY_ACTIVATED,
+            7L, null, "IDENTITY", "7", List.of(), true, null, null, null, null, null, PlatformAuditWriters.PLATFORM_IDENTITY);
         ReflectionTestUtils.setField(older, "createdAt", Instant.parse("2026-10-27T00:28:33Z"));
         when(records.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(older)));
 

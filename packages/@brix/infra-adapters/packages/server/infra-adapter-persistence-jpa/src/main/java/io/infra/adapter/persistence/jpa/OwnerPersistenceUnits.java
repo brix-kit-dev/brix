@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
 
 import javax.sql.DataSource;
 
@@ -42,6 +43,7 @@ import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
+import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 
@@ -124,10 +126,11 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
      * Makes the runtime policy audit writer over the custodial registration the active manifests
      * declare (root BRX-RS-DATA-045, DATA-047). Without a registration it covers no action.
      *
+     * @param ids supplies the Host's id generator, which a registration needs; may supply {@code null}
      * @return the policy audit writer
      */
-    public PolicyAuditWriter policyAuditWriter() {
-        return new JdbcPolicyAuditWriter(owners, entityManagerFactory, transactionManager, dataSource, transactionTimeout);
+    public PolicyAuditWriter policyAuditWriter(Supplier<IdGeneratorCapability> ids) {
+        return new JdbcPolicyAuditWriter(owners, entityManagerFactory, transactionManager, dataSource, transactionTimeout, ids);
     }
 
     @Override

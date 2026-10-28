@@ -37,6 +37,7 @@ import io.brix.platform.audit.internal.PlatformAuditQuery;
 import io.brix.platform.audit.internal.PlatformAuditRecordId;
 import io.brix.platform.audit.internal.PlatformAuditRejectedException;
 import io.brix.platform.audit.internal.RecordPlatformAuditCommand;
+import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.security.RequestMetadataMasking;
 
 /**
@@ -46,6 +47,9 @@ import io.runtime.sdk.security.RequestMetadataMasking;
  * addresses and URLs cannot get in. The client address keeps its network prefix only. A refused
  * record fails with a stable code; nothing is swallowed. The runtime calls this inside the owner's
  * own unit of work, after suspending the caller's transaction.</p>
+ *
+ * <p>Ids come from {@link IdGeneratorCapability} (root BRX-RS-DATA-024). The table's id is a BIGINT,
+ * so the Host's generator must produce numeric ids.</p>
  *
  * @since 3.2.0
  */
@@ -58,9 +62,11 @@ public final class PlatformAuditService implements PlatformAuditAdministration {
     private static final Pattern TRACE_ID = Pattern.compile("[A-Za-z0-9-]{8,64}");
 
     private final PlatformAuditLogRepository records;
+    private final IdGeneratorCapability ids;
 
-    public PlatformAuditService(PlatformAuditLogRepository records) {
+    public PlatformAuditService(PlatformAuditLogRepository records, IdGeneratorCapability ids) {
         this.records = Objects.requireNonNull(records, "records must not be null");
+        this.ids = Objects.requireNonNull(ids, "ids must not be null");
     }
 
     @Override
@@ -80,6 +86,7 @@ public final class PlatformAuditService implements PlatformAuditAdministration {
             throw invalid("affectedTenants must hold tenant ids only");
         }
         PlatformAuditLog row = PlatformAuditLog.ownerRecord(
+            nextId(),
             command.action(),
             command.actorIdentityId(),
             command.executionIdentity(),
@@ -94,6 +101,16 @@ public final class PlatformAuditService implements PlatformAuditAdministration {
             RequestMetadataMasking.truncateUserAgent(command.userAgent()),
             PlatformAuditWriters.OWNER);
         return new PlatformAuditRecordId(records.save(row).getId());
+    }
+
+    private long nextId() {
+        String id = ids.generate();
+        try {
+            return Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("The platform audit needs numeric ids; the Host's IdGeneratorCapability"
+                + " generated a non-numeric one", e);
+        }
     }
 
     @Override

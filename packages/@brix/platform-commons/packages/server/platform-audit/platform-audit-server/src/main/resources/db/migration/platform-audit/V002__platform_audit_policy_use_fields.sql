@@ -1,17 +1,14 @@
 -- Expand only (super-admin §5, root BRX-RS-DATA-045 to DATA-047, platform-audit design §3.3, §3.4).
 --
--- * Ids come from the owner's sequence. It is also the column default, so the runtime custodian
---   inserts without an id. platform-identity keeps assigning Snowflake ids (around 10^18) during the
---   split, far above anything the sequence reaches.
+-- * Ids are assigned by the application from IdGeneratorCapability (root BRX-RS-DATA-024), by the
+--   owner and by the runtime custodian alike (platform-audit design §5.2); the table has no id default.
+--   platform-identity keeps assigning its own Snowflake ids during the split. The Host keeps its
+--   generator's node bits apart from platform-identity's worker id, so the two never produce the same id.
 -- * New columns are nullable or defaulted and never back-filled: old rows did not record them.
 -- * writer names the registered writer of each row. Rows without one are platform-identity's own
 --   (exemption EX-2026-003), which is also what every existing row is.
 -- * The cross-tenant policy actions are written by the runtime custodian and by nobody else, and
 --   each of those rows carries an actor, a trace id and a stable reason.
-
-CREATE SEQUENCE IF NOT EXISTS sys_platform_audit_log_id_seq;
-
-ALTER TABLE sys_platform_audit_log ALTER COLUMN id SET DEFAULT nextval('sys_platform_audit_log_id_seq');
 
 ALTER TABLE sys_platform_audit_log ADD COLUMN IF NOT EXISTS execution_identity VARCHAR(128);
 ALTER TABLE sys_platform_audit_log ADD COLUMN IF NOT EXISTS reason_code VARCHAR(64);

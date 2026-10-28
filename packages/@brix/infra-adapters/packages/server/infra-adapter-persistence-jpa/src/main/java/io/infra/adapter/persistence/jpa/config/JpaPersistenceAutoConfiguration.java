@@ -23,6 +23,7 @@ import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.engine.spi.SessionImplementor;
 import org.springframework.beans.factory.InjectionPoint;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -41,6 +42,7 @@ import org.springframework.util.ClassUtils;
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
+import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 
 /**
@@ -92,13 +94,15 @@ public class JpaPersistenceAutoConfiguration {
      * BRX-RS-DATA-045, DATA-047).
      *
      * @param ownerPersistenceUnits owner persistence registry, which knows the active manifests
+     * @param ids the Host's id generator, the id source the platform audit owner also uses
      * @return the writer; it covers no action when no owner registers it
      */
     @Bean
     @ConditionalOnBean(OwnerPersistenceUnits.class)
     @ConditionalOnMissingBean(PolicyAuditWriter.class)
-    public PolicyAuditWriter policyAuditWriter(OwnerPersistenceUnits ownerPersistenceUnits) {
-        return ownerPersistenceUnits.policyAuditWriter();
+    public PolicyAuditWriter policyAuditWriter(
+            OwnerPersistenceUnits ownerPersistenceUnits, ObjectProvider<IdGeneratorCapability> ids) {
+        return ownerPersistenceUnits.policyAuditWriter(ids::getIfAvailable);
     }
 
     /**

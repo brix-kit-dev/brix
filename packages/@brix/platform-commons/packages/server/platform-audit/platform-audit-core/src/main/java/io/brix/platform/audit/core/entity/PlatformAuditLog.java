@@ -23,15 +23,16 @@ import java.util.stream.Collectors;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import io.brix.platform.audit.internal.PlatformAuditEntryView;
 
@@ -39,19 +40,18 @@ import io.brix.platform.audit.internal.PlatformAuditEntryView;
  * A row of {@code sys_platform_audit_log}, the table the platform audit Data Owner holds
  * (super-admin §1.3a, §5). Rows are append-only: every column is insert-only.
  *
- * <p>Ids come from the owner's sequence, which is also the column default the runtime custodian
- * relies on. The free-text {@code description} and the custodial {@code context} columns are not
- * mapped: the owner writes neither and does not expose them.</p>
+ * <p>Ids are assigned by the application from {@code IdGeneratorCapability} (root BRX-RS-DATA-024), the
+ * same source the runtime custodian uses for its rows. The free-text {@code description} and the
+ * custodial {@code context} columns are not mapped: the owner writes neither and does not expose
+ * them.</p>
  *
  * @since 3.2.0
  */
 @Entity(name = "PlatformAuditLog")
 @Table(name = "sys_platform_audit_log")
-public class PlatformAuditLog {
+public class PlatformAuditLog implements Persistable<Long> {
 
     @Id
-    @SequenceGenerator(name = "sys_platform_audit_log_id", sequenceName = "sys_platform_audit_log_id_seq", allocationSize = 1)
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sys_platform_audit_log_id")
     @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
@@ -98,6 +98,9 @@ public class PlatformAuditLog {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Transient
+    private boolean newRecord = true;
+
     protected PlatformAuditLog() {
     }
 
@@ -105,6 +108,7 @@ public class PlatformAuditLog {
      * Creates a record the owner writes itself.
      */
     public static PlatformAuditLog ownerRecord(
+            long id,
             String action,
             Long operatorIdentityId,
             String executionIdentity,
@@ -119,6 +123,7 @@ public class PlatformAuditLog {
             String userAgent,
             String writer) {
         PlatformAuditLog row = new PlatformAuditLog();
+        row.id = id;
         row.action = Objects.requireNonNull(action, "action must not be null");
         row.operatorIdentityId = operatorIdentityId;
         row.executionIdentity = executionIdentity;
@@ -142,8 +147,22 @@ public class PlatformAuditLog {
         }
     }
 
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        newRecord = false;
+    }
+
+    @Override
     public Long getId() {
         return id;
+    }
+
+    /** The id is assigned before the row is saved, so the repository inserts instead of merging. */
+    @Override
+    @Transient
+    public boolean isNew() {
+        return newRecord;
     }
 
     /**

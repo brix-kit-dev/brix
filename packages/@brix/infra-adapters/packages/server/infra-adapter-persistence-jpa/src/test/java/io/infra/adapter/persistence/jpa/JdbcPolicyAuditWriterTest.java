@@ -18,6 +18,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import jakarta.persistence.EntityManagerFactory;
 
@@ -39,6 +42,7 @@ import io.infra.adapter.persistence.jpa.tenancy.P0Global;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.orchestrator.persistence.PolicyUseRecord;
 import io.runtime.orchestrator.persistence.TenantAccessPolicy;
+import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.error.PolicyAuditException;
 
 /**
@@ -48,9 +52,8 @@ import io.runtime.sdk.error.PolicyAuditException;
 class JdbcPolicyAuditWriterTest {
 
     private static final String TABLE = """
-        CREATE SEQUENCE test_policy_audit_id_seq;
         CREATE TABLE test_policy_audit (
-            id                   BIGINT DEFAULT NEXT VALUE FOR test_policy_audit_id_seq PRIMARY KEY,
+            id                   BIGINT PRIMARY KEY,
             operator_identity_id BIGINT,
             action               VARCHAR(64) NOT NULL,
             resource_type        VARCHAR(64) NOT NULL,
@@ -75,6 +78,8 @@ class JdbcPolicyAuditWriterTest {
         """;
 
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    private final AtomicLong nextId = new AtomicLong(374829105938497537L);
+    private final IdGeneratorCapability ids = new NumericIds(nextId);
     private final TenantIsolationMeterBinder binder = new TenantIsolationMeterBinder();
     private JdbcDataSource dataSource;
     private Connection schema;
@@ -111,7 +116,8 @@ class JdbcPolicyAuditWriterTest {
         writer().record(discovery("0af7651916cd43dd8448eb211c80319c"));
 
         Map<String, Object> row = jdbc.queryForMap("SELECT * FROM test_policy_audit");
-        assertThat(row.get("ID")).isNotNull();
+        // Resolving the registration drew one id to check the generator gives numeric ids.
+        assertThat(row.get("ID")).as("the id comes from the Host's generator").isEqualTo(nextId.get() - 1);
         assertThat(row.get("CREATED_AT")).isNotNull();
         assertThat(row.get("ACTION")).isEqualTo("LOGIN_TENANT_DISCOVERY");
         assertThat(row.get("OPERATOR_IDENTITY_ID")).isEqualTo(5L);
@@ -167,7 +173,7 @@ class JdbcPolicyAuditWriterTest {
     void withoutARegistrationTheWriterCoversNothing() throws Exception {
         try (URLClassLoader empty = new URLClassLoader(new URL[0], null)) {
             JdbcPolicyAuditWriter writer = new JdbcPolicyAuditWriter(new OwnerDirectory(empty, new PluginManifestLoader()),
-                entityManagerFactory, transactionManager, dataSource, Duration.ofSeconds(5));
+                entityManagerFactory, transactionManager, dataSource, Duration.ofSeconds(5), () -> null);
 
             assertThat(writer.covers("LOGIN_TENANT_DISCOVERY")).isFalse();
             assertThatThrownBy(() -> writer.record(discovery("0af7651916cd43dd8448eb211c80319c")))
@@ -180,7 +186,7 @@ class JdbcPolicyAuditWriterTest {
         EntityManagerFactory unrelated = entityManagerFactory(P0Global.class);
         try {
             JdbcPolicyAuditWriter writer = new JdbcPolicyAuditWriter(owners(), unrelated,
-                new JpaTransactionManager(unrelated), dataSource, Duration.ofSeconds(5));
+                new JpaTransactionManager(unrelated), dataSource, Duration.ofSeconds(5), () -> ids);
 
             assertThatThrownBy(() -> writer.covers("LOGIN_TENANT_DISCOVERY"))
                 .isInstanceOf(IllegalStateException.class)
@@ -191,6 +197,27 @@ class JdbcPolicyAuditWriterTest {
     }
 
     @Test
+    void aRegistrationNeedsTheHostsIdGenerator() {
+        assertThatThrownBy(() -> writer(() -> null).covers("LOGIN_TENANT_DISCOVERY"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("no IdGeneratorCapability");
+    }
+
+    @Test
+    void aGeneratorWithoutNumericIdsStopsTheWriter() {
+        IdGeneratorCapability uuids = new NumericIds(nextId) {
+            @Override
+            public String generate() {
+                return UUID.randomUUID().toString();
+            }
+        };
+
+        assertThatThrownBy(() -> writer(() -> uuids).covers("LOGIN_TENANT_DISCOVERY"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("numeric ids");
+    }
+
+    @Test
     void aRecordSchemaReferenceNamesAResource() {
         assertThat(JdbcPolicyAuditWriter.schemaResource("brix://schemas/platform-audit/policy-use-record/1.0.0"))
             .isEqualTo("META-INF/brix/schemas/platform-audit/policy-use-record/1.0.0.json");
@@ -198,7 +225,12 @@ class JdbcPolicyAuditWriterTest {
     }
 
     private JdbcPolicyAuditWriter writer() {
-        return new JdbcPolicyAuditWriter(owners(), entityManagerFactory, transactionManager, dataSource, Duration.ofSeconds(5));
+        return writer(() -> ids);
+    }
+
+    private JdbcPolicyAuditWriter writer(Supplier<IdGeneratorCapability> generator) {
+        return new JdbcPolicyAuditWriter(owners(), entityManagerFactory, transactionManager, dataSource,
+            Duration.ofSeconds(5), generator);
     }
 
     private OwnerDirectory owners() {
@@ -208,6 +240,36 @@ class JdbcPolicyAuditWriterTest {
     private static PolicyUseRecord discovery(String traceId) {
         return new PolicyUseRecord(TenantAccessPolicy.LOGIN_TENANT_DISCOVERY, 5L, "SELF", List.of(910001L, 910002L),
             Map.of("entry", "login", "matched", "2"), true, null, traceId, "203.0.113.0/24", null);
+    }
+
+    /** Numeric ids, as the Snowflake strategy of the Host's generator produces them. */
+    private static class NumericIds implements IdGeneratorCapability {
+
+        private final AtomicLong next;
+
+        NumericIds(AtomicLong next) {
+            this.next = next;
+        }
+
+        @Override
+        public String generate() {
+            return Long.toString(next.getAndIncrement());
+        }
+
+        @Override
+        public String generate(String prefix) {
+            return prefix + generate();
+        }
+
+        @Override
+        public List<String> generateBatch(int count) {
+            return IntStream.range(0, count).mapToObj(i -> generate()).toList();
+        }
+
+        @Override
+        public List<String> generateBatch(String prefix, int count) {
+            return IntStream.range(0, count).mapToObj(i -> generate(prefix)).toList();
+        }
     }
 
     private EntityManagerFactory entityManagerFactory(Class<?> entity) {

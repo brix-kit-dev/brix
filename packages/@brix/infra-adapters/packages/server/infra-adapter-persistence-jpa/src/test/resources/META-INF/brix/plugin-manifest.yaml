@@ -44,7 +44,7 @@ data:
     - table: test_policy_audit
       custodian: runtime.tenant-policy-audit
       operations: [INSERT]
-      columns: [operator_identity_id, action, resource_type, resource_id, affected_tenants, context, success,
+      columns: [id, operator_identity_id, action, resource_type, resource_id, affected_tenants, context, success,
                 error_code, execution_identity, reason_code, trace_id, source_ip, user_agent, writer]
       actions: [LOGIN_TENANT_DISCOVERY]
       recordSchemaRef: "brix://schemas/test-owner/policy-use-record/1.0.0"

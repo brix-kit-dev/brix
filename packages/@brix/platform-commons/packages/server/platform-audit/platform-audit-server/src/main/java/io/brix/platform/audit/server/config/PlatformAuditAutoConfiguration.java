@@ -23,12 +23,13 @@ import org.springframework.context.annotation.Bean;
 import io.brix.platform.audit.core.repository.PlatformAuditLogRepository;
 import io.brix.platform.audit.core.service.PlatformAuditService;
 import io.brix.platform.audit.internal.PlatformAuditAdministration;
+import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 
 /**
  * Assembles the platform audit Data Owner. Its repository comes only from the owner-scoped
  * {@link PersistenceCapability}; the entity lives in the owner's core artifact, which the
- * descriptor lists under {@code modules}.
+ * descriptor lists under {@code modules}. Ids come from the Host's {@link IdGeneratorCapability}.
  *
  * @since 3.2.0
  */
@@ -38,7 +39,8 @@ public class PlatformAuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(PlatformAuditAdministration.class)
-    public PlatformAuditAdministration platformAuditAdministration(PersistenceCapability persistence) {
-        return new PlatformAuditService(persistence.repository(PlatformAuditLogRepository.class));
+    public PlatformAuditAdministration platformAuditAdministration(
+            PersistenceCapability persistence, IdGeneratorCapability ids) {
+        return new PlatformAuditService(persistence.repository(PlatformAuditLogRepository.class), ids);
     }
 }
