@@ -24,4 +24,11 @@ public interface OutboxTransport {
      * @throws OutboxTransportException when the broker publish fails
      */
     void publish(CanonicalOutboxMessage message);
+
+    /**
+     * Tells deliveries still running that the relay is stopping. The relay calls it before its loops
+     * stop.
+     */
+    default void stop() {
+    }
 }

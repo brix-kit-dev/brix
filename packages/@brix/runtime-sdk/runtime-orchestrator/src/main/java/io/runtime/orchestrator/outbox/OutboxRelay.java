@@ -51,9 +51,22 @@ public final class OutboxRelay implements AutoCloseable {
             OutboxTransport transport,
             OutboxRelayPolicy policy,
             Clock clock) {
+        this(relayOwner, store, transport, policy, clock, OutboxRelayMetrics.NOOP);
+    }
+
+    /**
+     * Creates a relay with default jitter.
+     */
+    public OutboxRelay(
+            String relayOwner,
+            OutboxMessageStore store,
+            OutboxTransport transport,
+            OutboxRelayPolicy policy,
+            Clock clock,
+            OutboxRelayMetrics metrics) {
         this(relayOwner, store, transport, policy, clock,
             ignored -> randomJitter(policy.retryJitterMax()),
-            OutboxRelayMetrics.NOOP);
+            metrics);
     }
 
     /**

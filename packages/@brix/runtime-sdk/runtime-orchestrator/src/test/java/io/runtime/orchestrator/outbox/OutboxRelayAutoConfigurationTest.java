@@ -9,6 +9,7 @@ package io.runtime.orchestrator.outbox;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,8 +17,15 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 
 /**
  * Contract tests for the Spring Host path that assembles the L2B relay.
@@ -31,24 +39,75 @@ class OutboxRelayAutoConfigurationTest {
     void oneRelayRunsForEachOwnerOutbox() {
         OutboxRelayProperties properties = properties();
         OutboxRelayPolicy policy = new OutboxRelayAutoConfiguration().outboxRelayPolicy(properties);
+        List<String> metered = new ArrayList<>();
         OutboxRelayGroup group = new OutboxRelayGroup(properties, policy,
             () -> () -> java.util.Map.of("platform_tenant_outbox", new EmptyOutboxMessageStore(),
                 "platform_identity_outbox", new EmptyOutboxMessageStore()),
             () -> ignored -> {
+            },
+            outbox -> {
+                metered.add(outbox);
+                return OutboxRelayMetrics.NOOP;
             });
 
         assertEquals(25, policy.batchSize());
         assertDoesNotThrow(group::start);
         assertTrue(group.isRunning());
+        assertEquals(Set.of("platform_tenant_outbox", "platform_identity_outbox"), Set.copyOf(metered));
         group.stop();
         assertFalse(group.isRunning());
+    }
+
+    @Test
+    void stoppingTheGroupTellsRunningDeliveriesToStop() {
+        AtomicBoolean stopped = new AtomicBoolean();
+        OutboxTransport transport = new OutboxTransport() {
+            @Override
+            public void publish(CanonicalOutboxMessage message) {
+            }
+
+            @Override
+            public void stop() {
+                stopped.set(true);
+            }
+        };
+        OutboxRelayGroup group = new OutboxRelayGroup(properties(), OutboxRelayPolicy.defaults(),
+            () -> () -> java.util.Map.of("platform_tenant_outbox", new EmptyOutboxMessageStore()), () -> transport,
+            OutboxRelayMetricsFactory.NOOP);
+        group.start();
+
+        group.stop();
+
+        assertTrue(stopped.get());
+    }
+
+    @Test
+    void aHostWithMicrometerAndActuatorGetsTheRelayMetersAndTheOutboxEndpoint() {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("relay", Map.of(
+                "brix.outbox.relay.enabled", "true",
+                "brix.outbox.relay.owner", "enterprise-shell",
+                "brix.outbox.relay.transport", "kafka")));
+            context.registerBean(MeterRegistry.class, SimpleMeterRegistry::new);
+            context.registerBean(OutboxStoreRegistry.class,
+                () -> () -> Map.of("platform_tenant_outbox", new EmptyOutboxMessageStore()));
+            context.registerBean(OutboxTransport.class, () -> message -> {
+            });
+            context.register(OutboxRelayAutoConfiguration.class);
+            context.refresh();
+
+            assertTrue(context.getBean(OutboxRelayGroup.class).isRunning());
+            assertNotNull(context.getBean(OutboxEndpoint.class));
+            assertNotNull(context.getBean(MeterRegistry.class).find(MicrometerOutboxRelayMetrics.MESSAGES)
+                .tags("outbox", "platform_tenant_outbox", "status", "parked").gauge());
+        }
     }
 
     @Test
     void enabledRelayRequiresStableOwnerIdentity() {
         OutboxRelayGroup group = new OutboxRelayGroup(new OutboxRelayProperties(), OutboxRelayPolicy.defaults(),
             () -> java.util.Map::of, () -> ignored -> {
-            });
+            }, OutboxRelayMetricsFactory.NOOP);
 
         IllegalStateException failure = assertThrows(IllegalStateException.class, group::start);
 
@@ -59,9 +118,9 @@ class OutboxRelayAutoConfigurationTest {
     void anEnabledRelayWithoutOutboxesOrTransportStopsTheHost() {
         OutboxRelayGroup withoutStores = new OutboxRelayGroup(properties(), OutboxRelayPolicy.defaults(), () -> null,
             () -> ignored -> {
-            });
+            }, OutboxRelayMetricsFactory.NOOP);
         OutboxRelayGroup withoutTransport = new OutboxRelayGroup(properties(), OutboxRelayPolicy.defaults(),
-            () -> java.util.Map::of, () -> null);
+            () -> java.util.Map::of, () -> null, OutboxRelayMetricsFactory.NOOP);
 
         assertTrue(assertThrows(IllegalStateException.class, withoutStores::start).getMessage()
             .contains("brix.outbox.relay.persistence"));
@@ -109,6 +168,16 @@ class OutboxRelayAutoConfigurationTest {
         @Override
         public OutboxBacklogSnapshot readBacklog(OffsetDateTime now) {
             return new OutboxBacklogSnapshot(appended.size(), 0L, 0L, Duration.ZERO);
+        }
+
+        @Override
+        public List<ParkedOutboxMessage> listParked(int limit) {
+            return List.of();
+        }
+
+        @Override
+        public boolean replayParked(String eventId, OffsetDateTime now) {
+            return false;
         }
     }
 }

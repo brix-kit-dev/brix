@@ -32,7 +32,9 @@ public final class OutboxRelayGroup implements SmartLifecycle {
     private final OutboxRelayPolicy policy;
     private final Supplier<OutboxStoreRegistry> registry;
     private final Supplier<OutboxTransport> transport;
+    private final OutboxRelayMetricsFactory metrics;
     private final List<OutboxRelayManagedResource> loops = new ArrayList<>();
+    private OutboxTransport sender;
     private volatile boolean running;
 
     /**
@@ -42,16 +44,19 @@ public final class OutboxRelayGroup implements SmartLifecycle {
      * @param policy batch, attempt and lease policy shared by every relay
      * @param registry supplies the owner outboxes; may supply {@code null}
      * @param transport supplies the transport; may supply {@code null}
+     * @param metrics creates the metrics of each outbox's relay
      */
     public OutboxRelayGroup(
             OutboxRelayProperties properties,
             OutboxRelayPolicy policy,
             Supplier<OutboxStoreRegistry> registry,
-            Supplier<OutboxTransport> transport) {
+            Supplier<OutboxTransport> transport,
+            OutboxRelayMetricsFactory metrics) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.policy = Objects.requireNonNull(policy, "policy must not be null");
         this.registry = Objects.requireNonNull(registry, "registry must not be null");
         this.transport = Objects.requireNonNull(transport, "transport must not be null");
+        this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
     @Override
@@ -68,18 +73,20 @@ public final class OutboxRelayGroup implements SmartLifecycle {
             throw new IllegalStateException("The outbox relay is enabled but no outbox store registry exists;"
                 + " enable brix.outbox.relay.persistence");
         }
-        OutboxTransport sender = transport.get();
-        if (sender == null) {
+        OutboxTransport chosen = transport.get();
+        if (chosen == null) {
             throw new IllegalStateException("The outbox relay is enabled but transport '" + properties.getTransport()
                 + "' is not available");
         }
         for (Map.Entry<String, OutboxMessageStore> store : stores.stores().entrySet()) {
-            OutboxRelay relay = new OutboxRelay(owner, store.getValue(), sender, policy, Clock.systemUTC());
+            OutboxRelay relay = new OutboxRelay(owner, store.getValue(), chosen, policy, Clock.systemUTC(),
+                metrics.forOutbox(store.getKey()));
             OutboxRelayManagedResource loop = new OutboxRelayManagedResource(relay, properties.getPollDelay(),
                 "brix-outbox-relay-" + store.getKey());
             loop.start();
             loops.add(loop);
         }
+        sender = chosen;
         running = true;
         log.info("event=outbox.relay_started outboxes={} transport={}", stores.stores().keySet(), properties.getTransport());
     }
@@ -89,8 +96,11 @@ public final class OutboxRelayGroup implements SmartLifecycle {
         if (!running) {
             return;
         }
+        // Deliveries still running see their cancellation signal before the loops wait for them.
+        sender.stop();
         loops.forEach(OutboxRelayManagedResource::stop);
         loops.clear();
+        sender = null;
         running = false;
     }
 

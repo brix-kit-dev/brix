@@ -9,7 +9,11 @@ package io.runtime.orchestrator.outbox;
 import java.time.Clock;
 import java.util.function.Supplier;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.context.annotation.Configuration;
 import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.event.EventInboxStore;
@@ -64,11 +68,13 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<PluginRuntimeManager> plugins,
             ObjectProvider<OwnerPersistenceProvider> owners,
             ObjectProvider<EventInboxStore> inbox,
-            ObjectProvider<ObjectMapper> json) {
+            ObjectProvider<ObjectMapper> json,
+            ObjectProvider<OutboxRelayMetricsFactory> metrics) {
         Supplier<OutboxTransport> transport = IN_PROCESS.equals(properties.getTransport())
             ? () -> inProcess(properties, plugins, owners, inbox, json)
             : brokerTransport::getIfAvailable;
-        return new OutboxRelayGroup(properties, policy, stores::getIfAvailable, transport);
+        return new OutboxRelayGroup(properties, policy, stores::getIfAvailable, transport,
+            outbox -> metrics.getIfAvailable(() -> OutboxRelayMetricsFactory.NOOP).forOutbox(outbox));
     }
 
     private static OutboxTransport inProcess(
@@ -85,5 +91,29 @@ public class OutboxRelayAutoConfiguration {
         }
         return new InProcessEventTransport(new PluginEventSubscribers(runtime), persistence, inboxes,
             json.getIfAvailable(ObjectMapper::new), Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2));
+    }
+
+    /** Relay meters per owner outbox, when the host has Micrometer. */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(MeterRegistry.class)
+    static class OutboxRelayMeters {
+
+        @Bean
+        @ConditionalOnMissingBean
+        OutboxRelayMetricsFactory outboxRelayMetricsFactory(ObjectProvider<MeterRegistry> registry) {
+            return MicrometerOutboxRelayMetrics.factory(registry::getIfAvailable);
+        }
+    }
+
+    /** The management endpoint for parked messages, when the host has actuator. */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(WebEndpoint.class)
+    static class OutboxManagement {
+
+        @Bean
+        @ConditionalOnMissingBean
+        OutboxEndpoint outboxEndpoint(ObjectProvider<OutboxStoreRegistry> stores) {
+            return new OutboxEndpoint(stores::getIfAvailable, Clock.systemUTC());
+        }
     }
 }

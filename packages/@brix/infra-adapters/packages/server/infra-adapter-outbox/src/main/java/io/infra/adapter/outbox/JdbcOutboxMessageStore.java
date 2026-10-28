@@ -23,13 +23,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
 import io.runtime.orchestrator.outbox.OutboxMessageStore;
+import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 
 /**
  * JDBC-backed canonical outbox store for the L2B relay.
  *
  * <p>The store operates only on the configured canonical outbox table. It uses
  * conditional updates for claim ownership so multiple relay instances cannot
- * own the same active lease.</p>
+ * own the same active lease. A parked row keeps the time it was parked in
+ * {@code available_at}; nothing claims it until it is replayed.</p>
  *
  * @author Brix Platform Authors
  * @since 3.0.10
@@ -214,6 +216,7 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
         int updated = jdbcTemplate.update("""
             UPDATE %s
                SET status = ?,
+                   available_at = ?,
                    claim_owner = NULL,
                    claim_until = NULL,
                    last_error_code = ?
@@ -222,6 +225,7 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
                AND claim_owner = ?
             """.formatted(tableName),
             STATUS_PARKED,
+            timestamp(parkedAt),
             errorCode,
             messageId,
             STATUS_IN_FLIGHT,
@@ -248,6 +252,52 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
             oldestAge);
     }
 
+    @Override
+    public List<ParkedOutboxMessage> listParked(int limit) {
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        return jdbcTemplate.query("""
+            SELECT event_id, message_id, message_type, schema_version, producer_plugin_id, tenant_id,
+                   attempt_count, last_error_code, occurred_at, available_at
+              FROM %s
+             WHERE status = ?
+             ORDER BY available_at, message_id
+             LIMIT ?
+            """.formatted(tableName), (rs, rowNum) -> new ParkedOutboxMessage(
+                rs.getString("event_id"),
+                rs.getString("message_id"),
+                rs.getString("message_type"),
+                rs.getString("schema_version"),
+                rs.getString("producer_plugin_id"),
+                tenantId(rs),
+                rs.getInt("attempt_count"),
+                rs.getString("last_error_code"),
+                offsetDateTime(rs, "occurred_at"),
+                offsetDateTime(rs, "available_at")),
+            STATUS_PARKED,
+            limit);
+    }
+
+    @Override
+    public boolean replayParked(String eventId, OffsetDateTime now) {
+        requireText(eventId, "eventId");
+        Objects.requireNonNull(now, "now must not be null");
+        return jdbcTemplate.update("""
+            UPDATE %s
+               SET status = ?,
+                   available_at = ?,
+                   attempt_count = 0,
+                   last_error_code = NULL
+             WHERE event_id = ?
+               AND status = ?
+            """.formatted(tableName),
+            STATUS_PENDING,
+            timestamp(now),
+            eventId,
+            STATUS_PARKED) > 0;
+    }
+
     private CanonicalOutboxMessage loadClaimed(String relayOwner, String messageId) {
         return jdbcTemplate.queryForObject("""
             SELECT message_id, event_id, message_kind, message_type, schema_version,
@@ -262,10 +312,7 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
     }
 
     private CanonicalOutboxMessage mapMessage(ResultSet rs, int rowNum) throws SQLException {
-        Long tenantId = rs.getLong("tenant_id");
-        if (rs.wasNull()) {
-            tenantId = null;
-        }
+        Long tenantId = tenantId(rs);
         return new CanonicalOutboxMessage(
             rs.getString("message_id"),
             rs.getString("event_id"),
@@ -284,6 +331,11 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
             rs.getString("tracestate"),
             rs.getString("payload"),
             rs.getInt("attempt_count"));
+    }
+
+    private static Long tenantId(ResultSet rs) throws SQLException {
+        long tenantId = rs.getLong("tenant_id");
+        return rs.wasNull() ? null : tenantId;
     }
 
     private Long countStatus(String status) {

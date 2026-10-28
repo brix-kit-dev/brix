@@ -80,4 +80,22 @@ public interface OutboxMessageStore {
      * @return backlog snapshot
      */
     OutboxBacklogSnapshot readBacklog(OffsetDateTime now);
+
+    /**
+     * Lists parked messages, the earliest parked first, without their payloads.
+     *
+     * @param limit maximum number of messages
+     * @return parked messages
+     */
+    List<ParkedOutboxMessage> listParked(int limit);
+
+    /**
+     * Makes a parked message due again with a fresh attempt budget. Its event id does not change, so a
+     * subscriber that had already committed it skips it through its inbox.
+     *
+     * @param eventId event id of the parked message
+     * @param now replay timestamp
+     * @return whether a parked message with that event id was found
+     */
+    boolean replayParked(String eventId, OffsetDateTime now);
 }

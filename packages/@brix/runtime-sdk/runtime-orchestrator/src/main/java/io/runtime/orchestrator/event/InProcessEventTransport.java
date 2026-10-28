@@ -96,7 +96,8 @@ public final class InProcessEventTransport implements OutboxTransport {
         this.deadline = Objects.requireNonNull(deadline, "deadline must not be null");
     }
 
-    /** Tells handlers still running that the runtime no longer waits for them. */
+    /** Tells handlers still running, through their cancellation signal, that the runtime no longer waits for them. */
+    @Override
     public void stop() {
         stopped = true;
     }

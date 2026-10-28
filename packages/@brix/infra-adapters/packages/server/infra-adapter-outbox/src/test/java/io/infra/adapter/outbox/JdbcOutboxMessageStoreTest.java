@@ -7,6 +7,7 @@
 package io.infra.adapter.outbox;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,6 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
+import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 
 class JdbcOutboxMessageStoreTest {
 
@@ -128,6 +130,42 @@ class JdbcOutboxMessageStoreTest {
         assertEquals("PARKED", queryString("status", "m-5"));
         assertEquals("SCHEMA_INCOMPATIBLE", queryString("last_error_code", "m-5"));
         assertEquals(null, queryString("claim_owner", "m-5"));
+    }
+
+    @Test
+    void aParkedMessageIsListedWithItsLastErrorAndTheTimeItWasParked() {
+        insert("m-9", "PENDING", 0, NOW.minusSeconds(10), null);
+        insert("m-10", "PUBLISHED", 1, NOW.minusSeconds(10), null);
+        store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+        store.park("relay-a", "m-9", "EVENT_PAYLOAD_INVALID", NOW.plusSeconds(1));
+
+        List<ParkedOutboxMessage> parked = store.listParked(10);
+
+        assertEquals(List.of(new ParkedOutboxMessage("event-m-9", "m-9", "TenantFirstOwnerAccepted", "1.0.0",
+            "platform-tenant", 100L, 1, "EVENT_PAYLOAD_INVALID", NOW.minusSeconds(60), NOW.plusSeconds(1))), parked);
+    }
+
+    @Test
+    void aReplayedMessageIsDueAgainWithAFreshAttemptBudgetAndTheSameEventId() {
+        insert("m-11", "PARKED", 8, NOW.minusSeconds(10), null);
+
+        assertTrue(store.replayParked("event-m-11", NOW));
+
+        assertEquals("PENDING", queryString("status", "m-11"));
+        assertEquals("0", queryString("attempt_count", "m-11"));
+        assertEquals(null, queryString("last_error_code", "m-11"));
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+        assertEquals(List.of("event-m-11"), claimed.stream().map(CanonicalOutboxMessage::eventId).toList());
+        assertEquals(1, claimed.get(0).attemptCount());
+    }
+
+    @Test
+    void onlyAParkedMessageCanBeReplayed() {
+        insert("m-12", "PENDING", 2, NOW.minusSeconds(10), null);
+
+        assertFalse(store.replayParked("event-m-12", NOW));
+        assertFalse(store.replayParked("event-unknown", NOW));
+        assertEquals("2", queryString("attempt_count", "m-12"));
     }
 
     @Test

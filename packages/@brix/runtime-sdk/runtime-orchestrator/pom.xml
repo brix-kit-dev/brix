@@ -80,7 +80,22 @@
             <artifactId>spring-boot-health</artifactId>
             <optional>true</optional>
         </dependency>
-        
+
+        <!--
+          Outbox relay meters and the management endpoint for parked messages (optional; active
+          only when the Host includes actuator and Micrometer)
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!--
           Spring Web (optional dependency)
           

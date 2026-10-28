@@ -23,6 +23,7 @@ import io.runtime.orchestrator.command.CommandTransactionBoundary;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
 import io.runtime.orchestrator.outbox.OutboxMessageStore;
+import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.registry.Capability;
 
@@ -72,6 +73,16 @@ class CommandCapabilityAutoConfigurationTest {
         @Override
         public OutboxBacklogSnapshot readBacklog(OffsetDateTime now) {
             return new OutboxBacklogSnapshot(0, 0, 0, Duration.ZERO);
+        }
+
+        @Override
+        public List<ParkedOutboxMessage> listParked(int limit) {
+            return List.of();
+        }
+
+        @Override
+        public boolean replayParked(String eventId, OffsetDateTime now) {
+            return false;
         }
     }
 }

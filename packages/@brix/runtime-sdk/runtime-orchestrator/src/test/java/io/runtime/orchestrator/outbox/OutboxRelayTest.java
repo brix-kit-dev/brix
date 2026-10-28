@@ -238,6 +238,16 @@ class OutboxRelayTest {
             return new OutboxBacklogSnapshot(pending, inFlight, parked, Duration.ZERO);
         }
 
+        @Override
+        public List<ParkedOutboxMessage> listParked(int limit) {
+            return List.of();
+        }
+
+        @Override
+        public boolean replayParked(String eventId, OffsetDateTime now) {
+            return false;
+        }
+
         private StoredMessage requireOwned(String relayOwner, String messageId) {
             StoredMessage record = records.get(messageId);
             if (record == null || !relayOwner.equals(record.claimOwner) || !"IN_FLIGHT".equals(record.status)) {
