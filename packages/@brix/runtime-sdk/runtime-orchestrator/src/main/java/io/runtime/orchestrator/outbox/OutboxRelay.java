@@ -28,6 +28,8 @@ import java.util.function.IntFunction;
  */
 public final class OutboxRelay implements AutoCloseable {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OutboxRelay.class);
+
     private static final String ERROR_INVALID_ENVELOPE = "OUTBOX_INVALID_ENVELOPE";
     private static final String ERROR_UNEXPECTED = "OUTBOX_UNEXPECTED";
 
@@ -100,36 +102,34 @@ public final class OutboxRelay implements AutoCloseable {
         int retried = 0;
         int parked = 0;
         for (CanonicalOutboxMessage message : messages) {
+            OutboxTransportException failure = null;
             try {
                 validateEnvelope(message);
                 transport.publish(message);
-                store.markPublished(relayOwner, message.messageId(), now());
-                metrics.recordPublished(message.messageType());
-                published++;
             } catch (OutboxTransportException ex) {
-                if (shouldPark(message, ex)) {
-                    store.park(relayOwner, message.messageId(), ex.errorCode(), now());
-                    metrics.recordParked(message.messageType(), ex.errorCode());
-                    parked++;
-                } else {
-                    store.releaseForRetry(relayOwner, message.messageId(), nextAvailableAt(message), ex.errorCode());
-                    metrics.recordRetry(message.messageType(), ex.errorCode());
-                    retried++;
-                }
+                failure = ex;
             } catch (RuntimeException ex) {
-                OutboxTransportException wrapped = new OutboxTransportException(
-                    ERROR_UNEXPECTED,
-                    "Unexpected relay failure",
-                    ex);
-                if (shouldPark(message, wrapped)) {
-                    store.park(relayOwner, message.messageId(), wrapped.errorCode(), now());
-                    metrics.recordParked(message.messageType(), wrapped.errorCode());
+                failure = new OutboxTransportException(ERROR_UNEXPECTED, "Unexpected relay failure", ex);
+            }
+            try {
+                if (failure == null) {
+                    store.markPublished(relayOwner, message.messageId(), now());
+                    metrics.recordPublished(message.messageType());
+                    published++;
+                } else if (shouldPark(message, failure)) {
+                    store.park(relayOwner, message.messageId(), failure.errorCode(), now());
+                    metrics.recordParked(message.messageType(), failure.errorCode());
+                    log.warn("event=outbox.parked type={} message_id={} code={} attempts={}",
+                        message.messageType(), message.messageId(), failure.errorCode(), message.attemptCount(), failure);
                     parked++;
                 } else {
-                    store.releaseForRetry(relayOwner, message.messageId(), nextAvailableAt(message), wrapped.errorCode());
-                    metrics.recordRetry(message.messageType(), wrapped.errorCode());
+                    store.releaseForRetry(relayOwner, message.messageId(), nextAvailableAt(message), failure.errorCode());
+                    metrics.recordRetry(message.messageType(), failure.errorCode());
                     retried++;
                 }
+            } catch (RuntimeException lost) {
+                // The claim was lost (the lease expired and another pass took the row): its new claimant decides.
+                log.warn("event=outbox.claim_lost type={} message_id={}", message.messageType(), message.messageId(), lost);
             }
         }
         return new OutboxRelayRunResult(messages.size(), published, retried, parked);

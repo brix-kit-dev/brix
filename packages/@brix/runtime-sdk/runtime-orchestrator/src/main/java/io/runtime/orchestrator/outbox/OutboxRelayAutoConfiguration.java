@@ -7,9 +7,19 @@
 package io.runtime.orchestrator.outbox;
 
 import java.time.Clock;
+import java.util.function.Supplier;
+
+import org.springframework.beans.factory.ObjectProvider;
+import tools.jackson.databind.ObjectMapper;
+
+import io.runtime.orchestrator.event.EventInboxStore;
+import io.runtime.orchestrator.event.InProcessEventTransport;
+import io.runtime.orchestrator.event.PluginEventSubscribers;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.plugin.PluginRuntimeManager;
+
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -23,16 +33,12 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration
 @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "enabled", havingValue = "true")
-@ConditionalOnBean({OutboxMessageStore.class, OutboxTransport.class})
 @EnableConfigurationProperties(OutboxRelayProperties.class)
 public class OutboxRelayAutoConfiguration {
 
-    /**
-     * Creates the relay policy.
-     *
-     * @param properties relay properties
-     * @return relay policy
-     */
+    /** Transport that hands events to the subscribers' persistent inboxes in this process (P4 design D11). */
+    public static final String IN_PROCESS = "in-process";
+
     @Bean
     @ConditionalOnMissingBean
     public OutboxRelayPolicy outboxRelayPolicy(OutboxRelayProperties properties) {
@@ -45,40 +51,39 @@ public class OutboxRelayAutoConfiguration {
     }
 
     /**
-     * Creates the relay instance.
-     *
-     * @param store outbox message store
-     * @param transport broker transport
-     * @param policy relay policy
-     * @param properties relay properties
-     * @return relay
+     * One relay per owner outbox. With the {@code in-process} transport the group delivers events to the
+     * subscribers' inboxes; otherwise it uses the transport bean the host provides, such as Kafka.
      */
     @Bean
     @ConditionalOnMissingBean
-    public OutboxRelay outboxRelay(
-            OutboxMessageStore store,
-            OutboxTransport transport,
+    public OutboxRelayGroup outboxRelayGroup(
+            OutboxRelayProperties properties,
             OutboxRelayPolicy policy,
-            OutboxRelayProperties properties) {
-        String owner = properties.getOwner();
-        if (owner == null || owner.isBlank()) {
-            throw new IllegalStateException("brix.outbox.relay.owner must be configured when relay is enabled");
-        }
-        return new OutboxRelay(owner, store, transport, policy, Clock.systemUTC());
+            ObjectProvider<OutboxStoreRegistry> stores,
+            ObjectProvider<OutboxTransport> brokerTransport,
+            ObjectProvider<PluginRuntimeManager> plugins,
+            ObjectProvider<OwnerPersistenceProvider> owners,
+            ObjectProvider<EventInboxStore> inbox,
+            ObjectProvider<ObjectMapper> json) {
+        Supplier<OutboxTransport> transport = IN_PROCESS.equals(properties.getTransport())
+            ? () -> inProcess(properties, plugins, owners, inbox, json)
+            : brokerTransport::getIfAvailable;
+        return new OutboxRelayGroup(properties, policy, stores::getIfAvailable, transport);
     }
 
-    /**
-     * Creates the managed relay resource.
-     *
-     * @param relay relay
-     * @param properties relay properties
-     * @return managed resource
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public OutboxRelayManagedResource outboxRelayManagedResource(
-            OutboxRelay relay,
-            OutboxRelayProperties properties) {
-        return new OutboxRelayManagedResource(relay, properties.getPollDelay());
+    private static OutboxTransport inProcess(
+            OutboxRelayProperties properties,
+            ObjectProvider<PluginRuntimeManager> plugins,
+            ObjectProvider<OwnerPersistenceProvider> owners,
+            ObjectProvider<EventInboxStore> inbox,
+            ObjectProvider<ObjectMapper> json) {
+        PluginRuntimeManager runtime = plugins.getIfAvailable();
+        OwnerPersistenceProvider persistence = owners.getIfAvailable();
+        EventInboxStore inboxes = inbox.getIfAvailable();
+        if (runtime == null || persistence == null || inboxes == null) {
+            return null;
+        }
+        return new InProcessEventTransport(new PluginEventSubscribers(runtime), persistence, inboxes,
+            json.getIfAvailable(ObjectMapper::new), Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2));
     }
 }

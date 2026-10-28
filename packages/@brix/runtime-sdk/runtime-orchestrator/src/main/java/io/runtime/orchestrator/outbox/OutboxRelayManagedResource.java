@@ -33,6 +33,7 @@ public final class OutboxRelayManagedResource implements SmartLifecycle {
 
     private final OutboxRelay relay;
     private final Duration pollDelay;
+    private final String threadName;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private ScheduledExecutorService executor;
     private ScheduledFuture<?> task;
@@ -45,6 +46,18 @@ public final class OutboxRelayManagedResource implements SmartLifecycle {
      * @param pollDelay fixed delay between polling passes
      */
     public OutboxRelayManagedResource(OutboxRelay relay, Duration pollDelay) {
+        this(relay, pollDelay, "brix-outbox-relay");
+    }
+
+    /**
+     * Creates the polling loop of one relay.
+     *
+     * @param relay the relay
+     * @param pollDelay pause between polling passes
+     * @param threadName name of the polling thread
+     */
+    public OutboxRelayManagedResource(OutboxRelay relay, Duration pollDelay, String threadName) {
+        this.threadName = Objects.requireNonNull(threadName, "threadName must not be null");
         this.relay = Objects.requireNonNull(relay, "relay must not be null");
         if (pollDelay == null || pollDelay.isZero() || pollDelay.isNegative()) {
             throw new IllegalArgumentException("pollDelay must be positive");
@@ -58,7 +71,7 @@ public final class OutboxRelayManagedResource implements SmartLifecycle {
             return;
         }
         executor = Executors.newSingleThreadScheduledExecutor(task -> {
-            Thread thread = new Thread(task, "brix-outbox-relay");
+            Thread thread = new Thread(task, threadName);
             thread.setDaemon(false);
             return thread;
         });

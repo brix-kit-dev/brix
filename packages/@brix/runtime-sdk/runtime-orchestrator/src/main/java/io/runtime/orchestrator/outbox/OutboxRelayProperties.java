@@ -25,6 +25,12 @@ public class OutboxRelayProperties {
     private String owner;
 
     /**
+     * How claimed messages leave the outbox: {@code in-process} hands events to the subscribers' persistent
+     * inboxes in this process (P4 design D11); {@code kafka} publishes them to the broker.
+     */
+    private String transport = "in-process";
+
+    /**
      * Maximum claimed messages per polling pass.
      */
     private int batchSize = 25;
@@ -108,5 +114,13 @@ public class OutboxRelayProperties {
 
     public void setPollDelay(Duration pollDelay) {
         this.pollDelay = pollDelay;
+    }
+
+    public String getTransport() {
+        return transport;
+    }
+
+    public void setTransport(String transport) {
+        this.transport = transport;
     }
 }

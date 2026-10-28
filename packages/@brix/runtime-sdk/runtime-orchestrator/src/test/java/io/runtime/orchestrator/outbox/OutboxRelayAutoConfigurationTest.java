@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -27,39 +28,52 @@ import org.junit.jupiter.api.Test;
 class OutboxRelayAutoConfigurationTest {
 
     @Test
-    void createsRelayAndManagedResourceWhenOwnerStoreAndTransportAreConfigured() {
-        OutboxRelayAutoConfiguration configuration = new OutboxRelayAutoConfiguration();
-        OutboxRelayProperties properties = new OutboxRelayProperties();
-        properties.setOwner("enterprise-shell");
-        properties.setPollDelay(Duration.ofMillis(100));
-
-        OutboxRelayPolicy policy = configuration.outboxRelayPolicy(properties);
-        OutboxRelay relay = configuration.outboxRelay(
-            new EmptyOutboxMessageStore(),
-            ignored -> {
-            },
-            policy,
-            properties);
-        OutboxRelayManagedResource managed = configuration.outboxRelayManagedResource(relay, properties);
+    void oneRelayRunsForEachOwnerOutbox() {
+        OutboxRelayProperties properties = properties();
+        OutboxRelayPolicy policy = new OutboxRelayAutoConfiguration().outboxRelayPolicy(properties);
+        OutboxRelayGroup group = new OutboxRelayGroup(properties, policy,
+            () -> () -> java.util.Map.of("platform_tenant_outbox", new EmptyOutboxMessageStore(),
+                "platform_identity_outbox", new EmptyOutboxMessageStore()),
+            () -> ignored -> {
+            });
 
         assertEquals(25, policy.batchSize());
-        assertFalse(managed.isRunning());
-        assertDoesNotThrow(() -> relay.processDueBatch());
+        assertDoesNotThrow(group::start);
+        assertTrue(group.isRunning());
+        group.stop();
+        assertFalse(group.isRunning());
     }
 
     @Test
     void enabledRelayRequiresStableOwnerIdentity() {
-        OutboxRelayAutoConfiguration configuration = new OutboxRelayAutoConfiguration();
+        OutboxRelayGroup group = new OutboxRelayGroup(new OutboxRelayProperties(), OutboxRelayPolicy.defaults(),
+            () -> java.util.Map::of, () -> ignored -> {
+            });
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class, group::start);
+
+        assertEquals("brix.outbox.relay.owner must be configured when the relay is enabled", failure.getMessage());
+    }
+
+    @Test
+    void anEnabledRelayWithoutOutboxesOrTransportStopsTheHost() {
+        OutboxRelayGroup withoutStores = new OutboxRelayGroup(properties(), OutboxRelayPolicy.defaults(), () -> null,
+            () -> ignored -> {
+            });
+        OutboxRelayGroup withoutTransport = new OutboxRelayGroup(properties(), OutboxRelayPolicy.defaults(),
+            () -> java.util.Map::of, () -> null);
+
+        assertTrue(assertThrows(IllegalStateException.class, withoutStores::start).getMessage()
+            .contains("brix.outbox.relay.persistence"));
+        assertTrue(assertThrows(IllegalStateException.class, withoutTransport::start).getMessage()
+            .contains("in-process"));
+    }
+
+    private static OutboxRelayProperties properties() {
         OutboxRelayProperties properties = new OutboxRelayProperties();
-
-        IllegalStateException failure = assertThrows(IllegalStateException.class, () -> configuration.outboxRelay(
-            new EmptyOutboxMessageStore(),
-            ignored -> {
-            },
-            OutboxRelayPolicy.defaults(),
-            properties));
-
-        assertEquals("brix.outbox.relay.owner must be configured when relay is enabled", failure.getMessage());
+        properties.setOwner("enterprise-shell");
+        properties.setPollDelay(Duration.ofMillis(100));
+        return properties;
     }
 
     private static final class EmptyOutboxMessageStore implements OutboxMessageStore {
