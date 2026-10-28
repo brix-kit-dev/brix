@@ -23,6 +23,11 @@ public final class PluginEventSubscribers implements EventSubscribers {
     }
 
     @Override
+    public boolean ready() {
+        return plugins.ready();
+    }
+
+    @Override
     public Optional<String> publisherOf(String eventType) {
         return plugins.eventPublisher(eventType);
     }

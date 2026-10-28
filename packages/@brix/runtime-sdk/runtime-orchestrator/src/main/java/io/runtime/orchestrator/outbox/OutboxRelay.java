@@ -41,6 +41,7 @@ public final class OutboxRelay implements AutoCloseable {
     private final IntFunction<Duration> jitter;
     private final OutboxRelayMetrics metrics;
     private final AtomicBoolean accepting = new AtomicBoolean(true);
+    private boolean waiting;
 
     /**
      * Creates a relay with default jitter and no-op metrics.
@@ -104,6 +105,19 @@ public final class OutboxRelay implements AutoCloseable {
         OffsetDateTime now = now();
         OutboxBacklogSnapshot backlog = store.readBacklog(now);
         metrics.recordBacklog(backlog);
+        if (!transport.ready()) {
+            // For example the plugins have not started yet: claiming now would spend attempts, or park
+            // rows that only wait for their subscribers.
+            if (!waiting) {
+                waiting = true;
+                log.info("event=outbox.relay_waiting pending={} reason=transport_not_ready", backlog.pendingCount());
+            }
+            return new OutboxRelayRunResult(0, 0, 0, 0);
+        }
+        if (waiting) {
+            waiting = false;
+            log.info("event=outbox.relay_resumed pending={}", backlog.pendingCount());
+        }
         List<CanonicalOutboxMessage> messages = store.claimDue(
             relayOwner,
             now,

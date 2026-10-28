@@ -36,6 +36,7 @@ import io.runtime.orchestrator.endpoint.EndpointDispatchException;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
+import io.runtime.orchestrator.event.PluginEventSubscribers;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.sdk.capability.EventBusCapability;
@@ -202,9 +203,12 @@ class PluginRuntimeManagerTest {
         plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
         PluginRuntimeManager manager = manager(
             List.of(plugin), Map.of(plugin, subscriber()), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+        PluginEventSubscribers delivery = new PluginEventSubscribers(manager);
+        assertFalse(delivery.ready(), "the relay delivers nothing before the plugins start");
 
         manager.start();
 
+        assertTrue(delivery.ready());
         List<PluginRuntimeManager.EventSubscriber> subscribers = manager.eventSubscribers("TenantFirstOwnerAccepted");
         assertEquals(1, subscribers.size());
         assertEquals("plugin-a", subscribers.get(0).pluginId());

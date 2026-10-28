@@ -282,6 +282,11 @@ class PlatformTenantPersistentInboxE2ETest {
             new TenantFirstOwnerAcceptedProjectionHandler(writer), TenantFirstOwnerAcceptedPayload.class);
         EventSubscribers subscribers = new EventSubscribers() {
             @Override
+            public boolean ready() {
+                return true;
+            }
+
+            @Override
             public Optional<String> publisherOf(String eventType) {
                 return DESCRIPTOR.eventPublications().containsKey(eventType) ? Optional.of(OWNER) : Optional.empty();
             }

@@ -26,6 +26,16 @@ public interface OutboxTransport {
     void publish(CanonicalOutboxMessage message);
 
     /**
+     * Whether the transport can deliver now. The relay claims nothing while it cannot, so waiting costs
+     * no attempts.
+     *
+     * @return whether messages can be delivered
+     */
+    default boolean ready() {
+        return true;
+    }
+
+    /**
      * Tells deliveries still running that the relay is stopping. The relay calls it before its loops
      * stop.
      */

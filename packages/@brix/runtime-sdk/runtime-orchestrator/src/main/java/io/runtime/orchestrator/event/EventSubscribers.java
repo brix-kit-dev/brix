@@ -17,6 +17,14 @@ import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
 public interface EventSubscribers {
 
     /**
+     * Whether the plugins have started. Until then no publisher or subscriber is known yet, so nothing
+     * may be delivered or judged.
+     *
+     * @return whether events can be delivered
+     */
+    boolean ready();
+
+    /**
      * Returns the plugin whose manifest declares the event type under {@code events.publishes}.
      *
      * @param eventType event type

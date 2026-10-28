@@ -50,7 +50,8 @@ import io.runtime.sdk.plugin.TraceContext;
  *
  * <p>A message is parked at once (a permanent failure) when its publisher is not the plugin that
  * declares the event type, when a subscriber does not accept its schema version, or when its payload
- * cannot be decoded. A subscriber that is declared but not started makes the message wait.</p>
+ * cannot be decoded. A subscriber that is declared but not started makes the message wait, and so does
+ * every message while the plugins have not started: the transport is not {@link #ready()} then.</p>
  */
 public final class InProcessEventTransport implements OutboxTransport {
 
@@ -96,6 +97,12 @@ public final class InProcessEventTransport implements OutboxTransport {
         this.deadline = Objects.requireNonNull(deadline, "deadline must not be null");
     }
 
+    /** Ready once the plugins have started; before that no publisher or subscriber is known. */
+    @Override
+    public boolean ready() {
+        return subscribers.ready();
+    }
+
     /** Tells handlers still running, through their cancellation signal, that the runtime no longer waits for them. */
     @Override
     public void stop() {
@@ -106,6 +113,10 @@ public final class InProcessEventTransport implements OutboxTransport {
     public void publish(CanonicalOutboxMessage message) {
         if (!"EVENT".equals(message.messageKind())) {
             throw permanent(KIND_UNSUPPORTED, "only events are delivered in process, not " + message.messageKind(), null);
+        }
+        if (!subscribers.ready()) {
+            // Judging the publisher now would park every event that was pending when the host started.
+            throw new OutboxTransportException(SUBSCRIBER_NOT_READY, "the plugins have not started", null);
         }
         String eventType = message.messageType();
         String publisher = subscribers.publisherOf(eventType).orElse(null);

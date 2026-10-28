@@ -21,6 +21,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
@@ -95,6 +96,37 @@ class OutboxRelayTest {
         assertEquals(new OutboxRelayRunResult(1, 0, 0, 1), result);
         assertEquals("PARKED", store.status("m-4"));
         assertEquals("SCHEMA_INCOMPATIBLE", store.error("m-4"));
+    }
+
+    @Test
+    void aTransportThatIsNotReadyGetsNothingAndCostsNoAttempt() {
+        InMemoryStore store = new InMemoryStore();
+        store.add("m-7", 0);
+        AtomicBoolean ready = new AtomicBoolean();
+        AtomicReference<CanonicalOutboxMessage> published = new AtomicReference<>();
+        OutboxRelay relay = relay(store, new OutboxTransport() {
+            @Override
+            public void publish(CanonicalOutboxMessage message) {
+                published.set(message);
+            }
+
+            @Override
+            public boolean ready() {
+                return ready.get();
+            }
+        });
+
+        OutboxRelayRunResult waiting = relay.processDueBatch();
+
+        assertEquals(new OutboxRelayRunResult(0, 0, 0, 0), waiting);
+        assertEquals("PENDING", store.status("m-7"));
+        assertEquals(null, store.claimOwner("m-7"));
+
+        ready.set(true);
+        OutboxRelayRunResult delivered = relay.processDueBatch();
+
+        assertEquals(new OutboxRelayRunResult(1, 1, 0, 0), delivered);
+        assertEquals(1, published.get().attemptCount());
     }
 
     @Test

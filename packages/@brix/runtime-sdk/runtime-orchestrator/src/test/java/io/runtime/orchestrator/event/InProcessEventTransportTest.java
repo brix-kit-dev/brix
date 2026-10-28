@@ -53,6 +53,7 @@ class InProcessEventTransportTest {
     private final List<TenantScope> scopes = new ArrayList<>();
     private RuntimeException failure;
     private boolean started = true;
+    private boolean pluginsStarted = true;
     private String publisher = PUBLISHER;
 
     /** Payload the test handler declares. */
@@ -95,6 +96,22 @@ class InProcessEventTransportTest {
         transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 2));
 
         assertTrue(handled.isEmpty());
+    }
+
+    @Test
+    void untilThePluginsStartAnEventWaitsInsteadOfBeingJudged() {
+        pluginsStarted = false;
+        publisher = null;
+
+        InProcessEventTransport transport = transport();
+        OutboxTransportException waiting = assertThrows(OutboxTransportException.class,
+            () -> transport.publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1)));
+
+        assertFalse(transport.ready());
+        assertEquals(InProcessEventTransport.SUBSCRIBER_NOT_READY, waiting.errorCode());
+        assertFalse(waiting.permanent());
+        assertTrue(handled.isEmpty());
+        assertTrue(inbox.isEmpty());
     }
 
     @Test
@@ -165,8 +182,13 @@ class InProcessEventTransportTest {
         BoundEventHandler bound = new BoundEventHandler(SUBSCRIBER, subscription, new AcceptedHandler(), Accepted.class);
         EventSubscribers subscribers = new EventSubscribers() {
             @Override
+            public boolean ready() {
+                return pluginsStarted;
+            }
+
+            @Override
             public Optional<String> publisherOf(String eventType) {
-                return EVENT.equals(eventType) ? Optional.of(publisher) : Optional.empty();
+                return EVENT.equals(eventType) ? Optional.ofNullable(publisher) : Optional.empty();
             }
 
             @Override
