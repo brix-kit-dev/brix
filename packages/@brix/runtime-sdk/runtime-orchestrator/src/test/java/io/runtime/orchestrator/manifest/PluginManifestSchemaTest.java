@@ -65,6 +65,50 @@ class PluginManifestSchemaTest {
             objectMapper.readTree(manifestWithEndpointProvides())));
     }
 
+    @Test
+    void bundledSchemaAcceptsACustodialWriteRegistration() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
+
+        assertDoesNotThrow(() -> validator.validate("custodial write",
+            objectMapper.readTree(manifestWithCustodialWrite("[\"INSERT\"]", "runtime.tenant-policy-audit"))));
+    }
+
+    @Test
+    void bundledSchemaRefusesCustodialWritesBeyondInsertOrTheCustodianDirectory() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
+
+        // Root BRX-RS-MANIFEST-031: only INSERT, and only a Runtime Custodian of appendix A.
+        assertThrows(PluginManifestValidationException.class, () -> validator.validate("update",
+            objectMapper.readTree(manifestWithCustodialWrite("[\"INSERT\", \"UPDATE\"]", "runtime.tenant-policy-audit"))));
+        assertThrows(PluginManifestValidationException.class, () -> validator.validate("unknown custodian",
+            objectMapper.readTree(manifestWithCustodialWrite("[\"INSERT\"]", "runtime.other"))));
+        String withoutRecordSchema = manifestWithCustodialWrite("[\"INSERT\"]", "runtime.tenant-policy-audit")
+            .replace("\"actions\": [\"LOGIN_TENANT_DISCOVERY\"],", "\"actions\": [\"LOGIN_TENANT_DISCOVERY\"]")
+            .replace("\"recordSchemaRef\": \"brix://schemas/platform-audit/policy-use-record/1.0.0\"", "");
+        assertThrows(PluginManifestValidationException.class, () -> validator.validate("no record schema",
+            objectMapper.readTree(withoutRecordSchema)));
+    }
+
+    private String manifestWithCustodialWrite(String operations, String custodian) {
+        return manifestWithReliability().replace("""
+                "inbox": "platform_tenant_inbox"
+            """, """
+                "inbox": "platform_tenant_inbox",
+                "custodialWrites": [
+                  {
+                    "table": "sys_platform_audit_log",
+                    "custodian": "%s",
+                    "operations": %s,
+                    "columns": ["id", "operator_identity_id", "action", "trace_id", "writer"],
+                    "actions": ["LOGIN_TENANT_DISCOVERY"],
+                    "recordSchemaRef": "brix://schemas/platform-audit/policy-use-record/1.0.0"
+                  }
+                ]
+            """.formatted(custodian, operations));
+    }
+
     private String manifestWithReliability() {
         return """
             {
