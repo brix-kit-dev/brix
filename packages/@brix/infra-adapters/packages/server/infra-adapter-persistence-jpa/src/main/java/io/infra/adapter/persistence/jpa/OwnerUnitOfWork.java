@@ -18,6 +18,7 @@ package io.infra.adapter.persistence.jpa;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import jakarta.persistence.EntityManager;
@@ -49,6 +50,9 @@ import io.runtime.sdk.capability.UnitOfWork;
  * write. Entities therefore stay change-tracked inside read-only scopes; nothing is flushed there, the
  * connection of a read-only transaction is read-only, and a detected write marks the owner transaction
  * rollback-only.</p>
+ *
+ * <p>Each new transaction under a registered cross-tenant policy or a platform operation is counted
+ * in {@value TenantIsolationMetrics#POLICY_USES}, with whether the work succeeded.</p>
  */
 final class OwnerUnitOfWork implements UnitOfWork {
 
@@ -104,11 +108,12 @@ final class OwnerUnitOfWork implements UnitOfWork {
     }
 
     private <T> T inNewTransaction(TransactionTemplate transactions, boolean readOnly, Supplier<T> work) {
+        // A new transaction binds the scope the runtime requested; a joined one keeps its own.
+        TenantScopeState tenancy = new TenantScopeState(TenantScopes.requested(), tenantTables);
         EntityManagerHolder requestEntityManager = detachRequestEntityManager();
+        boolean succeeded = false;
         try {
-            return transactions.execute(status -> {
-                // A new transaction binds the scope the runtime requested; a joined one keeps its own.
-                TenantScopeState tenancy = new TenantScopeState(TenantScopes.requested(), tenantTables);
+            T result = transactions.execute(status -> {
                 OwnerTransactionScope scope = OwnerTransactionScope.open(ownerId, readOnly, status, tenancy);
                 tenancy.syncFilters(session());
                 if (!readOnly) {
@@ -116,13 +121,19 @@ final class OwnerUnitOfWork implements UnitOfWork {
                 }
                 SessionImplementor session = session();
                 session.setDefaultReadOnly(false);
-                T result = work.get();
+                T read = work.get();
                 assertNoPendingWrites(scope, session);
-                return result;
+                return read;
             });
+            succeeded = true;
+            return result;
         } catch (RuntimeException failure) {
             throw failureTranslator.translateUnitOfWorkFailure(ownerId, failure);
         } finally {
+            Optional<String> crossTenantAccess = tenancy.crossTenantAccess();
+            if (crossTenantAccess.isPresent()) {
+                TenantIsolationMetrics.policyUse(ownerId, crossTenantAccess.get(), succeeded);
+            }
             if (requestEntityManager != null) {
                 TransactionSynchronizationManager.bindResource(entityManagerFactory, requestEntityManager);
             }

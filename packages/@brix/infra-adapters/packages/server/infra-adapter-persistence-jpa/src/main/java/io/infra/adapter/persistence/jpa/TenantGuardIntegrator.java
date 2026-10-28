@@ -38,6 +38,7 @@ import org.hibernate.metamodel.mapping.BasicValuedModelPart;
 import org.hibernate.persister.entity.EntityPersister;
 
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 
 /**
  * Checks entity writes against the tenant scope of the owner transaction and lets keyed rows
@@ -120,6 +121,22 @@ public final class TenantGuardIntegrator implements Integrator {
         }
 
         private static void checkWrite(
+                TenantScopeState state,
+                EntityPersister persister,
+                String table,
+                Object id,
+                Object[] values,
+                Object[] previousValues,
+                String operation) {
+            try {
+                requireWriteInScope(state, persister, table, id, values, previousValues, operation);
+            } catch (PersistenceCapabilityException violation) {
+                throw TenantViolations.report(violation, TenantViolations.Reason.ENTITY_WRITE,
+                    "table=" + table + " operation=" + operation);
+            }
+        }
+
+        private static void requireWriteInScope(
                 TenantScopeState state,
                 EntityPersister persister,
                 String table,

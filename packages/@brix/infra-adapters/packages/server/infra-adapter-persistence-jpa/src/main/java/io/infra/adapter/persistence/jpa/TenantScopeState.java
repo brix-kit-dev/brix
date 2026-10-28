@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.runtime.orchestrator.persistence.TenantAccessPolicy;
+import io.runtime.orchestrator.persistence.TenantIsolationRegister;
 import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 
@@ -83,6 +84,17 @@ final class TenantScopeState {
     /** The policy, when the scope is one. */
     Optional<TenantAccessPolicy> policy() {
         return scope instanceof TenantScope.Policy policy ? Optional.of(policy.policy()) : Optional.empty();
+    }
+
+    /**
+     * The registered cross-tenant access this transaction runs under (multi-tenant §6.4): the
+     * policy id, or {@code platform-operation}. Empty for tenant scopes and for no scope.
+     */
+    Optional<String> crossTenantAccess() {
+        if (scope instanceof TenantScope.Policy policy) {
+            return Optional.of(policy.policy().id());
+        }
+        return scope instanceof TenantScope.PlatformOperation ? Optional.of("platform-operation") : Optional.empty();
     }
 
     /**
@@ -144,7 +156,9 @@ final class TenantScopeState {
             return;
         }
         if (bound.size() >= policy.policy().maxTenants()) {
-            throw violation("policy " + policy.policy().id() + " reached more tenants than it may bind");
+            throw TenantViolations.report(
+                violation("policy " + policy.policy().id() + " reached more tenants than it may bind"),
+                TenantViolations.Reason.TENANT_BINDING, "table=" + table);
         }
         bound.add(tenantId);
         version++;
@@ -162,7 +176,8 @@ final class TenantScopeState {
             return;
         }
         if (!bound.isEmpty() && !bound.contains(tenantId)) {
-            throw violation("a platform operation may create one tenant at a time");
+            throw TenantViolations.report(violation("a platform operation may create one tenant at a time"),
+                TenantViolations.Reason.TENANT_BINDING, "table=" + TenantIsolationRegister.TENANT_REGISTRY_TABLE);
         }
         if (bound.add(tenantId)) {
             version++;

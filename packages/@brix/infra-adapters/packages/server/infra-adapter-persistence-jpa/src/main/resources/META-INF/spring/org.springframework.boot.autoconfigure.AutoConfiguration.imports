@@ -1,2 +1,3 @@
 io.infra.adapter.persistence.jpa.config.JpaPersistenceAutoConfiguration
 io.infra.adapter.persistence.jpa.config.TenantStatementVerifierAutoConfiguration
+io.infra.adapter.persistence.jpa.config.TenantIsolationMetricsAutoConfiguration

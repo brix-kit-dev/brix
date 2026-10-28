@@ -28,8 +28,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.hibernate.resource.jdbc.spi.StatementInspector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 
@@ -53,7 +51,6 @@ public final class TenantStatementVerifier implements StatementInspector {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private static final Logger security = LoggerFactory.getLogger("brix.tenant.isolation.audit");
     private static final int CACHE_LIMIT = 20_000;
     private static final Pattern LITERAL = Pattern.compile("'(?:[^']|'')*'");
     private static final Pattern LEADING_COMMENT = Pattern.compile("^\\s*/\\*.*?\\*/\\s*", Pattern.DOTALL);
@@ -81,14 +78,7 @@ public final class TenantStatementVerifier implements StatementInspector {
         if (verified.containsKey(cacheKey)) {
             return sql;
         }
-        try {
-            verify(sql, state);
-        } catch (PersistenceCapabilityException violation) {
-            security.warn("event=tenant.isolation.violation owner={} scope={} code={} sql={}",
-                state.tables().ownerId(), state.safeParameters().get("scope"), violation.code().wireCode(),
-                fingerprint(sql));
-            throw violation;
-        }
+        verify(sql, state);
         if (verified.size() < CACHE_LIMIT) {
             verified.put(cacheKey, Boolean.TRUE);
         }
@@ -109,6 +99,19 @@ public final class TenantStatementVerifier implements StatementInspector {
             LegacyRules.check(sql);
             return;
         }
+        try {
+            verifyOwnerStatement(text, kind, insertSelect, references, state);
+        } catch (PersistenceCapabilityException violation) {
+            throw TenantViolations.report(violation, TenantViolations.Reason.STATEMENT, "sql=" + fingerprint(sql));
+        }
+    }
+
+    private static void verifyOwnerStatement(
+            String text,
+            String kind,
+            boolean insertSelect,
+            List<Reference> references,
+            TenantScopeState state) {
         boolean targetSeen = false;
         for (Reference reference : references) {
             String table = OwnerTenantTables.normalize(reference.table());
@@ -239,11 +242,13 @@ public final class TenantStatementVerifier implements StatementInspector {
                     || TENANT_CONDITION.matcher(statement).find()) {
                 return;
             }
-            security.warn("event=tenant.isolation.violation owner=legacy table={} sql={}", table, fingerprint(sql));
-            throw new PersistenceCapabilityException(
-                PersistenceCapabilityException.Code.TENANT_SCOPE_VIOLATION,
-                Map.of("owner", "legacy"),
-                new IllegalStateException("statement on " + table + " lacks a tenant_id condition"));
+            throw TenantViolations.report(
+                new PersistenceCapabilityException(
+                    PersistenceCapabilityException.Code.TENANT_SCOPE_VIOLATION,
+                    Map.of("owner", "legacy"),
+                    new IllegalStateException("statement on " + table + " lacks a tenant_id condition")),
+                TenantViolations.Reason.LEGACY_STATEMENT,
+                "table=" + table + " sql=" + fingerprint(sql));
         }
 
         private static boolean requiresTenantFilter(String table) {
