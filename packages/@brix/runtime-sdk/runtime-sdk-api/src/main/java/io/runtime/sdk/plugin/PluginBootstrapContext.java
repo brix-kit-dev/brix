@@ -54,12 +54,13 @@ public interface PluginBootstrapContext {
     void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler);
 
     /**
-     * Binds a manifest-declared event subscription.
+     * Binds a manifest-declared event subscription to the factory of its handler (root BRX-RS-CAP-025).
+     * The runtime creates the handler with the plugin's scoped context when the plugin starts.
      *
-     * @param manifestSubscriptionId subscription id from the YAML manifest
-     * @param handler event handler
+     * @param handlerId the subscription's handler id from the YAML manifest
+     * @param factory creates the event handler
      */
-    void bindEventHandler(String manifestSubscriptionId, EventHandler<?> handler);
+    void bindEventHandlerFactory(String handlerId, HandlerFactory<? extends EventHandler<?>> factory);
 
     /**
      * Binds a manifest-declared managed task.

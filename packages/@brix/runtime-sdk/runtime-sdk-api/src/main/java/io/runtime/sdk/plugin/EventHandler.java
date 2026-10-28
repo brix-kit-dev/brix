@@ -15,23 +15,29 @@
  */
 package io.runtime.sdk.plugin;
 
+import java.util.concurrent.CompletionStage;
+
 /**
- * Handler contract for a manifest-declared event subscription.
+ * Handler contract for a manifest-declared event subscription (root BRX-RS-CAP-025, §5).
  *
- * <p>This type lives in {@code io.runtime.sdk.plugin} and is separate from the
- * legacy annotation {@code io.runtime.sdk.annotation.EventHandler}.</p>
+ * <p>The runtime decodes the event's payload into {@code E}, the type argument the implementing
+ * class gives this interface, so a handler must be a class that names a concrete payload type.
+ * Deliveries are at least once: a handler sees an event again after a failure, and the runtime's
+ * inbox skips one it has already committed (root MESSAGE-025).</p>
  *
- * @param <E> event type
+ * <p>This type is separate from the legacy annotation {@code io.runtime.sdk.annotation.EventHandler}.</p>
+ *
+ * @param <E> payload type
  * @author Runtime SDK Team
  * @since 3.0.10
  */
-@FunctionalInterface
 public interface EventHandler<E> {
 
     /**
-     * Handles a delivered event.
+     * Handles a delivered event inside the subscriber owner's unit of work.
      *
-     * @param event event payload
+     * @param invocation the delivery
+     * @return completes when the event has been handled
      */
-    void handle(E event);
+    CompletionStage<Void> handle(EventInvocation<E> invocation);
 }

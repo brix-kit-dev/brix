@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ResolvableType;
 
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
@@ -43,6 +44,8 @@ import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EventHandler;
+import io.runtime.sdk.plugin.HandlerFactory;
+import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
@@ -413,11 +416,12 @@ public final class PluginRuntimeManager {
             if (plugin.state.lifecycleState() != PluginLifecycleState.STARTED) {
                 continue;
             }
-            for (Map.Entry<String, EventHandler<?>> binding : plugin.eventHandlers.entrySet()) {
+            for (Map.Entry<String, CreatedEventHandler> binding : plugin.eventHandlers.entrySet()) {
                 PluginRuntimeDescriptor.EventSubscription subscription =
                     plugin.descriptor.eventSubscriptions().get(binding.getKey());
                 if (subscription != null && subscription.eventType().equals(eventType)) {
-                    bound.add(new BoundEventHandler(plugin.id(), subscription, binding.getValue()));
+                    bound.add(new BoundEventHandler(plugin.id(), subscription, binding.getValue().handler(),
+                        binding.getValue().payloadType()));
                 }
             }
         }
@@ -429,12 +433,38 @@ public final class PluginRuntimeManager {
      *
      * @param pluginId owning plugin
      * @param subscription the manifest subscription
-     * @param handler the bound handler
+     * @param handler the handler the plugin's factory created
+     * @param payloadType the payload type the handler declares
      */
     public record BoundEventHandler(
             String pluginId,
             PluginRuntimeDescriptor.EventSubscription subscription,
-            EventHandler<?> handler) {
+            EventHandler<?> handler,
+            Class<?> payloadType) {
+    }
+
+    /**
+     * Creates each bound event handler with the plugin's scoped context (root BRX-RS-CAP-025) and reads the
+     * payload type it declares. A handler that does not name a concrete payload type stops the plugin.
+     */
+    private static Map<String, CreatedEventHandler> createEventHandlers(
+            String pluginId, Map<String, HandlerFactory<? extends EventHandler<?>>> factories, PluginContext context) {
+        Map<String, CreatedEventHandler> created = new LinkedHashMap<>();
+        for (Map.Entry<String, HandlerFactory<? extends EventHandler<?>>> factory : factories.entrySet()) {
+            EventHandler<?> handler = Objects.requireNonNull(factory.getValue().create(context),
+                () -> "Event handler factory '" + factory.getKey() + "' of plugin '" + pluginId + "' created no handler");
+            Class<?> payloadType = ResolvableType.forClass(handler.getClass())
+                .as(EventHandler.class).getGeneric(0).resolve();
+            if (payloadType == null || payloadType == Object.class) {
+                throw new PluginRuntimeException("Event handler '" + factory.getKey() + "' of plugin '" + pluginId
+                    + "' must be a class that names its payload type, EventHandler<PayloadType>");
+            }
+            created.put(factory.getKey(), new CreatedEventHandler(handler, payloadType));
+        }
+        return Map.copyOf(created);
+    }
+
+    private record CreatedEventHandler(EventHandler<?> handler, Class<?> payloadType) {
     }
 
     /**
@@ -492,11 +522,12 @@ public final class PluginRuntimeManager {
             DefaultPluginBootstrapContext bootstrapContext = new DefaultPluginBootstrapContext(plugin.descriptor);
             plugin.provider.configure(bootstrapContext);
             plugin.endpointHandlers = bootstrapContext.endpoints();
-            plugin.eventHandlers = bootstrapContext.eventHandlers();
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
-            plugin.provider.onStart(new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence));
+            PluginContext context = new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence);
+            plugin.provider.onStart(context);
+            plugin.eventHandlers = createEventHandlers(plugin.id(), bootstrapContext.eventHandlerFactories(), context);
             BrixHealth health = pluginHealth(plugin);
             plugin.state = state(plugin, PluginLifecycleState.STARTED, false, health, health.message());
             if (isRequired(plugin) && !health.isReadyStatus()) {
@@ -756,7 +787,7 @@ public final class PluginRuntimeManager {
         private final BrixPlugin provider;
         private final PluginRuntimeDescriptor descriptor;
         private Map<String, EndpointHandler<?, ?>> endpointHandlers = Map.of();
-        private Map<String, EventHandler<?>> eventHandlers = Map.of();
+        private Map<String, CreatedEventHandler> eventHandlers = Map.of();
         private PluginRuntimeState state;
 
         private ManagedPlugin(BrixPlugin provider, PluginRuntimeDescriptor descriptor) {

@@ -22,6 +22,7 @@ import java.util.Objects;
 import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EventHandler;
+import io.runtime.sdk.plugin.HandlerFactory;
 import io.runtime.sdk.plugin.ManagedTask;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
 import io.runtime.sdk.plugin.QueryHandler;
@@ -45,7 +46,7 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
     private final Map<String, EndpointHandler<?, ?>> endpoints = new LinkedHashMap<>();
     private final Map<String, QueryHandler<?, ?>> queryHandlers = new LinkedHashMap<>();
     private final Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>();
-    private final Map<String, EventHandler<?>> eventHandlers = new LinkedHashMap<>();
+    private final Map<String, HandlerFactory<? extends EventHandler<?>>> eventHandlerFactories = new LinkedHashMap<>();
     private final Map<String, ManagedTask> tasks = new LinkedHashMap<>();
 
     /**
@@ -88,9 +89,9 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
      * {@inheritDoc}
      */
     @Override
-    public void bindEventHandler(String manifestSubscriptionId, EventHandler<?> handler) {
-        descriptor.requireEventHandler(manifestSubscriptionId);
-        putUnique(eventHandlers, manifestSubscriptionId, handler, "event handler");
+    public void bindEventHandlerFactory(String handlerId, HandlerFactory<? extends EventHandler<?>> factory) {
+        descriptor.requireEventHandler(handlerId);
+        putUnique(eventHandlerFactories, handlerId, factory, "event handler");
     }
 
     /**
@@ -130,12 +131,12 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
     }
 
     /**
-     * Returns bound event handlers.
+     * Returns the factories of the bound event handlers, by handler id.
      *
-     * @return immutable event handler binding map
+     * @return immutable event handler factory map
      */
-    public Map<String, EventHandler<?>> eventHandlers() {
-        return Map.copyOf(eventHandlers);
+    public Map<String, HandlerFactory<? extends EventHandler<?>>> eventHandlerFactories() {
+        return Map.copyOf(eventHandlerFactories);
     }
 
     /**

@@ -149,7 +149,8 @@ class PluginSpiContractTest {
             bootstrap.bindEndpoint("sample.endpoint", request -> "ok");
             bootstrap.bindQueryHandler("sample.query", query -> "answer");
             bootstrap.bindCommandHandler("sample.command", invocation -> CompletableFuture.completedFuture(null));
-            bootstrap.bindEventHandler("sample.subscription", event -> { });
+            bootstrap.bindEventHandlerFactory("sample.subscription",
+                context -> invocation -> java.util.concurrent.CompletableFuture.completedFuture(null));
             bootstrap.bindTask("sample.task", () -> { });
         }
 
@@ -191,7 +192,7 @@ class PluginSpiContractTest {
         }
 
         @Override
-        public void bindEventHandler(String manifestSubscriptionId, EventHandler<?> handler) {
+        public void bindEventHandlerFactory(String manifestSubscriptionId, HandlerFactory<? extends EventHandler<?>> handler) {
             this.subscriptionId = manifestSubscriptionId;
         }
 

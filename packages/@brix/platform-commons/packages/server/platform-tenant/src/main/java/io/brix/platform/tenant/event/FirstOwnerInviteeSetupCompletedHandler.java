@@ -6,11 +6,14 @@
 package io.brix.platform.tenant.event;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 import io.runtime.sdk.plugin.EventHandler;
+import io.runtime.sdk.plugin.EventInvocation;
 
 /**
  * Sends the pending FIRST_OWNER invitations of an invitee once the identity owner has committed
@@ -33,11 +36,12 @@ public final class FirstOwnerInviteeSetupCompletedHandler implements EventHandle
     }
 
     @Override
-    public void handle(FirstOwnerInviteeSetupCompletedEvent event) {
+    public CompletionStage<Void> handle(EventInvocation<FirstOwnerInviteeSetupCompletedEvent> invocation) {
         TenantAdministration tenantAdministration = tenantAdministrationSupplier.get();
         if (tenantAdministration == null) {
             throw new IllegalStateException("TenantAdministration is not available before the plugin starts");
         }
-        tenantAdministration.sendPendingFirstOwnerInvitationsAfterSetup(event.identityId());
+        tenantAdministration.sendPendingFirstOwnerInvitationsAfterSetup(invocation.event().payload().identityId());
+        return CompletableFuture.completedFuture(null);
     }
 }

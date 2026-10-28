@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.error.PolicyAuditException;
 import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
+import io.runtime.sdk.plugin.EventHandler;
 
 class InviteeSetupEventDeliveryTest {
 
@@ -137,10 +139,12 @@ class InviteeSetupEventDeliveryTest {
         PluginRuntimeDescriptor.EventSubscription subscription = new PluginRuntimeDescriptor.EventSubscription(
             "first-owner-invitee-setup", InviteeSetupEventDelivery.EVENT_TYPE, "^1.0", "first-owner-invitee-setup.v1",
             "no-retry", "invitation-reissue", scopePolicyRef);
-        subscribers.add(new BoundEventHandler(OWNER, subscription, event -> {
+        EventHandler<FirstOwnerInviteeSetupCompletedEvent> handler = invocation -> {
             handled.add(TenantScopes.requested());
-            behaviour.accept(event);
-        }));
+            behaviour.accept(invocation.event().payload());
+            return CompletableFuture.completedFuture(null);
+        };
+        subscribers.add(new BoundEventHandler(OWNER, subscription, handler, FirstOwnerInviteeSetupCompletedEvent.class));
     }
 
     @SuppressWarnings("unchecked")

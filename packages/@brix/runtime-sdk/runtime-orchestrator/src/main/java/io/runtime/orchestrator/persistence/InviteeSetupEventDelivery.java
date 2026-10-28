@@ -5,10 +5,18 @@
  */
 package io.runtime.orchestrator.persistence;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -24,8 +32,15 @@ import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.error.BrixException;
 import io.runtime.sdk.error.PolicyAuditException;
+import io.runtime.sdk.event.EventEnvelope;
+import io.runtime.sdk.event.EventReliability;
+import io.runtime.sdk.event.EventScope;
 import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
+import io.runtime.sdk.plugin.CancellationSignal;
 import io.runtime.sdk.plugin.EventHandler;
+import io.runtime.sdk.plugin.EventInvocation;
+import io.runtime.sdk.plugin.PublisherDecision;
+import io.runtime.sdk.plugin.TraceContext;
 
 /**
  * Delivers the identity owner's setup-completed fact, in process and after the identity commit,
@@ -48,6 +63,11 @@ public final class InviteeSetupEventDelivery {
     public static final String EVENT_TYPE = "FirstOwnerInviteeSetupCompleted";
 
     private static final String HANDLER_FAILED = "policy.handler_failed";
+
+    /** The identity owner publishes this fact (identity-auth OWNER-001). */
+    private static final String PUBLISHER = "platform-identity";
+
+    private static final Duration DEADLINE = Duration.ofSeconds(30);
 
     private static final Logger audit = LoggerFactory.getLogger("brix.tenant.isolation.audit");
     private static final Logger log = LoggerFactory.getLogger(InviteeSetupEventDelivery.class);
@@ -96,9 +116,14 @@ public final class InviteeSetupEventDelivery {
         List<Long> reached = new ArrayList<>();
         @SuppressWarnings("unchecked")
         EventHandler<Object> handler = (EventHandler<Object>) bound.handler();
+        if (!bound.payloadType().isInstance(event)) {
+            throw new IllegalStateException("Event handler " + bound.subscription().handlerId() + " of " + bound.pluginId()
+                + " does not take " + EVENT_TYPE);
+        }
+        EventInvocation<Object> invocation = invocation(event, bound, traceId);
         Supplier<Object> call = () -> {
             try {
-                handler.handle(event);
+                await(handler.handle(invocation));
                 if (audited) {
                     PolicyAuditWriter.require(writer.get(), PolicyUseRecord.inviteeSetupFanout(
                         event.identityId(), TenantScopes.bound(), subscription, true, null, traceId));
@@ -152,6 +177,47 @@ public final class InviteeSetupEventDelivery {
             }
         }
         return HANDLER_FAILED;
+    }
+
+    /**
+     * The delivery as the plugin event SPI describes it (root BRX-RS-CAP-025). Until the identity owner
+     * publishes this fact through its outbox (P4d) it is delivered in process, once.
+     */
+    private static EventInvocation<Object> invocation(
+            FirstOwnerInviteeSetupCompletedEvent event, BoundEventHandler bound, String traceId) {
+        String traceparent = traceparent(traceId);
+        EventEnvelope<Object> envelope = new EventEnvelope<>(
+            UUID.randomUUID().toString(), EVENT_TYPE, "1.0.0", Instant.now(), PUBLISHER, EventScope.PLATFORM, null,
+            traceId, null, traceparent, String.valueOf(event.identityId()), event, EventReliability.CRITICAL);
+        return new EventInvocation<>(envelope, new PublisherDecision(PUBLISHER, null), new TraceContext(traceparent, null),
+            Instant.now().plus(DEADLINE), CancellationSignal.none(), 1);
+    }
+
+    /** A W3C traceparent for the trace id, or a new trace when the id is not a 32-digit hexadecimal one. */
+    static String traceparent(String traceId) {
+        String candidate = traceId == null ? "" : traceId.replace("-", "").toLowerCase(Locale.ROOT);
+        String trace = candidate.matches("[0-9a-f]{32}") && !candidate.matches("0{32}")
+            ? candidate
+            : HexFormat.of().formatHex(randomBytes(16));
+        return "00-" + trace + "-" + HexFormat.of().formatHex(randomBytes(8)) + "-01";
+    }
+
+    private static byte[] randomBytes(int count) {
+        byte[] bytes = new byte[count];
+        ThreadLocalRandom.current().nextBytes(bytes);
+        bytes[0] |= 1;
+        return bytes;
+    }
+
+    private static void await(CompletionStage<Void> handled) {
+        try {
+            handled.toCompletableFuture().join();
+        } catch (CompletionException failure) {
+            if (failure.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            throw failure;
+        }
     }
 
     private TenantScope scopeOf(BoundEventHandler bound, FirstOwnerInviteeSetupCompletedEvent event) {

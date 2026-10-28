@@ -38,9 +38,9 @@ public final class PlatformTenantPlugin implements BrixPlugin {
             ENDPOINT_FIRST_OWNER_ACCEPT,
             new AcceptFirstOwnerInvitationHandler(tenantAdministration::get));
         bootstrap.bindEndpoint(ENDPOINT_TENANT_SESSION, new TenantSessionHandler());
-        bootstrap.bindEventHandler(
+        bootstrap.bindEventHandlerFactory(
             HANDLER_FIRST_OWNER_INVITEE_SETUP,
-            new FirstOwnerInviteeSetupCompletedHandler(tenantAdministration::get));
+            context -> new FirstOwnerInviteeSetupCompletedHandler(tenantAdministration::get));
     }
 
     @Override
