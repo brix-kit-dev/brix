@@ -135,6 +135,41 @@ class PlatformAuditMigrationTest {
         }
     }
 
+    @Test
+    void theInboxHasThePlatformInboxStructure() throws SQLException {
+        // Root BRX-RS-MESSAGE-026: the same canonical inbox as platform-tenant's and platform-identity's.
+        List<String> columns = new java.util.ArrayList<>();
+        try (PreparedStatement query = connection.prepareStatement("SELECT column_name || ':' || data_type || ':' || is_nullable"
+                + " FROM information_schema.columns WHERE table_schema = ? AND table_name = 'platform_audit_inbox'"
+                + " ORDER BY column_name")) {
+            query.setString(1, schema);
+            try (ResultSet rows = query.executeQuery()) {
+                while (rows.next()) {
+                    columns.add(rows.getString(1));
+                }
+            }
+        }
+        assertThat(columns).containsExactly(
+            "created_at:timestamp with time zone:NO",
+            "handler_id:character varying:NO",
+            "message_id:character varying:NO",
+            "message_kind:character varying:NO",
+            "message_type:character varying:NO",
+            "processed_at:timestamp with time zone:NO",
+            "schema_version:character varying:NO",
+            "status:character varying:NO",
+            "tenant_id:bigint:YES");
+
+        String receipt = "INSERT INTO platform_audit_inbox (handler_id, message_id, message_type)"
+            + " VALUES ('identity-audit-fact-record.v1', 'event-1', 'IdentityAuditFactRecorded')";
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(receipt);
+            assertThatThrownBy(() -> statement.executeUpdate(receipt))
+                .as("one receipt per handler and event (root BRX-RS-MESSAGE-025)")
+                .isInstanceOf(SQLException.class);
+        }
+    }
+
     /** The INSERT the runtime policy audit writer makes, over exactly the registered columns. */
     private void custodialInsert(String action, String writer, String traceId) throws SQLException {
         Map<String, Object> values = new HashMap<>();

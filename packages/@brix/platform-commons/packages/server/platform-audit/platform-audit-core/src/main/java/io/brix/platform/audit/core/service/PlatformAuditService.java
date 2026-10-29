@@ -15,9 +15,11 @@
  */
 package io.brix.platform.audit.core.service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import jakarta.persistence.criteria.Predicate;
@@ -51,15 +53,38 @@ import io.runtime.sdk.security.RequestMetadataMasking;
  * <p>Ids come from {@link IdGeneratorCapability} (root BRX-RS-DATA-024). The table's id is a BIGINT,
  * so the Host's generator must produce numeric ids.</p>
  *
+ * <p>platform-identity's audit facts arrive as {@code IdentityAuditFactRecorded} events through the
+ * owner's inbox (P4 design §4.2, D14, D15) and follow the same rules; the record keeps the time the fact
+ * occurred, so a late or replayed delivery still sorts where the fact happened.</p>
+ *
  * @since 3.2.0
  */
 public final class PlatformAuditService implements PlatformAuditAdministration {
+
+    /**
+     * Actions platform-identity records as identity audit facts: authentication and the identity lifecycle
+     * (identity-auth BRX-IA-AUDIT-001, super-admin §5). Platform administrators' operations come through
+     * the internal contract, and policy uses only from the runtime custodian.
+     */
+    public static final Set<String> IDENTITY_FACTS = Set.of(
+        PlatformAuditActions.SUPER_ADMIN_LOGIN_SUCCESS, PlatformAuditActions.SUPER_ADMIN_LOGIN_FAILED,
+        PlatformAuditActions.SUPER_ADMIN_LOGOUT, PlatformAuditActions.SUPER_ADMIN_PASSWORD_CHANGED,
+        PlatformAuditActions.BOOTSTRAP_SESSION_OPENED, PlatformAuditActions.BOOTSTRAP_ADMIN_CREATED,
+        PlatformAuditActions.BOOTSTRAP_ADMIN_DEACTIVATED,
+        PlatformAuditActions.SETUP_TOKEN_ISSUED, PlatformAuditActions.SETUP_TOKEN_USED,
+        PlatformAuditActions.SETUP_TOKEN_INVALID,
+        PlatformAuditActions.IDENTITY_PASSWORD_SET, PlatformAuditActions.TOTP_BOUND,
+        PlatformAuditActions.IDENTITY_ACTIVATED, PlatformAuditActions.IDENTITY_DISABLED,
+        PlatformAuditActions.IDENTITY_LOCKED);
 
     private static final Pattern EXECUTION_IDENTITY = Pattern.compile("[a-z][a-z0-9_.:-]{0,127}");
     private static final Pattern RESOURCE_TYPE = Pattern.compile("[A-Z][A-Z0-9_]{0,63}");
     private static final Pattern RESOURCE_ID = Pattern.compile("[A-Za-z0-9_.:-]{1,128}");
     private static final Pattern STABLE_CODE = Pattern.compile("[a-z][a-z0-9_.-]{0,63}");
     private static final Pattern TRACE_ID = Pattern.compile("[A-Za-z0-9-]{8,64}");
+    /** A network prefix as {@link RequestMetadataMasking#maskAddress} writes it. */
+    private static final Pattern MASKED_ADDRESS =
+        Pattern.compile("(?:\\d{1,3}\\.){3}0/24|[0-9a-f]{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}::/48");
 
     private final PlatformAuditLogRepository records;
     private final IdGeneratorCapability ids;
@@ -76,6 +101,30 @@ public final class PlatformAuditService implements PlatformAuditAdministration {
             throw new PlatformAuditRejectedException(PlatformAuditRejectedException.ACTION_REFUSED,
                 "The platform audit owner does not record action " + command.action());
         }
+        return append(command, null);
+    }
+
+    /**
+     * Appends one identity audit fact delivered from platform-identity's outbox (P4 design §4.2, D14, D15).
+     * The runtime calls this in the owner's unit of work, together with the inbox receipt of the event.
+     *
+     * @param fact typed record fields of the fact; the address arrives as its masked network prefix
+     * @param occurredAt server time of the fact, from the event envelope
+     * @return the record id
+     * @throws PlatformAuditRejectedException when the action is not an identity fact or a field breaks the
+     *     owner's rules
+     */
+    public PlatformAuditRecordId recordIdentityFact(RecordPlatformAuditCommand fact, Instant occurredAt) {
+        Objects.requireNonNull(fact, "fact must not be null");
+        Objects.requireNonNull(occurredAt, "occurredAt must not be null");
+        if (fact.action() == null || !IDENTITY_FACTS.contains(fact.action())) {
+            throw new PlatformAuditRejectedException(PlatformAuditRejectedException.ACTION_REFUSED,
+                "platform-identity does not record action " + fact.action());
+        }
+        return append(fact, occurredAt);
+    }
+
+    private PlatformAuditRecordId append(RecordPlatformAuditCommand command, Instant occurredAt) {
         required(EXECUTION_IDENTITY, command.executionIdentity(), "executionIdentity");
         required(RESOURCE_TYPE, command.targetType(), "targetType");
         optional(RESOURCE_ID, command.targetId(), "targetId");
@@ -97,10 +146,21 @@ public final class PlatformAuditService implements PlatformAuditAdministration {
             command.reasonCode(),
             command.errorCode(),
             command.traceId(),
-            RequestMetadataMasking.maskAddress(command.sourceIp()),
+            maskedAddress(command.sourceIp()),
             RequestMetadataMasking.truncateUserAgent(command.userAgent()),
             PlatformAuditWriters.OWNER);
+        if (occurredAt != null) {
+            row.occurredAt(occurredAt);
+        }
         return new PlatformAuditRecordId(records.save(row).getId());
+    }
+
+    /** The client address as its network prefix; a prefix the caller already masked is kept as it is. */
+    private static String maskedAddress(String address) {
+        if (address != null && MASKED_ADDRESS.matcher(address).matches()) {
+            return address;
+        }
+        return RequestMetadataMasking.maskAddress(address);
     }
 
     private long nextId() {

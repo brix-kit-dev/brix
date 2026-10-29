@@ -50,5 +50,21 @@ class PlatformAuditDescriptorTest {
         ClassLoader classes = PlatformAuditPlugin.class.getClassLoader();
         assertThat(classes.getResource("db/migration/platform-audit/V001__platform_audit_adopt_table.sql")).isNotNull();
         assertThat(classes.getResource("db/migration/platform-audit/V002__platform_audit_policy_use_fields.sql")).isNotNull();
+        assertThat(classes.getResource("db/migration/platform-audit/V003__platform_audit_inbox.sql")).isNotNull();
+    }
+
+    @Test
+    void theOwnerReceivesIdentityAuditFactsThroughItsInbox() {
+        // P4 design §4.2: CRITICAL facts need the persistent inbox (root BRX-RS-MANIFEST-025, MESSAGE-025).
+        assertThat(manifest.getData().getInbox()).isEqualTo("platform_audit_inbox");
+        assertThat(manifest.getData().getOutbox()).as("the owner publishes nothing").isNull();
+        assertThat(manifest.getEvents().getPublishes()).isEmpty();
+        assertThat(manifest.getEvents().getSubscribes()).singleElement().satisfies(subscription -> {
+            assertThat(subscription.getEventType()).isEqualTo("IdentityAuditFactRecorded");
+            assertThat(subscription.getSchemaRange()).isEqualTo(">=1.0.0 <2.0.0");
+            assertThat(subscription.getHandlerId()).isEqualTo(PlatformAuditPlugin.HANDLER_IDENTITY_AUDIT_FACT);
+            assertThat(subscription.getPublisherPolicyRef()).isEqualTo("platform-identity-owner");
+            assertThat(subscription.getIdempotencyPolicyRef()).isEqualTo("persistent-inbox");
+        });
     }
 }

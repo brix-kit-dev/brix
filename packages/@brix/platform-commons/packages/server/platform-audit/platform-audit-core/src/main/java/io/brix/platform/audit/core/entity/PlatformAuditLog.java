@@ -140,6 +140,19 @@ public class PlatformAuditLog implements Persistable<Long> {
         return row;
     }
 
+    /**
+     * Keeps the time the recorded fact occurred instead of the time the row is stored. The owner uses it
+     * for a fact it receives after the fact happened, such as an identity audit fact delivered from
+     * platform-identity's outbox (super-admin §5 {@code occurredAt}).
+     *
+     * @param occurredAt server time of the fact
+     * @return this row
+     */
+    public PlatformAuditLog occurredAt(Instant occurredAt) {
+        this.createdAt = Objects.requireNonNull(occurredAt, "occurredAt must not be null");
+        return this;
+    }
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {

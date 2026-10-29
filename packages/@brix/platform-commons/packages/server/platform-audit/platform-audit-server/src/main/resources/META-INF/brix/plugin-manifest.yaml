@@ -41,7 +41,20 @@ commands:
   consumes: []
 events:
   publishes: []
-  subscribes: []
+  subscribes:
+    # platform-identity's audit facts (P4 design §4.2, D14): delivered after the identity transaction
+    # commits; the runtime records (handlerId, eventId) in platform_audit_inbox in the same unit of work
+    # as the record. PLATFORM events bind no tenant; the blueprint registers no policy id for that yet.
+    - subscriptionId: identity-audit-fact
+      eventType: IdentityAuditFactRecorded
+      schemaRange: ">=1.0.0 <2.0.0"
+      handlerId: identity-audit-fact-record.v1
+      scopePolicyRef: identity-audit-fact-scope
+      publisherPolicyRef: platform-identity-owner
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: identity-audit-fact
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
 tasks:
   provides: []
 internalContracts:
@@ -55,6 +68,7 @@ data:
   storageId: platform_audit
   schema: platform-audit
   migrationLocation: db/migration/platform-audit
+  inbox: platform_audit_inbox
   # Root BRX-RS-DATA-045, DATA-047: the runtime policy audit writer may only insert these columns, for
   # the two cross-tenant policy actions; V002's checks enforce the same rule in the database.
   custodialWrites:

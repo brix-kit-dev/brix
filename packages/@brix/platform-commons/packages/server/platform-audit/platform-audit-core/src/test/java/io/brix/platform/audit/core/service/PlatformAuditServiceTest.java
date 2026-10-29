@@ -164,6 +164,65 @@ class PlatformAuditServiceTest {
         assertThat(PlatformAuditActions.ALL).containsAll(PlatformAuditActions.POLICY_USES);
     }
 
+    @Test
+    void anIdentityFactIsRecordedByTheOwnerAtTheTimeItOccurred() {
+        when(ids.generate()).thenReturn("374829105938497539");
+        when(records.save(any())).thenAnswer(call -> call.getArgument(0));
+        Instant occurredAt = Instant.parse("2026-10-29T08:00:00Z");
+
+        service.recordIdentityFact(identityFact(PlatformAuditActions.IDENTITY_LOCKED, "203.0.113.0/24"), occurredAt);
+
+        ArgumentCaptor<PlatformAuditLog> saved = ArgumentCaptor.forClass(PlatformAuditLog.class);
+        verify(records).save(saved.capture());
+        PlatformAuditEntryView view = saved.getValue().toView();
+        assertThat(view.writer()).isEqualTo(PlatformAuditWriters.OWNER);
+        assertThat(view.executionIdentity()).isEqualTo("platform-identity");
+        assertThat(view.reasonCode()).isEqualTo("login-failures-exceeded");
+        assertThat(view.createdAt()).as("a late delivery keeps the time of the fact").isEqualTo(occurredAt);
+        assertThat(view.sourceIp()).as("the publisher already masked the address").isEqualTo("203.0.113.0/24");
+    }
+
+    @Test
+    void anIdentityFactWithAFullAddressStillKeepsOnlyItsPrefix() {
+        when(ids.generate()).thenReturn("374829105938497540");
+        when(records.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        service.recordIdentityFact(identityFact(PlatformAuditActions.IDENTITY_LOCKED, "203.0.113.77"), Instant.now());
+
+        ArgumentCaptor<PlatformAuditLog> saved = ArgumentCaptor.forClass(PlatformAuditLog.class);
+        verify(records).save(saved.capture());
+        assertThat(saved.getValue().toView().sourceIp()).isEqualTo("203.0.113.0/24");
+    }
+
+    @Test
+    void onlyIdentityActionsArriveAsIdentityFacts() {
+        assertThat(PlatformAuditActions.OWNER_RECORDED).containsAll(PlatformAuditService.IDENTITY_FACTS);
+        for (String action : Arrays.asList(PlatformAuditActions.TENANT_CREATED,
+                PlatformAuditActions.FIRST_OWNER_INVITATION_CREATED, PlatformAuditActions.SUPER_ADMIN_CREATED,
+                PlatformAuditActions.LOGIN_TENANT_DISCOVERY, "SOMETHING_ELSE", null)) {
+            assertThatThrownBy(() -> service.recordIdentityFact(identityFact(action, null), Instant.now()))
+                .isInstanceOfSatisfying(PlatformAuditRejectedException.class,
+                    rejected -> assertThat(rejected.code()).isEqualTo(PlatformAuditRejectedException.ACTION_REFUSED));
+        }
+        verify(records, never()).save(any());
+    }
+
+    @Test
+    void anIdentityFactFollowsTheSameFieldRules() {
+        RecordPlatformAuditCommand freeText = new RecordPlatformAuditCommand(PlatformAuditActions.IDENTITY_ACTIVATED, 7L,
+            "platform-identity", "IDENTITY", "7", List.of(), true, "Identity activated.", null, "trace-0001-abcd", null, null);
+
+        assertThatThrownBy(() -> service.recordIdentityFact(freeText, Instant.now()))
+            .isInstanceOfSatisfying(PlatformAuditRejectedException.class,
+                rejected -> assertThat(rejected.code()).isEqualTo(PlatformAuditRejectedException.FIELD_INVALID));
+        verify(records, never()).save(any());
+    }
+
+    private static RecordPlatformAuditCommand identityFact(String action, String sourceIp) {
+        return new RecordPlatformAuditCommand(action, 7L, "platform-identity", "IDENTITY", "7", List.of(),
+            true, "login-failures-exceeded", null, "4bf92f3577b34da6a3ce929d0e0e4736", sourceIp, null);
+    }
+
     private void assertFieldInvalid(RecordPlatformAuditCommand command) {
         assertThatThrownBy(() -> service.record(command))
             .isInstanceOfSatisfying(PlatformAuditRejectedException.class,
