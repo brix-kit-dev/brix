@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 import io.infra.adapter.simple.DelegatedAuthContextCapability;
 import io.infra.adapter.simple.InMemoryEventBusCapability;
@@ -72,14 +73,24 @@ public class SimpleAdapterAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(SimpleAdapterAutoConfiguration.class);
 
     /**
-     * Configures in-memory event bus
-     * 
+     * Configures in-memory event bus.
+     *
+     * <p>A development adapter: it loses what it holds on a restart and reaches only this process, so the production
+     * profile ({@code prod} or {@code production}) refuses to start with it (root BRX-RS-BOOT-003; Kafka design §13
+     * K5).</p>
+     *
      * @param properties Configuration properties
+     * @param environment the active profiles
      * @return Event bus capability instance
+     * @throws IllegalStateException under the production profile
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)
-    public EventBusCapability eventBusCapability(SimpleAdapterProperties properties) {
+    public EventBusCapability eventBusCapability(SimpleAdapterProperties properties, Environment environment) {
+        if (environment.matchesProfiles("prod", "production")) {
+            throw new IllegalStateException("The in-memory event bus is a development adapter and the production profile"
+                + " does not start with it (root BRX-RS-BOOT-003); use the Kafka event bus");
+        }
         SimpleAdapterProperties.EventBusConfig config = properties.getEventBus();
         
         log.info("Configuring in-memory event bus: asyncMode={}, maxHistorySize={}", 

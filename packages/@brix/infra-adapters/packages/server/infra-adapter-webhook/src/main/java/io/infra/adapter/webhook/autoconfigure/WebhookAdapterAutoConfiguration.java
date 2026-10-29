@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -104,15 +105,25 @@ public class WebhookAdapterAutoConfiguration {
      * 
      * <p>Serves as the EventBusCapability implementation for embedded deployment.</p>
      *
+     * <p>A development adapter: it posts each event once, outside any outbox, so the production profile ({@code prod}
+     * or {@code production}) refuses to start with it (root BRX-RS-BOOT-003; Kafka design §13 K5).</p>
+     *
      * @param config Webhook configuration
      * @param objectMapper Jackson ObjectMapper (optional)
+     * @param environment the active profiles
      * @return HttpWebhookEventBus instance
+     * @throws IllegalStateException under the production profile
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)
     public HttpWebhookEventBus webhookEventBus(
             WebhookConfig config,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            Environment environment) {
+        if (environment.matchesProfiles("prod", "production")) {
+            throw new IllegalStateException("The webhook event bus is a development adapter and the production profile"
+                + " does not start with it (root BRX-RS-BOOT-003); use the Kafka event bus");
+        }
         return new HttpWebhookEventBus(config, objectMapper, null);
     }
 }
