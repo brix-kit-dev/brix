@@ -16,6 +16,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Configuration;
 import tools.jackson.databind.ObjectMapper;
 
+import io.runtime.orchestrator.event.EventDeliveryScopes;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.event.InProcessEventTransport;
 import io.runtime.orchestrator.event.PluginEventSubscribers;
@@ -69,9 +70,10 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<OwnerPersistenceProvider> owners,
             ObjectProvider<EventInboxStore> inbox,
             ObjectProvider<ObjectMapper> json,
-            ObjectProvider<OutboxRelayMetricsFactory> metrics) {
+            ObjectProvider<OutboxRelayMetricsFactory> metrics,
+            ObjectProvider<EventDeliveryScopes> scopes) {
         Supplier<OutboxTransport> transport = IN_PROCESS.equals(properties.getTransport())
-            ? () -> inProcess(properties, plugins, owners, inbox, json)
+            ? () -> inProcess(properties, plugins, owners, inbox, json, scopes)
             : brokerTransport::getIfAvailable;
         return new OutboxRelayGroup(properties, policy, stores::getIfAvailable, transport,
             outbox -> metrics.getIfAvailable(() -> OutboxRelayMetricsFactory.NOOP).forOutbox(outbox));
@@ -82,7 +84,8 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<PluginRuntimeManager> plugins,
             ObjectProvider<OwnerPersistenceProvider> owners,
             ObjectProvider<EventInboxStore> inbox,
-            ObjectProvider<ObjectMapper> json) {
+            ObjectProvider<ObjectMapper> json,
+            ObjectProvider<EventDeliveryScopes> scopes) {
         PluginRuntimeManager runtime = plugins.getIfAvailable();
         OwnerPersistenceProvider persistence = owners.getIfAvailable();
         EventInboxStore inboxes = inbox.getIfAvailable();
@@ -90,7 +93,8 @@ public class OutboxRelayAutoConfiguration {
             return null;
         }
         return new InProcessEventTransport(new PluginEventSubscribers(runtime), persistence, inboxes,
-            json.getIfAvailable(ObjectMapper::new), Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2));
+            json.getIfAvailable(ObjectMapper::new), Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2),
+            scopes.getIfAvailable(() -> EventDeliveryScopes.ENVELOPE));
     }
 
     /** Relay meters per owner outbox, when the host has Micrometer. */

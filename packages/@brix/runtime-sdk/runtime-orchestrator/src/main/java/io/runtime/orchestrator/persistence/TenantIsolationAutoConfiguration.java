@@ -13,9 +13,11 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
 import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrapAutoConfiguration;
+import io.runtime.orchestrator.event.EventDeliveryScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.TenantAccessCapability;
@@ -56,6 +58,22 @@ public class TenantIsolationAutoConfiguration {
             ObjectProvider<PolicyAuditWriter> writer) {
         return new InviteeSetupEventDelivery(
             plugins, ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none), identitySetup, writer::getIfAvailable);
+    }
+
+    /**
+     * Binds the registered cross-tenant policies when the outbox relay delivers an event to a
+     * subscription that names one, and writes each use to the platform audit.
+     *
+     * @param identitySetup the identity owner's setup capability, which gives the resend's access key
+     * @param writer the policy audit writer
+     * @return the delivery scopes
+     */
+    @Bean
+    @ConditionalOnMissingBean(EventDeliveryScopes.class)
+    public EventDeliveryScopes policyEventDeliveryScopes(
+            ObjectProvider<FirstOwnerInviteeIdentitySetupCapability> identitySetup,
+            ObjectProvider<PolicyAuditWriter> writer) {
+        return new PolicyEventDeliveryScopes(identitySetup::getIfAvailable, writer::getIfAvailable);
     }
 
     /**

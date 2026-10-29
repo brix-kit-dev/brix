@@ -8,6 +8,7 @@ package io.runtime.orchestrator.event;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -26,7 +27,6 @@ import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxTransport;
 import io.runtime.orchestrator.outbox.OutboxTransportException;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
-import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -43,10 +43,11 @@ import io.runtime.sdk.plugin.TraceContext;
  *
  * <p>Each subscriber handles the event in its own owner's unit of work, after the owner's persistent
  * inbox has recorded {@code (handlerId, eventId)} in the same transaction (root BRX-RS-MESSAGE-025).
- * A TENANT event binds its envelope's tenant; a PLATFORM event binds no tenant. The relay marks the
- * outbox row published only when this method returns, that is once every declared subscriber has
- * committed the event or had already committed it; a failed subscriber makes the whole message wait
- * for a retry, and the inbox keeps the others from handling it twice.</p>
+ * A TENANT event binds its envelope's tenant; a PLATFORM event binds no tenant, unless the
+ * subscription names a registered cross-tenant policy, which {@link EventDeliveryScopes} binds (P4
+ * design §4.3). The relay marks the outbox row published only when this method returns, that is once
+ * every declared subscriber has committed the event or had already committed it; a failed subscriber
+ * makes the whole message wait for a retry, and the inbox keeps the others from handling it twice.</p>
  *
  * <p>A message is parked at once (a permanent failure) when its publisher is not the plugin that
  * declares the event type, when a subscriber does not accept its schema version, or when its payload
@@ -70,6 +71,7 @@ public final class InProcessEventTransport implements OutboxTransport {
     private final ObjectMapper json;
     private final Clock clock;
     private final Duration deadline;
+    private final EventDeliveryScopes scopes;
     private volatile boolean stopped;
 
     /**
@@ -89,12 +91,35 @@ public final class InProcessEventTransport implements OutboxTransport {
             ObjectMapper json,
             Clock clock,
             Duration deadline) {
+        this(subscribers, owners, inbox, json, clock, deadline, EventDeliveryScopes.ENVELOPE);
+    }
+
+    /**
+     * Creates the transport with the scopes of the registered cross-tenant policies.
+     *
+     * @param subscribers who publishes and subscribes to each event type
+     * @param owners each subscriber's owner persistence
+     * @param inbox the owners' persistent inboxes
+     * @param json decodes payloads
+     * @param clock delivery clock
+     * @param deadline how long a handler may take; shorter than the relay's lease
+     * @param scopes the scope of each delivery
+     */
+    public InProcessEventTransport(
+            EventSubscribers subscribers,
+            OwnerPersistenceProvider owners,
+            EventInboxStore inbox,
+            ObjectMapper json,
+            Clock clock,
+            Duration deadline,
+            EventDeliveryScopes scopes) {
         this.subscribers = Objects.requireNonNull(subscribers, "subscribers must not be null");
         this.owners = Objects.requireNonNull(owners, "owners must not be null");
         this.inbox = Objects.requireNonNull(inbox, "inbox must not be null");
         this.json = Objects.requireNonNull(json, "json must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.deadline = Objects.requireNonNull(deadline, "deadline must not be null");
+        this.scopes = Objects.requireNonNull(scopes, "scopes must not be null");
     }
 
     /** Ready once the plugins have started; before that no publisher or subscriber is known. */
@@ -147,19 +172,33 @@ public final class InProcessEventTransport implements OutboxTransport {
         PersistenceCapability persistence = owners.forOwner(bound.pluginId())
             .orElseThrow(() -> new OutboxTransportException(SUBSCRIBER_NOT_READY,
                 bound.pluginId() + " has no persistence unit for its inbox", null));
-        TenantScope scope = "TENANT".equals(message.scope()) ? TenantScope.tenant(message.tenantId()) : TenantScope.none();
+        List<Long> reached = new ArrayList<>();
+        EventDeliveryScope scope = null;
         try {
-            boolean handled = TenantScopes.within(scope, () -> persistence.unitOfWork().required(() -> {
-                if (!inbox.insertProcessed(bound.pluginId(), handlerId, message)) {
-                    return false;
+            scope = scopes.scopeOf(bound, message, invocation.event().payload());
+            EventDeliveryScope bind = scope;
+            boolean handled = TenantScopes.within(scope.tenantScope(), () -> persistence.unitOfWork().required(() -> {
+                try {
+                    if (!inbox.insertProcessed(bound.pluginId(), handlerId, message)) {
+                        return false;
+                    }
+                    await(handler.handle(invocation));
+                    bind.handled(TenantScopes.bound());
+                    return true;
+                } finally {
+                    reached.addAll(TenantScopes.bound());
                 }
-                await(handler.handle(invocation));
-                return true;
             }));
             log.info("event=event.delivered type={} event_id={} handler={} owner={} outcome={} attempt={}",
                 message.messageType(), message.eventId(), handlerId, bound.pluginId(), handled ? "handled" : "duplicate",
                 invocation.deliveryAttempt());
+            if (handled) {
+                scope.committed(List.copyOf(reached));
+            }
         } catch (RuntimeException failure) {
+            if (scope != null) {
+                scope.failed(List.copyOf(reached), failure);
+            }
             log.warn("event=event.delivery_failed type={} event_id={} handler={} owner={} attempt={}",
                 message.messageType(), message.eventId(), handlerId, bound.pluginId(), invocation.deliveryAttempt(), failure);
             throw new OutboxTransportException(HANDLER_FAILED, handlerId + " failed to handle " + message.eventId(), failure);
