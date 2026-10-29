@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-identity/first-owner-invitee-setup-completed/1.0.0",
+  "title": "A first-owner invitee finished setting up their identity",
+  "description": "Payload of FirstOwnerInviteeSetupCompleted (P4 design §11, P4d). platform-identity publishes it CRITICAL, PLATFORM-scoped, through its outbox when the invitee's credential setup commits; platform-tenant resends the first-owner links of that identity's pending invitations. x-brix-classification marks each field (root BRX-RS-SECURITY-008).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "identityId"
+  ],
+  "properties": {
+    "identityId": { "type": "integer", "x-brix-classification": "pseudonymous-identifier" }
+  }
+}

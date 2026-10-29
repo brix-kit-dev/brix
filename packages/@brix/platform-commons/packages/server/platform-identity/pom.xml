@@ -62,5 +62,19 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- The event schema check every publisher runs (Kafka design D24) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-tenant/tenant-first-owner-accepted/1.0.0",
+  "title": "A tenant's first owner accepted the invitation",
+  "description": "Payload of TenantFirstOwnerAccepted. platform-tenant publishes it CRITICAL, TENANT-scoped, through its outbox in the unit of work that accepts the invitation, and projects it into its first-owner projection. x-brix-classification marks each field (root BRX-RS-SECURITY-008).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenantId",
+    "memberId",
+    "profileId",
+    "invitationId"
+  ],
+  "properties": {
+    "tenantId": { "type": "integer", "x-brix-classification": "internal-identifier" },
+    "memberId": { "type": "integer", "x-brix-classification": "internal-identifier" },
+    "profileId": { "type": "integer", "x-brix-classification": "internal-identifier" },
+    "invitationId": { "type": "integer", "x-brix-classification": "internal-identifier" }
+  }
+}

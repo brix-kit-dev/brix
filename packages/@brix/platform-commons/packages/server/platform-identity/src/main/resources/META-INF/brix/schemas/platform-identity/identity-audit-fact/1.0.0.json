@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-identity/identity-audit-fact/1.0.0",
+  "title": "An identity fact for the platform audit",
+  "description": "Payload of IdentityAuditFactRecorded (P4 design §4.2, D14). platform-identity publishes it CRITICAL through its outbox in the unit of work that changed the identity; platform-audit records one audit row per fact, so the lengths follow the columns of sys_platform_audit_log. x-brix-classification marks each field (root BRX-RS-SECURITY-008, DATA-046).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "action",
+    "executionIdentity",
+    "targetType",
+    "affectedTenants",
+    "success"
+  ],
+  "properties": {
+    "action": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "maxLength": 64, "x-brix-classification": "operational" },
+    "actorIdentityId": { "type": ["integer", "null"], "x-brix-classification": "pseudonymous-identifier" },
+    "executionIdentity": { "type": "string", "maxLength": 128, "x-brix-classification": "operational" },
+    "targetType": { "type": "string", "maxLength": 64, "x-brix-classification": "operational" },
+    "targetId": { "type": ["string", "null"], "maxLength": 128, "x-brix-classification": "operational" },
+    "affectedTenants": { "type": "array", "items": { "type": "integer" }, "x-brix-classification": "internal-identifier" },
+    "success": { "type": "boolean", "x-brix-classification": "operational" },
+    "reasonCode": { "type": ["string", "null"], "maxLength": 64, "x-brix-classification": "operational" },
+    "errorCode": { "type": ["string", "null"], "maxLength": 64, "x-brix-classification": "operational" },
+    "traceId": { "type": ["string", "null"], "maxLength": 64, "x-brix-classification": "technical-identifier" },
+    "sourceIp": { "type": ["string", "null"], "maxLength": 64, "x-brix-classification": "personal-masked" }
+  }
+}
