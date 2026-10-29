@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
+import io.runtime.orchestrator.event.conformance.RecordingMessageTracing;
+
 class OutboxRelayTest {
 
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-07-28T01:00:00Z"), ZoneOffset.UTC);
@@ -50,6 +52,40 @@ class OutboxRelayTest {
         assertEquals("relay-a", store.claimOwner("m-1"));
         assertSame(published.get(), store.claimedMessage("m-1"));
         assertEquals("event-m-1", published.get().eventId());
+    }
+
+    @Test
+    void aMessageIsSentWithTheTraceContextOfItsProducerSpan() {
+        // Root BRX-RS-OTEL-002: the relay sends each message in a PRODUCER span, a child of the context it carries.
+        InMemoryStore store = new InMemoryStore();
+        store.add("m-1", 0);
+        AtomicReference<CanonicalOutboxMessage> published = new AtomicReference<>();
+        RecordingMessageTracing tracing = new RecordingMessageTracing();
+        OutboxRelay relay = new OutboxRelay("relay-a", store, published::set, POLICY, CLOCK, ignored -> Duration.ZERO,
+            OutboxRelayMetrics.NOOP, tracing);
+
+        relay.processDueBatch();
+
+        RecordingMessageTracing.Recorded span = tracing.spans(RecordingMessageTracing.PRODUCER).get(0);
+        assertEquals("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", span.parent());
+        assertEquals(span.traceparent(), published.get().traceparent());
+        assertFalse(span.failed());
+        assertEquals("PUBLISHED", store.status("m-1"));
+    }
+
+    @Test
+    void aFailedSendMarksItsProducerSpanFailed() {
+        InMemoryStore store = new InMemoryStore();
+        store.add("m-2", 0);
+        RecordingMessageTracing tracing = new RecordingMessageTracing();
+        OutboxRelay relay = new OutboxRelay("relay-a", store, ignored -> {
+            throw new OutboxTransportException("KAFKA_TIMEOUT", "timeout", null);
+        }, POLICY, CLOCK, ignored -> Duration.ZERO, OutboxRelayMetrics.NOOP, tracing);
+
+        relay.processDueBatch();
+
+        assertTrue(tracing.spans(RecordingMessageTracing.PRODUCER).get(0).failed());
+        assertEquals("PENDING", store.status("m-2"));
     }
 
     @Test

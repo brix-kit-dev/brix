@@ -49,6 +49,13 @@
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
 
+        <!-- ========== Layer 2B: the runtime's message span interface (Kafka design §13 K8) ========== -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${runtime-sdk.version}</version>
+        </dependency>
+
         <!-- ========== OpenTelemetry Core ========== -->
         <dependency>
             <groupId>io.opentelemetry</groupId>

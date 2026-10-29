@@ -17,7 +17,9 @@ package io.infra.adapter.otel.autoconfigure;
 
 import io.infra.adapter.otel.OTelObservabilityCapability;
 import io.infra.adapter.otel.OTelSdkBuilder;
+import io.infra.adapter.otel.tracing.OTelMessageTracing;
 import io.opentelemetry.api.OpenTelemetry;
+import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.ObservabilityCapability;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -126,5 +128,18 @@ public class OTelAdapterAutoConfiguration {
                 : applicationName;
         
         return new OTelObservabilityCapability(openTelemetry, serviceName);
+    }
+
+    /**
+     * Records the runtime's message spans on the SDK: a PRODUCER span for each message the outbox relay or the
+     * direct bus sends, a CONSUMER span for each delivery (Kafka design §13 K8).
+     *
+     * @param openTelemetry OpenTelemetry instance
+     * @return the message spans
+     */
+    @Bean
+    @ConditionalOnMissingBean(MessageTracing.class)
+    public MessageTracing otelMessageTracing(OpenTelemetry openTelemetry) {
+        return new OTelMessageTracing(openTelemetry);
     }
 }

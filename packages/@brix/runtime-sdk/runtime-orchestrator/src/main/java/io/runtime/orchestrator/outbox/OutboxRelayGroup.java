@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 
+import io.runtime.orchestrator.tracing.MessageTracing;
+
 /**
  * Runs one relay per owner outbox, all sending through the same transport (root BRX-RS-MESSAGE-023,
  * MESSAGE-024; P4 design D12).
@@ -33,6 +35,7 @@ public final class OutboxRelayGroup implements SmartLifecycle {
     private final Supplier<OutboxStoreRegistry> registry;
     private final Supplier<OutboxTransport> transport;
     private final OutboxRelayMetricsFactory metrics;
+    private final MessageTracing tracing;
     private final List<OutboxRelayManagedResource> loops = new ArrayList<>();
     private OutboxTransport sender;
     private volatile boolean running;
@@ -52,11 +55,32 @@ public final class OutboxRelayGroup implements SmartLifecycle {
             Supplier<OutboxStoreRegistry> registry,
             Supplier<OutboxTransport> transport,
             OutboxRelayMetricsFactory metrics) {
+        this(properties, policy, registry, transport, metrics, MessageTracing.NOOP);
+    }
+
+    /**
+     * Creates the group, whose relays send each message in its PRODUCER span.
+     *
+     * @param properties relay settings
+     * @param policy batch, attempt and lease policy shared by every relay
+     * @param registry supplies the owner outboxes; may supply {@code null}
+     * @param transport supplies the transport; may supply {@code null}
+     * @param metrics creates the metrics of each outbox's relay
+     * @param tracing the spans of the sent messages
+     */
+    public OutboxRelayGroup(
+            OutboxRelayProperties properties,
+            OutboxRelayPolicy policy,
+            Supplier<OutboxStoreRegistry> registry,
+            Supplier<OutboxTransport> transport,
+            OutboxRelayMetricsFactory metrics,
+            MessageTracing tracing) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.policy = Objects.requireNonNull(policy, "policy must not be null");
         this.registry = Objects.requireNonNull(registry, "registry must not be null");
         this.transport = Objects.requireNonNull(transport, "transport must not be null");
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
+        this.tracing = Objects.requireNonNull(tracing, "tracing must not be null");
     }
 
     @Override
@@ -80,7 +104,7 @@ public final class OutboxRelayGroup implements SmartLifecycle {
         }
         for (Map.Entry<String, OutboxMessageStore> store : stores.stores().entrySet()) {
             OutboxRelay relay = new OutboxRelay(owner, store.getValue(), chosen, policy, Clock.systemUTC(),
-                metrics.forOutbox(store.getKey()));
+                metrics.forOutbox(store.getKey()), tracing);
             OutboxRelayManagedResource loop = new OutboxRelayManagedResource(relay, properties.getPollDelay(),
                 "brix-outbox-relay-" + store.getKey());
             loop.start();

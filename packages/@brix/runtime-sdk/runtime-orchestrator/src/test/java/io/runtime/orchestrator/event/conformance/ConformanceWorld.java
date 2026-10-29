@@ -78,6 +78,7 @@ public final class ConformanceWorld {
     }
 
     private final InMemoryOutboxStore outbox = new InMemoryOutboxStore();
+    private final RecordingMessageTracing tracing = new RecordingMessageTracing();
     private final OutboxRelayPolicy policy =
         new OutboxRelayPolicy(10, 3, Duration.ofSeconds(10), Duration.ofMillis(100), Duration.ZERO);
     private final Set<String> inbox = ConcurrentHashMap.newKeySet();
@@ -157,6 +158,11 @@ public final class ConformanceWorld {
         return outbox;
     }
 
+    /** The spans the relay and the delivery core start, which the transport's harness hands its relay. */
+    public RecordingMessageTracing tracing() {
+        return tracing;
+    }
+
     /** Three attempts, 100 ms backoff per attempt, no jitter, a 10 s lease. */
     public OutboxRelayPolicy policy() {
         return policy;
@@ -170,7 +176,7 @@ public final class ConformanceWorld {
     public EventDelivery newDelivery() {
         return new EventDelivery(subscribers(),
             owner -> SUBSCRIBER.equals(owner) && subscription.persistentInbox() ? Optional.of(persistence) : Optional.empty(),
-            inboxStore, new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), EventDeliveryScopes.ENVELOPE);
+            inboxStore, new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), EventDeliveryScopes.ENVELOPE, tracing);
     }
 
     /**

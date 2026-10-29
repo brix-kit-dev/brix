@@ -37,6 +37,7 @@ import io.runtime.orchestrator.event.conformance.EventTransportConformance;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxRelay;
 import io.runtime.orchestrator.outbox.OutboxRelayManagedResource;
+import io.runtime.orchestrator.outbox.OutboxRelayMetrics;
 import io.runtime.orchestrator.outbox.OutboxRelayProperties;
 import io.runtime.orchestrator.outbox.OutboxTransport;
 
@@ -130,7 +131,8 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
                 EventSubscriptionMetricsFactory.NOOP);
             group.start();
             relay = new OutboxRelayManagedResource(new OutboxRelay("conformance", world.outbox(), gated, world.policy(),
-                Clock.systemUTC()), Duration.ofMillis(20), "conformance-relay");
+                Clock.systemUTC(), OutboxRelayMetrics.NOOP,
+                world.tracing()), Duration.ofMillis(20), "conformance-relay");
             relay.start();
         }
 

@@ -65,6 +65,22 @@ public record CanonicalOutboxMessage(
         eventId = hasText(eventId) ? eventId : messageId;
     }
 
+    /**
+     * Returns the message with another trace context, such as that of the span it is sent in.
+     *
+     * @param newTraceparent the W3C traceparent, or {@code null}
+     * @param newTracestate the W3C tracestate, or {@code null}
+     * @return the message
+     */
+    public CanonicalOutboxMessage withTraceContext(String newTraceparent, String newTracestate) {
+        if (Objects.equals(traceparent, newTraceparent) && Objects.equals(tracestate, newTracestate)) {
+            return this;
+        }
+        return new CanonicalOutboxMessage(messageId, eventId, messageKind, messageType, schemaVersion, reliability,
+            producerPluginId, scope, tenantId, partitionKey, occurredAt, correlationId, causationId, newTraceparent,
+            newTracestate, payload, attemptCount);
+    }
+
     private static void requireText(String value, String field) {
         if (!hasText(value)) {
             throw new IllegalArgumentException(field + " must not be blank");

@@ -38,6 +38,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxTransportException;
+import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.capability.registry.Capability;
@@ -54,6 +55,8 @@ import io.runtime.sdk.event.IntegrationEvent;
  * outbox relay uses, which creates the topic before the first send. An event type that a plugin manifest declares
  * CRITICAL or STANDARD is refused: it must be published through its owner's outbox in the business transaction
  * (MESSAGE-017, MESSAGE-018, MESSAGE-022). Domain events stay inside their plugin (root §6.1) and are refused too.</p>
+ * <p>Each event is sent in a PRODUCER span, a child of the caller's current span when one is recorded (§13 K8);
+ * without a tracing adapter the envelope carries the event's own trace id.</p>
  * <p>The payload is the event's typed {@link IntegrationEvent#payload()}; an event written before typed payloads
  * existed is sent as it serializes. The tenant comes from the event or the caller's tenant context, as before, and
  * must be a numeric tenant id: the envelope is always tenant-scoped.</p>
@@ -87,6 +90,7 @@ public class KafkaEventBusCapability implements EventBusCapability {
     private final Supplier<Optional<String>> tenantIdProvider;
     private final Function<String, Optional<EventReliability>> declaredReliability;
     private final MeterRegistry meterRegistry;
+    private final MessageTracing tracing;
 
     /**
      * Creates the direct bus.
@@ -99,6 +103,7 @@ public class KafkaEventBusCapability implements EventBusCapability {
      * @param tenantIdProvider the caller's tenant, for events that carry none; may be {@code null}
      * @param declaredReliability the reliability a plugin manifest declares for an event type
      * @param meterRegistry publish metrics; may be {@code null}
+     * @param tracing the PRODUCER span each event is sent in
      */
     public KafkaEventBusCapability(
             KafkaTemplate<String, String> kafkaTemplate,
@@ -108,13 +113,15 @@ public class KafkaEventBusCapability implements EventBusCapability {
             String currentModuleId,
             Supplier<Optional<String>> tenantIdProvider,
             Function<String, Optional<EventReliability>> declaredReliability,
-            MeterRegistry meterRegistry) {
+            MeterRegistry meterRegistry,
+            MessageTracing tracing) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
         this.sender = new CanonicalKafkaOutboxTransport(kafkaTemplate, topics, broker, objectMapper, PUBLISH_TIMEOUT);
         this.currentModuleId = Objects.requireNonNull(currentModuleId, "currentModuleId cannot be null");
         this.tenantIdProvider = tenantIdProvider != null ? tenantIdProvider : Optional::empty;
         this.declaredReliability = Objects.requireNonNull(declaredReliability, "declaredReliability cannot be null");
         this.meterRegistry = meterRegistry;
+        this.tracing = Objects.requireNonNull(tracing, "tracing cannot be null");
     }
 
     /**
@@ -151,12 +158,19 @@ public class KafkaEventBusCapability implements EventBusCapability {
         }
         CanonicalOutboxMessage message = envelope(event, eventType);
         Timer.Sample sample = meterRegistry != null ? Timer.start(meterRegistry) : null;
-        try {
-            sender.publish(message);
-        } catch (OutboxTransportException failure) {
-            recordPublishError(eventType, failure);
-            throw new EventPublishException(event.getEventId(), "Integration event publishing failed: eventId="
-                + event.getEventId() + ", type=" + eventType + ", code=" + failure.errorCode(), failure);
+        try (MessageTracing.MessageSpan span = tracing.producer(message)) {
+            // Without a recorded span the event still carries its own trace id (root BRX-RS-OTEL-002).
+            CanonicalOutboxMessage traced = span.traceparent() == null
+                ? message.withTraceContext(traceparent(event.getTraceId()), null)
+                : message.withTraceContext(span.traceparent(), span.tracestate());
+            try {
+                sender.publish(traced);
+            } catch (OutboxTransportException failure) {
+                span.failed(failure);
+                recordPublishError(eventType, failure);
+                throw new EventPublishException(event.getEventId(), "Integration event publishing failed: eventId="
+                    + event.getEventId() + ", type=" + eventType + ", code=" + failure.errorCode(), failure);
+            }
         }
         recordPublishSuccess(eventType, message.producerPluginId(), sample);
         log.info("event=event.published_direct type={} event_id={} producer={} reliability=BEST_EFFORT",
@@ -181,7 +195,7 @@ public class KafkaEventBusCapability implements EventBusCapability {
                 OffsetDateTime.ofInstant(event.getTimestamp(), ZoneOffset.UTC),
                 textOr(event.getCorrelationId(), eventId),
                 event.getCausationId(),
-                traceparent(event.getTraceId()),
+                null,
                 null,
                 payload(event),
                 0);

@@ -29,6 +29,7 @@ import io.runtime.orchestrator.event.MicrometerEventSubscriptionMetrics;
 import io.runtime.orchestrator.event.PluginEventSubscribers;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
+import io.runtime.orchestrator.tracing.MessageTracing;
 
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -74,8 +75,9 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<OwnerPersistenceProvider> owners,
             ObjectProvider<EventInboxStore> inbox,
             ObjectProvider<ObjectMapper> json,
-            ObjectProvider<EventDeliveryScopes> scopes) {
-        return new EventDeliveryProvider(() -> delivery(properties, plugins, owners, inbox, json, scopes));
+            ObjectProvider<EventDeliveryScopes> scopes,
+            ObjectProvider<MessageTracing> tracing) {
+        return new EventDeliveryProvider(() -> delivery(properties, plugins, owners, inbox, json, scopes, tracing));
     }
 
     /**
@@ -90,12 +92,14 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<OutboxStoreRegistry> stores,
             ObjectProvider<OutboxTransport> brokerTransport,
             EventDeliveryProvider deliveries,
-            ObjectProvider<OutboxRelayMetricsFactory> metrics) {
+            ObjectProvider<OutboxRelayMetricsFactory> metrics,
+            ObjectProvider<MessageTracing> tracing) {
         Supplier<OutboxTransport> transport = IN_PROCESS.equals(properties.getTransport())
             ? () -> inProcess(deliveries.get())
             : brokerTransport::getIfAvailable;
         return new OutboxRelayGroup(properties, policy, stores::getIfAvailable, transport,
-            outbox -> metrics.getIfAvailable(() -> OutboxRelayMetricsFactory.NOOP).forOutbox(outbox));
+            outbox -> metrics.getIfAvailable(() -> OutboxRelayMetricsFactory.NOOP).forOutbox(outbox),
+            tracing.getIfAvailable(() -> MessageTracing.NOOP));
     }
 
     /**
@@ -124,7 +128,8 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<OwnerPersistenceProvider> owners,
             ObjectProvider<EventInboxStore> inbox,
             ObjectProvider<ObjectMapper> json,
-            ObjectProvider<EventDeliveryScopes> scopes) {
+            ObjectProvider<EventDeliveryScopes> scopes,
+            ObjectProvider<MessageTracing> tracing) {
         PluginRuntimeManager runtime = plugins.getIfAvailable();
         OwnerPersistenceProvider persistence = owners.getIfAvailable();
         EventInboxStore inboxes = inbox.getIfAvailable();
@@ -133,7 +138,7 @@ public class OutboxRelayAutoConfiguration {
         }
         return new EventDelivery(new PluginEventSubscribers(runtime), persistence, inboxes,
             json.getIfAvailable(ObjectMapper::new), Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2),
-            scopes.getIfAvailable(() -> EventDeliveryScopes.ENVELOPE));
+            scopes.getIfAvailable(() -> EventDeliveryScopes.ENVELOPE), tracing.getIfAvailable(() -> MessageTracing.NOOP));
     }
 
     /** Relay meters per owner outbox, when the host has Micrometer. */

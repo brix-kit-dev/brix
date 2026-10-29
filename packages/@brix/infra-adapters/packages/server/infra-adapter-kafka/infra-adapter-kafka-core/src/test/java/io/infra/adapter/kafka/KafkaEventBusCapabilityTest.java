@@ -37,6 +37,8 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.runtime.orchestrator.event.conformance.RecordingMessageTracing;
+import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.EventReliability;
@@ -106,7 +108,8 @@ class KafkaEventBusCapabilityTest {
     @BeforeEach
     void setUp() {
         bus = new KafkaEventBusCapability(kafkaTemplate, new KafkaEventTopics("prod-"), broker, json, "enterprise-shell",
-            () -> Optional.of("910001"), eventType -> Optional.ofNullable(declared.get(eventType)), null);
+            () -> Optional.of("910001"), eventType -> Optional.ofNullable(declared.get(eventType)), null,
+            MessageTracing.NOOP);
     }
 
     @Test
@@ -157,9 +160,27 @@ class KafkaEventBusCapabilityTest {
     }
 
     @Test
+    void anEventIsSentInItsProducerSpan() throws Exception {
+        // Kafka design §13 K8: with a tracing adapter the envelope carries the PRODUCER span's context.
+        sendSucceeds();
+        RecordingMessageTracing tracing = new RecordingMessageTracing();
+        bus = new KafkaEventBusCapability(kafkaTemplate, new KafkaEventTopics(""), broker, json, "enterprise-shell",
+            () -> Optional.of("910001"), eventType -> Optional.empty(), null, tracing);
+
+        bus.publishIntegration(new MessageSentEvent("910001", "m-1"));
+
+        verify(kafkaTemplate).send(recordCaptor.capture());
+        Map<String, Object> envelope = json.readValue(recordCaptor.getValue().value(), new TypeReference<>() {
+        });
+        RecordingMessageTracing.Recorded span = tracing.spans(RecordingMessageTracing.PRODUCER).get(0);
+        assertThat(envelope.get("traceparent")).isEqualTo(span.traceparent());
+        assertThat(span.failed()).isFalse();
+    }
+
+    @Test
     void anEventNeedsATenant() {
         bus = new KafkaEventBusCapability(kafkaTemplate, new KafkaEventTopics(""), broker, json, "enterprise-shell",
-            Optional::empty, eventType -> Optional.empty(), null);
+            Optional::empty, eventType -> Optional.empty(), null, MessageTracing.NOOP);
 
         assertThatThrownBy(() -> bus.publishIntegration(new AvatarUploadedEvent()))
             .isInstanceOf(IllegalArgumentException.class)

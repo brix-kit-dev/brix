@@ -26,6 +26,7 @@ import java.util.concurrent.CompletionStage;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
+import io.runtime.orchestrator.event.conformance.RecordingMessageTracing;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxTransportException;
 import io.runtime.orchestrator.persistence.RecordingPersistence;
@@ -33,6 +34,7 @@ import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
+import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
@@ -58,6 +60,7 @@ class InProcessEventTransportTest {
     private String publisher = PUBLISHER;
     private String idempotencyPolicy = PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX;
     private boolean ownsPersistence = true;
+    private MessageTracing tracing = MessageTracing.NOOP;
 
     /** Payload the test handler declares. */
     public record Accepted(Long tenantId, Long memberId) {
@@ -211,6 +214,27 @@ class InProcessEventTransportTest {
     }
 
     @Test
+    void aDeliveryIsHandledInItsConsumerSpanAndAFailedOneMarksIt() {
+        // Root BRX-RS-OTEL-002, OTEL-005: the handler runs in a CONSUMER span whose parent is the message's context.
+        RecordingMessageTracing recording = new RecordingMessageTracing();
+        tracing = recording;
+        CanonicalOutboxMessage traced = traced("event-1");
+
+        transport().publish(traced);
+        failure = new IllegalStateException("projection unavailable");
+        assertThrows(OutboxTransportException.class, () -> transport().publish(traced("event-2")));
+
+        List<RecordingMessageTracing.Recorded> spans = recording.spans(RecordingMessageTracing.CONSUMER);
+        assertEquals(2, spans.size());
+        assertEquals(traced.traceparent(), spans.get(0).parent());
+        assertEquals(SUBSCRIBER + ".projection.v1", spans.get(0).subscription());
+        assertEquals(spans.get(0).traceparent(), handled.get(0).trace().traceparent());
+        assertEquals("vendor=1", handled.get(0).trace().tracestate());
+        assertFalse(spans.get(0).failed());
+        assertTrue(spans.get(1).failed());
+    }
+
+    @Test
     void onlyEventsAreDeliveredInProcess() {
         CanonicalOutboxMessage command = new CanonicalOutboxMessage("command-1", "command-1", "COMMAND", "DoSomething",
             "1.0.0", "CRITICAL", PUBLISHER, "PLATFORM", null, "k", OffsetDateTime.now(), "correlation-1", null, null, null, "{}", 1);
@@ -249,10 +273,16 @@ class InProcessEventTransportTest {
             }
         };
         EventInboxStore store = (owner, handlerId, message) -> inbox.add(owner + "|" + handlerId + "|" + message.eventId());
-        return new InProcessEventTransport(subscribers,
+        return new InProcessEventTransport(new EventDelivery(subscribers,
             owner -> SUBSCRIBER.equals(owner) && ownsPersistence ? Optional.of(persistence) : Optional.empty(), store,
-            new ObjectMapper(),
-            Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(15));
+            new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(15), EventDeliveryScopes.ENVELOPE,
+            tracing));
+    }
+
+    private static CanonicalOutboxMessage traced(String eventId) {
+        return new CanonicalOutboxMessage(eventId, eventId, "EVENT", EVENT, "1.0.0", "CRITICAL", PUBLISHER, "TENANT",
+            910001L, "910001", OffsetDateTime.parse("2026-10-28T08:59:00Z"), "correlation-1", null,
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "vendor=1", "{\"tenantId\":910001,\"memberId\":7}", 1);
     }
 
     private static CanonicalOutboxMessage message(String payload, String schemaVersion, int attempt) {

@@ -17,6 +17,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 
+import io.runtime.orchestrator.tracing.MessageTracing;
+
 /**
  * L2B managed relay for committed canonical outbox messages.
  *
@@ -42,6 +44,7 @@ public final class OutboxRelay implements AutoCloseable {
     private final Clock clock;
     private final IntFunction<Duration> jitter;
     private final OutboxRelayMetrics metrics;
+    private final MessageTracing tracing;
     private final AtomicBoolean accepting = new AtomicBoolean(true);
     private boolean waiting;
 
@@ -67,9 +70,23 @@ public final class OutboxRelay implements AutoCloseable {
             OutboxRelayPolicy policy,
             Clock clock,
             OutboxRelayMetrics metrics) {
+        this(relayOwner, store, transport, policy, clock, metrics, MessageTracing.NOOP);
+    }
+
+    /**
+     * Creates a relay with default jitter that sends each message in its PRODUCER span.
+     */
+    public OutboxRelay(
+            String relayOwner,
+            OutboxMessageStore store,
+            OutboxTransport transport,
+            OutboxRelayPolicy policy,
+            Clock clock,
+            OutboxRelayMetrics metrics,
+            MessageTracing tracing) {
         this(relayOwner, store, transport, policy, clock,
             ignored -> randomJitter(policy.retryJitterMax()),
-            metrics);
+            metrics, tracing);
     }
 
     /**
@@ -83,6 +100,21 @@ public final class OutboxRelay implements AutoCloseable {
             Clock clock,
             IntFunction<Duration> jitter,
             OutboxRelayMetrics metrics) {
+        this(relayOwner, store, transport, policy, clock, jitter, metrics, MessageTracing.NOOP);
+    }
+
+    /**
+     * Creates a relay that sends each message in its PRODUCER span (root BRX-RS-OTEL-002).
+     */
+    public OutboxRelay(
+            String relayOwner,
+            OutboxMessageStore store,
+            OutboxTransport transport,
+            OutboxRelayPolicy policy,
+            Clock clock,
+            IntFunction<Duration> jitter,
+            OutboxRelayMetrics metrics,
+            MessageTracing tracing) {
         if (relayOwner == null || relayOwner.isBlank()) {
             throw new IllegalArgumentException("relayOwner must not be blank");
         }
@@ -93,6 +125,7 @@ public final class OutboxRelay implements AutoCloseable {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.jitter = Objects.requireNonNull(jitter, "jitter must not be null");
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
+        this.tracing = Objects.requireNonNull(tracing, "tracing must not be null");
     }
 
     /**
@@ -146,7 +179,7 @@ public final class OutboxRelay implements AutoCloseable {
             OutboxTransportException failure = null;
             try {
                 validateEnvelope(message);
-                transport.publish(message);
+                send(message);
             } catch (OutboxTransportException ex) {
                 failure = ex;
             } catch (RuntimeException ex) {
@@ -189,6 +222,18 @@ public final class OutboxRelay implements AutoCloseable {
     @Override
     public void close() {
         drain();
+    }
+
+    /** Sends the message in its PRODUCER span, with the span's trace context (root BRX-RS-OTEL-002). */
+    private void send(CanonicalOutboxMessage message) {
+        try (MessageTracing.MessageSpan span = tracing.producer(message)) {
+            try {
+                transport.publish(message.withTraceContext(span.traceparent(), span.tracestate()));
+            } catch (RuntimeException failure) {
+                span.failed(failure);
+                throw failure;
+            }
+        }
     }
 
     private void validateEnvelope(CanonicalOutboxMessage message) {

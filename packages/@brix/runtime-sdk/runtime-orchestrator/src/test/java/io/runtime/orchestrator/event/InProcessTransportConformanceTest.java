@@ -15,6 +15,7 @@ import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.event.conformance.EventTransportConformance;
 import io.runtime.orchestrator.outbox.OutboxRelay;
 import io.runtime.orchestrator.outbox.OutboxRelayManagedResource;
+import io.runtime.orchestrator.outbox.OutboxRelayMetrics;
 
 /**
  * The in-process transport passes the transport conformance suite (Kafka design §4.6): the relay hands each
@@ -31,7 +32,8 @@ class InProcessTransportConformanceTest extends EventTransportConformance {
             @Override
             public void start() {
                 OutboxRelay relay = new OutboxRelay("conformance", world.outbox(),
-                    new InProcessEventTransport(world.newDelivery()), world.policy(), Clock.systemUTC());
+                    new InProcessEventTransport(world.newDelivery()), world.policy(), Clock.systemUTC(),
+                    OutboxRelayMetrics.NOOP, world.tracing());
                 loop = new OutboxRelayManagedResource(relay, Duration.ofMillis(20), "conformance-relay");
                 loop.start();
             }

@@ -31,6 +31,7 @@ import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
+import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.event.EventEnvelope;
 import io.runtime.sdk.event.EventReliability;
@@ -76,6 +77,7 @@ public final class EventDelivery {
     private final Clock clock;
     private final Duration deadline;
     private final EventDeliveryScopes scopes;
+    private final MessageTracing tracing;
     private volatile boolean stopped;
 
     /**
@@ -97,6 +99,30 @@ public final class EventDelivery {
             Clock clock,
             Duration deadline,
             EventDeliveryScopes scopes) {
+        this(subscribers, owners, inbox, json, clock, deadline, scopes, MessageTracing.NOOP);
+    }
+
+    /**
+     * Creates the delivery core, which handles each delivery in its CONSUMER span (root BRX-RS-OTEL-002).
+     *
+     * @param subscribers who publishes and subscribes to each event type
+     * @param owners each subscriber's owner persistence
+     * @param inbox the owners' persistent inboxes
+     * @param json decodes payloads
+     * @param clock delivery clock
+     * @param deadline how long a handler may take; shorter than the relay's lease
+     * @param scopes the scope of each delivery
+     * @param tracing the spans of the deliveries
+     */
+    public EventDelivery(
+            EventSubscribers subscribers,
+            OwnerPersistenceProvider owners,
+            EventInboxStore inbox,
+            ObjectMapper json,
+            Clock clock,
+            Duration deadline,
+            EventDeliveryScopes scopes,
+            MessageTracing tracing) {
         this.subscribers = Objects.requireNonNull(subscribers, "subscribers must not be null");
         this.owners = Objects.requireNonNull(owners, "owners must not be null");
         this.inbox = Objects.requireNonNull(inbox, "inbox must not be null");
@@ -104,6 +130,7 @@ public final class EventDelivery {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.deadline = Objects.requireNonNull(deadline, "deadline must not be null");
         this.scopes = Objects.requireNonNull(scopes, "scopes must not be null");
+        this.tracing = Objects.requireNonNull(tracing, "tracing must not be null");
     }
 
     /**
@@ -207,8 +234,21 @@ public final class EventDelivery {
         }
     }
 
+    /** Handles the delivery in its CONSUMER span, a child of the context the message carries. */
     private void deliver(CanonicalOutboxMessage message, BoundEventHandler bound) {
-        EventInvocation<Object> invocation = invocation(message, bound);
+        try (MessageTracing.MessageSpan span = tracing.consumer(message, bound.pluginId() + "."
+                + bound.subscription().handlerId())) {
+            try {
+                deliver(message, bound, span);
+            } catch (RuntimeException failure) {
+                span.failed(failure);
+                throw failure;
+            }
+        }
+    }
+
+    private void deliver(CanonicalOutboxMessage message, BoundEventHandler bound, MessageTracing.MessageSpan span) {
+        EventInvocation<Object> invocation = invocation(message, bound, span);
         @SuppressWarnings("unchecked")
         EventHandler<Object> handler = (EventHandler<Object>) bound.handler();
         String handlerId = bound.subscription().handlerId();
@@ -255,7 +295,8 @@ public final class EventDelivery {
         }
     }
 
-    private EventInvocation<Object> invocation(CanonicalOutboxMessage message, BoundEventHandler bound) {
+    private EventInvocation<Object> invocation(CanonicalOutboxMessage message, BoundEventHandler bound,
+            MessageTracing.MessageSpan span) {
         Object payload;
         try {
             payload = json.readValue(message.payload(), bound.payloadType());
@@ -263,9 +304,9 @@ public final class EventDelivery {
             throw permanent(PAYLOAD_INVALID, message.messageType() + " payload does not decode to "
                 + bound.payloadType().getSimpleName(), invalid);
         }
-        String traceparent = message.traceparent() == null || message.traceparent().isBlank()
+        String traceparent = span.traceparent() == null || span.traceparent().isBlank()
             ? newTraceparent()
-            : message.traceparent();
+            : span.traceparent();
         EventEnvelope<Object> envelope = new EventEnvelope<>(
             message.eventId(),
             message.messageType(),
@@ -282,7 +323,7 @@ public final class EventDelivery {
             EventReliability.valueOf(message.reliability().toUpperCase(Locale.ROOT)));
         Instant now = clock.instant();
         return new EventInvocation<>(envelope, new PublisherDecision(message.producerPluginId(), null),
-            new TraceContext(traceparent, message.tracestate()), now.plus(deadline), () -> stopped,
+            new TraceContext(traceparent, span.tracestate()), now.plus(deadline), () -> stopped,
             Math.max(1, message.attemptCount()));
     }
 

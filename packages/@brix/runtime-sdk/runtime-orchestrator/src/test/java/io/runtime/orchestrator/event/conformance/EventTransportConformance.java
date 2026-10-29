@@ -160,6 +160,11 @@ public abstract class EventTransportConformance {
         await("event-1 is handled", () -> world.handledIds().contains("event-1"));
         assertEquals(3, world.handled().get(0).attempt(), "the third attempt succeeds");
         assertTrue(harness.parked().isEmpty());
+        // Root BRX-RS-OTEL-005: a failed delivery's CONSUMER span carries the error.
+        await("the three deliveries' spans have ended",
+            () -> world.tracing().spans(RecordingMessageTracing.CONSUMER).size() == 3);
+        assertEquals(List.of(true, true, false), world.tracing().spans(RecordingMessageTracing.CONSUMER).stream()
+            .map(RecordingMessageTracing.Recorded::failed).toList());
     }
 
     @Test
@@ -231,14 +236,25 @@ public abstract class EventTransportConformance {
     }
 
     @Test
-    void theHandlerReceivesThePublishersTraceContext() {
-        // Root BRX-RS-OTEL-002: the W3C trace context crosses the transport.
+    void theHandlerRunsInTheConsumerSpanOfTheProducerSpanOfThePublishersContext() {
+        // Root BRX-RS-OTEL-002: the W3C trace context crosses the transport. The message is sent in a PRODUCER span,
+        // a child of the publisher's context, and handled in a CONSUMER span whose parent is the extracted producer
+        // span (Kafka design §13 K8).
         world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
 
         harness.start();
 
         await("event-1 is handled", () -> world.handledIds().contains("event-1"));
-        assertEquals(ConformanceWorld.TRACEPARENT, world.handled().get(0).traceparent());
+        await("both spans have ended", () -> world.tracing().spans(RecordingMessageTracing.PRODUCER).size() == 1
+            && world.tracing().spans(RecordingMessageTracing.CONSUMER).size() == 1);
+        RecordingMessageTracing.Recorded producer = world.tracing().spans(RecordingMessageTracing.PRODUCER).get(0);
+        RecordingMessageTracing.Recorded consumer = world.tracing().spans(RecordingMessageTracing.CONSUMER).get(0);
+        assertEquals(ConformanceWorld.TRACEPARENT, producer.parent());
+        assertEquals(producer.traceparent(), consumer.parent());
+        assertEquals(ConformanceWorld.SUBSCRIBER + "." + ConformanceWorld.HANDLER, consumer.subscription());
+        assertEquals(consumer.traceparent(), world.handled().get(0).traceparent());
+        assertTrue(consumer.traceparent().startsWith(ConformanceWorld.TRACEPARENT.substring(0, 36)),
+            "the handler stays in the publisher's trace");
     }
 
     @Test

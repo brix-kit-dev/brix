@@ -58,6 +58,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.outbox.OutboxTransport;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
+import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.EventBusCapability;
 
 /**
@@ -185,6 +186,7 @@ public class KafkaAutoConfiguration {
      * @param tenantIdProvider optional tenant ID supplier from platform-common
      * @param plugins the plugin runtime, for the reliability each manifest declares
      * @param meterRegistry publish metrics, when the host has Micrometer
+     * @param tracing the PRODUCER span of each event, when a tracing adapter records one
      * @return the direct bus
      */
     @Bean
@@ -196,11 +198,12 @@ public class KafkaAutoConfiguration {
             @Value("${brix.infra.module-id:unknown}") String moduleId,
             @Autowired(required = false) Supplier<Optional<String>> tenantIdProvider,
             ObjectProvider<PluginRuntimeManager> plugins,
-            ObjectProvider<MeterRegistry> meterRegistry) {
+            ObjectProvider<MeterRegistry> meterRegistry,
+            ObjectProvider<MessageTracing> tracing) {
         return new KafkaEventBusCapability(kafkaTemplate, topics, broker, createEventObjectMapper(), moduleId,
             tenantIdProvider, eventType -> Optional.ofNullable(plugins.getIfAvailable())
                 .flatMap(runtime -> runtime.eventReliability(eventType)),
-            meterRegistry.getIfAvailable());
+            meterRegistry.getIfAvailable(), tracing.getIfAvailable(() -> MessageTracing.NOOP));
     }
 
     /**
