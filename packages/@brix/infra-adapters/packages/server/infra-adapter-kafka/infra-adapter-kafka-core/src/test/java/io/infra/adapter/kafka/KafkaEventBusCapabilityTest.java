@@ -3,330 +3,242 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 package io.infra.adapter.kafka;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * Unit tests for {@link KafkaEventBusCapability}
- *
- * <p>Uses Mockito to mock KafkaTemplate, validating event publishing
- * topic routing, headers construction, serialization, and exception handling.</p>
- *
- * @author Brix Team
- * @since 3.0.0
+ * The direct bus carries BEST_EFFORT integration events as canonical envelopes on {@code brix.event.<eventType>}
+ * and refuses what must go through an outbox (Kafka design §13 K2; root BRX-RS-MESSAGE-019, MESSAGE-022).
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("KafkaEventBusCapability Tests")
 class KafkaEventBusCapabilityTest {
+
+    private static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
 
     @Mock
     private KafkaTemplate<String, String> kafkaTemplate;
 
+    @Mock
+    private KafkaEventBroker broker;
+
     @Captor
     private ArgumentCaptor<ProducerRecord<String, String>> recordCaptor;
 
-    private ObjectMapper objectMapper;
-    private EventTopicResolver topicResolver;
-    private KafkaEventBusCapability eventBus;
+    private final ObjectMapper json = JsonMapper.builder().configureForJackson2()
+        .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS).build();
+    private Map<String, EventReliability> declared = Map.of();
+    private KafkaEventBusCapability bus;
 
-    private static final String MODULE_ID = "booking";
-    private static final String TEST_TENANT_ID = "test-tenant";
-    private static final Supplier<Optional<String>> TEST_TENANT_PROVIDER = () -> Optional.of(TEST_TENANT_ID);
+    /** A legacy event that defines no typed payload. */
+    public static final class MessageSentEvent extends IntegrationEvent {
+
+        private final String messageId;
+
+        MessageSentEvent(String tenantId, String messageId) {
+            super("app-messenger", 1, tenantId);
+            this.messageId = messageId;
+        }
+
+        public String getMessageId() {
+            return messageId;
+        }
+
+        @Override
+        public String getRoutingKey() {
+            return "message:" + messageId;
+        }
+    }
+
+    /** An event with a typed payload. */
+    public static final class AvatarUploadedEvent extends IntegrationEvent {
+
+        AvatarUploadedEvent() {
+            super("app-storage");
+        }
+
+        @Override
+        public String getRoutingKey() {
+            return "user:7";
+        }
+
+        @Override
+        public Object payload() {
+            return Map.of("userId", 7, "objectKey", "avatars/7.png");
+        }
+    }
 
     @BeforeEach
     void setUp() {
-        objectMapper = JsonMapper.builder()
-            .configureForJackson2()
-            .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .build();
-
-        topicResolver = new EventTopicResolver();
-        eventBus = new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, MODULE_ID, TEST_TENANT_PROVIDER);
+        bus = new KafkaEventBusCapability(kafkaTemplate, new KafkaEventTopics("prod-"), broker, json, "enterprise-shell",
+            () -> Optional.of("910001"), eventType -> Optional.ofNullable(declared.get(eventType)), null);
     }
 
-    // ==================== Constructor Validation ====================
+    @Test
+    void aBestEffortEventIsACanonicalEnvelopeOnItsTypesTopic() throws Exception {
+        sendSucceeds();
+        MessageSentEvent event = new MessageSentEvent("910001", "m-1");
+        event.setTraceId(TRACE_ID);
 
-    @Nested
-    @DisplayName("Constructor Validation")
-    class ConstructorTests {
+        bus.publishIntegration(event);
 
-        @Test
-        @DisplayName("kafkaTemplate null should throw NPE")
-        void shouldThrow_whenKafkaTemplateNull() {
-            assertThatThrownBy(() ->
-                new KafkaEventBusCapability(null, topicResolver, objectMapper, MODULE_ID, null))
-                .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        @DisplayName("topicResolver null should throw NPE")
-        void shouldThrow_whenTopicResolverNull() {
-            assertThatThrownBy(() ->
-                new KafkaEventBusCapability(kafkaTemplate, null, objectMapper, MODULE_ID, null))
-                .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        @DisplayName("objectMapper null should throw NPE")
-        void shouldThrow_whenObjectMapperNull() {
-            assertThatThrownBy(() ->
-                new KafkaEventBusCapability(kafkaTemplate, topicResolver, null, MODULE_ID, null))
-                .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        @DisplayName("currentModuleId null should throw NPE")
-        void shouldThrow_whenModuleIdNull() {
-            assertThatThrownBy(() ->
-                new KafkaEventBusCapability(kafkaTemplate, topicResolver, objectMapper, null, null))
-                .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        @DisplayName("tenantIdProvider null should default to Optional.empty")
-        void shouldAcceptNullTenantIdProvider() {
-            KafkaEventBusCapability bus = new KafkaEventBusCapability(
-                kafkaTemplate, topicResolver, objectMapper, MODULE_ID, null);
-            assertThat(bus).isNotNull();
-        }
+        verify(broker).ensureEventTopics(Set.of("MessageSent"));
+        verify(kafkaTemplate).send(recordCaptor.capture());
+        ProducerRecord<String, String> record = recordCaptor.getValue();
+        assertThat(record.topic()).isEqualTo("prod-brix.event.MessageSent");
+        assertThat(record.key()).isEqualTo("message:m-1");
+        Map<String, Object> envelope = json.readValue(record.value(), new TypeReference<>() {
+        });
+        assertThat(envelope).containsEntry("eventId", event.getEventId())
+            .containsEntry("eventType", "MessageSent")
+            .containsEntry("reliability", "BEST_EFFORT")
+            .containsEntry("producerPluginId", "app-messenger")
+            .containsEntry("scope", "TENANT")
+            .containsEntry("tenantId", 910001)
+            .containsEntry("schemaVersion", "1.0.0")
+            .containsEntry("partitionKey", "message:m-1");
+        assertThat((String) envelope.get("traceparent")).startsWith("00-" + TRACE_ID + "-").endsWith("-01");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) envelope.get("payload");
+        assertThat(payload).as("a legacy event is sent as it serializes").containsEntry("messageId", "m-1");
     }
 
-    // ==================== publish(DomainEvent) ====================
+    @Test
+    void aTypedPayloadIsSentAsThePayload() throws Exception {
+        sendSucceeds();
 
-    @Nested
-    @DisplayName("publish(DomainEvent)")
-    class PublishDomainEventTests {
+        AvatarUploadedEvent event = new AvatarUploadedEvent();
 
-        @Test
-        @DisplayName("Should send domain event to correct topic with correct key")
-        @SuppressWarnings("unchecked")
-        void shouldSendToCorrectTopic() {
-            TestDomainEvent event = new TestDomainEvent("order-123", "Order");
-            mockSendSuccess("domain.booking.order");
+        bus.publishIntegration(event);
 
-            eventBus.publish(event);
-
-            verify(kafkaTemplate).send(recordCaptor.capture());
-            ProducerRecord<String, String> record = recordCaptor.getValue();
-
-            assertThat(record.topic()).isEqualTo("domain.booking.order");
-            assertThat(record.key()).isEqualTo("order-123");
-            assertThat(record.value()).contains("order-123");
-        }
-
-        @Test
-        @DisplayName("Should include standard Kafka headers")
-        @SuppressWarnings("unchecked")
-        void shouldIncludeStandardHeaders() {
-            TestDomainEvent event = new TestDomainEvent("agg-1", "Reservation");
-            mockSendSuccess("domain.booking.reservation");
-
-            eventBus.publish(event);
-
-            verify(kafkaTemplate).send(recordCaptor.capture());
-            ProducerRecord<String, String> record = recordCaptor.getValue();
-
-            assertThat(record.headers().lastHeader("eventId")).isNotNull();
-            assertThat(record.headers().lastHeader("eventType")).isNotNull();
-            assertThat(record.headers().lastHeader("timestamp")).isNotNull();
-            assertThat(record.headers().lastHeader("sourceModule")).isNotNull();
-            assertThat(record.headers().lastHeader("aggregateId")).isNotNull();
-            assertThat(record.headers().lastHeader("aggregateType")).isNotNull();
-        }
-
-        @Test
-        @DisplayName("Null event should throw NPE")
-        void shouldThrow_whenEventNull() {
-            assertThatThrownBy(() -> eventBus.publish((DomainEvent) null))
-                .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        @DisplayName("Send failure should throw EventPublishException")
-        @SuppressWarnings("unchecked")
-        void shouldThrowEventPublishException_whenSendFails() {
-            TestDomainEvent event = new TestDomainEvent("fail-1", "Order");
-            CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
-            future.completeExceptionally(new RuntimeException("broker down"));
-            when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
-
-            assertThatThrownBy(() -> eventBus.publish(event))
-                .isInstanceOf(EventPublishException.class)
-                .hasMessageContaining("Domain event publishing failed");
-        }
+        verify(kafkaTemplate).send(recordCaptor.capture());
+        Map<String, Object> envelope = json.readValue(recordCaptor.getValue().value(), new TypeReference<>() {
+        });
+        assertThat(envelope.get("payload")).isEqualTo(Map.of("userId", 7, "objectKey", "avatars/7.png"));
+        assertThat(envelope).as("the caller's tenant fills an event that carries none")
+            .containsEntry("scope", "TENANT").containsEntry("tenantId", 910001);
+        assertThat((String) envelope.get("traceparent")).as("a trace id made up as a UUID still starts a trace")
+            .startsWith("00-" + event.getTraceId().replace("-", "") + "-");
     }
 
-    // ==================== publishIntegration(IntegrationEvent) ====================
+    @Test
+    void anEventNeedsATenant() {
+        bus = new KafkaEventBusCapability(kafkaTemplate, new KafkaEventTopics(""), broker, json, "enterprise-shell",
+            Optional::empty, eventType -> Optional.empty(), null);
 
-    @Nested
-    @DisplayName("publishIntegration(IntegrationEvent)")
-    class PublishIntegrationEventTests {
-
-        @Test
-        @DisplayName("Should send integration event to correct integration topic")
-        @SuppressWarnings("unchecked")
-        void shouldSendToIntegrationTopic() {
-            TestIntegrationEvent event = new TestIntegrationEvent("routing-key-1");
-            // eventType = full class name, topic resolver extracts simple name,
-            // removes "Event" suffix and converts to kebab-case
-            String expectedTopic = topicResolver.resolveIntegrationTopic(event);
-            mockSendSuccess(expectedTopic);
-
-            eventBus.publishIntegration(event);
-
-            verify(kafkaTemplate).send(recordCaptor.capture());
-            ProducerRecord<String, String> record = recordCaptor.getValue();
-
-            assertThat(record.topic()).isEqualTo(expectedTopic);
-            assertThat(record.key()).isEqualTo("routing-key-1");
-        }
-
-        @Test
-        @DisplayName("Should use eventId as key when routingKey is null")
-        @SuppressWarnings("unchecked")
-        void shouldUseEventIdAsKey_whenRoutingKeyNull() {
-            TestIntegrationEvent event = new TestIntegrationEvent(null);
-            mockSendSuccess(topicResolver.resolveIntegrationTopic(event));
-
-            eventBus.publishIntegration(event);
-
-            verify(kafkaTemplate).send(recordCaptor.capture());
-            ProducerRecord<String, String> record = recordCaptor.getValue();
-
-            assertThat(record.key()).isEqualTo(event.getEventId());
-        }
-
-        @Test
-        @DisplayName("Should include standard integration event headers (including sourceModule, tenantId, schemaVersion)")
-        @SuppressWarnings("unchecked")
-        void shouldIncludeIntegrationHeaders() {
-            TestIntegrationEvent event = new TestIntegrationEvent("key-1");
-            mockSendSuccess(topicResolver.resolveIntegrationTopic(event));
-
-            eventBus.publishIntegration(event);
-
-            verify(kafkaTemplate).send(recordCaptor.capture());
-            ProducerRecord<String, String> record = recordCaptor.getValue();
-
-            assertThat(record.headers().lastHeader("eventId")).isNotNull();
-            assertThat(record.headers().lastHeader("eventType")).isNotNull();
-            assertThat(record.headers().lastHeader("sourceModule")).isNotNull();
-            assertThat(record.headers().lastHeader("routingKey")).isNotNull();
-            assertThat(record.headers().lastHeader("tenantId")).isNotNull();
-            assertThat(new String(record.headers().lastHeader("tenantId").value())).isEqualTo(TEST_TENANT_ID);
-            assertThat(record.headers().lastHeader("schemaVersion")).isNotNull();
-        }
-
-        @Test
-        @DisplayName("Null event should throw NPE")
-        void shouldThrow_whenEventNull() {
-            assertThatThrownBy(() -> eventBus.publishIntegration(null))
-                .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        @DisplayName("Send failure should throw EventPublishException")
-        @SuppressWarnings("unchecked")
-        void shouldThrowEventPublishException_whenSendFails() {
-            TestIntegrationEvent event = new TestIntegrationEvent("key-2");
-            CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
-            future.completeExceptionally(new RuntimeException("network error"));
-            when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
-
-            assertThatThrownBy(() -> eventBus.publishIntegration(event))
-                .isInstanceOf(EventPublishException.class)
-                .hasMessageContaining("Integration event publishing failed");
-        }
+        assertThatThrownBy(() -> bus.publishIntegration(new AvatarUploadedEvent()))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("tenantId");
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
     }
 
-    // ==================== Helper Methods and Test Subclasses ====================
+    @Test
+    void anEventTypeAManifestDeclaresCriticalGoesThroughItsOutbox() {
+        declared = Map.of("MessageSent", EventReliability.CRITICAL);
+
+        assertThatThrownBy(() -> bus.publishIntegration(new MessageSentEvent("910001", "m-1")))
+            .isInstanceOf(EventPublishException.class)
+            .hasMessageContaining("outbox");
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+    }
+
+    @Test
+    void anEventTypeDeclaredBestEffortIsSent() {
+        declared = Map.of("MessageSent", EventReliability.BEST_EFFORT);
+        sendSucceeds();
+
+        bus.publishIntegration(new MessageSentEvent("910001", "m-1"));
+
+        verify(kafkaTemplate).send(any(ProducerRecord.class));
+    }
+
+    @Test
+    void aTenantThatIsNoTenantIdIsRefused() {
+        assertThatThrownBy(() -> bus.publishIntegration(new MessageSentEvent("default", "m-1")))
+            .isInstanceOf(EventPublishException.class)
+            .hasMessageContaining("default");
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+    }
+
+    @Test
+    void aTopicThatCannotBePreparedFailsThePublish() {
+        doThrow(new IllegalStateException("broker unavailable")).when(broker).ensureEventTopics(any());
+
+        assertThatThrownBy(() -> bus.publishIntegration(new MessageSentEvent("910001", "m-1")))
+            .isInstanceOf(EventPublishException.class)
+            .hasMessageContaining("KAFKA_TOPIC_UNAVAILABLE");
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aSendTheBrokerRefusesFailsThePublish() {
+        CompletableFuture<SendResult<String, String>> refused = new CompletableFuture<>();
+        refused.completeExceptionally(new IllegalStateException("broker refused"));
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(refused);
+
+        assertThatThrownBy(() -> bus.publishIntegration(new MessageSentEvent("910001", "m-1")))
+            .isInstanceOf(EventPublishException.class)
+            .hasMessageContaining("KAFKA_SEND_FAILED");
+    }
+
+    @Test
+    void aDomainEventStaysInsideItsPlugin() {
+        DomainEvent event = new DomainEvent() {
+            @Override
+            public String getAggregateId() {
+                return "booking-1";
+            }
+
+            @Override
+            public String getAggregateType() {
+                return "Booking";
+            }
+        };
+
+        assertThatThrownBy(() -> bus.publish(event)).isInstanceOf(EventPublishException.class);
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+    }
 
     @SuppressWarnings("unchecked")
-    private void mockSendSuccess(String topic) {
-        RecordMetadata metadata = new RecordMetadata(
-            new TopicPartition(topic, 0), 0L, 0, 0L, 0, 0);
-        SendResult<String, String> sendResult = new SendResult<>(null, metadata);
-        CompletableFuture<SendResult<String, String>> future = CompletableFuture.completedFuture(sendResult);
-        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
-    }
-
-    /**
-     * Test domain event
-     */
-    static class TestDomainEvent extends DomainEvent {
-
-        private final String aggregateId;
-        private final String aggregateType;
-
-        TestDomainEvent(String aggregateId, String aggregateType) {
-            this.aggregateId = aggregateId;
-            this.aggregateType = aggregateType;
-        }
-
-        @Override
-        public String getAggregateId() { return aggregateId; }
-
-        @Override
-        public String getAggregateType() { return aggregateType; }
-    }
-
-    /**
-     * Test integration event
-     */
-    static class TestIntegrationEvent extends IntegrationEvent {
-
-        private final String routingKey;
-
-        TestIntegrationEvent(String routingKey) {
-            super("test-module");
-            this.routingKey = routingKey;
-        }
-
-        @Override
-        public String getRoutingKey() { return routingKey; }
-
-        @Override
-        public String getSourceModule() { return "test-module"; }
+    private void sendSucceeds() {
+        RecordMetadata metadata = new RecordMetadata(new TopicPartition("t", 0), 0L, 0, 0L, 0, 0);
+        when(kafkaTemplate.send(any(ProducerRecord.class)))
+            .thenReturn(CompletableFuture.completedFuture(new SendResult<>(null, metadata)));
     }
 }

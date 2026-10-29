@@ -27,6 +27,7 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -59,6 +60,7 @@ import io.infra.adapter.kafka.metrics.KafkaConsumerMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.outbox.OutboxTransport;
+import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.sdk.capability.EventBusCapability;
 
 /**
@@ -185,48 +187,53 @@ public class KafkaAutoConfiguration {
     }
 
     /**
-     * Configure EventBusCapability implementation.
-     * 
-     * <p>This is the core capability implementation Bean, modules obtain this implementation through RuntimeContext.</p>
+     * The direct bus for BEST_EFFORT integration events (Kafka design §13 K2): canonical envelopes on
+     * {@code brix.event.<eventType>}; an event type a plugin manifest declares CRITICAL or STANDARD is refused.
      *
-     * <p>The {@code tenantIdProvider} is injected optionally.  When {@code platform-common}
-     * is on the classpath, its auto-configuration registers a
-     * {@code Supplier<Optional<String>>} bean backed by {@code TenantContext}.
-     * If absent (e.g., in a pure unit-test setup), the adapter falls back to requiring
-     * callers to set tenantId on events explicitly.</p>
-     * 
-     * @param kafkaTemplate    Kafka template
-     * @param topicResolver    Topic resolver
-     * @param moduleId         Current module ID
-     * @param tenantIdProvider Optional tenant ID supplier from platform-common
-     * @return EventBusCapability instance
+     * <p>The {@code tenantIdProvider} is injected optionally. When {@code platform-common} is on the classpath, its
+     * auto-configuration registers a {@code Supplier<Optional<String>>} bean backed by {@code TenantContext}.</p>
+     *
+     * @param kafkaTemplate Kafka template
+     * @param topics topic names
+     * @param broker the broker's reachability and topics
+     * @param moduleId producer id for events that name no source module
+     * @param tenantIdProvider optional tenant ID supplier from platform-common
+     * @param plugins the plugin runtime, for the reliability each manifest declares
+     * @param meterRegistry publish metrics, when the host has Micrometer
+     * @return the direct bus
      */
     @Bean
     @ConditionalOnMissingBean(EventBusCapability.class)
     public KafkaEventBusCapability kafkaEventBusCapability(
             KafkaTemplate<String, String> kafkaTemplate,
-            EventTopicResolver topicResolver,
+            KafkaEventTopics topics,
+            KafkaEventBroker broker,
             @Value("${brix.infra.module-id:unknown}") String moduleId,
-            @Autowired(required = false) Supplier<Optional<String>> tenantIdProvider) {
-        return new KafkaEventBusCapability(
-                kafkaTemplate, topicResolver, createEventObjectMapper(), moduleId, tenantIdProvider);
+            @Autowired(required = false) Supplier<Optional<String>> tenantIdProvider,
+            ObjectProvider<PluginRuntimeManager> plugins,
+            ObjectProvider<MeterRegistry> meterRegistry) {
+        return new KafkaEventBusCapability(kafkaTemplate, topics, broker, createEventObjectMapper(), moduleId,
+            tenantIdProvider, eventType -> Optional.ofNullable(plugins.getIfAvailable())
+                .flatMap(runtime -> runtime.eventReliability(eventType)),
+            meterRegistry.getIfAvailable());
     }
 
     /**
-     * Names the canonical event bus's topics and consumer groups (Kafka design D18, D19).
+     * Names the canonical event bus's topics and consumer groups (Kafka design D18, D19); the direct bus uses the
+     * same topics.
      *
      * @param properties Kafka configuration properties
      * @return the names
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "transport", havingValue = "kafka")
     public KafkaEventTopics kafkaEventTopics(KafkaEventBusProperties properties) {
         return new KafkaEventTopics(properties.getTopicPrefix());
     }
 
     /**
-     * Probes the broker and creates the canonical event bus's topics from the manifests (Kafka design §4.4).
+     * Probes the broker and creates the canonical event bus's topics from the manifests (Kafka design §4.4); the
+     * direct bus has its topics created the same way, so nothing relies on the broker creating topics by itself.
      *
      * @param properties Kafka configuration properties
      * @param topics topic names
@@ -234,7 +241,6 @@ public class KafkaAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "transport", havingValue = "kafka")
     public KafkaEventBroker kafkaEventBroker(KafkaEventBusProperties properties, KafkaEventTopics topics) {
         return new KafkaEventBroker(Admin.create(clientConfigs(properties)), topics, eventSettings(properties),
             Clock.systemUTC());

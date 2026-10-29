@@ -15,67 +15,51 @@
  */
 package io.infra.adapter.kafka;
 
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
+import io.runtime.orchestrator.outbox.OutboxTransportException;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.capability.registry.Capability;
 import io.runtime.sdk.capability.registry.CapabilityLevel;
 import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * Kafka-based Event Bus Capability Implementation.
- * 
- * <p>This class implements {@link EventBusCapability} as a Full Product Host implementation,
- * providing event publishing capabilities based on Apache Kafka. Modules publish events through
- * this implementation without being aware of Kafka's existence.</p>
- * 
- * <h3>Core Features</h3>
- * <ul>
- *   <li><b>Event Routing</b>: Automatically resolves Topics based on {@link EventTopicResolver}</li>
- *   <li><b>Message Ordering</b>: Uses aggregateId/eventId as partition key to ensure ordering</li>
- *   <li><b>Event Tracing</b>: Automatically adds tracing Headers (traceId, spanId)</li>
- *   <li><b>Serialization</b>: Unified JSON format</li>
- * </ul>
- * 
- * <h3>Message Format</h3>
- * <p>All event messages contain the following Headers:</p>
- * <ul>
- *   <li>eventId - Event unique identifier</li>
- *   <li>eventType - Event type (fully qualified class name)</li>
- *   <li>timestamp - Event timestamp</li>
- *   <li>sourceModule - Source module ID</li>
- *   <li>traceId - Trace ID (if available)</li>
- * </ul>
- * 
- * <h3>Thread Safety</h3>
- * <p>This class is thread-safe and can be used concurrently by multiple threads.</p>
- * 
- * @author Brix Platform Authors Platform Team
+ * The host's direct event bus on Kafka, for BEST_EFFORT integration events (root BRX-RS-MESSAGE-019; Kafka design
+ * §13 K2).
+ * <p>An event published here leaves at once, outside any outbox, so it may be lost: it is written as a canonical
+ * envelope marked BEST_EFFORT to the event type's topic {@code brix.event.<eventType>}, through the same sender the
+ * outbox relay uses, which creates the topic before the first send. An event type that a plugin manifest declares
+ * CRITICAL or STANDARD is refused: it must be published through its owner's outbox in the business transaction
+ * (MESSAGE-017, MESSAGE-018, MESSAGE-022). Domain events stay inside their plugin (root §6.1) and are refused too.</p>
+ * <p>The payload is the event's typed {@link IntegrationEvent#payload()}; an event written before typed payloads
+ * existed is sent as it serializes. The tenant comes from the event or the caller's tenant context, as before, and
+ * must be a numeric tenant id: the envelope is always tenant-scoped.</p>
+ *
+ * @author Brix Platform Authors
  * @since 3.0.0
- * @see EventBusCapability
- * @see EventTopicResolver
  */
 @Capability(
     type = EventBusCapability.class,
@@ -88,461 +72,183 @@ public class KafkaEventBusCapability implements EventBusCapability {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaEventBusCapability.class);
 
-    /**
-     * Event ID Header name.
-     */
-    private static final String HEADER_EVENT_ID = "eventId";
+    /** How long a direct publish waits for the broker. */
+    static final Duration PUBLISH_TIMEOUT = Duration.ofSeconds(10);
 
-    /**
-     * Event type Header name.
-     */
-    private static final String HEADER_EVENT_TYPE = "eventType";
-
-    /**
-     * Timestamp Header name.
-     */
-    private static final String HEADER_TIMESTAMP = "timestamp";
-
-    /**
-     * Source module Header name.
-     */
-    private static final String HEADER_SOURCE_MODULE = "sourceModule";
-
-    /**
-     * Publish timeout in seconds.
-     */
-    private static final int PUBLISH_TIMEOUT_SECONDS = 10;
-
-    // ==================== Micrometer Metric Names (R3.3 / R3.7) ====================
-
-    /** Counter: total number of events successfully published. */
     private static final String METRIC_PUBLISHED_TOTAL = "brix.event.published.total";
-
-    /** Counter: total number of events that failed to publish. */
     private static final String METRIC_PUBLISH_ERROR = "brix.event.publish.error";
-
-    /** Timer: duration of publish operations. */
     private static final String METRIC_PUBLISH_DURATION = "brix.event.publish.duration";
+    private static final Pattern TRACE_ID = Pattern.compile("[0-9a-f]{32}");
+    private static final String INVALID_TRACE_ID = "0".repeat(32);
 
-    /** Counter: total number of events successfully consumed. */
-    private static final String METRIC_CONSUMED_TOTAL = "brix.event.consumed.total";
-
-    /** Counter: event consumption retry attempts. */
-    private static final String METRIC_RETRY_COUNT = "brix.event.retry.count";
-
-    /** Counter: events sent to the dead-letter queue. */
-    private static final String METRIC_DLQ_COUNT = "brix.event.dlq.count";
-
-    /**
-     * Kafka message template.
-     * 
-     * <p>Injected by Spring, used to send messages to Kafka.</p>
-     */
-    private final KafkaTemplate<String, String> kafkaTemplate;
-
-    /**
-     * Topic resolver.
-     * 
-     * <p>Resolves target Topic based on event type.</p>
-     */
-    private final EventTopicResolver topicResolver;
-
-    /**
-     * JSON serializer.
-     * 
-     * <p>Unified JSON serialization using Jackson.</p>
-     */
+    private final CanonicalKafkaOutboxTransport sender;
     private final ObjectMapper objectMapper;
-
-    /**
-     * Current module ID.
-     * 
-     * <p>Used to identify the event source.</p>
-     */
     private final String currentModuleId;
-
-    /**
-     * Supplier that resolves the current tenant ID from the runtime context.
-     *
-     * <p>Injected by Spring auto-configuration.  Typically backed by
-     * {@code TenantContext.getTenantId()} from {@code platform-common}.
-     * Returns {@code Optional.empty()} when no tenant context is available
-     * (e.g., system-level background jobs).</p>
-     *
-     * @since 3.2.0
-     */
     private final Supplier<Optional<String>> tenantIdProvider;
-
-    /**
-     * Micrometer meter registry for publishing event metrics (R3.3 / R3.7).
-     *
-     * <p>Optional dependency — when {@code null}, metrics are simply not recorded.
-     * This keeps the adapter functional in environments without Actuator/Micrometer.</p>
-     *
-     * @since 3.2.0
-     */
+    private final Function<String, Optional<EventReliability>> declaredReliability;
     private final MeterRegistry meterRegistry;
 
     /**
-     * Constructor.
-     * 
-     * @param kafkaTemplate    Kafka message template, injected by Spring
-     * @param topicResolver    Topic resolver
-     * @param objectMapper     JSON serializer
-     * @param currentModuleId  Current module ID, used to identify event source
-     * @param tenantIdProvider Supplier resolving the current tenant ID from runtime context;
-     *                         may be {@code null}, in which case events must carry tenantId explicitly
-     */
-    public KafkaEventBusCapability(
-            KafkaTemplate<String, String> kafkaTemplate,
-            EventTopicResolver topicResolver,
-            ObjectMapper objectMapper,
-            String currentModuleId,
-            Supplier<Optional<String>> tenantIdProvider) {
-        this(kafkaTemplate, topicResolver, objectMapper, currentModuleId, tenantIdProvider, null);
-    }
-
-    /**
-     * Constructor with Micrometer support.
+     * Creates the direct bus.
      *
-     * @param kafkaTemplate    Kafka message template, injected by Spring
-     * @param topicResolver    Topic resolver
-     * @param objectMapper     JSON serializer
-     * @param currentModuleId  Current module ID, used to identify event source
-     * @param tenantIdProvider Supplier resolving the current tenant ID from runtime context
-     * @param meterRegistry    Micrometer registry for event metrics (optional, may be {@code null})
-     * @since 3.2.0
+     * @param kafkaTemplate Kafka template
+     * @param topics topic names
+     * @param broker the broker's reachability and topics
+     * @param objectMapper writes payloads and envelopes
+     * @param currentModuleId producer id used when an event names no source module
+     * @param tenantIdProvider the caller's tenant, for events that carry none; may be {@code null}
+     * @param declaredReliability the reliability a plugin manifest declares for an event type
+     * @param meterRegistry publish metrics; may be {@code null}
      */
     public KafkaEventBusCapability(
             KafkaTemplate<String, String> kafkaTemplate,
-            EventTopicResolver topicResolver,
+            KafkaEventTopics topics,
+            KafkaEventBroker broker,
             ObjectMapper objectMapper,
             String currentModuleId,
             Supplier<Optional<String>> tenantIdProvider,
+            Function<String, Optional<EventReliability>> declaredReliability,
             MeterRegistry meterRegistry) {
-        this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate, "kafkaTemplate cannot be null");
-        this.topicResolver = Objects.requireNonNull(topicResolver, "topicResolver cannot be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
+        this.sender = new CanonicalKafkaOutboxTransport(kafkaTemplate, topics, broker, objectMapper, PUBLISH_TIMEOUT);
         this.currentModuleId = Objects.requireNonNull(currentModuleId, "currentModuleId cannot be null");
         this.tenantIdProvider = tenantIdProvider != null ? tenantIdProvider : Optional::empty;
+        this.declaredReliability = Objects.requireNonNull(declaredReliability, "declaredReliability cannot be null");
         this.meterRegistry = meterRegistry;
     }
 
     /**
-     * Publish a domain event.
-     * 
-     * <p>Domain events propagate within modules, sent to module-specific Topics.
-     * Message key uses aggregateId to ensure events from the same aggregate root are processed in order.</p>
-     * 
-     * <h4>Topic Naming Rule</h4>
-     * <p>domain.{moduleId}.{aggregateType}</p>
-     * <p>For example: domain.booking.reservation</p>
-     * 
-     * @param event the domain event to publish, cannot be null
-     * @throws IllegalArgumentException if event is null
-     * @throws EventPublishException    if publishing fails
+     * Refuses a domain event: domain events stay inside their plugin (root §6.1).
+     *
+     * @param event the domain event
+     * @throws EventPublishException always
      */
     @Override
     public void publish(DomainEvent event) {
-        // Parameter validation
         Objects.requireNonNull(event, "Domain event cannot be null");
-
-        String eventTypeName = event.getClass().getSimpleName();
-        Timer.Sample sample = startTimerSample();
-
-        // Resolve Topic
-        String topic = topicResolver.resolveDomainTopic(event, currentModuleId);
-        
-        // Get message key (aggregate ID, ensures event ordering for same aggregate root)
-        String key = event.getAggregateId();
-        
-        // Serialize event
-        String payload = serializeEvent(event);
-        
-        // Build message Headers
-        Headers headers = buildHeaders(event);
-        
-        // Create Producer Record
-        ProducerRecord<String, String> record = new ProducerRecord<>(
-                topic,
-                null,  // partition - Kafka auto-selects based on key
-                key,
-                payload,
-                headers
-        );
-        
-        // Synchronously wait for send result, ensuring caller can perceive publish failures
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(record);
-        
-        try {
-            SendResult<String, String> result = future.get(PUBLISH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            // R3.3: Record publish success metric
-            recordPublishSuccess(eventTypeName, currentModuleId, sample);
-            if (log.isDebugEnabled()) {
-                log.debug("Domain event published successfully: eventId={}, topic={}, partition={}, offset={}",
-                        event.getEventId(),
-                        result.getRecordMetadata().topic(),
-                        result.getRecordMetadata().partition(),
-                        result.getRecordMetadata().offset());
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            recordPublishError(eventTypeName, e);
-            throw new EventPublishException(event.getEventId(),
-                    "Domain event publishing interrupted: eventId=" + event.getEventId(), e);
-        } catch (ExecutionException e) {
-            recordPublishError(eventTypeName, e.getCause());
-            throw new EventPublishException(event.getEventId(),
-                    "Domain event publishing failed: eventId=" + event.getEventId() + ", topic=" + topic, e.getCause());
-        } catch (TimeoutException e) {
-            recordPublishError(eventTypeName, e);
-            throw new EventPublishException(event.getEventId(),
-                    "Domain event publishing timed out: eventId=" + event.getEventId() + ", topic=" + topic, e);
-        }
+        throw new EventPublishException(event.getEventId(),
+            "Domain events stay inside their plugin; Kafka carries integration events only (root §6.1)", null);
     }
 
     /**
-     * Publish an integration event.
-     * 
-     * <p>Integration events are used for cross-module communication, sent to public integration Topics.
-     * Runtime Shell routes events to corresponding modules based on subscription declarations in Manifest.</p>
-     * 
-     * <h4>Topic Naming Rule</h4>
-     * <p>integration.{eventType}</p>
-     * <p>For example: integration.reservation-created</p>
-     * 
-     * <h4>Delivery Guarantee</h4>
-     * <ul>
-     *   <li>At-Least-Once delivery</li>
-     *   <li>Consumers must implement idempotent processing</li>
-     * </ul>
-     * 
-     * @param event the integration event to publish, cannot be null
-     * @throws IllegalArgumentException if event is null
-     * @throws EventPublishException    if publishing fails
+     * Publishes a BEST_EFFORT integration event to its event type's topic.
+     *
+     * @param event the integration event
+     * @throws IllegalArgumentException when neither the event nor the caller's context names a tenant
+     * @throws EventPublishException when a manifest declares the type CRITICAL or STANDARD, when the event's tenant is
+     *     not a numeric tenant id, or when the broker does not take the event
      */
     @Override
     public void publishIntegration(IntegrationEvent event) {
-        // Parameter validation
         Objects.requireNonNull(event, "Integration event cannot be null");
-
         IntegrationEventMetadataSupport.enrich(event, tenantIdProvider);
-
-        String eventTypeName = event.getClass().getSimpleName();
-        Timer.Sample sample = startTimerSample();
-
-        // Resolve Topic
-        String topic = topicResolver.resolveIntegrationTopic(event);
-        
-        // Get message key (event ID or routing key)
-        String key = event.getRoutingKey() != null ? event.getRoutingKey() : event.getEventId();
-        
-        // Serialize event
-        String payload = serializeEvent(event);
-        
-        // Build message Headers
-        Headers headers = buildIntegrationHeaders(event);
-        
-        // Create Producer Record
-        ProducerRecord<String, String> record = new ProducerRecord<>(
-                topic,
-                null,  // partition
-                key,
-                payload,
-                headers
-        );
-        
-        // Synchronously wait for send result, ensuring caller can perceive publish failures
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(record);
-        
+        String eventType = event.eventTypeId();
+        Optional<EventReliability> declared = declaredReliability.apply(eventType)
+            .filter(reliability -> reliability != EventReliability.BEST_EFFORT);
+        if (declared.isPresent()) {
+            throw new EventPublishException(event.getEventId(), eventType + " is declared " + declared.get()
+                + ": publish it through its owner's outbox, not the direct bus (root BRX-RS-MESSAGE-022)", null);
+        }
+        CanonicalOutboxMessage message = envelope(event, eventType);
+        Timer.Sample sample = meterRegistry != null ? Timer.start(meterRegistry) : null;
         try {
-            SendResult<String, String> result = future.get(PUBLISH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            // R3.3: Record publish success metric
-            recordPublishSuccess(eventTypeName, event.getSourceModule(), sample);
-            log.info("Integration event published successfully: eventId={}, type={}, traceId={}, topic={}, partition={}, offset={}",
-                    event.getEventId(),
-                    event.getEventType(),
-                    event.getTraceId(),
-                    result.getRecordMetadata().topic(),
-                    result.getRecordMetadata().partition(),
-                    result.getRecordMetadata().offset());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            recordPublishError(eventTypeName, e);
-            throw new EventPublishException(event.getEventId(),
-                    "Integration event publishing interrupted: eventId=" + event.getEventId(), e);
-        } catch (ExecutionException e) {
-            recordPublishError(eventTypeName, e.getCause());
-            throw new EventPublishException(event.getEventId(),
-                    "Integration event publishing failed: eventId=" + event.getEventId() + ", topic=" + topic, e.getCause());
-        } catch (TimeoutException e) {
-            recordPublishError(eventTypeName, e);
-            throw new EventPublishException(event.getEventId(),
-                    "Integration event publishing timed out: eventId=" + event.getEventId() + ", topic=" + topic, e);
+            sender.publish(message);
+        } catch (OutboxTransportException failure) {
+            recordPublishError(eventType, failure);
+            throw new EventPublishException(event.getEventId(), "Integration event publishing failed: eventId="
+                + event.getEventId() + ", type=" + eventType + ", code=" + failure.errorCode(), failure);
+        }
+        recordPublishSuccess(eventType, message.producerPluginId(), sample);
+        log.info("event=event.published_direct type={} event_id={} producer={} reliability=BEST_EFFORT",
+            eventType, event.getEventId(), message.producerPluginId());
+    }
+
+    private CanonicalOutboxMessage envelope(IntegrationEvent event, String eventType) {
+        String eventId = event.getEventId();
+        Long tenantId = tenant(event);
+        try {
+            return new CanonicalOutboxMessage(
+                eventId,
+                eventId,
+                "EVENT",
+                eventType,
+                event.getSchemaVersion() + ".0.0",
+                EventReliability.BEST_EFFORT.name(),
+                textOr(event.getSourceModule(), currentModuleId),
+                "TENANT",
+                tenantId,
+                textOr(event.getRoutingKey(), eventId),
+                OffsetDateTime.ofInstant(event.getTimestamp(), ZoneOffset.UTC),
+                textOr(event.getCorrelationId(), eventId),
+                event.getCausationId(),
+                traceparent(event.getTraceId()),
+                null,
+                payload(event),
+                0);
+        } catch (IllegalArgumentException invalid) {
+            throw new EventPublishException(eventId, "Integration event is not a valid envelope: " + invalid.getMessage(),
+                invalid);
         }
     }
 
-    /**
-     * Serialize event to JSON string.
-     * 
-     * @param event the event to serialize
-     * @return JSON string
-     * @throws EventSerializationException if serialization fails
-     */
-    private String serializeEvent(Object event) {
+    private static Long tenant(IntegrationEvent event) {
+        String tenantId = event.getTenantId();
         try {
-            return objectMapper.writeValueAsString(event);
+            return Long.valueOf(tenantId.trim());
+        } catch (NumberFormatException notATenant) {
+            throw new EventPublishException(event.getEventId(),
+                "Integration event tenant '" + tenantId + "' is not a numeric tenant id", notATenant);
+        }
+    }
+
+    /** The typed payload when the event defines one, else the event as legacy publishers serialized it. */
+    private String payload(IntegrationEvent event) {
+        Object payload;
+        try {
+            payload = event.payload();
+        } catch (UnsupportedOperationException legacy) {
+            payload = event;
+        }
+        try {
+            return objectMapper.writeValueAsString(payload);
         } catch (JacksonException e) {
-            throw new EventSerializationException(
-                    "Event serialization failed: " + event.getClass().getName(), e);
+            throw new EventSerializationException("Event serialization failed: " + event.getClass().getName(), e);
         }
     }
 
     /**
-     * Build message Headers for domain events.
-     * 
-     * @param event the domain event
-     * @return Kafka Headers
+     * A W3C traceparent continuing the event's trace with a new span, or {@code null} without a valid trace id. A
+     * trace id in UUID form, which events get when no trace is active, is read without its dashes.
      */
-    private Headers buildHeaders(DomainEvent event) {
-        RecordHeaders headers = new RecordHeaders();
-        
-        // Add event metadata
-        addHeader(headers, HEADER_EVENT_ID, event.getEventId());
-        addHeader(headers, HEADER_EVENT_TYPE, event.getEventType());
-        addHeader(headers, HEADER_TIMESTAMP, String.valueOf(event.getTimestamp().toEpochMilli()));
-        addHeader(headers, HEADER_SOURCE_MODULE, currentModuleId);
-        
-        // Add aggregate root information
-        addHeader(headers, "aggregateId", event.getAggregateId());
-        addHeader(headers, "aggregateType", event.getAggregateType());
-        
-        return headers;
-    }
-
-    /**
-     * Build message Headers for integration events.
-     *
-     * <p>Includes all base event metadata plus tenant ID and schema version
-     * (R3.6 compliance) so that consumers can filter and validate events
-     * at the header level without full payload deserialization.</p>
-     * 
-     * @param event the integration event
-     * @return Kafka Headers
-     */
-    private Headers buildIntegrationHeaders(IntegrationEvent event) {
-        return IntegrationEventMetadataSupport.buildHeaders(event);
-    }
-
-    /**
-     * Add Header if value is not null.
-     * 
-     * @param headers Header collection
-     * @param key     Header key
-     * @param value   Header value
-     */
-    private void addHeader(RecordHeaders headers, String key, String value) {
-        if (value != null) {
-            headers.add(key, value.getBytes(StandardCharsets.UTF_8));
+    private static String traceparent(String eventTraceId) {
+        String traceId = eventTraceId == null ? null : eventTraceId.replace("-", "").toLowerCase(Locale.ROOT);
+        if (traceId == null || !TRACE_ID.matcher(traceId).matches() || INVALID_TRACE_ID.equals(traceId)) {
+            return null;
         }
+        byte[] span = new byte[8];
+        ThreadLocalRandom.current().nextBytes(span);
+        span[0] |= 1;
+        return "00-" + traceId + "-" + HexFormat.of().formatHex(span) + "-01";
     }
 
-    // ==================== R3.3 / R3.7: Micrometer Metrics Helpers ====================
-
-    /**
-     * Starts a timer sample for measuring publish duration.
-     * Returns {@code null} when no MeterRegistry is configured.
-     */
-    private Timer.Sample startTimerSample() {
-        return meterRegistry != null ? Timer.start(meterRegistry) : null;
+    private static String textOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
-    /**
-     * Records a successful event publish (counter + timer).
-     *
-     * @param eventType    simple class name of the event
-     * @param sourceModule module that published the event
-     * @param sample       timer sample started before publishing (may be {@code null})
-     */
     private void recordPublishSuccess(String eventType, String sourceModule, Timer.Sample sample) {
         if (meterRegistry == null) {
             return;
         }
-        meterRegistry.counter(METRIC_PUBLISHED_TOTAL,
-                "eventType", eventType,
-                "sourceModule", sourceModule
-        ).increment();
-
+        meterRegistry.counter(METRIC_PUBLISHED_TOTAL, "eventType", eventType, "sourceModule", sourceModule).increment();
         if (sample != null) {
-            sample.stop(meterRegistry.timer(METRIC_PUBLISH_DURATION,
-                    "eventType", eventType));
+            sample.stop(meterRegistry.timer(METRIC_PUBLISH_DURATION, "eventType", eventType));
         }
     }
 
-    /**
-     * Records a failed event publish attempt.
-     *
-     * @param eventType simple class name of the event
-     * @param cause     the exception that caused the failure
-     */
-    private void recordPublishError(String eventType, Throwable cause) {
+    private void recordPublishError(String eventType, OutboxTransportException failure) {
         if (meterRegistry == null) {
             return;
         }
-        meterRegistry.counter(METRIC_PUBLISH_ERROR,
-                "eventType", eventType,
-                "errorType", cause.getClass().getSimpleName()
-        ).increment();
-    }
-
-    /**
-     * Records a successful event consumption.
-     *
-     * <p>Intended to be called by consumer-side infrastructure (e.g., KafkaListener wrappers)
-     * when an event is processed successfully.</p>
-     *
-     * @param eventType    simple class name of the consumed event
-     * @param sourceModule source module of the event
-     */
-    public void recordConsumeSuccess(String eventType, String sourceModule) {
-        if (meterRegistry == null) {
-            return;
-        }
-        meterRegistry.counter(METRIC_CONSUMED_TOTAL,
-                "eventType", eventType,
-                "sourceModule", sourceModule
-        ).increment();
-    }
-
-    /**
-     * Records an event consumption retry attempt (R3.7).
-     *
-     * @param eventType simple class name of the retried event
-     * @param attempt   retry attempt number (1-based)
-     */
-    public void recordConsumeRetry(String eventType, int attempt) {
-        if (meterRegistry == null) {
-            return;
-        }
-        meterRegistry.counter(METRIC_RETRY_COUNT,
-                "eventType", eventType,
-                "attempt", String.valueOf(attempt)
-        ).increment();
-    }
-
-    /**
-     * Records an event sent to the dead-letter queue (R3.7).
-     *
-     * @param eventType simple class name of the DLQ'd event
-     * @param cause     the exception that caused permanent failure
-     */
-    public void recordDlq(String eventType, Throwable cause) {
-        if (meterRegistry == null) {
-            return;
-        }
-        meterRegistry.counter(METRIC_DLQ_COUNT,
-                "eventType", eventType,
-                "errorType", cause.getClass().getSimpleName()
-        ).increment();
+        meterRegistry.counter(METRIC_PUBLISH_ERROR, "eventType", eventType, "code", failure.errorCode()).increment();
     }
 }

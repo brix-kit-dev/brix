@@ -40,6 +40,7 @@ import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
+import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
@@ -462,6 +463,20 @@ public final class PluginRuntimeManager {
      */
     public synchronized List<EventSubscriber> eventSubscribers() {
         return eventSubscribers(subscription -> true);
+    }
+
+    /**
+     * Returns the reliability the plugin that publishes the event type declares for it.
+     *
+     * @param eventType event type
+     * @return the declared reliability, or empty when no plugin, or more than one, declares the type
+     */
+    public synchronized Optional<EventReliability> eventReliability(String eventType) {
+        List<PluginRuntimeDescriptor.EventPublication> declared = plugins.values().stream()
+            .map(plugin -> plugin.descriptor.eventPublications().get(eventType))
+            .filter(Objects::nonNull)
+            .toList();
+        return declared.size() == 1 ? Optional.of(declared.get(0).reliability()) : Optional.empty();
     }
 
     /**
