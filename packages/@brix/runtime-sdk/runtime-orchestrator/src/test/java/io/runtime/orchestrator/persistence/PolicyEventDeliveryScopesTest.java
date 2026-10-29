@@ -215,6 +215,16 @@ class PolicyEventDeliveryScopesTest {
             public List<DeclaredSubscriber> subscribersOf(String eventType) {
                 return EVENT_TYPE.equals(eventType) ? List.of(new DeclaredSubscriber(OWNER, bound.subscription(), bound)) : List.of();
             }
+
+            @Override
+            public List<DeclaredSubscriber> subscriptions() {
+                return subscribersOf(EVENT_TYPE);
+            }
+
+            @Override
+            public Set<String> publishedEventTypes() {
+                return Set.of(EVENT_TYPE);
+            }
         };
     }
 

@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -450,11 +451,36 @@ public final class PluginRuntimeManager {
      * @return the declared subscriptions
      */
     public synchronized List<EventSubscriber> eventSubscribers(String eventType) {
+        return eventSubscribers(subscription -> subscription.eventType().equals(eventType));
+    }
+
+    /**
+     * Returns every manifest subscription of every event type, whatever state its plugin is in, with the
+     * handler once the plugin has started and bound it.
+     *
+     * @return the declared subscriptions
+     */
+    public synchronized List<EventSubscriber> eventSubscribers() {
+        return eventSubscribers(subscription -> true);
+    }
+
+    /**
+     * Returns the event types the plugins declare under {@code events.publishes}.
+     *
+     * @return the published event types
+     */
+    public synchronized Set<String> eventPublications() {
+        Set<String> published = new LinkedHashSet<>();
+        plugins.values().forEach(plugin -> published.addAll(plugin.descriptor.eventPublications().keySet()));
+        return Set.copyOf(published);
+    }
+
+    private List<EventSubscriber> eventSubscribers(Predicate<PluginRuntimeDescriptor.EventSubscription> wanted) {
         List<EventSubscriber> declared = new ArrayList<>();
         for (ManagedPlugin plugin : plugins.values()) {
             boolean started = plugin.state.lifecycleState() == PluginLifecycleState.STARTED;
             for (PluginRuntimeDescriptor.EventSubscription subscription : plugin.descriptor.eventSubscriptions().values()) {
-                if (!subscription.eventType().equals(eventType)) {
+                if (!wanted.test(subscription)) {
                     continue;
                 }
                 CreatedEventHandler created = started ? plugin.eventHandlers.get(subscription.handlerId()) : null;

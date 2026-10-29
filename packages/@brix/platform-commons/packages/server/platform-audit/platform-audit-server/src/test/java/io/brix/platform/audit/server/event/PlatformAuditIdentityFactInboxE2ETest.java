@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -231,6 +232,16 @@ class PlatformAuditIdentityFactInboxE2ETest {
                 return subscription.eventType().equals(eventType)
                     ? List.of(new DeclaredSubscriber(OWNER, subscription, bound))
                     : List.of();
+            }
+
+            @Override
+            public List<DeclaredSubscriber> subscriptions() {
+                return List.of(new DeclaredSubscriber(OWNER, subscription, bound));
+            }
+
+            @Override
+            public Set<String> publishedEventTypes() {
+                return Set.of(subscription.eventType());
             }
         };
         UnitOfWork unitOfWork = new UnitOfWork() {

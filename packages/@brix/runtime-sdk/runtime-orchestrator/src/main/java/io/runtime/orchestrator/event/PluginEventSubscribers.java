@@ -8,6 +8,7 @@ package io.runtime.orchestrator.event;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 
@@ -34,7 +35,21 @@ public final class PluginEventSubscribers implements EventSubscribers {
 
     @Override
     public List<DeclaredSubscriber> subscribersOf(String eventType) {
-        return plugins.eventSubscribers(eventType).stream()
+        return declared(plugins.eventSubscribers(eventType));
+    }
+
+    @Override
+    public List<DeclaredSubscriber> subscriptions() {
+        return declared(plugins.eventSubscribers());
+    }
+
+    @Override
+    public Set<String> publishedEventTypes() {
+        return plugins.eventPublications();
+    }
+
+    private static List<DeclaredSubscriber> declared(List<PluginRuntimeManager.EventSubscriber> subscribers) {
+        return subscribers.stream()
             .map(subscriber -> new DeclaredSubscriber(subscriber.pluginId(), subscriber.subscription(), subscriber.handler()))
             .toList();
     }

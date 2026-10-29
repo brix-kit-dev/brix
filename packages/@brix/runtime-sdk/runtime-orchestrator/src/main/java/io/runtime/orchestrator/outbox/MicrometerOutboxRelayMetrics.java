@@ -33,6 +33,8 @@ public final class MicrometerOutboxRelayMetrics implements OutboxRelayMetrics {
     public static final String RETRIES = "brix.outbox.retries";
     /** Messages the relay parked. */
     public static final String PARKED = "brix.outbox.parked";
+    /** 1 while the relay waits because its transport cannot deliver, such as a broker that cannot be reached. */
+    public static final String WAITING = "brix.outbox.relay.waiting";
 
     private final MeterRegistry registry;
     private final String outbox;
@@ -40,6 +42,7 @@ public final class MicrometerOutboxRelayMetrics implements OutboxRelayMetrics {
     private final AtomicLong inFlight = new AtomicLong();
     private final AtomicLong parked = new AtomicLong();
     private final AtomicLong oldestPendingAgeSeconds = new AtomicLong();
+    private final AtomicLong waiting = new AtomicLong();
 
     /**
      * Creates one set of meters per outbox and keeps it, so a relay that restarts reports through the
@@ -76,6 +79,10 @@ public final class MicrometerOutboxRelayMetrics implements OutboxRelayMetrics {
             .baseUnit("seconds")
             .tag("outbox", outbox)
             .register(registry);
+        Gauge.builder(WAITING, waiting, AtomicLong::get)
+            .description("1 while the relay waits because its transport cannot deliver")
+            .tag("outbox", outbox)
+            .register(registry);
     }
 
     @Override
@@ -84,6 +91,11 @@ public final class MicrometerOutboxRelayMetrics implements OutboxRelayMetrics {
         inFlight.set(snapshot.inFlightCount());
         parked.set(snapshot.parkedCount());
         oldestPendingAgeSeconds.set(snapshot.oldestPendingAge().toSeconds());
+    }
+
+    @Override
+    public void recordWaiting(boolean waiting) {
+        this.waiting.set(waiting ? 1 : 0);
     }
 
     @Override

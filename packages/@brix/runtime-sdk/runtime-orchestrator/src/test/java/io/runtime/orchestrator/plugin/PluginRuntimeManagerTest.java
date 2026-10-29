@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -214,6 +215,32 @@ class PluginRuntimeManagerTest {
         assertEquals("plugin-a", subscribers.get(0).pluginId());
         assertTrue(subscribers.get(0).handler().handler() instanceof AcceptedHandler);
         assertEquals(Accepted.class, subscribers.get(0).handler().payloadType());
+    }
+
+    @Test
+    void aBrokerLearnsEveryDeclaredSubscriptionAndPublishedEventType() {
+        // Kafka design §4.2, §4.4: the runtime creates one consumer per subscription and a topic per event type.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeDescriptor descriptor = PluginRuntimeDescriptor.builder("plugin-a")
+            .requiredCapabilities(List.of(EventBusCapability.class.getName()))
+            .data("platform_tenant", "platform_tenant_outbox", "platform_tenant_inbox")
+            .eventPublication("TenantFirstOwnerAccepted", "1.0.0", EventReliability.CRITICAL)
+            .eventSubscription(
+                "projection", "TenantFirstOwnerAccepted", ">=1.0.0 <2.0.0", "projection.v1", "event-standard",
+                "persistent-inbox")
+            .build();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin), Map.of(plugin, descriptor), eventBusRegistry(), List.of("plugin-a"));
+        PluginEventSubscribers declared = new PluginEventSubscribers(manager);
+
+        manager.start();
+
+        assertEquals(Set.of("TenantFirstOwnerAccepted"), declared.publishedEventTypes());
+        assertEquals(1, declared.subscriptions().size());
+        assertEquals("plugin-a", declared.subscriptions().get(0).pluginId());
+        assertEquals("projection.v1", declared.subscriptions().get(0).subscription().handlerId());
+        assertTrue(declared.subscriptions().get(0).handler().handler() instanceof AcceptedHandler);
     }
 
     @Test

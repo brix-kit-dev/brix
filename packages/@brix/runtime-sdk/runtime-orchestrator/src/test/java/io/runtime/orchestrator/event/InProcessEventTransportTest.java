@@ -195,6 +195,16 @@ class InProcessEventTransportTest {
             public List<DeclaredSubscriber> subscribersOf(String eventType) {
                 return List.of(new DeclaredSubscriber(SUBSCRIBER, subscription, started ? bound : null));
             }
+
+            @Override
+            public List<DeclaredSubscriber> subscriptions() {
+                return subscribersOf(EVENT);
+            }
+
+            @Override
+            public Set<String> publishedEventTypes() {
+                return Set.of(EVENT);
+            }
         };
         EventInboxStore store = (owner, handlerId, message) -> inbox.add(owner + "|" + handlerId + "|" + message.eventId());
         return new InProcessEventTransport(subscribers,

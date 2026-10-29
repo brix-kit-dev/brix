@@ -105,9 +105,11 @@ public final class OutboxRelay implements AutoCloseable {
         OffsetDateTime now = now();
         OutboxBacklogSnapshot backlog = store.readBacklog(now);
         metrics.recordBacklog(backlog);
-        if (!transport.ready()) {
-            // For example the plugins have not started yet: claiming now would spend attempts, or park
-            // rows that only wait for their subscribers.
+        boolean ready = transport.ready();
+        metrics.recordWaiting(!ready);
+        if (!ready) {
+            // For example the plugins have not started yet, or the broker cannot be reached: claiming now
+            // would spend attempts, or park rows that only wait for their subscribers.
             if (!waiting) {
                 waiting = true;
                 log.info("event=outbox.relay_waiting pending={} reason=transport_not_ready", backlog.pendingCount());

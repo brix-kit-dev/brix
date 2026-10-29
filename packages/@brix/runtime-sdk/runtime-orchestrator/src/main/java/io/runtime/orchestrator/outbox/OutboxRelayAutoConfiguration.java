@@ -16,9 +16,16 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Configuration;
 import tools.jackson.databind.ObjectMapper;
 
+import io.runtime.orchestrator.event.EventDelivery;
+import io.runtime.orchestrator.event.EventDeliveryProvider;
 import io.runtime.orchestrator.event.EventDeliveryScopes;
 import io.runtime.orchestrator.event.EventInboxStore;
+import io.runtime.orchestrator.event.EventSubscriptionGroup;
+import io.runtime.orchestrator.event.EventSubscriptionMetricsFactory;
+import io.runtime.orchestrator.event.EventSubscriptionTransport;
+import io.runtime.orchestrator.event.EventsEndpoint;
 import io.runtime.orchestrator.event.InProcessEventTransport;
+import io.runtime.orchestrator.event.MicrometerEventSubscriptionMetrics;
 import io.runtime.orchestrator.event.PluginEventSubscribers;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
@@ -56,6 +63,22 @@ public class OutboxRelayAutoConfiguration {
     }
 
     /**
+     * The delivery core the in-process transport, the subscription group and the events endpoint share
+     * (Kafka design §4.1). It is built when one of them first needs it, after every bean exists.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventDeliveryProvider eventDeliveryProvider(
+            OutboxRelayProperties properties,
+            ObjectProvider<PluginRuntimeManager> plugins,
+            ObjectProvider<OwnerPersistenceProvider> owners,
+            ObjectProvider<EventInboxStore> inbox,
+            ObjectProvider<ObjectMapper> json,
+            ObjectProvider<EventDeliveryScopes> scopes) {
+        return new EventDeliveryProvider(() -> delivery(properties, plugins, owners, inbox, json, scopes));
+    }
+
+    /**
      * One relay per owner outbox. With the {@code in-process} transport the group delivers events to the
      * subscribers' inboxes; otherwise it uses the transport bean the host provides, such as Kafka.
      */
@@ -66,20 +89,36 @@ public class OutboxRelayAutoConfiguration {
             OutboxRelayPolicy policy,
             ObjectProvider<OutboxStoreRegistry> stores,
             ObjectProvider<OutboxTransport> brokerTransport,
-            ObjectProvider<PluginRuntimeManager> plugins,
-            ObjectProvider<OwnerPersistenceProvider> owners,
-            ObjectProvider<EventInboxStore> inbox,
-            ObjectProvider<ObjectMapper> json,
-            ObjectProvider<OutboxRelayMetricsFactory> metrics,
-            ObjectProvider<EventDeliveryScopes> scopes) {
+            EventDeliveryProvider deliveries,
+            ObjectProvider<OutboxRelayMetricsFactory> metrics) {
         Supplier<OutboxTransport> transport = IN_PROCESS.equals(properties.getTransport())
-            ? () -> inProcess(properties, plugins, owners, inbox, json, scopes)
+            ? () -> inProcess(deliveries.get())
             : brokerTransport::getIfAvailable;
         return new OutboxRelayGroup(properties, policy, stores::getIfAvailable, transport,
             outbox -> metrics.getIfAvailable(() -> OutboxRelayMetricsFactory.NOOP).forOutbox(outbox));
     }
 
-    private static OutboxTransport inProcess(
+    /**
+     * Consumes every declared subscription from the broker the relay sends to (Kafka design §4.2); with the
+     * {@code in-process} transport the relay delivers and the group does nothing.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventSubscriptionGroup eventSubscriptionGroup(
+            OutboxRelayProperties properties,
+            OutboxRelayPolicy policy,
+            EventDeliveryProvider deliveries,
+            ObjectProvider<EventSubscriptionTransport> broker,
+            ObjectProvider<EventSubscriptionMetricsFactory> metrics) {
+        return new EventSubscriptionGroup(properties, policy, deliveries, broker::getIfAvailable,
+            subscription -> metrics.getIfAvailable(() -> EventSubscriptionMetricsFactory.NOOP).forSubscription(subscription));
+    }
+
+    private static OutboxTransport inProcess(EventDelivery delivery) {
+        return delivery == null ? null : new InProcessEventTransport(delivery);
+    }
+
+    private static EventDelivery delivery(
             OutboxRelayProperties properties,
             ObjectProvider<PluginRuntimeManager> plugins,
             ObjectProvider<OwnerPersistenceProvider> owners,
@@ -92,7 +131,7 @@ public class OutboxRelayAutoConfiguration {
         if (runtime == null || persistence == null || inboxes == null) {
             return null;
         }
-        return new InProcessEventTransport(new PluginEventSubscribers(runtime), persistence, inboxes,
+        return new EventDelivery(new PluginEventSubscribers(runtime), persistence, inboxes,
             json.getIfAvailable(ObjectMapper::new), Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2),
             scopes.getIfAvailable(() -> EventDeliveryScopes.ENVELOPE));
     }
@@ -107,9 +146,15 @@ public class OutboxRelayAutoConfiguration {
         OutboxRelayMetricsFactory outboxRelayMetricsFactory(ObjectProvider<MeterRegistry> registry) {
             return MicrometerOutboxRelayMetrics.factory(registry::getIfAvailable);
         }
+
+        @Bean
+        @ConditionalOnMissingBean
+        EventSubscriptionMetricsFactory eventSubscriptionMetricsFactory(ObjectProvider<MeterRegistry> registry) {
+            return MicrometerEventSubscriptionMetrics.factory(registry::getIfAvailable);
+        }
     }
 
-    /** The management endpoint for parked messages, when the host has actuator. */
+    /** The management endpoints for parked messages and parked events, when the host has actuator. */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(WebEndpoint.class)
     static class OutboxManagement {
@@ -118,6 +163,12 @@ public class OutboxRelayAutoConfiguration {
         @ConditionalOnMissingBean
         OutboxEndpoint outboxEndpoint(ObjectProvider<OutboxStoreRegistry> stores) {
             return new OutboxEndpoint(stores::getIfAvailable, Clock.systemUTC());
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        EventsEndpoint eventsEndpoint(ObjectProvider<EventSubscriptionTransport> broker, EventDeliveryProvider deliveries) {
+            return new EventsEndpoint(broker::getIfAvailable, deliveries);
         }
     }
 }

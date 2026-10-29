@@ -7,6 +7,7 @@ package io.runtime.orchestrator.event;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
@@ -39,6 +40,20 @@ public interface EventSubscribers {
      * @return the subscriptions, each with its handler once the plugin has started and bound it
      */
     List<DeclaredSubscriber> subscribersOf(String eventType);
+
+    /**
+     * Returns every declared subscription, bound or not, for a transport that consumes per subscription.
+     *
+     * @return the subscriptions of every event type
+     */
+    List<DeclaredSubscriber> subscriptions();
+
+    /**
+     * Returns the event types the plugins declare under {@code events.publishes}.
+     *
+     * @return the published event types
+     */
+    Set<String> publishedEventTypes();
 
     /**
      * One declared subscription.
