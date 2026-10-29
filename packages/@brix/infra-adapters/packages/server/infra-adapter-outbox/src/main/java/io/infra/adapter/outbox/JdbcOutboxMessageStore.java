@@ -112,17 +112,35 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
             throw new IllegalArgumentException("batchSize must be positive");
         }
         return transactionTemplate.execute(status -> {
+            // A message stays behind an earlier one of its partition key that waits for its retry or is in
+            // flight (root BRX-RS-MESSAGE-027); due messages of one key come together, in order.
             List<String> candidateIds = jdbcTemplate.queryForList("""
-                SELECT message_id
-                  FROM %s
-                 WHERE reliability IN ('CRITICAL', 'STANDARD')
+                SELECT m.message_id
+                  FROM %1$s m
+                 WHERE m.reliability IN ('CRITICAL', 'STANDARD')
                    AND (
-                        (status = ? AND available_at <= ?)
-                     OR (status = ? AND claim_until < ?)
+                        (m.status = ? AND m.available_at <= ?)
+                     OR (m.status = ? AND m.claim_until < ?)
                    )
-                 ORDER BY occurred_at, message_id
+                   AND NOT EXISTS (
+                        SELECT 1
+                          FROM %1$s e
+                         WHERE e.partition_key = m.partition_key
+                           AND e.reliability IN ('CRITICAL', 'STANDARD')
+                           AND (e.occurred_at < m.occurred_at
+                                OR (e.occurred_at = m.occurred_at AND e.message_id < m.message_id))
+                           AND (
+                                (e.status = ? AND e.available_at > ?)
+                             OR (e.status = ? AND e.claim_until >= ?)
+                           )
+                   )
+                 ORDER BY m.occurred_at, m.message_id
                  LIMIT ?
                 """.formatted(tableName), String.class,
+                STATUS_PENDING,
+                timestamp(now),
+                STATUS_IN_FLIGHT,
+                timestamp(now),
                 STATUS_PENDING,
                 timestamp(now),
                 STATUS_IN_FLIGHT,
@@ -201,6 +219,27 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
             STATUS_PENDING,
             timestamp(availableAt),
             errorCode,
+            messageId,
+            STATUS_IN_FLIGHT,
+            relayOwner);
+        requireUpdated(updated, messageId);
+    }
+
+    @Override
+    public void releaseUntried(String relayOwner, String messageId) {
+        requireRelayOwner(relayOwner);
+        requireText(messageId, "messageId");
+        int updated = jdbcTemplate.update("""
+            UPDATE %s
+               SET status = ?,
+                   claim_owner = NULL,
+                   claim_until = NULL,
+                   attempt_count = CASE WHEN attempt_count > 0 THEN attempt_count - 1 ELSE 0 END
+             WHERE message_id = ?
+               AND status = ?
+               AND claim_owner = ?
+            """.formatted(tableName),
+            STATUS_PENDING,
             messageId,
             STATUS_IN_FLIGHT,
             relayOwner);

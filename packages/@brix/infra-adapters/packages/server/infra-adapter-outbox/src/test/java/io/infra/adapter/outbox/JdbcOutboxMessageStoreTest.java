@@ -77,6 +77,51 @@ class JdbcOutboxMessageStoreTest {
     }
 
     @Test
+    void aMessageWaitsBehindAnEarlierMessageOfItsKeyThatWaitsForItsRetry() {
+        // Root BRX-RS-MESSAGE-027: the events of one partition key leave in their order.
+        insert("a", "PENDING", 1, NOW.plusSeconds(30), null, "key-1", NOW.minusSeconds(30));
+        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+        insert("c", "PENDING", 0, NOW.minusSeconds(1), null, "key-2", NOW.minusSeconds(10));
+
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+
+        assertEquals(List.of("c"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+    }
+
+    @Test
+    void aMessageWaitsBehindAnEarlierMessageOfItsKeyThatIsInFlight() {
+        insert("a", "IN_FLIGHT", 1, NOW.minusSeconds(5), NOW.plusSeconds(20), "key-1", NOW.minusSeconds(30));
+        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+
+        assertEquals(List.of(), store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10));
+    }
+
+    @Test
+    void dueMessagesOfOneKeyAreClaimedTogetherInTheirOrder() {
+        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+        insert("a", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(30));
+
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+
+        assertEquals(List.of("a", "b"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+    }
+
+    @Test
+    void aMessageHandedBackUntriedKeepsItsAttemptBudget() {
+        insert("a", "PENDING", 2, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(30));
+        store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+        assertEquals("3", queryString("attempt_count", "a"));
+
+        store.releaseUntried("relay-a", "a");
+
+        assertEquals("PENDING", queryString("status", "a"));
+        assertEquals("2", queryString("attempt_count", "a"));
+        assertEquals(null, queryString("claim_owner", "a"));
+        assertThrows(IllegalStateException.class, () -> store.releaseUntried("relay-a", "a"),
+            "only a claimed message is handed back");
+    }
+
+    @Test
     void twoRelayOwnersCannotClaimSameActiveLease() {
         insert("m-1", "PENDING", 0, NOW.minusSeconds(10), null);
 
@@ -188,6 +233,17 @@ class JdbcOutboxMessageStoreTest {
             int attemptCount,
             OffsetDateTime availableAt,
             OffsetDateTime claimUntil) {
+        insert(id, status, attemptCount, availableAt, claimUntil, "100", NOW.minusSeconds(60));
+    }
+
+    private void insert(
+            String id,
+            String status,
+            int attemptCount,
+            OffsetDateTime availableAt,
+            OffsetDateTime claimUntil,
+            String partitionKey,
+            OffsetDateTime occurredAt) {
         jdbcTemplate.update("""
             INSERT INTO platform_tenant_outbox (
                 message_id, event_id, message_kind, message_type, event_type, schema_version,
@@ -195,12 +251,13 @@ class JdbcOutboxMessageStoreTest {
                 occurred_at, correlation_id, payload, status, available_at,
                 attempt_count, claim_until, created_at
             ) VALUES (?, ?, 'EVENT', 'TenantFirstOwnerAccepted', 'TenantFirstOwnerAccepted', '1.0.0',
-                'CRITICAL', 'platform-tenant', 'TENANT', 100, '100',
+                'CRITICAL', 'platform-tenant', 'TENANT', 100, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             id,
             "event-" + id,
-            timestamp(NOW.minusSeconds(60)),
+            partitionKey,
+            timestamp(occurredAt),
             "corr-" + id,
             "{\"tenantId\":100}",
             status,

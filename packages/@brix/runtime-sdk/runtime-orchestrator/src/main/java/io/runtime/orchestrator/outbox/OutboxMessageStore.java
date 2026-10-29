@@ -30,7 +30,10 @@ public interface OutboxMessageStore {
     void append(CanonicalOutboxMessage message);
 
     /**
-     * Atomically claims due messages for a relay owner.
+     * Atomically claims due messages for a relay owner, in the order they occurred.
+     * <p>A message whose partition key has an earlier message that waits for its retry or is in flight is not
+     * claimed: it stays behind that message, so the events of one key leave in their order (root
+     * BRX-RS-MESSAGE-027). Due messages of one key are claimed together, in order.</p>
      *
      * @param relayOwner stable relay instance identity
      * @param now claim timestamp
@@ -62,6 +65,15 @@ public interface OutboxMessageStore {
      * @param errorCode stable error code
      */
     void releaseForRetry(String relayOwner, String messageId, OffsetDateTime availableAt, String errorCode);
+
+    /**
+     * Hands a claimed message back untried, because an earlier message with its partition key failed in the
+     * same pass: it waits for that message. The claim's attempt is not counted.
+     *
+     * @param relayOwner stable relay instance identity
+     * @param messageId canonical message id
+     */
+    void releaseUntried(String relayOwner, String messageId);
 
     /**
      * Parks a claimed message after retry exhaustion or permanent failure.

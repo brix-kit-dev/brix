@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -83,6 +84,7 @@ public final class ConformanceWorld {
     private final List<Handled> handled = new CopyOnWriteArrayList<>();
     private final ThreadLocal<Transaction> transaction = new ThreadLocal<>();
     private final AtomicInteger failuresLeft = new AtomicInteger();
+    private final Map<String, AtomicInteger> failuresOfEvent = new ConcurrentHashMap<>();
     private final AtomicInteger calls = new AtomicInteger();
     private final AtomicInteger duplicates = new AtomicInteger();
     private final PluginRuntimeDescriptor.EventSubscription subscription = new PluginRuntimeDescriptor.EventSubscription(
@@ -192,6 +194,11 @@ public final class ConformanceWorld {
         failuresLeft.set(count);
     }
 
+    /** Makes the handler fail on the next deliveries of one event. */
+    public void failNextOf(String eventId, int count) {
+        failuresOfEvent.put(eventId, new AtomicInteger(count));
+    }
+
     /** Makes the handler fail until told otherwise. */
     public void failing(boolean failing) {
         this.failing = failing;
@@ -278,7 +285,9 @@ public final class ConformanceWorld {
         @Override
         public CompletionStage<Void> handle(EventInvocation<MemberAccepted> invocation) {
             calls.incrementAndGet();
-            if (failing || failuresLeft.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
+            AtomicInteger ofEvent = failuresOfEvent.get(invocation.event().eventId());
+            boolean eventFails = ofEvent != null && ofEvent.getAndUpdate(left -> Math.max(0, left - 1)) > 0;
+            if (failing || eventFails || failuresLeft.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
                 throw new IllegalStateException("the projection is failing");
             }
             transaction.get().handled.add(new Handled(invocation.event().eventId(), invocation.event().payload().memberId(),

@@ -176,6 +176,13 @@ class CommandOutboxSenderTest {
         }
 
         @Override
+
+        public void releaseUntried(String relayOwner, String messageId) {
+
+        }
+
+
+        @Override
         public void park(String relayOwner, String messageId, String errorCode, OffsetDateTime parkedAt) {
         }
 

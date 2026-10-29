@@ -69,6 +69,31 @@ class OutboxRelayTest {
     }
 
     @Test
+    void aFailedMessageHoldsBackTheLaterMessagesOfItsKeyWithoutSpendingTheirAttempts() {
+        // Root BRX-RS-MESSAGE-027: the messages of one partition key leave in their order.
+        InMemoryStore store = new InMemoryStore();
+        OffsetDateTime now = OffsetDateTime.now(CLOCK);
+        store.add("m-a", "key-1", now.minusSeconds(3));
+        store.add("m-b", "key-1", now.minusSeconds(2));
+        store.add("m-c", "key-2", now.minusSeconds(1));
+        List<String> published = new ArrayList<>();
+        OutboxRelay relay = relay(store, message -> {
+            if (message.messageId().equals("m-a")) {
+                throw new OutboxTransportException("KAFKA_TIMEOUT", "timeout", null);
+            }
+            published.add(message.messageId());
+        });
+
+        OutboxRelayRunResult result = relay.processDueBatch();
+
+        assertEquals(new OutboxRelayRunResult(3, 1, 1, 0), result);
+        assertEquals(List.of("m-c"), published, "the other key goes on");
+        assertEquals("PENDING", store.status("m-a"));
+        assertEquals("PENDING", store.status("m-b"));
+        assertEquals(0, store.attempts("m-b"), "m-b was handed back untried");
+    }
+
+    @Test
     void retryBudgetExhaustedParksMessageWithStableError() {
         InMemoryStore store = new InMemoryStore();
         store.add("m-3", 2);
@@ -162,6 +187,22 @@ class OutboxRelayTest {
         return new OutboxRelay("relay-a", store, transport, POLICY, CLOCK, ignored -> Duration.ZERO, OutboxRelayMetrics.NOOP);
     }
 
+    private static CanonicalOutboxMessage message(String id, int attemptCount, String partitionKey,
+            OffsetDateTime occurredAt) {
+        CanonicalOutboxMessage message = message(id, attemptCount);
+        return new CanonicalOutboxMessage(message.messageId(), message.eventId(), message.messageKind(),
+            message.messageType(), message.schemaVersion(), message.reliability(), message.producerPluginId(),
+            message.scope(), message.tenantId(), partitionKey, occurredAt, message.correlationId(),
+            message.causationId(), message.traceparent(), message.tracestate(), message.payload(), attemptCount);
+    }
+
+    private static CanonicalOutboxMessage attempt(CanonicalOutboxMessage message, int attemptCount) {
+        return new CanonicalOutboxMessage(message.messageId(), message.eventId(), message.messageKind(),
+            message.messageType(), message.schemaVersion(), message.reliability(), message.producerPluginId(),
+            message.scope(), message.tenantId(), message.partitionKey(), message.occurredAt(), message.correlationId(),
+            message.causationId(), message.traceparent(), message.tracestate(), message.payload(), attemptCount);
+    }
+
     private static CanonicalOutboxMessage message(String id, int attemptCount) {
         return new CanonicalOutboxMessage(
             id,
@@ -189,6 +230,14 @@ class OutboxRelayTest {
 
         void add(String id, int attemptCount) {
             records.put(id, new StoredMessage(message(id, attemptCount)));
+        }
+
+        void add(String id, String partitionKey, OffsetDateTime occurredAt) {
+            records.put(id, new StoredMessage(message(id, 0, partitionKey, occurredAt)));
+        }
+
+        int attempts(String id) {
+            return records.get(id).message.attemptCount();
         }
 
         String status(String id) {
@@ -225,7 +274,8 @@ class OutboxRelayTest {
             List<StoredMessage> due = records.values().stream()
                 .filter(record -> ("PENDING".equals(record.status) && !record.availableAt.isAfter(now))
                     || ("IN_FLIGHT".equals(record.status) && record.claimUntil.isBefore(now)))
-                .sorted(Comparator.comparing(record -> record.message.occurredAt()))
+                .sorted(Comparator.comparing((StoredMessage record) -> record.message.occurredAt())
+                    .thenComparing(record -> record.message.messageId()))
                 .limit(batchSize)
                 .toList();
             List<CanonicalOutboxMessage> claimed = new ArrayList<>();
@@ -233,7 +283,7 @@ class OutboxRelayTest {
                 record.status = "IN_FLIGHT";
                 record.claimOwner = relayOwner;
                 record.claimUntil = now.plus(leaseDuration);
-                record.message = message(record.message.messageId(), record.message.attemptCount() + 1);
+                record.message = attempt(record.message, record.message.attemptCount() + 1);
                 record.claimedMessage = record.message;
                 claimed.add(record.message);
             }
@@ -253,6 +303,14 @@ class OutboxRelayTest {
             record.status = "PENDING";
             record.availableAt = availableAt;
             record.lastErrorCode = errorCode;
+        }
+
+        @Override
+        public void releaseUntried(String relayOwner, String messageId) {
+            StoredMessage record = requireOwned(relayOwner, messageId);
+            record.status = "PENDING";
+            record.claimOwner = null;
+            record.message = attempt(record.message, Math.max(0, record.message.attemptCount() - 1));
         }
 
         @Override

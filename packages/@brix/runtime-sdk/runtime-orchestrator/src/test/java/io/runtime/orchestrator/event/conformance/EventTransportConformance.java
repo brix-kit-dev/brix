@@ -134,6 +134,23 @@ public abstract class EventTransportConformance {
     }
 
     @Test
+    void anEventThatFailsHoldsBackTheLaterEventsOfItsKey() {
+        // Root BRX-RS-MESSAGE-027: a retry does not let a later event of the same key overtake the failed one.
+        world.failNextOf("event-1", 2);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        world.publish("event-2", "member-1", ConformanceWorld.TENANT, 2);
+        world.publish("event-3", "member-2", ConformanceWorld.TENANT, 3);
+
+        harness.start();
+
+        await("every event is handled", () -> world.handledIds().size() == 3);
+        List<String> handled = world.handledIds();
+        assertTrue(handled.indexOf("event-1") < handled.indexOf("event-2"), "event-2 waited for event-1: " + handled);
+        assertEquals(3, world.handled().stream().filter(event -> event.eventId().equals("event-1")).findFirst()
+            .orElseThrow().attempt(), "event-1 succeeded on its third attempt");
+    }
+
+    @Test
     void aHandlerThatFailsIsRetriedUntilItSucceeds() {
         world.failNext(2);
         world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);

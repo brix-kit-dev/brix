@@ -9,8 +9,10 @@ package io.runtime.orchestrator.outbox;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
@@ -130,7 +132,17 @@ public final class OutboxRelay implements AutoCloseable {
         int published = 0;
         int retried = 0;
         int parked = 0;
+        // Keys whose earlier message failed in this pass: their later messages wait for it, untried.
+        Set<String> heldBack = new HashSet<>();
         for (CanonicalOutboxMessage message : messages) {
+            if (heldBack.contains(message.partitionKey())) {
+                try {
+                    store.releaseUntried(relayOwner, message.messageId());
+                } catch (RuntimeException lost) {
+                    log.warn("event=outbox.claim_lost type={} message_id={}", message.messageType(), message.messageId(), lost);
+                }
+                continue;
+            }
             OutboxTransportException failure = null;
             try {
                 validateEnvelope(message);
@@ -154,11 +166,13 @@ public final class OutboxRelay implements AutoCloseable {
                 } else {
                     store.releaseForRetry(relayOwner, message.messageId(), nextAvailableAt(message), failure.errorCode());
                     metrics.recordRetry(message.messageType(), failure.errorCode());
+                    heldBack.add(message.partitionKey());
                     retried++;
                 }
             } catch (RuntimeException lost) {
                 // The claim was lost (the lease expired and another pass took the row): its new claimant decides.
                 log.warn("event=outbox.claim_lost type={} message_id={}", message.messageType(), message.messageId(), lost);
+                heldBack.add(message.partitionKey());
             }
         }
         return new OutboxRelayRunResult(messages.size(), published, retried, parked);
