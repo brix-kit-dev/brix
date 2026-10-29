@@ -201,11 +201,20 @@ final class KafkaParkingLot implements AutoCloseable {
         while (!stopping) {
             try (Consumer<String, String> consumer = readers.get()) {
                 List<TopicPartition> partitions = new ArrayList<>();
+                boolean known = true;
                 for (String topic : subscriptionsByTopic.keySet()) {
                     List<PartitionInfo> infos = consumer.partitionsFor(topic, settings.adminTimeout());
-                    if (infos != null) {
+                    if (infos == null || infos.isEmpty()) {
+                        known = false;
+                    } else {
                         infos.forEach(info -> partitions.add(new TopicPartition(info.topic(), info.partition())));
                     }
+                }
+                if (!known) {
+                    // A topic created a moment ago may not be in the metadata yet.
+                    log.debug("event=event.parking_topics_pending topics={}", subscriptionsByTopic.keySet());
+                    pause();
+                    continue;
                 }
                 consumer.assign(partitions);
                 consumer.seekToBeginning(partitions);
