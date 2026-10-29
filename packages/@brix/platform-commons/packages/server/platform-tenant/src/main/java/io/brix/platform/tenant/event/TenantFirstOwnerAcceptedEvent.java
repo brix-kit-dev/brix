@@ -53,6 +53,7 @@ public final class TenantFirstOwnerAcceptedEvent extends IntegrationEvent {
      *
      * @return event contract id
      */
+    @Override
     public String eventTypeId() {
         return EVENT_TYPE;
     }
@@ -62,6 +63,7 @@ public final class TenantFirstOwnerAcceptedEvent extends IntegrationEvent {
      *
      * @return payload map
      */
+    @Override
     public Map<String, Object> payload() {
         return Map.of(
             "tenantId", tenantId,

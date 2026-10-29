@@ -296,6 +296,47 @@ public abstract class IntegrationEvent implements Serializable {
         return Map.of();
     }
 
+    /**
+     * Returns the event type the publishing plugin declares under {@code events.publishes}.
+     *
+     * <p>An owner outbox records this id rather than the Java class name (root BRX-RS-MESSAGE-021). The
+     * default is the simple class name without a trailing {@code Event}; override it when the manifest
+     * uses another id.</p>
+     *
+     * @return the manifest event type
+     * @since 3.2.0
+     */
+    public String eventTypeId() {
+        String name = getClass().getSimpleName();
+        return name.endsWith("Event") && name.length() > "Event".length()
+            ? name.substring(0, name.length() - "Event".length())
+            : name;
+    }
+
+    /**
+     * Returns whether the event belongs to one tenant or to the platform (root BRX-RS-MESSAGE-021).
+     *
+     * @return {@link EventScope#TENANT} when the event carries a tenant, otherwise {@link EventScope#PLATFORM}
+     * @since 3.2.0
+     */
+    public EventScope scope() {
+        return tenantId == null || tenantId.isBlank() ? EventScope.PLATFORM : EventScope.TENANT;
+    }
+
+    /**
+     * Returns the payload an owner outbox records for this event.
+     *
+     * <p>Subscribers decode it into the payload type their handlers declare, so an event published through
+     * an owner's outbox returns its typed payload. The default has none, and such a publish fails.</p>
+     *
+     * @return the payload
+     * @throws UnsupportedOperationException when the event does not define its payload
+     * @since 3.2.0
+     */
+    public Object payload() {
+        throw new UnsupportedOperationException(getClass().getName() + " does not define the payload its outbox records");
+    }
+
     // ==================== Getter/Setter Methods ====================
 
     public String getEventId() {
