@@ -17,6 +17,7 @@ package io.infra.adapter.persistence.jpa;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -24,14 +25,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.sql.DataSource;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.metamodel.EntityType;
 import jakarta.persistence.metamodel.ManagedType;
 
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.jpa.EntityManagerFactoryInfo;
@@ -58,6 +62,10 @@ import io.runtime.sdk.capability.PersistenceCapabilityException;
  * owner unit of work, the repository guard and the startup validation instead of separate
  * connection pools, which keeps a single pool and a single migration runner (root blueprint
  * BRX-RS-DATA-027 allows any mechanism that gives the same proof).</p>
+ *
+ * <p>A table belongs to one owner: an owner's unit is refused when another owner's entity maps one of
+ * its tables (root BRX-RS-DATA-001, DATA-027). A registered custodian writes columns of another owner's
+ * table without mapping it.</p>
  */
 public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, AutoCloseable {
 
@@ -256,6 +264,8 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
 
     private JpaOwnerPersistence create(OwnerDeclaration owner) {
         Set<Class<?>> ownerTypes = managedTypesOf(owner.ownerId());
+        requireOneOwnerPerTable(owner.ownerId(), entityTables(),
+            type -> owners.ownerOf(type).map(OwnerDeclaration::ownerId));
         OwnerPersistenceValidator validator = OwnerPersistenceValidator.create(
             owner.ownerId(), ownerTypes, entityManagerFactory, dataSource, validateSchema,
             globalTables, owner.custodianTables());
@@ -291,6 +301,47 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             }
         }
         return types;
+    }
+
+    /** Every entity of the shared persistence unit and the table it maps. */
+    private Map<Class<?>, String> entityTables() {
+        SessionFactoryImplementor sessionFactory = entityManagerFactory.unwrap(SessionFactoryImplementor.class);
+        Map<Class<?>, String> tables = new LinkedHashMap<>();
+        for (EntityType<?> entity : sessionFactory.getJpaMetamodel().getEntities()) {
+            Class<?> type = entity.getJavaType();
+            if (type != null) {
+                tables.put(type, OwnerTenantTables.tableOf(sessionFactory.getMappingMetamodel().getEntityDescriptor(type)));
+            }
+        }
+        return tables;
+    }
+
+    /**
+     * Refuses an owner whose tables another owner's entities also map (root BRX-RS-DATA-001, DATA-027).
+     *
+     * @param ownerId the owner whose unit is being created
+     * @param entityTables every entity and the table it maps
+     * @param ownerOf the owner of an entity, empty when no plugin manifest packages it
+     * @throws PersistenceCapabilityException when another owner maps one of the owner's tables
+     */
+    static void requireOneOwnerPerTable(
+            String ownerId,
+            Map<Class<?>, String> entityTables,
+            Function<Class<?>, Optional<String>> ownerOf) {
+        Map<String, Class<?>> ownTables = new LinkedHashMap<>();
+        entityTables.forEach((type, table) -> {
+            if (ownerOf.apply(type).filter(ownerId::equals).isPresent()) {
+                ownTables.putIfAbsent(table, type);
+            }
+        });
+        entityTables.forEach((type, table) -> {
+            Optional<String> other = ownerOf.apply(type).filter(owner -> !owner.equals(ownerId));
+            Class<?> own = ownTables.get(table);
+            if (other.isPresent() && own != null) {
+                throw rejected(Map.of("owner", ownerId), table + " is mapped by " + own.getName() + " of '" + ownerId
+                    + "' and by " + type.getName() + " of '" + other.get() + "'; a table belongs to one owner");
+            }
+        });
     }
 
     private static PersistenceCapabilityException rejected(Map<String, String> safeParameters, String detail) {
