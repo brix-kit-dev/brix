@@ -19,6 +19,8 @@ endpoints:
   provides: []
 capabilities:
   required:
+    - id: io.runtime.sdk.capability.EventBusCapability
+      version: ">=3.0.10 <4.0.0"
     - id: io.runtime.sdk.capability.PersistenceCapability
       version: ">=3.2.0 <4.0.0"
   optional: []
@@ -29,7 +31,17 @@ commands:
   provides: []
   consumes: []
 events:
-  publishes: []
+  # Written to platform_identity_outbox in the identity transaction (P4 design §4.1). The audit fact
+  # is published from P4c on, the invitee setup from P4d on.
+  publishes:
+    - eventType: IdentityAuditFactRecorded
+      schemaRef: brix://schemas/platform-identity/identity-audit-fact/1.0.0
+      version: 1.0.0
+      reliability: CRITICAL
+    - eventType: FirstOwnerInviteeSetupCompleted
+      schemaRef: brix://schemas/platform-identity/first-owner-invitee-setup-completed/1.0.0
+      version: 1.0.0
+      reliability: CRITICAL
   subscribes: []
 tasks:
   provides: []
@@ -49,6 +61,8 @@ data:
   storageId: platform_identity
   schema: platform-identity
   migrationLocation: db/migration/platform-identity
+  outbox: platform_identity_outbox
+  inbox: platform_identity_inbox
 permissions: []
 config: []
 ui:
