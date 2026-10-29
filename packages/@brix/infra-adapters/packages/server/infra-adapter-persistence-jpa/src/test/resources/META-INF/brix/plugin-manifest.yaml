@@ -19,6 +19,8 @@ endpoints:
   provides: []
 capabilities:
   required:
+    - id: io.runtime.sdk.capability.EventBusCapability
+      version: ">=3.0.10 <4.0.0"
     - id: io.runtime.sdk.capability.PersistenceCapability
       version: ">=3.2.0 <4.0.0"
   optional: []
@@ -29,7 +31,16 @@ commands:
   provides: []
   consumes: []
 events:
-  publishes: []
+  # OwnerOutboxEventBusTest: what the owner's outbox accepts.
+  publishes:
+    - eventType: MemberAccepted
+      schemaRef: brix://schemas/test-owner/member-accepted/1.0.0
+      version: 1.2.0
+      reliability: CRITICAL
+    - eventType: Heartbeat
+      schemaRef: brix://schemas/test-owner/heartbeat/1.0.0
+      version: 1.0.0
+      reliability: BEST_EFFORT
   subscribes: []
 tasks:
   provides: []
@@ -39,6 +50,8 @@ data:
   storageId: test_owner
   schema: test-owner
   migrationLocation: db/migration/test-owner
+  # OwnerOutboxEventBusTest: the owner's outbox.
+  outbox: test_owner_outbox
   # JdbcEventInboxStoreTest: the owner's persistent event inbox.
   inbox: test_owner_inbox
   # JdbcPolicyAuditWriterTest: covers login-time discovery only, so the other audited policy is uncovered.

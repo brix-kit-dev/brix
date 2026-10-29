@@ -15,6 +15,7 @@
  */
 package io.infra.adapter.persistence.jpa;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -37,6 +38,7 @@ import org.springframework.orm.jpa.EntityManagerFactoryInfo;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.SharedEntityManagerCreator;
 import org.springframework.orm.jpa.vendor.HibernateJpaDialect;
+import tools.jackson.databind.ObjectMapper;
 
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
@@ -44,6 +46,7 @@ import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
@@ -69,7 +72,9 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     private final EntityManager sharedEntityManager;
     private final PersistenceFailureTranslator failureTranslator;
     private final Set<String> globalTables;
+    private final ObjectMapper json;
     private final ConcurrentMap<String, JpaOwnerPersistence> units = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Optional<EventBusCapability>> eventBuses = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, OwnerPersistenceValidator> validators = new ConcurrentHashMap<>();
 
     /**
@@ -90,7 +95,30 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             boolean validateSchema,
             ClassLoader classLoader) {
         this(entityManagerFactory, transactionManager, dataSource, transactionTimeout, validateSchema, classLoader,
-            TenantIsolationRegister.GLOBAL_TABLES);
+            new ObjectMapper());
+    }
+
+    /**
+     * Creates the owner persistence registry whose owner outboxes record payloads with the Host's mapper.
+     *
+     * @param entityManagerFactory shared persistence unit
+     * @param transactionManager JPA transaction manager of {@code entityManagerFactory}
+     * @param dataSource data source of {@code entityManagerFactory}
+     * @param transactionTimeout deadline of every owner transaction
+     * @param validateSchema whether owner tables are checked against the database at startup
+     * @param classLoader class loader that sees every plugin manifest
+     * @param json writes the payloads of outbox events
+     */
+    public OwnerPersistenceUnits(
+            EntityManagerFactory entityManagerFactory,
+            JpaTransactionManager transactionManager,
+            DataSource dataSource,
+            Duration transactionTimeout,
+            boolean validateSchema,
+            ClassLoader classLoader,
+            ObjectMapper json) {
+        this(entityManagerFactory, transactionManager, dataSource, transactionTimeout, validateSchema, classLoader,
+            TenantIsolationRegister.GLOBAL_TABLES, json);
     }
 
     /**
@@ -105,6 +133,20 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             boolean validateSchema,
             ClassLoader classLoader,
             Set<String> globalTables) {
+        this(entityManagerFactory, transactionManager, dataSource, transactionTimeout, validateSchema, classLoader,
+            globalTables, new ObjectMapper());
+    }
+
+    OwnerPersistenceUnits(
+            EntityManagerFactory entityManagerFactory,
+            JpaTransactionManager transactionManager,
+            DataSource dataSource,
+            Duration transactionTimeout,
+            boolean validateSchema,
+            ClassLoader classLoader,
+            Set<String> globalTables,
+            ObjectMapper json) {
+        this.json = Objects.requireNonNull(json, "json must not be null");
         this.globalTables = Set.copyOf(Objects.requireNonNull(globalTables, "globalTables must not be null"));
         this.entityManagerFactory = Objects.requireNonNull(entityManagerFactory, "entityManagerFactory must not be null");
         this.transactionManager = Objects.requireNonNull(transactionManager, "transactionManager must not be null");
@@ -171,6 +213,38 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
                 + "' does not declare " + PersistenceCapability.class.getName());
         }
         return forOwner(owner.ownerId()).orElseThrow();
+    }
+
+    /**
+     * Returns the outbox event bus of an owner whose manifest declares {@code data.outbox} and
+     * {@link EventBusCapability} (P4 design D13).
+     */
+    @Override
+    public Optional<EventBusCapability> eventBusFor(String ownerModuleId) {
+        Objects.requireNonNull(ownerModuleId, "ownerModuleId must not be null");
+        return eventBuses.computeIfAbsent(ownerModuleId, ownerId -> owners.declaresEventBus(ownerId)
+            ? owners.outboxOf(ownerId).map(outbox -> (EventBusCapability) new OwnerOutboxEventBus(
+                ownerId, outbox, owners.publicationsOf(ownerId), dataSource, json, Clock.systemUTC()))
+            : Optional.empty());
+    }
+
+    /**
+     * Returns the outbox event bus of the owner that packages {@code component}.
+     *
+     * <p>Used while platform modules are still assembled by the framework container: the owner is
+     * derived from the component's artifact, never passed in by the module.</p>
+     *
+     * @param component a class packaged in the owner's artifact
+     * @return the owner's outbox event bus
+     */
+    public EventBusCapability eventBusForComponent(Class<?> component) {
+        Objects.requireNonNull(component, "component must not be null");
+        OwnerDeclaration owner = owners.ownerOf(component).orElseThrow(() -> rejected(
+            Map.of(),
+            component.getName() + " is not packaged with a plugin manifest"));
+        return eventBusFor(owner.ownerId()).orElseThrow(() -> rejected(Map.of("owner", owner.ownerId()),
+            "the manifest of '" + owner.ownerId() + "' does not declare data.outbox and "
+                + EventBusCapability.class.getName()));
     }
 
     @Override

@@ -33,6 +33,11 @@
             <artifactId>runtime-orchestrator</artifactId>
             <version>${runtime-sdk.version}</version>
         </dependency>
+        <!-- The owner outbox records event payloads as JSON -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <dependency>
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>

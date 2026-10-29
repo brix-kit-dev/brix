@@ -37,6 +37,7 @@ import io.runtime.manifest.loader.ManifestLoadException;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.manifest.validation.PluginManifestValidator;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 
 /**
@@ -89,6 +90,44 @@ final class OwnerDirectory {
             .filter(java.util.Objects::nonNull)
             .map(PluginManifest.DataSection::getInbox)
             .filter(inbox -> inbox != null && !inbox.isBlank())
+            .findFirst();
+    }
+
+    /**
+     * Returns the outbox table the owner's manifest declares under {@code data.outbox}.
+     */
+    Optional<String> outboxOf(String ownerId) {
+        return manifestOf(ownerId)
+            .map(PluginManifest::getData)
+            .map(PluginManifest.DataSection::getOutbox)
+            .filter(outbox -> !outbox.isBlank());
+    }
+
+    /**
+     * Returns the events the owner's manifest declares under {@code events.publishes}.
+     */
+    List<PluginManifest.EventPublish> publicationsOf(String ownerId) {
+        return manifestOf(ownerId)
+            .map(PluginManifest::getEvents)
+            .map(PluginManifest.EventSection::getPublishes)
+            .map(List::copyOf)
+            .orElse(List.of());
+    }
+
+    /**
+     * Returns whether the owner's manifest declares {@link EventBusCapability}.
+     */
+    boolean declaresEventBus(String ownerId) {
+        return manifestOf(ownerId)
+            .map(PluginManifest::getCapabilities)
+            .map(capabilities -> OwnerDeclaration.declares(capabilities.getRequired(), EventBusCapability.class)
+                || OwnerDeclaration.declares(capabilities.getOptional(), EventBusCapability.class))
+            .orElse(false);
+    }
+
+    private Optional<PluginManifest> manifestOf(String ownerId) {
+        return scan().manifests().stream()
+            .filter(manifest -> ownerId.equals(manifest.getMetadata().getPluginId()))
             .findFirst();
     }
 
@@ -213,18 +252,17 @@ final class OwnerDirectory {
             if (manifest.getCapabilities() == null) {
                 return false;
             }
-            return declares(manifest.getCapabilities().getRequired())
-                || declares(manifest.getCapabilities().getOptional());
+            return declares(manifest.getCapabilities().getRequired(), PersistenceCapability.class)
+                || declares(manifest.getCapabilities().getOptional(), PersistenceCapability.class);
         }
 
-        private static boolean declares(List<PluginManifest.CapabilityRef> references) {
+        static boolean declares(List<PluginManifest.CapabilityRef> references, Class<?> capability) {
             if (references == null) {
                 return false;
             }
             return references.stream()
                 .map(PluginManifest.CapabilityRef::getId)
-                .anyMatch(id -> PersistenceCapability.class.getName().equals(id)
-                    || PersistenceCapability.class.getSimpleName().equals(id));
+                .anyMatch(id -> capability.getName().equals(id) || capability.getSimpleName().equals(id));
         }
     }
 }

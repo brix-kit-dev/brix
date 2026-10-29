@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.plugin.PluginContext;
@@ -35,7 +36,10 @@ import io.runtime.sdk.plugin.PluginIdentity;
  *
  * <p>{@link PersistenceCapability} is owner-scoped rather than global: it is
  * resolved for this plugin through the {@link OwnerPersistenceProvider}
- * (root blueprint BRX-RS-DATA-026).</p>
+ * (root blueprint BRX-RS-DATA-026). So is {@link EventBusCapability} for a
+ * plugin that publishes through its own outbox: its CRITICAL and STANDARD
+ * events go there in its own transaction (root BRX-RS-MESSAGE-017,
+ * MESSAGE-022); other plugins get the Host's event bus.</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -86,6 +90,12 @@ public final class DefaultPluginContext implements PluginContext {
             return capabilityType.cast(ownerPersistence().orElseThrow(() -> new PluginRuntimeException(
                 "Plugin '" + descriptor.identity().pluginId() + "' has no owner persistence unit")));
         }
+        if (capabilityType == EventBusCapability.class) {
+            Optional<EventBusCapability> outbox = ownerEventBus();
+            if (outbox.isPresent()) {
+                return capabilityType.cast(outbox.get());
+            }
+        }
         return capabilityRegistry.getRequired(capabilityType);
     }
 
@@ -102,6 +112,12 @@ public final class DefaultPluginContext implements PluginContext {
         if (capabilityType == PersistenceCapability.class) {
             return ownerPersistence().map(capabilityType::cast);
         }
+        if (capabilityType == EventBusCapability.class) {
+            Optional<EventBusCapability> outbox = ownerEventBus();
+            if (outbox.isPresent()) {
+                return outbox.map(capabilityType::cast);
+            }
+        }
         return capabilityRegistry.get(capabilityType);
     }
 
@@ -115,5 +131,9 @@ public final class DefaultPluginContext implements PluginContext {
 
     private Optional<PersistenceCapability> ownerPersistence() {
         return ownerPersistence.forOwner(descriptor.identity().pluginId());
+    }
+
+    private Optional<EventBusCapability> ownerEventBus() {
+        return ownerPersistence.eventBusFor(descriptor.identity().pluginId());
     }
 }

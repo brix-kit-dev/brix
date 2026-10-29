@@ -17,6 +17,7 @@ package io.runtime.orchestrator.persistence;
 
 import java.util.Optional;
 
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 
 /**
@@ -45,6 +46,18 @@ public interface OwnerPersistenceProvider {
      *         {@link PersistenceCapability} or no persistence adapter is assembled
      */
     Optional<PersistenceCapability> forOwner(String ownerModuleId);
+
+    /**
+     * Returns the outbox event bus of an owner whose manifest declares {@code data.outbox}: it writes the
+     * owner's CRITICAL and STANDARD events to that outbox in the owner's own transaction (root
+     * BRX-RS-MESSAGE-017, MESSAGE-022; P4 design D13).
+     *
+     * @param ownerModuleId owner plugin id
+     * @return the owner's outbox event bus, or empty when the owner publishes through no outbox
+     */
+    default Optional<EventBusCapability> eventBusFor(String ownerModuleId) {
+        return Optional.empty();
+    }
 
     /**
      * Returns a provider used when no persistence adapter is assembled.

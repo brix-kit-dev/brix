@@ -27,7 +27,10 @@ import org.junit.jupiter.api.Test;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.RecordingPersistence;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.event.IntegrationEvent;
 
 class DefaultPluginContextTest {
 
@@ -105,6 +108,43 @@ class DefaultPluginContextTest {
         assertTrue(context.find(PersistenceCapability.class).isEmpty());
     }
 
+    @Test
+    void aPluginWithItsOwnOutboxPublishesThroughItWhileOthersGetTheHostsBus() {
+        EventBusCapability host = new SilentBus();
+        EventBusCapability outbox = new SilentBus();
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        registry.register(EventBusCapability.class, host);
+        OwnerPersistenceProvider owners = new OwnerPersistenceProvider() {
+            @Override
+            public Optional<PersistenceCapability> forOwner(String ownerModuleId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<EventBusCapability> eventBusFor(String ownerModuleId) {
+                return "plugin-a".equals(ownerModuleId) ? Optional.of(outbox) : Optional.empty();
+            }
+        };
+
+        DefaultPluginContext publisher = new DefaultPluginContext(PluginRuntimeDescriptor.builder("plugin-a")
+            .requiredCapabilities(List.of(EventBusCapability.class.getName())).build(), registry, owners);
+        DefaultPluginContext other = new DefaultPluginContext(PluginRuntimeDescriptor.builder("plugin-b")
+            .optionalCapabilities(List.of(EventBusCapability.class.getName())).build(), registry, owners);
+
+        assertSame(outbox, publisher.require(EventBusCapability.class));
+        assertSame(host, other.find(EventBusCapability.class).orElseThrow());
+    }
+
     interface TestCapability {
+    }
+
+    private static final class SilentBus implements EventBusCapability {
+        @Override
+        public void publish(DomainEvent event) {
+        }
+
+        @Override
+        public void publishIntegration(IntegrationEvent event) {
+        }
     }
 }

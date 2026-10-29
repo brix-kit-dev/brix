@@ -38,11 +38,13 @@ import org.springframework.data.jpa.repository.support.JpaRepositoryFactory;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.ClassUtils;
+import tools.jackson.databind.ObjectMapper;
 
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 
@@ -68,6 +70,7 @@ public class JpaPersistenceAutoConfiguration {
      * @param transactionManager JPA transaction manager of the shared persistence unit
      * @param dataSource data source of the shared persistence unit
      * @param properties adapter settings
+     * @param json the Host's JSON mapper, which writes the payloads of outbox events
      * @return the owner persistence registry
      */
     @Bean(destroyMethod = "close")
@@ -76,7 +79,8 @@ public class JpaPersistenceAutoConfiguration {
             EntityManagerFactory entityManagerFactory,
             PlatformTransactionManager transactionManager,
             DataSource dataSource,
-            PersistenceProperties properties) {
+            PersistenceProperties properties,
+            ObjectProvider<ObjectMapper> json) {
         if (!(transactionManager instanceof JpaTransactionManager jpaTransactionManager)) {
             throw new IllegalStateException("Owner persistence requires a JpaTransactionManager, found "
                 + transactionManager.getClass().getName());
@@ -87,7 +91,8 @@ public class JpaPersistenceAutoConfiguration {
             dataSource,
             properties.getTransactionTimeout(),
             properties.isSchemaValidation(),
-            ClassUtils.getDefaultClassLoader());
+            ClassUtils.getDefaultClassLoader(),
+            json.getIfAvailable(ObjectMapper::new));
     }
 
     /**
@@ -134,5 +139,25 @@ public class JpaPersistenceAutoConfiguration {
             OwnerPersistenceUnits ownerPersistenceUnits) {
         Member member = injectionPoint.getMember();
         return ownerPersistenceUnits.forComponent(member.getDeclaringClass());
+    }
+
+    /**
+     * The outbox event bus of the owner that packages the injecting class (P4 design D13): CRITICAL and
+     * STANDARD events go to the owner's {@code data.outbox} in its own transaction.
+     *
+     * <p>It is injected only where {@code @Qualifier("ownerOutboxEventBus")} asks for it. Plain
+     * {@link EventBusCapability} injection points and the Host's own event bus, which the adapters create
+     * only while no default candidate exists, do not see it.</p>
+     *
+     * @param injectionPoint where the bus is injected
+     * @param ownerPersistenceUnits owner persistence registry
+     * @return the injecting owner's outbox event bus
+     */
+    @Bean(defaultCandidate = false)
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    public EventBusCapability ownerOutboxEventBus(
+            InjectionPoint injectionPoint,
+            OwnerPersistenceUnits ownerPersistenceUnits) {
+        return ownerPersistenceUnits.eventBusForComponent(injectionPoint.getMember().getDeclaringClass());
     }
 }
