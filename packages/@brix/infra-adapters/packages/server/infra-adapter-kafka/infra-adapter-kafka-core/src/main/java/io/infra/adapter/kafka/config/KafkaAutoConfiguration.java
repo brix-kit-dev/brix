@@ -15,11 +15,15 @@
  */
 package io.infra.adapter.kafka.config;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -45,10 +49,15 @@ import tools.jackson.databind.json.JsonMapper;
 
 import io.infra.adapter.kafka.EventTopicResolver;
 import io.infra.adapter.kafka.CanonicalKafkaOutboxTransport;
+import io.infra.adapter.kafka.KafkaEventBroker;
 import io.infra.adapter.kafka.KafkaEventBusCapability;
+import io.infra.adapter.kafka.KafkaEventSettings;
+import io.infra.adapter.kafka.KafkaEventSubscriptionTransport;
+import io.infra.adapter.kafka.KafkaEventTopics;
 import io.infra.adapter.kafka.health.KafkaHealthIndicator;
 import io.infra.adapter.kafka.metrics.KafkaConsumerMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.outbox.OutboxTransport;
 import io.runtime.sdk.capability.EventBusCapability;
 
@@ -204,11 +213,40 @@ public class KafkaAutoConfiguration {
     }
 
     /**
+     * Names the canonical event bus's topics and consumer groups (Kafka design D18, D19).
+     *
+     * @param properties Kafka configuration properties
+     * @return the names
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "transport", havingValue = "kafka")
+    public KafkaEventTopics kafkaEventTopics(KafkaEventBusProperties properties) {
+        return new KafkaEventTopics(properties.getTopicPrefix());
+    }
+
+    /**
+     * Probes the broker and creates the canonical event bus's topics from the manifests (Kafka design §4.4).
+     *
+     * @param properties Kafka configuration properties
+     * @param topics topic names
+     * @return the broker view; it closes its admin client with the context
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "transport", havingValue = "kafka")
+    public KafkaEventBroker kafkaEventBroker(KafkaEventBusProperties properties, KafkaEventTopics topics) {
+        return new KafkaEventBroker(Admin.create(clientConfigs(properties)), topics, eventSettings(properties),
+            Clock.systemUTC());
+    }
+
+    /**
      * Configures the canonical Outbox transport used by the L2B Relay when {@code brix.outbox.relay.transport=kafka};
      * by default the relay delivers events in process to the subscribers' inboxes (P4 design D11).
      *
      * @param kafkaTemplate Kafka template
-     * @param topicResolver topic resolver
+     * @param topics topic names
+     * @param broker the broker's reachability and topics
      * @param properties Kafka configuration properties
      * @return canonical outbox transport
      */
@@ -217,13 +255,48 @@ public class KafkaAutoConfiguration {
     @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "transport", havingValue = "kafka")
     public OutboxTransport kafkaOutboxTransport(
             KafkaTemplate<String, String> kafkaTemplate,
-            EventTopicResolver topicResolver,
+            KafkaEventTopics topics,
+            KafkaEventBroker broker,
             KafkaEventBusProperties properties) {
         return new CanonicalKafkaOutboxTransport(
             kafkaTemplate,
-            topicResolver,
+            topics,
+            broker,
             createEventObjectMapper(),
-            java.time.Duration.ofMillis(properties.getOutbox().getPublishTimeoutMs()));
+            Duration.ofMillis(properties.getOutbox().getPublishTimeoutMs()));
+    }
+
+    /**
+     * Consumes the declared subscriptions from Kafka for the runtime's subscription group, with the same switch as
+     * the outbox transport: events sent to Kafka are always received from it (Kafka design §4.2, §4.3).
+     *
+     * @param broker the broker's reachability and topics
+     * @param topics topic names
+     * @param properties Kafka configuration properties
+     * @param kafkaTemplate writes parking records
+     * @return the subscription transport
+     */
+    @Bean
+    @ConditionalOnMissingBean(EventSubscriptionTransport.class)
+    @ConditionalOnProperty(prefix = "brix.outbox.relay", name = "transport", havingValue = "kafka")
+    public KafkaEventSubscriptionTransport kafkaEventSubscriptionTransport(
+            KafkaEventBroker broker,
+            KafkaEventTopics topics,
+            KafkaEventBusProperties properties,
+            KafkaTemplate<String, String> kafkaTemplate) {
+        return new KafkaEventSubscriptionTransport(broker, topics, eventSettings(properties), clientConfigs(properties),
+            kafkaTemplate, createEventObjectMapper(), Clock.systemUTC());
+    }
+
+    private static Map<String, Object> clientConfigs(KafkaEventBusProperties properties) {
+        return Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+    }
+
+    private static KafkaEventSettings eventSettings(KafkaEventBusProperties properties) {
+        KafkaEventBusProperties.EventsProperties events = properties.getEvents();
+        return new KafkaEventSettings(events.getPartitions(), events.getReplicationFactor(), events.getRetention(),
+            events.getMaxPollRecords(), events.getPollTimeout(), events.getReadyCacheTtl(), events.getAdminTimeout(),
+            events.getSendTimeout());
     }
 
     /**

@@ -124,6 +124,14 @@
             <artifactId>spring-kafka-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- The transport conformance suite every transport passes (Kafka design §4.6) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${runtime-sdk.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>architecture-guard</artifactId>

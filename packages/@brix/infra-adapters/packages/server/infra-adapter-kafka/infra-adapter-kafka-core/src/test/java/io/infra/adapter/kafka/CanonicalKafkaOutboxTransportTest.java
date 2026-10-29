@@ -9,12 +9,15 @@ package io.infra.adapter.kafka;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -43,6 +46,9 @@ class CanonicalKafkaOutboxTransportTest {
     @Mock
     private KafkaTemplate<String, String> kafkaTemplate;
 
+    @Mock
+    private KafkaEventBroker broker;
+
     @Captor
     private ArgumentCaptor<ProducerRecord<String, String>> recordCaptor;
 
@@ -54,7 +60,8 @@ class CanonicalKafkaOutboxTransportTest {
         objectMapper = JsonMapper.builder().configureForJackson2().build();
         transport = new CanonicalKafkaOutboxTransport(
             kafkaTemplate,
-            new EventTopicResolver("prod-"),
+            new KafkaEventTopics("prod-"),
+            broker,
             objectMapper,
             Duration.ofSeconds(1));
     }
@@ -62,14 +69,15 @@ class CanonicalKafkaOutboxTransportTest {
     @Test
     @SuppressWarnings("unchecked")
     void publishesCanonicalEnvelopeWithPartitionKeyAndHeaders() throws Exception {
-        mockSendSuccess("prod-integration.tenant-first-owner-accepted");
+        mockSendSuccess("prod-brix.event.TenantFirstOwnerAccepted");
         CanonicalOutboxMessage message = message("{\"tenantId\":100,\"memberId\":200}");
 
         transport.publish(message);
 
         verify(kafkaTemplate).send(recordCaptor.capture());
         ProducerRecord<String, String> record = recordCaptor.getValue();
-        assertThat(record.topic()).isEqualTo("prod-integration.tenant-first-owner-accepted");
+        assertThat(record.topic()).isEqualTo("prod-brix.event.TenantFirstOwnerAccepted");
+        verify(broker).ensureEventTopics(Set.of("TenantFirstOwnerAccepted"));
         assertThat(record.key()).isEqualTo("tenant-100");
         assertHeader(record, "messageId", "msg-1");
         assertHeader(record, "eventId", "evt-1");
@@ -109,6 +117,45 @@ class CanonicalKafkaOutboxTransportTest {
                 OutboxTransportException ex = (OutboxTransportException) failure;
                 assertThat(ex.errorCode()).isEqualTo("KAFKA_SEND_FAILED");
                 assertThat(ex.permanent()).isFalse();
+            });
+    }
+
+    @Test
+    void theTransportIsReadyWhileTheBrokerAnswers() {
+        // Kafka design D21: while Kafka cannot be reached the relay claims nothing and spends no attempts.
+        when(broker.reachable()).thenReturn(false, true);
+
+        assertThat(transport.ready()).isFalse();
+        assertThat(transport.ready()).isTrue();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aTopicThatCannotBePreparedIsATransientFailure() {
+        doThrow(new IllegalStateException("broker unavailable")).when(broker).ensureEventTopics(any());
+
+        assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
+            .isInstanceOf(OutboxTransportException.class)
+            .satisfies(failure -> {
+                OutboxTransportException ex = (OutboxTransportException) failure;
+                assertThat(ex.errorCode()).isEqualTo("KAFKA_TOPIC_UNAVAILABLE");
+                assertThat(ex.permanent()).isFalse();
+            });
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+    }
+
+    @Test
+    void anEventTypeThatIsNoTopicNameIsAPermanentFailure() {
+        CanonicalOutboxMessage message = new CanonicalOutboxMessage("msg-1", "evt-1", "EVENT", "Tenant Accepted", "1.0.0",
+            "CRITICAL", "platform-tenant", "PLATFORM", null, "k", OffsetDateTime.parse("2026-07-28T01:00:00Z"), "corr-1",
+            null, null, null, "{}", 1);
+
+        assertThatThrownBy(() -> transport.publish(message))
+            .isInstanceOf(OutboxTransportException.class)
+            .satisfies(failure -> {
+                OutboxTransportException ex = (OutboxTransportException) failure;
+                assertThat(ex.errorCode()).isEqualTo("KAFKA_TOPIC_INVALID");
+                assertThat(ex.permanent()).isTrue();
             });
     }
 

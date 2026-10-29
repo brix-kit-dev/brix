@@ -8,9 +8,8 @@ package io.infra.adapter.kafka;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +22,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
 import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
@@ -32,10 +30,14 @@ import io.runtime.orchestrator.outbox.OutboxTransportException;
 
 /**
  * Kafka transport for canonical outbox messages.
- *
  * <p>This L2C adapter maps the already validated canonical envelope to a Kafka
- * record. It does not own Outbox state, does not decide reliability, and does
+ * record on the event type's topic {@code brix.event.<eventType>} (Kafka design D18), keyed by the
+ * partition key. It does not own Outbox state, does not decide reliability, and does
  * not rewrite message or event identity.</p>
+ * <p>It is ready while the broker answers, so the relay claims nothing while Kafka cannot be reached and
+ * waiting spends no attempts (D21); a send that times out still counts as an attempt. The broker does not
+ * create topics by itself, so the transport makes sure an event type's topic exists before its first
+ * send.</p>
  *
  * @author Brix Platform Authors
  * @since 3.0.10
@@ -43,41 +45,64 @@ import io.runtime.orchestrator.outbox.OutboxTransportException;
 public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
 
     private static final String ERROR_PAYLOAD_INVALID = "KAFKA_PAYLOAD_INVALID";
+    private static final String ERROR_TOPIC_INVALID = "KAFKA_TOPIC_INVALID";
+    private static final String ERROR_TOPIC_UNAVAILABLE = "KAFKA_TOPIC_UNAVAILABLE";
     private static final String ERROR_INTERRUPTED = "KAFKA_SEND_INTERRUPTED";
     private static final String ERROR_FAILED = "KAFKA_SEND_FAILED";
     private static final String ERROR_TIMEOUT = "KAFKA_SEND_TIMEOUT";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final EventTopicResolver topicResolver;
-    private final ObjectMapper objectMapper;
+    private final KafkaEventTopics topics;
+    private final KafkaEventBroker broker;
+    private final CanonicalEnvelopeCodec envelopes;
     private final Duration publishTimeout;
 
     /**
      * Creates a canonical Kafka transport.
      *
      * @param kafkaTemplate Kafka template
-     * @param topicResolver topic resolver
+     * @param topics topic names
+     * @param broker the broker's reachability and topics
      * @param objectMapper JSON mapper
      * @param publishTimeout broker send timeout
      */
     public CanonicalKafkaOutboxTransport(
             KafkaTemplate<String, String> kafkaTemplate,
-            EventTopicResolver topicResolver,
+            KafkaEventTopics topics,
+            KafkaEventBroker broker,
             ObjectMapper objectMapper,
             Duration publishTimeout) {
         this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate, "kafkaTemplate must not be null");
-        this.topicResolver = Objects.requireNonNull(topicResolver, "topicResolver must not be null");
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.topics = Objects.requireNonNull(topics, "topics must not be null");
+        this.broker = Objects.requireNonNull(broker, "broker must not be null");
+        this.envelopes = new CanonicalEnvelopeCodec(Objects.requireNonNull(objectMapper, "objectMapper must not be null"));
         if (publishTimeout == null || publishTimeout.isZero() || publishTimeout.isNegative()) {
             throw new IllegalArgumentException("publishTimeout must be positive");
         }
         this.publishTimeout = publishTimeout;
     }
 
+    /** Ready while the broker answers; until then the relay waits without claiming. */
+    @Override
+    public boolean ready() {
+        return broker.reachable();
+    }
+
     @Override
     public void publish(CanonicalOutboxMessage message) {
         Objects.requireNonNull(message, "message must not be null");
-        String topic = topicResolver.resolveTopicByEventType(message.messageType());
+        String topic;
+        try {
+            topic = topics.eventTopic(message.messageType());
+        } catch (IllegalArgumentException invalid) {
+            throw new OutboxTransportException(ERROR_TOPIC_INVALID, invalid.getMessage(), invalid, true);
+        }
+        try {
+            broker.ensureEventTopics(Set.of(message.messageType()));
+        } catch (IllegalStateException unavailable) {
+            throw new OutboxTransportException(ERROR_TOPIC_UNAVAILABLE, "Kafka topic " + topic + " is not available",
+                unavailable);
+        }
         ProducerRecord<String, String> record = new ProducerRecord<>(
             topic,
             null,
@@ -99,32 +124,11 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
 
     private String writeEnvelope(CanonicalOutboxMessage message) {
         try {
-            Map<String, Object> envelope = new LinkedHashMap<>();
-            envelope.put("messageId", message.messageId());
-            envelope.put("eventId", message.eventId());
-            envelope.put("messageKind", message.messageKind());
-            envelope.put("eventType", message.messageType());
-            envelope.put("schemaVersion", message.schemaVersion());
-            envelope.put("reliability", message.reliability());
-            envelope.put("producerPluginId", message.producerPluginId());
-            envelope.put("scope", message.scope());
-            envelope.put("tenantId", message.tenantId());
-            envelope.put("occurredAt", message.occurredAt());
-            envelope.put("correlationId", message.correlationId());
-            envelope.put("causationId", message.causationId());
-            envelope.put("traceparent", message.traceparent());
-            envelope.put("tracestate", message.tracestate());
-            envelope.put("partitionKey", message.partitionKey());
-            envelope.put("payload", payloadNode(message));
-            return objectMapper.writeValueAsString(envelope);
+            return envelopes.write(message);
         } catch (JacksonException ex) {
             throw new OutboxTransportException(ERROR_PAYLOAD_INVALID, "Canonical outbox payload is not valid JSON", ex,
                 true);
         }
-    }
-
-    private JsonNode payloadNode(CanonicalOutboxMessage message) throws JacksonException {
-        return objectMapper.readTree(message.payload());
     }
 
     private Headers headers(CanonicalOutboxMessage message) {

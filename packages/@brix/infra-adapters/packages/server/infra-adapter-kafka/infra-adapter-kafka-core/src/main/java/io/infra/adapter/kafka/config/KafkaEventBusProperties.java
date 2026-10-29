@@ -15,6 +15,8 @@
  */
 package io.infra.adapter.kafka.config;
 
+import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -89,6 +91,12 @@ public class KafkaEventBusProperties {
      */
     private HealthProperties health = new HealthProperties();
 
+    /**
+     * Canonical event bus configuration: the topics created from the manifests and the subscriptions'
+     * consumers, used when {@code brix.outbox.relay.transport=kafka}.
+     */
+    private EventsProperties events = new EventsProperties();
+
     // ==================== Getters and Setters ====================
 
     public boolean isEnabled() {
@@ -145,6 +153,14 @@ public class KafkaEventBusProperties {
 
     public void setHealth(HealthProperties health) {
         this.health = health;
+    }
+
+    public EventsProperties getEvents() {
+        return events;
+    }
+
+    public void setEvents(EventsProperties events) {
+        this.events = events;
     }
 
     // ==================== Nested Configuration Classes ====================
@@ -365,5 +381,59 @@ public class KafkaEventBusProperties {
 
         public int getTimeoutSeconds() { return timeoutSeconds; }
         public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
+    }
+
+    /**
+     * Canonical event bus properties (Kafka design §4.4, §11.2).
+     */
+    public static class EventsProperties {
+
+        /** Partitions of each event topic; the order of one partition key holds inside a partition. */
+        private int partitions = 3;
+
+        /** Replicas of each topic. */
+        private short replicationFactor = 1;
+
+        /** How long an event topic keeps its records. */
+        private Duration retention = Duration.ofDays(7);
+
+        /** Records a subscription's consumer fetches at most per poll. */
+        private int maxPollRecords = 10;
+
+        /** How long a consumer waits for records per poll. */
+        private Duration pollTimeout = Duration.ofMillis(500);
+
+        /** How long a broker reachability probe is trusted. */
+        private Duration readyCacheTtl = Duration.ofSeconds(5);
+
+        /** How long a call to the broker's admin interface may take. */
+        private Duration adminTimeout = Duration.ofSeconds(10);
+
+        /** How long writing a parking record or a release may take. */
+        private Duration sendTimeout = Duration.ofSeconds(10);
+
+        public int getPartitions() { return partitions; }
+        public void setPartitions(int partitions) { this.partitions = partitions; }
+
+        public short getReplicationFactor() { return replicationFactor; }
+        public void setReplicationFactor(short replicationFactor) { this.replicationFactor = replicationFactor; }
+
+        public Duration getRetention() { return retention; }
+        public void setRetention(Duration retention) { this.retention = retention; }
+
+        public int getMaxPollRecords() { return maxPollRecords; }
+        public void setMaxPollRecords(int maxPollRecords) { this.maxPollRecords = maxPollRecords; }
+
+        public Duration getPollTimeout() { return pollTimeout; }
+        public void setPollTimeout(Duration pollTimeout) { this.pollTimeout = pollTimeout; }
+
+        public Duration getReadyCacheTtl() { return readyCacheTtl; }
+        public void setReadyCacheTtl(Duration readyCacheTtl) { this.readyCacheTtl = readyCacheTtl; }
+
+        public Duration getAdminTimeout() { return adminTimeout; }
+        public void setAdminTimeout(Duration adminTimeout) { this.adminTimeout = adminTimeout; }
+
+        public Duration getSendTimeout() { return sendTimeout; }
+        public void setSendTimeout(Duration sendTimeout) { this.sendTimeout = sendTimeout; }
     }
 }
