@@ -32,12 +32,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       bootstrap-servers: localhost:9092
  *       topic-prefix: dev-
  *       outbox:
- *         batch-size: 100
- *         max-retry-count: 5
- *         retention-days: 7
- *         process-interval-ms: 1000
- *         retry-interval-ms: 30000
- *         cleanup-cron: "0 0 3 * * ?"
+ *         publish-timeout-ms: 10000
  * }</pre>
  * 
  * @author Brix Platform Team
@@ -73,14 +68,7 @@ public class KafkaEventBusProperties {
     private ProducerProperties producer = new ProducerProperties();
 
     /**
-     * Consumer configuration.
-     */
-    private ConsumerProperties consumer = new ConsumerProperties();
-
-    /**
-     * Outbox pattern configuration.
-     * 
-     * <p>Controls Outbox event publisher's batch size, retry strategy, cleanup cycle, etc.</p>
+     * The outbox relay's Kafka transport.
      */
     private OutboxProperties outbox = new OutboxProperties();
 
@@ -129,14 +117,6 @@ public class KafkaEventBusProperties {
 
     public void setProducer(ProducerProperties producer) {
         this.producer = producer;
-    }
-
-    public ConsumerProperties getConsumer() {
-        return consumer;
-    }
-
-    public void setConsumer(ConsumerProperties consumer) {
-        this.consumer = consumer;
     }
 
     public OutboxProperties getOutbox() {
@@ -238,130 +218,12 @@ public class KafkaEventBusProperties {
     }
 
     /**
-     * Consumer configuration.
+     * The outbox relay's Kafka transport.
      */
-    public static class ConsumerProperties {
-
-        /**
-         * Consumer group ID.
-         */
-        private String groupId;
-
-        /**
-         * Auto offset reset strategy: earliest, latest, none
-         */
-        private String autoOffsetReset = "earliest";
-
-        /**
-         * Whether to enable auto commit of offsets.
-         */
-        private boolean enableAutoCommit = false;
-
-        /**
-         * Maximum poll records.
-         */
-        private int maxPollRecords = 500;
-
-        // Getters and Setters
-        public String getGroupId() {
-            return groupId;
-        }
-
-        public void setGroupId(String groupId) {
-            this.groupId = groupId;
-        }
-
-        public String getAutoOffsetReset() {
-            return autoOffsetReset;
-        }
-
-        public void setAutoOffsetReset(String autoOffsetReset) {
-            this.autoOffsetReset = autoOffsetReset;
-        }
-
-        public boolean isEnableAutoCommit() {
-            return enableAutoCommit;
-        }
-
-        public void setEnableAutoCommit(boolean enableAutoCommit) {
-            this.enableAutoCommit = enableAutoCommit;
-        }
-
-        public int getMaxPollRecords() {
-            return maxPollRecords;
-        }
-
-        public void setMaxPollRecords(int maxPollRecords) {
-            this.maxPollRecords = maxPollRecords;
-        }
-    }
-
-    /**
-     * Outbox Pattern Configuration.
-     * 
-     * <p>The Outbox pattern temporarily stores events to be published in a database table,
-     * then sends them to Kafka in scheduled batches, ensuring eventual consistency between
-     * event publishing and business data.</p>
-     * 
-     * <p>Configuration items control the following behaviors:</p>
-     * <ul>
-     *   <li>{@code batchSize} - Maximum number of events processed per poll</li>
-     *   <li>{@code maxRetryCount} - Maximum retry count for failed sends</li>
-     *   <li>{@code retentionDays} - Retention days for completed events</li>
-     *   <li>{@code processIntervalMs} - Outbox polling interval (milliseconds)</li>
-         *   <li>{@code retryIntervalMs} - Failed event retry interval (milliseconds)</li>
-         *   <li>{@code cleanupCron} - Cron expression for completed event cleanup</li>
-         *   <li>{@code dlqTopicSuffix} - Dead-letter topic suffix for permanently failed events</li>
-         * </ul>
-         */
     public static class OutboxProperties {
 
-        /** Maximum event batch size per processing. */
-        private int batchSize = 100;
-
-        /** Maximum retry count after send failure. */
-        private int maxRetryCount = 5;
-
-        /** Retention days for completed events (auto-cleanup after expiration). */
-        private int retentionDays = 7;
-
-        /** Outbox event processing polling interval (milliseconds). */
-        private long processIntervalMs = 1000;
-
-        /** Failed event retry polling interval (milliseconds). */
-        private long retryIntervalMs = 30000;
-
-        /** Cron expression for completed event cleanup (default: 3 AM daily). */
-        private String cleanupCron = "0 0 3 * * ?";
-
-        /** Dead-letter topic suffix appended to original topic. */
-        private String dlqTopicSuffix = ".DLQ";
-
-        /** Broker publish timeout for canonical Outbox transport. */
+        /** How long the canonical outbox transport waits for the broker to take a record. */
         private long publishTimeoutMs = 10000;
-
-        // ==================== Getters & Setters ====================
-
-        public int getBatchSize() { return batchSize; }
-        public void setBatchSize(int batchSize) { this.batchSize = batchSize; }
-
-        public int getMaxRetryCount() { return maxRetryCount; }
-        public void setMaxRetryCount(int maxRetryCount) { this.maxRetryCount = maxRetryCount; }
-
-        public int getRetentionDays() { return retentionDays; }
-        public void setRetentionDays(int retentionDays) { this.retentionDays = retentionDays; }
-
-        public long getProcessIntervalMs() { return processIntervalMs; }
-        public void setProcessIntervalMs(long processIntervalMs) { this.processIntervalMs = processIntervalMs; }
-
-        public long getRetryIntervalMs() { return retryIntervalMs; }
-        public void setRetryIntervalMs(long retryIntervalMs) { this.retryIntervalMs = retryIntervalMs; }
-
-        public String getCleanupCron() { return cleanupCron; }
-        public void setCleanupCron(String cleanupCron) { this.cleanupCron = cleanupCron; }
-
-        public String getDlqTopicSuffix() { return dlqTopicSuffix; }
-        public void setDlqTopicSuffix(String dlqTopicSuffix) { this.dlqTopicSuffix = dlqTopicSuffix; }
 
         public long getPublishTimeoutMs() { return publishTimeoutMs; }
         public void setPublishTimeoutMs(long publishTimeoutMs) { this.publishTimeoutMs = publishTimeoutMs; }

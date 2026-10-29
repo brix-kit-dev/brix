@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 import io.runtime.orchestrator.event.ConsumedSubscription;
 
 /**
- * The canonical bus's names live apart from the direct bus's {@code integration.*} topics (Kafka design D18),
- * and each subscription has its own group and parking topic (D19, D20).
+ * Each event type has its own topic under the canonical namespace (Kafka design D18), and each subscription its
+ * own group and parking topic (D19, D20).
  */
 class KafkaEventTopicsTest {
 

@@ -22,9 +22,10 @@
  * 
  * <h2>Core Components</h2>
  * <ul>
- *   <li>{@link io.infra.adapter.kafka.KafkaEventBusCapability} - EventBus capability implementation</li>
- *   <li>{@link io.infra.adapter.kafka.EventTopicResolver} - topic resolution</li>
+ *   <li>{@link io.infra.adapter.kafka.KafkaEventBusCapability} - the direct bus for BEST_EFFORT events</li>
  *   <li>{@link io.infra.adapter.kafka.CanonicalKafkaOutboxTransport} - canonical envelope transport</li>
+ *   <li>{@link io.infra.adapter.kafka.KafkaEventSubscriptionTransport} - one consumer group per subscription</li>
+ *   <li>{@link io.infra.adapter.kafka.KafkaEventTopics} - topic and consumer group names</li>
  * </ul>
  * 
  * <h2>Design Principles</h2>

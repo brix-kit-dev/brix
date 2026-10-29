@@ -12,8 +12,8 @@ import io.runtime.orchestrator.event.ConsumedSubscription;
 
 /**
  * Names of the broker resources of the canonical event bus (Kafka design §11.2, D18, D19): a topic per
- * event type, and a parking topic and a consumer group per subscription. The canonical topics live apart
- * from the direct bus's {@code integration.*} topics, so the two formats never share a topic.
+ * event type, and a parking topic and a consumer group per subscription. The outbox relay and the direct
+ * bus write the same canonical envelope to the same event topic (§13 K2).
  */
 public final class KafkaEventTopics {
 

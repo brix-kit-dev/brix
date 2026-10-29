@@ -31,7 +31,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -48,7 +47,6 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
 import tools.jackson.databind.json.JsonMapper;
 
-import io.infra.adapter.kafka.EventTopicResolver;
 import io.infra.adapter.kafka.CanonicalKafkaOutboxTransport;
 import io.infra.adapter.kafka.KafkaEventBroker;
 import io.infra.adapter.kafka.KafkaEventBusCapability;
@@ -56,7 +54,6 @@ import io.infra.adapter.kafka.KafkaEventSettings;
 import io.infra.adapter.kafka.KafkaEventSubscriptionTransport;
 import io.infra.adapter.kafka.KafkaEventTopics;
 import io.infra.adapter.kafka.health.KafkaHealthIndicator;
-import io.infra.adapter.kafka.metrics.KafkaConsumerMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.outbox.OutboxTransport;
@@ -72,16 +69,16 @@ import io.runtime.sdk.capability.EventBusCapability;
  * <h3>Configuration Items</h3>
  * <table border="1">
  *   <tr><th>Configuration</th><th>Description</th><th>Default</th></tr>
- *   <tr><td>brix.runtime.kafka.enabled</td><td>Whether to enable</td><td>true</td></tr>
- *   <tr><td>brix.runtime.kafka.bootstrap-servers</td><td>Kafka address</td><td>localhost:9092</td></tr>
- *   <tr><td>brix.runtime.kafka.topic-prefix</td><td>Topic prefix</td><td></td></tr>
- *   <tr><td>brix.runtime.module-id</td><td>Current module ID</td><td>unknown</td></tr>
+ *   <tr><td>brix.infra.kafka.enabled</td><td>Whether to enable</td><td>true</td></tr>
+ *   <tr><td>brix.infra.kafka.bootstrap-servers</td><td>Kafka address</td><td>localhost:9092</td></tr>
+ *   <tr><td>brix.infra.kafka.topic-prefix</td><td>Topic prefix</td><td></td></tr>
+ *   <tr><td>brix.infra.module-id</td><td>Producer id of direct-bus events that name no source module</td><td>unknown</td></tr>
  * </table>
  * 
  * <h3>Conditional Assembly</h3>
  * <ul>
  *   <li>Requires KafkaTemplate class to be present (spring-kafka dependency)</li>
- *   <li>Configured brix.runtime.kafka.enabled=true (default)</li>
+ *   <li>Configured brix.infra.kafka.enabled=true (default)</li>
  * </ul>
  * 
  * @author Brix Platform Authors Platform Team
@@ -172,18 +169,6 @@ public class KafkaAutoConfiguration {
                 // Ignore unknown properties (compatibility)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .build();
-    }
-
-    /**
-     * Configure Topic resolver.
-     * 
-     * @param properties Kafka configuration properties
-     * @return EventTopicResolver instance
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public EventTopicResolver eventTopicResolver(KafkaEventBusProperties properties) {
-        return new EventTopicResolver(properties.getTopicPrefix());
     }
 
     /**
@@ -320,25 +305,6 @@ public class KafkaAutoConfiguration {
             KafkaAdmin kafkaAdmin,
             KafkaEventBusProperties properties) {
         return new KafkaHealthIndicator(kafkaAdmin, properties.getHealth().getTimeoutSeconds());
-    }
-
-    /**
-     * Configures consumer-side Micrometer metrics for event observability.
-     *
-     * <p>Activates only when a {@link MeterRegistry} bean is present (typically via
-     * {@code spring-boot-starter-actuator}). Provides counters for consumed events,
-     * retry attempts, and dead-letter queue routing — fulfilling Architecture Red
-     * Line 3 (all cross-plugin communication must be observable).</p>
-     *
-     * @param meterRegistry the Micrometer meter registry
-     * @return KafkaConsumerMetrics instance
-     * @since 3.2.0
-     */
-    @Bean
-    @ConditionalOnBean(MeterRegistry.class)
-    @ConditionalOnMissingBean(KafkaConsumerMetrics.class)
-    public KafkaConsumerMetrics kafkaConsumerMetrics(MeterRegistry meterRegistry) {
-        return new KafkaConsumerMetrics(meterRegistry);
     }
 
 }
