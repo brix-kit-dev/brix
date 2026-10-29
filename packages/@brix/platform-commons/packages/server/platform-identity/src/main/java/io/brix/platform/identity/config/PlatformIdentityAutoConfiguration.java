@@ -96,7 +96,7 @@ public class PlatformIdentityAutoConfiguration {
             ObjectProvider<TotpCapability> totpCapabilityProvider,
             ObjectProvider<SecretEncryptionCapability> secretEncryptionProvider,
             PasswordPolicy passwordPolicy,
-            ApplicationEventPublisher eventPublisher) {
+            @Qualifier("ownerOutboxEventBus") EventBusCapability outbox) {
         return new IdentityAccountCapabilityImpl(
                 persistence.repository(IdentityRepository.class),
                 persistence.repository(PlatformAdminRepository.class),
@@ -105,7 +105,7 @@ public class PlatformIdentityAutoConfiguration {
                 Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(secretEncryptionProvider.getIfAvailable()),
                 new IdentityAccountCapabilityImpl.CredentialSetup(
-                        persistence.repository(SetupTokenRepository.class), passwordPolicy, eventPublisher));
+                        persistence.repository(SetupTokenRepository.class), passwordPolicy, outbox));
     }
 
     @Bean

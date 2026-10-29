@@ -98,8 +98,9 @@ events:
       concurrencyPolicyRef: tenant-first-owner-projection
       retryPolicyRef: event-standard
       idempotencyPolicyRef: persistent-inbox
-    # Delivered in process after the identity owner commits; scoped to that identity's pending
-    # FIRST_OWNER invitations (multi-tenant §6.4).
+    # Delivered from platform_identity_outbox after the identity owner commits (P4 design §4.3); the
+    # runtime scopes it to that identity's pending FIRST_OWNER invitations (multi-tenant §6.4) and
+    # records (handlerId, eventId) in platform_tenant_inbox, so a redelivered fact resends nothing twice.
     - subscriptionId: first-owner-invitee-setup
       eventType: FirstOwnerInviteeSetupCompleted
       schemaRange: ">=1.0.0 <2.0.0"
@@ -108,8 +109,8 @@ events:
       publisherPolicyRef: platform-identity-owner
       timeoutPolicyRef: event-standard
       concurrencyPolicyRef: first-owner-invitee-setup
-      retryPolicyRef: no-retry
-      idempotencyPolicyRef: invitation-reissue
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
 tasks:
   provides: []
 internalContracts:

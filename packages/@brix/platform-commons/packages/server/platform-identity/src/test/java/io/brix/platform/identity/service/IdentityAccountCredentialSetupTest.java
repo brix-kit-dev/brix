@@ -22,7 +22,6 @@ import java.util.OptionalLong;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
 
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
@@ -30,6 +29,7 @@ import io.brix.platform.identity.entity.SetupToken;
 import io.brix.platform.identity.enums.IdentityStatus;
 import io.brix.platform.identity.enums.PlatformAdminRole;
 import io.brix.platform.identity.enums.PlatformAdminStatus;
+import io.brix.platform.identity.event.InviteeSetupCompletedEvent;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
 import io.brix.platform.identity.repository.SetupTokenRepository;
@@ -40,6 +40,7 @@ import io.runtime.sdk.capability.IdentityAccountCapability.CredentialSetupRecord
 import io.runtime.sdk.capability.IdentityAccountCapability.PasswordRejection;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TotpCapability;
+import io.runtime.sdk.event.IntegrationEvent;
 import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 
 /**
@@ -57,7 +58,6 @@ class IdentityAccountCredentialSetupTest {
     private SetupTokenRepository setupTokenRepository;
     private TotpCapability totp;
     private SecretEncryptionCapability encryption;
-    private ApplicationEventPublisher events;
     private RecordedAuditFacts audit;
     private RecordingUnitOfWork unitOfWork;
     private IdentityAccountCapabilityImpl capability;
@@ -71,7 +71,6 @@ class IdentityAccountCredentialSetupTest {
         setupTokenRepository = mock(SetupTokenRepository.class);
         totp = mock(TotpCapability.class);
         encryption = mock(SecretEncryptionCapability.class);
-        events = mock(ApplicationEventPublisher.class);
         audit = new RecordedAuditFacts();
         unitOfWork = new RecordingUnitOfWork();
         capability = new IdentityAccountCapabilityImpl(
@@ -82,7 +81,7 @@ class IdentityAccountCredentialSetupTest {
                 Optional.of(totp),
                 Optional.of(encryption),
                 new IdentityAccountCapabilityImpl.CredentialSetup(
-                        setupTokenRepository, new PasswordPolicy(), events));
+                        setupTokenRepository, new PasswordPolicy(), audit));
         identity = new Identity("owner@clinic.test", "owner@clinic.test");
         identity.setId(IDENTITY_ID);
         identity.setStatus(IdentityStatus.PENDING_SETUP);
@@ -174,7 +173,8 @@ class IdentityAccountCredentialSetupTest {
         assertEquals(5_000L, identity.getMfaLastUsedStep(), "the setup code cannot sign in again");
         assertTrue(token.getUsedAt() != null);
         verify(setupTokenRepository).save(token);
-        verify(events).publishEvent(new FirstOwnerInviteeSetupCompletedEvent(IDENTITY_ID));
+        assertEquals(List.of(new FirstOwnerInviteeSetupCompletedEvent(IDENTITY_ID)), setupFacts(),
+                "the setup-completed fact goes to the identity outbox with the setup");
         assertEquals(List.of("IDENTITY_PASSWORD_SET", "TOTP_BOUND", "SETUP_TOKEN_USED", "IDENTITY_ACTIVATED"),
                 audit.actions());
         assertTrue(audit.facts().stream().allMatch(fact -> fact.actorIdentityId().equals(IDENTITY_ID)
@@ -201,7 +201,7 @@ class IdentityAccountCredentialSetupTest {
         assertNull(identity.getPasswordHash());
         assertNull(token.getUsedAt());
         verify(identityRepository, never()).save(any());
-        verify(events, never()).publishEvent(any());
+        assertEquals(List.of(), audit.published(), "nothing is published");
     }
 
     @Test
@@ -222,5 +222,13 @@ class IdentityAccountCredentialSetupTest {
         admin.setRole(PlatformAdminRole.PLATFORM_SUPER_ADMIN);
         admin.setStatus(PlatformAdminStatus.ACTIVE);
         return admin;
+    }
+
+    /** The setup-completed facts the identity outbox received, as platform-tenant decodes them. */
+    private List<Object> setupFacts() {
+        return audit.published().stream()
+                .filter(InviteeSetupCompletedEvent.class::isInstance)
+                .map(IntegrationEvent::payload)
+                .toList();
     }
 }

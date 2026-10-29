@@ -20,10 +20,11 @@ import io.runtime.sdk.plugin.EventInvocation;
  * the invitee's setup.
  *
  * <p>Bound for the manifest subscription {@code first-owner-invitee-setup}. The runtime delivers
- * the fact after the identity commit and runs this handler in a platform-tenant unit of work
- * scoped to that identity's pending invitations (multi-tenant §6.4,
+ * the fact from the identity owner's outbox after the identity commit (P4 design §4.3), records
+ * {@code (handlerId, eventId)} in {@code platform_tenant_inbox} and runs this handler in the same
+ * platform-tenant unit of work, scoped to that identity's pending invitations (multi-tenant §6.4,
  * {@code first-owner-invitee-setup-fanout}); the handler neither opens a transaction nor
- * chooses a tenant.</p>
+ * chooses a tenant. A failed resend is retried and then parked.</p>
  */
 public final class FirstOwnerInviteeSetupCompletedHandler implements EventHandler<FirstOwnerInviteeSetupCompletedEvent> {
 

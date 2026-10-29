@@ -12,20 +12,18 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
 import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrapAutoConfiguration;
 import io.runtime.orchestrator.event.EventDeliveryScopes;
-import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.TenantAccessCapability;
 
 /**
  * Runtime side of tenant isolation (root BRX-RS-DATA-040, multi-tenant §6.4): bounds the
- * tenant access capability the identity protocol surface calls, and delivers the identity
- * owner's setup-completed fact with the scope its subscribers declare.
+ * tenant access capability the identity protocol surface calls, and gives the outbox relay's
+ * deliveries the scope of the registered policy a subscription names (P4 design §4.3).
  */
 @AutoConfiguration(after = RuntimeShellBootstrapAutoConfiguration.class)
 public class TenantIsolationAutoConfiguration {
@@ -47,17 +45,6 @@ public class TenantIsolationAutoConfiguration {
                     : bean;
             }
         };
-    }
-
-    @Bean
-    @ConditionalOnBean(PluginRuntimeManager.class)
-    public InviteeSetupEventDelivery inviteeSetupEventDelivery(
-            PluginRuntimeManager plugins,
-            ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
-            ObjectProvider<FirstOwnerInviteeIdentitySetupCapability> identitySetup,
-            ObjectProvider<PolicyAuditWriter> writer) {
-        return new InviteeSetupEventDelivery(
-            plugins, ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none), identitySetup, writer::getIfAvailable);
     }
 
     /**

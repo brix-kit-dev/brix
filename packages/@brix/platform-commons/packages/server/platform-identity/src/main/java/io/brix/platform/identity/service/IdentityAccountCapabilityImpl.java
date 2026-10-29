@@ -14,18 +14,19 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 
 import io.brix.platform.auth.AuditAction;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
 import io.brix.platform.identity.entity.SetupToken;
 import io.brix.platform.identity.enums.IdentityStatus;
+import io.brix.platform.identity.event.InviteeSetupCompletedEvent;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
 import io.brix.platform.identity.repository.SetupTokenRepository;
 import io.brix.platform.identity.security.PasswordPolicy;
 import io.brix.platform.identity.security.SecretHashing;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability.IdentityRecord;
 import io.runtime.sdk.capability.IdentityAccountCapability.LoginFailureRecord;
@@ -33,7 +34,6 @@ import io.runtime.sdk.capability.IdentityAccountCapability.PlatformAdminRecord;
 import io.runtime.sdk.capability.SecretEncryptionCapability;
 import io.runtime.sdk.capability.TotpCapability;
 import io.runtime.sdk.capability.UnitOfWork;
-import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 
 /**
  * Identity-owned implementation for global credentials and platform-admin grants.
@@ -62,18 +62,19 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
 
     /**
      * What completing credential setups needs besides the identities: the setup tokens, the
-     * password policy and the publisher of the setup-completed event the tenant Owner listens to.
+     * password policy and the identity Owner's outbox, which records the setup-completed fact the
+     * tenant Owner subscribes to (P4 design §4.3).
      *
      * @param setupTokens one-time setup tokens of the identity Owner
      * @param passwordPolicy security profile for new passwords
-     * @param events publisher of {@link FirstOwnerInviteeSetupCompletedEvent}
+     * @param outbox the identity Owner's outbox event bus
      */
     public record CredentialSetup(SetupTokenRepository setupTokens, PasswordPolicy passwordPolicy,
-                                  ApplicationEventPublisher events) {
+                                  EventBusCapability outbox) {
         public CredentialSetup {
             Objects.requireNonNull(setupTokens, "setupTokens must not be null");
             Objects.requireNonNull(passwordPolicy, "passwordPolicy must not be null");
-            Objects.requireNonNull(events, "events must not be null");
+            Objects.requireNonNull(outbox, "outbox must not be null");
         }
     }
 
@@ -208,8 +209,8 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
             audit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", reason);
             audit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", reason);
             if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose())) {
-                // After commit the tenant Owner sends the invitation link (FirstOwnerInvitationService).
-                credentialSetup.events().publishEvent(new FirstOwnerInviteeSetupCompletedEvent(identity.getId()));
+                // Committed with the setup; once delivered the tenant Owner resends the invitation link.
+                credentialSetup.outbox().publishIntegration(new InviteeSetupCompletedEvent(identity.getId()));
             }
             return CredentialSetupOutcome.COMPLETED;
         });

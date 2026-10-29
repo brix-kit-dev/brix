@@ -10,7 +10,7 @@ import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
 
 /**
- * Stands in for the identity owner's outbox: keeps the audit facts a test publishes, in order.
+ * Stands in for the identity owner's outbox: keeps the events a test publishes, in order.
  */
 final class RecordedAuditFacts implements EventBusCapability {
 
@@ -22,11 +22,17 @@ final class RecordedAuditFacts implements EventBusCapability {
         return publisher;
     }
 
-    /** The published facts, in order. */
+    /** The published audit facts, in order. */
     List<IdentityAuditFact> facts() {
         return published.stream()
+            .filter(IdentityAuditFactRecordedEvent.class::isInstance)
             .map(event -> ((IdentityAuditFactRecordedEvent) event).payload())
             .toList();
+    }
+
+    /** Every published event, in order. */
+    List<IntegrationEvent> published() {
+        return List.copyOf(published);
     }
 
     /** The published facts' actions, in order. */
@@ -36,7 +42,7 @@ final class RecordedAuditFacts implements EventBusCapability {
 
     @Override
     public void publish(DomainEvent event) {
-        throw new AssertionError("identity audit facts are integration events");
+        throw new AssertionError("the identity outbox records integration events only");
     }
 
     @Override
