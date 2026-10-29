@@ -30,6 +30,7 @@ public final class InProcessEventTransport implements OutboxTransport {
     static final String KIND_UNSUPPORTED = EventDelivery.KIND_UNSUPPORTED;
     static final String PUBLISHER_REJECTED = EventDelivery.PUBLISHER_REJECTED;
     static final String SCHEMA_UNSUPPORTED = EventDelivery.SCHEMA_UNSUPPORTED;
+    static final String RELIABILITY_UNSUPPORTED = EventDelivery.RELIABILITY_UNSUPPORTED;
     static final String PAYLOAD_INVALID = EventDelivery.PAYLOAD_INVALID;
     static final String SUBSCRIBER_NOT_READY = EventDelivery.SUBSCRIBER_NOT_READY;
     static final String HANDLER_FAILED = EventDelivery.HANDLER_FAILED;

@@ -242,6 +242,24 @@ public abstract class EventTransportConformance {
     }
 
     @Test
+    void aBestEffortEventReachesASubscriptionWithoutAnInboxEachTimeItIsDelivered() {
+        // Root BRX-RS-MANIFEST-025: a BEST_EFFORT subscription may keep no inbox, and then nothing skips an event
+        // delivered again (MESSAGE-020 promises BEST_EFFORT no more than that).
+        useWorld(ConformanceWorld.withoutInbox());
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+
+        harness.start();
+
+        await("both deliveries are handled", () -> world.handledIds().size() == 2);
+        settle();
+        assertEquals(List.of("event-1", "event-1"), world.handledIds());
+        assertEquals(0, world.duplicates());
+        assertEquals(TenantScope.tenant(ConformanceWorld.TENANT), world.handled().get(0).scope());
+        assertTrue(harness.parked().isEmpty());
+    }
+
+    @Test
     void whileTheTransportCannotDeliverNothingIsSpentLostOrDoubled() {
         harness.reachable(false);
         harness.start();
@@ -275,6 +293,17 @@ public abstract class EventTransportConformance {
         await("every event is handled", () -> world.handledIds().size() == 4);
         settle();
         assertEquals(List.of("event-1", "event-2", "event-3", "event-4"), world.handledIds());
+    }
+
+    /**
+     * Continues the test in another world, through a new harness of the transport under test.
+     *
+     * @param other the world
+     */
+    protected void useWorld(ConformanceWorld other) {
+        harness.close();
+        world = other;
+        harness = harness(other);
     }
 
     /**

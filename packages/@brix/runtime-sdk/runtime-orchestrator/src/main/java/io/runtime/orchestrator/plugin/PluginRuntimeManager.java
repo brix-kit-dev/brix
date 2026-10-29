@@ -694,8 +694,9 @@ public final class PluginRuntimeManager {
             }
         }
 
-        if (!plugin.descriptor.eventSubscriptions().isEmpty()
-                && (data.storageId().isBlank() || data.inbox().isBlank())) {
+        boolean keepsInbox = plugin.descriptor.eventSubscriptions().values().stream()
+            .anyMatch(PluginRuntimeDescriptor.EventSubscription::persistentInbox);
+        if (keepsInbox && (data.storageId().isBlank() || data.inbox().isBlank())) {
             throw new PluginRuntimeException("Plugin '" + plugin.id()
                 + "' subscribes to events without data.storageId/data.inbox");
         }
@@ -710,6 +711,29 @@ public final class PluginRuntimeManager {
                 throw new PluginRuntimeException("Plugin '" + plugin.id()
                     + "' declares incomplete event subscription policy");
             }
+            validateIdempotencyPolicy(plugin, subscription);
+        }
+    }
+
+    /**
+     * A subscription records each event in its owner's persistent inbox, or keeps none, which only a BEST_EFFORT
+     * event type allows (root BRX-RS-MANIFEST-025, MANIFEST-026). A type no installed plugin publishes is not judged:
+     * no event of it can be delivered.
+     */
+    private void validateIdempotencyPolicy(ManagedPlugin plugin, PluginRuntimeDescriptor.EventSubscription subscription) {
+        String policy = subscription.idempotencyPolicyRef();
+        if (!PluginRuntimeDescriptor.EventSubscription.IDEMPOTENCY_POLICIES.contains(policy)) {
+            throw new PluginRuntimeException("Plugin '" + plugin.id() + "' subscription '"
+                + subscription.subscriptionId() + "' names unknown idempotency policy '" + policy + "'");
+        }
+        if (subscription.persistentInbox()) {
+            return;
+        }
+        Optional<EventReliability> published = eventReliability(subscription.eventType());
+        if (published.isPresent() && published.get() != EventReliability.BEST_EFFORT) {
+            throw new PluginRuntimeException("Plugin '" + plugin.id() + "' subscription '"
+                + subscription.subscriptionId() + "' keeps no inbox, but " + subscription.eventType() + " is "
+                + published.get() + ": CRITICAL and STANDARD events need a persistent inbox");
         }
     }
 

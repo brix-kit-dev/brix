@@ -199,6 +199,68 @@ class PluginRuntimeManagerTest {
     }
 
     @Test
+    void aSubscriptionWithoutAnInboxToABestEffortEventTypeNeedsNoInboxTable() {
+        // Root BRX-RS-MANIFEST-025: a BEST_EFFORT subscription may name the explicit no-durable-idempotency policy.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("seen.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .eventPublication("MemberSeen", "1.0.0", EventReliability.BEST_EFFORT)
+                .eventSubscription("seen", "MemberSeen", ">=1.0.0 <2.0.0", "seen.v1", "event-standard",
+                    PluginRuntimeDescriptor.EventSubscription.NO_DURABLE_IDEMPOTENCY)
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        manager.start();
+
+        assertTrue(plugin.started);
+        assertEquals(1, manager.eventSubscribers("MemberSeen").size());
+    }
+
+    @Test
+    void aSubscriptionWithoutAnInboxToACriticalEventTypeStopsThePluginBeforeItStarts() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .requiredCapabilities(List.of(EventBusCapability.class.getName()))
+                .data("platform_tenant", "platform_tenant_outbox", "platform_tenant_inbox")
+                .eventPublication("TenantFirstOwnerAccepted", "1.0.0", EventReliability.CRITICAL)
+                .eventSubscription("projection", "TenantFirstOwnerAccepted", ">=1.0.0 <2.0.0", "projection.v1",
+                    "event-standard", PluginRuntimeDescriptor.EventSubscription.NO_DURABLE_IDEMPOTENCY)
+                .build()),
+            eventBusRegistry(),
+            List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("keeps no inbox"), refused.getMessage());
+        assertFalse(plugin.started);
+    }
+
+    @Test
+    void anIdempotencyPolicyTheRuntimeDoesNotKnowStopsThePluginBeforeItStarts() {
+        // Root BRX-RS-MANIFEST-026: a policy reference must resolve.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("platform_tenant", "platform_tenant_outbox", "platform_tenant_inbox")
+                .eventSubscription("projection", "TenantFirstOwnerAccepted", ">=1.0.0 <2.0.0", "projection.v1",
+                    "event-standard", "at-most-once")
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("at-most-once"), refused.getMessage());
+        assertFalse(plugin.started);
+    }
+
+    @Test
     void aSubscriptionIsServedByTheHandlerItsFactoryCreatedWithThePayloadTypeItNames() {
         RecordingPlugin plugin = new RecordingPlugin();
         plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());

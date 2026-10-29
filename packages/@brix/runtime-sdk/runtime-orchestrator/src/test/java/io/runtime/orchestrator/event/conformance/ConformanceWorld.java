@@ -45,7 +45,7 @@ import io.runtime.sdk.plugin.EventInvocation;
  * the subscriber owner's unit of work and persistent inbox, and a handler that can be made to fail.
  * <p>The unit of work commits the inbox record and what the handler did together, or neither; a second
  * commit of the same {@code (handlerId, eventId)} fails as the inbox's unique key would (root
- * BRX-RS-MESSAGE-025).</p>
+ * BRX-RS-MESSAGE-025). {@link #withoutInbox()} makes a world whose subscription keeps no inbox.</p>
  */
 public final class ConformanceWorld {
 
@@ -87,10 +87,9 @@ public final class ConformanceWorld {
     private final Map<String, AtomicInteger> failuresOfEvent = new ConcurrentHashMap<>();
     private final AtomicInteger calls = new AtomicInteger();
     private final AtomicInteger duplicates = new AtomicInteger();
-    private final PluginRuntimeDescriptor.EventSubscription subscription = new PluginRuntimeDescriptor.EventSubscription(
-        "member-accepted", EVENT, ">=1.0.0 <2.0.0", HANDLER, "event-standard", "persistent-inbox");
-    private final BoundEventHandler bound = new BoundEventHandler(SUBSCRIBER, subscription, new Projection(),
-        MemberAccepted.class);
+    private final PluginRuntimeDescriptor.EventSubscription subscription;
+    private final BoundEventHandler bound;
+    private final String reliability;
     private volatile boolean pluginsStarted = true;
     private volatile boolean failing;
 
@@ -132,6 +131,28 @@ public final class ConformanceWorld {
         return true;
     };
 
+    /** A world whose event type is CRITICAL and whose subscriber records each event in its persistent inbox. */
+    public ConformanceWorld() {
+        this(PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX, "CRITICAL");
+    }
+
+    private ConformanceWorld(String idempotencyPolicy, String reliability) {
+        this.subscription = new PluginRuntimeDescriptor.EventSubscription(
+            "member-accepted", EVENT, ">=1.0.0 <2.0.0", HANDLER, "event-standard", idempotencyPolicy);
+        this.bound = new BoundEventHandler(SUBSCRIBER, subscription, new Projection(), MemberAccepted.class);
+        this.reliability = reliability;
+    }
+
+    /**
+     * Returns a world whose event type is BEST_EFFORT and whose subscription keeps no inbox (root
+     * BRX-RS-MANIFEST-025). The subscriber owns no persistence, so its handler runs outside any unit of work.
+     *
+     * @return the world
+     */
+    public static ConformanceWorld withoutInbox() {
+        return new ConformanceWorld(PluginRuntimeDescriptor.EventSubscription.NO_DURABLE_IDEMPOTENCY, "BEST_EFFORT");
+    }
+
     public InMemoryOutboxStore outbox() {
         return outbox;
     }
@@ -147,7 +168,8 @@ public final class ConformanceWorld {
      * @return the core
      */
     public EventDelivery newDelivery() {
-        return new EventDelivery(subscribers(), owner -> SUBSCRIBER.equals(owner) ? Optional.of(persistence) : Optional.empty(),
+        return new EventDelivery(subscribers(),
+            owner -> SUBSCRIBER.equals(owner) && subscription.persistentInbox() ? Optional.of(persistence) : Optional.empty(),
             inboxStore, new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), EventDeliveryScopes.ENVELOPE);
     }
 
@@ -177,7 +199,7 @@ public final class ConformanceWorld {
     public CanonicalOutboxMessage publish(String eventId, String partitionKey, Long tenantId, long memberId,
             String schemaVersion) {
         CanonicalOutboxMessage message = new CanonicalOutboxMessage("message-" + UUID.randomUUID(), eventId, "EVENT", EVENT,
-            schemaVersion, "CRITICAL", PUBLISHER, tenantId == null ? "PLATFORM" : "TENANT", tenantId, partitionKey,
+            schemaVersion, reliability, PUBLISHER, tenantId == null ? "PLATFORM" : "TENANT", tenantId, partitionKey,
             OffsetDateTime.now(ZoneOffset.UTC), "correlation-" + eventId, null, TRACEPARENT, "conformance=1",
             "{\"tenantId\":" + tenantId + ",\"memberId\":" + memberId + "}", 0);
         outbox.append(message);
@@ -290,8 +312,15 @@ public final class ConformanceWorld {
             if (failing || eventFails || failuresLeft.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
                 throw new IllegalStateException("the projection is failing");
             }
-            transaction.get().handled.add(new Handled(invocation.event().eventId(), invocation.event().payload().memberId(),
-                TenantScopes.requested(), invocation.trace().traceparent(), invocation.deliveryAttempt()));
+            Handled event = new Handled(invocation.event().eventId(), invocation.event().payload().memberId(),
+                TenantScopes.requested(), invocation.trace().traceparent(), invocation.deliveryAttempt());
+            Transaction current = transaction.get();
+            if (current == null) {
+                // Without a unit of work there is nothing to commit with.
+                handled.add(event);
+            } else {
+                current.handled.add(event);
+            }
             return CompletableFuture.completedFuture(null);
         }
     }

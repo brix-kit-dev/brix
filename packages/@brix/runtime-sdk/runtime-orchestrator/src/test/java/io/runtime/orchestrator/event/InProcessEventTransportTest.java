@@ -33,6 +33,7 @@ import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
+import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
 
@@ -55,6 +56,8 @@ class InProcessEventTransportTest {
     private boolean started = true;
     private boolean pluginsStarted = true;
     private String publisher = PUBLISHER;
+    private String idempotencyPolicy = PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX;
+    private boolean ownsPersistence = true;
 
     /** Payload the test handler declares. */
     public record Accepted(Long tenantId, Long memberId) {
@@ -169,6 +172,45 @@ class InProcessEventTransportTest {
     }
 
     @Test
+    void aSubscriptionWithoutAnInboxHandlesEachDeliveryInItsOwnersUnitOfWork() {
+        idempotencyPolicy = PluginRuntimeDescriptor.EventSubscription.NO_DURABLE_IDEMPOTENCY;
+        InProcessEventTransport transport = transport();
+
+        transport.publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1, "BEST_EFFORT"));
+        transport.publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1, "BEST_EFFORT"));
+
+        assertEquals(2, handled.size(), "nothing skips the second delivery");
+        assertEquals(EventReliability.BEST_EFFORT, handled.get(0).event().reliability());
+        assertTrue(inbox.isEmpty());
+        assertEquals(List.of("required", "required"), persistence.modes());
+        assertEquals(List.of(TenantScope.tenant(910001L), TenantScope.tenant(910001L)), scopes);
+    }
+
+    @Test
+    void aSubscriberWithoutPersistenceAndWithoutAnInboxHandlesTheEventInItsTenant() {
+        idempotencyPolicy = PluginRuntimeDescriptor.EventSubscription.NO_DURABLE_IDEMPOTENCY;
+        ownsPersistence = false;
+
+        transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1, "BEST_EFFORT"));
+
+        assertEquals(1, handled.size());
+        assertTrue(persistence.modes().isEmpty());
+        assertEquals(List.of(TenantScope.tenant(910001L)), scopes);
+    }
+
+    @Test
+    void aCriticalEventIsParkedAtASubscriptionWithoutAnInbox() {
+        idempotencyPolicy = PluginRuntimeDescriptor.EventSubscription.NO_DURABLE_IDEMPOTENCY;
+
+        OutboxTransportException parked = assertThrows(OutboxTransportException.class,
+            () -> transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1)));
+
+        assertEquals(InProcessEventTransport.RELIABILITY_UNSUPPORTED, parked.errorCode());
+        assertTrue(parked.permanent());
+        assertTrue(handled.isEmpty());
+    }
+
+    @Test
     void onlyEventsAreDeliveredInProcess() {
         CanonicalOutboxMessage command = new CanonicalOutboxMessage("command-1", "command-1", "COMMAND", "DoSomething",
             "1.0.0", "CRITICAL", PUBLISHER, "PLATFORM", null, "k", OffsetDateTime.now(), "correlation-1", null, null, null, "{}", 1);
@@ -178,7 +220,7 @@ class InProcessEventTransportTest {
 
     private InProcessEventTransport transport() {
         PluginRuntimeDescriptor.EventSubscription subscription = new PluginRuntimeDescriptor.EventSubscription(
-            "projection", EVENT, ">=1.0.0 <2.0.0", "projection.v1", "event-standard", "persistent-inbox", "projection-scope");
+            "projection", EVENT, ">=1.0.0 <2.0.0", "projection.v1", "event-standard", idempotencyPolicy, "projection-scope");
         BoundEventHandler bound = new BoundEventHandler(SUBSCRIBER, subscription, new AcceptedHandler(), Accepted.class);
         EventSubscribers subscribers = new EventSubscribers() {
             @Override
@@ -208,12 +250,17 @@ class InProcessEventTransportTest {
         };
         EventInboxStore store = (owner, handlerId, message) -> inbox.add(owner + "|" + handlerId + "|" + message.eventId());
         return new InProcessEventTransport(subscribers,
-            owner -> SUBSCRIBER.equals(owner) ? Optional.of(persistence) : Optional.empty(), store, new ObjectMapper(),
+            owner -> SUBSCRIBER.equals(owner) && ownsPersistence ? Optional.of(persistence) : Optional.empty(), store,
+            new ObjectMapper(),
             Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(15));
     }
 
     private static CanonicalOutboxMessage message(String payload, String schemaVersion, int attempt) {
-        return new CanonicalOutboxMessage("event-1", "event-1", "EVENT", EVENT, schemaVersion, "CRITICAL", PUBLISHER,
+        return message(payload, schemaVersion, attempt, "CRITICAL");
+    }
+
+    private static CanonicalOutboxMessage message(String payload, String schemaVersion, int attempt, String reliability) {
+        return new CanonicalOutboxMessage("event-1", "event-1", "EVENT", EVENT, schemaVersion, reliability, PUBLISHER,
             "TENANT", 910001L, "910001", OffsetDateTime.parse("2026-10-28T08:59:00Z"), "correlation-1", null, null, null,
             payload, attempt);
     }

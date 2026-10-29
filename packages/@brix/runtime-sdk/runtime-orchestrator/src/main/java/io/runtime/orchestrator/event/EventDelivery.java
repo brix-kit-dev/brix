@@ -14,10 +14,12 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,12 +44,13 @@ import io.runtime.sdk.plugin.TraceContext;
  * Delivers an event to its subscribers, whichever transport carried it (Kafka design §4.1; P4 design §7.3).
  * <p>Each subscriber handles the event in its own owner's unit of work, after the owner's persistent
  * inbox has recorded {@code (handlerId, eventId)} in the same transaction (root BRX-RS-MESSAGE-025).
- * A TENANT event binds its envelope's tenant; a PLATFORM event binds no tenant, unless the
+ * A subscription that keeps no inbox takes BEST_EFFORT events only and handles each delivery, in its owner's
+ * unit of work when the owner has one (MANIFEST-025). A TENANT event binds its envelope's tenant; a PLATFORM event binds no tenant, unless the
  * subscription names a registered cross-tenant policy, which {@link EventDeliveryScopes} binds (P4
  * design §4.3).</p>
  * <p>A delivery fails for good ({@link EventDeliveryException#permanent()}) when its publisher is not the
- * plugin that declares the event type, when the subscriber does not accept its schema version, or when its
- * payload cannot be decoded. A subscriber that is declared but not started, a handler that fails, and every
+ * plugin that declares the event type, when the subscriber does not accept its schema version or, keeping no
+ * inbox, its reliability, or when its payload cannot be decoded. A subscriber that is declared but not started, a handler that fails, and every
  * event while the plugins have not started make the event wait for a retry.</p>
  */
 public final class EventDelivery {
@@ -56,6 +59,8 @@ public final class EventDelivery {
     public static final String KIND_UNSUPPORTED = "OUTBOX_KIND_UNSUPPORTED";
     public static final String PUBLISHER_REJECTED = "EVENT_PUBLISHER_REJECTED";
     public static final String SCHEMA_UNSUPPORTED = "EVENT_SCHEMA_UNSUPPORTED";
+    /** A CRITICAL or STANDARD event reached a subscription that keeps no inbox. */
+    public static final String RELIABILITY_UNSUPPORTED = "EVENT_RELIABILITY_UNSUPPORTED";
     public static final String PAYLOAD_INVALID = "EVENT_PAYLOAD_INVALID";
     public static final String SUBSCRIBER_NOT_READY = "EVENT_SUBSCRIBER_NOT_READY";
     /** The event reached a subscription its type does not have, for example one an upgrade removed. */
@@ -191,6 +196,11 @@ public final class EventDelivery {
             throw permanent(SCHEMA_UNSUPPORTED, subscriber.subscription().handlerId() + " does not accept "
                 + message.messageType() + " " + message.schemaVersion(), null);
         }
+        if (!subscriber.subscription().persistentInbox()
+                && !EventReliability.BEST_EFFORT.name().equalsIgnoreCase(message.reliability())) {
+            throw permanent(RELIABILITY_UNSUPPORTED, subscriber.subscription().handlerId() + " keeps no inbox, so it takes"
+                + " BEST_EFFORT events only, not " + message.messageType() + " " + message.reliability(), null);
+        }
         if (subscriber.handler() == null) {
             throw new EventDeliveryException(SUBSCRIBER_NOT_READY,
                 subscriber.subscription().handlerId() + " of " + subscriber.pluginId() + " is not started", null, false);
@@ -202,17 +212,20 @@ public final class EventDelivery {
         @SuppressWarnings("unchecked")
         EventHandler<Object> handler = (EventHandler<Object>) bound.handler();
         String handlerId = bound.subscription().handlerId();
-        PersistenceCapability persistence = owners.forOwner(bound.pluginId())
-            .orElseThrow(() -> new EventDeliveryException(SUBSCRIBER_NOT_READY,
-                bound.pluginId() + " has no persistence unit for its inbox", null, false));
+        boolean keepsInbox = bound.subscription().persistentInbox();
+        Optional<PersistenceCapability> persistence = owners.forOwner(bound.pluginId());
+        if (keepsInbox && persistence.isEmpty()) {
+            throw new EventDeliveryException(SUBSCRIBER_NOT_READY,
+                bound.pluginId() + " has no persistence unit for its inbox", null, false);
+        }
         List<Long> reached = new ArrayList<>();
         EventDeliveryScope scope = null;
         try {
             scope = scopes.scopeOf(bound, message, invocation.event().payload());
             EventDeliveryScope bind = scope;
-            boolean handled = TenantScopes.within(scope.tenantScope(), () -> persistence.unitOfWork().required(() -> {
+            Supplier<Boolean> handle = () -> {
                 try {
-                    if (!inbox.insertProcessed(bound.pluginId(), handlerId, message)) {
+                    if (keepsInbox && !inbox.insertProcessed(bound.pluginId(), handlerId, message)) {
                         return false;
                     }
                     await(handler.handle(invocation));
@@ -221,7 +234,10 @@ public final class EventDelivery {
                 } finally {
                     reached.addAll(TenantScopes.bound());
                 }
-            }));
+            };
+            boolean handled = TenantScopes.within(scope.tenantScope(), () -> persistence
+                .map(owner -> owner.unitOfWork().required(handle))
+                .orElseGet(handle));
             log.info("event=event.delivered type={} event_id={} handler={} owner={} outcome={} attempt={}",
                 message.messageType(), message.eventId(), handlerId, bound.pluginId(), handled ? "handled" : "duplicate",
                 invocation.deliveryAttempt());

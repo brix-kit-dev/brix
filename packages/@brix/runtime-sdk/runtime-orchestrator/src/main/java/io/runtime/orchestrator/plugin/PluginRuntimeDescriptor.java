@@ -680,6 +680,18 @@ public final class PluginRuntimeDescriptor {
             String idempotencyPolicyRef,
             String scopePolicyRef) {
 
+        /** The idempotency policy that records each delivered event in the owner's persistent inbox. */
+        public static final String PERSISTENT_INBOX = "persistent-inbox";
+
+        /**
+         * The idempotency policy of a subscription that keeps no inbox, which only a BEST_EFFORT event type allows
+         * (root BRX-RS-MANIFEST-025).
+         */
+        public static final String NO_DURABLE_IDEMPOTENCY = "no-durable-idempotency";
+
+        /** The idempotency policies a subscription can name (root BRX-RS-MANIFEST-026). */
+        public static final Set<String> IDEMPOTENCY_POLICIES = Set.of(PERSISTENT_INBOX, NO_DURABLE_IDEMPOTENCY);
+
         /**
          * Creates an event subscription declaration.
          */
@@ -704,6 +716,15 @@ public final class PluginRuntimeDescriptor {
                 String retryPolicyRef,
                 String idempotencyPolicyRef) {
             this(subscriptionId, eventType, schemaRange, handlerId, retryPolicyRef, idempotencyPolicyRef, "");
+        }
+
+        /**
+         * Whether each delivered event is recorded in the owner's persistent inbox.
+         *
+         * @return {@code false} only for {@link #NO_DURABLE_IDEMPOTENCY}
+         */
+        public boolean persistentInbox() {
+            return !NO_DURABLE_IDEMPOTENCY.equals(idempotencyPolicyRef);
         }
     }
 
