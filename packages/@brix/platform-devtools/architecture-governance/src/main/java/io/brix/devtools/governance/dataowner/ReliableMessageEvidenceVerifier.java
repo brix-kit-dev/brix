@@ -27,12 +27,20 @@ public final class ReliableMessageEvidenceVerifier {
      */
     public List<SqlMigrationViolation> verifyPlatformTenantFirstOwner(Path repoRoot) {
         List<RequiredSourceEvidence> required = List.of(
+            // platform-tenant publishes through the persistence adapter's owner outbox bus (Kafka design §13 K9),
+            // whose own tests prove the append commits and rolls back with the owner's transaction.
             new RequiredSourceEvidence(
-                "packages/@brix/platform-commons/packages/server/platform-tenant/src/test/java/"
-                    + "io/brix/platform/tenant/outbox/PlatformTenantOutboxJpaTransactionTest.java",
+                "packages/@brix/platform-commons/packages/server/platform-tenant/src/main/java/"
+                    + "io/brix/platform/tenant/config/TenantAutoConfiguration.java",
+                List.of("@Qualifier(\"ownerOutboxEventBus\") EventBusCapability outbox")),
+            new RequiredSourceEvidence(
+                "packages/@brix/infra-adapters/packages/server/infra-adapter-persistence-jpa/src/test/java/"
+                    + "io/infra/adapter/persistence/jpa/OwnerOutboxEventBusTest.java",
                 List.of(
-                    "producerOutboxAppendCommitsWithOwnerTransaction",
-                    "producerOutboxAppendRollsBackWithOwnerTransaction")),
+                    "aDeclaredEventIsWrittenWithTheOwnersTransaction",
+                    "aRolledBackTransactionLeavesNoEvent",
+                    "outsideTheOwnersUnitOfWorkNothingIsWritten",
+                    "aTenantEventNamesOnlyATenantTheTransactionReaches")),
             new RequiredSourceEvidence(
                 "packages/@brix/platform-commons/packages/server/platform-tenant/src/test/java/"
                     + "io/brix/platform/tenant/outbox/PlatformTenantPersistentInboxE2ETest.java",
