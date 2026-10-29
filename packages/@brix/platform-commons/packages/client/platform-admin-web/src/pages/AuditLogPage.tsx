@@ -50,7 +50,7 @@ export function AuditLogPage(): JSX.Element {
     <AdminPageShell maxWidth={1240}>
       <PageHeader
         title={tt(I18N_KEYS.audit.title)}
-        subtitle={tt(I18N_KEYS.audit.subtitle)}
+        subtitle={`${tt(I18N_KEYS.audit.subtitle)} ${tt(I18N_KEYS.audit.freshness)}`}
         actions={
           <Button
             variant="secondary"

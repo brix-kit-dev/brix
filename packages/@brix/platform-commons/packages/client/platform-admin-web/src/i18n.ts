@@ -297,6 +297,11 @@ export const I18N_KEYS = Object.freeze({
       'audit.subtitle',
       'Review security-sensitive platform actions with actor, target, tenant and result context.',
     ],
+    // Identity facts reach the log through the platform audit owner's inbox (P4 design §8).
+    freshness: [
+      'audit.freshness',
+      'New records can take a few seconds to appear; refresh to see them.',
+    ],
     summaryTotal: ['audit.summaryTotal', 'Total events'],
     summarySuccess: ['audit.summarySuccess', 'Success on page'],
     summaryFailure: ['audit.summaryFailure', 'Failures on page'],
