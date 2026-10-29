@@ -17,9 +17,11 @@ package io.runtime.orchestrator.autoconfigure;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -39,9 +41,11 @@ import java.util.function.BiPredicate;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.GenericApplicationContext;
 
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
 import io.runtime.orchestrator.manifest.UIManifestLoader;
@@ -50,6 +54,8 @@ import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.ObservabilityCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
+import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.event.IntegrationEvent;
 
 class CapabilityAutoConfigurationTest {
 
@@ -138,10 +144,42 @@ class CapabilityAutoConfigurationTest {
                 () -> autoConfiguration.capabilityRegistry(applicationContext(), observabilityProvider()));
     }
 
+    @Test
+    void aBeanInjectedOnlyByQualifierIsNotTheHostsCapability() {
+        EventBusCapability owner = new NoEventBus();
+        EventBusCapability host = new NoEventBus();
+        try (GenericApplicationContext context = new GenericApplicationContext()) {
+            // Registered first, so taking the first bean of the type would pick it.
+            context.registerBean("ownerOutboxEventBus", EventBusCapability.class, () -> owner,
+                definition -> ((AbstractBeanDefinition) definition).setDefaultCandidate(false));
+            context.registerBean("hostEventBus", EventBusCapability.class, () -> host);
+            context.refresh();
+            CapabilityProperties properties = new CapabilityProperties();
+            properties.setAutoDiscovery(false);
+            properties.setRequired(List.of(EventBusCapability.class.getName()));
+
+            CapabilityRegistry registry = new CapabilityAutoConfiguration(properties)
+                .capabilityRegistry(context, observabilityProvider());
+
+            assertSame(host, registry.getRequired(EventBusCapability.class));
+        }
+    }
+
+    private static final class NoEventBus implements EventBusCapability {
+        @Override
+        public void publish(DomainEvent event) {
+        }
+
+        @Override
+        public void publishIntegration(IntegrationEvent event) {
+        }
+    }
+
     private ApplicationContext applicationContext() {
         ApplicationContext applicationContext = mock(ApplicationContext.class);
         when(applicationContext.getBeansOfType(any())).thenReturn(Map.of());
         when(applicationContext.getBeansOfType(eq(ObservabilityCapability.class))).thenReturn(Map.of());
+        when(applicationContext.getBeanNamesForType(any(Class.class), anyBoolean(), anyBoolean())).thenReturn(new String[0]);
         when(applicationContext.getBeansWithAnnotation(any())).thenReturn(Map.of());
         when(applicationContext.getBeanNamesForAnnotation(any())).thenReturn(new String[0]);
         return applicationContext;

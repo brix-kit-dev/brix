@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -248,8 +247,11 @@ public class TenantAutoConfiguration {
     /**
      * Creates the FIRST_OWNER invitation workflow service.
      *
+     * <p>Its reliable EventBus writes {@code TenantFirstOwnerAccepted} to platform-tenant's outbox. It is
+     * not a bean: as one it would hide the Host's event bus, which the adapters create only while no
+     * {@link EventBusCapability} bean exists, and become every module's event bus.</p>
+     *
      * @param persistence owner-scoped persistence of platform-tenant
-     * @param platformTenantEventBusCapability owner-scoped reliable EventBus
      * @param notificationCapabilityProvider managed notification capability provider
      * @param idGenerator ID generator
      * @return configured FIRST_OWNER invitation service
@@ -259,7 +261,6 @@ public class TenantAutoConfiguration {
     public FirstOwnerInvitationService firstOwnerInvitationService(
             PersistenceCapability persistence,
             FirstOwnerInviteeIdentitySetupCapability firstOwnerInviteeIdentitySetupCapability,
-            @Qualifier("platformTenantEventBusCapability") EventBusCapability platformTenantEventBusCapability,
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
             IdGenerator idGenerator,
             ObjectMapper objectMapper,
@@ -271,7 +272,8 @@ public class TenantAutoConfiguration {
             firstOwnerInviteeIdentitySetupCapability,
             persistence.repository(InstallationQuotaRepository.class),
             persistence.repository(BizUserProfileRepository.class),
-            platformTenantEventBusCapability,
+            new PlatformTenantReliableEventBusCapability(
+                persistence.repository(PlatformTenantOutboxRepository.class), objectMapper),
             persistence.repository(TenantAuditLogRepository.class),
             Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
             idGenerator,
@@ -279,22 +281,6 @@ public class TenantAutoConfiguration {
             firstOwnerInvitationProperties.getInviteBaseUrl());
     }
 
-
-    /**
-     * Creates the owner-scoped reliable EventBus for platform-tenant producers.
-     *
-     * @param persistence owner-scoped persistence of platform-tenant
-     * @param objectMapper JSON mapper
-     * @return owner-scoped EventBus capability
-     */
-    @Bean(name = "platformTenantEventBusCapability")
-    @ConditionalOnMissingBean(name = "platformTenantEventBusCapability")
-    public EventBusCapability platformTenantEventBusCapability(
-            PersistenceCapability persistence,
-            ObjectMapper objectMapper) {
-        return new PlatformTenantReliableEventBusCapability(
-            persistence.repository(PlatformTenantOutboxRepository.class), objectMapper);
-    }
 
     /**
      * Registers the TenantAdministration internal contract implementation owned

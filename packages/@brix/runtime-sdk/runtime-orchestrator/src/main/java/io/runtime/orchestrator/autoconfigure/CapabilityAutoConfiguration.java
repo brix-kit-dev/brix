@@ -16,6 +16,7 @@
 package io.runtime.orchestrator.autoconfigure;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -25,12 +26,16 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
@@ -433,10 +438,15 @@ public class CapabilityAutoConfiguration {
                     continue;
                 }
 
-                // Try to get bean from Spring context
-                Map<String, ?> beans = ctx.getBeansOfType(capabilityType);
-                if (!beans.isEmpty()) {
-                    Object bean = beans.values().iterator().next();
+                // Only singletons that plain-type injection would pick: a bean injected by qualifier only,
+                // such as an owner's outbox event bus, is not the Host's capability.
+                List<String> candidates = defaultCandidates(ctx, capabilityType);
+                if (!candidates.isEmpty()) {
+                    if (candidates.size() > 1) {
+                        log.warn("event=capability.several_candidates type={} beans={} registered={}",
+                            typeName, candidates, candidates.get(0));
+                    }
+                    Object bean = ctx.getBean(candidates.get(0));
                     @SuppressWarnings("unchecked")
                     Class<Object> type = (Class<Object>) capabilityType;
                     registry.registerIfAbsent(type, bean);
@@ -446,6 +456,23 @@ public class CapabilityAutoConfiguration {
                 log.warn("Capability type not found: {}", typeName);
             }
         }
+    }
+
+    private static List<String> defaultCandidates(ApplicationContext ctx, Class<?> type) {
+        String[] names = ctx.getBeanNamesForType(type, false, true);
+        if (!(ctx instanceof ConfigurableApplicationContext configurable)) {
+            return List.of(names);
+        }
+        ConfigurableListableBeanFactory factory = configurable.getBeanFactory();
+        return Arrays.stream(names)
+            .filter(name -> !factory.containsBeanDefinition(name)
+                || isDefaultCandidate(factory.getMergedBeanDefinition(name)))
+            .toList();
+    }
+
+    private static boolean isDefaultCandidate(BeanDefinition definition) {
+        return definition.isAutowireCandidate()
+            && (!(definition instanceof AbstractBeanDefinition abstractDefinition) || abstractDefinition.isDefaultCandidate());
     }
 
     /**
