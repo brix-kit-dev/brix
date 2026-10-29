@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,27 +27,37 @@ import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
 import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 
+/**
+ * The JDBC outbox store, on H2 in PostgreSQL mode, or on PostgreSQL itself when {@code BRIX_P0_POSTGRES_URL},
+ * {@code BRIX_P0_POSTGRES_USER} and {@code BRIX_P0_POSTGRES_PASSWORD} point at a throwaway database; each test then
+ * works in a table of its own and drops it.
+ */
 class JdbcOutboxMessageStoreTest {
 
     private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-07-28T01:00:00Z");
 
     private JdbcTemplate jdbcTemplate;
     private JdbcOutboxMessageStore store;
+    private String table;
 
     @BeforeEach
     void setUp() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-            "jdbc:h2:mem:outbox_" + System.nanoTime()
-                + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1",
-            "sa",
-            "");
+        String postgresUrl = System.getenv("BRIX_P0_POSTGRES_URL");
+        DriverManagerDataSource dataSource = postgresUrl == null || postgresUrl.isBlank()
+            ? new DriverManagerDataSource(
+                "jdbc:h2:mem:outbox_" + System.nanoTime()
+                    + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1",
+                "sa",
+                "")
+            : new DriverManagerDataSource(postgresUrl, System.getenv("BRIX_P0_POSTGRES_USER"),
+                System.getenv("BRIX_P0_POSTGRES_PASSWORD"));
         jdbcTemplate = new JdbcTemplate(dataSource);
         org.springframework.jdbc.datasource.DataSourceTransactionManager transactionManager =
             new org.springframework.jdbc.datasource.DataSourceTransactionManager(dataSource);
-        store = new JdbcOutboxMessageStore(jdbcTemplate, new TransactionTemplate(transactionManager),
-            "platform_tenant_outbox");
+        table = "outbox_test_" + Long.toHexString(System.nanoTime());
+        store = new JdbcOutboxMessageStore(jdbcTemplate, new TransactionTemplate(transactionManager), table);
         jdbcTemplate.execute("""
-            CREATE TABLE platform_tenant_outbox (
+            CREATE TABLE %s (
                 message_id VARCHAR(64) PRIMARY KEY,
                 event_id VARCHAR(64) NOT NULL,
                 message_kind VARCHAR(20) NOT NULL,
@@ -63,7 +74,7 @@ class JdbcOutboxMessageStoreTest {
                 causation_id VARCHAR(128),
                 traceparent VARCHAR(128),
                 tracestate VARCHAR(512),
-                payload CLOB NOT NULL,
+                payload TEXT NOT NULL,
                 status VARCHAR(20) NOT NULL,
                 available_at TIMESTAMP NOT NULL,
                 attempt_count INTEGER NOT NULL,
@@ -73,7 +84,12 @@ class JdbcOutboxMessageStoreTest {
                 last_error_code VARCHAR(128),
                 created_at TIMESTAMP NOT NULL
             )
-            """);
+            """.formatted(table));
+    }
+
+    @AfterEach
+    void dropTable() {
+        jdbcTemplate.execute("DROP TABLE IF EXISTS " + table);
     }
 
     @Test
@@ -138,7 +154,7 @@ class JdbcOutboxMessageStoreTest {
     @Test
     void expiredLeaseCanBeReclaimedByAnotherRelay() {
         insert("m-2", "IN_FLIGHT", 1, NOW.minusSeconds(10), NOW.minusSeconds(1));
-        jdbcTemplate.update("UPDATE platform_tenant_outbox SET claim_owner = ? WHERE message_id = ?", "relay-a", "m-2");
+        jdbcTemplate.update("UPDATE " + table + " SET claim_owner = ? WHERE message_id = ?", "relay-a", "m-2");
 
         List<CanonicalOutboxMessage> claimed = store.claimDue("relay-b", NOW, Duration.ofSeconds(30), 10);
 
@@ -245,7 +261,7 @@ class JdbcOutboxMessageStoreTest {
             String partitionKey,
             OffsetDateTime occurredAt) {
         jdbcTemplate.update("""
-            INSERT INTO platform_tenant_outbox (
+            INSERT INTO %s (
                 message_id, event_id, message_kind, message_type, event_type, schema_version,
                 reliability, producer_plugin_id, scope, tenant_id, partition_key,
                 occurred_at, correlation_id, payload, status, available_at,
@@ -253,7 +269,7 @@ class JdbcOutboxMessageStoreTest {
             ) VALUES (?, ?, 'EVENT', 'TenantFirstOwnerAccepted', 'TenantFirstOwnerAccepted', '1.0.0',
                 'CRITICAL', 'platform-tenant', 'TENANT', 100, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
+            """.formatted(table),
             id,
             "event-" + id,
             partitionKey,
@@ -269,7 +285,7 @@ class JdbcOutboxMessageStoreTest {
 
     private String queryString(String column, String messageId) {
         return jdbcTemplate.query(
-            "SELECT " + column + " FROM platform_tenant_outbox WHERE message_id = ?",
+            "SELECT " + column + " FROM " + table + " WHERE message_id = ?",
             rs -> rs.next() ? rs.getString(1) : null,
             messageId);
     }
