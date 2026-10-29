@@ -119,19 +119,22 @@ class PlatformAuditMigrationTest {
     }
 
     @Test
-    void platformIdentityKeepsWritingItsOwnRowsDuringTheSplit() throws SQLException {
-        // EX-2026-003: platform-identity's entity maps neither writer nor the new columns.
-        try (PreparedStatement insert = connection.prepareStatement("INSERT INTO sys_platform_audit_log"
-                + " (id, operator_identity_id, action, resource_type, resource_id, description, success)"
-                + " VALUES (?, 7, 'IDENTITY_ACTIVATED', 'IDENTITY', '7', 'activated', TRUE)")) {
+    void everyNewRowNamesItsWriter() throws SQLException {
+        // V004 (P4e): platform-identity's rows were the ones without a writer; it writes none any more.
+        String withoutWriter = "INSERT INTO sys_platform_audit_log"
+            + " (id, operator_identity_id, action, resource_type, resource_id, success)"
+            + " VALUES (?, 7, 'IDENTITY_ACTIVATED', 'IDENTITY', '7', TRUE)";
+        try (PreparedStatement insert = connection.prepareStatement(withoutWriter)) {
             insert.setLong(1, 1035351323601539001L);
-            insert.executeUpdate();
+            assertThatThrownBy(insert::executeUpdate).as("a row without a writer is refused").isInstanceOf(SQLException.class);
         }
-
         try (Statement statement = connection.createStatement();
-                ResultSet row = statement.executeQuery("SELECT writer FROM sys_platform_audit_log")) {
-            assertThat(row.next()).isTrue();
-            assertThat(row.getString("writer")).isEqualTo("platform-identity");
+                ResultSet column = statement.executeQuery("SELECT column_default, is_nullable FROM information_schema.columns"
+                    + " WHERE table_schema = '" + schema + "' AND table_name = 'sys_platform_audit_log'"
+                    + " AND column_name = 'writer'")) {
+            assertThat(column.next()).isTrue();
+            assertThat(column.getString("column_default")).isNull();
+            assertThat(column.getString("is_nullable")).isEqualTo("NO");
         }
     }
 

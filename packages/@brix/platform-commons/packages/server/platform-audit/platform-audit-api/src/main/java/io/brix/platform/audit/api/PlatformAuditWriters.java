@@ -28,7 +28,10 @@ public final class PlatformAuditWriters {
     /** The runtime policy audit writer, a registered custodian (root BRX-RS-DATA-047). */
     public static final String RUNTIME_TENANT_POLICY = "runtime.tenant-policy-audit";
 
-    /** platform-identity's own rows during the split (exemption EX-2026-003); the column default. */
+    /**
+     * Rows platform-identity wrote itself before its audit facts went through platform-audit (P4 design
+     * P4c). Nothing writes it any more; old rows keep it and stay readable.
+     */
     public static final String PLATFORM_IDENTITY = "platform-identity";
 
     private PlatformAuditWriters() {
