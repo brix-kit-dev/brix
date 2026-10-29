@@ -24,6 +24,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.brix.platform.auth.AuditAction;
 import io.brix.platform.identity.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.identity.core.IdGenerator;
 import io.brix.platform.identity.entity.BootstrapState;
@@ -57,8 +58,7 @@ class PlatformBootstrapAdministrationServiceTest {
     @Mock
     private SetupTokenRepository setupTokenRepository;
 
-    @Mock
-    private AuditService auditService;
+    private final RecordedAuditFacts audit = new RecordedAuditFacts();
 
     private SuperAdminBootstrapProperties properties;
 
@@ -82,7 +82,8 @@ class PlatformBootstrapAdministrationServiceTest {
 
         assertEquals(true, status.open());
         verify(bootstrapStateRepository, never()).save(any(BootstrapState.class));
-        verifyNoInteractions(identityRepository, setupTokenRepository, auditService);
+        verifyNoInteractions(identityRepository, setupTokenRepository);
+        assertEquals(List.of(), audit.facts());
     }
 
     @Test
@@ -116,6 +117,9 @@ class PlatformBootstrapAdministrationServiceTest {
                         "bootstrap:status",
                         "bootstrap:session",
                         "bootstrap:create-first-admin"))));
+        assertEquals(List.of(AuditAction.BOOTSTRAP_SESSION_OPENED), audit.actions());
+        assertEquals(null, audit.facts().get(0).actorIdentityId(), "the bootstrap request is anonymous");
+        assertEquals(IdentityAuditFacts.REASON_BOOTSTRAP, audit.facts().get(0).reasonCode());
     }
 
     @Test
@@ -161,7 +165,7 @@ class PlatformBootstrapAdministrationServiceTest {
                 idGenerator,
                 Optional.empty(),
                 Optional.of(notification),
-                auditService);
+                audit.publisher());
 
         service.createFirstAdmin(new CreateFirstPlatformAdminCommand(
                 "bootstrap-session",
@@ -176,6 +180,11 @@ class PlatformBootstrapAdministrationServiceTest {
         order.verify(platformAdminRepository).flush();
         order.verify(setupTokenRepository).save(any(SetupToken.class));
         verify(notification).send(any());
+        assertEquals(List.of(AuditAction.BOOTSTRAP_ADMIN_CREATED, AuditAction.SETUP_TOKEN_ISSUED), audit.actions());
+        assertEquals(List.of("PLATFORM_ADMIN", "SETUP_TOKEN"),
+                audit.facts().stream().map(fact -> fact.targetType()).toList());
+        assertEquals(true, audit.facts().stream()
+                .allMatch(fact -> IdentityAuditFacts.REASON_BOOTSTRAP.equals(fact.reasonCode())));
     }
 
     @Test
@@ -188,7 +197,7 @@ class PlatformBootstrapAdministrationServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.openSession(new BootstrapSessionCommand("wrong-code")));
-        verifyNoInteractions(auditService);
+        assertEquals(List.of(), audit.facts());
         verify(bootstrapStateRepository, never()).save(any(BootstrapState.class));
     }
 
@@ -204,7 +213,7 @@ class PlatformBootstrapAdministrationServiceTest {
                 new FixedIdGenerator(),
                 jwtIssuerCapability,
                 notificationCapability,
-                auditService);
+                audit.publisher());
     }
 
     private static final class FixedIdGenerator implements IdGenerator {

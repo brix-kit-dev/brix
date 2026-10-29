@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 
 import io.brix.platform.auth.AuditAction;
-import io.brix.platform.identity.dto.AuditEvent;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
 import io.brix.platform.identity.entity.SetupToken;
@@ -55,7 +54,7 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
 
     private final IdentityRepository identityRepository;
     private final PlatformAdminRepository platformAdminRepository;
-    private final Optional<AuditService> auditService;
+    private final Optional<IdentityAuditFacts> auditFacts;
     private final UnitOfWork unitOfWork;
     private final Optional<TotpCapability> totpCapability;
     private final Optional<SecretEncryptionCapability> secretEncryptionCapability;
@@ -85,20 +84,20 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
     public IdentityAccountCapabilityImpl(
             IdentityRepository identityRepository,
             PlatformAdminRepository platformAdminRepository,
-            Optional<AuditService> auditService,
+            Optional<IdentityAuditFacts> auditFacts,
             UnitOfWork unitOfWork) {
-        this(identityRepository, platformAdminRepository, auditService, unitOfWork,
+        this(identityRepository, platformAdminRepository, auditFacts, unitOfWork,
                 Optional.empty(), Optional.empty());
     }
 
     public IdentityAccountCapabilityImpl(
             IdentityRepository identityRepository,
             PlatformAdminRepository platformAdminRepository,
-            Optional<AuditService> auditService,
+            Optional<IdentityAuditFacts> auditFacts,
             UnitOfWork unitOfWork,
             Optional<TotpCapability> totpCapability,
             Optional<SecretEncryptionCapability> secretEncryptionCapability) {
-        this(identityRepository, platformAdminRepository, auditService, unitOfWork,
+        this(identityRepository, platformAdminRepository, auditFacts, unitOfWork,
                 totpCapability, secretEncryptionCapability, null);
     }
 
@@ -109,14 +108,14 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
     public IdentityAccountCapabilityImpl(
             IdentityRepository identityRepository,
             PlatformAdminRepository platformAdminRepository,
-            Optional<AuditService> auditService,
+            Optional<IdentityAuditFacts> auditFacts,
             UnitOfWork unitOfWork,
             Optional<TotpCapability> totpCapability,
             Optional<SecretEncryptionCapability> secretEncryptionCapability,
             CredentialSetup credentialSetup) {
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
-        this.auditService = auditService;
+        this.auditFacts = auditFacts;
         this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
         this.totpCapability = totpCapability == null ? Optional.empty() : totpCapability;
         this.secretEncryptionCapability =
@@ -203,10 +202,11 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
             SetupToken token = found.get().token();
             token.setUsedAt(now);
             credentialSetup.setupTokens().save(token);
-            audit(identity.getId(), AuditAction.IDENTITY_PASSWORD_SET, "IDENTITY", "Identity password set.");
-            audit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", "Identity TOTP bound.");
-            audit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", "Setup token consumed.");
-            audit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", "Identity activated.");
+            String reason = IdentityAuditFacts.setupReason(token.getPurpose());
+            audit(identity.getId(), AuditAction.IDENTITY_PASSWORD_SET, "IDENTITY", reason);
+            audit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", reason);
+            audit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", reason);
+            audit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", reason);
             if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose())) {
                 // After commit the tenant Owner sends the invitation link (FirstOwnerInvitationService).
                 credentialSetup.events().publishEvent(new FirstOwnerInviteeSetupCompletedEvent(identity.getId()));
@@ -238,15 +238,8 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
         return credentialSetup != null && totpCapability.isPresent() && secretEncryptionCapability.isPresent();
     }
 
-    private void audit(Long identityId, String action, String resourceType, String description) {
-        auditService.ifPresent(sink -> sink.log(AuditEvent.builder()
-                .createdBy(identityId)
-                .action(action)
-                .resourceType(resourceType)
-                .resourceId(String.valueOf(identityId))
-                .description(description)
-                .success(true)
-                .build()));
+    private void audit(Long identityId, String action, String resourceType, String reason) {
+        auditFacts.ifPresent(facts -> facts.record(action, identityId, resourceType, String.valueOf(identityId), reason));
     }
 
     private static boolean isBlank(String value) {
@@ -359,14 +352,8 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
             }
             identityRepository.save(identity);
             if (isLocked && !wasLocked) {
-                auditService.ifPresent(sink -> sink.log(AuditEvent.builder()
-                        .createdBy(identity.getId())
-                        .action("IDENTITY_LOCKED")
-                        .resourceType("IDENTITY")
-                        .resourceId(String.valueOf(identity.getId()))
-                        .description("Identity locked after repeated platform login failures.")
-                        .success(true)
-                        .build()));
+                auditFacts.ifPresent(facts -> facts.record(AuditAction.IDENTITY_LOCKED, identity.getId(), "IDENTITY",
+                        String.valueOf(identity.getId()), IdentityAuditFacts.REASON_LOGIN_FAILURES, clientIp));
             }
             Instant lockedUntil = identity.getLockedUntil() != null ? identity.getLockedUntil().toInstant() : null;
             return new LoginFailureRecord(identity.getFailedLoginCount(), isLocked, lockedUntil);

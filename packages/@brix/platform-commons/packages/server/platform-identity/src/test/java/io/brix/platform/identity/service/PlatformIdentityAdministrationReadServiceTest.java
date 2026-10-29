@@ -38,7 +38,7 @@ class PlatformIdentityAdministrationReadServiceTest {
     private final PlatformAdminRepository platformAdminRepository = mock(PlatformAdminRepository.class);
     private final BootstrapCompletionListener bootstrapCompletionListener = mock(BootstrapCompletionListener.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
-    private final AuditService auditService = mock(AuditService.class);
+    private final RecordedAuditFacts audit = new RecordedAuditFacts();
 
     @Test
     void listPlatformAdminsReturnsIdentityOwnerWhitelistView() {
@@ -102,6 +102,6 @@ class PlatformIdentityAdministrationReadServiceTest {
             Optional.empty(),
             bootstrapCompletionListener,
             eventPublisher,
-            auditService);
+            audit.publisher());
     }
 }

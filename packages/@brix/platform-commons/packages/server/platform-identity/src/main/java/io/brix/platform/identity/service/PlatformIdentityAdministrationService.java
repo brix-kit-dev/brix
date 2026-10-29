@@ -18,7 +18,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import io.brix.platform.auth.AuditAction;
-import io.brix.platform.identity.dto.AuditEvent;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
 import io.brix.platform.identity.entity.SetupToken;
@@ -55,7 +54,7 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
     private final Optional<SecretEncryptionCapability> secretEncryptionCapability;
     private final BootstrapCompletionListener bootstrapCompletionListener;
     private final ApplicationEventPublisher eventPublisher;
-    private final AuditService auditService;
+    private final IdentityAuditFacts auditFacts;
 
     /**
      * Creates the platform identity administration service.
@@ -69,7 +68,7 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
             Optional<SecretEncryptionCapability> secretEncryptionCapability,
             BootstrapCompletionListener bootstrapCompletionListener,
             ApplicationEventPublisher eventPublisher,
-            AuditService auditService) {
+            IdentityAuditFacts auditFacts) {
         this.setupTokenRepository = setupTokenRepository;
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
@@ -78,7 +77,7 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         this.secretEncryptionCapability = secretEncryptionCapability;
         this.bootstrapCompletionListener = bootstrapCompletionListener;
         this.eventPublisher = eventPublisher;
-        this.auditService = auditService;
+        this.auditFacts = auditFacts;
     }
 
     @Override
@@ -151,10 +150,11 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         });
         token.setUsedAt(OffsetDateTime.now());
         setupTokenRepository.save(token);
-        writeAudit(identity.getId(), AuditAction.IDENTITY_PASSWORD_SET, "IDENTITY", "Identity password set.");
-        writeAudit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", "Identity TOTP bound.");
-        writeAudit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", "Setup token consumed.");
-        writeAudit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", "Identity activated.");
+        String reason = IdentityAuditFacts.setupReason(token.getPurpose());
+        auditFacts.record(AuditAction.IDENTITY_PASSWORD_SET, identity.getId(), "IDENTITY", null, reason);
+        auditFacts.record(AuditAction.TOTP_BOUND, identity.getId(), "IDENTITY", null, reason);
+        auditFacts.record(AuditAction.SETUP_TOKEN_USED, identity.getId(), "SETUP_TOKEN", null, reason);
+        auditFacts.record(AuditAction.IDENTITY_ACTIVATED, identity.getId(), "IDENTITY", null, reason);
         bootstrapCompletionListener.completeIfEligible(identity.getId());
         eventPublisher.publishEvent(new BootstrapCompletionListener.IdentitySetupCompletedEvent(identity.getId()));
         return new PlatformSetupCompletionView(true);
@@ -224,16 +224,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
             throw new IllegalArgumentException("identity is not pending setup");
         }
         return identity;
-    }
-
-    private void writeAudit(Long actorId, String action, String resourceType, String description) {
-        auditService.log(AuditEvent.builder()
-                .createdBy(actorId)
-                .action(action)
-                .resourceType(resourceType)
-                .description(description)
-                .success(true)
-                .build());
     }
 
     private static String challengeId(String setupToken, Long identityId) {

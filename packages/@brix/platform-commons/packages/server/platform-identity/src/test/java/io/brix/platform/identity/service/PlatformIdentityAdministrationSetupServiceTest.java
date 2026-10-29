@@ -43,7 +43,7 @@ class PlatformIdentityAdministrationSetupServiceTest {
     private final BootstrapCompletionListener bootstrapCompletionListener =
         org.mockito.Mockito.mock(BootstrapCompletionListener.class);
     private final ApplicationEventPublisher eventPublisher = org.mockito.Mockito.mock(ApplicationEventPublisher.class);
-    private final AuditService auditService = org.mockito.Mockito.mock(AuditService.class);
+    private final RecordedAuditFacts audit = new RecordedAuditFacts();
 
     /**
      * FIRST_OWNER invitees set up on the hosted setup page of the identity protocol surface
@@ -82,7 +82,7 @@ class PlatformIdentityAdministrationSetupServiceTest {
             Optional.of(encryptionCapability),
             bootstrapCompletionListener,
             eventPublisher,
-            auditService);
+            audit.publisher());
     }
 
     private static SetupToken setupToken(Long identityId, String purpose) {

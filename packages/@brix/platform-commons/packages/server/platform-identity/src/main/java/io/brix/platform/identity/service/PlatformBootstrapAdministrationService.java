@@ -22,7 +22,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import io.brix.platform.auth.AuditAction;
 import io.brix.platform.identity.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.identity.core.IdGenerator;
-import io.brix.platform.identity.dto.AuditEvent;
 import io.brix.platform.identity.entity.BootstrapState;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
@@ -68,7 +67,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
     private final IdGenerator idGenerator;
     private final Optional<JwtIssuerCapability> jwtIssuerCapability;
     private final Optional<NotificationCapability> notificationCapability;
-    private final AuditService auditService;
+    private final IdentityAuditFacts auditFacts;
 
     /**
      * Creates the bootstrap administration service.
@@ -82,7 +81,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
             IdGenerator idGenerator,
             Optional<JwtIssuerCapability> jwtIssuerCapability,
             Optional<NotificationCapability> notificationCapability,
-            AuditService auditService) {
+            IdentityAuditFacts auditFacts) {
         this.properties = properties;
         this.bootstrapStateRepository = bootstrapStateRepository;
         this.identityRepository = identityRepository;
@@ -91,7 +90,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         this.idGenerator = idGenerator;
         this.jwtIssuerCapability = jwtIssuerCapability;
         this.notificationCapability = notificationCapability;
-        this.auditService = auditService;
+        this.auditFacts = auditFacts;
     }
 
     @Override
@@ -142,8 +141,8 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         state.openSetupCode(SecretHashing.sha256Base64Url(configuredCode), now.plusSeconds(setupCodeTtlSeconds));
         state.activateSession(SecretHashing.sha256Base64Url(token), now.plusSeconds(ttlSeconds));
         bootstrapStateRepository.save(state);
-        writeAudit(null, AuditAction.BOOTSTRAP_SESSION_OPENED, RESOURCE_TYPE_BOOTSTRAP,
-                "Bootstrap setup session opened.", true);
+        auditFacts.record(AuditAction.BOOTSTRAP_SESSION_OPENED, null, RESOURCE_TYPE_BOOTSTRAP, null,
+                IdentityAuditFacts.REASON_BOOTSTRAP);
         return new BootstrapSessionView("BOOTSTRAP_SETUP", token, ttlSeconds);
     }
 
@@ -198,10 +197,10 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
 
         state.consumeSession();
         bootstrapStateRepository.save(state);
-        writeAudit(identity.getId(), AuditAction.BOOTSTRAP_ADMIN_CREATED, RESOURCE_TYPE_PLATFORM_ADMIN,
-                "First formal platform super administrator created.", true);
-        writeAudit(identity.getId(), AuditAction.SETUP_TOKEN_ISSUED, "SETUP_TOKEN",
-                "Initial platform setup token issued.", true);
+        auditFacts.record(AuditAction.BOOTSTRAP_ADMIN_CREATED, identity.getId(), RESOURCE_TYPE_PLATFORM_ADMIN, null,
+                IdentityAuditFacts.REASON_BOOTSTRAP);
+        auditFacts.record(AuditAction.SETUP_TOKEN_ISSUED, identity.getId(), "SETUP_TOKEN", null,
+                IdentityAuditFacts.REASON_BOOTSTRAP);
         return new PlatformAdminCreationView(admin.getId(), identity.getId(), true);
     }
 
@@ -235,16 +234,6 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         token.setCreatedBy(createdBy);
         setupTokenRepository.save(token);
         return new TokenPair(raw);
-    }
-
-    private void writeAudit(Long actorId, String action, String resourceType, String description, boolean success) {
-        auditService.log(AuditEvent.builder()
-                .createdBy(actorId)
-                .action(action)
-                .resourceType(resourceType)
-                .description(description)
-                .success(success)
-                .build());
     }
 
     private static String randomToken() {

@@ -9,21 +9,18 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.brix.platform.auth.AuditAction;
-import io.brix.platform.identity.dto.AuditEvent;
 import io.brix.platform.identity.entity.BootstrapState;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
 import io.brix.platform.identity.enums.IdentityStatus;
 import io.brix.platform.identity.enums.PlatformAdminRole;
+import io.brix.platform.identity.event.IdentityAuditFact;
 import io.brix.platform.identity.repository.BootstrapStateRepository;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
@@ -35,7 +32,7 @@ class BootstrapCompletionListenerTest {
         BootstrapStateRepository stateRepository = mock(BootstrapStateRepository.class);
         IdentityRepository identityRepository = mock(IdentityRepository.class);
         PlatformAdminRepository adminRepository = mock(PlatformAdminRepository.class);
-        AuditService auditService = mock(AuditService.class);
+        RecordedAuditFacts audit = new RecordedAuditFacts();
 
         BootstrapState state = new BootstrapState();
         state.setId(BootstrapState.SINGLETON_ID);
@@ -79,7 +76,7 @@ class BootstrapCompletionListenerTest {
                 stateRepository,
                 identityRepository,
             adminRepository,
-            auditService);
+            audit.publisher());
 
         assertTrue(listener.completeIfEligible(2L));
 
@@ -100,22 +97,16 @@ class BootstrapCompletionListenerTest {
         verify(identityRepository).findById(2L);
         verify(identityRepository).findById(3L);
 
-        ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
-        verify(auditService, times(4)).log(auditCaptor.capture());
-        assertEquals(4, auditCaptor.getAllValues().size());
-        assertEquals(2, auditCaptor.getAllValues().stream()
-            .filter(auditEvent -> AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED.equals(auditEvent.getAction()))
-            .count());
-        assertEquals(2, auditCaptor.getAllValues().stream()
-            .filter(auditEvent -> AuditAction.IDENTITY_DISABLED.equals(auditEvent.getAction()))
-            .count());
-        assertTrue(auditCaptor.getAllValues().stream()
-            .filter(auditEvent -> AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED.equals(auditEvent.getAction()))
-            .allMatch(auditEvent -> "BOOTSTRAP".equals(auditEvent.getResourceType())));
-        assertTrue(auditCaptor.getAllValues().stream()
-            .map(AuditEvent::getResourceId)
-            .toList()
-            .containsAll(List.of("1", "3")));
+        assertEquals(List.of(AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED, AuditAction.IDENTITY_DISABLED,
+                AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED, AuditAction.IDENTITY_DISABLED), audit.actions());
+        assertTrue(audit.facts().stream()
+            .filter(fact -> AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED.equals(fact.action()))
+            .allMatch(fact -> "BOOTSTRAP".equals(fact.targetType())));
+        assertEquals(List.of("1", "1", "3", "3"), audit.facts().stream().map(IdentityAuditFact::targetId).toList());
+        assertTrue(audit.facts().stream().allMatch(fact -> fact.actorIdentityId() == 2L
+            && IdentityAuditFacts.REASON_BOOTSTRAP_COMPLETED.equals(fact.reasonCode())
+            && IdentityAuditFacts.EXECUTION_IDENTITY.equals(fact.executionIdentity())
+            && fact.success()));
         }
 
         @Test
@@ -123,7 +114,7 @@ class BootstrapCompletionListenerTest {
         BootstrapStateRepository stateRepository = mock(BootstrapStateRepository.class);
         IdentityRepository identityRepository = mock(IdentityRepository.class);
         PlatformAdminRepository adminRepository = mock(PlatformAdminRepository.class);
-        AuditService auditService = mock(AuditService.class);
+        RecordedAuditFacts audit = new RecordedAuditFacts();
 
         BootstrapState state = new BootstrapState();
         state.setId(BootstrapState.SINGLETON_ID);
@@ -145,7 +136,7 @@ class BootstrapCompletionListenerTest {
             stateRepository,
             identityRepository,
             adminRepository,
-            auditService);
+            audit.publisher());
 
         assertFalse(listener.completeIfEligible(2L));
 
@@ -153,6 +144,6 @@ class BootstrapCompletionListenerTest {
         verify(stateRepository, never()).save(state);
         verify(identityRepository, never()).save(formalIdentity);
         verify(adminRepository, never()).save(formalAdmin);
-        verify(auditService, never()).log(any(AuditEvent.class));
+        assertEquals(List.of(), audit.facts());
     }
 }

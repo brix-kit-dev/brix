@@ -58,7 +58,7 @@ class IdentityAccountCredentialSetupTest {
     private TotpCapability totp;
     private SecretEncryptionCapability encryption;
     private ApplicationEventPublisher events;
-    private AuditService audit;
+    private RecordedAuditFacts audit;
     private RecordingUnitOfWork unitOfWork;
     private IdentityAccountCapabilityImpl capability;
     private Identity identity;
@@ -72,12 +72,12 @@ class IdentityAccountCredentialSetupTest {
         totp = mock(TotpCapability.class);
         encryption = mock(SecretEncryptionCapability.class);
         events = mock(ApplicationEventPublisher.class);
-        audit = mock(AuditService.class);
+        audit = new RecordedAuditFacts();
         unitOfWork = new RecordingUnitOfWork();
         capability = new IdentityAccountCapabilityImpl(
                 identityRepository,
                 platformAdminRepository,
-                Optional.of(audit),
+                Optional.of(audit.publisher()),
                 unitOfWork,
                 Optional.of(totp),
                 Optional.of(encryption),
@@ -175,7 +175,12 @@ class IdentityAccountCredentialSetupTest {
         assertTrue(token.getUsedAt() != null);
         verify(setupTokenRepository).save(token);
         verify(events).publishEvent(new FirstOwnerInviteeSetupCompletedEvent(IDENTITY_ID));
-        verify(audit, org.mockito.Mockito.times(4)).log(any());
+        assertEquals(List.of("IDENTITY_PASSWORD_SET", "TOTP_BOUND", "SETUP_TOKEN_USED", "IDENTITY_ACTIVATED"),
+                audit.actions());
+        assertTrue(audit.facts().stream().allMatch(fact -> fact.actorIdentityId().equals(IDENTITY_ID)
+                && String.valueOf(IDENTITY_ID).equals(fact.targetId())
+                && "tenant-first-owner-setup".equals(fact.reasonCode())),
+                "the hosted setup records the invitee's own steps");
 
         // The consumed token opens nothing any more.
         assertEquals(CredentialSetupOutcome.INVALID_TOKEN, capability.completeCredentialSetup(RAW_TOKEN, "other-hash", "123456"));

@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 
 import io.brix.platform.auth.AuditAction;
-import io.brix.platform.identity.dto.AuditEvent;
 import io.brix.platform.identity.entity.BootstrapState;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
@@ -44,17 +43,17 @@ public class BootstrapCompletionListener {
     private final BootstrapStateRepository bootstrapStateRepository;
     private final IdentityRepository identityRepository;
     private final PlatformAdminRepository platformAdminRepository;
-    private final AuditService auditService;
+    private final IdentityAuditFacts auditFacts;
 
     public BootstrapCompletionListener(
             BootstrapStateRepository bootstrapStateRepository,
             IdentityRepository identityRepository,
             PlatformAdminRepository platformAdminRepository,
-            AuditService auditService) {
+            IdentityAuditFacts auditFacts) {
         this.bootstrapStateRepository = bootstrapStateRepository;
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
-        this.auditService = auditService;
+        this.auditFacts = auditFacts;
     }
 
     @EventListener
@@ -107,22 +106,11 @@ public class BootstrapCompletionListener {
                 bootstrapIdentity.setTokenVersion(bootstrapIdentity.getTokenVersion() + 1);
                 identityRepository.save(bootstrapIdentity);
 
-                auditService.log(AuditEvent.builder()
-                        .createdBy(completedByIdentityId)
-                        .action(AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED)
-                        .resourceType("BOOTSTRAP")
-                        .resourceId(String.valueOf(bootstrapIdentity.getId()))
-                        .description("Passwordless bootstrap anchor deactivated after formal platform super admin setup completion.")
-                        .success(true)
-                        .build());
-                auditService.log(AuditEvent.builder()
-                        .createdBy(completedByIdentityId)
-                        .action(AuditAction.IDENTITY_DISABLED)
-                        .resourceType("IDENTITY")
-                        .resourceId(String.valueOf(bootstrapIdentity.getId()))
-                        .description("Bootstrap identity disabled after formal platform super admin setup completion.")
-                        .success(true)
-                        .build());
+                String anchor = String.valueOf(bootstrapIdentity.getId());
+                auditFacts.record(AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED, completedByIdentityId, "BOOTSTRAP", anchor,
+                        IdentityAuditFacts.REASON_BOOTSTRAP_COMPLETED);
+                auditFacts.record(AuditAction.IDENTITY_DISABLED, completedByIdentityId, "IDENTITY", anchor,
+                        IdentityAuditFacts.REASON_BOOTSTRAP_COMPLETED);
             });
         }
     }

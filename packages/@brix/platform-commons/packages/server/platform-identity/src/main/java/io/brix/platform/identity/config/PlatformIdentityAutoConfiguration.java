@@ -8,6 +8,7 @@ package io.brix.platform.identity.config;
 import java.util.Optional;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -26,17 +27,16 @@ import io.brix.platform.identity.internal.PlatformIdentityAdministration;
 import io.brix.platform.identity.repository.BootstrapStateRepository;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
-import io.brix.platform.identity.repository.PlatformAuditLogRepository;
 import io.brix.platform.identity.repository.SetupTokenRepository;
 import io.brix.platform.identity.security.PasswordPolicy;
-import io.brix.platform.identity.service.AuditService;
 import io.brix.platform.identity.service.BootstrapCompletionListener;
 import io.brix.platform.identity.service.IdentityAccountCapabilityImpl;
+import io.brix.platform.identity.service.IdentityAuditFacts;
 import io.brix.platform.identity.service.IdentityFirstOwnerInviteeSetupCapabilityImpl;
 import io.brix.platform.identity.service.PlatformBootstrapAdministrationService;
 import io.brix.platform.identity.service.PlatformIdentityAdministrationService;
 import io.brix.platform.identity.service.PlatformMfaLoginSupport;
-import io.brix.platform.identity.service.RepositoryPlatformIdentityAuditService;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
@@ -54,6 +54,10 @@ import io.runtime.sdk.capability.TotpCapability;
  * owner from this module's artifact, so the injected capability can only reach identity data.
  * Transactions are opened by the runtime around internal contract calls and by the owner unit of
  * work in the capabilities other modules call directly; nothing here uses framework transactions.</p>
+ *
+ * <p>Platform audit facts go to the identity owner's outbox in the same unit of work, through the
+ * persistence adapter's owner outbox bus, which is injected only by its qualifier (P4 design §4.2,
+ * §10.2). The platform audit owner writes the records.</p>
  */
 @AutoConfiguration
 @EntityScan(basePackages = "io.brix.platform.identity.entity")
@@ -68,11 +72,9 @@ public class PlatformIdentityAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(AuditService.class)
-    public AuditService platformIdentityAuditService(PersistenceCapability persistence, IdGenerator idGenerator) {
-        return new RepositoryPlatformIdentityAuditService(
-                persistence.repository(PlatformAuditLogRepository.class),
-                idGenerator);
+    @ConditionalOnMissingBean(IdentityAuditFacts.class)
+    public IdentityAuditFacts platformIdentityAuditFacts(@Qualifier("ownerOutboxEventBus") EventBusCapability outbox) {
+        return new IdentityAuditFacts(outbox);
     }
 
     /** New passwords per identity-auth BRX-IA-CRED-001; the limits belong to the security profile. */
@@ -90,7 +92,7 @@ public class PlatformIdentityAutoConfiguration {
     @ConditionalOnMissingBean(IdentityAccountCapability.class)
     public IdentityAccountCapability identityAccountCapability(
             PersistenceCapability persistence,
-            ObjectProvider<AuditService> auditServiceProvider,
+            ObjectProvider<IdentityAuditFacts> auditFactsProvider,
             ObjectProvider<TotpCapability> totpCapabilityProvider,
             ObjectProvider<SecretEncryptionCapability> secretEncryptionProvider,
             PasswordPolicy passwordPolicy,
@@ -98,7 +100,7 @@ public class PlatformIdentityAutoConfiguration {
         return new IdentityAccountCapabilityImpl(
                 persistence.repository(IdentityRepository.class),
                 persistence.repository(PlatformAdminRepository.class),
-                Optional.ofNullable(auditServiceProvider.getIfAvailable()),
+                Optional.ofNullable(auditFactsProvider.getIfAvailable()),
                 persistence.unitOfWork(),
                 Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(secretEncryptionProvider.getIfAvailable()),
@@ -128,12 +130,12 @@ public class PlatformIdentityAutoConfiguration {
     @ConditionalOnMissingBean(BootstrapCompletionListener.class)
     public BootstrapCompletionListener bootstrapCompletionListener(
             PersistenceCapability persistence,
-            AuditService auditService) {
+            IdentityAuditFacts auditFacts) {
         return new BootstrapCompletionListener(
                 persistence.repository(BootstrapStateRepository.class),
                 persistence.repository(IdentityRepository.class),
                 persistence.repository(PlatformAdminRepository.class),
-                auditService);
+                auditFacts);
     }
 
     @Bean
@@ -144,7 +146,7 @@ public class PlatformIdentityAutoConfiguration {
             IdGenerator idGenerator,
             ObjectProvider<JwtIssuerCapability> jwtIssuerCapabilityProvider,
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
-            AuditService auditService) {
+            IdentityAuditFacts auditFacts) {
         return new PlatformBootstrapAdministrationService(
                 properties,
                 persistence.repository(BootstrapStateRepository.class),
@@ -154,7 +156,7 @@ public class PlatformIdentityAutoConfiguration {
                 idGenerator,
                 Optional.ofNullable(jwtIssuerCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
-                auditService);
+                auditFacts);
     }
 
     @Bean
@@ -166,7 +168,7 @@ public class PlatformIdentityAutoConfiguration {
             ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider,
             BootstrapCompletionListener bootstrapCompletionListener,
             ApplicationEventPublisher eventPublisher,
-            AuditService auditService) {
+            IdentityAuditFacts auditFacts) {
         return new PlatformIdentityAdministrationService(
                 persistence.repository(SetupTokenRepository.class),
                 persistence.repository(IdentityRepository.class),
@@ -176,7 +178,7 @@ public class PlatformIdentityAutoConfiguration {
                 Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()),
                 bootstrapCompletionListener,
                 eventPublisher,
-                auditService);
+                auditFacts);
     }
 
     @Bean
