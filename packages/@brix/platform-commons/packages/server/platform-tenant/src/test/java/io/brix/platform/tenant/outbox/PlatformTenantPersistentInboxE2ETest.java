@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,9 +82,12 @@ import io.runtime.orchestrator.outbox.OutboxTransportException;
 import io.runtime.orchestrator.plugin.ClasspathPluginRuntimeDescriptorResolver;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.UnitOfWork;
+import io.runtime.sdk.event.DomainEvent;
+import io.runtime.sdk.event.IntegrationEvent;
 
 /**
  * The FIRST_OWNER chain inside platform-tenant: the acceptance commits an outbox row, and the
@@ -371,12 +375,50 @@ class PlatformTenantPersistentInboxE2ETest {
             new StaticFirstOwnerInviteeIdentitySetupCapability("owner@example.com"),
             installationQuotaRepository,
             profileRepository,
-            new PlatformTenantReliableEventBusCapability(outboxRepository, objectMapper),
+            new OwnerOutbox(),
             auditLogRepository,
             Optional.empty(),
             new SequentialIdGenerator(),
             objectMapper,
             "https://console.example.test/invite");
+    }
+
+    /**
+     * Writes the acceptance's outbox row with the envelope the persistence adapter's owner outbox bus writes in the
+     * host (Kafka design §13 K9); that adapter is not on this module's classpath.
+     */
+    private final class OwnerOutbox implements EventBusCapability {
+
+        @Override
+        public void publish(DomainEvent event) {
+            throw new UnsupportedOperationException("the owner outbox records integration events only");
+        }
+
+        @Override
+        public void publishIntegration(IntegrationEvent event) {
+            PluginRuntimeDescriptor.EventPublication publication = DESCRIPTOR.eventPublications().get(event.eventTypeId());
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            PlatformTenantOutbox row = new PlatformTenantOutbox();
+            row.setMessageId(event.getEventId());
+            row.setEventId(event.getEventId());
+            row.setMessageKind("EVENT");
+            row.setMessageType(event.eventTypeId());
+            row.setEventType(event.eventTypeId());
+            row.setSchemaVersion(publication.version());
+            row.setReliability(publication.reliability().name());
+            row.setProducerPluginId(OWNER);
+            row.setScope(event.scope().name());
+            row.setTenantId(Long.valueOf(event.getTenantId()));
+            row.setPartitionKey(event.getRoutingKey());
+            row.setOccurredAt(OffsetDateTime.ofInstant(event.getTimestamp(), ZoneOffset.UTC));
+            row.setCorrelationId(event.getEventId());
+            row.setPayload(objectMapper.writeValueAsString(event.payload()));
+            row.setStatus("PENDING");
+            row.setAvailableAt(now);
+            row.setAttemptCount(0);
+            row.setCreatedAt(now);
+            outboxRepository.save(row);
+        }
     }
 
     private void seedPendingTenantAndInvitation(Long tenantId, Long invitationId, String rawToken) {

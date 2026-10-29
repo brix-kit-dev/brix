@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -34,11 +35,9 @@ import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.core.SnowflakeIdGenerator;
-import io.brix.platform.tenant.outbox.PlatformTenantReliableEventBusCapability;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.OrganizationRepository;
-import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
@@ -247,13 +246,14 @@ public class TenantAutoConfiguration {
     /**
      * Creates the FIRST_OWNER invitation workflow service.
      *
-     * <p>Its reliable EventBus writes {@code TenantFirstOwnerAccepted} to platform-tenant's outbox. It is
-     * not a bean: as one it would hide the Host's event bus, which the adapters create only while no
-     * {@link EventBusCapability} bean exists, and become every module's event bus.</p>
+     * <p>It publishes {@code TenantFirstOwnerAccepted} through platform-tenant's owner outbox bus, which the
+     * persistence adapter provides to every owner that declares {@code data.outbox} (P4 design D13; Kafka design
+     * §13 K9): the event is written to {@code platform_tenant_outbox} in the acceptance's own transaction.</p>
      *
      * @param persistence owner-scoped persistence of platform-tenant
      * @param notificationCapabilityProvider managed notification capability provider
      * @param idGenerator ID generator
+     * @param outbox platform-tenant's owner outbox bus
      * @return configured FIRST_OWNER invitation service
      */
     @Bean
@@ -264,7 +264,8 @@ public class TenantAutoConfiguration {
             ObjectProvider<NotificationCapability> notificationCapabilityProvider,
             IdGenerator idGenerator,
             ObjectMapper objectMapper,
-            FirstOwnerInvitationProperties firstOwnerInvitationProperties) {
+            FirstOwnerInvitationProperties firstOwnerInvitationProperties,
+            @Qualifier("ownerOutboxEventBus") EventBusCapability outbox) {
         return new FirstOwnerInvitationService(
             persistence.repository(TenantInvitationRepository.class),
             persistence.repository(TenantRepository.class),
@@ -272,8 +273,7 @@ public class TenantAutoConfiguration {
             firstOwnerInviteeIdentitySetupCapability,
             persistence.repository(InstallationQuotaRepository.class),
             persistence.repository(BizUserProfileRepository.class),
-            new PlatformTenantReliableEventBusCapability(
-                persistence.repository(PlatformTenantOutboxRepository.class), objectMapper),
+            outbox,
             persistence.repository(TenantAuditLogRepository.class),
             Optional.ofNullable(notificationCapabilityProvider.getIfAvailable()),
             idGenerator,
