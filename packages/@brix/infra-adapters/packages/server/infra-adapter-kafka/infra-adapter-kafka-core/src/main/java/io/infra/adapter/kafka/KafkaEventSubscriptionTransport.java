@@ -7,6 +7,8 @@
 package io.infra.adapter.kafka;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,7 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
     private final CanonicalEnvelopeCodec envelopes;
     private final KafkaParkingLot parking;
     private final Clock clock;
+    private final java.util.function.Supplier<Instant> registeredAt;
 
     /**
      * Creates the transport.
@@ -70,6 +73,10 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.parking = new KafkaParkingLot(producer, topics, () -> new KafkaConsumer<>(readerConfigs()), envelopes,
             settings, clock);
+        // A subscription is registered when the host that first runs it starts: everything this host publishes is
+        // later, and the minute covers clocks a little apart (Kafka design D32).
+        this.registeredAt = () -> Instant.ofEpochMilli(java.lang.management.ManagementFactory.getRuntimeMXBean().getStartTime())
+            .minus(Duration.ofMinutes(1));
     }
 
     @Override
@@ -83,6 +90,9 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
         broker.ensureCommandTopics(subscriptions.stream().filter(ConsumedSubscription::command)
             .map(ConsumedSubscription::eventType).toList());
         broker.ensureParkingTopics(subscriptions);
+        Map<String, String> topicsByGroup = new java.util.LinkedHashMap<>();
+        subscriptions.forEach(subscription -> topicsByGroup.put(topics.consumerGroup(subscription), topics.topicOf(subscription)));
+        broker.startNewGroupsAt(topicsByGroup, registeredAt.get());
         parking.watch(subscriptions);
     }
 

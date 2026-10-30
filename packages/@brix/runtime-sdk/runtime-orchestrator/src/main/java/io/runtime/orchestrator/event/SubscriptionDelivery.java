@@ -30,6 +30,18 @@ public final class SubscriptionDelivery {
 
     /** A record that is not an event envelope; it is parked at once. */
     public static final String ENVELOPE_INVALID = "EVENT_ENVELOPE_INVALID";
+    /** The subscriber, or its database, cannot take the record now; it waits without spending an attempt. */
+    public static final String OWNER_UNAVAILABLE = "EVENT_OWNER_UNAVAILABLE";
+    private static final Duration MIN_WAIT = Duration.ofSeconds(1);
+    private static final java.util.Set<String> NOT_READY = java.util.Set.of(EventDelivery.SUBSCRIBER_NOT_READY,
+        io.runtime.orchestrator.command.CommandDelivery.PROVIDER_NOT_READY);
+    private static final java.util.Set<String> UNAVAILABLE_TYPES = java.util.Set.of(
+        "org.springframework.transaction.CannotCreateTransactionException",
+        "org.springframework.dao.DataAccessResourceFailureException",
+        "org.springframework.jdbc.CannotGetJdbcConnectionException",
+        "java.sql.SQLTransientConnectionException",
+        "java.sql.SQLNonTransientConnectionException",
+        "java.net.ConnectException");
     /** A failure the delivery core did not classify; it is retried. */
     static final String UNEXPECTED = "EVENT_UNEXPECTED";
 
@@ -100,8 +112,18 @@ public final class SubscriptionDelivery {
             metrics.recordDelivered(message.messageType());
             return Outcome.DELIVERED;
         } catch (EventDeliveryException failure) {
+            if (unavailable(failure)) {
+                // The subscriber or its database is not there: wait for it without spending an attempt (Kafka design
+                // §14 K11), as the relay waits for the broker (D21), instead of parking and passing the record.
+                Duration wait = policy.backoffAfter(1).compareTo(MIN_WAIT) < 0 ? MIN_WAIT : policy.backoffAfter(1);
+                metrics.recordRetry(message.messageType(), OWNER_UNAVAILABLE);
+                log.info("event=event.subscriber_waiting subscription={} type={} event_id={} code={} attempt={}",
+                    subscription.name(), message.messageType(), message.eventId(), failure.errorCode(), attempt);
+                return Outcome.waitFor(OWNER_UNAVAILABLE, wait);
+            }
             return failed(message, failure.errorCode(), failure.permanent(), attempt);
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | LinkageError | StackOverflowError failure) {
+            // An Error from a handler fails this delivery, not the consumer's thread (Kafka design §14 K10).
             log.warn("event=event.delivery_failed subscription={} type={} event_id={} code={} attempt={}",
                 subscription.name(), message.messageType(), message.eventId(), UNEXPECTED, attempt, failure);
             return failed(message, UNEXPECTED, false, attempt);
@@ -122,11 +144,33 @@ public final class SubscriptionDelivery {
             subscription.name(), eventType, eventId, errorCode, attempts);
     }
 
+    /** Whether the failure says the subscriber or its database is not there, rather than that the handler failed. */
+    static boolean unavailable(EventDeliveryException failure) {
+        if (NOT_READY.contains(failure.errorCode())) {
+            return true;
+        }
+        for (Throwable cause = failure.getCause(); cause != null; cause = cause.getCause()) {
+            if (cause instanceof io.runtime.sdk.capability.PersistenceCapabilityException persistence
+                    && persistence.errorCode() == io.runtime.sdk.capability.PersistenceCapabilityException.Code.UNAVAILABLE) {
+                return true;
+            }
+            for (Class<?> type = cause.getClass(); type != null; type = type.getSuperclass()) {
+                if (UNAVAILABLE_TYPES.contains(type.getName())) {
+                    return true;
+                }
+            }
+            if (cause.getCause() == cause) {
+                break;
+            }
+        }
+        return false;
+    }
+
     private Outcome failed(CanonicalOutboxMessage message, String errorCode, boolean permanent, int attempt) {
         if (permanent || attempt >= policy.maxAttempts()) {
             return Outcome.park(errorCode);
         }
-        Duration delay = policy.retryBackoffBase().multipliedBy(attempt).plus(jitter.apply(attempt));
+        Duration delay = policy.backoffAfter(attempt).plus(jitter.apply(attempt));
         metrics.recordRetry(message.messageType(), errorCode);
         log.info("event=event.retry_scheduled subscription={} type={} event_id={} code={} attempt={} delay_ms={}",
             subscription.name(), message.messageType(), message.eventId(), errorCode, attempt, delay.toMillis());
@@ -167,6 +211,10 @@ public final class SubscriptionDelivery {
         static Outcome park(String errorCode) {
             return new Outcome(Kind.PARK, errorCode, Duration.ZERO);
         }
+
+        static Outcome waitFor(String errorCode, Duration delay) {
+            return new Outcome(Kind.WAIT, errorCode, delay);
+        }
     }
 
     /** What happens to a record. */
@@ -176,6 +224,8 @@ public final class SubscriptionDelivery {
         /** Deliver it again after the delay, before any later record of its partition. */
         RETRY,
         /** Keep it in the subscription's parking place, then move past it. */
-        PARK
+        PARK,
+        /** The subscriber cannot take the record now: try the same attempt again after the delay. */
+        WAIT
     }
 }

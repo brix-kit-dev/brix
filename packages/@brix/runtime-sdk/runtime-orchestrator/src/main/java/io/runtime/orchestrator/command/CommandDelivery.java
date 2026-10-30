@@ -226,7 +226,8 @@ public final class CommandDelivery {
             throw new EventDeliveryException(PROVIDER_NOT_READY, ownerId + " has no persistence unit for its inbox",
                 null, false);
         }
-        CommandInvocation<Object> invocation = invocation(message, decoded, span);
+        java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        CommandInvocation<Object> invocation = invocation(message, decoded, span, cancelled);
         @SuppressWarnings("unchecked")
         CommandHandler<Object> handler = (CommandHandler<Object>) provider.handler();
         TenantScope scope = message.tenantId() == null ? TenantScope.none() : TenantScope.tenant(message.tenantId());
@@ -239,7 +240,7 @@ public final class CommandDelivery {
                         decoded.idempotencyKey())) {
                     return "duplicate_key";
                 }
-                await(handler.handle(invocation));
+                await(handler.handle(invocation), invocation.deadline(), cancelled);
                 return "handled";
             };
             String outcome = TenantScopes.within(scope, () -> persistence.get().unitOfWork().required(work));
@@ -254,7 +255,7 @@ public final class CommandDelivery {
     }
 
     private CommandInvocation<Object> invocation(CanonicalOutboxMessage message, CommandMessages.Decoded decoded,
-            MessageTracing.MessageSpan span) {
+            MessageTracing.MessageSpan span, java.util.concurrent.atomic.AtomicBoolean cancelled) {
         String traceparent = span.traceparent() == null || span.traceparent().isBlank()
             ? newTraceparent()
             : span.traceparent();
@@ -278,7 +279,7 @@ public final class CommandDelivery {
             decoded.payload());
         Instant now = clock.instant();
         return new CommandInvocation<>(envelope, new TraceContext(traceparent, span.tracestate()), now.plus(deadline),
-            () -> stopped, Math.max(1, message.attemptCount()));
+            () -> stopped || cancelled.get(), Math.max(1, message.attemptCount()));
     }
 
     /** The versions of the provider's major: a minor or patch change keeps a command readable. */
@@ -303,14 +304,29 @@ public final class CommandDelivery {
         return "00-" + hex.formatHex(trace) + "-" + hex.formatHex(span) + "-01";
     }
 
-    private static void await(CompletionStage<Void> handled) {
+    /**
+     * Waits for the handler until the invocation's deadline (root BRX-RS-RESILIENCE-001; Kafka design §14 K10). A
+     * handler still running then is told through its cancellation signal, and the delivery fails, so its unit of
+     * work rolls back and the attempt counts.
+     */
+    private void await(CompletionStage<Void> handled, Instant deadline, java.util.concurrent.atomic.AtomicBoolean cancelled) {
+        java.util.concurrent.CompletableFuture<Void> future = handled.toCompletableFuture();
+        long wait = Math.max(0L, Duration.between(clock.instant(), deadline).toMillis());
         try {
-            handled.toCompletableFuture().join();
-        } catch (CompletionException failure) {
+            future.get(wait, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException late) {
+            cancelled.set(true);
+            future.cancel(true);
+            throw new IllegalStateException("the handler did not finish by its deadline " + deadline, late);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            cancelled.set(true);
+            throw new IllegalStateException("the delivery was interrupted", interrupted);
+        } catch (java.util.concurrent.ExecutionException failure) {
             if (failure.getCause() instanceof RuntimeException cause) {
                 throw cause;
             }
-            throw failure;
+            throw new CompletionException(failure.getCause());
         }
     }
 

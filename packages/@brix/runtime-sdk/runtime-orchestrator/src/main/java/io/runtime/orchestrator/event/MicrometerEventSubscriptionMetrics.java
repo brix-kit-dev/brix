@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import io.micrometer.core.instrument.Counter;
@@ -39,6 +40,10 @@ public final class MicrometerEventSubscriptionMetrics implements EventSubscripti
     public static final String LAG = "brix.event.subscription.lag";
     /** How long the record at the head of a partition has been failing, in seconds. */
     public static final String STALLED_AGE = "brix.event.subscription.stalled.age";
+    /** How long the record in the handler has been there; it grows while a handler hangs (Kafka design §14 K10). */
+    public static final String HANDLING_AGE = "brix.event.subscription.handling.age";
+    /** 1 while the subscription's consumer is consuming, 0 when it has stopped. */
+    public static final String RUNNING = "brix.event.subscription.consumer.running";
 
     private final MeterRegistry registry;
     private final String subscription;
@@ -117,6 +122,19 @@ public final class MicrometerEventSubscriptionMetrics implements EventSubscripti
     @Override
     public void recordStalled(Duration age) {
         stalledSeconds.set(age.toSeconds());
+    }
+
+    @Override
+    public void watch(Supplier<Duration> handlingFor, BooleanSupplier running) {
+        Gauge.builder(HANDLING_AGE, handlingFor, age -> age.get().toMillis() / 1000.0)
+            .description("How long the record in the subscription's handler has been there")
+            .baseUnit("seconds")
+            .tag("subscription", subscription)
+            .register(registry);
+        Gauge.builder(RUNNING, running, alive -> alive.getAsBoolean() ? 1 : 0)
+            .description("Whether the subscription's consumer is consuming")
+            .tag("subscription", subscription)
+            .register(registry);
     }
 
     private Counter counter(String name, String description, String eventType, String errorCode) {

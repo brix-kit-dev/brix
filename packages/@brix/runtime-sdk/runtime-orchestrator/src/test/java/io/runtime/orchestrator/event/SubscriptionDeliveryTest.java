@@ -71,6 +71,53 @@ class SubscriptionDeliveryTest {
     }
 
     @Test
+    void aSubscriberThatHasNotStartedIsWaitedForWithoutSpendingTheAttempt() {
+        // Kafka design §14 K11: like the relay waiting for the broker (D21), nothing is parked or passed.
+        world.pluginsStarted(false);
+
+        SubscriptionDelivery.Outcome outcome = delivery.receive(event("1.0.0"), world.policy().maxAttempts());
+
+        assertEquals(SubscriptionDelivery.Kind.WAIT, outcome.kind());
+        assertEquals(SubscriptionDelivery.OWNER_UNAVAILABLE, outcome.errorCode());
+    }
+
+    @Test
+    void anOwnerWhoseDatabaseIsUnavailableIsWaitedFor() {
+        EventDeliveryException failure = new EventDeliveryException(EventDelivery.HANDLER_FAILED, "failed",
+            new IllegalStateException("wrapped", new io.runtime.sdk.capability.PersistenceCapabilityException(
+                io.runtime.sdk.capability.PersistenceCapabilityException.Code.UNAVAILABLE, java.util.Map.of(), null)),
+            false);
+
+        assertTrue(SubscriptionDelivery.unavailable(failure));
+        assertTrue(!SubscriptionDelivery.unavailable(new EventDeliveryException(EventDelivery.HANDLER_FAILED, "failed",
+            new IllegalStateException("the projection is failing"), false)), "a failing handler spends attempts");
+    }
+
+    @Test
+    void anErrorFromAHandlerIsAFailedDeliveryNotADeadConsumer() {
+        // Kafka design §14 K10: the consumer's thread survives a handler whose class cannot load.
+        world.failNextWith(new NoClassDefFoundError("io/example/Missing"));
+
+        SubscriptionDelivery.Outcome outcome = delivery.receive(event("1.0.0"), 1);
+
+        assertEquals(SubscriptionDelivery.Kind.RETRY, outcome.kind());
+    }
+
+    @Test
+    void aHandlerThatDoesNotFinishByItsDeadlineIsCancelledAndFails() {
+        // Root BRX-RS-RESILIENCE-001: the deadline is enforced, not advisory.
+        world.hanging(true);
+        SubscriptionDelivery shortDeadline = new SubscriptionDelivery(subscription,
+            world.newDelivery(Duration.ofMillis(200)), world.policy(), ignored -> Duration.ZERO, EventSubscriptionMetrics.NOOP);
+
+        SubscriptionDelivery.Outcome outcome = shortDeadline.receive(event("1.0.0"), 1);
+
+        assertEquals(SubscriptionDelivery.Kind.RETRY, outcome.kind());
+        assertEquals(EventDelivery.HANDLER_FAILED, outcome.errorCode());
+        assertEquals(List.of(), world.handled(), "its unit of work rolled back");
+    }
+
+    @Test
     void theLastAttemptParks() {
         world.failing(true);
 

@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -24,9 +25,15 @@ import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.CreateTopicsOptions;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
+import org.apache.kafka.clients.admin.ListOffsetsResult;
 import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.slf4j.Logger;
@@ -144,6 +151,55 @@ public final class KafkaEventBroker implements AutoCloseable {
                 .configs(Map.of(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT)));
         }
         ensure(wanted);
+    }
+
+    /**
+     * Places every consumer group that has no committed position at the first record written at or after the time
+     * its subscription was registered (Kafka design D32, §14 K15): a new subscription, or one renamed, receives what
+     * is published from then on, not the history the topic still retains. A group with a position keeps it. Each
+     * group must have no members yet.
+     *
+     * @param topicsByGroup each new subscription's consumer group and the topic it consumes
+     * @param registeredAt when the subscriptions were registered
+     */
+    public void startNewGroupsAt(Map<String, String> topicsByGroup, Instant registeredAt) {
+        long timeout = settings.readyCacheTtl().plusSeconds(10).toMillis();
+        try {
+            for (Map.Entry<String, String> group : topicsByGroup.entrySet()) {
+                Map<TopicPartition, OffsetAndMetadata> committed = admin.listConsumerGroupOffsets(group.getKey())
+                    .partitionsToOffsetAndMetadata().get(timeout, TimeUnit.MILLISECONDS);
+                if (committed.values().stream().anyMatch(Objects::nonNull)) {
+                    continue;
+                }
+                TopicDescription topic = admin.describeTopics(List.of(group.getValue())).allTopicNames()
+                    .get(timeout, TimeUnit.MILLISECONDS).get(group.getValue());
+                Map<TopicPartition, OffsetSpec> atTime = new HashMap<>();
+                Map<TopicPartition, OffsetSpec> latest = new HashMap<>();
+                for (TopicPartitionInfo partition : topic.partitions()) {
+                    TopicPartition id = new TopicPartition(group.getValue(), partition.partition());
+                    atTime.put(id, OffsetSpec.forTimestamp(registeredAt.toEpochMilli()));
+                    latest.put(id, OffsetSpec.latest());
+                }
+                // The end first: a partition with no record at or after the time yet starts there, and a record that
+                // becomes visible between the two queries is not skipped.
+                Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> ends = admin.listOffsets(latest).all()
+                    .get(timeout, TimeUnit.MILLISECONDS);
+                Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> found = admin.listOffsets(atTime).all()
+                    .get(timeout, TimeUnit.MILLISECONDS);
+                Map<TopicPartition, OffsetAndMetadata> start = new HashMap<>();
+                found.forEach((partition, info) -> start.put(partition, new OffsetAndMetadata(info.offset() >= 0
+                    ? Math.min(info.offset(), ends.get(partition).offset())
+                    : ends.get(partition).offset())));
+                admin.alterConsumerGroupOffsets(group.getKey(), start).all().get(timeout, TimeUnit.MILLISECONDS);
+                log.info("event=kafka.group_started group={} topic={} registered_at={} offsets={}", group.getKey(),
+                    group.getValue(), registeredAt, start.values().stream().map(OffsetAndMetadata::offset).toList());
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while placing the new consumer groups", interrupted);
+        } catch (ExecutionException | TimeoutException | KafkaException failure) {
+            throw new IllegalStateException("The new consumer groups could not be placed", failure);
+        }
     }
 
     /**

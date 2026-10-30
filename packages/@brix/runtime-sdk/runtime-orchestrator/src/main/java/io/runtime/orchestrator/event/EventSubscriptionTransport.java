@@ -97,6 +97,15 @@ public interface EventSubscriptionTransport {
         boolean running();
 
         /**
+         * How long the record in the handler has been there, zero when none is (Kafka design §14 K10).
+         *
+         * @return the handling age
+         */
+        default Duration handlingFor() {
+            return Duration.ZERO;
+        }
+
+        /**
          * Stops fetching, lets the record in hand finish, keeps the position reached and closes.
          *
          * @param timeout how long to wait for the record in hand

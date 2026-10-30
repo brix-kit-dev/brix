@@ -143,6 +143,31 @@ public final class EventSubscriptionGroup implements SmartLifecycle {
         return consuming && consumptions.stream().allMatch(EventSubscriptionTransport.Consumption::running);
     }
 
+    /**
+     * What the host's health reports about the subscriptions (Kafka design §14 K10).
+     *
+     * @return the consumers' state
+     */
+    public synchronized SubscriptionsState state() {
+        int running = (int) consumptions.stream().filter(EventSubscriptionTransport.Consumption::running).count();
+        Duration longest = consumptions.stream()
+            .map(EventSubscriptionTransport.Consumption::handlingFor)
+            .max(Duration::compareTo)
+            .orElse(Duration.ZERO);
+        return new SubscriptionsState(consuming, consumptions.size(), running, longest);
+    }
+
+    /**
+     * The consumers' state.
+     *
+     * @param consuming whether the group has started its consumers; it waits for the plugins and the broker first
+     * @param consumers how many consumers it started
+     * @param running how many of them are consuming
+     * @param longestHandling how long the longest-running record has been in its handler
+     */
+    public record SubscriptionsState(boolean consuming, int consumers, int running, Duration longestHandling) {
+    }
+
     private void supervise() {
         try {
             while (!delivery.ready() || !broker.ready()) {

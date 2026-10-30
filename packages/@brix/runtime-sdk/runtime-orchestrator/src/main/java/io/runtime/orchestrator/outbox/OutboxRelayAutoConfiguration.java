@@ -174,6 +174,19 @@ public class OutboxRelayAutoConfiguration {
             scopes.getIfAvailable(() -> EventDeliveryScopes.ENVELOPE), tracing.getIfAvailable(() -> MessageTracing.NOOP));
     }
 
+    /** The subscriptions' consumers in the host's health, when the host has the health API (Kafka design §14 K10). */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.boot.health.contributor.HealthIndicator")
+    static class EventSubscriptionsHealth {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "eventSubscriptionsHealthIndicator")
+        io.runtime.orchestrator.event.EventSubscriptionsHealthIndicator eventSubscriptionsHealthIndicator(
+                EventSubscriptionGroup group) {
+            return new io.runtime.orchestrator.event.EventSubscriptionsHealthIndicator(group);
+        }
+    }
+
     /** Relay meters per owner outbox, when the host has Micrometer. */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(MeterRegistry.class)

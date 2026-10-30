@@ -7,6 +7,8 @@
 package io.runtime.orchestrator.event;
 
 import java.time.Duration;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * Low-cardinality metrics of one subscription a broker consumes for (Kafka design §4.5).
@@ -36,5 +38,15 @@ public interface EventSubscriptionMetrics {
 
     /** How long the record at the head of a partition has been failing; zero when none is. */
     default void recordStalled(Duration age) {
+    }
+
+    /**
+     * Watches the consumer from outside its thread (Kafka design §14 K10): the gauges are read when they are
+     * scraped, so a consumer that stopped, or a handler that hangs, still shows.
+     *
+     * @param handlingFor how long the record being handled has been in its handler, zero when none is
+     * @param running whether the consumer's thread is consuming
+     */
+    default void watch(Supplier<Duration> handlingFor, BooleanSupplier running) {
     }
 }

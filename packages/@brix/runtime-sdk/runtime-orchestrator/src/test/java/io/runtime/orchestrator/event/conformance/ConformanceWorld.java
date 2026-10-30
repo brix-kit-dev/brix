@@ -108,6 +108,8 @@ public final class ConformanceWorld {
     private final String reliability;
     private volatile boolean pluginsStarted = true;
     private volatile boolean failing;
+    private volatile Error nextError;
+    private volatile boolean hanging;
 
     private final UnitOfWork unitOfWork = new UnitOfWork() {
         @Override
@@ -189,9 +191,19 @@ public final class ConformanceWorld {
      * @return the core
      */
     public EventDelivery newDelivery() {
+        return newDelivery(Duration.ofSeconds(5));
+    }
+
+    /**
+     * Returns a new delivery core whose handlers have the given deadline.
+     *
+     * @param deadline how long a handler may take
+     * @return the core
+     */
+    public EventDelivery newDelivery(Duration deadline) {
         return new EventDelivery(subscribers(),
             owner -> SUBSCRIBER.equals(owner) && subscription.persistentInbox() ? Optional.of(persistence) : Optional.empty(),
-            inboxStore, new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), EventDeliveryScopes.ENVELOPE, tracing)
+            inboxStore, new ObjectMapper(), Clock.systemUTC(), deadline, EventDeliveryScopes.ENVELOPE, tracing)
             .deliveringCommandsWith(new CommandDelivery(commandProviders(),
                 owner -> SUBSCRIBER.equals(owner) ? Optional.of(persistence) : Optional.empty(), inboxStore,
                 (owner, handlerId, message, scope, key) -> {
@@ -293,6 +305,16 @@ public final class ConformanceWorld {
     }
 
     /** Makes the handler fail until told otherwise. */
+    /** Makes the handler throw this error once, as a handler whose class cannot load does. */
+    public void failNextWith(Error error) {
+        this.nextError = error;
+    }
+
+    /** Makes the handler return a stage that never completes, as a handler that hangs does. */
+    public void hanging(boolean hanging) {
+        this.hanging = hanging;
+    }
+
     public void failing(boolean failing) {
         this.failing = failing;
     }
@@ -425,6 +447,14 @@ public final class ConformanceWorld {
         @Override
         public CompletionStage<Void> handle(EventInvocation<MemberAccepted> invocation) {
             calls.incrementAndGet();
+            Error error = nextError;
+            if (error != null) {
+                nextError = null;
+                throw error;
+            }
+            if (hanging) {
+                return new CompletableFuture<>();
+            }
             AtomicInteger ofEvent = failuresOfEvent.get(invocation.event().eventId());
             boolean eventFails = ofEvent != null && ofEvent.getAndUpdate(left -> Math.max(0, left - 1)) > 0;
             if (failing || eventFails || failuresLeft.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {

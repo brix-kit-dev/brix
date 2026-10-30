@@ -296,7 +296,8 @@ public final class EventDelivery {
     }
 
     private void deliver(CanonicalOutboxMessage message, BoundEventHandler bound, MessageTracing.MessageSpan span) {
-        EventInvocation<Object> invocation = invocation(message, bound, span);
+        java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        EventInvocation<Object> invocation = invocation(message, bound, span, cancelled);
         @SuppressWarnings("unchecked")
         EventHandler<Object> handler = (EventHandler<Object>) bound.handler();
         String handlerId = bound.subscription().handlerId();
@@ -316,7 +317,7 @@ public final class EventDelivery {
                     if (keepsInbox && !inbox.insertProcessed(bound.pluginId(), handlerId, message)) {
                         return false;
                     }
-                    await(handler.handle(invocation));
+                    await(handler.handle(invocation), invocation.deadline(), cancelled);
                     bind.handled(TenantScopes.bound());
                     return true;
                 } finally {
@@ -344,7 +345,7 @@ public final class EventDelivery {
     }
 
     private EventInvocation<Object> invocation(CanonicalOutboxMessage message, BoundEventHandler bound,
-            MessageTracing.MessageSpan span) {
+            MessageTracing.MessageSpan span, java.util.concurrent.atomic.AtomicBoolean cancelled) {
         Object payload;
         try {
             payload = json.readValue(message.payload(), bound.payloadType());
@@ -371,7 +372,7 @@ public final class EventDelivery {
             EventReliability.valueOf(message.reliability().toUpperCase(Locale.ROOT)));
         Instant now = clock.instant();
         return new EventInvocation<>(envelope, new PublisherDecision(message.producerPluginId(), null),
-            new TraceContext(traceparent, span.tracestate()), now.plus(deadline), () -> stopped,
+            new TraceContext(traceparent, span.tracestate()), now.plus(deadline), () -> stopped || cancelled.get(),
             Math.max(1, message.attemptCount()));
     }
 
@@ -386,14 +387,29 @@ public final class EventDelivery {
         return "00-" + hex.formatHex(trace) + "-" + hex.formatHex(span) + "-01";
     }
 
-    private static void await(CompletionStage<Void> handled) {
+    /**
+     * Waits for the handler until the invocation's deadline (root BRX-RS-RESILIENCE-001; Kafka design §14 K10). A
+     * handler still running then is told through its cancellation signal, and the delivery fails, so its unit of
+     * work rolls back and the attempt counts.
+     */
+    private void await(CompletionStage<Void> handled, Instant deadline, java.util.concurrent.atomic.AtomicBoolean cancelled) {
+        java.util.concurrent.CompletableFuture<Void> future = handled.toCompletableFuture();
+        long wait = Math.max(0L, Duration.between(clock.instant(), deadline).toMillis());
         try {
-            handled.toCompletableFuture().join();
-        } catch (CompletionException failure) {
+            future.get(wait, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException late) {
+            cancelled.set(true);
+            future.cancel(true);
+            throw new IllegalStateException("the handler did not finish by its deadline " + deadline, late);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            cancelled.set(true);
+            throw new IllegalStateException("the delivery was interrupted", interrupted);
+        } catch (java.util.concurrent.ExecutionException failure) {
             if (failure.getCause() instanceof RuntimeException cause) {
                 throw cause;
             }
-            throw failure;
+            throw new CompletionException(failure.getCause());
         }
     }
 

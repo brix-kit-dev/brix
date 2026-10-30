@@ -65,6 +65,7 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
     private final Thread thread;
     private volatile boolean stopping;
     private volatile boolean running;
+    private volatile Instant handlingSince;
 
     KafkaSubscriptionConsumer(
             ConsumedSubscription subscription,
@@ -88,7 +89,14 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
     }
 
     void start() {
+        delivery.metrics().watch(this::handlingFor, this::running);
         thread.start();
+    }
+
+    @Override
+    public Duration handlingFor() {
+        Instant since = handlingSince;
+        return since == null ? Duration.ZERO : Duration.between(since, clock.instant());
     }
 
     @Override
@@ -129,7 +137,9 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
                     report(consumer);
                 }
                 commit(consumer);
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | Error failure) {
+                // Whatever stops the loop, the subscription keeps consuming (Kafka design §14 K10): it starts again
+                // from its committed position.
                 log.error("event=event.consumer_failed subscription={}", subscription.name(), failure);
                 failing.clear();
                 done.clear();
@@ -152,7 +162,13 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
         } catch (IllegalArgumentException notAnEnvelope) {
             return park(consumer, partition, record, null, SubscriptionDelivery.ENVELOPE_INVALID, attempt, again ? previous : null);
         }
-        SubscriptionDelivery.Outcome outcome = delivery.receive(message, attempt);
+        SubscriptionDelivery.Outcome outcome;
+        handlingSince = clock.instant();
+        try {
+            outcome = delivery.receive(message, attempt);
+        } finally {
+            handlingSince = null;
+        }
         return switch (outcome.kind()) {
             case DELIVERED -> {
                 done(partition, record);
@@ -161,6 +177,10 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
             case PARK -> park(consumer, partition, record, message, outcome.errorCode(), attempt, again ? previous : null);
             case RETRY -> {
                 holdBack(consumer, partition, record, attempt + 1, again ? previous : null, outcome.delay());
+                yield false;
+            }
+            case WAIT -> {
+                holdBack(consumer, partition, record, attempt, again ? previous : null, outcome.delay());
                 yield false;
             }
         };
