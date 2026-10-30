@@ -146,12 +146,14 @@ class PluginSpiContractTest {
     private static final class SamplePlugin implements BrixPlugin {
         @Override
         public void configure(PluginBootstrapContext bootstrap) {
-            bootstrap.bindEndpoint("sample.endpoint", request -> "ok");
-            bootstrap.bindQueryHandler("sample.query", query -> "answer");
-            bootstrap.bindCommandHandler("sample.command", invocation -> CompletableFuture.completedFuture(null));
+            // Root BRX-RS-MANIFEST-011: every entry point is bound to a factory the runtime calls with a context.
+            bootstrap.bindEndpointHandlerFactory("sample.endpoint", context -> request -> "ok");
+            bootstrap.bindQueryHandlerFactory("sample.query", context -> query -> "answer");
+            bootstrap.bindCommandHandlerFactory("sample.command",
+                context -> invocation -> CompletableFuture.completedFuture(null));
             bootstrap.bindEventHandlerFactory("sample.subscription",
                 context -> invocation -> java.util.concurrent.CompletableFuture.completedFuture(null));
-            bootstrap.bindTask("sample.task", () -> { });
+            bootstrap.bindTaskFactory("sample.task", context -> () -> { });
         }
 
         @Override
@@ -199,6 +201,26 @@ class PluginSpiContractTest {
         @Override
         public void bindTask(String manifestTaskId, ManagedTask task) {
             this.taskId = manifestTaskId;
+        }
+
+        @Override
+        public void bindEndpointHandlerFactory(String handlerId, HandlerFactory<? extends EndpointHandler<?, ?>> factory) {
+            this.endpointId = handlerId;
+        }
+
+        @Override
+        public void bindQueryHandlerFactory(String handlerId, HandlerFactory<? extends QueryHandler<?, ?>> factory) {
+            this.queryId = handlerId;
+        }
+
+        @Override
+        public void bindCommandHandlerFactory(String handlerId, HandlerFactory<? extends CommandHandler<?>> factory) {
+            this.commandId = handlerId;
+        }
+
+        @Override
+        public void bindTaskFactory(String handlerId, HandlerFactory<? extends ManagedTask> factory) {
+            this.taskId = handlerId;
         }
     }
 }

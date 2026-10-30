@@ -104,6 +104,26 @@ class PlatformAuthPluginTest {
         public void bindTask(String manifestTaskId, ManagedTask task) {
             bound.add(manifestTaskId);
         }
+
+        @Override
+        public void bindEndpointHandlerFactory(String handlerId, HandlerFactory<? extends EndpointHandler<?, ?>> factory) {
+            bound.add(handlerId);
+        }
+
+        @Override
+        public void bindQueryHandlerFactory(String handlerId, HandlerFactory<? extends QueryHandler<?, ?>> factory) {
+            bound.add(handlerId);
+        }
+
+        @Override
+        public void bindCommandHandlerFactory(String handlerId, HandlerFactory<? extends CommandHandler<?>> factory) {
+            bound.add(handlerId);
+        }
+
+        @Override
+        public void bindTaskFactory(String handlerId, HandlerFactory<? extends ManagedTask> factory) {
+            bound.add(handlerId);
+        }
     }
 
     private static final class EmptyPluginContext implements PluginContext {

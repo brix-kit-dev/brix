@@ -48,6 +48,12 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
     private final Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>();
     private final Map<String, HandlerFactory<? extends EventHandler<?>>> eventHandlerFactories = new LinkedHashMap<>();
     private final Map<String, ManagedTask> tasks = new LinkedHashMap<>();
+    private final Map<String, HandlerFactory<? extends EndpointHandler<?, ?>>> endpointHandlerFactories =
+        new LinkedHashMap<>();
+    private final Map<String, HandlerFactory<? extends QueryHandler<?, ?>>> queryHandlerFactories = new LinkedHashMap<>();
+    private final Map<String, HandlerFactory<? extends CommandHandler<?>>> commandHandlerFactories =
+        new LinkedHashMap<>();
+    private final Map<String, HandlerFactory<? extends ManagedTask>> taskFactories = new LinkedHashMap<>();
 
     /**
      * Creates a bootstrap context.
@@ -62,8 +68,48 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
      * {@inheritDoc}
      */
     @Override
+    public void bindEndpointHandlerFactory(String handlerId, HandlerFactory<? extends EndpointHandler<?, ?>> factory) {
+        String endpointId = descriptor.requireEndpointOfHandler(handlerId);
+        if (endpoints.containsKey(endpointId)) {
+            throw duplicate("endpoint", endpointId);
+        }
+        putUnique(endpointHandlerFactories, endpointId, factory, "endpoint");
+    }
+
+    @Override
+    public void bindQueryHandlerFactory(String handlerId, HandlerFactory<? extends QueryHandler<?, ?>> factory) {
+        descriptor.requireQueryHandler(handlerId);
+        if (queryHandlers.containsKey(handlerId)) {
+            throw duplicate("query handler", handlerId);
+        }
+        putUnique(queryHandlerFactories, handlerId, factory, "query handler");
+    }
+
+    @Override
+    public void bindCommandHandlerFactory(String handlerId, HandlerFactory<? extends CommandHandler<?>> factory) {
+        descriptor.requireCommandHandler(handlerId);
+        if (commandHandlers.containsKey(handlerId)) {
+            throw duplicate("command handler", handlerId);
+        }
+        putUnique(commandHandlerFactories, handlerId, factory, "command handler");
+    }
+
+    @Override
+    public void bindTaskFactory(String handlerId, HandlerFactory<? extends ManagedTask> factory) {
+        descriptor.requireTask(handlerId);
+        if (tasks.containsKey(handlerId)) {
+            throw duplicate("managed task", handlerId);
+        }
+        putUnique(taskFactories, handlerId, factory, "managed task");
+    }
+
+    @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public void bindEndpoint(String manifestEndpointId, EndpointHandler<?, ?> handler) {
         descriptor.requireEndpoint(manifestEndpointId);
+        if (endpointHandlerFactories.containsKey(manifestEndpointId)) {
+            throw duplicate("endpoint", manifestEndpointId);
+        }
         putUnique(endpoints, manifestEndpointId, handler, "endpoint");
     }
 
@@ -71,8 +117,12 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
      * {@inheritDoc}
      */
     @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public void bindQueryHandler(String manifestQueryId, QueryHandler<?, ?> handler) {
         descriptor.requireQueryHandler(manifestQueryId);
+        if (queryHandlerFactories.containsKey(manifestQueryId)) {
+            throw duplicate("query handler", manifestQueryId);
+        }
         putUnique(queryHandlers, manifestQueryId, handler, "query handler");
     }
 
@@ -80,8 +130,12 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
      * {@inheritDoc}
      */
     @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler) {
         descriptor.requireCommandHandler(manifestCommandId);
+        if (commandHandlerFactories.containsKey(manifestCommandId)) {
+            throw duplicate("command handler", manifestCommandId);
+        }
         putUnique(commandHandlers, manifestCommandId, handler, "command handler");
     }
 
@@ -98,8 +152,12 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
      * {@inheritDoc}
      */
     @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public void bindTask(String manifestTaskId, ManagedTask task) {
         descriptor.requireTask(manifestTaskId);
+        if (taskFactories.containsKey(manifestTaskId)) {
+            throw duplicate("managed task", manifestTaskId);
+        }
         putUnique(tasks, manifestTaskId, task, "managed task");
     }
 
@@ -148,12 +206,52 @@ public final class DefaultPluginBootstrapContext implements PluginBootstrapConte
         return Map.copyOf(tasks);
     }
 
+    /**
+     * Returns the endpoint handler factories, by endpoint id.
+     *
+     * @return immutable factories
+     */
+    public Map<String, HandlerFactory<? extends EndpointHandler<?, ?>>> endpointHandlerFactories() {
+        return Map.copyOf(endpointHandlerFactories);
+    }
+
+    /**
+     * Returns the query handler factories, by handler id.
+     *
+     * @return immutable factories
+     */
+    public Map<String, HandlerFactory<? extends QueryHandler<?, ?>>> queryHandlerFactories() {
+        return Map.copyOf(queryHandlerFactories);
+    }
+
+    /**
+     * Returns the command handler factories, by handler id.
+     *
+     * @return immutable factories
+     */
+    public Map<String, HandlerFactory<? extends CommandHandler<?>>> commandHandlerFactories() {
+        return Map.copyOf(commandHandlerFactories);
+    }
+
+    /**
+     * Returns the managed task factories, by task id.
+     *
+     * @return immutable factories
+     */
+    public Map<String, HandlerFactory<? extends ManagedTask>> taskFactories() {
+        return Map.copyOf(taskFactories);
+    }
+
     private <T> void putUnique(Map<String, T> target, String id, T binding, String kind) {
         Objects.requireNonNull(binding, kind + " binding must not be null");
         if (target.containsKey(id)) {
-            throw new PluginRuntimeException("Plugin '" + descriptor.identity().pluginId()
-                + "' attempted to bind duplicate " + kind + " '" + id + "'");
+            throw duplicate(kind, id);
         }
         target.put(id, binding);
+    }
+
+    private PluginRuntimeException duplicate(String kind, String id) {
+        return new PluginRuntimeException("Plugin '" + descriptor.identity().pluginId()
+            + "' attempted to bind duplicate " + kind + " '" + id + "'");
     }
 }

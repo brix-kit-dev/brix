@@ -250,6 +250,7 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         route.getMethod(),
                         route.getPath(),
                         accessPolicy(manifest.pluginId(), route));
+                    builder.endpointHandler(route.getHandlerId(), route.getEndpointId());
                 }
             }
             for (PluginManifest.Permission permission : manifest.getPermissions()) {

@@ -47,4 +47,22 @@ class DefaultPluginBootstrapContextTest {
         context.bindEndpoint("tenant.list", request -> "ok");
         assertThrows(PluginRuntimeException.class, () -> context.bindEndpoint("tenant.list", request -> "ok"));
     }
+
+    @Test
+    void anEndpointFactoryIsRecordedUnderTheEndpointItsHandlerIdNames() {
+        // Root BRX-RS-MANIFEST-011: endpoints are bound by handler id, to a factory.
+        DefaultPluginBootstrapContext context = new DefaultPluginBootstrapContext(
+            PluginRuntimeDescriptor.builder("plugin-a")
+                .endpoints(List.of("tenant.list"))
+                .endpointHandler("tenant.list-handler", "tenant.list")
+                .build());
+
+        context.bindEndpointHandlerFactory("tenant.list-handler", pluginContext -> request -> "ok");
+
+        assertEquals(java.util.Set.of("tenant.list"), context.endpointHandlerFactories().keySet());
+        assertThrows(PluginRuntimeException.class,
+            () -> context.bindEndpoint("tenant.list", request -> "ok"), "one binding per endpoint");
+        assertThrows(PluginRuntimeException.class,
+            () -> context.bindEndpointHandlerFactory("tenant.detail-handler", pluginContext -> request -> "ok"));
+    }
 }

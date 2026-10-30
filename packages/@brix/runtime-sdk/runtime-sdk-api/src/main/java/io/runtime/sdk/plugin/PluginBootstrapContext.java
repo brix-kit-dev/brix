@@ -19,9 +19,12 @@ package io.runtime.sdk.plugin;
  * Code binding surface for manifest-declared plugin entry points.
  *
  * <p>The YAML manifest declares endpoints, query providers, command handlers,
- * event subscriptions, and managed tasks. A plugin uses this context to bind
- * the matching implementation callbacks during {@link BrixPlugin#configure}.
- * The Runtime Shell is responsible for rejecting any mismatch between YAML
+ * event subscriptions, and managed tasks. A plugin binds the factory of each
+ * one during {@link BrixPlugin#configure} (root BRX-RS-MANIFEST-011, MANIFEST-013);
+ * the Runtime Shell creates the handlers with the plugin's scoped
+ * {@link PluginContext} when the plugin starts (MANIFEST-019), so a handler gets
+ * its capabilities from its factory's context and needs no field the plugin
+ * fills in {@code onStart}. The Runtime Shell rejects any mismatch between YAML
  * declarations and code bindings.</p>
  *
  * @author Runtime SDK Team
@@ -30,28 +33,28 @@ package io.runtime.sdk.plugin;
 public interface PluginBootstrapContext {
 
     /**
-     * Binds a manifest-declared endpoint.
+     * Binds a manifest-declared endpoint to the factory of its handler.
      *
-     * @param manifestEndpointId endpoint id from the YAML manifest
-     * @param handler endpoint handler
+     * @param handlerId the endpoint's {@code handlerId} (or, when it declares none, its {@code endpointId})
+     * @param factory creates the endpoint handler
      */
-    void bindEndpoint(String manifestEndpointId, EndpointHandler<?, ?> handler);
+    void bindEndpointHandlerFactory(String handlerId, HandlerFactory<? extends EndpointHandler<?, ?>> factory);
 
     /**
-     * Binds a manifest-declared query provider.
+     * Binds a manifest-declared query provider to the factory of its handler.
      *
-     * @param manifestQueryId query id from the YAML manifest
-     * @param handler query handler
+     * @param handlerId the query's handler id from the YAML manifest
+     * @param factory creates the query handler
      */
-    void bindQueryHandler(String manifestQueryId, QueryHandler<?, ?> handler);
+    void bindQueryHandlerFactory(String handlerId, HandlerFactory<? extends QueryHandler<?, ?>> factory);
 
     /**
-     * Binds a manifest-declared command handler.
+     * Binds a manifest-declared command handler to its factory.
      *
-     * @param manifestCommandId command id from the YAML manifest
-     * @param handler command handler
+     * @param handlerId the command's handler id from the YAML manifest
+     * @param factory creates the command handler
      */
-    void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler);
+    void bindCommandHandlerFactory(String handlerId, HandlerFactory<? extends CommandHandler<?>> factory);
 
     /**
      * Binds a manifest-declared event subscription to the factory of its handler (root BRX-RS-CAP-025).
@@ -63,10 +66,51 @@ public interface PluginBootstrapContext {
     void bindEventHandlerFactory(String handlerId, HandlerFactory<? extends EventHandler<?>> factory);
 
     /**
-     * Binds a manifest-declared managed task.
+     * Binds a manifest-declared managed task to its factory.
+     *
+     * @param handlerId the task id from the YAML manifest
+     * @param factory creates the managed task
+     */
+    void bindTaskFactory(String handlerId, HandlerFactory<? extends ManagedTask> factory);
+
+    /**
+     * Binds a manifest-declared endpoint to a handler created before the plugin has a context.
+     *
+     * @param manifestEndpointId endpoint id from the YAML manifest
+     * @param handler endpoint handler
+     * @deprecated a handler made in {@code configure} cannot reach its capabilities; use
+     *     {@link #bindEndpointHandlerFactory(String, HandlerFactory)}
+     */
+    @Deprecated(since = "3.3.0", forRemoval = true)
+    void bindEndpoint(String manifestEndpointId, EndpointHandler<?, ?> handler);
+
+    /**
+     * Binds a manifest-declared query provider to a handler created before the plugin has a context.
+     *
+     * @param manifestQueryId query id from the YAML manifest
+     * @param handler query handler
+     * @deprecated use {@link #bindQueryHandlerFactory(String, HandlerFactory)}
+     */
+    @Deprecated(since = "3.3.0", forRemoval = true)
+    void bindQueryHandler(String manifestQueryId, QueryHandler<?, ?> handler);
+
+    /**
+     * Binds a manifest-declared command handler created before the plugin has a context.
+     *
+     * @param manifestCommandId command id from the YAML manifest
+     * @param handler command handler
+     * @deprecated use {@link #bindCommandHandlerFactory(String, HandlerFactory)}
+     */
+    @Deprecated(since = "3.3.0", forRemoval = true)
+    void bindCommandHandler(String manifestCommandId, CommandHandler<?> handler);
+
+    /**
+     * Binds a manifest-declared managed task created before the plugin has a context.
      *
      * @param manifestTaskId task id from the YAML manifest
      * @param task managed task
+     * @deprecated use {@link #bindTaskFactory(String, HandlerFactory)}
      */
+    @Deprecated(since = "3.3.0", forRemoval = true)
     void bindTask(String manifestTaskId, ManagedTask task);
 }

@@ -44,6 +44,7 @@ import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
+import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.HandlerFactory;
@@ -559,6 +560,21 @@ public final class PluginRuntimeManager {
     private record CreatedEventHandler(EventHandler<?> handler, Class<?> payloadType) {
     }
 
+    private static <H> Map<String, H> create(
+            String pluginId, String kind, Map<String, ? extends HandlerFactory<? extends H>> factories,
+            PluginContext context) {
+        Map<String, H> created = new LinkedHashMap<>();
+        for (Map.Entry<String, ? extends HandlerFactory<? extends H>> factory : factories.entrySet()) {
+            H handler = factory.getValue().create(context);
+            if (handler == null) {
+                throw new PluginRuntimeException("The " + kind + " handler factory '" + factory.getKey()
+                    + "' of plugin '" + pluginId + "' created no handler");
+            }
+            created.put(factory.getKey(), handler);
+        }
+        return created;
+    }
+
     /**
      * Every manifest subscription needs its handler factory bound in {@code configure} (root
      * BRX-RS-MANIFEST-013); an unbound one would leave its events waiting in the publisher's outbox.
@@ -629,7 +645,6 @@ public final class PluginRuntimeManager {
             DefaultPluginBootstrapContext bootstrapContext = new DefaultPluginBootstrapContext(plugin.descriptor);
             plugin.provider.configure(bootstrapContext);
             requireBoundEventSubscriptions(plugin, bootstrapContext.eventHandlerFactories().keySet());
-            plugin.endpointHandlers = bootstrapContext.endpoints();
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
@@ -637,6 +652,15 @@ public final class PluginRuntimeManager {
             PluginContext context = new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence);
             plugin.provider.onStart(context);
             plugin.eventHandlers = createEventHandlers(plugin.id(), bootstrapContext.eventHandlerFactories(), context);
+            // Root BRX-RS-MANIFEST-019: every other handler is created by its factory with the plugin's context.
+            Map<String, EndpointHandler<?, ?>> endpointHandlers = new LinkedHashMap<>(bootstrapContext.endpoints());
+            endpointHandlers.putAll(create(plugin.id(), "endpoint", bootstrapContext.endpointHandlerFactories(), context));
+            plugin.endpointHandlers = Map.copyOf(endpointHandlers);
+            Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>(bootstrapContext.commandHandlers());
+            commandHandlers.putAll(create(plugin.id(), "command", bootstrapContext.commandHandlerFactories(), context));
+            plugin.commandHandlers = Map.copyOf(commandHandlers);
+            create(plugin.id(), "query", bootstrapContext.queryHandlerFactories(), context);
+            create(plugin.id(), "task", bootstrapContext.taskFactories(), context);
             BrixHealth health = pluginHealth(plugin);
             plugin.state = state(plugin, PluginLifecycleState.STARTED, false, health, health.message());
             if (isRequired(plugin) && !health.isReadyStatus()) {
@@ -920,6 +944,7 @@ public final class PluginRuntimeManager {
         private final BrixPlugin provider;
         private final PluginRuntimeDescriptor descriptor;
         private Map<String, EndpointHandler<?, ?>> endpointHandlers = Map.of();
+        private Map<String, CommandHandler<?>> commandHandlers = Map.of();
         private Map<String, CreatedEventHandler> eventHandlers = Map.of();
         private PluginRuntimeState state;
 

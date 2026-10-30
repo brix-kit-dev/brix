@@ -456,11 +456,37 @@ class PluginRuntimeManagerTest {
 
         manager.start();
 
+        assertEquals("plugin-a", plugin.endpointContext.pluginIdentity().pluginId(),
+            "the endpoint's factory got the plugin's own context (root BRX-RS-MANIFEST-019)");
         assertEquals(1, dispatcher.routes().size());
         EndpointAccessDeniedException denied = assertThrows(
             EndpointAccessDeniedException.class,
             () -> dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of()));
         assertEquals(401, denied.status());
+        assertEquals("ok", dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of(
+            "x-actor-id", List.of("1001"),
+            "x-auth-permission", List.of("tenant:admin:read"))));
+    }
+
+    @Test
+    void anEndpointIsBoundByTheHandlerIdItsRouteNames() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.endpointId = "tenants.list-handler";
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(java.time.Duration.ofSeconds(30));
+        PluginRuntimeManager manager = new PluginRuntimeManager(
+            () -> List.of(plugin),
+            candidate -> Optional.of(PluginRuntimeDescriptor.builder("plugin-a")
+                .endpoint("tenant.list", "GET", "/api/v1/tenants",
+                    TestEndpointAccessPolicies.authenticated("tenant:admin:read"))
+                .endpointHandler("tenants.list-handler", "tenant.list")
+                .permission("tenant:admin:read", List.of())
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"),
+            dispatcher);
+
+        manager.start();
+
         assertEquals("ok", dispatcher.invoke("GET", "/api/v1/tenants", null, Map.of(), Map.of(
             "x-actor-id", List.of("1001"),
             "x-auth-permission", List.of("tenant:admin:read"))));
@@ -617,12 +643,16 @@ class PluginRuntimeManagerTest {
         private boolean failOnStart;
         private BrixHealth health = BrixHealth.up();
         private String endpointId;
+        private PluginContext endpointContext;
 
         @Override
         public void configure(PluginBootstrapContext bootstrap) {
             configured = true;
             if (endpointId != null) {
-                bootstrap.bindEndpoint(endpointId, request -> "ok");
+                bootstrap.bindEndpointHandlerFactory(endpointId, context -> {
+                    endpointContext = context;
+                    return request -> "ok";
+                });
             }
             eventHandlers.forEach(bootstrap::bindEventHandlerFactory);
         }

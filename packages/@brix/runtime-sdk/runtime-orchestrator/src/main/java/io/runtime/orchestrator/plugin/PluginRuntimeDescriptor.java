@@ -50,6 +50,7 @@ public final class PluginRuntimeDescriptor {
     private final Set<String> requiredCapabilities;
     private final Set<String> optionalCapabilities;
     private final Map<String, EndpointDeclaration> endpoints;
+    private final Map<String, String> endpointIdsByHandler;
     private final List<PermissionDeclaration> permissions;
     private final Set<String> queryHandlers;
     private final Set<String> commandHandlers;
@@ -66,6 +67,7 @@ public final class PluginRuntimeDescriptor {
         this.requiredCapabilities = copy(builder.requiredCapabilities);
         this.optionalCapabilities = copy(builder.optionalCapabilities);
         this.endpoints = Map.copyOf(builder.endpoints);
+        this.endpointIdsByHandler = Map.copyOf(builder.endpointIdsByHandler);
         this.permissions = List.copyOf(builder.permissions);
         this.queryHandlers = copy(builder.queryHandlers);
         this.commandHandlers = copy(builder.commandHandlers);
@@ -152,6 +154,19 @@ public final class PluginRuntimeDescriptor {
      */
     public void requireEndpoint(String id) {
         requireDeclared("endpoint", id, endpoints.keySet());
+    }
+
+    /**
+     * Returns the endpoint a handler id serves: the endpoint whose route names that {@code handlerId}, or the
+     * endpoint of that id when no route names it (root BRX-RS-MANIFEST-011 binds endpoints by handler id).
+     *
+     * @param handlerId handler id, or endpoint id
+     * @return the endpoint id
+     */
+    public String requireEndpointOfHandler(String handlerId) {
+        String endpointId = endpointIdsByHandler.getOrDefault(handlerId, handlerId);
+        requireDeclared("endpoint", endpointId, endpoints.keySet());
+        return endpointId;
     }
 
     /**
@@ -304,6 +319,7 @@ public final class PluginRuntimeDescriptor {
         private final Set<String> requiredCapabilities = new LinkedHashSet<>();
         private final Set<String> optionalCapabilities = new LinkedHashSet<>();
         private final Map<String, EndpointDeclaration> endpoints = new LinkedHashMap<>();
+        private final Map<String, String> endpointIdsByHandler = new LinkedHashMap<>();
         private final List<PermissionDeclaration> permissions = new ArrayList<>();
         private final Set<String> queryHandlers = new LinkedHashSet<>();
         private final Set<String> commandHandlers = new LinkedHashSet<>();
@@ -381,6 +397,24 @@ public final class PluginRuntimeDescriptor {
         public Builder endpoint(String id, String method, String path, EndpointAccessPolicy accessPolicy) {
             if (id != null && !id.isBlank()) {
                 endpoints.put(id, new EndpointDeclaration(id, method, path, accessPolicy));
+            }
+            return this;
+        }
+
+        /**
+         * Records the handler id a declared endpoint's route names.
+         *
+         * @param handlerId the route's handler id
+         * @param endpointId the route's endpoint id
+         * @return this builder
+         */
+        public Builder endpointHandler(String handlerId, String endpointId) {
+            if (handlerId != null && !handlerId.isBlank() && endpointId != null && !endpointId.isBlank()) {
+                String previous = endpointIdsByHandler.putIfAbsent(handlerId, endpointId);
+                if (previous != null && !previous.equals(endpointId)) {
+                    throw new PluginRuntimeException("Plugin '" + identity.pluginId() + "' names handler '"
+                        + handlerId + "' for both endpoint '" + previous + "' and endpoint '" + endpointId + "'");
+                }
             }
             return this;
         }

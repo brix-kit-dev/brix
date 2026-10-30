@@ -7,6 +7,7 @@
 package io.brix.platform.tenant;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import io.brix.platform.tenant.endpoint.AcceptFirstOwnerInvitationHandler;
 import io.brix.platform.tenant.endpoint.TenantSessionHandler;
@@ -34,18 +35,18 @@ public final class PlatformTenantPlugin implements BrixPlugin {
     public static final String HANDLER_FIRST_OWNER_INVITEE_SETUP = "first-owner-invitee-setup.v1";
     public static final String HANDLER_FIRST_OWNER_PROJECTION = "tenant-first-owner-projection.v1";
 
-    private final AtomicReference<TenantAdministration> tenantAdministration = new AtomicReference<>();
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.unknown("Not started"));
 
     @Override
     public void configure(PluginBootstrapContext bootstrap) {
-        bootstrap.bindEndpoint(
+        // Root BRX-RS-MANIFEST-019: each handler gets what it needs from the context its factory receives.
+        bootstrap.bindEndpointHandlerFactory(
             ENDPOINT_FIRST_OWNER_ACCEPT,
-            new AcceptFirstOwnerInvitationHandler(tenantAdministration::get));
-        bootstrap.bindEndpoint(ENDPOINT_TENANT_SESSION, new TenantSessionHandler());
+            context -> new AcceptFirstOwnerInvitationHandler(tenantAdministrationOf(context)));
+        bootstrap.bindEndpointHandlerFactory(ENDPOINT_TENANT_SESSION, context -> new TenantSessionHandler());
         bootstrap.bindEventHandlerFactory(
             HANDLER_FIRST_OWNER_INVITEE_SETUP,
-            context -> new FirstOwnerInviteeSetupCompletedHandler(tenantAdministration::get));
+            context -> new FirstOwnerInviteeSetupCompletedHandler(tenantAdministrationOf(context)));
         bootstrap.bindEventHandlerFactory(
             HANDLER_FIRST_OWNER_PROJECTION,
             context -> new TenantFirstOwnerAcceptedProjectionHandler(new JpaFirstOwnerProjectionWriter(
@@ -54,16 +55,19 @@ public final class PlatformTenantPlugin implements BrixPlugin {
 
     @Override
     public void onStart(PluginContext context) {
-        tenantAdministration.set(context.find(TenantAdministration.class)
-            .orElseThrow(() -> new IllegalStateException(
-                "TenantAdministration internal contract is not available for first-owner endpoint binding")));
         health.set(BrixHealth.up());
     }
 
     @Override
     public void onStop() {
-        tenantAdministration.set(null);
         health.set(BrixHealth.down("Stopped"));
+    }
+
+    /** The internal contract, looked up through the handler's own context when the handler needs it. */
+    private static Supplier<TenantAdministration> tenantAdministrationOf(PluginContext context) {
+        return () -> context.find(TenantAdministration.class)
+            .orElseThrow(() -> new IllegalStateException(
+                "TenantAdministration internal contract is not available for the platform-tenant handlers"));
     }
 
     @Override
