@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -19,6 +20,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.springframework.boot.actuate.endpoint.SecurityContext;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
@@ -163,7 +165,35 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
 
         @Override
         public boolean replay(String eventId) {
-            return new EventsEndpoint(() -> subscriptions, () -> delivery).replay(eventId).getStatus() == 200;
+            return subscriptionOf(eventId)
+                .map(subscription -> endpoint().replay(subscription, eventId, OPERATOR, "conformance replay",
+                    SecurityContext.NONE).getStatus() == 200)
+                .orElse(false);
+        }
+
+        @Override
+        public boolean discard(String eventId) {
+            return subscriptionOf(eventId)
+                .map(subscription -> endpoint().discard(subscription, eventId, OPERATOR, "conformance discard",
+                    SecurityContext.NONE).getStatus() == 200)
+                .orElse(false);
+        }
+
+        @Override
+        public ConformanceWorld world() {
+            return world;
+        }
+
+        private EventsEndpoint endpoint() {
+            return new EventsEndpoint(() -> subscriptions, () -> delivery, world::audit);
+        }
+
+        /** The subscription that parked the event, as the endpoint lists it. */
+        private Optional<String> subscriptionOf(String eventId) {
+            return subscriptions.parked(100).entrySet().stream()
+                .filter(parked -> parked.getValue().stream().anyMatch(event -> event.eventId().equals(eventId)))
+                .map(Map.Entry::getKey)
+                .findFirst();
         }
 
         @Override

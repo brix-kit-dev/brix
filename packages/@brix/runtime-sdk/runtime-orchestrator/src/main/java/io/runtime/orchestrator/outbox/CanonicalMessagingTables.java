@@ -6,6 +6,7 @@
  */
 package io.runtime.orchestrator.outbox;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -31,6 +32,18 @@ public final class CanonicalMessagingTables {
 
     /** Classpath resource of the PostgreSQL migration template, with {@code {{storageId}}} placeholders. */
     public static final String TEMPLATE_RESOURCE = "META-INF/brix/messaging/postgresql/canonical-messaging-v1.sql";
+
+    /**
+     * How long published and discarded outbox messages stay by default (Kafka design D34); a published message can be
+     * republished until then.
+     */
+    public static final Duration OUTBOX_RETENTION = Duration.ofDays(14);
+
+    /**
+     * How long inbox and command idempotency records stay by default (Kafka design D34): longer than a message can
+     * still arrive, which is the outbox retention plus the broker's.
+     */
+    public static final Duration INBOX_RETENTION = Duration.ofDays(30);
 
     private static final List<String> OUTBOX_COLUMNS = List.of(
         "message_id", "seq", "event_id", "message_kind", "message_type", "event_type", "schema_version",

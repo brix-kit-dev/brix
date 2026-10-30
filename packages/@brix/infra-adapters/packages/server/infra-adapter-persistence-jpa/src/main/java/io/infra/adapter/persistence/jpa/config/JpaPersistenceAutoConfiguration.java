@@ -44,6 +44,7 @@ import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
+import io.runtime.orchestrator.outbox.MessageOperationAudit;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.sdk.capability.EventBusCapability;
@@ -139,6 +140,21 @@ public class JpaPersistenceAutoConfiguration {
     public PolicyAuditWriter policyAuditWriter(
             OwnerPersistenceUnits ownerPersistenceUnits, ObjectProvider<IdGeneratorCapability> ids) {
         return ownerPersistenceUnits.policyAuditWriter(ids::getIfAvailable);
+    }
+
+    /**
+     * Records operators' replays, discards and republishes of messages in the platform audit (Kafka design D33).
+     *
+     * @param ownerPersistenceUnits owner persistence registry, which knows the active manifests
+     * @param ids the Host's id generator
+     * @return the audit of message operations
+     */
+    @Bean
+    @ConditionalOnBean(OwnerPersistenceUnits.class)
+    @ConditionalOnMissingBean(MessageOperationAudit.class)
+    public MessageOperationAudit messageOperationAudit(
+            OwnerPersistenceUnits ownerPersistenceUnits, ObjectProvider<IdGeneratorCapability> ids) {
+        return ownerPersistenceUnits.messageOperationAudit(ids::getIfAvailable);
     }
 
     /**

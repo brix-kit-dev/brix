@@ -119,11 +119,43 @@ class OutboxRelayAutoConfigurationTest {
             assertFalse(context.getBean(EventSubscriptionGroup.class).isReady(), "nothing is consumed before the plugins start");
             assertNotNull(context.getBean(OutboxEndpoint.class));
             assertNotNull(context.getBean(EventsEndpoint.class));
+            assertTrue(context.getBean(MessageRetention.class).isRunning(), "the messaging tables are cleaned");
             assertNotNull(context.getBean(EventSubscriptionMetricsFactory.class));
             assertNotNull(context.getBean(MeterRegistry.class).find(MicrometerOutboxRelayMetrics.MESSAGES)
                 .tags("outbox", "platform_tenant_outbox", "status", "parked").gauge());
             assertNotNull(context.getBean(MeterRegistry.class).find(MicrometerOutboxRelayMetrics.WAITING)
                 .tags("outbox", "platform_tenant_outbox").gauge());
+        }
+    }
+
+    @Test
+    void anInboxRetentionShorterThanTheOutboxsPlusTheBrokersStopsTheHost() {
+        // Kafka design D34: a message republished late could otherwise arrive after its inbox record is gone.
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("relay", Map.of(
+                "brix.outbox.relay.enabled", "true",
+                "brix.outbox.relay.owner", "enterprise-shell",
+                "brix.outbox.relay.transport", "kafka",
+                "brix.outbox.relay.retention.inbox", "20d")));
+            context.registerBean(OutboxStoreRegistry.class,
+                () -> () -> Map.of("platform_tenant_outbox", new EmptyOutboxMessageStore()));
+            context.registerBean(OutboxTransport.class, () -> message -> {
+            });
+            context.registerBean(EventSubscriptionTransport.class, () -> new UnreachableBroker() {
+                @Override
+                public Duration retention() {
+                    return Duration.ofDays(7);
+                }
+            });
+            context.registerBean(EventDeliveryProvider.class, () -> new EventDeliveryProvider(
+                OutboxRelayAutoConfigurationTest::pluginsNotStarted));
+            context.register(OutboxRelayAutoConfiguration.class);
+
+            Throwable refused = assertThrows(Exception.class, context::refresh);
+            while (refused.getCause() != null) {
+                refused = refused.getCause();
+            }
+            assertTrue(refused.getMessage().contains("brix.outbox.relay.retention.inbox"), refused.getMessage());
         }
     }
 
@@ -212,7 +244,7 @@ class OutboxRelayAutoConfigurationTest {
     }
 
     /** A broker that cannot be reached, so the subscription group keeps waiting. */
-    private static final class UnreachableBroker implements EventSubscriptionTransport {
+    private static class UnreachableBroker implements EventSubscriptionTransport {
 
         @Override
         public boolean ready() {

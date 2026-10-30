@@ -7,6 +7,7 @@
 package io.runtime.orchestrator.outbox;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.function.Supplier;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -203,6 +204,41 @@ public class OutboxRelayAutoConfiguration {
         EventSubscriptionMetricsFactory eventSubscriptionMetricsFactory(ObjectProvider<MeterRegistry> registry) {
             return MicrometerEventSubscriptionMetrics.factory(registry::getIfAvailable);
         }
+
+        @Bean
+        @ConditionalOnMissingBean
+        MessageRetentionMetrics messageRetentionMetrics(ObjectProvider<MeterRegistry> registry) {
+            return new MicrometerMessageRetentionMetrics(registry::getIfAvailable);
+        }
+    }
+
+    /**
+     * Deletes expired messaging records (Kafka design D34, §14 K16); the Host refuses to start when the inbox
+     * retention is shorter than the outbox's plus the broker's.
+     *
+     * @param properties relay properties, with the retentions
+     * @param outboxes the owner outboxes
+     * @param inboxes the owner inboxes
+     * @param idempotency the providers' idempotency records
+     * @param broker the adapter that consumes from the broker, which knows the broker's retention
+     * @param metrics where passes are reported
+     * @return the cleaning
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "brix.outbox.relay.retention", name = "enabled", havingValue = "true",
+        matchIfMissing = true)
+    public MessageRetention messageRetention(
+            OutboxRelayProperties properties,
+            ObjectProvider<OutboxStoreRegistry> outboxes,
+            ObjectProvider<EventInboxStore> inboxes,
+            ObjectProvider<OwnerCommandIdempotency> idempotency,
+            ObjectProvider<EventSubscriptionTransport> broker,
+            ObjectProvider<MessageRetentionMetrics> metrics) {
+        EventSubscriptionTransport transport = broker.getIfAvailable();
+        return new MessageRetention(outboxes::getIfAvailable, inboxes::getIfAvailable, idempotency::getIfAvailable,
+            properties.getRetention(), transport == null ? Duration.ZERO : transport.retention(),
+            metrics.getIfAvailable(() -> MessageRetentionMetrics.NOOP), Clock.systemUTC());
     }
 
     /** The management endpoints for parked messages and parked events, when the host has actuator. */
@@ -212,14 +248,21 @@ public class OutboxRelayAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
-        OutboxEndpoint outboxEndpoint(ObjectProvider<OutboxStoreRegistry> stores) {
-            return new OutboxEndpoint(stores::getIfAvailable, Clock.systemUTC());
+        OutboxEndpoint outboxEndpoint(
+                OutboxRelayProperties properties,
+                ObjectProvider<OutboxStoreRegistry> stores,
+                ObjectProvider<MessageOperationAudit> audit) {
+            return new OutboxEndpoint(stores::getIfAvailable, audit::getIfAvailable,
+                properties.getRetention().getOutbox(), Clock.systemUTC());
         }
 
         @Bean
         @ConditionalOnMissingBean
-        EventsEndpoint eventsEndpoint(ObjectProvider<EventSubscriptionTransport> broker, EventDeliveryProvider deliveries) {
-            return new EventsEndpoint(broker::getIfAvailable, deliveries);
+        EventsEndpoint eventsEndpoint(
+                ObjectProvider<EventSubscriptionTransport> broker,
+                EventDeliveryProvider deliveries,
+                ObjectProvider<MessageOperationAudit> audit) {
+            return new EventsEndpoint(broker::getIfAvailable, deliveries, audit::getIfAvailable);
         }
     }
 }

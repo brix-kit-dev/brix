@@ -85,6 +85,16 @@ public interface EventSubscriptionTransport {
     void release(ConsumedSubscription subscription, String eventId);
 
     /**
+     * How long the broker keeps a published message for subscriptions that have not consumed it yet (Kafka design
+     * D34). The inboxes keep their records at least this much longer than the outboxes keep published messages.
+     *
+     * @return the broker's retention; zero when it keeps nothing
+     */
+    default Duration retention() {
+        return Duration.ZERO;
+    }
+
+    /**
      * A subscription being consumed.
      */
     interface Consumption {

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/test-owner/message-operation-record/1.0.0",
+  "title": "An operator's action on a parked or published message, written by the runtime",
+  "description": "The row runtime.message-operations inserts into sys_platform_audit_log before a replay, discard or republish takes effect, and the row of its failure (root BRX-RS-MESSAGE-028; Kafka design D33, §14 K14). Columns are listed by name; id comes from the Host's id generator and created_at from the table default. x-brix-classification marks each field (BRX-RS-SECURITY-008, DATA-046).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "action",
+    "resource_type",
+    "resource_id",
+    "affected_tenants",
+    "context",
+    "success",
+    "execution_identity",
+    "reason_code",
+    "trace_id",
+    "writer"
+  ],
+  "properties": {
+    "operator_identity_id": {
+      "type": "null",
+      "x-brix-classification": "pseudonymous-identifier"
+    },
+    "action": {
+      "enum": [
+        "MESSAGE_REPLAYED",
+        "MESSAGE_DISCARDED",
+        "MESSAGE_REPUBLISHED"
+      ],
+      "x-brix-classification": "operational"
+    },
+    "resource_type": {
+      "const": "message",
+      "x-brix-classification": "operational"
+    },
+    "resource_id": {
+      "type": "string",
+      "maxLength": 128,
+      "x-brix-classification": "technical-identifier"
+    },
+    "affected_tenants": {
+      "type": "array",
+      "maxItems": 0,
+      "x-brix-classification": "internal-identifier"
+    },
+    "context": {
+      "type": "object",
+      "description": "place: the outbox table or the subscription; operator: who asked, as named in the request; principal: whom the management port authenticated, when it does; reason: why",
+      "additionalProperties": false,
+      "required": [
+        "place",
+        "operator",
+        "reason"
+      ],
+      "properties": {
+        "place": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "operator": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "principal": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "x-brix-classification": "operational"
+    },
+    "success": {
+      "type": "boolean",
+      "x-brix-classification": "operational"
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64,
+      "x-brix-classification": "operational"
+    },
+    "execution_identity": {
+      "const": "runtime.message-operations",
+      "x-brix-classification": "operational"
+    },
+    "reason_code": {
+      "const": "operator-request",
+      "x-brix-classification": "operational"
+    },
+    "trace_id": {
+      "type": "string",
+      "maxLength": 64,
+      "x-brix-classification": "technical-identifier"
+    },
+    "source_ip": {
+      "type": "null",
+      "x-brix-classification": "personal-masked"
+    },
+    "user_agent": {
+      "type": "null",
+      "x-brix-classification": "personal"
+    },
+    "writer": {
+      "const": "runtime.message-operations",
+      "x-brix-classification": "operational"
+    }
+  }
+}

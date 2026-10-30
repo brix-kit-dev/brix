@@ -95,6 +95,24 @@ class JdbcEventInboxStoreTest {
             .hasMessageContaining("data.inbox");
     }
 
+    @Test
+    void theRetentionCleansTheOwnersInboxesAndNoOtherTable() {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        OffsetDateTime cutoff = OffsetDateTime.parse("2026-10-01T00:00:00Z");
+        jdbc.update("INSERT INTO test_owner_inbox (handler_id, message_id, message_type, processed_at, created_at)"
+            + " VALUES ('projection.v1', 'old', 'T', ?, ?)", java.sql.Timestamp.from(cutoff.minusDays(1).toInstant()),
+            java.sql.Timestamp.from(cutoff.minusDays(1).toInstant()));
+        jdbc.update("INSERT INTO test_owner_inbox (handler_id, message_id, message_type, processed_at, created_at)"
+            + " VALUES ('projection.v1', 'recent', 'T', ?, ?)", java.sql.Timestamp.from(cutoff.plusDays(1).toInstant()),
+            java.sql.Timestamp.from(cutoff.plusDays(1).toInstant()));
+
+        assertThat(inbox.tables()).contains("test_owner_inbox");
+        assertThat(inbox.purge("test_owner_inbox", cutoff, 100)).isEqualTo(1);
+        assertThat(jdbc.queryForList("SELECT message_id FROM test_owner_inbox", String.class)).containsExactly("recent");
+        assertThatThrownBy(() -> inbox.purge("sys_platform_audit_log", cutoff, 100))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private boolean delivered(String handlerId, String eventId) {
         return Boolean.TRUE.equals(transactions.execute(status -> inbox.insertProcessed("test-owner", handlerId, event(eventId))));
     }

@@ -8,7 +8,10 @@ package io.infra.adapter.persistence.jpa;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -59,5 +62,24 @@ final class JdbcOwnerCommandIdempotency implements OwnerCommandIdempotency {
             handlerId, idempotencyScope, idempotencyKey, message.messageId(), message.messageType(),
             message.schemaVersion(), message.tenantId(), Timestamp.from(clock.instant()));
         return true;
+    }
+
+    @Override
+    public List<String> tables() {
+        return owners.ownerIds().stream()
+            .filter(owners::providesCommands)
+            .map(owners::storageIdOf)
+            .flatMap(Optional::stream)
+            .map(CanonicalMessagingTables::commandIdempotencyOf)
+            .distinct()
+            .toList();
+    }
+
+    @Override
+    public int purge(String table, OffsetDateTime createdBefore, int limit) {
+        if (!tables().contains(table)) {
+            throw new IllegalArgumentException("Not a command idempotency table: " + table);
+        }
+        return ExpiredRecords.delete(jdbc, table, ExpiredRecords.IDEMPOTENCY_KEY, "created_at", createdBefore, limit);
     }
 }

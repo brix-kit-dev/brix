@@ -7,6 +7,7 @@
 package io.runtime.orchestrator.event.conformance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -20,8 +21,10 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.actuate.endpoint.SecurityContext;
 
 import io.runtime.orchestrator.event.EventDelivery;
+import io.runtime.orchestrator.outbox.OutboxEndpoint;
 import io.runtime.orchestrator.persistence.TenantScope;
 
 /**
@@ -35,6 +38,8 @@ public abstract class EventTransportConformance {
 
     /** How long a test waits for the transport. */
     protected static final Duration WAIT = Duration.ofSeconds(60);
+    /** Who replays, discards and republishes in these scenarios. */
+    protected static final String OPERATOR = "conformance-operator";
 
     protected ConformanceWorld world;
     private Harness harness;
@@ -56,8 +61,29 @@ public abstract class EventTransportConformance {
         /** What the transport parked, the earliest first. */
         List<Parked> parked();
 
-        /** Replays a parked event; true when the transport took the replay. */
+        /**
+         * Replays a parked event through the transport's management endpoint, recording in the world's audit; true
+         * when the transport took the replay (Kafka design D33).
+         */
         boolean replay(String eventId);
+
+        /**
+         * Discards a parked event through the transport's management endpoint, recording in the world's audit; true
+         * when the event will never be delivered (Kafka design D33).
+         */
+        boolean discard(String eventId);
+
+        /**
+         * Sends a published event again through the outbox endpoint, recording in the world's audit; true when the
+         * outbox took it (Kafka design D34, §14 K16).
+         */
+        default boolean republish(String eventId) {
+            return world().outboxEndpoint().republish(eventId, OutboxEndpoint.REPUBLISH, OPERATOR,
+                "conformance republish", SecurityContext.NONE).getStatus() == 200;
+        }
+
+        /** The world the harness delivers. */
+        ConformanceWorld world();
 
         @Override
         void close();
@@ -219,6 +245,55 @@ public abstract class EventTransportConformance {
         await("event-2 is handled", () -> world.handledIds().contains("event-2"));
         await("event-1 is parked", () -> !harness.parked().isEmpty());
         assertEquals(List.of(new Parked("event-1", EventDelivery.SCHEMA_UNSUPPORTED)), harness.parked());
+    }
+
+    @Test
+    void aParkedEventIsReplayedOrDiscardedOnlyOnceTheAuditRecordedIt() {
+        // Root BRX-RS-MESSAGE-028, Kafka design D33: replays and discards are recorded, with the operator and the
+        // reason, before they take effect; without the record nothing happens.
+        world.failing(true);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        world.publish("event-2", "member-2", ConformanceWorld.TENANT, 2);
+        harness.start();
+        await("both are parked", () -> harness.parked().size() == 2);
+        world.failing(false);
+
+        world.audit().refusing(true);
+        assertFalse(harness.replay("event-1"), "a replay the audit cannot record");
+        assertFalse(harness.discard("event-2"), "a discard the audit cannot record");
+        world.audit().refusing(false);
+        assertEquals(2, harness.parked().size());
+
+        assertTrue(harness.replay("event-1"));
+        assertTrue(harness.discard("event-2"));
+
+        await("event-1 is handled", () -> world.handledIds().contains("event-1"));
+        await("nothing is parked", () -> harness.parked().isEmpty());
+        settle();
+        assertEquals(List.of("event-1"), world.handledIds());
+        assertEquals(List.of("MESSAGE_REPLAYED event-1 " + OPERATOR, "MESSAGE_DISCARDED event-2 " + OPERATOR),
+            world.audit().recorded().stream()
+                .map(operation -> operation.action() + " " + operation.messageId() + " " + operation.operator())
+                .toList());
+    }
+
+    @Test
+    void aRepublishedEventReachesTheSubscriberAgainAndItsInboxSkipsIt() {
+        // Kafka design D32, D34, §14 K16: a published event is sent again with its id while the outbox keeps it; the
+        // subscriber's inbox recognises it, so the handler does not run twice.
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        harness.start();
+        await("event-1 is handled", () -> world.handledIds().contains("event-1"));
+        await("event-1 is published", () -> world.outbox().find("event-1")
+            .filter(stored -> "PUBLISHED".equals(stored.status())).isPresent());
+        int duplicates = world.duplicates();
+
+        assertTrue(harness.republish("event-1"));
+
+        await("the inbox recognises event-1", () -> world.duplicates() > duplicates);
+        settle();
+        assertEquals(List.of("event-1"), world.handledIds());
+        assertEquals("MESSAGE_REPUBLISHED", world.audit().recorded().get(0).action());
     }
 
     @Test

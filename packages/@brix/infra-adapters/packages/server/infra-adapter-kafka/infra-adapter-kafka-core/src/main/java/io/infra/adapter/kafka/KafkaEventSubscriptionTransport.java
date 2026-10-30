@@ -126,6 +126,11 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
     }
 
     @Override
+    public Duration retention() {
+        return settings.retention();
+    }
+
+    @Override
     public void close() {
         parking.close();
     }

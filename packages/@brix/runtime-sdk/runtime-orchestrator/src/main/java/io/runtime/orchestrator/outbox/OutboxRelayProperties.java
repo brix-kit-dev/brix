@@ -65,6 +65,11 @@ public class OutboxRelayProperties {
      */
     private Duration pollDelay = Duration.ofSeconds(1);
 
+    /**
+     * Retention of the messaging tables (Kafka design D34).
+     */
+    private final Retention retention = new Retention();
+
     public String getOwner() {
         return owner;
     }
@@ -135,5 +140,81 @@ public class OutboxRelayProperties {
 
     public void setTransport(String transport) {
         this.transport = transport;
+    }
+
+    public Retention getRetention() {
+        return retention;
+    }
+
+    /**
+     * Retention of the messaging tables (root BRX-RS-MESSAGE-026; Kafka design D34, §14 K16). Parked messages stay
+     * until an operator replays or discards them.
+     */
+    public static class Retention {
+
+        /**
+         * Whether this Host deletes expired messaging records.
+         */
+        private boolean enabled = true;
+
+        /**
+         * How long published and discarded outbox messages stay; a published message can be republished until then.
+         */
+        private Duration outbox = CanonicalMessagingTables.OUTBOX_RETENTION;
+
+        /**
+         * How long inbox and command idempotency records stay: at least the outbox retention plus the broker's.
+         */
+        private Duration inbox = CanonicalMessagingTables.INBOX_RETENTION;
+
+        /**
+         * Delay between cleaning passes.
+         */
+        private Duration interval = Duration.ofHours(1);
+
+        /**
+         * Rows deleted per statement.
+         */
+        private int batchSize = 1000;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public Duration getOutbox() {
+            return outbox;
+        }
+
+        public void setOutbox(Duration outbox) {
+            this.outbox = outbox;
+        }
+
+        public Duration getInbox() {
+            return inbox;
+        }
+
+        public void setInbox(Duration inbox) {
+            this.inbox = inbox;
+        }
+
+        public Duration getInterval() {
+            return interval;
+        }
+
+        public void setInterval(Duration interval) {
+            this.interval = interval;
+        }
+
+        public int getBatchSize() {
+            return batchSize;
+        }
+
+        public void setBatchSize(int batchSize) {
+            this.batchSize = batchSize;
+        }
     }
 }

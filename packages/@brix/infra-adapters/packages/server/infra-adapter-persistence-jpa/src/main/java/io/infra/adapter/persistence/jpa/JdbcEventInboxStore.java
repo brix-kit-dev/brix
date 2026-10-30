@@ -17,7 +17,10 @@ package io.infra.adapter.persistence.jpa;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import javax.sql.DataSource;
@@ -72,5 +75,23 @@ final class JdbcEventInboxStore implements EventInboxStore {
             handlerId, message.eventId(), message.messageKind(), message.messageType(), message.schemaVersion(),
             message.tenantId(), now, now);
         return true;
+    }
+
+    @Override
+    public List<String> tables() {
+        return owners.ownerIds().stream()
+            .map(owners::inboxOf)
+            .flatMap(Optional::stream)
+            .filter(name -> TABLE.matcher(name).matches())
+            .distinct()
+            .toList();
+    }
+
+    @Override
+    public int purge(String table, OffsetDateTime processedBefore, int limit) {
+        if (!tables().contains(table)) {
+            throw new IllegalArgumentException("Not an owner inbox: " + table);
+        }
+        return ExpiredRecords.delete(jdbc, table, ExpiredRecords.INBOX_KEY, "processed_at", processedBefore, limit);
     }
 }

@@ -177,7 +177,7 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         return new Registration(ownerId, write.getTable(), Set.copyOf(write.getActions()), generator);
     }
 
-    private static long numericId(IdGeneratorCapability generator) {
+    static long numericId(IdGeneratorCapability generator) {
         return Long.parseLong(generator.generate());
     }
 
@@ -189,7 +189,7 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         return "META-INF/brix/schemas/" + schemaRef.substring(SCHEMA_PREFIX.length()) + ".json";
     }
 
-    private static boolean mapsTable(OwnerDirectory owners, EntityManagerFactory entityManagerFactory, String ownerId, String table) {
+    static boolean mapsTable(OwnerDirectory owners, EntityManagerFactory entityManagerFactory, String ownerId, String table) {
         return entityManagerFactory.getMetamodel().getEntities().stream()
             .map(EntityType::getJavaType)
             .filter(Objects::nonNull)
@@ -210,7 +210,7 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         return statement;
     }
 
-    private static String jsonPlaceholder(String databaseProduct) {
+    static String jsonPlaceholder(String databaseProduct) {
         return switch (databaseProduct) {
             case "PostgreSQL" -> "CAST(? AS JSONB)";
             case "H2" -> "? FORMAT JSON";
@@ -238,7 +238,7 @@ final class JdbcPolicyAuditWriter implements PolicyAuditWriter {
         };
     }
 
-    private static String json(Map<String, String> context) {
+    static String json(Map<String, String> context) {
         return context.entrySet().stream()
             .map(entry -> quote(entry.getKey()) + ":" + quote(entry.getValue()))
             .collect(Collectors.joining(",", "{", "}"));

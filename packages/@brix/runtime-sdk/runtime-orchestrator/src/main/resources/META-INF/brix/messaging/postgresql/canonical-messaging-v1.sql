@@ -8,6 +8,10 @@
 --   * the command idempotency table when it provides commands.
 -- The runtime checks the columns, keys and indexes at startup (CanonicalMessagingTables) and refuses an
 -- Owner whose tables differ. Later platform versions add migrations to this one; never edit an applied copy.
+--
+-- Retention (Kafka design D34): the runtime deletes published and discarded outbox rows after 14 days, and inbox
+-- and command idempotency rows after 30 days, a batch at a time (brix.outbox.relay.retention.*). Parked rows stay
+-- until an operator replays or discards them. A published row can be republished until it is deleted.
 
 -- Messages the Owner sends. seq numbers them in the order they were recorded: the relay sends the
 -- messages of one partition key in that order, whatever the producers' clocks say.

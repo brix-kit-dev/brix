@@ -10,9 +10,11 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
+import io.runtime.orchestrator.outbox.OutboxMessageState;
 import io.runtime.orchestrator.outbox.OutboxMessageStore;
 import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 
@@ -24,7 +26,7 @@ import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
  */
 public final class InMemoryOutboxStore implements OutboxMessageStore {
 
-    private enum Status { PENDING, IN_FLIGHT, PUBLISHED, PARKED }
+    private enum Status { PENDING, IN_FLIGHT, PUBLISHED, PARKED, DISCARDED }
 
     private final List<Row> rows = new ArrayList<>();
 
@@ -61,7 +63,9 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
 
     @Override
     public synchronized void markPublished(String relayOwner, String messageId, OffsetDateTime publishedAt) {
-        claimedBy(relayOwner, messageId).status = Status.PUBLISHED;
+        Row row = claimedBy(relayOwner, messageId);
+        row.status = Status.PUBLISHED;
+        row.publishedAt = publishedAt;
     }
 
     @Override
@@ -125,6 +129,41 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
         return false;
     }
 
+    @Override
+    public synchronized Optional<OutboxMessageState> find(String eventId) {
+        return rows.stream()
+            .filter(row -> row.message.eventId().equals(eventId))
+            .reduce((first, last) -> last)
+            .map(row -> new OutboxMessageState(row.status.name(), row.publishedAt));
+    }
+
+    @Override
+    public synchronized boolean discardParked(String eventId, OffsetDateTime now) {
+        for (Row row : rows) {
+            if (row.status == Status.PARKED && row.message.eventId().equals(eventId)) {
+                row.status = Status.DISCARDED;
+                row.availableAt = now;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public synchronized boolean republish(String eventId, OffsetDateTime now, OffsetDateTime publishedSince) {
+        for (Row row : rows) {
+            if (row.status == Status.PUBLISHED && row.message.eventId().equals(eventId)
+                    && !row.publishedAt.isBefore(publishedSince)) {
+                row.status = Status.PENDING;
+                row.availableAt = now;
+                row.attempts = 0;
+                row.publishedAt = null;
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Returns how often the rows of an event were claimed.
      *
@@ -172,6 +211,7 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
         private String claimedBy;
         private String errorCode;
         private int attempts;
+        private OffsetDateTime publishedAt;
 
         private Row(CanonicalOutboxMessage message) {
             this.message = message;

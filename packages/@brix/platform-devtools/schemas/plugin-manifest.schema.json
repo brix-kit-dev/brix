@@ -349,7 +349,7 @@
       "required": ["table", "custodian", "operations", "columns", "recordSchemaRef"],
       "properties": {
         "table": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
-        "custodian": { "type": "string", "enum": ["runtime.tenant-policy-audit"] },
+        "custodian": { "type": "string", "enum": ["runtime.tenant-policy-audit", "runtime.message-operations"] },
         "operations": {
           "type": "array",
           "minItems": 1,

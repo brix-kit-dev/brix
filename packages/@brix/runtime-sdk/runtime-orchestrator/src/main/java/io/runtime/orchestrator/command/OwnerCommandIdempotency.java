@@ -6,6 +6,9 @@
  */
 package io.runtime.orchestrator.command;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 
 /**
@@ -31,4 +34,26 @@ public interface OwnerCommandIdempotency {
      */
     boolean reserve(String ownerId, String handlerId, CanonicalOutboxMessage message, String idempotencyScope,
             String idempotencyKey);
+
+    /**
+     * Returns the idempotency tables the retention cleans (Kafka design D34, §14 K16).
+     *
+     * @return the providers' command idempotency tables
+     */
+    default List<String> tables() {
+        return List.of();
+    }
+
+    /**
+     * Deletes up to {@code limit} records created before the cutoff from one table, in a transaction of its own;
+     * a key is honoured for the inbox retention (root BRX-RS-MESSAGE-014, MESSAGE-026).
+     *
+     * @param table one of {@link #tables()}
+     * @param createdBefore records created before this go
+     * @param limit at most this many
+     * @return how many were deleted
+     */
+    default int purge(String table, OffsetDateTime createdBefore, int limit) {
+        return 0;
+    }
 }

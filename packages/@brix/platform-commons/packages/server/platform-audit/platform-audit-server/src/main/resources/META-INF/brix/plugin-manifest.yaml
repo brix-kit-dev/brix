@@ -93,6 +93,28 @@ data:
         - writer
       actions: [LOGIN_TENANT_DISCOVERY, FIRST_OWNER_INVITEE_SETUP_FANOUT]
       recordSchemaRef: "brix://schemas/platform-audit/policy-use-record/1.0.0"
+    # Kafka design §14 K14, D33: the runtime records an operator's replay, discard or republish of a message here.
+    - table: sys_platform_audit_log
+      custodian: runtime.message-operations
+      operations: [INSERT]
+      columns:
+        - id
+        - operator_identity_id
+        - action
+        - resource_type
+        - resource_id
+        - affected_tenants
+        - context
+        - success
+        - error_code
+        - execution_identity
+        - reason_code
+        - trace_id
+        - source_ip
+        - user_agent
+        - writer
+      actions: [MESSAGE_REPLAYED, MESSAGE_DISCARDED, MESSAGE_REPUBLISHED]
+      recordSchemaRef: "brix://schemas/platform-audit/message-operation-record/1.0.0"
 permissions: []
 config: []
 ui:

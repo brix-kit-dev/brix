@@ -35,6 +35,8 @@ import io.runtime.orchestrator.event.EventDelivery;
 import io.runtime.orchestrator.event.EventDeliveryScopes;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.event.EventSubscribers;
+import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
+import io.runtime.orchestrator.outbox.OutboxEndpoint;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxRelayPolicy;
 import io.runtime.orchestrator.persistence.TenantScope;
@@ -60,6 +62,8 @@ public final class ConformanceWorld {
     public static final String SUBSCRIBER = "conformance-subscriber";
     public static final String HANDLER = "member-accepted-projection.v1";
     public static final long TENANT = 910001L;
+    /** The publisher's outbox table, as the management endpoint names it. */
+    public static final String OUTBOX = "conformance_publisher_outbox";
     public static final String TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
     /** The command the publisher submits and the subscriber provides (Kafka design §14 K22). */
     public static final String COMMAND = "ReserveStock";
@@ -91,6 +95,7 @@ public final class ConformanceWorld {
     }
 
     private final InMemoryOutboxStore outbox = new InMemoryOutboxStore();
+    private final RecordingMessageAudit audit = new RecordingMessageAudit();
     private final RecordingMessageTracing tracing = new RecordingMessageTracing();
     private final OutboxRelayPolicy policy =
         new OutboxRelayPolicy(10, 3, Duration.ofSeconds(10), Duration.ofMillis(100), Duration.ZERO);
@@ -173,6 +178,22 @@ public final class ConformanceWorld {
 
     public InMemoryOutboxStore outbox() {
         return outbox;
+    }
+
+    /** The platform audit of operators' replays, discards and republishes (Kafka design D33). */
+    public RecordingMessageAudit audit() {
+        return audit;
+    }
+
+    /**
+     * Returns the management endpoint over the publisher's outbox, recording in {@link #audit()}, with the default
+     * outbox retention.
+     *
+     * @return the endpoint
+     */
+    public OutboxEndpoint outboxEndpoint() {
+        return new OutboxEndpoint(() -> () -> Map.of(OUTBOX, outbox), () -> audit,
+            CanonicalMessagingTables.OUTBOX_RETENTION, Clock.systemUTC());
     }
 
     /** The spans the relay and the delivery core start, which the transport's harness hands its relay. */
@@ -304,7 +325,6 @@ public final class ConformanceWorld {
         failuresOfEvent.put(eventId, new AtomicInteger(count));
     }
 
-    /** Makes the handler fail until told otherwise. */
     /** Makes the handler throw this error once, as a handler whose class cannot load does. */
     public void failNextWith(Error error) {
         this.nextError = error;
@@ -315,6 +335,7 @@ public final class ConformanceWorld {
         this.hanging = hanging;
     }
 
+    /** Makes the handler fail until told otherwise. */
     public void failing(boolean failing) {
         this.failing = failing;
     }

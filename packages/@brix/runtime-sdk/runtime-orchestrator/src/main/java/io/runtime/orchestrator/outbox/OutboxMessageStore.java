@@ -9,6 +9,7 @@ package io.runtime.orchestrator.outbox;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Broker-neutral L2B port for claiming and finalizing canonical outbox records.
@@ -115,4 +116,50 @@ public interface OutboxMessageStore {
      * @return whether a parked message with that event id was found
      */
     boolean replayParked(String eventId, OffsetDateTime now);
+
+    /**
+     * Returns where the message with this event id stands (Kafka design §14 K14, K16).
+     *
+     * @param eventId the event or command id
+     * @return its status and publication time, or empty when the outbox does not hold it
+     */
+    default Optional<OutboxMessageState> find(String eventId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Discards a parked message: it stays as DISCARDED until the retention removes it, and is never sent (D33).
+     *
+     * @param eventId the parked message's event id
+     * @param now discard time
+     * @return whether a parked message was discarded
+     */
+    default boolean discardParked(String eventId, OffsetDateTime now) {
+        throw new UnsupportedOperationException("This outbox store cannot discard messages");
+    }
+
+    /**
+     * Makes a published message due again, with its event id and a fresh attempt budget, for example after the broker
+     * lost it or for a subscription that started later (Kafka design §9, D32, D34, §14 K16). The subscribers' inboxes
+     * skip it where it already arrived, as long as it was published within the outbox retention.
+     *
+     * @param eventId the published message's event id
+     * @param now republish time
+     * @param publishedSince the message must have been published at or after this
+     * @return whether a published message was made due again
+     */
+    default boolean republish(String eventId, OffsetDateTime now, OffsetDateTime publishedSince) {
+        throw new UnsupportedOperationException("This outbox store cannot republish messages");
+    }
+
+    /**
+     * Deletes published and discarded messages older than the cutoff (root BRX-RS-MESSAGE-026; Kafka design D34).
+     *
+     * @param before messages published or discarded before this go
+     * @param limit at most this many
+     * @return how many were deleted
+     */
+    default int purge(OffsetDateTime before, int limit) {
+        return 0;
+    }
 }

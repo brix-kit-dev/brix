@@ -56,7 +56,8 @@ public final class PluginManifestValidator {
      * Runtime custodians root blueprint appendix A registers ({@code manifest.custodialWrites.runtimeCustodians}).
      * Only these may appear in {@code data.custodialWrites[].custodian}.
      */
-    public static final Set<String> RUNTIME_CUSTODIANS = Set.of("runtime.tenant-policy-audit");
+    public static final Set<String> RUNTIME_CUSTODIANS = Set.of("runtime.tenant-policy-audit",
+        "runtime.message-operations");
     private static final Pattern SEMVER_PATTERN = Pattern.compile(
         "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\\+[0-9A-Za-z][0-9A-Za-z.-]*)?$");
     private static final Pattern RANGE_TOKEN_PATTERN = Pattern.compile(

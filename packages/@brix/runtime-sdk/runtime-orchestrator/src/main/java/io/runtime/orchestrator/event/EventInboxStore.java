@@ -5,6 +5,9 @@
  */
 package io.runtime.orchestrator.event;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 
 /**
@@ -24,4 +27,26 @@ public interface EventInboxStore {
      * @return {@code true} for a first delivery, {@code false} when the handler already committed this event
      */
     boolean insertProcessed(String ownerId, String handlerId, CanonicalOutboxMessage message);
+
+    /**
+     * Returns the inbox tables the retention cleans (Kafka design D34, §14 K16).
+     *
+     * @return the owners' inbox tables
+     */
+    default List<String> tables() {
+        return List.of();
+    }
+
+    /**
+     * Deletes up to {@code limit} delivery records processed before the cutoff from one inbox, in a transaction of
+     * its own (root BRX-RS-MESSAGE-026).
+     *
+     * @param table one of {@link #tables()}
+     * @param processedBefore records processed before this go
+     * @param limit at most this many
+     * @return how many were deleted
+     */
+    default int purge(String table, OffsetDateTime processedBefore, int limit) {
+        return 0;
+    }
 }

@@ -8,8 +8,9 @@ package io.runtime.orchestrator.event;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.OffsetDateTime;
 import java.util.List;
+
+import org.springframework.boot.actuate.endpoint.SecurityContext;
 
 import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.event.conformance.EventTransportConformance;
@@ -61,7 +62,19 @@ class InProcessTransportConformanceTest extends EventTransportConformance {
 
             @Override
             public boolean replay(String eventId) {
-                return world.outbox().replayParked(eventId, OffsetDateTime.now());
+                return world.outboxEndpoint().replay(eventId, OPERATOR, "conformance replay", SecurityContext.NONE)
+                    .getStatus() == 200;
+            }
+
+            @Override
+            public boolean discard(String eventId) {
+                return world.outboxEndpoint().discard(eventId, OPERATOR, "conformance discard", SecurityContext.NONE)
+                    .getStatus() == 200;
+            }
+
+            @Override
+            public ConformanceWorld world() {
+                return world;
             }
 
             @Override

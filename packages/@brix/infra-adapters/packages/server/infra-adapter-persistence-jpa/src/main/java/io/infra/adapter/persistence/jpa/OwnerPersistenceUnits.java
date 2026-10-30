@@ -50,6 +50,7 @@ import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
+import io.runtime.orchestrator.outbox.MessageOperationAudit;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
@@ -210,6 +211,19 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
      */
     public PolicyAuditWriter policyAuditWriter(Supplier<IdGeneratorCapability> ids) {
         return new JdbcPolicyAuditWriter(owners, entityManagerFactory, transactionManager, dataSource, transactionTimeout, ids);
+    }
+
+    /**
+     * Makes the runtime custodian that records operators' actions on messages in the platform audit (root
+     * BRX-RS-DATA-045, MESSAGE-028; Kafka design D33). It needs the platform audit owner's registration when it
+     * first records; without one every action is refused.
+     *
+     * @param ids supplies the Host's id generator; may supply {@code null}
+     * @return the audit of message operations
+     */
+    public MessageOperationAudit messageOperationAudit(Supplier<IdGeneratorCapability> ids) {
+        return new JdbcMessageOperationAudit(owners, entityManagerFactory, transactionManager, dataSource,
+            transactionTimeout, ids);
     }
 
     @Override

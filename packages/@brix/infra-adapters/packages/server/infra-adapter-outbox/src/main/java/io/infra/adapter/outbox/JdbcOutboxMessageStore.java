@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
+import io.runtime.orchestrator.outbox.OutboxMessageState;
 import io.runtime.orchestrator.outbox.OutboxMessageStore;
 import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 
@@ -51,6 +53,7 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
     private static final String STATUS_IN_FLIGHT = "IN_FLIGHT";
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_PARKED = "PARKED";
+    private static final String STATUS_DISCARDED = "DISCARDED";
 
     /** Error code of a claimed row that does not form a canonical message. */
     public static final String ERROR_INVALID_ROW = "OUTBOX_INVALID_ROW";
@@ -369,6 +372,82 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
             timestamp(now),
             eventId,
             STATUS_PARKED) > 0;
+    }
+
+    @Override
+    public Optional<OutboxMessageState> find(String eventId) {
+        requireText(eventId, "eventId");
+        return jdbcTemplate.query("SELECT status, published_at FROM %s WHERE event_id = ? ORDER BY seq DESC"
+                .formatted(tableName),
+            rs -> rs.next()
+                ? Optional.of(new OutboxMessageState(rs.getString(1), offsetDateTime(rs, 2)))
+                : Optional.<OutboxMessageState>empty(),
+            eventId);
+    }
+
+    @Override
+    public boolean discardParked(String eventId, OffsetDateTime now) {
+        requireText(eventId, "eventId");
+        Objects.requireNonNull(now, "now must not be null");
+        return jdbcTemplate.update("""
+            UPDATE %s
+               SET status = ?,
+                   available_at = ?
+             WHERE event_id = ?
+               AND status = ?
+            """.formatted(tableName),
+            STATUS_DISCARDED,
+            timestamp(now),
+            eventId,
+            STATUS_PARKED) > 0;
+    }
+
+    @Override
+    public boolean republish(String eventId, OffsetDateTime now, OffsetDateTime publishedSince) {
+        requireText(eventId, "eventId");
+        Objects.requireNonNull(now, "now must not be null");
+        Objects.requireNonNull(publishedSince, "publishedSince must not be null");
+        return jdbcTemplate.update("""
+            UPDATE %s
+               SET status = ?,
+                   available_at = ?,
+                   attempt_count = 0,
+                   claim_owner = NULL,
+                   claim_until = NULL,
+                   published_at = NULL,
+                   last_error_code = ?
+             WHERE event_id = ?
+               AND status = ?
+               AND published_at >= ?
+            """.formatted(tableName),
+            STATUS_PENDING,
+            timestamp(now),
+            "REPUBLISHED",
+            eventId,
+            STATUS_PUBLISHED,
+            timestamp(publishedSince)) > 0;
+    }
+
+    @Override
+    public int purge(OffsetDateTime before, int limit) {
+        Objects.requireNonNull(before, "before must not be null");
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        return jdbcTemplate.update("""
+            DELETE FROM %1$s
+             WHERE message_id IN (
+                SELECT message_id
+                  FROM %1$s
+                 WHERE (status = ? AND published_at < ?)
+                    OR (status = ? AND available_at < ?)
+                 LIMIT ?)
+            """.formatted(tableName),
+            STATUS_PUBLISHED,
+            timestamp(before),
+            STATUS_DISCARDED,
+            timestamp(before),
+            limit);
     }
 
     private CanonicalOutboxMessage loadClaimed(String relayOwner, String messageId, OffsetDateTime now) {

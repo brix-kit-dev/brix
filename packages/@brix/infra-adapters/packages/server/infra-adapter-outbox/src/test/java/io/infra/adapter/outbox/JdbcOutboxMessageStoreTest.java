@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
@@ -30,6 +31,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
+import io.runtime.orchestrator.outbox.OutboxMessageState;
+import io.runtime.orchestrator.outbox.OutboxMessageStore;
 import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 
 /**
@@ -288,6 +291,64 @@ class JdbcOutboxMessageStoreTest {
     }
 
     @Test
+    void aDiscardedMessageIsNeverClaimedAndOnlyAParkedOneIsDiscarded() {
+        insert("m-13", "PARKED", 8, NOW.minusSeconds(10), null);
+        insert("m-14", "PENDING", 0, NOW.minusSeconds(10), null, "200", NOW.minusSeconds(60));
+
+        assertTrue(store.discardParked("event-m-13", NOW));
+        assertFalse(store.discardParked("event-m-14", NOW));
+        assertFalse(store.discardParked("event-unknown", NOW));
+
+        assertEquals("DISCARDED", queryString("status", "m-13"));
+        assertEquals(List.of("event-m-14"), store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10).stream()
+            .map(CanonicalOutboxMessage::eventId).toList());
+        assertEquals(List.of(), store.listParked(10));
+    }
+
+    @Test
+    void aPublishedMessageIsRepublishedWithItsEventIdAndAFreshBudgetWithinTheRetention() {
+        insert("m-15", "PUBLISHED", 1, NOW.minusDays(2), null);
+        published("m-15", NOW.minusDays(1));
+        insert("m-16", "PUBLISHED", 1, NOW.minusDays(20), null, "300", NOW.minusDays(20));
+        published("m-16", NOW.minusDays(15));
+
+        assertEquals(Optional.of(new OutboxMessageState("PUBLISHED", NOW.minusDays(1))),
+            store.find("event-m-15"));
+        assertTrue(store.republish("event-m-15", NOW, NOW.minusDays(14)));
+        assertFalse(store.republish("event-m-16", NOW, NOW.minusDays(14)), "published before the retention");
+        assertFalse(store.republish("event-m-15", NOW, NOW.minusDays(14)), "no longer published");
+
+        assertEquals("PENDING", queryString("status", "m-15"));
+        assertEquals("0", queryString("attempt_count", "m-15"));
+        assertEquals(null, queryString("published_at", "m-15"));
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+        assertEquals(List.of("event-m-15"), claimed.stream().map(CanonicalOutboxMessage::eventId).toList());
+        assertEquals(Optional.empty(), store.find("event-unknown"));
+    }
+
+    @Test
+    void publishedAndDiscardedMessagesOlderThanTheCutoffArePurgedABatchAtATime() {
+        OffsetDateTime cutoff = NOW.minusDays(14);
+        for (int i = 1; i <= 3; i++) {
+            insert("old-" + i, "PUBLISHED", 1, NOW.minusDays(20), null, "key-" + i, NOW.minusDays(20));
+            published("old-" + i, cutoff.minusSeconds(i));
+        }
+        insert("recent", "PUBLISHED", 1, NOW.minusDays(1), null, "key-4", NOW.minusDays(1));
+        published("recent", cutoff.plusSeconds(1));
+        insert("discarded", "PARKED", 8, NOW.minusDays(20), null, "key-5", NOW.minusDays(20));
+        store.discardParked("event-discarded", cutoff.minusDays(1));
+        insert("parked", "PARKED", 8, NOW.minusDays(20), null, "key-6", NOW.minusDays(20));
+        insert("pending", "PENDING", 0, NOW.minusDays(20), null, "key-7", NOW.minusDays(20));
+
+        assertEquals(2, store.purge(cutoff, 2));
+        assertEquals(2, store.purge(cutoff, 2));
+        assertEquals(0, store.purge(cutoff, 2));
+
+        assertEquals(List.of("parked", "pending", "recent"), jdbcTemplate.queryForList(
+            "SELECT message_id FROM " + table + " ORDER BY message_id", String.class));
+    }
+
+    @Test
     void backlogSnapshotReportsPendingInFlightParkedAndOldestAge() {
         insert("m-6", "PENDING", 0, NOW.minusSeconds(60), null);
         insert("m-7", "IN_FLIGHT", 1, NOW.minusSeconds(20), NOW.plusSeconds(30));
@@ -339,6 +400,11 @@ class JdbcOutboxMessageStoreTest {
             attemptCount,
             claimUntil == null ? null : timestamp(claimUntil),
             timestamp(NOW.minusSeconds(60)));
+    }
+
+    private void published(String messageId, OffsetDateTime publishedAt) {
+        jdbcTemplate.update("UPDATE " + table + " SET published_at = ? WHERE message_id = ?", timestamp(publishedAt),
+            messageId);
     }
 
     private String queryString(String column, String messageId) {

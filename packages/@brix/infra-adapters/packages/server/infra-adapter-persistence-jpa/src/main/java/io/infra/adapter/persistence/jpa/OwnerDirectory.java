@@ -177,6 +177,13 @@ final class OwnerDirectory {
     }
 
     /**
+     * Returns the plugin ids of the owners the active manifests declare, sorted.
+     */
+    List<String> ownerIds() {
+        return scan().owners().keySet().stream().sorted().toList();
+    }
+
+    /**
      * Returns the owner with the given plugin id.
      */
     Optional<OwnerDeclaration> owner(String ownerId) {
