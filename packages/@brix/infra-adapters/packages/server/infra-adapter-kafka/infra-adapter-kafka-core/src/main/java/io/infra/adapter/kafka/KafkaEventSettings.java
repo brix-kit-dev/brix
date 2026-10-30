@@ -13,6 +13,7 @@ import java.time.Duration;
  *
  * @param partitions partitions of each event topic; the order of one partition key holds inside a partition
  * @param replicationFactor replicas of each topic
+ * @param minInsyncReplicas replicas that must have a write before it counts as written; at most the replicas
  * @param retention how long an event topic keeps its records
  * @param maxPollRecords records a subscription's consumer fetches at most per poll
  * @param pollTimeout how long a consumer waits for records per poll, and so how soon it notices a stop
@@ -23,6 +24,7 @@ import java.time.Duration;
 public record KafkaEventSettings(
         int partitions,
         short replicationFactor,
+        short minInsyncReplicas,
         Duration retention,
         int maxPollRecords,
         Duration pollTimeout,
@@ -40,6 +42,10 @@ public record KafkaEventSettings(
         if (replicationFactor <= 0) {
             throw new IllegalArgumentException("replicationFactor must be positive");
         }
+        if (minInsyncReplicas <= 0 || minInsyncReplicas > replicationFactor) {
+            throw new IllegalArgumentException("minInsyncReplicas must be between 1 and the replication factor ("
+                + replicationFactor + "), not " + minInsyncReplicas);
+        }
         if (maxPollRecords <= 0) {
             throw new IllegalArgumentException("maxPollRecords must be positive");
         }
@@ -56,7 +62,7 @@ public record KafkaEventSettings(
      * @return default settings
      */
     public static KafkaEventSettings defaults() {
-        return new KafkaEventSettings(3, (short) 1, Duration.ofDays(7), 10, Duration.ofMillis(500),
+        return new KafkaEventSettings(3, (short) 1, (short) 1, Duration.ofDays(7), 10, Duration.ofMillis(500),
             Duration.ofSeconds(5), Duration.ofSeconds(10), Duration.ofSeconds(10));
     }
 

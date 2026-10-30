@@ -88,8 +88,8 @@ class KafkaDirectBusBrokerTest {
         ObjectMapper json = JsonMapper.builder().configureForJackson2()
             .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS).build();
         KafkaEventTopics topics = new KafkaEventTopics("direct-");
-        KafkaEventSettings settings = new KafkaEventSettings(3, (short) 1, Duration.ofDays(1), 10, Duration.ofMillis(100),
-            Duration.ofMillis(200), Duration.ofSeconds(10), Duration.ofSeconds(10));
+        KafkaEventSettings settings = new KafkaEventSettings(3, (short) 1, (short) 1, Duration.ofDays(1), 10,
+            Duration.ofMillis(100), Duration.ofMillis(200), Duration.ofSeconds(10), Duration.ofSeconds(10));
         try (Admin admin = Admin.create(client);
                 KafkaEventBroker broker = new KafkaEventBroker(Admin.create(client), topics, settings, Clock.systemUTC())) {
             KafkaEventBusCapability bus = new KafkaEventBusCapability(new KafkaTemplate<>(producers), topics, broker, json,

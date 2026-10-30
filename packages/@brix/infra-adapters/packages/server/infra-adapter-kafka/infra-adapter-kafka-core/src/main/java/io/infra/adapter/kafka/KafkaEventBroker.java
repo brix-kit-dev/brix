@@ -132,7 +132,8 @@ public final class KafkaEventBroker implements AutoCloseable {
         Map<String, NewTopic> wanted = new TreeMap<>();
         for (String name : names) {
             wanted.put(name, new NewTopic(name, settings.partitions(), settings.replicationFactor())
-                .configs(Map.of(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(settings.retention().toMillis()))));
+                .configs(Map.of(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(settings.retention().toMillis()),
+                    TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, String.valueOf(settings.minInsyncReplicas()))));
         }
         ensure(wanted);
     }
@@ -148,7 +149,8 @@ public final class KafkaEventBroker implements AutoCloseable {
         for (ConsumedSubscription subscription : subscriptions) {
             String name = topics.parkingTopic(subscription);
             wanted.put(name, new NewTopic(name, 1, settings.replicationFactor())
-                .configs(Map.of(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT)));
+                .configs(Map.of(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT,
+                    TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, String.valueOf(settings.minInsyncReplicas()))));
         }
         ensure(wanted);
     }

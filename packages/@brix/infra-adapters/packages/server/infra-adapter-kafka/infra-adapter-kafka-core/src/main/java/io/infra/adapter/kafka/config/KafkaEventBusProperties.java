@@ -16,6 +16,8 @@
 package io.infra.adapter.kafka.config;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -85,6 +87,13 @@ public class KafkaEventBusProperties {
      */
     private EventsProperties events = new EventsProperties();
 
+    /**
+     * TLS and client identity settings passed unchanged to every Kafka client of the adapter: {@code security.protocol},
+     * {@code ssl.*} and {@code sasl.*}, for example {@code ssl.keystore.location} (root BRX-RS-SECURITY-006; Kafka
+     * design D35). Other client settings are refused: the adapter owns the ones its delivery guarantees rest on.
+     */
+    private Map<String, String> client = new LinkedHashMap<>();
+
     // ==================== Getters and Setters ====================
 
     public boolean isEnabled() {
@@ -141,6 +150,14 @@ public class KafkaEventBusProperties {
 
     public void setEvents(EventsProperties events) {
         this.events = events;
+    }
+
+    public Map<String, String> getClient() {
+        return client;
+    }
+
+    public void setClient(Map<String, String> client) {
+        this.client = client;
     }
 
     // ==================== Nested Configuration Classes ====================
@@ -256,6 +273,9 @@ public class KafkaEventBusProperties {
         /** Replicas of each topic. */
         private short replicationFactor = 1;
 
+        /** Replicas that must have a write before it counts as written; the production profile needs at least 2. */
+        private short minInsyncReplicas = 1;
+
         /** How long an event topic keeps its records. */
         private Duration retention = Duration.ofDays(7);
 
@@ -279,6 +299,9 @@ public class KafkaEventBusProperties {
 
         public short getReplicationFactor() { return replicationFactor; }
         public void setReplicationFactor(short replicationFactor) { this.replicationFactor = replicationFactor; }
+
+        public short getMinInsyncReplicas() { return minInsyncReplicas; }
+        public void setMinInsyncReplicas(short minInsyncReplicas) { this.minInsyncReplicas = minInsyncReplicas; }
 
         public Duration getRetention() { return retention; }
         public void setRetention(Duration retention) { this.retention = retention; }

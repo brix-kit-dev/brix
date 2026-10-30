@@ -99,8 +99,8 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
             producers = new DefaultKafkaProducerFactory<>(producer);
             KafkaTemplate<String, String> template = new KafkaTemplate<>(producers);
             KafkaEventTopics topics = new KafkaEventTopics(prefix);
-            KafkaEventSettings settings = new KafkaEventSettings(3, (short) 1, Duration.ofDays(1), 10, Duration.ofMillis(100),
-                Duration.ofMillis(200), Duration.ofSeconds(10), Duration.ofSeconds(10));
+            KafkaEventSettings settings = new KafkaEventSettings(3, (short) 1, (short) 1, Duration.ofDays(1), 10,
+                Duration.ofMillis(100), Duration.ofMillis(200), Duration.ofSeconds(10), Duration.ofSeconds(10));
             ObjectMapper json = JsonMapper.builder().configureForJackson2()
                 .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS).build();
             broker = new KafkaEventBroker(Admin.create(client), topics, settings, Clock.systemUTC());

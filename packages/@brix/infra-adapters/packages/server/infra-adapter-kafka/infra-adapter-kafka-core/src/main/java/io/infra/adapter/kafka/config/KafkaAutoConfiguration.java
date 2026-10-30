@@ -22,9 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.ObjectProvider;
@@ -36,6 +34,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -48,6 +47,7 @@ import tools.jackson.databind.cfg.DateTimeFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.infra.adapter.kafka.CanonicalKafkaOutboxTransport;
+import io.infra.adapter.kafka.KafkaClientSettings;
 import io.infra.adapter.kafka.KafkaEventBroker;
 import io.infra.adapter.kafka.KafkaEventBusCapability;
 import io.infra.adapter.kafka.KafkaEventSettings;
@@ -73,6 +73,12 @@ import io.runtime.sdk.capability.EventBusCapability;
  *   <tr><td>brix.infra.kafka.enabled</td><td>Whether to enable</td><td>true</td></tr>
  *   <tr><td>brix.infra.kafka.bootstrap-servers</td><td>Kafka address</td><td>localhost:9092</td></tr>
  *   <tr><td>brix.infra.kafka.topic-prefix</td><td>Topic prefix</td><td></td></tr>
+ *   <tr><td>brix.infra.kafka.client.*</td><td>TLS and client identity passed to every client:
+ *       security.protocol, ssl.*, sasl.*</td><td></td></tr>
+ *   <tr><td>brix.infra.kafka.events.replication-factor</td><td>Replicas of each topic; at least 3 under the
+ *       production profile</td><td>1</td></tr>
+ *   <tr><td>brix.infra.kafka.events.min-insync-replicas</td><td>Replicas that must have each write; at least 2 under
+ *       the production profile</td><td>1</td></tr>
  *   <tr><td>brix.infra.module-id</td><td>Producer id of direct-bus events that name no source module</td><td>unknown</td></tr>
  * </table>
  * 
@@ -98,15 +104,15 @@ public class KafkaAutoConfiguration {
      * <p>Creates Kafka producer factory with serializer and producer parameter configuration.</p>
      * 
      * @param properties Kafka configuration properties
+     * @param client the brokers, TLS and client identity
      * @return ProducerFactory instance
      */
     @Bean
     @ConditionalOnMissingBean
-    public ProducerFactory<String, String> kafkaProducerFactory(KafkaEventBusProperties properties) {
-        Map<String, Object> configs = new HashMap<>();
-        
-        // Kafka connection configuration
-        configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
+    public ProducerFactory<String, String> kafkaProducerFactory(
+            KafkaEventBusProperties properties, KafkaClientSettings client) {
+        // Kafka connection, TLS and client identity
+        Map<String, Object> configs = new HashMap<>(client.configs());
         
         // Serialization configuration
         configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -152,6 +158,22 @@ public class KafkaAutoConfiguration {
     }
 
     /**
+     * The brokers, TLS and client identity every Kafka client of the adapter starts from; under the production
+     * profile ({@code prod} or {@code production}) a configuration without TLS and a client certificate, or with
+     * fewer than three replicas or two in-sync replicas per topic, stops the host (Kafka design D35, §14 K24).
+     *
+     * @param properties Kafka configuration properties
+     * @param environment the active profiles
+     * @return the client settings
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public KafkaClientSettings kafkaClientSettings(KafkaEventBusProperties properties, Environment environment) {
+        return KafkaClientSettings.of(properties.getBootstrapServers(), properties.getClient(), eventSettings(properties),
+            environment.matchesProfiles("prod", "production"));
+    }
+
+    /**
      * Configure KafkaTemplate.
      * 
      * @param producerFactory Producer factory
@@ -166,15 +188,13 @@ public class KafkaAutoConfiguration {
     /**
      * Configure Kafka Admin (for Topic management).
      * 
-     * @param properties Kafka configuration properties
+     * @param client the brokers, TLS and client identity
      * @return KafkaAdmin instance
      */
     @Bean
     @ConditionalOnMissingBean
-    public KafkaAdmin kafkaAdmin(KafkaEventBusProperties properties) {
-        Map<String, Object> configs = new HashMap<>();
-        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
-        return new KafkaAdmin(configs);
+    public KafkaAdmin kafkaAdmin(KafkaClientSettings client) {
+        return new KafkaAdmin(new HashMap<>(client.configs()));
     }
 
     /**
@@ -250,12 +270,14 @@ public class KafkaAutoConfiguration {
      *
      * @param properties Kafka configuration properties
      * @param topics topic names
+     * @param client the brokers, TLS and client identity
      * @return the broker view; it closes its admin client with the context
      */
     @Bean
     @ConditionalOnMissingBean
-    public KafkaEventBroker kafkaEventBroker(KafkaEventBusProperties properties, KafkaEventTopics topics) {
-        return new KafkaEventBroker(Admin.create(clientConfigs(properties)), topics, eventSettings(properties),
+    public KafkaEventBroker kafkaEventBroker(
+            KafkaEventBusProperties properties, KafkaEventTopics topics, KafkaClientSettings client) {
+        return new KafkaEventBroker(Admin.create(client.configs()), topics, eventSettings(properties),
             Clock.systemUTC());
     }
 
@@ -293,6 +315,7 @@ public class KafkaAutoConfiguration {
      * @param topics topic names
      * @param properties Kafka configuration properties
      * @param kafkaTemplate writes parking records
+     * @param client the brokers, TLS and client identity
      * @return the subscription transport
      */
     @Bean
@@ -302,18 +325,16 @@ public class KafkaAutoConfiguration {
             KafkaEventBroker broker,
             KafkaEventTopics topics,
             KafkaEventBusProperties properties,
-            KafkaTemplate<String, String> kafkaTemplate) {
-        return new KafkaEventSubscriptionTransport(broker, topics, eventSettings(properties), clientConfigs(properties),
+            KafkaTemplate<String, String> kafkaTemplate,
+            KafkaClientSettings client) {
+        return new KafkaEventSubscriptionTransport(broker, topics, eventSettings(properties), client.configs(),
             kafkaTemplate, createEventObjectMapper(), Clock.systemUTC());
-    }
-
-    private static Map<String, Object> clientConfigs(KafkaEventBusProperties properties) {
-        return Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
     }
 
     private static KafkaEventSettings eventSettings(KafkaEventBusProperties properties) {
         KafkaEventBusProperties.EventsProperties events = properties.getEvents();
-        return new KafkaEventSettings(events.getPartitions(), events.getReplicationFactor(), events.getRetention(),
+        return new KafkaEventSettings(events.getPartitions(), events.getReplicationFactor(),
+            events.getMinInsyncReplicas(), events.getRetention(),
             events.getMaxPollRecords(), events.getPollTimeout(), events.getReadyCacheTtl(), events.getAdminTimeout(),
             events.getSendTimeout());
     }

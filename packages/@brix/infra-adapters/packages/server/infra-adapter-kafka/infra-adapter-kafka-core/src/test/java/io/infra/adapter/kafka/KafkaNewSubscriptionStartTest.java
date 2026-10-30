@@ -58,8 +58,8 @@ class KafkaNewSubscriptionStartTest {
     void aNewGroupStartsAtItsRegistrationAndAnExistingOneKeepsItsPosition() throws Exception {
         Map<String, Object> client = Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka.getBrokersAsString());
         KafkaEventTopics topics = new KafkaEventTopics("start-");
-        KafkaEventSettings settings = new KafkaEventSettings(1, (short) 1, Duration.ofDays(1), 10, Duration.ofMillis(100),
-            Duration.ofMillis(200), Duration.ofSeconds(10), Duration.ofSeconds(10));
+        KafkaEventSettings settings = new KafkaEventSettings(1, (short) 1, (short) 1, Duration.ofDays(1), 10,
+            Duration.ofMillis(100), Duration.ofMillis(200), Duration.ofSeconds(10), Duration.ofSeconds(10));
         String topic = topics.eventTopic("OrderPlaced");
         try (KafkaEventBroker broker = new KafkaEventBroker(Admin.create(client), topics, settings, Clock.systemUTC());
                 KafkaProducer<String, String> producer = producer(client)) {
