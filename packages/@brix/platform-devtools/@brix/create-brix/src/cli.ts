@@ -354,12 +354,14 @@ function printAppNextSteps(config: AppConfig): void {
 program
   .name('create-brix')
   .description('Brix Platform Scaffolding - governed Phase 7 templates plus frozen legacy inventory')
-  .version(VERSION);
+  .version(VERSION)
+  // Options before the command are the program's; after it, the command's own, so phase7 --version sets the module's.
+  .enablePositionalOptions();
 
 // ===== Runtime Shell v3.0.10 Phase 7 Governed Scaffolding =====
 program
   .command('phase7 <kind> <name>')
-  .description('Generate a governed Runtime Shell v3.0.10 scaffold: plugin | operational | ui')
+  .description('Generate a governed scaffold: plugin | operational | ui')
   .option('-o, --output-dir <dir>', 'Output directory', '.')
   .option('--display-name <name>', 'Display name')
   .option('--description <text>', 'Description')
@@ -367,12 +369,10 @@ program
   .option('--vendor <vendor>', 'Vendor id', 'brix')
   .option('--license <license>', 'SPDX license id', 'Apache-2.0')
   .option('--version <version>', 'Generated module version', '0.1.0')
-  .option('--runtime-version <version>', 'Exact Runtime/L2A version', '3.0.10')
-  .option('--runtime-range <range>', 'Brix Range v1 Runtime support range', '>=3.0.10 <4.0.0')
+  .option('--runtime-version <version>', 'Exact Runtime/L2A version (default: the version this create-brix targets)')
+  .option('--runtime-range <range>', 'Brix Range v1 Runtime support range (default: the next major excluded)')
   .option('--permission <id>', 'Permission id')
   .option('--endpoint-path <path>', 'HTTP endpoint path')
-  .option('--endpoint-method <method>', 'HTTP endpoint method', 'GET')
-  .option('--reliable-messaging', 'Include reliable messaging descriptor sections', false)
   .option('--no-migration-plan', 'Do not write phase7 migration plan')
   .action(async (kind: string, name: string, options: {
     outputDir: string;
@@ -382,12 +382,10 @@ program
     vendor: string;
     license: string;
     version: string;
-    runtimeVersion: string;
-    runtimeRange: string;
+    runtimeVersion?: string;
+    runtimeRange?: string;
     permission?: string;
     endpointPath?: string;
-    endpointMethod: string;
-    reliableMessaging: boolean;
     migrationPlan: boolean;
   }) => {
     printBanner();
@@ -409,12 +407,10 @@ program
     config.vendor = options.vendor;
     config.license = options.license;
     config.version = options.version;
-    config.runtimeVersion = options.runtimeVersion;
-    config.runtimeRange = options.runtimeRange;
+    config.runtimeVersion = options.runtimeVersion ?? config.runtimeVersion;
+    config.runtimeRange = options.runtimeRange ?? config.runtimeRange;
     config.permissionId = options.permission ?? config.permissionId;
     config.endpointPath = options.endpointPath ?? config.endpointPath;
-    config.endpointMethod = options.endpointMethod.toUpperCase() as typeof config.endpointMethod;
-    config.includeReliableMessaging = options.reliableMessaging;
     config.writeMigrationPlan = options.migrationPlan;
 
     const spinner = ora(`Generating governed ${kind} scaffold...`).start();

@@ -44,6 +44,29 @@ try {
     }
   }
 
+  // Values reach each file as they are: XML escapes them, YAML, JSON, Java, TypeScript and Markdown do not.
+  const manifest = await readFile(files.find((file) => file.endsWith('META-INF/brix/plugin-manifest.yaml')), 'utf-8');
+  assert(manifest.includes('supportedRange: ">=3.2.0 <4.0.0"'), 'the runtime range is written unescaped');
+  for (const file of files.filter((file) => !file.endsWith('.xml'))) {
+    const content = await readFile(file, 'utf-8');
+    assert(!/&(gt|lt|amp|quot|#39);/.test(content), `${relative(root, file)} holds an HTML entity`);
+  }
+  // The generated poms name the SDK and the runtime by their real coordinates.
+  for (const file of files.filter((file) => file.endsWith('pom.xml'))) {
+    const content = await readFile(file, 'utf-8');
+    assert(!content.includes('<groupId>io.runtime</groupId>'), `${relative(root, file)} names the io.runtime group`);
+  }
+  // Free text that would break or change a generated file is refused.
+  const unsafe = createDefaultGovernedScaffoldConfig('plugin', 'phase7-unsafe', join(root, 'unsafe'));
+  unsafe.displayName = 'Orders: "v2"';
+  await assert.rejects(generateGovernedScaffold(unsafe), /displayName may hold/);
+  const quotedRange = createDefaultGovernedScaffoldConfig('plugin', 'phase7-range', join(root, 'range'));
+  quotedRange.runtimeRange = '>=3.2.0" <4.0.0';
+  await assert.rejects(generateGovernedScaffold(quotedRange), /runtimeRange must not contain quotes/);
+  const named = createDefaultGovernedScaffoldConfig('plugin', 'phase7-named', join(root, 'named'));
+  named.displayName = '订单 Orders (v2)';
+  await generateGovernedScaffold(named);
+
   const scan = await scanLegacyScaffold(root);
   assert.equal(scan.findings.length, 0);
 

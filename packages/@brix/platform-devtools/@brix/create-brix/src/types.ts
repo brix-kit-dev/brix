@@ -257,12 +257,8 @@ export interface GovernedScaffoldConfig {
   outputDir: string;
   /** Endpoint permission id */
   permissionId: string;
-  /** HTTP endpoint path */
+  /** HTTP path the ui scaffold reads */
   endpointPath: string;
-  /** HTTP endpoint method */
-  endpointMethod: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  /** Include canonical reliable message descriptor sections */
-  includeReliableMessaging: boolean;
   /** Write an accompanying migration plan */
   writeMigrationPlan: boolean;
   /** Index signature for template rendering */

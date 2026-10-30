@@ -56,6 +56,11 @@ function assertLegacyTemplateGenerationFrozen(kind: string): never {
 }
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+// Free text the templates write unquoted into YAML, inside JSON strings and into Java and TypeScript comments: letters
+// of any script, digits, spaces and a few marks, so that no value can break or change a generated file.
+const TEXT_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} .,()_+/-]*$/u;
+// A version range is always quoted; only what would end or escape the quotes is refused.
+const RANGE_PATTERN = /^[^"\\\u0000-\u001f]+$/;
 const STORAGE_ID_MAX_LENGTH = 31;
 const DEFAULT_RUNTIME_VERSION = '3.2.0';
 const DEFAULT_RUNTIME_RANGE = '>=3.2.0 <4.0.0';
@@ -201,6 +206,22 @@ function validateGovernedScaffoldConfig(config: GovernedScaffoldConfig): void {
   if (!config.runtimeVersion.trim() || !config.runtimeRange.trim()) {
     throw new Error('Phase 7 scaffold runtimeVersion and runtimeRange are required');
   }
+  const text: Record<string, string> = {
+    displayName: config.displayName,
+    description: config.description,
+    owner: config.owner,
+    vendor: config.vendor,
+    license: config.license,
+    runtimeVersion: config.runtimeVersion,
+  };
+  for (const [field, value] of Object.entries(text)) {
+    if (!TEXT_PATTERN.test(value)) {
+      throw new Error(`Phase 7 scaffold ${field} may hold letters, digits, spaces and . , ( ) _ + / - only`);
+    }
+  }
+  if (!RANGE_PATTERN.test(config.runtimeRange)) {
+    throw new Error('Phase 7 scaffold runtimeRange must not contain quotes, backslashes or control characters');
+  }
   if (!config.endpointPath.startsWith('/')) {
     throw new Error('Phase 7 scaffold endpointPath must be absolute');
   }
@@ -270,11 +291,20 @@ async function renderTemplateTree(
       await renderTemplateTree(join(templateRoot, entry.name), target, context);
     } else {
       const template = await readFile(source, 'utf-8');
-      const content = ejs.render(template, context);
+      const content = ejs.render(template, context, { escape: escaperFor(target) });
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, content, 'utf-8');
     }
   }
+}
+
+/**
+ * How {@code <%= %>} escapes a value for the file it is written into: XML escaping for XML; YAML, JSON, Java,
+ * TypeScript and Markdown take the value as it is, so that a range such as {@code >=3.2.0 <4.0.0} is not written as
+ * {@code &gt;=3.2.0 &lt;4.0.0}. The values themselves are checked when the config is validated.
+ */
+function escaperFor(target: string): ((value: unknown) => string) | undefined {
+  return target.endsWith('.xml') ? undefined : (value: unknown) => (value == null ? '' : String(value));
 }
 
 async function scanLegacyDirectory(root: string, current: string, findings: LegacyScanFinding[]): Promise<void> {
@@ -332,8 +362,6 @@ export function createDefaultGovernedScaffoldConfig(
     outputDir,
     permissionId: `${moduleId}:read`,
     endpointPath: kind === 'operational' ? `/api/platform/${name}/status` : `/api/v1/${name}/status`,
-    endpointMethod: 'GET',
-    includeReliableMessaging: false,
     writeMigrationPlan: true,
   };
 }

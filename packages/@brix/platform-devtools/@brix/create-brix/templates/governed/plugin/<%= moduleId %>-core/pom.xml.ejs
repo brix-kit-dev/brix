@@ -9,4 +9,17 @@
   </parent>
   <artifactId><%= moduleId %>-core</artifactId>
   <packaging>jar</packaging>
+  <!-- Domain logic sees its own contract and the Runtime SDK's capabilities, nothing of the server. -->
+  <dependencies>
+    <dependency>
+      <groupId>io.brix.app</groupId>
+      <artifactId><%= moduleId %>-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.brix</groupId>
+      <artifactId>runtime-sdk-api</artifactId>
+      <version><%= runtimeVersion %></version>
+    </dependency>
+  </dependencies>
 </project>
