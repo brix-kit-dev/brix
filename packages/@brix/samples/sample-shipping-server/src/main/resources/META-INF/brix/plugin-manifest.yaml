@@ -1,0 +1,106 @@
+# The sample subscriber (Kafka design §14 K23): it subscribes to sample-orders' SampleOrderPlaced with a persistent
+# inbox, so each event changes its data once however often it arrives, and shows each order's shipment.
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: sample-shipping
+  name: sample-shipping
+  version: 3.2.0
+  displayName: Sample Shipping
+  vendor: Brix Platform
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.2.0
+  supportedRange: ">=3.2.0 <4.0.0"
+# Three artifacts (root BRX-RS-MANIFEST-005): the contract, the logic and data, the entry point and handlers.
+modules:
+  - groupId: io.brix.samples
+    artifactId: sample-shipping-api
+    version: 3.2.0
+    moduleKind: plugin-api
+  - groupId: io.brix.samples
+    artifactId: sample-shipping-core
+    version: 3.2.0
+    moduleKind: plugin-core
+  - groupId: io.brix.samples
+    artifactId: sample-shipping-server
+    version: 3.2.0
+    moduleKind: plugin-server
+endpoints:
+  provides:
+    - endpointId: sample-shipping.find-shipment.v1
+      transport: http
+      method: GET
+      path: /api/sample-shipping/shipments/{orderId}
+      request:
+        schemaRef: brix://schemas/sample-shipping/find-shipment-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-shipping/shipment/1.0.0
+      handlerId: sample-shipping.find-shipment.v1
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - sample-shipping:shipment:read
+        decision: all
+        resourcePolicyRef: sample-shipping-shipment-read
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      idempotency:
+        mode: not-applicable
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
+    - id: io.runtime.sdk.capability.IdGeneratorCapability
+      version: ">=3.2.0 <4.0.0"
+  optional: []
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes: []
+  subscribes:
+    - subscriptionId: prepare-shipment
+      eventType: SampleOrderPlaced
+      # Any 1.x of the publisher's schema; a 2.0.0 event is parked instead of misread.
+      schemaRange: ">=1.0.0 <2.0.0"
+      handlerId: sample-shipping.prepare-shipment.v1
+      # A TENANT event is handled in its own tenant.
+      scopePolicyRef: sample-shipping-order-tenant
+      # Only the plugin that declares SampleOrderPlaced may publish it.
+      publisherPolicyRef: sample-orders-owner
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: partition-serial
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
+tasks:
+  provides: []
+internalContracts:
+  provides: []
+# The platform creates sample_shipping_inbox from its own versioned migrations; db/migration/sample-shipping holds
+# only the plugin's business tables.
+data:
+  storageId: sample_shipping
+  schema: sample-shipping
+  migrationLocation: db/migration/sample-shipping
+  inbox: sample_shipping_inbox
+permissions:
+  - id: sample-shipping:shipment:read
+    name: Read sample shipments
+    description: Allows reading the shipments of the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
+config: []
+ui:
+  web:
+    enabled: false

@@ -56,7 +56,8 @@ import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
  * The sample plugins end to end, through the plugin runtime, on PostgreSQL and Kafka (Kafka design §14 K23, §14.5
  * item 3): a member places an order over HTTP; sample-orders writes it and its {@code SampleOrderPlaced} event in one
  * transaction and sends {@code SampleOrderActivity} after the commit; the relay publishes the event to Kafka;
- * sample-shipping prepares one shipment in the order's tenant and records the event in its inbox.
+ * sample-shipping prepares one shipment in the order's tenant, records the event in its inbox and shows the shipment
+ * over HTTP.
  *
  * <p>The host is the auto-configurations and the properties below; the plugins bring only their manifests, their
  * code and their business tables. Each run gets its own PostgreSQL schema and topic prefix, so nothing is shared.</p>
@@ -171,6 +172,18 @@ class SamplePluginsEndToEndTest {
             + " AND message_id = ? AND status = 'PROCESSED'", "sample-shipping.prepare-shipment.v1",
             outbox.get("event_id")));
 
+        // The member reads the shipment from sample-shipping's own endpoint; an unknown order has none.
+        HttpResponse<String> shipment = get("/api/sample-shipping/shipments/" + orderId);
+        assertEquals(200, shipment.statusCode(), shipment.body());
+        JsonNode view = JSON.readTree(shipment.body());
+        assertEquals(orderId, view.get("orderId").asString(), shipment.body());
+        assertEquals("sku-1", view.get("sku").asString(), shipment.body());
+        assertEquals(2, view.get("quantity").asInt(), shipment.body());
+        assertEquals(1L, view.get("orderVersion").asLong(), shipment.body());
+        HttpResponse<String> unknown = get("/api/sample-shipping/shipments/1");
+        assertEquals(404, unknown.statusCode(), unknown.body());
+        assertEquals("SAMPLE_SHIPMENT_NOT_FOUND", JSON.readTree(unknown.body()).get("errorCode").asString());
+
         // SampleOrderActivity is BEST_EFFORT: it skipped the outbox and was sent once the order committed.
         assertEquals(0, count(jdbc,
             "SELECT COUNT(*) FROM sample_orders_outbox WHERE message_type = 'SampleOrderActivity'"));
@@ -192,6 +205,14 @@ class SamplePluginsEndToEndTest {
             .header("Content-Type", "application/json")
             .timeout(Duration.ofSeconds(30))
             .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)))
+            .build();
+        return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> get(String path) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            .timeout(Duration.ofSeconds(30))
+            .GET()
             .build();
         return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
     }

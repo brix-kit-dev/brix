@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Platform Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix.samples</groupId>
+        <artifactId>brix-samples</artifactId>
+        <version>3.2.0</version>
+    </parent>
+
+    <artifactId>sample-orders-api</artifactId>
+    <name>Brix Sample - Orders API (plugin-api)</name>
+    <description>What sample-orders publishes: event payloads, its HTTP contract and their JSON schemas; no implementation and no framework</description>
+</project>

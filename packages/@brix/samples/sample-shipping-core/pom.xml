@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Platform Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix.samples</groupId>
+        <artifactId>brix-samples</artifactId>
+        <version>3.2.0</version>
+    </parent>
+
+    <artifactId>sample-shipping-core</artifactId>
+    <name>Brix Sample - Shipping core (plugin-core)</name>
+    <description>Shipments and how one is prepared for an order</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.brix.samples</groupId>
+            <artifactId>sample-shipping-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <version>${brix.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-jpa</artifactId>
+        </dependency>
+    </dependencies>
+</project>

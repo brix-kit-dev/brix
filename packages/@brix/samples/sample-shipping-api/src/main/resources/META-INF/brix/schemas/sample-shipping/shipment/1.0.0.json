@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-shipping/shipment/1.0.0",
+  "title": "The shipment of an order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId", "sku", "quantity", "orderVersion"],
+  "properties": {
+    "orderId": { "type": "string" },
+    "sku": { "type": "string" },
+    "quantity": { "type": "integer", "minimum": 1 },
+    "orderVersion": { "type": "integer", "minimum": 1 }
+  }
+}

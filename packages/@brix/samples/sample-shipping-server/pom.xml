@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Platform Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix.samples</groupId>
+        <artifactId>brix-samples</artifactId>
+        <version>3.2.0</version>
+    </parent>
+
+    <artifactId>sample-shipping-server</artifactId>
+    <name>Brix Sample - Shipping server (plugin-server)</name>
+    <description>The plugin entry point, the event and endpoint handlers, the manifest and the migration</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.brix.samples</groupId>
+            <artifactId>sample-shipping-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <version>${brix.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

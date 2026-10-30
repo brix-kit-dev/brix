@@ -1,0 +1,108 @@
+# The sample publisher (Kafka design §14 K23). Everything the runtime needs to know about the plugin is here: the
+# endpoint and who may call it, the events it publishes with their schemas and reliability, the capabilities it
+# uses and the data it owns. The plugin code only binds the endpoint handler; the schemas ship in sample-orders-api.
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: sample-orders
+  name: sample-orders
+  version: 3.2.0
+  displayName: Sample Orders
+  vendor: Brix Platform
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.2.0
+  supportedRange: ">=3.2.0 <4.0.0"
+# Three artifacts (root BRX-RS-MANIFEST-005): the contract, the logic and data, the entry point and handlers.
+modules:
+  - groupId: io.brix.samples
+    artifactId: sample-orders-api
+    version: 3.2.0
+    moduleKind: plugin-api
+  - groupId: io.brix.samples
+    artifactId: sample-orders-core
+    version: 3.2.0
+    moduleKind: plugin-core
+  - groupId: io.brix.samples
+    artifactId: sample-orders-server
+    version: 3.2.0
+    moduleKind: plugin-server
+endpoints:
+  provides:
+    - endpointId: sample-orders.place.v1
+      transport: http
+      method: POST
+      path: /api/sample-orders/orders
+      request:
+        schemaRef: brix://schemas/sample-orders/place-order-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-orders/placed-order/1.0.0
+      handlerId: sample-orders.place.v1
+      # A tenant member signed in with an access token; the runtime binds the tenant from the token.
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - sample-orders:order:place
+        decision: all
+        resourcePolicyRef: sample-orders-place
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      # A retried request places another order; a client that needs exactly-once sends a business key of its own.
+      idempotency:
+        mode: not-applicable
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.EventBusCapability
+      version: ">=3.0.10 <4.0.0"
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
+    - id: io.runtime.sdk.capability.IdGeneratorCapability
+      version: ">=3.2.0 <4.0.0"
+  optional: []
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+events:
+  publishes:
+    # Through the outbox, in the order's unit of work: delivered at least once after the order commits.
+    - eventType: SampleOrderPlaced
+      schemaRef: brix://schemas/sample-orders/sample-order-placed/1.0.0
+      version: 1.0.0
+      reliability: STANDARD
+    # Sent after the commit, not retried: for nothing that must happen.
+    - eventType: SampleOrderActivity
+      schemaRef: brix://schemas/sample-orders/sample-order-activity/1.0.0
+      version: 1.0.0
+      reliability: BEST_EFFORT
+  subscribes: []
+tasks:
+  provides: []
+internalContracts:
+  provides: []
+# The platform creates sample_orders_outbox from its own versioned migrations; db/migration/sample-orders holds only
+# the plugin's business tables.
+data:
+  storageId: sample_orders
+  schema: sample-orders
+  migrationLocation: db/migration/sample-orders
+  outbox: sample_orders_outbox
+permissions:
+  - id: sample-orders:order:place
+    name: Place sample orders
+    description: Allows placing an order in the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
+config: []
+ui:
+  web:
+    enabled: false

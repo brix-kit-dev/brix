@@ -29,13 +29,13 @@
         <!-- The plugins, as a host composes them -->
         <dependency>
             <groupId>io.brix.samples</groupId>
-            <artifactId>sample-orders</artifactId>
+            <artifactId>sample-orders-server</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.brix.samples</groupId>
-            <artifactId>sample-shipping</artifactId>
+            <artifactId>sample-shipping-server</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

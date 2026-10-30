@@ -9,11 +9,12 @@
 ============================================================================
 Brix Samples - plugins that show the standard event chain (Kafka design §14 K23)
 ============================================================================
-  sample-orders    publisher: an HTTP endpoint writes an order and publishes
+  sample-orders    publisher: an HTTP endpoint places an order, which publishes
                    SampleOrderPlaced (STANDARD, outbox) and SampleOrderActivity
                    (BEST_EFFORT) with JSON schemas and its own migration
   sample-shipping  subscriber: prepares a shipment for each order, deduplicated
-                   by the runtime's persistent inbox
+                   by the runtime's persistent inbox, and shows it over HTTP
+  Each plugin is three artifacts, -api, -core and -server (root BRX-RS-MANIFEST-005).
   sample-e2e       runs both through the plugin runtime on PostgreSQL and
                    Kafka, with no host code and no messaging DDL in the plugins
 ============================================================================
@@ -31,8 +32,12 @@ Brix Samples - plugins that show the standard event chain (Kafka design §14 K23
     <description>Sample plugins of the standard event chain</description>
 
     <modules>
-        <module>sample-orders</module>
-        <module>sample-shipping</module>
+        <module>sample-orders-api</module>
+        <module>sample-orders-core</module>
+        <module>sample-orders-server</module>
+        <module>sample-shipping-api</module>
+        <module>sample-shipping-core</module>
+        <module>sample-shipping-server</module>
         <module>sample-e2e</module>
     </modules>
 
