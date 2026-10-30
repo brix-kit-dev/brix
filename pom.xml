@@ -85,6 +85,8 @@ License: Apache 2.0
         
         <!-- Platform DevTools - Development tooling -->
         <module>packages/@brix/platform-devtools</module>
+        <!-- Samples - plugins of the standard event chain, run end to end (never published) -->
+        <module>packages/@brix/samples</module>
     </modules>
 
     <properties>

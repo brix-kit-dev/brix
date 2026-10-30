@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-orders/placed-order/1.0.0",
+  "title": "The order placed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId", "version"],
+  "properties": {
+    "orderId": { "type": "string" },
+    "version": { "type": "integer" }
+  }
+}

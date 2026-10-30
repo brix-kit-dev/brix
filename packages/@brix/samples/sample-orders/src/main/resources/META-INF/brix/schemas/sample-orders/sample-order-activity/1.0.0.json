@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-orders/sample-order-activity/1.0.0",
+  "title": "Something happened to an order",
+  "description": "Payload of SampleOrderActivity. sample-orders publishes it BEST_EFFORT, TENANT-scoped, after the unit of work commits; it is not retried. x-brix-classification marks each field (root BRX-RS-SECURITY-008).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId", "orderId", "activity"],
+  "properties": {
+    "tenantId": { "type": "integer", "x-brix-classification": "internal-identifier" },
+    "orderId": { "type": "string", "maxLength": 32, "x-brix-classification": "internal-identifier" },
+    "activity": { "type": "string", "maxLength": 32, "x-brix-classification": "operational" }
+  }
+}
