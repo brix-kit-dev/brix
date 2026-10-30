@@ -12,12 +12,18 @@ runtime:
   compiledAgainst: <%= runtimeVersion %>
   supportedRange: "<%= runtimeRange %>"
 modules:
-  - moduleKind: plugin-api
-    artifact: io.brix.app:<%= moduleId %>-api:<%= version %>
-  - moduleKind: plugin-core
-    artifact: io.brix.app:<%= moduleId %>-core:<%= version %>
-  - moduleKind: plugin-server
-    artifact: io.brix.app:<%= moduleId %>-server:<%= version %>
+  - groupId: io.brix.app
+    artifactId: <%= moduleId %>-api
+    version: <%= version %>
+    moduleKind: plugin-api
+  - groupId: io.brix.app
+    artifactId: <%= moduleId %>-core
+    version: <%= version %>
+    moduleKind: plugin-core
+  - groupId: io.brix.app
+    artifactId: <%= moduleId %>-server
+    version: <%= version %>
+    moduleKind: plugin-server
 endpoints:
   provides: []
 capabilities:
@@ -38,9 +44,8 @@ internalContracts:
   provides: []
 externalServices: []
 data:
-  owner: <%= moduleId %>
   storageId: <%= storageId %>
-  migrations: db/migration/<%= moduleId %>
+  migrationLocation: db/migration/<%= moduleId %>
 permissions:
   - id: <%= permissionId %>
     description: Read <%= displayName %> resources.

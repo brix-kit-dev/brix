@@ -23,59 +23,42 @@ import io.runtime.sdk.annotation.Since;
 /**
  * Event Bus Capability Contract
  *
- * <p>Defines the standard interface for module event publishing, one of the
- * core capabilities of the Runtime Shell. Modules use this interface to publish
- * events without knowing the underlying transport (Kafka/RabbitMQ/HTTP/In-Memory).</p>
+ * <p>Publishes a plugin's integration events without the plugin knowing the transport (outbox and relay, Kafka or
+ * in-process delivery). The plugin declares each event type it publishes in {@code META-INF/brix/plugin-manifest.yaml}
+ * under {@code events.publishes}, with its schema and its reliability; the runtime chooses the path from that
+ * declaration, binds the producer and the tenant from the calling unit of work, and refuses an event the manifest
+ * does not declare (root BRX-RS-MESSAGE-017 to MESSAGE-022; Kafka design §14 K20, K21).</p>
  *
- * <h3>Core Responsibilities</h3>
- * <ul>
- *   <li>Publish domain events (within module)</li>
- *   <li>Publish integration events (cross-module/cross-system)</li>
- *   <li>Delegate reliability policy to Runtime Shell using the active plugin manifest</li>
- * </ul>
- *
- * <h3>Event Types</h3>
+ * <h3>Reliability</h3>
  * <table border="1">
- *   <tr><th>Type</th><th>Scope</th><th>Purpose</th></tr>
- *   <tr><td>DomainEvent</td><td>Within Module</td><td>Business events in DDD</td></tr>
- *   <tr><td>IntegrationEvent</td><td>Cross-Module/System</td><td>Decoupled communication between modules</td></tr>
+ *   <tr><th>Manifest {@code reliability}</th><th>Path</th><th>Promise</th></tr>
+ *   <tr><td>CRITICAL, STANDARD</td><td>The plugin's own outbox, written in its current unit of work</td>
+ *       <td>Sent once the business change commits, at least once; never sent when it rolls back</td></tr>
+ *   <tr><td>BEST_EFFORT</td><td>Sent directly after the unit of work commits (at once outside one)</td>
+ *       <td>No retry, no promise of delivery</td></tr>
  * </table>
  *
- * <h3>Design Constraints</h3>
- * <ul>
- *   <li><b>No Subscribe Method</b>: Subscriptions are declared in module-manifest.yaml</li>
- *   <li><b>Infrastructure Transparent</b>: Modules do not know if events use outbox,
- *       inbox, a broker, webhooks, or in-process dispatch</li>
- *   <li><b>Manifest Driven Reliability</b>: CRITICAL/STANDARD/BEST_EFFORT is declared
- *       in {@code META-INF/brix/plugin-manifest.yaml}, not on a Java annotation or
- *       broker adapter</li>
- * </ul>
+ * <h3>Ordering</h3>
+ * <p>Subscribers see the events of one event type with the same partition key in the order they were published.
+ * Nothing else is ordered: not across event types, not across keys. A subscriber that needs the order of one
+ * aggregate across several event types compares an aggregate version the payloads carry (Kafka design D31).</p>
  *
  * <h3>Usage Example</h3>
  * <pre>{@code
- * @Inject
- * private EventBusCapability eventBus;
+ * // In the plugin's configure(...): the factory runs once the runtime has started the plugin.
+ * bootstrap.bindEndpointHandlerFactory("orders.place.v1", context -> new PlaceOrder(
+ *     context.require(PersistenceCapability.class), context.require(EventBusCapability.class)));
  *
- * public void createReservation(ReservationCommand command) {
- *     // Business logic...
- *     Reservation reservation = // ...
- *
- *     // Publish domain event
- *     eventBus.publish(new ReservationCreatedEvent(reservation.getId()));
- *
- *     // Or publish integration event (to notify other modules)
- *     eventBus.publishIntegration(
- *         new ReservationCreatedIntegrationEvent(reservation.getId(), command.getCustomerId())
- *     );
- * }
+ * // In the handler: the order and its event commit together.
+ * persistence.unitOfWork().required(() -> {
+ *     orders.save(order);
+ *     eventBus.publishIntegration(new OrderPlaced(order.id(), order.tenantId(), order.version()));
+ *     return order;
+ * });
  * }</pre>
  *
- * <h3>Implementation Notes</h3>
- * <p>This interface is implemented by the Host layer, with different implementations:</p>
- * <ul>
- *   <li>Full Product Host: Kafka + Outbox pattern</li>
- *   <li>Embedded Host: HTTP Webhook / In-Memory queue</li>
- * </ul>
+ * <p>Subscriptions are not made through this interface: a subscriber declares them under
+ * {@code events.subscribes} and binds a {@link io.runtime.sdk.plugin.EventHandler} factory.</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.0
@@ -119,8 +102,8 @@ public interface EventBusCapability {
      * </ul>
      *
      * <h4>Ordering Guarantees</h4>
-     * <p>Events with the same partition key may be ordered by the selected Runtime
-     * transport policy. Brix does not declare global ordering.</p>
+     * <p>Events of one event type with the same partition key reach each subscriber in publish order; there is no
+     * ordering across event types or keys (root BRX-RS-MESSAGE-027; Kafka design D31).</p>
      *
      * @param event The integration event to publish, must not be null
      * @throws IllegalArgumentException if event is null

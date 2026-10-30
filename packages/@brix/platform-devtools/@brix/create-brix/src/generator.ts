@@ -57,8 +57,8 @@ function assertLegacyTemplateGenerationFrozen(kind: string): never {
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 const STORAGE_ID_MAX_LENGTH = 31;
-const DEFAULT_RUNTIME_VERSION = '3.0.10';
-const DEFAULT_RUNTIME_RANGE = '>=3.0.10 <4.0.0';
+const DEFAULT_RUNTIME_VERSION = '3.2.0';
+const DEFAULT_RUNTIME_RANGE = '>=3.2.0 <4.0.0';
 
 const LEGACY_SCAN_RULES: readonly {
   readonly id: string;

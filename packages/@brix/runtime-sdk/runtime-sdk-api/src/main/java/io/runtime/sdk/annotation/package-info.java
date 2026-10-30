@@ -20,7 +20,7 @@
  * <p>This package defines annotations used in module development:</p>
  * <ul>
  *   <li>{@link io.runtime.sdk.annotation.Module} - Module identifier annotation</li>
- *   <li>{@link io.runtime.sdk.annotation.EventHandler} - Event handler annotation</li>
+ *   <li>{@code EventHandler} - deprecated legacy event handler annotation; see {@link io.runtime.sdk.plugin.EventHandler}</li>
  * </ul>
  * 
  * @since 3.0.0

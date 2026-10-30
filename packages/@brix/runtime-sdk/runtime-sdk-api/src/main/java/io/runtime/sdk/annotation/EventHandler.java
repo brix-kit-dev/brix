@@ -22,57 +22,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Event Handler Annotation
- * 
- * <p>Used to identify a method as an event handler. Methods annotated with this annotation will be registered as event listeners by the Runtime Shell.</p>
- * 
- * <h3>Usage Example</h3>
- * <pre>{@code
- * @Module(id = "booking-module", name = "Booking Module")
- * public class BookingModule extends AbstractModule {
- *     
- *     // Handle user created event
- *     @EventHandler
- *     public void onUserCreated(UserCreatedEvent event) {
- *         // Create default booking configuration for new users...
- *     }
- *     
- *     // Handle order completed event, specifying event type
- *     @EventHandler(eventType = "com.example.OrderCompletedEvent")
- *     public void handleOrderCompleted(OrderCompletedEvent event) {
- *         // Handle booking update after order completion...
- *     }
- *     
- *     // Asynchronously handle bulk events
- *     @EventHandler(async = true)
- *     public void onBatchDataSync(DataSyncEvent event) {
- *         // Asynchronously process data sync...
- *     }
- * }
- * }</pre>
- * 
- * <h3>Method Signature Requirements</h3>
- * <ul>
- *   <li>Must be a public method</li>
- *   <li>Must have exactly one parameter, with the parameter type being the event class</li>
- *   <li>Return type should be void (non-void return values are ignored)</li>
- * </ul>
- * 
- * <h3>Relationship with Manifest</h3>
- * <p>Event handlers declared via annotations must be whitelisted in the module-manifest.yaml subscribes section.
- * Only event types in the whitelist will be routed to the corresponding handlers.</p>
- * 
- * <pre>{@code
- * # module-manifest.yaml
- * events:
- *   subscribes:
- *     - type: "com.example.UserCreatedEvent"
- *       handler: "com.example.BookingModule.onUserCreated"
- * }</pre>
- * 
+ * Legacy event handler annotation of the module model; nothing reads it any more.
+ *
+ * @deprecated A plugin declares each subscription in {@code META-INF/brix/plugin-manifest.yaml} under
+ *     {@code events.subscribes} (event type, schema range, handler id, retry and idempotency policies) and binds the
+ *     handler in {@link io.runtime.sdk.plugin.BrixPlugin#configure} with
+ *     {@code bootstrap.bindEventHandlerFactory(handlerId, context -> new MyHandler(...))}, where the handler implements
+ *     {@link io.runtime.sdk.plugin.EventHandler}. The runtime then delivers each event once per handler through the
+ *     subscriber's inbox (root BRX-RS-MESSAGE-025, MESSAGE-029; Kafka design §14 K23).
  * @author Runtime SDK Team
  * @since 3.0.0
  */
+@Deprecated(since = "3.2.0", forRemoval = true)
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

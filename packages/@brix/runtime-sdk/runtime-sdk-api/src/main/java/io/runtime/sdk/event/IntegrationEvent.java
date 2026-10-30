@@ -46,29 +46,44 @@ import jakarta.annotation.Nonnull;
  *   <tr><td>Schema Requirements</td><td>Optional</td><td>Must define</td></tr>
  * </table>
  * 
- * <h3>Event Routing</h3>
- * <p>Runtime Shell handles converting DomainEvent to IntegrationEvent and routing to subscribers.
- * Modules only need to declare publishes/subscribes in manifest, no routing details required.</p>
- * 
+ * <h3>Routing and Contract</h3>
+ * <p>The publishing plugin declares the event type under {@code events.publishes} in its manifest, with a JSON schema
+ * for the payload and a reliability; subscribers declare it under {@code events.subscribes}. The runtime routes on
+ * those declarations: {@link #eventTypeId()} names the type, {@link #getRoutingKey()} is the partition key whose order
+ * subscribers see within the type, {@link #payload()} is what is sent, and the tenant passed to the constructor makes
+ * a TENANT event (no tenant makes a PLATFORM event). The runtime binds the producer itself; {@code sourceModule} is
+ * informative only (root BRX-RS-MESSAGE-021).</p>
+ *
  * <h3>Usage Example</h3>
  * <pre>{@code
- * public class UserCreatedIntegrationEvent extends IntegrationEvent {
- *     private final String userId;
- *     private final String email;
- *     
- *     public UserCreatedIntegrationEvent(String userId, String email) {
- *         super("user-service");  // Source service identifier
- *         this.userId = userId;
- *         this.email = email;
+ * public final class OrderPlaced extends IntegrationEvent {
+ *     private final Payload payload;
+ *
+ *     public OrderPlaced(long tenantId, String orderId, long version) {
+ *         super("sample-orders", String.valueOf(tenantId));
+ *         this.payload = new Payload(tenantId, orderId, version);
  *     }
- *     
+ *
+ *     @Override
+ *     public String eventTypeId() {
+ *         return "SampleOrderPlaced";   // events.publishes[].eventType
+ *     }
+ *
  *     @Override
  *     public String getRoutingKey() {
- *         return "user." + userId;  // Used for event partitioning
+ *         return "order." + payload.orderId();   // order per order, within this event type
+ *     }
+ *
+ *     @Override
+ *     public Object payload() {
+ *         return payload;   // must match the declared schema
+ *     }
+ *
+ *     public record Payload(long tenantId, String orderId, long version) {
  *     }
  * }
  * }</pre>
- * 
+ *
  * @author Runtime SDK Team
  * @since 3.0.0
  * @see DomainEvent
