@@ -46,7 +46,13 @@ public class CommandSubmitException extends BrixException {
         /**
          * Runtime rejected delivery because the command handler is unavailable.
          */
-        HANDLER_OFFLINE("command.handler_offline");
+        HANDLER_OFFLINE("command.handler_offline"),
+        /** The submitter's manifest does not declare the command type under commands.consumes. */
+        UNDECLARED_COMMAND("command.undeclared"),
+        /** No plugin on this host provides the command type. */
+        PROVIDER_MISSING("command.provider_missing"),
+        /** The command names a tenant the submitter's unit of work does not reach. */
+        TENANT_UNREACHED("command.tenant_unreached");
 
         private final String wireCode;
 

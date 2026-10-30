@@ -265,6 +265,7 @@ public final class PluginRuntimeManager {
             resolvePlugin(plugin);
         }
         validateEventContractsAcrossPlugins();
+        validateCommandContractsAcrossPlugins();
         bindProvidedInternalContracts(internalProviderDiscovery.get());
         return states();
     }
@@ -565,6 +566,148 @@ public final class PluginRuntimeManager {
     private record CreatedEventHandler(EventHandler<?> handler, Class<?> payloadType) {
     }
 
+    private record CreatedCommandHandler(CommandHandler<?> handler, Class<?> payloadType) {
+    }
+
+    /** Reads the payload type each command handler declares; one that names none stops the plugin. */
+    private static Map<String, CreatedCommandHandler> typedCommandHandlers(
+            String pluginId, Map<String, CommandHandler<?>> handlers) {
+        Map<String, CreatedCommandHandler> typed = new LinkedHashMap<>();
+        handlers.forEach((handlerId, handler) -> {
+            Class<?> payloadType = ResolvableType.forClass(handler.getClass())
+                .as(CommandHandler.class).getGeneric(0).resolve();
+            if (payloadType == null || payloadType == Object.class) {
+                throw new PluginRuntimeException("Command handler '" + handlerId + "' of plugin '" + pluginId
+                    + "' must be a class that names its payload type, CommandHandler<PayloadType>");
+            }
+            typed.put(handlerId, new CreatedCommandHandler(handler, payloadType));
+        });
+        return Map.copyOf(typed);
+    }
+
+    /** Every provided command needs its handler bound in {@code configure} (root BRX-RS-MANIFEST-013). */
+    private static void requireBoundCommandHandlers(ManagedPlugin plugin, DefaultPluginBootstrapContext bootstrap) {
+        Set<String> bound = new LinkedHashSet<>(bootstrap.commandHandlers().keySet());
+        bound.addAll(bootstrap.commandHandlerFactories().keySet());
+        List<String> unbound = plugin.descriptor.providedCommands().values().stream()
+            .map(PluginRuntimeDescriptor.ProvidedCommand::handlerId)
+            .filter(handlerId -> !bound.contains(handlerId))
+            .sorted()
+            .toList();
+        if (!unbound.isEmpty()) {
+            throw new PluginRuntimeException("Plugin '" + plugin.id()
+                + "' binds no handler factory for its provided command(s) " + unbound);
+        }
+    }
+
+    /**
+     * Root BRX-RS-MESSAGE-010, BOOT-005: a command type has one provider; a plugin that requires a command finds
+     * its provider, and the versions it sends include the one the provider takes.
+     */
+    private void validateCommandContractsAcrossPlugins() {
+        Map<String, List<ManagedPlugin>> providers = new LinkedHashMap<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() != PluginLifecycleState.RESOLVED) {
+                continue;
+            }
+            for (String commandType : plugin.descriptor.providedCommands().keySet()) {
+                providers.computeIfAbsent(commandType, ignored -> new ArrayList<>()).add(plugin);
+            }
+        }
+        providers.forEach((commandType, declaring) -> {
+            if (declaring.size() > 1) {
+                List<String> ids = declaring.stream().map(ManagedPlugin::id).sorted().toList();
+                for (ManagedPlugin plugin : declaring) {
+                    handleStartupFailure(plugin, new PluginRuntimeException("Command type " + commandType
+                        + " is provided by more than one plugin " + ids + "; a command has one owner"));
+                }
+            }
+        });
+        for (ManagedPlugin consumer : new ArrayList<>(plugins.values())) {
+            if (consumer.state.lifecycleState() != PluginLifecycleState.RESOLVED) {
+                continue;
+            }
+            try {
+                for (PluginRuntimeDescriptor.ConsumedCommand consumed : consumer.descriptor.consumedCommands().values()) {
+                    List<ManagedPlugin> declaring = providers.getOrDefault(consumed.commandType(), List.of());
+                    if (declaring.size() != 1) {
+                        if (consumed.required()) {
+                            throw new PluginRuntimeException("Plugin '" + consumer.id() + "' requires command "
+                                + consumed.commandType() + ", which no plugin on this host provides");
+                        }
+                        continue;
+                    }
+                    String version = declaring.get(0).descriptor.providedCommands().get(consumed.commandType()).version();
+                    if (!version.isBlank() && !consumed.versionRange().isBlank()
+                            && !BrixRange.contains(version, consumed.versionRange())) {
+                        throw new PluginRuntimeException("Plugin '" + consumer.id() + "' sends " + consumed.commandType()
+                            + " " + consumed.versionRange() + ", but '" + declaring.get(0).id() + "' takes " + version);
+                    }
+                }
+            } catch (RuntimeException e) {
+                handleStartupFailure(consumer, e);
+            }
+        }
+    }
+
+    /**
+     * Returns the plugin that provides a command type and, once it has started, its handler.
+     *
+     * @param commandType the command type
+     * @return the provider, or empty when none or several provide it
+     */
+    public synchronized Optional<CommandProvider> commandProvider(String commandType) {
+        List<CommandProvider> found = commandProviders().stream()
+            .filter(provider -> provider.command().commandType().equals(commandType))
+            .toList();
+        return found.size() == 1 ? Optional.of(found.get(0)) : Optional.empty();
+    }
+
+    /**
+     * Returns every provided command, with its handler once its plugin has started.
+     *
+     * @return the providers
+     */
+    public synchronized List<CommandProvider> commandProviders() {
+        List<CommandProvider> providers = new ArrayList<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            boolean started = plugin.state.lifecycleState() == PluginLifecycleState.STARTED;
+            for (PluginRuntimeDescriptor.ProvidedCommand command : plugin.descriptor.providedCommands().values()) {
+                CreatedCommandHandler created = started ? plugin.commandHandlers.get(command.handlerId()) : null;
+                providers.add(new CommandProvider(plugin.id(), command,
+                    created == null ? null : created.handler(), created == null ? null : created.payloadType()));
+            }
+        }
+        return List.copyOf(providers);
+    }
+
+    /**
+     * Returns the declaration under which a plugin submits a command type.
+     *
+     * @param pluginId the submitting plugin
+     * @param commandType the command type
+     * @return the declaration, or empty when the plugin does not declare it
+     */
+    public synchronized Optional<PluginRuntimeDescriptor.ConsumedCommand> consumedCommand(String pluginId, String commandType) {
+        ManagedPlugin plugin = plugins.get(pluginId);
+        return plugin == null ? Optional.empty() : Optional.ofNullable(plugin.descriptor.consumedCommands().get(commandType));
+    }
+
+    /**
+     * A provided command and, once its plugin has started, its handler.
+     *
+     * @param pluginId the providing plugin
+     * @param command the manifest declaration
+     * @param handler the handler its factory created, or {@code null} while the plugin is not started
+     * @param payloadType the payload type the handler declares, or {@code null} with no handler
+     */
+    public record CommandProvider(
+            String pluginId,
+            PluginRuntimeDescriptor.ProvidedCommand command,
+            CommandHandler<?> handler,
+            Class<?> payloadType) {
+    }
+
     private static <H> Map<String, H> create(
             String pluginId, String kind, Map<String, ? extends HandlerFactory<? extends H>> factories,
             PluginContext context) {
@@ -650,6 +793,7 @@ public final class PluginRuntimeManager {
             DefaultPluginBootstrapContext bootstrapContext = new DefaultPluginBootstrapContext(plugin.descriptor);
             plugin.provider.configure(bootstrapContext);
             requireBoundEventSubscriptions(plugin, bootstrapContext.eventHandlerFactories().keySet());
+            requireBoundCommandHandlers(plugin, bootstrapContext);
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
@@ -663,7 +807,7 @@ public final class PluginRuntimeManager {
             plugin.endpointHandlers = Map.copyOf(endpointHandlers);
             Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>(bootstrapContext.commandHandlers());
             commandHandlers.putAll(create(plugin.id(), "command", bootstrapContext.commandHandlerFactories(), context));
-            plugin.commandHandlers = Map.copyOf(commandHandlers);
+            plugin.commandHandlers = typedCommandHandlers(plugin.id(), commandHandlers);
             create(plugin.id(), "query", bootstrapContext.queryHandlerFactories(), context);
             create(plugin.id(), "task", bootstrapContext.taskFactories(), context);
             BrixHealth health = pluginHealth(plugin);
@@ -745,6 +889,27 @@ public final class PluginRuntimeManager {
             validateSubscriptionContract(plugin, subscription);
         }
         validatePublicationContracts(plugin);
+        for (PluginRuntimeDescriptor.ProvidedCommand command : plugin.descriptor.providedCommands().values()) {
+            validateCommandPolicies(plugin, command);
+        }
+    }
+
+    /** A provided command names the platform's policies too; its deliveries use them (Kafka design §14 K20, K22). */
+    private static void validateCommandPolicies(ManagedPlugin plugin, PluginRuntimeDescriptor.ProvidedCommand command) {
+        String where = "Plugin '" + plugin.id() + "' command '" + command.commandType() + "'";
+        requireEventName(where + " type", command.commandType());
+        requireEventName(where + " handler id", command.handlerId());
+        if (!command.retryPolicyRef().isEmpty() && !EventPolicies.RETRY.contains(command.retryPolicyRef())) {
+            throw new PluginRuntimeException(where + " names unknown retry policy '" + command.retryPolicyRef() + "'");
+        }
+        if (!command.timeoutPolicyRef().isEmpty() && !EventPolicies.TIMEOUT.contains(command.timeoutPolicyRef())) {
+            throw new PluginRuntimeException(where + " names unknown timeout policy '" + command.timeoutPolicyRef() + "'");
+        }
+        if (!command.concurrencyPolicyRef().isEmpty()
+                && !EventPolicies.CONCURRENCY.contains(command.concurrencyPolicyRef())) {
+            throw new PluginRuntimeException(where + " names unknown concurrency policy '"
+                + command.concurrencyPolicyRef() + "'");
+        }
     }
 
     /**
@@ -1076,7 +1241,7 @@ public final class PluginRuntimeManager {
         private final BrixPlugin provider;
         private final PluginRuntimeDescriptor descriptor;
         private Map<String, EndpointHandler<?, ?>> endpointHandlers = Map.of();
-        private Map<String, CommandHandler<?>> commandHandlers = Map.of();
+        private Map<String, CreatedCommandHandler> commandHandlers = Map.of();
         private Map<String, CreatedEventHandler> eventHandlers = Map.of();
         private PluginRuntimeState state;
 

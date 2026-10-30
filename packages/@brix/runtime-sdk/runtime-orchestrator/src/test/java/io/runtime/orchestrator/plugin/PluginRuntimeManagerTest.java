@@ -49,6 +49,8 @@ import io.runtime.sdk.event.IntegrationEvent;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
+import io.runtime.sdk.plugin.CommandInvocation;
+import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
 import io.runtime.sdk.plugin.HandlerFactory;
@@ -389,6 +391,67 @@ class PluginRuntimeManagerTest {
 
         assertTrue(publisher.started);
         assertFalse(subscriber.started, "trusts plugin-x, but plugin-a publishes the event type");
+    }
+
+    @Test
+    void aProvidedCommandWithoutAHandlerStopsThePluginBeforeItStarts() {
+        // Root BRX-RS-MANIFEST-013: a provided command needs its handler factory.
+        RecordingPlugin plugin = new RecordingPlugin();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("plugin_a", "", "plugin_a_inbox")
+                .providedCommand("ReserveStock", "reserve-stock.v1", "1.0.0")
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("provided command"), refused.getMessage());
+        assertFalse(plugin.started);
+    }
+
+    @Test
+    void aPluginThatRequiresACommandNoPluginProvidesIsRefused() {
+        // Root BRX-RS-MESSAGE-010: every command resolves to one owner at startup.
+        RecordingPlugin plugin = new RecordingPlugin();
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("plugin_a", "plugin_a_outbox", "")
+                .consumedCommand("ReserveStock", ">=1.0.0 <2.0.0", true)
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("no plugin on this host provides"), refused.getMessage());
+    }
+
+    @Test
+    void aConsumerThatSendsAnotherVersionThanTheProviderTakesIsRefused() {
+        RecordingPlugin provider = new RecordingPlugin();
+        provider.commandHandlers.put("reserve-stock.v1", context -> new ReserveHandler());
+        RecordingPlugin consumer = new RecordingPlugin();
+        PluginRuntimeManager manager = manager(
+            List.of(provider, consumer),
+            Map.of(provider, PluginRuntimeDescriptor.builder("plugin-p")
+                    .data("plugin_p", "", "plugin_p_inbox")
+                    .providedCommand("ReserveStock", "reserve-stock.v1", "2.0.0")
+                    .build(),
+                consumer, PluginRuntimeDescriptor.builder("plugin-c")
+                    .data("plugin_c", "plugin_c_outbox", "")
+                    .consumedCommand("ReserveStock", ">=1.0.0 <2.0.0", false)
+                    .build()),
+            new DefaultCapabilityRegistry(),
+            List.of());
+
+        manager.start();
+
+        assertTrue(provider.started);
+        assertFalse(consumer.started);
+        assertEquals("2.0.0", manager.commandProvider("ReserveStock").orElseThrow().command().version());
+        assertEquals(ReserveHandler.Reserve.class, manager.commandProvider("ReserveStock").orElseThrow().payloadType());
     }
 
     @Test
@@ -759,9 +822,21 @@ class PluginRuntimeManagerTest {
         }
     }
 
+    static final class ReserveHandler implements CommandHandler<ReserveHandler.Reserve> {
+
+        record Reserve(String sku) {
+        }
+
+        @Override
+        public CompletionStage<Void> handle(CommandInvocation<Reserve> invocation) {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
     static final class RecordingPlugin implements BrixPlugin {
 
         private final Map<String, HandlerFactory<? extends EventHandler<?>>> eventHandlers = new LinkedHashMap<>();
+        private final Map<String, HandlerFactory<? extends CommandHandler<?>>> commandHandlers = new LinkedHashMap<>();
 
         private boolean started;
         private boolean configured;
@@ -781,6 +856,7 @@ class PluginRuntimeManagerTest {
                 });
             }
             eventHandlers.forEach(bootstrap::bindEventHandlerFactory);
+            commandHandlers.forEach(bootstrap::bindCommandHandlerFactory);
         }
 
         @Override

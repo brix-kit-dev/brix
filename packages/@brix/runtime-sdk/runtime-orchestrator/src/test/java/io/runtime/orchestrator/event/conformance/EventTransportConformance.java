@@ -109,6 +109,24 @@ public abstract class EventTransportConformance {
     }
 
     @Test
+    void aCommandReachesItsOneProviderOncePerIdempotencyKey() {
+        // Kafka design §14 K22 (root BRX-RS-MESSAGE-010, MESSAGE-014): commands travel the same way; a second command
+        // with a key already taken is acknowledged without running the handler again.
+        world.submit("command-1", "order-7");
+        world.submit("command-2", "order-7");
+        world.submit("command-3", "order-8");
+
+        harness.start();
+
+        await("command-3 is handled", () -> world.handledCommands().contains("command-3"));
+        await("command-2 is acknowledged", () -> world.inboxed("command-2"));
+        settle();
+        assertEquals(java.util.Set.of("command-1", "command-3"), java.util.Set.copyOf(world.handledCommands()));
+        assertEquals(2, world.handledCommands().size());
+        assertTrue(harness.parked().isEmpty());
+    }
+
+    @Test
     void anEventDeliveredAgainIsHandledOnce() {
         // At least once (root BRX-RS-MESSAGE-020): the subscriber's inbox skips the second delivery (MESSAGE-025).
         world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);

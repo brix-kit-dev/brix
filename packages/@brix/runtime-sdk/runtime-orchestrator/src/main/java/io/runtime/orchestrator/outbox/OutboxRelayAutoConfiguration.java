@@ -24,6 +24,9 @@ import io.runtime.orchestrator.event.EventSubscriptionGroup;
 import io.runtime.orchestrator.event.EventSubscriptionMetricsFactory;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.event.EventsEndpoint;
+import io.runtime.orchestrator.command.CommandDelivery;
+import io.runtime.orchestrator.command.CommandProviders;
+import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.InProcessEventTransport;
 import io.runtime.orchestrator.event.TransportBestEffortSender;
@@ -79,8 +82,20 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<EventInboxStore> inbox,
             ObjectProvider<ObjectMapper> json,
             ObjectProvider<EventDeliveryScopes> scopes,
-            ObjectProvider<MessageTracing> tracing) {
-        return new EventDeliveryProvider(() -> delivery(properties, plugins, owners, inbox, json, scopes, tracing));
+            ObjectProvider<MessageTracing> tracing,
+            ObjectProvider<OwnerCommandIdempotency> commandIdempotency) {
+        return new EventDeliveryProvider(() -> {
+            EventDelivery delivery = delivery(properties, plugins, owners, inbox, json, scopes, tracing);
+            OwnerCommandIdempotency idempotency = commandIdempotency.getIfAvailable();
+            if (delivery != null && idempotency != null) {
+                // Kafka design §14 K22: the same core delivers commands to their providers.
+                delivery.deliveringCommandsWith(new CommandDelivery(CommandProviders.of(plugins.getObject()),
+                    owners.getObject(), inbox.getObject(), idempotency, json.getIfAvailable(ObjectMapper::new),
+                    Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2),
+                    tracing.getIfAvailable(() -> MessageTracing.NOOP)));
+            }
+            return delivery;
+        });
     }
 
     /**

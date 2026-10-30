@@ -153,17 +153,20 @@ class CanonicalKafkaOutboxTransportTest {
     }
 
     @Test
-    void aCommandIsNotSentAsAnEvent() {
+    void aCommandGoesToItsCommandTypesTopic() {
+        // Kafka design §14 K22: commands travel like events, on brix.command.<commandType>.
+        mockSendSuccess("prod-brix.command.TenantFirstOwnerAccepted");
         CanonicalOutboxMessage event = message("{\"tenantId\":100}");
         CanonicalOutboxMessage command = new CanonicalOutboxMessage(event.messageId(), event.eventId(), "COMMAND",
             event.messageType(), event.schemaVersion(), event.reliability(), event.producerPluginId(), event.scope(),
             event.tenantId(), event.partitionKey(), event.occurredAt(), event.correlationId(), event.causationId(),
             event.traceparent(), event.tracestate(), event.payload(), event.attemptCount());
 
-        assertThatThrownBy(() -> transport.publish(command))
-            .isInstanceOf(OutboxTransportException.class)
-            .satisfies(failure -> assertThat(((OutboxTransportException) failure).permanent()).isTrue());
-        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+        transport.publish(command);
+
+        verify(kafkaTemplate).send(recordCaptor.capture());
+        assertThat(recordCaptor.getValue().topic()).isEqualTo("prod-brix.command.TenantFirstOwnerAccepted");
+        verify(broker).ensureCommandTopics(Set.of("TenantFirstOwnerAccepted"));
     }
 
     @Test

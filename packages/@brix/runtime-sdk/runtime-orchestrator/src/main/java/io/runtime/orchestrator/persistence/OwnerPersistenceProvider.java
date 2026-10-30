@@ -17,6 +17,7 @@ package io.runtime.orchestrator.persistence;
 
 import java.util.Optional;
 
+import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 
@@ -56,6 +57,17 @@ public interface OwnerPersistenceProvider {
      * @return the owner's outbox event bus, or empty when the owner publishes through no outbox
      */
     default Optional<EventBusCapability> eventBusFor(String ownerModuleId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the owner's command capability, which writes its commands to its own outbox (root
+     * BRX-RS-MESSAGE-011; Kafka design §14 K22).
+     *
+     * @param ownerModuleId owner module id
+     * @return the owner's command capability, or empty when the owner declares none
+     */
+    default Optional<CommandCapability> commandBusFor(String ownerModuleId) {
         return Optional.empty();
     }
 

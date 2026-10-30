@@ -115,6 +115,51 @@ final class OwnerDirectory {
     }
 
     /**
+     * Returns the commands the owner's manifest declares under {@code commands.consumes}, by command type.
+     */
+    Map<String, PluginManifest.ContractRef> consumedCommandsOf(String ownerId) {
+        Map<String, PluginManifest.ContractRef> consumed = new LinkedHashMap<>();
+        manifestOf(ownerId)
+            .map(PluginManifest::getCommands)
+            .map(PluginManifest.ContractSection::getConsumes)
+            .orElse(List.of())
+            .stream()
+            .filter(ref -> ref != null && ref.getCommandType() != null)
+            .forEach(ref -> consumed.put(ref.getCommandType(), ref));
+        return consumed;
+    }
+
+    /**
+     * Returns whether the owner's manifest provides a command.
+     */
+    boolean providesCommands(String ownerId) {
+        return manifestOf(ownerId)
+            .map(PluginManifest::getCommands)
+            .map(commands -> !commands.getProvides().isEmpty())
+            .orElse(false);
+    }
+
+    /**
+     * Returns whether the owner's manifest declares {@link io.runtime.sdk.capability.CommandCapability}.
+     */
+    boolean declaresCommandBus(String ownerId) {
+        return manifestOf(ownerId)
+            .map(PluginManifest::getCapabilities)
+            .map(capabilities -> OwnerDeclaration.declares(capabilities.getRequired(),
+                    io.runtime.sdk.capability.CommandCapability.class)
+                || OwnerDeclaration.declares(capabilities.getOptional(), io.runtime.sdk.capability.CommandCapability.class))
+            .orElse(false);
+    }
+
+    /**
+     * Returns the owner's {@code data.storageId}.
+     */
+    Optional<String> storageIdOf(String ownerId) {
+        return manifestOf(ownerId).map(PluginManifest::getData).map(PluginManifest.DataSection::getStorageId)
+            .filter(storageId -> !storageId.isBlank());
+    }
+
+    /**
      * Returns whether the owner's manifest declares {@link EventBusCapability}.
      */
     boolean declaresEventBus(String ownerId) {

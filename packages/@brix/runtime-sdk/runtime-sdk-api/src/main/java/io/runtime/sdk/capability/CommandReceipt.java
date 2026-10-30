@@ -10,27 +10,32 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Durable sender receipt for a typed command.
+ * Durable acceptance of a command (root BRX-RS-MESSAGE-013): it is persisted and queued for delivery. It does not
+ * say that the provider accepted or completed it.
  *
- * <p>The receipt only proves that the sender's canonical outbox record has
- * committed. It does not claim that the target handler has run or that business
- * side effects have completed.</p>
- *
- * @param commandId stable command identity
- * @param commandType versioned command contract id
- * @param acceptedAt time the durable receipt was completed after commit
+ * @param commandId the command's id
+ * @param commandType the command type
+ * @param persistedAt when the command was written
+ * @param status always {@link Status#QUEUED}
  * @author Runtime SDK Team
  * @since 3.0.10
  */
-public record CommandReceipt(String commandId, String commandType, Instant acceptedAt) {
+public record CommandReceipt(String commandId, String commandType, Instant persistedAt, Status status) {
+
+    /** What a receipt can say. */
+    public enum Status {
+        /** The command is durable and waits for delivery. */
+        QUEUED
+    }
 
     /**
-     * Creates a validated receipt.
+     * Creates a receipt.
      */
     public CommandReceipt {
         commandId = requireText(commandId, "commandId");
         commandType = requireText(commandType, "commandType");
-        acceptedAt = Objects.requireNonNull(acceptedAt, "acceptedAt must not be null");
+        persistedAt = Objects.requireNonNull(persistedAt, "persistedAt must not be null");
+        status = Objects.requireNonNull(status, "status must not be null");
     }
 
     private static String requireText(String value, String field) {

@@ -59,7 +59,7 @@ final class JdbcEventInboxStore implements EventInboxStore {
         }
         String table = owners.inboxOf(ownerId)
             .filter(name -> TABLE.matcher(name).matches())
-            .orElseThrow(() -> new IllegalStateException(ownerId + " declares no data.inbox for its event subscriptions"));
+            .orElseThrow(() -> new IllegalStateException(ownerId + " declares no data.inbox for its deliveries"));
         Integer existing = jdbc.queryForObject(
             "SELECT COUNT(*) FROM " + table + " WHERE handler_id = ? AND message_id = ?",
             Integer.class, handlerId, message.eventId());
@@ -68,8 +68,9 @@ final class JdbcEventInboxStore implements EventInboxStore {
         }
         Timestamp now = Timestamp.from(clock.instant());
         jdbc.update("INSERT INTO " + table + " (handler_id, message_id, message_kind, message_type, schema_version,"
-                + " tenant_id, status, processed_at, created_at) VALUES (?, ?, 'EVENT', ?, ?, ?, 'PROCESSED', ?, ?)",
-            handlerId, message.eventId(), message.messageType(), message.schemaVersion(), message.tenantId(), now, now);
+                + " tenant_id, status, processed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PROCESSED', ?, ?)",
+            handlerId, message.eventId(), message.messageKind(), message.messageType(), message.schemaVersion(),
+            message.tenantId(), now, now);
         return true;
     }
 }

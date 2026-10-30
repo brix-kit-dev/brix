@@ -85,10 +85,7 @@ public final class PluginManifestValidator {
             ? manifest.getQueries().getProvides() : List.of(), result);
         validateContractRefs("queries.consumes", manifest.getQueries() != null
             ? manifest.getQueries().getConsumes() : List.of(), result);
-        validateContractRefs("commands.provides", manifest.getCommands() != null
-            ? manifest.getCommands().getProvides() : List.of(), result);
-        validateContractRefs("commands.consumes", manifest.getCommands() != null
-            ? manifest.getCommands().getConsumes() : List.of(), result);
+        validateCommands(manifest, result);
         validateEvents(manifest, result);
         validateInternalContracts(manifest.getInternalContracts(), result);
         validateRoutes(manifest, result);
@@ -182,6 +179,79 @@ public final class PluginManifestValidator {
             if (ref.getId() != null && !ids.add(ref.getId())) {
                 result.addError(prefix + ".id", "Duplicate contract id: " + ref.getId());
             }
+        }
+    }
+
+    /**
+     * Commands are named by their type (root BRX-RS-MESSAGE-010). A provider handles them in its own transaction,
+     * so it keeps an inbox and requires persistence (MESSAGE-014); a consumer writes them to its own outbox
+     * (MESSAGE-011).
+     */
+    private void validateCommands(PluginManifest manifest, ValidationResult result) {
+        List<PluginManifest.ContractRef> provides = manifest.getCommands() != null
+            ? manifest.getCommands().getProvides() : List.of();
+        List<PluginManifest.ContractRef> consumes = manifest.getCommands() != null
+            ? manifest.getCommands().getConsumes() : List.of();
+        Set<String> provided = new HashSet<>();
+        Set<String> handlers = new HashSet<>();
+        for (int i = 0; i < provides.size(); i++) {
+            PluginManifest.ContractRef ref = provides.get(i);
+            String prefix = "commands.provides[" + i + "]";
+            if (ref == null) {
+                result.addError(prefix, "Command provider is required");
+                continue;
+            }
+            requirePresent(result, prefix + ".commandType", ref.getCommandType());
+            requirePresent(result, prefix + ".handlerId", ref.getHandlerId());
+            if (ref.getCommandType() != null && !provided.add(ref.getCommandType())) {
+                result.addError(prefix + ".commandType", "Duplicate provided command type: " + ref.getCommandType());
+            }
+            if (ref.getHandlerId() != null && !handlers.add(ref.getHandlerId())) {
+                result.addError(prefix + ".handlerId", "Duplicate command handler id: " + ref.getHandlerId());
+            }
+            Object schemaRef = ref.getRequest() == null ? null : ref.getRequest().get("schemaRef");
+            if (!(schemaRef instanceof String text) || !text.startsWith("brix://schemas/")) {
+                result.addError(prefix + ".request.schemaRef", "A provided command names its request schema brix://schemas/...");
+            }
+        }
+        Set<String> consumed = new HashSet<>();
+        for (int i = 0; i < consumes.size(); i++) {
+            PluginManifest.ContractRef ref = consumes.get(i);
+            String prefix = "commands.consumes[" + i + "]";
+            if (ref == null) {
+                result.addError(prefix, "Command consumer is required");
+                continue;
+            }
+            requirePresent(result, prefix + ".commandType", ref.getCommandType());
+            if (ref.getCommandType() != null && !consumed.add(ref.getCommandType())) {
+                result.addError(prefix + ".commandType", "Duplicate consumed command type: " + ref.getCommandType());
+            }
+            if (ref.getVersionRange() != null && !ref.getVersionRange().isBlank()) {
+                validateRange(result, prefix + ".versionRange", ref.getVersionRange());
+            } else {
+                result.addError(prefix + ".versionRange", "A consumed command names the versions it sends");
+            }
+        }
+        List<PluginManifest.EventSubscribe> subscribes = manifest.getEvents() != null
+            ? manifest.getEvents().getSubscribes() : List.of();
+        for (PluginManifest.EventSubscribe subscribe : subscribes) {
+            if (subscribe != null && subscribe.getHandlerId() != null && handlers.contains(subscribe.getHandlerId())) {
+                // The inbox records each delivery by handler id: one id serves one subscription or one command.
+                result.addError("commands.provides", "Handler id " + subscribe.getHandlerId()
+                    + " serves both an event subscription and a command");
+            }
+        }
+        PluginManifest.DataSection data = manifest.getData();
+        if (!provides.isEmpty()) {
+            if (data == null || !hasText(data.getInbox())) {
+                result.addError("data.inbox", "Command providers must declare data.inbox");
+            }
+            if (!requires(manifest, "io.runtime.sdk.capability.PersistenceCapability")) {
+                result.addError("capabilities.required", "Command providers must require PersistenceCapability");
+            }
+        }
+        if (!consumes.isEmpty() && (data == null || !hasText(data.getOutbox()))) {
+            result.addError("data.outbox", "Command consumers must declare data.outbox");
         }
     }
 

@@ -83,9 +83,7 @@ public final class EventsEndpoint {
         EventDelivery delivery = deliveries.get();
         List<Replayed> results = new ArrayList<>();
         if (broker != null && delivery != null) {
-            for (EventSubscribers.DeclaredSubscriber declared : delivery.subscriptions()) {
-                ConsumedSubscription subscription = new ConsumedSubscription(declared.pluginId(),
-                    declared.subscription().handlerId(), declared.subscription().eventType());
+            for (ConsumedSubscription subscription : consumed(delivery)) {
                 if (broker.parkedEvent(subscription, eventId).isPresent()) {
                     results.add(replay(broker, delivery, subscription, eventId));
                 }
@@ -97,6 +95,17 @@ public final class EventsEndpoint {
         }
         boolean all = results.stream().allMatch(Replayed::replayed);
         return new WebEndpointResponse<>(replay, all ? WebEndpointResponse.STATUS_OK : STATUS_CONFLICT);
+    }
+
+    /** The event subscriptions and the consumers of the provided commands (Kafka design §14 K22). */
+    static List<ConsumedSubscription> consumed(EventDelivery delivery) {
+        List<ConsumedSubscription> consumed = new ArrayList<>();
+        for (EventSubscribers.DeclaredSubscriber declared : delivery.subscriptions()) {
+            consumed.add(new ConsumedSubscription(declared.pluginId(), declared.subscription().handlerId(),
+                declared.subscription().eventType()));
+        }
+        consumed.addAll(delivery.commandProvisions());
+        return consumed;
     }
 
     private static Replayed replay(

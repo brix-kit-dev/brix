@@ -109,9 +109,21 @@ public final class KafkaEventBroker implements AutoCloseable {
      * @throws IllegalStateException when the broker cannot create them now
      */
     public void ensureEventTopics(Collection<String> eventTypes) {
+        ensureMessageTopics(eventTypes.stream().map(topics::eventTopic).toList());
+    }
+
+    /**
+     * Makes sure every command type has its topic (Kafka design §14 K22), as event types have theirs.
+     *
+     * @param commandTypes the command types
+     */
+    public void ensureCommandTopics(Collection<String> commandTypes) {
+        ensureMessageTopics(commandTypes.stream().map(topics::commandTopic).toList());
+    }
+
+    private void ensureMessageTopics(Collection<String> names) {
         Map<String, NewTopic> wanted = new TreeMap<>();
-        for (String eventType : eventTypes) {
-            String name = topics.eventTopic(eventType);
+        for (String name : names) {
             wanted.put(name, new NewTopic(name, settings.partitions(), settings.replicationFactor())
                 .configs(Map.of(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(settings.retention().toMillis()))));
         }

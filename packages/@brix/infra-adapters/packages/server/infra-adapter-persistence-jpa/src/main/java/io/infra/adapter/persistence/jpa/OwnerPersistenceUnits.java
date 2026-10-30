@@ -46,12 +46,14 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
+import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
+import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -85,6 +87,7 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     private final ObjectMapper json;
     private final ConcurrentMap<String, JpaOwnerPersistence> units = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Optional<EventBusCapability>> eventBuses = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Optional<CommandCapability>> commandBuses = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, OwnerPersistenceValidator> validators = new ConcurrentHashMap<>();
     private volatile Supplier<BestEffortEventSender> bestEffort = () -> null;
 
@@ -368,6 +371,29 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             .ifPresent(outbox -> requireCanonical(ownerModuleId, CanonicalMessagingTables.Kind.OUTBOX, outbox));
         owners.inboxOf(ownerModuleId)
             .ifPresent(inbox -> requireCanonical(ownerModuleId, CanonicalMessagingTables.Kind.INBOX, inbox));
+        if (owners.providesCommands(ownerModuleId)) {
+            owners.storageIdOf(ownerModuleId).ifPresent(storageId -> requireCanonical(ownerModuleId,
+                CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY, CanonicalMessagingTables.commandIdempotencyOf(storageId)));
+        }
+    }
+
+    @Override
+    public Optional<CommandCapability> commandBusFor(String ownerModuleId) {
+        Objects.requireNonNull(ownerModuleId, "ownerModuleId must not be null");
+        return commandBuses.computeIfAbsent(ownerModuleId, ownerId -> owners.declaresCommandBus(ownerId)
+            ? Optional.of((CommandCapability) new OwnerCommandBus(ownerId, owners.outboxOf(ownerId).orElse(null),
+                owners.consumedCommandsOf(ownerId), dataSource, json, Clock.systemUTC()))
+            : Optional.empty());
+    }
+
+    /**
+     * Returns the providers' business idempotency records, which the runtime's command delivery writes in each
+     * provider's transaction (root BRX-RS-MESSAGE-014).
+     *
+     * @return the idempotency store
+     */
+    public OwnerCommandIdempotency commandIdempotency() {
+        return new JdbcOwnerCommandIdempotency(owners, dataSource, Clock.systemUTC());
     }
 
     /**

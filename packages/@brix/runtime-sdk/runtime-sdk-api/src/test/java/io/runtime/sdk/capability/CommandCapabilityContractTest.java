@@ -14,6 +14,7 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 import io.runtime.sdk.command.CommandEnvelope;
+import io.runtime.sdk.command.CommandRequest;
 import io.runtime.sdk.event.EventScope;
 
 class CommandCapabilityContractTest {
@@ -64,13 +65,27 @@ class CommandCapabilityContractTest {
 
     @Test
     void receiptOnlyContainsDurableSenderFacts() {
+        // Root BRX-RS-MESSAGE-013: the receipt says the command is queued, nothing about its outcome.
         CommandReceipt receipt = new CommandReceipt(
             "command-1",
             "TenantMemberCommand",
-            Instant.parse("2026-07-28T00:00:01Z"));
+            Instant.parse("2026-07-28T00:00:01Z"),
+            CommandReceipt.Status.QUEUED);
 
         assertEquals("command-1", receipt.commandId());
         assertEquals("TenantMemberCommand", receipt.commandType());
-        assertEquals(Instant.parse("2026-07-28T00:00:01Z"), receipt.acceptedAt());
+        assertEquals(Instant.parse("2026-07-28T00:00:01Z"), receipt.persistedAt());
+        assertEquals(CommandReceipt.Status.QUEUED, receipt.status());
     }
+
+    @Test
+    void aRequestNamesItsTypePayloadAndIdempotencyKey() {
+        CommandRequest<String> request = CommandRequest.of("ReserveStock", "sku-1", "order", "order-7")
+            .forTenant("910001");
+
+        assertEquals("910001", request.tenantId());
+        assertEquals(null, request.partitionKey());
+        assertThrows(IllegalArgumentException.class, () -> CommandRequest.of("ReserveStock", "sku-1", "order", " "));
+    }
+
 }

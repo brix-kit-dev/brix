@@ -24,6 +24,7 @@ import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import tools.jackson.core.JacksonException;
@@ -207,9 +208,18 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                 .optionalCapabilities(capabilityIds(manifest.getCapabilities() != null
                     ? manifest.getCapabilities().getOptional() : List.of()))
                 .queryHandlers(contractIds(manifest.getQueries() != null
-                    ? manifest.getQueries().getProvides() : List.of()))
-                .commandHandlers(contractIds(manifest.getCommands() != null
-                    ? manifest.getCommands().getProvides() : List.of()));
+                    ? manifest.getQueries().getProvides() : List.of()));
+            if (manifest.getCommands() != null) {
+                for (PluginManifest.ContractRef provided : manifest.getCommands().getProvides()) {
+                    builder.providedCommand(new PluginRuntimeDescriptor.ProvidedCommand(provided.getCommandType(),
+                        provided.getHandlerId(), schemaVersion(provided.getRequest()), provided.getRetryPolicyRef(),
+                        provided.getTimeoutPolicyRef(), provided.getConcurrencyPolicyRef()));
+                }
+                for (PluginManifest.ContractRef consumed : manifest.getCommands().getConsumes()) {
+                    builder.consumedCommand(consumed.getCommandType(), consumed.getVersionRange(),
+                        !Boolean.FALSE.equals(consumed.getRequired()));
+                }
+            }
             if (manifest.getData() != null) {
                 builder.data(
                     manifest.getData().getStorageId(),
@@ -342,6 +352,15 @@ public final class ClasspathPluginRuntimeDescriptorResolver
             }
         }
         return ids;
+    }
+
+    /** The version a {@code brix://schemas/.../<version>} reference ends with. */
+    private static String schemaVersion(Map<String, Object> schema) {
+        Object ref = schema == null ? null : schema.get("schemaRef");
+        if (!(ref instanceof String text) || text.lastIndexOf('/') < 0) {
+            return "";
+        }
+        return text.substring(text.lastIndexOf('/') + 1);
     }
 
     private List<String> contractIds(List<PluginManifest.ContractRef> refs) {

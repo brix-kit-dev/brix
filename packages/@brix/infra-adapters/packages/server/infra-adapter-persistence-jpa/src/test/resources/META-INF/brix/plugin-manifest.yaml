@@ -23,13 +23,22 @@ capabilities:
       version: ">=3.0.10 <4.0.0"
     - id: io.runtime.sdk.capability.PersistenceCapability
       version: ">=3.2.0 <4.0.0"
+    - id: io.runtime.sdk.capability.CommandCapability
+      version: ">=3.0.10 <4.0.0"
   optional: []
 queries:
   provides: []
   consumes: []
 commands:
   provides: []
-  consumes: []
+  # OwnerCommandBusTest: a command the owner submits.
+  consumes:
+    - commandType: ReserveStock
+      versionRange: ">=1.1.0 <2.0.0"
+      required: false
+      timeoutPolicyRef: event-standard
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
 events:
   # OwnerOutboxEventBusTest: what the owner's outbox accepts.
   publishes:

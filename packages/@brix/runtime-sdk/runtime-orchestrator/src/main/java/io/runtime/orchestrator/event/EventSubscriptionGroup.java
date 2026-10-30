@@ -148,12 +148,14 @@ public final class EventSubscriptionGroup implements SmartLifecycle {
             while (!delivery.ready() || !broker.ready()) {
                 pause(properties.getPollDelay());
             }
-            List<ConsumedSubscription> subscriptions = delivery.subscriptions().stream()
+            List<ConsumedSubscription> subscriptions = new java.util.ArrayList<>(delivery.subscriptions().stream()
                 .map(declared -> new ConsumedSubscription(declared.pluginId(), declared.subscription().handlerId(),
                     declared.subscription().eventType()))
-                .toList();
+                .toList());
             Set<String> eventTypes = new TreeSet<>(delivery.publishedEventTypes());
             subscriptions.forEach(subscription -> eventTypes.add(subscription.eventType()));
+            // Kafka design §14 K22: each provided command is consumed like a subscription, from its command's topic.
+            subscriptions.addAll(delivery.commandProvisions());
             prepare(eventTypes, subscriptions);
             consume(subscriptions);
             while (true) {

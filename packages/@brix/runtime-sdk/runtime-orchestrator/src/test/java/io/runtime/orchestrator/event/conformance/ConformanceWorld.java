@@ -25,6 +25,12 @@ import java.util.function.Supplier;
 
 import tools.jackson.databind.ObjectMapper;
 
+import io.runtime.sdk.plugin.CommandInvocation;
+import io.runtime.sdk.plugin.CommandHandler;
+import io.runtime.orchestrator.plugin.PluginRuntimeManager;
+import io.runtime.orchestrator.command.CommandProviders;
+import io.runtime.orchestrator.command.CommandMessages;
+import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.event.EventDelivery;
 import io.runtime.orchestrator.event.EventDeliveryScopes;
 import io.runtime.orchestrator.event.EventInboxStore;
@@ -55,6 +61,13 @@ public final class ConformanceWorld {
     public static final String HANDLER = "member-accepted-projection.v1";
     public static final long TENANT = 910001L;
     public static final String TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+    /** The command the publisher submits and the subscriber provides (Kafka design §14 K22). */
+    public static final String COMMAND = "ReserveStock";
+    public static final String COMMAND_HANDLER = "reserve-stock.v1";
+
+    /** The payload of {@link #COMMAND}. */
+    public record Reserve(String sku) {
+    }
 
     /**
      * Payload the subscriber's handler declares.
@@ -83,6 +96,8 @@ public final class ConformanceWorld {
         new OutboxRelayPolicy(10, 3, Duration.ofSeconds(10), Duration.ofMillis(100), Duration.ZERO);
     private final Set<String> inbox = ConcurrentHashMap.newKeySet();
     private final List<Handled> handled = new CopyOnWriteArrayList<>();
+    private final List<String> handledCommands = new CopyOnWriteArrayList<>();
+    private final Set<String> commandKeys = ConcurrentHashMap.newKeySet();
     private final ThreadLocal<Transaction> transaction = new ThreadLocal<>();
     private final AtomicInteger failuresLeft = new AtomicInteger();
     private final Map<String, AtomicInteger> failuresOfEvent = new ConcurrentHashMap<>();
@@ -176,7 +191,57 @@ public final class ConformanceWorld {
     public EventDelivery newDelivery() {
         return new EventDelivery(subscribers(),
             owner -> SUBSCRIBER.equals(owner) && subscription.persistentInbox() ? Optional.of(persistence) : Optional.empty(),
-            inboxStore, new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), EventDeliveryScopes.ENVELOPE, tracing);
+            inboxStore, new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), EventDeliveryScopes.ENVELOPE, tracing)
+            .deliveringCommandsWith(new CommandDelivery(commandProviders(),
+                owner -> SUBSCRIBER.equals(owner) ? Optional.of(persistence) : Optional.empty(), inboxStore,
+                (owner, handlerId, message, scope, key) -> {
+                    Transaction current = transaction.get();
+                    if (current == null) {
+                        throw new IllegalStateException("the idempotency record is written in the provider's unit of work");
+                    }
+                    String taken = owner + "|" + handlerId + "|" + scope + "|" + key;
+                    if (commandKeys.contains(taken) || current.commandKeys.contains(taken)) {
+                        return false;
+                    }
+                    current.commandKeys.add(taken);
+                    return true;
+                },
+                new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), tracing));
+    }
+
+    /**
+     * Commits a command the publisher submits to its outbox, as its unit of work does (Kafka design §14 K22).
+     *
+     * @param commandId command id
+     * @param idempotencyKey business key, also its partition key
+     * @return the outbox message
+     */
+    public CanonicalOutboxMessage submit(String commandId, String idempotencyKey) {
+        CanonicalOutboxMessage message = new CanonicalOutboxMessage(commandId, commandId, "COMMAND", COMMAND, "1.0.0",
+            "STANDARD", PUBLISHER, "PLATFORM", null, idempotencyKey, OffsetDateTime.now(ZoneOffset.UTC),
+            "correlation-" + commandId, null, TRACEPARENT, "conformance=1",
+            CommandMessages.encode(new ObjectMapper(), new Reserve("sku-" + idempotencyKey), "order", idempotencyKey), 0);
+        outbox.append(message);
+        return message;
+    }
+
+    /**
+     * Returns the ids of the commands the provider's handler committed, in order.
+     *
+     * @return command ids
+     */
+    public List<String> handledCommands() {
+        return List.copyOf(handledCommands);
+    }
+
+    /**
+     * Whether a committed delivery of the message is recorded in the subscriber's inbox.
+     *
+     * @param messageId event or command id
+     * @return whether it is recorded
+     */
+    public boolean inboxed(String messageId) {
+        return inbox.stream().anyMatch(key -> key.endsWith("|" + messageId));
     }
 
     /**
@@ -281,6 +346,51 @@ public final class ConformanceWorld {
         };
     }
 
+    private CommandProviders commandProviders() {
+        return new CommandProviders() {
+            @Override
+            public boolean ready() {
+                return pluginsStarted;
+            }
+
+            @Override
+            public Optional<PluginRuntimeManager.CommandProvider> providerOf(String commandType) {
+                return COMMAND.equals(commandType) ? Optional.of(provider()) : Optional.empty();
+            }
+
+            @Override
+            public List<PluginRuntimeManager.CommandProvider> providers() {
+                return List.of(provider());
+            }
+
+            @Override
+            public Optional<PluginRuntimeDescriptor.ConsumedCommand> consumed(String pluginId, String commandType) {
+                return PUBLISHER.equals(pluginId) && COMMAND.equals(commandType)
+                    ? Optional.of(new PluginRuntimeDescriptor.ConsumedCommand(COMMAND, ">=1.0.0 <2.0.0", true))
+                    : Optional.empty();
+            }
+
+            private PluginRuntimeManager.CommandProvider provider() {
+                return new PluginRuntimeManager.CommandProvider(SUBSCRIBER,
+                    new PluginRuntimeDescriptor.ProvidedCommand(COMMAND, COMMAND_HANDLER, "1.0.0"), new Stock(),
+                    Reserve.class);
+            }
+        };
+    }
+
+    private final class Stock implements CommandHandler<Reserve> {
+
+        @Override
+        public CompletionStage<Void> handle(CommandInvocation<Reserve> invocation) {
+            Transaction current = transaction.get();
+            if (current == null) {
+                throw new IllegalStateException("a command runs in its provider's unit of work");
+            }
+            current.commands.add(invocation.command().commandId());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
     private <T> T inTransaction(Supplier<T> work) {
         if (transaction.get() != null) {
             return work.get();
@@ -306,6 +416,8 @@ public final class ConformanceWorld {
             added.add(key);
         }
         handled.addAll(current.handled);
+        commandKeys.addAll(current.commandKeys);
+        handledCommands.addAll(current.commands);
     }
 
     private final class Projection implements EventHandler<MemberAccepted> {
@@ -334,5 +446,7 @@ public final class ConformanceWorld {
     private static final class Transaction {
         private final List<String> inbox = new ArrayList<>();
         private final List<Handled> handled = new ArrayList<>();
+        private final List<String> commandKeys = new ArrayList<>();
+        private final List<String> commands = new ArrayList<>();
     }
 }

@@ -37,7 +37,8 @@ import io.runtime.orchestrator.outbox.OutboxTransportException;
 /**
  * Kafka transport for canonical outbox messages.
  * <p>This L2C adapter maps the already validated canonical envelope to a Kafka
- * record on the event type's topic {@code brix.event.<eventType>} (Kafka design D18), keyed by the
+ * record on the event type's topic {@code brix.event.<eventType>} (Kafka design D18), or a command on its command
+ * type's topic {@code brix.command.<commandType>} (§14 K22), keyed by the
  * partition key. It does not own Outbox state, does not decide reliability, and does
  * not rewrite message or event identity.</p>
  * <p>It is ready while the broker answers, so the relay claims nothing while Kafka cannot be reached and
@@ -106,18 +107,23 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
     @Override
     public void publish(CanonicalOutboxMessage message) {
         Objects.requireNonNull(message, "message must not be null");
-        if (!"EVENT".equals(message.messageKind())) {
+        boolean command = "COMMAND".equals(message.messageKind());
+        if (!command && !"EVENT".equals(message.messageKind())) {
             throw new OutboxTransportException(ERROR_KIND_UNSUPPORTED,
-                "Kafka carries canonical events only, not " + message.messageKind(), null, true);
+                "Kafka carries canonical events and commands, not " + message.messageKind(), null, true);
         }
         String topic;
         try {
-            topic = topics.eventTopic(message.messageType());
+            topic = command ? topics.commandTopic(message.messageType()) : topics.eventTopic(message.messageType());
         } catch (IllegalArgumentException invalid) {
             throw new OutboxTransportException(ERROR_TOPIC_INVALID, invalid.getMessage(), invalid, true);
         }
         try {
-            broker.ensureEventTopics(Set.of(message.messageType()));
+            if (command) {
+                broker.ensureCommandTopics(Set.of(message.messageType()));
+            } else {
+                broker.ensureEventTopics(Set.of(message.messageType()));
+            }
         } catch (IllegalStateException unavailable) {
             throw new OutboxTransportException(ERROR_TOPIC_UNAVAILABLE, "Kafka topic " + topic + " is not available",
                 unavailable);

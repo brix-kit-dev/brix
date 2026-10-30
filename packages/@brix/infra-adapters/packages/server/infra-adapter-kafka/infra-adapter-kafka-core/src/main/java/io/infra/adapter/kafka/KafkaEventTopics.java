@@ -46,6 +46,27 @@ public final class KafkaEventTopics {
     }
 
     /**
+     * Returns the topic of a command type, such as {@code brix.command.ReserveStock} (Kafka design §14 K22).
+     *
+     * @param commandType the command type
+     * @return its topic
+     * @throws IllegalArgumentException when the name is not a legal topic name
+     */
+    public String commandTopic(String commandType) {
+        return legal(prefix + "brix.command." + commandType);
+    }
+
+    /**
+     * Returns the topic a subscription consumes: its event type's, or its command type's.
+     *
+     * @param subscription the subscription
+     * @return its topic
+     */
+    public String topicOf(ConsumedSubscription subscription) {
+        return subscription.command() ? commandTopic(subscription.eventType()) : eventTopic(subscription.eventType());
+    }
+
+    /**
      * Returns the parking topic of a subscription, such as
      * {@code brix.parked.platform-audit.identity-audit-fact-record.v1}.
      *

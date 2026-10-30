@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
@@ -96,6 +97,11 @@ public final class DefaultPluginContext implements PluginContext {
                 return capabilityType.cast(outbox.get());
             }
         }
+        if (capabilityType == CommandCapability.class) {
+            return capabilityType.cast(ownerPersistence.commandBusFor(descriptor.identity().pluginId())
+                .orElseThrow(() -> new PluginRuntimeException("Plugin '" + descriptor.identity().pluginId()
+                    + "' has no command capability: it needs data.outbox and commands.consumes")));
+        }
         return capabilityRegistry.getRequired(capabilityType);
     }
 
@@ -117,6 +123,9 @@ public final class DefaultPluginContext implements PluginContext {
             if (outbox.isPresent()) {
                 return outbox.map(capabilityType::cast);
             }
+        }
+        if (capabilityType == CommandCapability.class) {
+            return ownerPersistence.commandBusFor(descriptor.identity().pluginId()).map(capabilityType::cast);
         }
         return capabilityRegistry.get(capabilityType);
     }

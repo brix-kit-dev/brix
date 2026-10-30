@@ -132,6 +132,37 @@ class PluginManifestLoaderTest {
     }
 
     @Test
+    void aCommandProviderIsNamedByItsCommandType() {
+        // Kafka design §14 K22: commands are keyed by type, as the bundled JSON schema has them.
+        assertThatCode(() -> loader.loadFromString(commandProviderManifest())).doesNotThrowAnyException();
+    }
+
+    @Test
+    void aCommandProviderKeepsAnInbox() {
+        assertThatThrownBy(() -> loader.loadFromString(commandProviderManifest()
+                .replace("  inbox: platform_tenant_inbox\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("Command providers must declare data.inbox");
+    }
+
+    @Test
+    void aCommandConsumerWritesToItsOutbox() {
+        assertThatThrownBy(() -> loader.loadFromString(commandProviderManifest()
+                .replace("  outbox: platform_tenant_outbox\n", "")
+                .replace("  consumes: []\nevents:", """
+                  consumes:
+                    - commandType: ShipOrder
+                      versionRange: ">=1.0.0 <2.0.0"
+                      required: true
+                      timeoutPolicyRef: event-standard
+                      retryPolicyRef: event-standard
+                      idempotencyPolicyRef: persistent-inbox
+                events:""")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("Command consumers must declare data.outbox");
+    }
+
+    @Test
     void aSubscriberThatKeepsNoInboxNeedsNoInboxTable() {
         // Root BRX-RS-MANIFEST-025, Kafka design §13 K3: no-durable-idempotency subscriptions keep no inbox.
         assertThatCode(() -> loader.loadFromString(subscriberManifest()
@@ -212,6 +243,23 @@ class PluginManifestLoaderTest {
               storageId: platform_tenant
               outbox: platform_tenant_outbox
               inbox: platform_tenant_inbox
+            """);
+    }
+
+    private String commandProviderManifest() {
+        return subscriberManifest().replace("commands:\n  provides: []\n", """
+            commands:
+              provides:
+                - commandType: ReserveStock
+                  request:
+                    schemaRef: brix://schemas/sample-plugin/reserve-stock/1.0.0
+                  handlerId: reserve-stock.v1
+                  scopePolicyRef: platform
+                  accessPolicyRef: platform
+                  timeoutPolicyRef: event-standard
+                  concurrencyPolicyRef: partition-serial
+                  retryPolicyRef: event-standard
+                  idempotencyPolicyRef: persistent-inbox
             """);
     }
 

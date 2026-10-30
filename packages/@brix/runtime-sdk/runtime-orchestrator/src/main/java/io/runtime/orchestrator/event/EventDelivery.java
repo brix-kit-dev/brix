@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
@@ -56,7 +57,7 @@ import io.runtime.sdk.plugin.TraceContext;
  */
 public final class EventDelivery {
 
-    /** Only events are delivered here; commands have their own path (root BRX-RS-MESSAGE-010). */
+    /** A command reached a host that delivers no commands. */
     public static final String KIND_UNSUPPORTED = "OUTBOX_KIND_UNSUPPORTED";
     public static final String PUBLISHER_REJECTED = "EVENT_PUBLISHER_REJECTED";
     public static final String SCHEMA_UNSUPPORTED = "EVENT_SCHEMA_UNSUPPORTED";
@@ -78,6 +79,7 @@ public final class EventDelivery {
     private final Duration deadline;
     private final EventDeliveryScopes scopes;
     private final MessageTracing tracing;
+    private volatile CommandDelivery commands;
     private volatile boolean stopped;
 
     /**
@@ -145,6 +147,32 @@ public final class EventDelivery {
     /** Tells handlers still running, through their cancellation signal, that the runtime no longer waits for them. */
     public void stop() {
         stopped = true;
+        CommandDelivery commandDelivery = commands;
+        if (commandDelivery != null) {
+            commandDelivery.stop();
+        }
+    }
+
+    /**
+     * Delivers commands too, through the given core (Kafka design §14 K22): the transports, consumers and replays
+     * that hand messages here then serve commands as they serve events.
+     *
+     * @param commandDelivery the command delivery core
+     * @return this delivery core
+     */
+    public EventDelivery deliveringCommandsWith(CommandDelivery commandDelivery) {
+        this.commands = Objects.requireNonNull(commandDelivery, "commandDelivery must not be null");
+        return this;
+    }
+
+    /**
+     * Returns one consumed subscription per provided command, empty when this core serves no commands.
+     *
+     * @return the command subscriptions
+     */
+    public List<ConsumedSubscription> commandProvisions() {
+        CommandDelivery commandDelivery = commands;
+        return commandDelivery == null ? List.of() : commandDelivery.provisions();
     }
 
     /**
@@ -173,6 +201,10 @@ public final class EventDelivery {
      * @throws EventDeliveryException when a subscriber did not commit the event
      */
     public void deliverToAll(CanonicalOutboxMessage message) {
+        if (isCommand(message)) {
+            commandsFor(message).deliver(message);
+            return;
+        }
         List<EventSubscribers.DeclaredSubscriber> declared = subscribers.subscribersOf(admit(message));
         for (EventSubscribers.DeclaredSubscriber subscriber : declared) {
             accept(message, subscriber);
@@ -191,6 +223,10 @@ public final class EventDelivery {
      * @throws EventDeliveryException when the subscriber did not commit the event
      */
     public void deliverTo(String pluginId, String handlerId, CanonicalOutboxMessage message) {
+        if (isCommand(message)) {
+            commandsFor(message).deliverTo(pluginId, handlerId, message);
+            return;
+        }
         String eventType = admit(message);
         EventSubscribers.DeclaredSubscriber subscriber = subscribers.subscribersOf(eventType).stream()
             .filter(declared -> declared.pluginId().equals(pluginId) && declared.subscription().handlerId().equals(handlerId))
@@ -199,6 +235,18 @@ public final class EventDelivery {
                 pluginId + " has no subscription " + handlerId + " to " + eventType, null));
         accept(message, subscriber);
         deliver(message, subscriber.handler());
+    }
+
+    private static boolean isCommand(CanonicalOutboxMessage message) {
+        return "COMMAND".equals(message.messageKind());
+    }
+
+    private CommandDelivery commandsFor(CanonicalOutboxMessage message) {
+        CommandDelivery commandDelivery = commands;
+        if (commandDelivery == null) {
+            throw permanent(KIND_UNSUPPORTED, "this host delivers no commands, so not " + message.messageType(), null);
+        }
+        return commandDelivery;
     }
 
     /** Admits an event its declared publisher sent, once the plugins have started; returns its type. */

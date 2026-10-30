@@ -80,6 +80,8 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
     @Override
     public void prepare(Set<String> eventTypes, List<ConsumedSubscription> subscriptions) {
         broker.ensureEventTopics(eventTypes);
+        broker.ensureCommandTopics(subscriptions.stream().filter(ConsumedSubscription::command)
+            .map(ConsumedSubscription::eventType).toList());
         broker.ensureParkingTopics(subscriptions);
         parking.watch(subscriptions);
     }
@@ -88,7 +90,7 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
     public Consumption consume(ConsumedSubscription subscription, SubscriptionDelivery delivery) {
         KafkaSubscriptionConsumer consumer = new KafkaSubscriptionConsumer(subscription, delivery,
             () -> new KafkaConsumer<>(consumerConfigs(subscription)), parking, envelopes,
-            topics.eventTopic(subscription.eventType()), settings.pollTimeout(), clock);
+            topics.topicOf(subscription), settings.pollTimeout(), clock);
         consumer.start();
         return consumer;
     }

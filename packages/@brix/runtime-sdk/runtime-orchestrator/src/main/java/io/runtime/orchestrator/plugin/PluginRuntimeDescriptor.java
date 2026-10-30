@@ -61,6 +61,8 @@ public final class PluginRuntimeDescriptor {
     private final Map<String, EventSubscription> eventSubscriptions;
     private final Map<String, SubscriptionPolicies> subscriptionPolicies;
     private final Map<String, String> publicationSchemas;
+    private final Map<String, ProvidedCommand> providedCommands;
+    private final Map<String, ConsumedCommand> consumedCommands;
     private final Map<String, ProvidedInternalContract> providedInternalContracts;
 
     private PluginRuntimeDescriptor(Builder builder) {
@@ -80,6 +82,8 @@ public final class PluginRuntimeDescriptor {
         this.eventSubscriptions = Map.copyOf(builder.eventSubscriptions);
         this.subscriptionPolicies = Map.copyOf(builder.subscriptionPolicies);
         this.publicationSchemas = Map.copyOf(builder.publicationSchemas);
+        this.providedCommands = Map.copyOf(builder.providedCommands);
+        this.consumedCommands = Map.copyOf(builder.consumedCommands);
         this.providedInternalContracts = Map.copyOf(builder.providedInternalContracts);
     }
 
@@ -264,6 +268,24 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
+     * Returns the commands the plugin provides, by command type (root BRX-RS-MESSAGE-010).
+     *
+     * @return immutable provided commands
+     */
+    public Map<String, ProvidedCommand> providedCommands() {
+        return providedCommands;
+    }
+
+    /**
+     * Returns the commands the plugin submits, by command type.
+     *
+     * @return immutable consumed commands
+     */
+    public Map<String, ConsumedCommand> consumedCommands() {
+        return consumedCommands;
+    }
+
+    /**
      * Returns internal contracts provided by this plugin artifact.
      *
      * @return immutable internal contract declarations keyed by contract id
@@ -352,6 +374,8 @@ public final class PluginRuntimeDescriptor {
         private final Map<String, EventSubscription> eventSubscriptions = new LinkedHashMap<>();
         private final Map<String, SubscriptionPolicies> subscriptionPolicies = new LinkedHashMap<>();
         private final Map<String, String> publicationSchemas = new LinkedHashMap<>();
+        private final Map<String, ProvidedCommand> providedCommands = new LinkedHashMap<>();
+        private final Map<String, ConsumedCommand> consumedCommands = new LinkedHashMap<>();
         private final Map<String, ProvidedInternalContract> providedInternalContracts = new LinkedHashMap<>();
         private String version = "0.0.0";
 
@@ -498,6 +522,50 @@ public final class PluginRuntimeDescriptor {
          */
         public Builder data(String storageId, String outbox, String inbox) {
             this.data = new DataDeclaration(storageId, outbox, inbox);
+            return this;
+        }
+
+        /**
+         * Declares a command the plugin provides; its handler id is bound in {@code configure()}.
+         *
+         * @param commandType the command type
+         * @param handlerId the handler id
+         * @param version the version of the command's request schema
+         * @return this builder
+         */
+        public Builder providedCommand(String commandType, String handlerId, String version) {
+            return providedCommand(new ProvidedCommand(commandType, handlerId, version));
+        }
+
+        /**
+         * Declares a command the plugin provides, with its policies.
+         *
+         * @param command the declaration
+         * @return this builder
+         */
+        public Builder providedCommand(ProvidedCommand command) {
+            if (!command.commandType().isEmpty()) {
+                providedCommands.put(command.commandType(), command);
+                if (!command.handlerId().isEmpty()) {
+                    commandHandlers.add(command.handlerId());
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Declares a command the plugin submits.
+         *
+         * @param commandType the command type
+         * @param versionRange the versions it sends
+         * @param required whether the plugin cannot run without a provider
+         * @return this builder
+         */
+        public Builder consumedCommand(String commandType, String versionRange, boolean required) {
+            ConsumedCommand command = new ConsumedCommand(commandType, versionRange, required);
+            if (!command.commandType().isEmpty()) {
+                consumedCommands.put(command.commandType(), command);
+            }
             return this;
         }
 
@@ -815,6 +883,57 @@ public final class PluginRuntimeDescriptor {
          */
         public boolean persistentInbox() {
             return !NO_DURABLE_IDEMPOTENCY.equals(idempotencyPolicyRef);
+        }
+    }
+
+    /**
+     * A command the plugin provides.
+     *
+     * @param commandType the command type
+     * @param handlerId its handler id
+     * @param version the version of its request schema
+     * @param retryPolicyRef retry policy reference
+     * @param timeoutPolicyRef timeout policy reference
+     * @param concurrencyPolicyRef concurrency policy reference
+     */
+    public record ProvidedCommand(String commandType, String handlerId, String version, String retryPolicyRef,
+            String timeoutPolicyRef, String concurrencyPolicyRef) {
+
+        /**
+         * Creates the declaration, blank when not declared.
+         */
+        public ProvidedCommand {
+            commandType = commandType == null ? "" : commandType.trim();
+            handlerId = handlerId == null ? "" : handlerId.trim();
+            version = version == null ? "" : version.trim();
+            retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
+            timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
+            concurrencyPolicyRef = concurrencyPolicyRef == null ? "" : concurrencyPolicyRef.trim();
+        }
+
+        /**
+         * Creates a declaration without policies.
+         */
+        public ProvidedCommand(String commandType, String handlerId, String version) {
+            this(commandType, handlerId, version, "", "", "");
+        }
+    }
+
+    /**
+     * A command the plugin submits.
+     *
+     * @param commandType the command type
+     * @param versionRange the versions it sends
+     * @param required whether the plugin cannot run without a provider
+     */
+    public record ConsumedCommand(String commandType, String versionRange, boolean required) {
+
+        /**
+         * Creates the declaration, blank when not declared.
+         */
+        public ConsumedCommand {
+            commandType = commandType == null ? "" : commandType.trim();
+            versionRange = versionRange == null ? "" : versionRange.trim();
         }
     }
 

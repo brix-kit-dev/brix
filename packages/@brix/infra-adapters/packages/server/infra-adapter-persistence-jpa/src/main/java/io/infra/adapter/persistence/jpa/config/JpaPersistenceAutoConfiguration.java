@@ -42,6 +42,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.event.EventInboxStore;
+import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
@@ -106,6 +107,18 @@ public class JpaPersistenceAutoConfiguration {
      * @param ids the Host's id generator, the id source the platform audit owner also uses
      * @return the writer; it covers no action when no owner registers it
      */
+    /**
+     * The command providers' business idempotency records (root BRX-RS-MESSAGE-014; Kafka design §14 K22).
+     *
+     * @param ownerPersistenceUnits owner persistence registry, which knows the active manifests
+     * @return the idempotency store
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public OwnerCommandIdempotency ownerCommandIdempotency(OwnerPersistenceUnits ownerPersistenceUnits) {
+        return ownerPersistenceUnits.commandIdempotency();
+    }
+
     /**
      * The owners' persistent event inboxes, which the runtime's in-process event delivery writes in each
      * subscriber's transaction (root BRX-RS-MESSAGE-025, P4 design D11).
