@@ -27,7 +27,7 @@ public final class MicrometerMessageRetentionMetrics implements MessageRetention
     public static final String DELETED = "brix.messaging.retention.deleted";
     /** Tables a pass could not clean, per table. */
     public static final String FAILURES = "brix.messaging.retention.failures";
-    /** When the last pass ended, in seconds since the epoch; 0 before the first. */
+    /** When the last pass ended, in seconds since the epoch; registered when the first pass ends. */
     public static final String LAST_PASS = "brix.messaging.retention.last.pass";
 
     private final Supplier<MeterRegistry> registry;

@@ -44,6 +44,8 @@ public final class MessageRetention implements SmartLifecycle {
     static final int MAX_BATCHES = 100;
     /** Delay before the first pass after the Host starts, at most. */
     static final Duration FIRST_PASS = Duration.ofMinutes(5);
+    /** What a pass that failed as a whole is reported as: it cleaned no table. */
+    static final String ALL_TABLES = "all";
 
     private static final Logger log = LoggerFactory.getLogger(MessageRetention.class);
 
@@ -180,12 +182,14 @@ public final class MessageRetention implements SmartLifecycle {
         return running;
     }
 
-    private void pass() {
+    /** Runs a scheduled pass. A pass that fails as a whole is counted too, so it alerts even before a first pass. */
+    void pass() {
         try {
             purgeOnce();
         } catch (RuntimeException | Error failure) {
             // A pass that throws would end the schedule; report it and try again at the next one.
-            log.warn("event=messaging.retention_failed code=RETENTION_PASS_FAILED", failure);
+            metrics.failed(ALL_TABLES);
+            log.warn("event=messaging.retention_failed table={} code=RETENTION_PASS_FAILED", ALL_TABLES, failure);
         }
     }
 

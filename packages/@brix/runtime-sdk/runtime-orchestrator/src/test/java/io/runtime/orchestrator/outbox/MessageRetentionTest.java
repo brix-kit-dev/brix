@@ -96,6 +96,18 @@ class MessageRetentionTest {
     }
 
     @Test
+    void aPassThatFailsAsAWholeIsReportedForAllTables() {
+        MessageRetention retention = new MessageRetention(() -> {
+            throw new IllegalStateException("the outbox stores are not available");
+        }, () -> null, () -> null, settings, Duration.ZERO, metrics, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        retention.pass();
+
+        assertEquals(List.of(MessageRetention.ALL_TABLES), metrics.failed);
+        assertEquals(List.of(), metrics.passes);
+    }
+
+    @Test
     void aPassEndsOnALargeBacklog() {
         settings.setBatchSize(1);
         Expiring outbox = new Expiring(MessageRetention.MAX_BATCHES + 5);

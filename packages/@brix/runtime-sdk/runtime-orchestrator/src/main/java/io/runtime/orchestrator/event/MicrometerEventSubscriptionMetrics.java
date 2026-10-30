@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -50,6 +51,8 @@ public final class MicrometerEventSubscriptionMetrics implements EventSubscripti
     private final AtomicLong parkedNow = new AtomicLong();
     private final AtomicLong lag = new AtomicLong();
     private final AtomicLong stalledSeconds = new AtomicLong();
+    private final AtomicReference<Supplier<Duration>> handlingFor = new AtomicReference<>();
+    private final AtomicReference<BooleanSupplier> running = new AtomicReference<>();
 
     /**
      * Creates one set of meters per subscription and keeps it, so a consumer that restarts reports through
@@ -124,14 +127,26 @@ public final class MicrometerEventSubscriptionMetrics implements EventSubscripti
         stalledSeconds.set(age.toSeconds());
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The gauges read the consumer that watched last, so a consumer started again for the subscription
+     * reports through the gauges registered first. They read it through this object's fields: Micrometer keeps a
+     * gauge's state only weakly, and nothing else keeps the method references a consumer passes, so gauges
+     * registered on those would read NaN after the next collection.</p>
+     */
     @Override
     public void watch(Supplier<Duration> handlingFor, BooleanSupplier running) {
-        Gauge.builder(HANDLING_AGE, handlingFor, age -> age.get().toMillis() / 1000.0)
+        this.handlingFor.set(Objects.requireNonNull(handlingFor, "handlingFor must not be null"));
+        if (this.running.getAndSet(Objects.requireNonNull(running, "running must not be null")) != null) {
+            return;
+        }
+        Gauge.builder(HANDLING_AGE, this.handlingFor, watched -> watched.get().get().toMillis() / 1000.0)
             .description("How long the record in the subscription's handler has been there")
             .baseUnit("seconds")
             .tag("subscription", subscription)
             .register(registry);
-        Gauge.builder(RUNNING, running, alive -> alive.getAsBoolean() ? 1 : 0)
+        Gauge.builder(RUNNING, this.running, watched -> watched.get().getAsBoolean() ? 1 : 0)
             .description("Whether the subscription's consumer is consuming")
             .tag("subscription", subscription)
             .register(registry);
