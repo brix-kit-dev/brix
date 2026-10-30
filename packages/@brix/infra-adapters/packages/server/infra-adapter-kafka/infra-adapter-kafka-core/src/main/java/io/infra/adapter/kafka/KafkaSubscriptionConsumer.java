@@ -139,7 +139,8 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
                 commit(consumer);
             } catch (RuntimeException | Error failure) {
                 // Whatever stops the loop, the subscription keeps consuming (Kafka design §14 K10): it starts again
-                // from its committed position.
+                // from its committed position. It is not consuming meanwhile, which its gauge and health show.
+                running = false;
                 log.error("event=event.consumer_failed subscription={}", subscription.name(), failure);
                 failing.clear();
                 done.clear();
@@ -194,7 +195,7 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
         } catch (RuntimeException failure) {
             log.warn("event=event.park_failed subscription={} partition={} offset={} code={}", subscription.name(),
                 partition, record.offset(), errorCode, failure);
-            // The same attempt comes back, so the next pass parks the record again instead of retrying it.
+            // The record comes back at the same attempt: it is delivered once more and parked if that fails too.
             holdBack(consumer, partition, record, attempt, previous, PARK_RETRY);
             return false;
         }

@@ -122,9 +122,12 @@ final class KafkaParkingLot implements AutoCloseable {
         add(headers, PARKED_AT, parkedAt.toString());
         add(headers, SOURCE, source);
         add(headers, EVENT_TYPE, eventType);
-        send(new ProducerRecord<>(topics.parkingTopic(subscription), null, eventId, record.value(), headers));
+        // A record without a value is parked with an empty one: a null value is the parking topic's tombstone, which
+        // every host would read as a release.
+        String value = record.value() == null ? "" : record.value();
+        send(new ProducerRecord<>(topics.parkingTopic(subscription), null, eventId, value, headers));
         remember(subscription, new Parked(
-            new ParkedEvent(subscription.name(), eventId, eventType, errorCode, attempts, parkedAt, source), record.value()));
+            new ParkedEvent(subscription.name(), eventId, eventType, errorCode, attempts, parkedAt, source), value));
         return eventId;
     }
 
@@ -223,7 +226,8 @@ final class KafkaParkingLot implements AutoCloseable {
                         apply(record);
                     }
                 }
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | Error failure) {
+                // The reader keeps every host's view of the parked events; whatever stops it, it reads again.
                 if (!stopping) {
                     log.warn("event=event.parking_read_failed", failure);
                     pause();
