@@ -18,6 +18,9 @@ package io.infra.adapter.database.migration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -37,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.manifest.validation.PluginManifestValidator;
+import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
 
 /**
  * Executes Flyway database migrations for each configured business module independently.
@@ -122,7 +126,10 @@ public class FlywayModuleMigrationRunner {
                 migrations.putIfAbsent(declared.location(), declared);
             }
         }
-        if (migrations.isEmpty()) {
+        List<MessagingMigration> messaging = properties.isMessagingTables()
+            ? messagingMigrations(Thread.currentThread().getContextClassLoader())
+            : List.of();
+        if (migrations.isEmpty() && messaging.isEmpty()) {
             log.info("[Flyway] No modules configured — skipping multi-module migration.");
             return;
         }
@@ -147,9 +154,166 @@ public class FlywayModuleMigrationRunner {
             }
         }
 
+        // Kafka design §14 K19: the platform creates each Owner's messaging tables after the Owner's own migrations,
+        // which may already have created them.
+        for (MessagingMigration migration : messagingOn(messaging)) {
+            ModuleMigrationResult result = migrateMessaging(migration);
+            results.add(result);
+            if (result.isSuccess()) {
+                successCount++;
+            } else {
+                failCount++;
+                if (properties.isFailOnError()) {
+                    throw new FlywayModuleMigrationException("Migration failed for the " + migration.kind().part()
+                        + " of '" + migration.pluginId() + "': " + result.getErrorMessage(), result.getError());
+                }
+            }
+        }
+
         long elapsed = System.currentTimeMillis() - startTime;
         log.info("[Flyway] Multi-module migration completed in {}ms — {} succeeded, {} failed out of {} modules.",
-                elapsed, successCount, failCount, migrations.size());
+                elapsed, successCount, failCount, migrations.size() + messaging.size());
+    }
+
+    /**
+     * Returns the canonical messaging tables the plugin manifests on the class path need: an outbox for
+     * {@code data.outbox}, an inbox for {@code data.inbox}, a command idempotency table for a provided command (root
+     * BRX-RS-MESSAGE-023, MESSAGE-026; Kafka design §14 K19). Each has its own schema history table,
+     * {@code brix_msg_history_<storageId>_<outbox|inbox|idempotency>}.
+     *
+     * @param classLoader where to look for manifests
+     * @return the messaging migrations, by plugin id and table
+     */
+    static List<MessagingMigration> messagingMigrations(ClassLoader classLoader) {
+        PluginManifestLoader loader = new PluginManifestLoader();
+        Map<String, MessagingMigration> declared = new TreeMap<>();
+        try {
+            for (URL resource : Collections.list(classLoader.getResources(PluginManifestValidator.ACTIVE_MANIFEST_RESOURCE))) {
+                PluginManifest manifest;
+                try (InputStream input = resource.openStream()) {
+                    manifest = loader.load(input);
+                }
+                PluginManifest.DataSection data = manifest.getData();
+                if (data == null || data.getStorageId() == null || data.getStorageId().isBlank()) {
+                    continue;
+                }
+                String pluginId = manifest.getMetadata().getPluginId();
+                List<CanonicalMessagingTables.Kind> kinds = new ArrayList<>();
+                if (data.getOutbox() != null && !data.getOutbox().isBlank()) {
+                    kinds.add(CanonicalMessagingTables.Kind.OUTBOX);
+                }
+                if (data.getInbox() != null && !data.getInbox().isBlank()) {
+                    kinds.add(CanonicalMessagingTables.Kind.INBOX);
+                }
+                if (manifest.getCommands() != null && !manifest.getCommands().getProvides().isEmpty()) {
+                    kinds.add(CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY);
+                }
+                for (CanonicalMessagingTables.Kind kind : kinds) {
+                    MessagingMigration migration = new MessagingMigration(pluginId, data.getStorageId(), kind);
+                    declared.put(pluginId + "|" + kind.ordinal(), migration);
+                }
+            }
+        } catch (IOException e) {
+            throw new FlywayModuleMigrationException("Failed to read the plugin manifests for their messaging tables", e);
+        }
+        return new ArrayList<>(declared.values());
+    }
+
+    /**
+     * One Owner's canonical messaging table, created and evolved by the platform's migrations.
+     *
+     * @param pluginId the Owner
+     * @param storageId its {@code data.storageId}
+     * @param kind which table
+     */
+    record MessagingMigration(String pluginId, String storageId, CanonicalMessagingTables.Kind kind) {
+
+        /** The table, such as {@code shop_outbox}. */
+        String table() {
+            return kind.tableOf(storageId);
+        }
+
+        /** The Flyway location of the table's migrations. */
+        String location() {
+            return "classpath:" + kind.migrations();
+        }
+
+        /** The schema history table of the table's migrations. */
+        String history() {
+            String suffix = switch (kind) {
+                case OUTBOX -> "outbox";
+                case INBOX -> "inbox";
+                case COMMAND_IDEMPOTENCY -> "idempotency";
+            };
+            return "brix_msg_history_" + storageId + "_" + suffix;
+        }
+    }
+
+    /** The messaging migrations, on a database the platform has them for: PostgreSQL, the reference DCP. */
+    private List<MessagingMigration> messagingOn(List<MessagingMigration> messaging) {
+        if (messaging.isEmpty()) {
+            return messaging;
+        }
+        String product;
+        try (Connection connection = dataSource.getConnection()) {
+            product = connection.getMetaData().getDatabaseProductName();
+        } catch (SQLException e) {
+            throw new FlywayModuleMigrationException("Cannot tell which database holds the messaging tables", e);
+        }
+        if (!"PostgreSQL".equalsIgnoreCase(product)) {
+            log.warn("[Flyway] The platform has messaging table migrations for PostgreSQL only, not {}; the Owners {}"
+                + " must bring their own, and the runtime refuses an Owner without them",
+                product, messaging.stream().map(MessagingMigration::pluginId).distinct().toList());
+            return List.of();
+        }
+        return messaging;
+    }
+
+    private ModuleMigrationResult migrateMessaging(MessagingMigration migration) {
+        String module = migration.pluginId() + ":" + migration.kind().part();
+        long start = System.currentTimeMillis();
+        try {
+            boolean adopt = !tableExists(migration.history()) && tableExists(migration.table());
+            // A new history starts below V1, so V1 creates the table; an Owner's own migrations that already created
+            // it at the platform schema v1 start the history at V1 (MessagingTableCheck verifies the table when the
+            // Owner starts), and later platform versions migrate it from there.
+            Flyway flyway = Flyway.configure()
+                    .dataSource(dataSource)
+                    .locations(migration.location())
+                    .table(migration.history())
+                    .placeholderPrefix("{{")
+                    .placeholderSuffix("}}")
+                    .placeholders(Map.of("storageId", migration.storageId()))
+                    .baselineOnMigrate(true)
+                    .baselineVersion(adopt ? "1" : "0")
+                    .baselineDescription(adopt ? "adopted from the migrations of " + migration.pluginId()
+                        : "platform messaging migrations")
+                    .validateOnMigrate(properties.isValidateOnMigrate())
+                    .load();
+            if (adopt) {
+                log.info("[Flyway] Adopting {} of '{}' at the platform schema v1", migration.table(),
+                    migration.pluginId());
+            }
+            MigrateResult migrateResult = flyway.migrate();
+            MigrationInfo current = flyway.info().current();
+            String currentVersion = current != null ? current.getVersion().toString() : "none";
+            log.info("[Flyway] Messaging table {} of '{}' is at version {} ({} migrations applied in {}ms), history {}",
+                migration.table(), migration.pluginId(), currentVersion, migrateResult.migrationsExecuted,
+                System.currentTimeMillis() - start, migration.history());
+            return new ModuleMigrationResult(module, true, migrateResult.migrationsExecuted, currentVersion, null, null);
+        } catch (Exception e) {
+            log.error("[Flyway] Messaging table {} of '{}' failed to migrate: {}", migration.table(),
+                migration.pluginId(), e.getMessage(), e);
+            return new ModuleMigrationResult(module, false, 0, null, e.getMessage(), e);
+        }
+    }
+
+    private boolean tableExists(String table) throws SQLException {
+        try (Connection connection = dataSource.getConnection();
+                ResultSet tables = connection.getMetaData().getTables(connection.getCatalog(), connection.getSchema(),
+                    table, new String[] {"TABLE"})) {
+            return tables.next();
+        }
     }
 
     /**

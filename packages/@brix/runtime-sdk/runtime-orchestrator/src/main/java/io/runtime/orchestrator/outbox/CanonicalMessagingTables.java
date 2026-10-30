@@ -17,10 +17,11 @@ import java.util.Set;
  * The versioned platform schema of an Owner's canonical messaging tables (root BRX-RS-MESSAGE-023,
  * MESSAGE-026): what each table must have for the relay, the deliveries and the cleanup to work.
  *
- * <p>An Owner writes these tables in its own migrations, copied from the platform template
- * {@value #TEMPLATE_RESOURCE}; the persistence and outbox adapters read the actual tables at startup and
- * refuse an Owner whose tables do not match, instead of failing on the first message. The check covers
- * columns, primary keys and indexes; value constraints are the template's.</p>
+ * <p>The platform creates these tables for each Owner from its versioned migrations under {@value #MIGRATIONS}, one
+ * location per {@link Kind}, with {@code {{storageId}}} replaced by the Owner's {@code data.storageId}; an Owner
+ * writes no messaging DDL of its own. The persistence and outbox adapters read the actual tables at startup and
+ * refuse an Owner whose tables do not match, instead of failing on the first message. The check covers columns,
+ * primary keys and indexes; value constraints are the migrations'.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -30,8 +31,11 @@ public final class CanonicalMessagingTables {
     /** Version of the platform schema these rules describe. */
     public static final int VERSION = 1;
 
-    /** Classpath resource of the PostgreSQL migration template, with {@code {{storageId}}} placeholders. */
-    public static final String TEMPLATE_RESOURCE = "META-INF/brix/messaging/postgresql/canonical-messaging-v1.sql";
+    /**
+     * Classpath directory of the PostgreSQL migrations, one subdirectory per {@link Kind}, with
+     * {@code {{storageId}}} placeholders.
+     */
+    public static final String MIGRATIONS = "META-INF/brix/messaging/postgresql";
 
     /**
      * How long published and discarded outbox messages stay by default (Kafka design D34); a published message can be
@@ -62,23 +66,54 @@ public final class CanonicalMessagingTables {
     /** The canonical tables an Owner can have. */
     public enum Kind {
         /** {@code {storageId}_outbox}: the messages the Owner sends. */
-        OUTBOX(OUTBOX_COLUMNS, List.of("message_id"),
+        OUTBOX("outbox", OUTBOX_COLUMNS, List.of("message_id"),
             List.of(List.of("partition_key", "seq"), List.of("status", "available_at"), List.of("event_id"),
                 List.of("status", "published_at"), List.of("seq"))),
         /** {@code {storageId}_inbox}: the deliveries the Owner's handlers have applied. */
-        INBOX(INBOX_COLUMNS, List.of("handler_id", "message_id"), List.of(List.of("processed_at"))),
+        INBOX("inbox", INBOX_COLUMNS, List.of("handler_id", "message_id"), List.of(List.of("processed_at"))),
         /** {@code {storageId}_command_idempotency}: the business idempotency keys of the Owner's commands. */
-        COMMAND_IDEMPOTENCY(IDEMPOTENCY_COLUMNS, List.of("handler_id", "idempotency_scope", "idempotency_key"),
+        COMMAND_IDEMPOTENCY("command-idempotency", IDEMPOTENCY_COLUMNS,
+            List.of("handler_id", "idempotency_scope", "idempotency_key"),
             List.of(List.of("handler_id", "command_id"), List.of("created_at")));
 
+        private final String part;
         private final List<String> columns;
         private final List<String> primaryKey;
         private final List<List<String>> indexes;
 
-        Kind(List<String> columns, List<String> primaryKey, List<List<String>> indexes) {
+        Kind(String part, List<String> columns, List<String> primaryKey, List<List<String>> indexes) {
+            this.part = part;
             this.columns = columns;
             this.primaryKey = primaryKey;
             this.indexes = indexes;
+        }
+
+        /**
+         * Returns the name of this table's migrations, as their directory and history tables use it.
+         *
+         * @return {@code outbox}, {@code inbox} or {@code command-idempotency}
+         */
+        public String part() {
+            return part;
+        }
+
+        /**
+         * Returns the classpath directory of this table's PostgreSQL migrations.
+         *
+         * @return the directory under {@link #MIGRATIONS}
+         */
+        public String migrations() {
+            return MIGRATIONS + "/" + part;
+        }
+
+        /**
+         * Returns this table's name for an Owner.
+         *
+         * @param storageId the Owner's {@code data.storageId}
+         * @return the table name
+         */
+        public String tableOf(String storageId) {
+            return storageId + "_" + part.replace('-', '_');
         }
 
         /**

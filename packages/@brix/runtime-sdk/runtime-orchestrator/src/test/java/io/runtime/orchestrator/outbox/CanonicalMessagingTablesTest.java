@@ -69,21 +69,35 @@ class CanonicalMessagingTablesTest {
     }
 
     @Test
-    void theTemplateCreatesEveryColumnTheSchemaRequires() throws IOException {
-        String template;
-        try (InputStream input = getClass().getClassLoader()
-                .getResourceAsStream(CanonicalMessagingTables.TEMPLATE_RESOURCE)) {
-            template = new String(input.readAllBytes(), StandardCharsets.UTF_8);
-        }
+    void eachTablesMigrationCreatesEveryColumnTheSchemaRequires() throws IOException {
         List<String> missing = new ArrayList<>();
         for (CanonicalMessagingTables.Kind kind : CanonicalMessagingTables.Kind.values()) {
+            String migration = migration(kind);
+            assertTrue(migration.contains("CREATE TABLE " + kind.tableOf("{{storageId}}") + " ("), kind.toString());
             for (String column : kind.columns()) {
-                if (!template.matches("(?s).*\\n    " + column + " +[A-Z].*")) {
+                if (!migration.matches("(?s).*\\n    " + column + " +[A-Z].*")) {
                     missing.add(kind + "." + column);
                 }
             }
         }
         assertEquals(List.of(), missing);
-        assertTrue(template.contains("CREATE INDEX idx_{{storageId}}_outbox_key ON {{storageId}}_outbox (partition_key, seq);"));
+        assertTrue(migration(CanonicalMessagingTables.Kind.OUTBOX)
+            .contains("CREATE INDEX idx_{{storageId}}_outbox_key ON {{storageId}}_outbox (partition_key, seq);"));
+    }
+
+    @Test
+    void theTablesAreNamedAfterTheStorage() {
+        assertEquals("shop_outbox", CanonicalMessagingTables.Kind.OUTBOX.tableOf("shop"));
+        assertEquals("shop_inbox", CanonicalMessagingTables.Kind.INBOX.tableOf("shop"));
+        assertEquals("shop_command_idempotency", CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY.tableOf("shop"));
+        assertEquals(CanonicalMessagingTables.outboxOf("shop"), CanonicalMessagingTables.Kind.OUTBOX.tableOf("shop"));
+    }
+
+    private String migration(CanonicalMessagingTables.Kind kind) throws IOException {
+        String resource = kind.migrations() + "/V1__canonical_" + kind.part().replace('-', '_') + ".sql";
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream(resource)) {
+            assertTrue(input != null, resource);
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }

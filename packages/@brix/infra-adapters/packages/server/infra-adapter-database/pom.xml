@@ -70,6 +70,12 @@
             <artifactId>runtime-manifest</artifactId>
             <version>${runtime-sdk.version}</version>
         </dependency>
+        <!-- The platform's canonical messaging table migrations (root BRX-RS-MESSAGE-026; Kafka design §14 K19) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${runtime-sdk.version}</version>
+        </dependency>
 
         <!-- ========== Spring Boot ========== -->
         <dependency>
@@ -158,6 +164,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

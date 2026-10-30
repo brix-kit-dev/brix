@@ -71,6 +71,13 @@ public class FlywayModuleMigrationProperties {
     private boolean discoverFromManifests = true;
 
     /**
+     * Whether the platform creates the canonical messaging tables each manifest needs (its outbox, inbox and command
+     * idempotency table) from the platform's versioned migrations, after the Owners' own migrations (Kafka design
+     * §14 K19). PostgreSQL only.
+     */
+    private boolean messagingTables = true;
+
+    /**
      * List of business module names. Each module corresponds to a Flyway migration script directory
      * under {@code db/migration/{module}/} on the classpath. Migration scripts from each module's
      * {@code -server} JAR are automatically discovered via classpath scanning.
@@ -119,6 +126,14 @@ public class FlywayModuleMigrationProperties {
     private boolean failOnError = false;
 
     // ==================== Getters and Setters ====================
+
+    public boolean isMessagingTables() {
+        return messagingTables;
+    }
+
+    public void setMessagingTables(boolean messagingTables) {
+        this.messagingTables = messagingTables;
+    }
 
     public boolean isDiscoverFromManifests() {
         return discoverFromManifests;

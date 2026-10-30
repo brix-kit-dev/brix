@@ -1,5 +1,5 @@
 -- Root BRX-RS-MESSAGE-026 / Kafka design §14 K19: bring platform-tenant's canonical messaging tables to the
--- platform schema v1 (runtime-orchestrator META-INF/brix/messaging/postgresql/canonical-messaging-v1.sql),
+-- platform schema v1 (runtime-orchestrator META-INF/brix/messaging/postgresql, V1),
 -- which the runtime checks at startup.
 
 -- Outbox: number the messages in the order they were recorded (existing rows by occurred_at), so the
