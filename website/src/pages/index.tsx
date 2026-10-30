@@ -184,16 +184,16 @@ function QuickStartSection() {
           <div className="col col--6">
             <Heading as="h2">🚀 Create Your First Plugin</Heading>
             <p>
-              Get started in under 5 minutes. The Brix CLI scaffolds a complete
-              plugin with frontend, backend, and architecture tests.
+              Get started in under 5 minutes. The Brix CLI scaffolds a governed
+              plugin: its api, core and server modules, its manifest and its
+              entry point.
             </p>
             <pre className={styles.codeBlock}>
-{`# Create a new plugin
-pnpm create @brix/brix plugin my-plugin
+{`# Scaffold a plugin
+create-brix phase7 plugin my-plugin --runtime-version 3.2.0 --runtime-range ">=3.2.0 <4.0.0"
 
-# Navigate and start development
-cd my-plugin
-pnpm dev`}
+# The plugin is in app-my-plugin/
+cd app-my-plugin`}
             </pre>
           </div>
           <div className="col col--6">
@@ -203,15 +203,14 @@ pnpm dev`}
               Everything goes through Runtime Capability Contracts.
             </p>
             <pre className={styles.codeBlock}>
-{`// Get capabilities - no infrastructure deps!
-const eventBus = context.getCapability(EventBusCapability);
-const http = context.getCapability(HttpCapability);
+{`// Capabilities come from the plugin's context - no infrastructure deps
+context.require(EventBusCapability.class)
 
-// Subscribe to events from other plugins
-eventBus.subscribe('user.created', handler);
+// Publish: the event commits with the order, through the plugin's outbox
+events.publishIntegration(new SampleOrderPlaced(placed));
 
-// Publish events for others to consume
-eventBus.publish('order.completed', data);`}
+// Subscribe: declared in the manifest, handled once per event
+bootstrap.bindEventHandlerFactory(PREPARE_SHIPMENT, context -> new PrepareShipment(desk(context)));`}
             </pre>
           </div>
         </div>

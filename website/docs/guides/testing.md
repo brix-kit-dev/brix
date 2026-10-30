@@ -33,6 +33,13 @@ Brix's capability-based architecture enables **fast, isolated unit tests** witho
 <dependency>
     <groupId>io.brix</groupId>
     <artifactId>architecture-guard</artifactId>
+    <version>3.2.0</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>com.tngtech.archunit</groupId>
+    <artifactId>archunit-junit6</artifactId>
+    <version>1.5.1</version>
     <scope>test</scope>
 </dependency>
 <dependency>
@@ -357,63 +364,66 @@ describe('OrderTable', () => {
 
 ## Architecture Tests
 
-Use ArchUnit to enforce architecture rules:
+The Architecture Guard (`io.brix:architecture-guard`) ships its rules as ArchUnit rule sets, and the `archunit-junit6`
+engine above runs them with your other tests. Add one test class to each backend module:
 
 ```java
 // ArchitectureTest.java
 package com.example.order;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.junit.ArchTests;
 import com.tngtech.archunit.lang.ArchRule;
-import io.brix.architecture.guard.AdapterIsolationRule;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.*;
+import io.brix.architecture.guard.BrixArchitectureRules;
 
-@AnalyzeClasses(packages = "com.example.order")
-class ArchitectureTest extends AdapterIsolationRule {
-    
-    // Inherit all 13 standard rules from AdapterIsolationRule
-    
+@AnalyzeClasses(packages = "com.example.order", importOptions = ImportOption.DoNotIncludeTests.class)
+class ArchitectureTest {
+
+    /** The guard's rule set for plugin code. */
     @ArchTest
-    static final ArchRule servicesShouldNotAccessControllers = noClasses()
-        .that().resideInAPackage("..service..")
-        .should().dependOnClassesThat()
-        .resideInAPackage("..controller..")
-        .because("Services should not know about controllers");
-    
+    static final ArchTests brixRules = BrixArchitectureRules.pluginProfile();
+
+    /** A rule of your own: handlers call domain services, not repositories. */
     @ArchTest
     static final ArchRule handlersShouldNotAccessRepositories = noClasses()
         .that().resideInAPackage("..handler..")
         .should().dependOnClassesThat()
         .resideInAPackage("..repository..")
-        .because("Handlers should use services, not repositories");
-    
-    @ArchTest
-    static final ArchRule sharedShouldBeIndependent = classes()
-        .that().resideInAPackage("..shared..")
-        .should().onlyDependOnClassesThat()
-        .resideInAnyPackage("..shared..", "java..", "jakarta..");
+        .because("handlers call domain services, not repositories")
+        .allowEmptyShould(true);
 }
 ```
 
+- `BrixArchitectureRules`, in `io.brix.architecture.guard`, is the entry point. The rule classes behind it, such as
+  `AdapterIsolationRule`, are final and offer static rules only: use them, do not extend them.
+- `allowEmptyShould(true)` lets a rule of your own pass in a module that has none of the classes it selects, such as
+  a core module without handlers.
+- `mvn test` runs every rule as a test. A class that breaks one fails the build, with the rule's reason.
+
 ### Standard Architecture Rules
 
-The `AdapterIsolationRule` base class includes:
+`BrixArchitectureRules.pluginProfile()` refuses:
 
-1. **No infrastructure imports** - Kafka, Redis, etc.
-2. **Core depends on contracts only**
-3. **No cross-plugin dependencies**
-4. **Controllers → Services only**
-5. **No direct JPA in domain**
-6. **Event handlers idempotent**
-7. **Shared types are primitives**
-8. **No business logic in adapters**
-9. **Host has no implementation**
-10. **Frontend uses HttpCapability**
-11. **View layer is pure**
-12. **Shared-runtime single source**
-13. **No circular dependencies**
+| Area | Refused | In |
+|---|---|---|
+| Middleware clients | Kafka (`org.apache.kafka`, Spring Kafka), Redis (Spring Data Redis, Jedis, Lettuce), Spring AMQP | All classes |
+| HTTP clients | `RestTemplate`, `WebClient`, OpenFeign, OkHttp, `java.net.http` | All classes |
+| Spring container | `ApplicationContext`, `BeanFactory`, `@Value`, `ApplicationEventPublisher`, `@EventListener`, subclasses of `ApplicationEvent` | All classes |
+| Configuration and output | `System.out`, `System.err`, `printStackTrace()`, `System.getenv()`, `System.getProperty()` | All classes |
+| Exceptions | Throwing a generic `Throwable`, `Exception` or `RuntimeException` | All classes |
+| Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs, the outbox and relay implementation | `..core..` |
+| Runtime | The runtime's implementation: `io.runtime.orchestrator`, `io.runtime.sdk.impl`, `io.runtime.sdk.internal` | `..core..` |
+| Security | JWT (`io.jsonwebtoken`), Auth0, Spring Security crypto, the Spring OAuth2 client | `..core..` |
+| Layers | `..core..` depending on `..server..` or `..adapter..`; `@RestController` or `@Controller` in `..core..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
+| Data ownership | Another data owner's repository; the platform tenant module's entities, repositories, mappers and validation | `io.brix` plugin packages |
+
+Capabilities live in `io.runtime.sdk.*`, the packages of `runtime-sdk-api`: use them instead. The guard has other
+profiles for other modules: `adapterProfile()`, `sdkProfile()`, `commonsProfile()` and `operationalProfile()`.
 
 ## Integration Tests
 

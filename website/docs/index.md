@@ -46,7 +46,7 @@ Brix implements the **Runtime Shell Architecture** (v3.0.7), a design pattern th
 - [Runtime Shell](./concepts/runtime-shell) - The core abstraction
 - [Capability Contract](./concepts/capability-contract) - Infrastructure-agnostic interfaces
 - [Plugin Model](./concepts/plugin-model) - Business module design
-- [Event Model](./concepts/event-model) - Domain and Integration events
+- [Event Model](./concepts/event-model) - Integration events and commands between plugins
 
 ### Development Guides
 - [Plugin Development](./guides/plugin-development) - Complete plugin tutorial

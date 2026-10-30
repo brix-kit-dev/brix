@@ -7,775 +7,1005 @@ sidebar_position: 3
 
 # Backend Development Guide
 
-This guide covers building backend services for Brix plugins using Java and Spring Boot.
+This guide covers the Java side of a plugin:
+- how the project is laid out;
+- how code is bound to what the manifest declares;
+- how handlers reach data, events and the other capabilities.
 
-## Project Structure
+A plugin has no Spring context of its own: no controllers, no beans, no component scan. The runtime reads the
+plugin's manifest, creates its handlers and calls them.
 
+This guide quotes two sample plugins in the repository, and the test that runs them end to end. Each plugin is
+three artifacts, laid out as [Project structure](#project-structure) describes:
+
+| Sample | Path | What it shows |
+|---|---|---|
+| `sample-orders` | `packages/@brix/samples/sample-orders-api`, `-core`, `-server` | An HTTP endpoint and a domain service that stores an entity and publishes events |
+| `sample-shipping` | `packages/@brix/samples/sample-shipping-api`, `-core`, `-server` | An event subscriber that stores its own entity, and an endpoint that reads it |
+| `sample-e2e` | `packages/@brix/samples/sample-e2e` | Both plugins in a host made of configuration only, on PostgreSQL and Kafka |
+
+## How the pieces fit
+
+| Piece | What it does |
+|---|---|
+| `META-INF/brix/plugin-manifest.yaml` | Declares the plugin: endpoints, events, commands, capabilities, data and permissions |
+| `META-INF/services/io.runtime.sdk.plugin.BrixPlugin` | Names the plugin class, so the runtime can find it |
+| Plugin class (`BrixPlugin`) | Binds a handler factory to each handler ID the manifest declares |
+| Handlers | `EndpointHandler`, `EventHandler`, `CommandHandler`: one per manifest entry, called by the runtime |
+| Domain services | Plain classes with the business rules, created by the handler factories |
+| Entities, repositories, migrations | The plugin's own tables, reached through `PersistenceCapability` |
+| JSON schemas | The versioned contracts of requests, responses and events |
+
+At startup the runtime:
+1. finds the plugin class through the services file, and the manifest packaged with it;
+2. validates the manifest and resolves the capabilities it requires; the plugin's migrations run before it starts;
+3. calls `configure(...)` once, so that the plugin binds a handler factory to each declared handler ID; a binding
+   to an ID the manifest does not declare is refused;
+4. creates each handler through its factory, starts the plugin, and then opens its endpoints and subscriptions.
+
+## Project structure
+
+A backend plugin is three Maven artifacts. Two roles never share one artifact. The manifest records the role of each
+under `modules`:
+
+| Artifact | `moduleKind` | Holds | Must not |
+|---|---|---|---|
+| `sample-orders-api` | `plugin-api` | Public request, response and payload records; the JSON schemas | Contain logic or depend on a framework |
+| `sample-orders-core` | `plugin-core` | Domain services, entities, repository interfaces, event classes | Know about HTTP or depend on the server artifact |
+| `sample-orders-server` | `plugin-server` | The plugin class, handlers, manifest, services file and migrations | Hold business rules |
+
+`sample-orders` is laid out this way:
+
+```text
+samples/
+├── sample-orders-api/
+│   └── src/main/
+│       ├── java/io/brix/samples/orders/api/
+│       │   ├── SampleOrderEvents.java             event type names
+│       │   ├── SampleOrderPlacedPayload.java      event payloads, as their schemas describe them
+│       │   ├── SampleOrderActivityPayload.java
+│       │   ├── PlaceOrderRequest.java             endpoint request and response
+│       │   └── PlacedOrder.java
+│       └── resources/META-INF/brix/schemas/sample-orders/
+│           ├── place-order-request/1.0.0.json
+│           ├── placed-order/1.0.0.json
+│           ├── sample-order-placed/1.0.0.json
+│           └── sample-order-activity/1.0.0.json
+├── sample-orders-core/
+│   └── src/main/java/io/brix/samples/orders/core/
+│       ├── OrderPlacement.java                    domain service, a plain class
+│       ├── InvalidOrderException.java             a broken rule
+│       ├── SampleOrder.java                       entity: assigned id, tenant_id
+│       ├── SampleOrderRepository.java             Spring Data interface
+│       ├── SampleOrderPlaced.java                 integration events
+│       └── SampleOrderActivity.java
+└── sample-orders-server/
+    └── src/
+        ├── main/
+        │   ├── java/io/brix/samples/orders/server/
+        │   │   ├── SampleOrdersPlugin.java        binds the handler factory
+        │   │   └── PlaceOrder.java                endpoint handler
+        │   └── resources/
+        │       ├── META-INF/services/io.runtime.sdk.plugin.BrixPlugin
+        │       ├── META-INF/brix/plugin-manifest.yaml
+        │       └── db/migration/sample-orders/V1__sample_orders.sql
+        └── test/java/io/brix/samples/orders/server/
+            └── SampleOrdersEventSchemasTest.java
 ```
-my-plugin-core/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── com/example/myplugin/
-│   │   │       ├── service/           # Domain services
-│   │   │       │   ├── OrderService.java
-│   │   │       │   └── impl/
-│   │   │       │       └── OrderServiceImpl.java
-│   │   │       ├── handler/           # Event handlers
-│   │   │       │   └── PaymentEventHandler.java
-│   │   │       ├── controller/        # REST controllers
-│   │   │       │   └── OrderController.java
-│   │   │       └── config/            # Module configuration
-│   │   │           └── OrderModuleConfig.java
-│   │   └── resources/
-│   │       └── db/migration/          # Flyway migrations
-│   │           └── V1__Create_orders.sql
-│   └── test/
-│       └── java/
-│           └── com/example/myplugin/
-│               ├── service/
-│               │   └── OrderServiceTest.java
-│               └── ArchitectureTest.java
-└── pom.xml
+
+`sample-shipping` has the same three artifacts:
+- `sample-shipping-api`: `ShipmentView` and its schemas;
+- `sample-shipping-core`: `OrderPlaced`, `SampleShipment`, `SampleShipmentRepository` and the domain service
+  `ShipmentDesk`;
+- `sample-shipping-server`: `SampleShippingPlugin`, the handlers `PrepareShipment` and `FindShipment`, the manifest
+  and the migration.
+
+The manifest lives in the server artifact and lists all three:
+
+```yaml title="sample-orders-server: META-INF/brix/plugin-manifest.yaml (excerpt)"
+# Three artifacts (root BRX-RS-MANIFEST-005): the contract, the logic and data, the entry point and handlers.
+modules:
+  - groupId: io.brix.samples
+    artifactId: sample-orders-api
+    version: 3.2.0
+    moduleKind: plugin-api
+  - groupId: io.brix.samples
+    artifactId: sample-orders-core
+    version: 3.2.0
+    moduleKind: plugin-core
+  - groupId: io.brix.samples
+    artifactId: sample-orders-server
+    version: 3.2.0
+    moduleKind: plugin-server
 ```
 
-## Maven Configuration
+The api and core artifacts carry no manifest. Their classes belong to the plugin because its manifest lists their
+artifacts. This is how the runtime knows that `SampleOrderRepository`, in `sample-orders-core`, reaches this plugin's
+tables.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    
-    <parent>
+The two plugins share no code. `sample-shipping` depends on no `sample-orders` artifact: it reads
+`SampleOrderPlaced` as `OrderPlaced`, its own record of the published schema.
+
+## Maven dependencies
+
+The server depends on the core, the core on the api, and both server and core on the SDK. That is the whole
+compile-time view a plugin has of the platform:
+
+| Artifact | Dependencies |
+|---|---|
+| `sample-orders-api` | None |
+| `sample-orders-core` | `sample-orders-api`, `runtime-sdk-api`, `jakarta.persistence-api`, `spring-data-jpa` |
+| `sample-orders-server` | `sample-orders-core`, `runtime-sdk-api` |
+
+The core holds the entity and the repository, so it is the artifact that needs JPA:
+
+```xml title="sample-orders-core: pom.xml"
+<dependencies>
+    <dependency>
+        <groupId>io.brix.samples</groupId>
+        <artifactId>sample-orders-api</artifactId>
+        <version>${project.version}</version>
+    </dependency>
+    <dependency>
         <groupId>io.brix</groupId>
-        <artifactId>brix-parent</artifactId>
-        <version>3.0.0</version>
-    </parent>
-    
-    <artifactId>my-plugin-core</artifactId>
-    <name>My Plugin :: Core</name>
-    
-    <dependencies>
-        <!-- Brix Runtime SDK -->
-        <dependency>
-            <groupId>io.brix</groupId>
-            <artifactId>runtime-sdk-api</artifactId>
-        </dependency>
-        
-        <!-- Platform Commons -->
-        <dependency>
-            <groupId>io.brix</groupId>
-            <artifactId>platform-commons</artifactId>
-        </dependency>
-        
-        <!-- Spring (only for annotations) -->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-        </dependency>
-        
-        <!-- Validation -->
-        <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
-        </dependency>
-        
-        <!-- Testing -->
-        <dependency>
-            <groupId>io.brix</groupId>
-            <artifactId>testing-utils</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.brix</groupId>
-            <artifactId>architecture-guard</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-</project>
+        <artifactId>runtime-sdk-api</artifactId>
+        <version>${brix.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>jakarta.persistence</groupId>
+        <artifactId>jakarta.persistence-api</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.data</groupId>
+        <artifactId>spring-data-jpa</artifactId>
+    </dependency>
+</dependencies>
 ```
 
-## Domain Services
+`brix.version` is `3.2.0`. The samples' parent imports the Spring Boot BOM (`spring-boot-dependencies`), which manages
+the versions of the JPA and Spring Data artifacts.
 
-Domain services contain business logic and use capabilities for infrastructure.
+Do not add platform or infrastructure libraries at compile time. In particular, leave out:
+- `spring-boot-starter-*`, `spring-web` and `spring-context`;
+- Kafka or other broker clients;
+- JDBC drivers, Flyway and Hibernate.
 
-### Service Interface
+The host brings the runtime and the adapters. For the tests described under [Testing](#testing), the server
+artifact adds JUnit and, for the event schema contract, the `runtime-orchestrator` jar and its test jar:
 
-```java
-// src/main/java/com/example/myplugin/service/OrderService.java
-package com.example.myplugin.service;
+```xml title="sample-orders-server: pom.xml (excerpt)"
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <scope>test</scope>
+</dependency>
+<!-- EventSchemaContract checks the published payloads against their schemas at build time (D24) -->
+<dependency>
+    <groupId>io.brix</groupId>
+    <artifactId>runtime-orchestrator</artifactId>
+    <version>${brix.version}</version>
+    <type>test-jar</type>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>io.brix</groupId>
+    <artifactId>runtime-orchestrator</artifactId>
+    <version>${brix.version}</version>
+    <scope>test</scope>
+</dependency>
+```
 
-import com.example.myplugin.shared.Order;
-import com.example.myplugin.shared.CreateOrderCommand;
-import java.util.List;
-import java.util.Optional;
+## The plugin class
 
-/**
- * Order management service.
- * Handles order lifecycle operations.
- */
-public interface OrderService {
-    
-    /**
-     * Creates a new order.
-     *
-     * @param command the order creation command
-     * @return the created order
-     * @throws ValidationException if command is invalid
-     */
-    Order createOrder(CreateOrderCommand command);
-    
-    /**
-     * Finds an order by ID.
-     *
-     * @param orderId the order identifier
-     * @return the order if found
-     */
-    Optional<Order> findById(String orderId);
-    
-    /**
-     * Lists all orders for a customer.
-     *
-     * @param customerId the customer identifier
-     * @return list of orders
-     */
-    List<Order> findByCustomer(String customerId);
-    
-    /**
-     * Completes an order.
-     *
-     * @param orderId the order identifier
-     * @return the completed order
-     * @throws OrderNotFoundException if order not found
-     * @throws InvalidOrderStateException if order cannot be completed
-     */
-    Order completeOrder(String orderId);
-    
-    /**
-     * Cancels an order.
-     *
-     * @param orderId the order identifier
-     * @param reason the cancellation reason
-     */
-    void cancelOrder(String orderId, String reason);
+The plugin class implements `io.runtime.sdk.plugin.BrixPlugin`. It is named in
+`META-INF/services/io.runtime.sdk.plugin.BrixPlugin`, which holds one line:
+
+```text title="sample-orders-server: META-INF/services/io.runtime.sdk.plugin.BrixPlugin"
+io.brix.samples.orders.server.SampleOrdersPlugin
+```
+
+Each plugin has exactly one such class, in its server artifact:
+
+```java title="sample-orders-server: SampleOrdersPlugin.java"
+public final class SampleOrdersPlugin implements BrixPlugin {
+
+    /** The handler of {@code POST /api/sample-orders/orders}, as the manifest names it. */
+    public static final String PLACE_ORDER = "sample-orders.place.v1";
+
+    private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
+
+    @Override
+    public void configure(PluginBootstrapContext bootstrap) {
+        bootstrap.bindEndpointHandlerFactory(PLACE_ORDER, context -> new PlaceOrder(new OrderPlacement(
+            context.require(PersistenceCapability.class),
+            context.require(EventBusCapability.class),
+            context.require(IdGeneratorCapability.class),
+            Clock.systemUTC())));
+    }
+
+    @Override
+    public void onStart(PluginContext context) {
+        health.set(BrixHealth.up());
+    }
+
+    @Override
+    public void onStop() {
+        health.set(BrixHealth.down("stopped"));
+    }
+
+    @Override
+    public BrixHealth health() {
+        return health.get();
+    }
 }
 ```
 
-### Service Implementation
+The factory builds the handler around the plugin's domain service, `OrderPlacement`, with the three capabilities the
+manifest requires.
+
+`configure` only binds factories. It cannot reach capabilities, and it must not create handlers, start threads or
+call services. There is one bind method for each kind of manifest entry:
+
+| Manifest entry | Bind method | Handler type |
+|---|---|---|
+| `endpoints.provides[].handlerId` | `bindEndpointHandlerFactory` | `EndpointHandler` |
+| `events.subscribes[].handlerId` | `bindEventHandlerFactory` | `EventHandler` |
+| `commands.provides[].handlerId` | `bindCommandHandlerFactory` | `CommandHandler` |
+| `queries.provides[].handlerId` | `bindQueryHandlerFactory` | `QueryHandler` |
+| `tasks.provides[].taskId` | `bindTaskFactory` | `ManagedTask` |
+
+The older `bindEndpoint(...)`, `bindQueryHandler(...)`, `bindCommandHandler(...)` and `bindTask(...)` take a handler
+that was built before the plugin had a context. They are deprecated for removal: use the factory methods.
+
+The runtime calls each factory with the plugin's `PluginContext`. This is the only way to reach a capability:
+- `context.require(X.class)` returns a capability the manifest lists under `capabilities.required`.
+- `context.find(X.class)` returns an `Optional` for one listed under `capabilities.optional`. The `Optional` is empty
+  when the host does not provide it, and the plugin must work without it.
+- Asking for a capability the manifest does not list throws.
+- A factory that throws or returns `null` keeps the plugin from starting.
+
+`onStart` and `onStop` are for the plugin's own state, as in the sample's health flag. They must not register
+handlers or start work. `health()` must never return `null`; `DOWN` and `UNKNOWN` keep the plugin from being ready.
+
+## Domain services
+
+The business rules live in a domain service in `plugin-core`, not in the handler. A domain service is a plain class:
+- no `@Service`, `@Component` or `@Autowired`;
+- no `@Transactional`;
+- its constructor takes the capabilities it uses, and a `Clock` when it needs the time.
+
+`OrderPlacement` is the domain service of `sample-orders`. It checks the order's rules, then stores the order and
+publishes both events in one unit of work:
+
+```java title="sample-orders-core: OrderPlacement.java (excerpt)"
+public final class OrderPlacement {
+
+    /** The most items one order may have. */
+    public static final int MAX_QUANTITY = 1000;
+
+    /** The longest sku. */
+    public static final int MAX_SKU = 64;
+
+    private final PersistenceCapability persistence;
+    private final EventBusCapability events;
+    private final IdGeneratorCapability ids;
+    private final Clock clock;
+
+    // ... a public constructor takes the four and checks that none is null
+
+    public SampleOrder place(long tenantId, PlaceOrderRequest request) {
+        Objects.requireNonNull(request, "request must not be null");
+        if (request.sku() == null || request.sku().isBlank() || request.sku().length() > MAX_SKU) {
+            throw new InvalidOrderException("An order needs a sku of at most " + MAX_SKU + " characters");
+        }
+        if (request.quantity() < 1 || request.quantity() > MAX_QUANTITY) {
+            throw new InvalidOrderException("An order needs a quantity from 1 to " + MAX_QUANTITY);
+        }
+        return persistence.unitOfWork().required(() -> {
+            SampleOrder placed = SampleOrder.place(Long.parseLong(ids.generate()), tenantId, request.sku(),
+                request.quantity(), OffsetDateTime.now(clock));
+            persistence.repository(SampleOrderRepository.class).save(placed);
+            events.publishIntegration(new SampleOrderPlaced(placed));
+            events.publishIntegration(new SampleOrderActivity(placed, "placed"));
+            return placed;
+        });
+    }
+}
+```
+
+- A broken rule is an `InvalidOrderException`. The service throws it before it touches any data, so nothing is
+  stored or published. The handler turns it into a 400.
+- The service takes its request as `PlaceOrderRequest`, a record from `sample-orders-api`. It knows no HTTP.
+- `required(...)` joins the unit of work the runtime opened for the handler (see [Units of work](#units-of-work)).
+  The order and `SampleOrderPlaced` therefore commit together.
+- The repository comes from `persistence.repository(...)`, inside that unit of work.
+
+The handler factory creates the service, as shown in [The plugin class](#the-plugin-class). When several handlers
+use one service, build it in one place. `SampleShippingPlugin` does this for `ShipmentDesk`, which both of its
+handlers use:
+
+```java title="sample-shipping-server: SampleShippingPlugin.java (excerpt)"
+@Override
+public void configure(PluginBootstrapContext bootstrap) {
+    bootstrap.bindEventHandlerFactory(PREPARE_SHIPMENT, context -> new PrepareShipment(desk(context)));
+    bootstrap.bindEndpointHandlerFactory(FIND_SHIPMENT, context -> new FindShipment(desk(context)));
+}
+
+private static ShipmentDesk desk(PluginContext context) {
+    return new ShipmentDesk(context.require(PersistenceCapability.class),
+        context.require(IdGeneratorCapability.class), Clock.systemUTC());
+}
+```
+
+Each factory gets its own instance. A service holds only its capabilities, so that is cheap.
+
+## Endpoint handlers
+
+A plugin does not write `@RestController`, `@RequestMapping` or any other Spring MVC code. It declares each HTTP
+endpoint in its manifest, and the runtime's dispatcher publishes the route, checks the caller and calls the handler.
+
+### 1. Declare the endpoint
+
+```yaml title="sample-orders-server: META-INF/brix/plugin-manifest.yaml"
+endpoints:
+  provides:
+    - endpointId: sample-orders.place.v1
+      transport: http
+      method: POST
+      path: /api/sample-orders/orders
+      request:
+        schemaRef: brix://schemas/sample-orders/place-order-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-orders/placed-order/1.0.0
+      handlerId: sample-orders.place.v1
+      # A tenant member signed in with an access token; the runtime binds the tenant from the token.
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - sample-orders:order:place
+        decision: all
+        resourcePolicyRef: sample-orders-place
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      # A retried request places another order; a client that needs exactly-once sends a business key of its own.
+      idempotency:
+        mode: not-applicable
+```
+
+| Field | Meaning |
+|---|---|
+| `endpointId` | Stable ID of the endpoint |
+| `method`, `path` | HTTP method and path. A path segment such as `{orderId}` is a path variable. Two plugins cannot declare the same method and path. |
+| `request.schemaRef`, `response.schemaRef` | The versioned JSON schemas of the body and the result. A GET names a schema too, for its query parameters. |
+| `handlerId` | The ID your plugin class binds a factory to |
+| `authentication` | `mode: required` with a `policyRef`: `tenant-actor` for tenant staff, `tenant-subject` for a tenant's end users, `platform-token` for platform administrators |
+| `authorization` | The permission IDs the caller needs (declared under `permissions`) and how they combine (`all` or `any`) |
+| `tenantContext` | `required`, `optional` or `forbidden`. With `required`, the runtime takes the tenant from the verified token. |
+| `timeout`, `idempotency` | The deadline policy, and whether a retried request may be replayed |
+
+The runtime refuses the request before your handler runs when:
+- the caller is not signed in (401);
+- the token is of the wrong kind (403);
+- the tenant context does not match the declaration (403);
+- the caller lacks a permission (403).
+
+Your handler never parses tokens or tenant headers.
+
+### 2. Write the handler
+
+An endpoint handler implements `EndpointHandler<EndpointInvocation<Object>, R>`. It only adapts the protocol: it
+reads the request, calls the domain service, and maps the result or the failure:
+
+```java title="sample-orders-server: PlaceOrder.java"
+final class PlaceOrder implements EndpointHandler<EndpointInvocation<Object>, EndpointResponse> {
+
+    /** The request is not an order. */
+    static final String INVALID = "SAMPLE_ORDER_INVALID";
+
+    private final OrderPlacement orders;
+
+    PlaceOrder(OrderPlacement orders) {
+        this.orders = Objects.requireNonNull(orders, "orders must not be null");
+    }
+
+    @Override
+    public EndpointResponse handle(EndpointInvocation<Object> request) {
+        Map<?, ?> body = request.body() instanceof Map<?, ?> map ? map : Map.of();
+        String sku = body.get("sku") instanceof String text ? text : null;
+        int quantity = body.get("quantity") instanceof Number number ? number.intValue() : 0;
+        long tenantId = Long.parseLong(request.tenantId().orElseThrow());
+        try {
+            SampleOrder order = orders.place(tenantId, new PlaceOrderRequest(sku, quantity));
+            return EndpointResponse.created(new PlacedOrder(String.valueOf(order.getId()), order.version()));
+        } catch (InvalidOrderException invalid) {
+            throw new EndpointHandlingException(400, INVALID, invalid.getMessage());
+        }
+    }
+}
+```
+
+- The JSON body becomes `PlaceOrderRequest`, and the answer is `PlacedOrder`. Both are records in
+  `sample-orders-api`, as the request and response schemas describe them.
+- The tenant is the one the runtime verified, never one from the body.
+- A broken rule comes back from `OrderPlacement` as `InvalidOrderException`, and the handler answers 400 with a
+  stable error code.
+- The class and its constructor are package-private: only the plugin class creates the handler.
+
+What the handler receives on `EndpointInvocation`:
+
+| Accessor | Content |
+|---|---|
+| `body()` | The JSON request body: a `Map` for a JSON object, or `null` when there is none |
+| `pathVariables()` | Path variables by name, such as `orderId` for a `{orderId}` segment |
+| `queryParameters()` | Query parameters by name, each a `List<String>` |
+| `headers()` | Request headers by lower-case name, without the session cookie |
+| `tenantId()`, `actorId()` | The tenant and the caller the runtime verified |
+| `access()` | The authorization result, such as the caller's tenant role and effective permissions |
+| `traceId()`, `deadline()` | The request's trace ID and its absolute deadline |
+
+Treat the body as untrusted input. Read each field by its type, as `PlaceOrder` does, and refuse what breaks a rule
+with an `EndpointHandlingException`.
+
+A path variable is read by name. `FindShipment`, in `sample-shipping-server`, serves
+`GET /api/sample-shipping/shipments/{orderId}`. It answers 404 when the order has no shipment in the caller's tenant:
+
+```java title="sample-shipping-server: FindShipment.java (excerpt)"
+@Override
+public EndpointResponse handle(EndpointInvocation<Object> request) {
+    long tenantId = Long.parseLong(request.tenantId().orElseThrow());
+    String orderId = request.pathVariables().get("orderId");
+    return shipments.find(tenantId, orderId).map(EndpointResponse::ok).orElseThrow(
+        () -> new EndpointHandlingException(404, NOT_FOUND, "The order has no shipment"));
+}
+```
+
+A query parameter is a list of values:
 
 ```java
-// src/main/java/com/example/myplugin/service/impl/OrderServiceImpl.java
-package com.example.myplugin.service.impl;
+List<String> status = request.queryParameters().getOrDefault("status", List.of());
+```
 
-import com.example.myplugin.service.OrderService;
-import com.example.myplugin.shared.*;
-import com.example.myplugin.event.OrderCreatedEvent;
-import com.example.myplugin.event.OrderCompletedEvent;
-import io.brix.runtime.sdk.api.DataAccessCapability;
-import io.brix.runtime.sdk.api.EventBusCapability;
-import io.brix.runtime.sdk.api.CacheCapability;
-import io.brix.runtime.sdk.api.LockCapability;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+What the handler returns:
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
+| Return | HTTP response |
+|---|---|
+| Any object, such as a record or a `Map` | 200, with the object as JSON |
+| `EndpointResponse.ok(body)`, `EndpointResponse.created(body)` | 200 or 201 |
+| `new EndpointResponse(status, body)` | That status, such as `new EndpointResponse(204, null)` |
+| `throw new EndpointHandlingException(status, errorCode, message)` | That 4xx or 5xx status, with `{"errorCode": ..., "message": ...}` |
 
-/**
- * Default implementation of {@link OrderService}.
- * Uses capabilities for all infrastructure operations.
- */
-@Service
-public class OrderServiceImpl implements OrderService {
-    
-    private static final String CACHE_PREFIX = "order:";
-    private static final Duration CACHE_TTL = Duration.ofMinutes(15);
-    
-    private final DataAccessCapability dataAccess;
-    private final EventBusCapability eventBus;
-    private final CacheCapability cache;
-    private final LockCapability lock;
-    
-    /**
-     * Constructs OrderServiceImpl with required capabilities.
-     */
-    public OrderServiceImpl(
-            DataAccessCapability dataAccess,
-            EventBusCapability eventBus,
-            CacheCapability cache,
-            LockCapability lock) {
-        this.dataAccess = dataAccess;
-        this.eventBus = eventBus;
-        this.cache = cache;
-        this.lock = lock;
+Use a stable `errorCode`, such as `SAMPLE_ORDER_INVALID` or `SAMPLE_SHIPMENT_NOT_FOUND`, that clients can test for.
+The message must be safe to show: never put stack traces, SQL or other tenants' data in it.
+
+### 3. Bind its factory
+
+The handler is created by the factory that `configure` binds under the endpoint's `handlerId`, as shown in
+[The plugin class](#the-plugin-class). Bind a factory for every handler ID the manifest declares, and for nothing
+else:
+- the runtime refuses a binding to an ID the manifest does not declare;
+- it does not start a plugin that leaves an event subscription or a provided command without a factory;
+- it never publishes an endpoint that has no factory.
+
+## Persistence
+
+### Entities
+
+Entities live in the core artifact:
+
+```java title="sample-orders-core: SampleOrder.java (excerpt)"
+@Entity
+@Table(name = "sample_orders_order")
+public class SampleOrder implements Persistable<Long> {
+
+    @Id
+    @Column(name = "id", nullable = false, updatable = false)
+    private Long id;
+
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private Long tenantId;
+
+    @Column(name = "sku", nullable = false, length = 64)
+    private String sku;
+
+    // ... quantity, version and placed_at are mapped the same way
+
+    @Transient
+    private boolean fresh = true;
+
+    protected SampleOrder() {
     }
-    
-    @Override
-    @Transactional
-    public Order createOrder(CreateOrderCommand command) {
-        // Validate command
-        validateCommand(command);
-        
-        // Create order entity
-        Order order = Order.builder()
-            .id(UUID.randomUUID().toString())
-            .customerId(command.customerId())
-            .items(command.items())
-            .status(OrderStatus.PENDING)
-            .createdAt(Instant.now())
-            .build();
-        
-        // Persist using DataAccessCapability
-        Order saved = dataAccess.save(order);
-        
-        // Publish domain event
-        eventBus.publish(new OrderCreatedEvent(
-            saved.getId(),
-            saved.getCustomerId(),
-            saved.getTotal()
-        ));
-        
-        // Cache the order
-        cache.set(CACHE_PREFIX + saved.getId(), saved, CACHE_TTL);
-        
-        return saved;
-    }
-    
-    @Override
-    public Optional<Order> findById(String orderId) {
-        // Try cache first
-        Optional<Order> cached = cache.get(CACHE_PREFIX + orderId, Order.class);
-        if (cached.isPresent()) {
-            return cached;
-        }
-        
-        // Fall back to database
-        Optional<Order> order = Optional.ofNullable(
-            dataAccess.findById(Order.class, orderId)
-        );
-        
-        // Cache if found
-        order.ifPresent(o -> cache.set(CACHE_PREFIX + orderId, o, CACHE_TTL));
-        
+
+    public static SampleOrder place(long id, long tenantId, String sku, int quantity, OffsetDateTime placedAt) {
+        SampleOrder order = new SampleOrder();
+        order.id = id;
+        order.tenantId = tenantId;
+        // ...
         return order;
     }
-    
+
+    @PostPersist
+    @PostLoad
+    void stored() {
+        fresh = false;
+    }
+
     @Override
-    public List<Order> findByCustomer(String customerId) {
-        Map<String, Object> criteria = Map.of("customerId", customerId);
-        return dataAccess.findBy(Order.class, criteria);
+    public Long getId() {
+        return id;
     }
-    
+
     @Override
-    @Transactional
-    public Order completeOrder(String orderId) {
-        // Acquire distributed lock for order modification
-        var orderLock = lock.acquire("order:" + orderId, Duration.ofSeconds(10));
-        
-        try {
-            Order order = findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(orderId));
-            
-            if (order.getStatus() != OrderStatus.PENDING) {
-                throw new InvalidOrderStateException(
-                    "Cannot complete order in status: " + order.getStatus()
-                );
-            }
-            
-            // Update status
-            order.setStatus(OrderStatus.COMPLETED);
-            order.setCompletedAt(Instant.now());
-            
-            Order saved = dataAccess.save(order);
-            
-            // Publish completion event
-            eventBus.publish(new OrderCompletedEvent(
-                saved.getId(),
-                saved.getCustomerId(),
-                saved.getTotal(),
-                saved.getCompletedAt()
-            ));
-            
-            // Update cache
-            cache.set(CACHE_PREFIX + orderId, saved, CACHE_TTL);
-            
-            return saved;
-        } finally {
-            lock.release(orderLock);
-        }
+    public boolean isNew() {
+        return fresh;
     }
-    
-    @Override
-    @Transactional
-    public void cancelOrder(String orderId, String reason) {
-        Order order = findById(orderId)
-            .orElseThrow(() -> new OrderNotFoundException(orderId));
-        
-        if (order.getStatus() == OrderStatus.COMPLETED) {
-            throw new InvalidOrderStateException("Cannot cancel completed order");
-        }
-        
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setCancellationReason(reason);
-        order.setCancelledAt(Instant.now());
-        
-        dataAccess.save(order);
-        
-        // Invalidate cache
-        cache.delete(CACHE_PREFIX + orderId);
-        
-        // Publish cancellation event
-        eventBus.publish(new OrderCancelledEvent(orderId, reason));
-    }
-    
-    private void validateCommand(CreateOrderCommand command) {
-        if (command.customerId() == null || command.customerId().isBlank()) {
-            throw new ValidationException("customerId is required");
-        }
-        if (command.items() == null || command.items().isEmpty()) {
-            throw new ValidationException("At least one item is required");
-        }
-    }
+
+    // ... accessors: tenantId(), sku(), quantity(), version(), placedAt()
 }
 ```
 
-## Event Handlers
+The persistence adapter checks every entity when the plugin starts, and refuses the plugin if a rule is broken:
 
-Handle events from other plugins or external systems.
+| Rule | Why |
+|---|---|
+| No `@GeneratedValue`. Take ids from `IdGeneratorCapability.generate()`. | Ids do not depend on the database. The samples parse the generated string to a `long`. |
+| Implement `Persistable` and report `isNew()` | The id is set before the first save, so Spring Data must be told to insert rather than merge |
+| Every business table has a non-null `tenant_id`, set when the row is created | Tenant isolation. A table without `tenant_id` fails startup unless the platform registers it as global. |
+| No schema or catalog in `@Table` | The adapter binds the plugin's schema |
+| No Hibernate annotations except `@JdbcTypeCode(SqlTypes.JSON)`; no native queries or native mappings | The plugin stays portable across supported databases |
+| Only your own entities | No association to, and no JPQL about, another plugin's entities |
 
-```java
-// src/main/java/com/example/myplugin/handler/PaymentEventHandler.java
-package com.example.myplugin.handler;
+Use `@Version` for optimistic locking.
 
-import com.example.myplugin.service.OrderService;
-import io.brix.runtime.sdk.api.EventHandler;
-import io.brix.runtime.sdk.api.DataAccessCapability;
-import io.brix.platform.commons.event.IntegrationEvent;
-import org.springframework.stereotype.Component;
+### Repositories
 
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+A repository is a Spring Data interface, next to its entity in the core artifact:
 
-/**
- * Handles payment-related events.
- * Updates order status based on payment outcomes.
- */
-@Component
-public class PaymentEventHandler {
-    
-    // Idempotency tracking (in production, use CacheCapability)
-    private final Set<String> processedEvents = ConcurrentHashMap.newKeySet();
-    
-    private final OrderService orderService;
-    private final DataAccessCapability dataAccess;
-    
-    /**
-     * Constructs handler with dependencies.
-     */
-    public PaymentEventHandler(OrderService orderService, DataAccessCapability dataAccess) {
-        this.orderService = orderService;
-        this.dataAccess = dataAccess;
-    }
-    
-    /**
-     * Handles payment completion.
-     * Marks the order as ready for fulfillment.
-     *
-     * @param event the payment completed event
-     */
-    @EventHandler(topic = "payment.completed")
-    public void onPaymentCompleted(PaymentCompletedEvent event) {
-        // Idempotency check - skip if already processed
-        if (!processedEvents.add(event.eventId())) {
-            return;
-        }
-        
-        try {
-            // Complete the order
-            orderService.completeOrder(event.orderId());
-        } catch (Exception e) {
-            // Remove from processed set on failure for retry
-            processedEvents.remove(event.eventId());
-            throw e;
-        }
-    }
-    
-    /**
-     * Handles payment failure.
-     * Cancels the order with payment failure reason.
-     *
-     * @param event the payment failed event
-     */
-    @EventHandler(topic = "payment.failed")
-    public void onPaymentFailed(PaymentFailedEvent event) {
-        if (!processedEvents.add(event.eventId())) {
-            return;
-        }
-        
-        try {
-            orderService.cancelOrder(
-                event.orderId(), 
-                "Payment failed: " + event.reason()
-            );
-        } catch (Exception e) {
-            processedEvents.remove(event.eventId());
-            throw e;
-        }
-    }
-    
-    /**
-     * Payment completed event record.
-     */
-    public record PaymentCompletedEvent(
-        String eventId,
-        String orderId,
-        String paymentId,
-        String amount
-    ) implements IntegrationEvent {}
-    
-    /**
-     * Payment failed event record.
-     */
-    public record PaymentFailedEvent(
-        String eventId,
-        String orderId,
-        String reason
-    ) implements IntegrationEvent {}
+```java title="sample-orders-core: SampleOrderRepository.java"
+public interface SampleOrderRepository extends JpaRepository<SampleOrder, Long> {
 }
 ```
 
-## REST Controllers
+`sample-shipping` adds a derived query:
 
-Controllers expose services via HTTP.
+```java title="sample-shipping-core: SampleShipmentRepository.java"
+public interface SampleShipmentRepository extends JpaRepository<SampleShipment, Long> {
 
-```java
-// src/main/java/com/example/myplugin/controller/OrderController.java
-package com.example.myplugin.controller;
-
-import com.example.myplugin.service.OrderService;
-import com.example.myplugin.shared.*;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-/**
- * REST API for order management.
- */
-@RestController
-@RequestMapping("/api/orders")
-public class OrderController {
-    
-    private final OrderService orderService;
-    
     /**
-     * Constructs controller with OrderService.
-     */
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
-    }
-    
-    /**
-     * Creates a new order.
+     * Finds the shipment of an order.
      *
-     * @param command the order creation command
-     * @return the created order
+     * @param tenantId the order's tenant
+     * @param orderId the order
+     * @return its shipment, if one was prepared
      */
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public OrderDto createOrder(@Valid @RequestBody CreateOrderCommand command) {
-        Order order = orderService.createOrder(command);
-        return toDto(order);
-    }
-    
-    /**
-     * Gets an order by ID.
-     *
-     * @param id the order ID
-     * @return the order
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<OrderDto> getOrder(@PathVariable String id) {
-        return orderService.findById(id)
-            .map(this::toDto)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-    }
-    
-    /**
-     * Lists orders for a customer.
-     *
-     * @param customerId the customer ID
-     * @return list of orders
-     */
-    @GetMapping
-    public List<OrderDto> listOrders(@RequestParam String customerId) {
-        return orderService.findByCustomer(customerId)
-            .stream()
-            .map(this::toDto)
-            .toList();
-    }
-    
-    /**
-     * Completes an order.
-     *
-     * @param id the order ID
-     * @return the completed order
-     */
-    @PostMapping("/{id}/complete")
-    public OrderDto completeOrder(@PathVariable String id) {
-        Order order = orderService.completeOrder(id);
-        return toDto(order);
-    }
-    
-    /**
-     * Cancels an order.
-     *
-     * @param id the order ID
-     * @param request the cancellation request
-     */
-    @PostMapping("/{id}/cancel")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void cancelOrder(
-            @PathVariable String id, 
-            @RequestBody CancelOrderRequest request) {
-        orderService.cancelOrder(id, request.reason());
-    }
-    
-    private OrderDto toDto(Order order) {
-        return new OrderDto(
-            order.getId(),
-            order.getCustomerId(),
-            order.getItems(),
-            order.getStatus().name(),
-            order.getTotal().toString(),
-            order.getCreatedAt().toString()
-        );
-    }
+    Optional<SampleShipment> findByTenantIdAndOrderId(Long tenantId, String orderId);
 }
 ```
 
-## Database Migrations
+- Extend `JpaRepository` and, for dynamic filters, `JpaSpecificationExecutor`. Use derived query methods, or
+  `@Query` with JPQL (never `nativeQuery`). A `@Modifying(clearAutomatically = true)` query must also set
+  `flushAutomatically = true`.
+- Get a repository only from `PersistenceCapability.repository(...)`, with the capability your handler factory
+  received. Never `@Autowired`, `@EnableJpaRepositories`, `EntityManager`, `JdbcTemplate` or a `DataSource`. The
+  adapter creates the implementation for your plugin, and refuses an interface that belongs to another plugin or
+  uses native SQL.
+- Do not add tenant conditions for isolation. The adapter keeps every read and write inside the unit of work's
+  tenant. Never take a tenant ID from a request body: the tenant that reaches `findByTenantIdAndOrderId` is the one
+  the runtime verified (`request.tenantId()` in `FindShipment`).
 
-Use Flyway for versioned migrations:
+### Units of work
 
-```sql
--- src/main/resources/db/migration/V1__Create_orders.sql
+The runtime opens a unit of work for your plugin around every handler call. The changes commit when the handler
+returns, and roll back when it throws.
 
-CREATE TABLE orders (
-    id VARCHAR(36) PRIMARY KEY,
-    customer_id VARCHAR(36) NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    total DECIMAL(10, 2) NOT NULL,
-    cancellation_reason TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    cancelled_at TIMESTAMP,
-    
-    INDEX idx_orders_customer (customer_id),
-    INDEX idx_orders_status (status)
+| Entry | Unit of work | Tenant |
+|---|---|---|
+| `GET` or `HEAD` endpoint | Read-only | The caller's verified tenant |
+| `POST`, `PUT`, `PATCH` or `DELETE` endpoint | Read-write | The caller's verified tenant |
+| Event handler, command handler | Read-write, together with the inbox record | The message's tenant |
+
+Within a handler, and in the domain services it calls, `persistence.unitOfWork()` gives you:
+- `required(...)`, which joins the open unit of work, or opens one when there is none (`OrderPlacement.place` and
+  `ShipmentDesk.prepare` use it this way);
+- `readOnly(...)`, which narrows a block to reads (`ShipmentDesk.find`).
+
+There is no nested independent transaction. A write from a `GET` handler fails with a read-only violation.
+
+Persistence failures reach your code as `PersistenceCapabilityException`, never as ORM or JDBC exceptions. Its
+`code()` is stable, for example:
+- `persistence.optimistic_lock_conflict`;
+- `persistence.unique_constraint_violation`;
+- `persistence.read_only_violation`.
+
+## Migrations
+
+The manifest names the migration location:
+
+```yaml title="sample-orders-server: META-INF/brix/plugin-manifest.yaml"
+data:
+  storageId: sample_orders
+  schema: sample-orders
+  migrationLocation: db/migration/sample-orders
+  outbox: sample_orders_outbox
+```
+
+The scripts are Flyway versioned SQL files (`V1__description.sql`, `V2__...`) on the class path under that location;
+the samples keep them in the server artifact. The platform runs them before the plugin starts, and keeps their
+history apart from other plugins'.
+
+```sql title="sample-orders-server: db/migration/sample-orders/V1__sample_orders.sql"
+-- sample-orders' business table. The outbox (sample_orders_outbox) is not created here: the platform creates it
+-- from its versioned messaging migrations because the manifest declares data.outbox.
+CREATE TABLE sample_orders_order (
+    id          BIGINT       NOT NULL,
+    tenant_id   BIGINT       NOT NULL,
+    sku         VARCHAR(64)  NOT NULL,
+    quantity    INTEGER      NOT NULL,
+    version     BIGINT       NOT NULL,
+    placed_at   TIMESTAMPTZ  NOT NULL,
+    CONSTRAINT pk_sample_orders_order PRIMARY KEY (id),
+    CONSTRAINT chk_sample_orders_order_quantity CHECK (quantity BETWEEN 1 AND 1000)
 );
 
-CREATE TABLE order_items (
-    id VARCHAR(36) PRIMARY KEY,
-    order_id VARCHAR(36) NOT NULL,
-    product_id VARCHAR(36) NOT NULL,
-    product_name VARCHAR(255) NOT NULL,
-    quantity INT NOT NULL,
-    unit_price DECIMAL(10, 2) NOT NULL,
-    
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    INDEX idx_order_items_order (order_id)
-);
+CREATE INDEX idx_sample_orders_order_tenant ON sample_orders_order (tenant_id, placed_at);
 ```
 
-```sql
--- src/main/resources/db/migration/V2__Add_order_notes.sql
+- Create only your business tables. The platform creates `<storageId>_outbox`, `<storageId>_inbox` and
+  `<storageId>_command_idempotency` itself; see
+  [what the platform creates](./events-and-commands.md#tables-what-the-platform-creates-for-you).
+- Never change a migration that has run in a shared environment. Add a new version. Make breaking changes in steps
+  (expand, migrate, contract).
+- No foreign keys to another plugin's tables or to platform tables. Store their IDs as plain values.
+- PostgreSQL is the reference database.
 
-ALTER TABLE orders 
-ADD COLUMN notes TEXT;
+## Events and commands
+
+Events and commands are declared in the manifest and travel through the platform's outbox, broker and inbox.
+Your code never sees Kafka, a topic name or a consumer group.
+
+- **Publish** a fact by declaring it under `events.publishes` with a schema and a reliability. Then call
+  `EventBusCapability.publishIntegration(...)` with an `IntegrationEvent` subclass, inside the unit of work that
+  changes your data. `OrderPlacement` does this right after it saves the order:
+
+  ```java title="sample-orders-core: OrderPlacement.java (excerpt)"
+  events.publishIntegration(new SampleOrderPlaced(placed));
+  events.publishIntegration(new SampleOrderActivity(placed, "placed"));
+  ```
+
+  `SampleOrderPlaced` is STANDARD, so it goes into the outbox in the same transaction. `SampleOrderActivity` is
+  BEST_EFFORT, so it is sent after the commit.
+
+- **Subscribe** by declaring the event under `events.subscribes`, and binding an `EventHandler` class with
+  `bindEventHandlerFactory`:
+
+  ```java title="sample-shipping-server: SampleShippingPlugin.java (excerpt)"
+  bootstrap.bindEventHandlerFactory(PREPARE_SHIPMENT, context -> new PrepareShipment(desk(context)));
+  ```
+
+  Write the handler as a class that names its payload type, such as `EventHandler<OrderPlaced>`: the runtime decodes
+  each event into that type, and refuses a handler whose type it cannot tell. `OrderPlaced` is `sample-shipping`'s
+  own record in its core artifact, not a class of the publisher.
+
+- **Ask another plugin to change its data** with a command: `CommandCapability.submit(...)` on the sending side, a
+  `CommandHandler` bound with `bindCommandHandlerFactory` on the providing side.
+
+Do not use the legacy `io.runtime.sdk.annotation.EventHandler` annotation: nothing reads it, and it will be removed.
+[Events and Commands](./events-and-commands.md) covers declarations, schemas, guarantees, failures and operations in
+full.
+
+## The manifest
+
+`META-INF/brix/plugin-manifest.yaml`, in the plugin-server artifact, is the one place where the plugin is declared.
+There is no `module-manifest.yaml`, no `plugin-manifest.json`, and no Java configuration
+(`@Configuration`, `@ComponentScan`, `@EntityScan` or auto-configuration).
+
+Here is the rest of the `sample-orders` manifest: everything but the `endpoints`, `events` and `data` sections shown
+above.
+
+```yaml title="sample-orders-server: META-INF/brix/plugin-manifest.yaml (excerpt)"
+apiVersion: brix.io/v1
+kind: Plugin
+metadata:
+  pluginId: sample-orders
+  name: sample-orders
+  version: 3.2.0
+  displayName: Sample Orders
+  vendor: Brix Platform
+  license: Apache-2.0
+runtime:
+  compiledAgainst: 3.2.0
+  supportedRange: ">=3.2.0 <4.0.0"
+# Three artifacts (root BRX-RS-MANIFEST-005): the contract, the logic and data, the entry point and handlers.
+modules:
+  - groupId: io.brix.samples
+    artifactId: sample-orders-api
+    version: 3.2.0
+    moduleKind: plugin-api
+  - groupId: io.brix.samples
+    artifactId: sample-orders-core
+    version: 3.2.0
+    moduleKind: plugin-core
+  - groupId: io.brix.samples
+    artifactId: sample-orders-server
+    version: 3.2.0
+    moduleKind: plugin-server
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.EventBusCapability
+      version: ">=3.0.10 <4.0.0"
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
+    - id: io.runtime.sdk.capability.IdGeneratorCapability
+      version: ">=3.2.0 <4.0.0"
+  optional: []
+queries:
+  provides: []
+  consumes: []
+commands:
+  provides: []
+  consumes: []
+tasks:
+  provides: []
+internalContracts:
+  provides: []
+permissions:
+  - id: sample-orders:order:place
+    name: Place sample orders
+    description: Allows placing an order in the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
+config: []
+ui:
+  web:
+    enabled: false
 ```
 
-## Module Configuration
+| Section | Content |
+|---|---|
+| `metadata` | `pluginId` (lower-case letters, digits and dashes), version, vendor, license |
+| `runtime` | The runtime version the plugin was built against, and the versions it runs on |
+| `modules` | Each artifact of the plugin with its `moduleKind` |
+| `endpoints.provides` | HTTP endpoints; see [Endpoint handlers](#endpoint-handlers) |
+| `capabilities.required`, `capabilities.optional` | Capability interfaces by full name, with version ranges |
+| `queries`, `commands`, `events`, `tasks` | What the plugin provides, consumes, publishes and subscribes to |
+| `data` | `storageId`, migration location, and `outbox` / `inbox` when the plugin uses them |
+| `permissions` | The plugin's permissions, and which tenant roles hold each one |
+| `config`, `ui` | Configuration keys, and whether the plugin has a web or mobile UI |
 
-```java
-// src/main/java/com/example/myplugin/config/OrderModuleConfig.java
-package com.example.myplugin.config;
+The samples list every section, with empty lists where they have nothing to declare. A few rules:
+- Version ranges use comparators separated by a space, such as `">=3.2.0 <4.0.0"`. Do not use `^`, `~` or
+  wildcards.
+- `storageId` is lower case with underscores, unique across plugins, and never changes. It names the messaging
+  tables, so `outbox` and `inbox` must be exactly `<storageId>_outbox` and `<storageId>_inbox`.
+- The loader is strict: an unknown field, for example in `metadata`, `data` or `events`, fails at startup instead
+  of being ignored.
 
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
+## Testing
 
-/**
- * Configuration for the Order module.
- * Enables component scanning for this plugin.
- */
-@Configuration
-@ComponentScan(basePackages = "com.example.myplugin")
-public class OrderModuleConfig {
-    // Additional beans can be defined here if needed
-}
-```
+### Unit tests
 
-## Testing Services
+Domain services and handlers are classes with constructor arguments, so plain JUnit tests can create them. The
+samples do not include such tests; for `sample-orders` they could look like the two below. They need JUnit and
+Mockito at test scope (`org.junit.jupiter:junit-jupiter`, `org.mockito:mockito-core`); the Spring Boot BOM manages
+both versions.
 
-```java
-// src/test/java/com/example/myplugin/service/OrderServiceTest.java
-package com.example.myplugin.service;
+Test the rules, the unit of work and the events in the core, next to `OrderPlacement`:
 
-import com.example.myplugin.service.impl.OrderServiceImpl;
-import com.example.myplugin.shared.*;
-import com.example.myplugin.event.OrderCreatedEvent;
-import io.brix.runtime.sdk.api.*;
-import io.brix.testing.BrixTest;
-import io.brix.testing.MockCapability;
-import org.junit.jupiter.api.BeforeEach;
+```java title="sample-orders-core: src/test/java/io/brix/samples/orders/core/OrderPlacementTest.java"
+package io.brix.samples.orders.core;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import java.time.Clock;
+import java.util.function.Supplier;
+
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 
-import java.util.List;
+import io.brix.samples.orders.api.PlaceOrderRequest;
+import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.IdGeneratorCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.UnitOfWork;
+
+class OrderPlacementTest {
+
+    private final PersistenceCapability persistence = mock(PersistenceCapability.class);
+    private final EventBusCapability events = mock(EventBusCapability.class);
+    private final IdGeneratorCapability ids = mock(IdGeneratorCapability.class);
+    private final SampleOrderRepository orders = mock(SampleOrderRepository.class);
+    private final OrderPlacement placement = new OrderPlacement(persistence, events, ids, Clock.systemUTC());
+
+    @Test
+    void refusesAnOrderWithoutAQuantity() {
+        assertThrows(InvalidOrderException.class, () -> placement.place(42L, new PlaceOrderRequest("sku-1", 0)));
+
+        verifyNoInteractions(persistence, events);
+    }
+
+    @Test
+    void storesTheOrderAndPublishesBothEvents() {
+        when(persistence.unitOfWork()).thenReturn(inline());
+        when(persistence.repository(SampleOrderRepository.class)).thenReturn(orders);
+        when(ids.generate()).thenReturn("1001");
+
+        SampleOrder order = placement.place(42L, new PlaceOrderRequest("sku-1", 2));
+
+        assertEquals(1001L, order.getId());
+        assertEquals(42L, order.tenantId());
+        verify(orders).save(order);
+        verify(events).publishIntegration(any(SampleOrderPlaced.class));
+        verify(events).publishIntegration(any(SampleOrderActivity.class));
+    }
+
+    /** Runs the work directly, as the runtime's unit of work would inside a transaction. */
+    private static UnitOfWork inline() {
+        return new UnitOfWork() {
+            @Override
+            public <T> T required(Supplier<T> work) {
+                return work.get();
+            }
+
+            @Override
+            public <T> T readOnly(Supplier<T> work) {
+                return work.get();
+            }
+        };
+    }
+}
+```
+
+Test the protocol mapping in the server. `PlaceOrder` and its constructor are package-private, so the test sits in
+the same package. It builds the handler around a real `OrderPlacement`: only the core can create an
+`InvalidOrderException`, whose constructor is package-private.
+
+```java title="sample-orders-server: src/test/java/io/brix/samples/orders/server/PlaceOrderTest.java"
+package io.brix.samples.orders.server;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.Test;
 
-/**
- * Unit tests for OrderServiceImpl.
- */
-@BrixTest
-class OrderServiceTest {
-    
-    @MockCapability
-    private DataAccessCapability dataAccess;
-    
-    @MockCapability
-    private EventBusCapability eventBus;
-    
-    @MockCapability
-    private CacheCapability cache;
-    
-    @MockCapability
-    private LockCapability lock;
-    
-    private OrderServiceImpl orderService;
-    
-    @BeforeEach
-    void setUp() {
-        orderService = new OrderServiceImpl(dataAccess, eventBus, cache, lock);
-        
-        // Default lock behavior
-        when(lock.acquire(anyString(), any())).thenReturn(mock(Lock.class));
-    }
-    
+import io.brix.samples.orders.core.OrderPlacement;
+import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.IdGeneratorCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.plugin.EndpointHandlingException;
+import io.runtime.sdk.plugin.EndpointInvocation;
+
+class PlaceOrderTest {
+
+    private final PersistenceCapability persistence = mock(PersistenceCapability.class);
+    private final EventBusCapability events = mock(EventBusCapability.class);
+    private final PlaceOrder handler = new PlaceOrder(new OrderPlacement(persistence, events,
+        mock(IdGeneratorCapability.class), Clock.systemUTC()));
+
     @Test
-    void createOrder_shouldPersistAndPublishEvent() {
-        // Arrange
-        CreateOrderCommand command = new CreateOrderCommand(
-            "customer-1",
-            List.of(new OrderItem("product-1", "Widget", 2, 9.99))
-        );
-        
-        when(dataAccess.save(any(Order.class)))
-            .thenAnswer(inv -> inv.getArgument(0));
-        
-        // Act
-        Order result = orderService.createOrder(command);
-        
-        // Assert
-        assertThat(result.getId()).isNotNull();
-        assertThat(result.getCustomerId()).isEqualTo("customer-1");
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.PENDING);
-        
-        // Verify event published
-        ArgumentCaptor<OrderCreatedEvent> eventCaptor = 
-            ArgumentCaptor.forClass(OrderCreatedEvent.class);
-        verify(eventBus).publish(eventCaptor.capture());
-        assertThat(eventCaptor.getValue().orderId()).isEqualTo(result.getId());
-        
-        // Verify cached
-        verify(cache).set(eq("order:" + result.getId()), eq(result), any());
+    void answers400WhenTheOrderBreaksARule() {
+        EndpointHandlingException refused = assertThrows(EndpointHandlingException.class,
+            () -> handler.handle(invocation(Map.of("sku", "sku-1"))));
+
+        assertEquals(400, refused.status());
+        assertEquals(PlaceOrder.INVALID, refused.errorCode());
+        verifyNoInteractions(persistence, events);
     }
-    
-    @Test
-    void findById_shouldReturnFromCache() {
-        // Arrange
-        Order cached = Order.builder()
-            .id("order-1")
-            .customerId("customer-1")
-            .build();
-        
-        when(cache.get("order:order-1", Order.class))
-            .thenReturn(Optional.of(cached));
-        
-        // Act
-        Optional<Order> result = orderService.findById("order-1");
-        
-        // Assert
-        assertThat(result).contains(cached);
-        verify(dataAccess, never()).findById(any(), any());
-    }
-    
-    @Test
-    void completeOrder_shouldAcquireLock() {
-        // Arrange
-        Order order = Order.builder()
-            .id("order-1")
-            .customerId("customer-1")
-            .status(OrderStatus.PENDING)
-            .build();
-        
-        when(cache.get(anyString(), eq(Order.class)))
-            .thenReturn(Optional.of(order));
-        when(dataAccess.save(any(Order.class)))
-            .thenAnswer(inv -> inv.getArgument(0));
-        
-        // Act
-        orderService.completeOrder("order-1");
-        
-        // Assert
-        verify(lock).acquire(eq("order:order-1"), any());
-        verify(lock).release(any());
-    }
-    
-    @Test
-    void createOrder_shouldRejectEmptyItems() {
-        // Arrange
-        CreateOrderCommand command = new CreateOrderCommand(
-            "customer-1",
-            List.of()  // Empty items
-        );
-        
-        // Act & Assert
-        assertThatThrownBy(() -> orderService.createOrder(command))
-            .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("At least one item is required");
+
+    private static EndpointInvocation<Object> invocation(Map<String, Object> body) {
+        return new EndpointInvocation<>(body, Map.of(), Map.of(), Map.of(), Optional.of("42"), Optional.of("2001"),
+            Optional.empty(), Instant.now().plusSeconds(5));
     }
 }
 ```
 
-## Best Practices
+Tests like these prove the service's rules and the handler's mapping. They do not prove the tenant binding, the
+transaction or the outbox: the end-to-end test below does.
 
-1. **Use capabilities, not infrastructure** - Never import Kafka, Redis, etc.
-2. **Keep services stateless** - Use capabilities for state
-3. **Handle idempotency** - Track processed event IDs
-4. **Use distributed locks** - For concurrent modifications
-5. **Cache strategically** - Read-heavy data benefits from caching
-6. **Document public APIs** - Javadoc on all public methods
-7. **Test thoroughly** - Mock capabilities for fast unit tests
+### Event schema contract
+
+`EventSchemaContract` checks, in your build, that each published event matches its schema. Every `schemaRef` under
+`events.publishes` must resolve to a file whose `$id` is that reference, and the sample payload must validate
+against it. The test sits in the server artifact, next to the manifest; the payload records and the schemas come
+from the api artifact:
+
+```java title="sample-orders-server: SampleOrdersEventSchemasTest.java"
+@Test
+void everyPublishedEventMatchesItsSchema() {
+    EventSchemaContract.verify(SampleOrdersPlugin.class, Map.of(
+        SampleOrderEvents.PLACED, new SampleOrderPlacedPayload(42L, "1001", "sku-1", 2, 1L),
+        SampleOrderEvents.ACTIVITY, new SampleOrderActivityPayload(42L, "1001", "placed")));
+}
+```
+
+A second test in the same class checks the other way round: a payload whose fields the schema does not describe
+fails the build.
+
+A subscriber can check that its handler names the payload type the runtime will decode into:
+
+```java title="sample-shipping-server: PrepareShipmentTest.java"
+@Test
+void theHandlerNamesThePayloadItReads() {
+    assertSame(OrderPlaced.class, ResolvableType.forClass(PrepareShipment.class).as(EventHandler.class)
+        .getGeneric(0).resolve());
+}
+```
+
+### End to end
+
+`sample-e2e` starts the plugins through the real runtime. Its host is made only of auto-configurations and
+properties, and it depends on the two server artifacts, which bring their core and api artifacts. The test:
+- uses a throwaway PostgreSQL schema and an embedded Kafka broker;
+- places an order over HTTP;
+- waits for the outbox row, the subscriber's change and the inbox receipt;
+- reads the shipment back over HTTP, and checks that an unknown order answers 404.
+
+The properties show what the host needs:
+
+```java title="sample-e2e: SamplePluginsEndToEndTest.java"
+@SpringBootTest(classes = SampleHost.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+    "spring.jpa.open-in-view=false",
+    "brix.capability.required[0]=io.runtime.sdk.capability.EventBusCapability",
+    "brix.capability.required[1]=io.runtime.sdk.capability.IdGeneratorCapability",
+    "brix.runtime-shell.required-plugins[0]=sample-orders",
+    "brix.runtime-shell.required-plugins[1]=sample-shipping",
+    "brix.infra.database.migration.fail-on-error=true",
+    "brix.outbox.relay.enabled=true",
+    "brix.outbox.relay.persistence.enabled=true",
+    "brix.outbox.relay.owner=sample-e2e",
+    "brix.outbox.relay.transport=kafka",
+    // ... poll, retry and publish timings
+})
+@EnabledIfEnvironmentVariable(named = "BRIX_P0_POSTGRES_URL", matches = ".+",
+    disabledReason = "needs a throwaway PostgreSQL in BRIX_P0_POSTGRES_URL, _USER and _PASSWORD")
+class SamplePluginsEndToEndTest {
+    // ...
+}
+```
+
+`SampleHost` replaces the identity provider with one bean: every request comes from member 2001 of tenant 42. To
+run the test, see [Running it end to end](../examples/event-driven-plugin.md#running-it-end-to-end). Use the same
+approach for your own plugins.
+
+## Best practices
+
+1. **Declare, then bind.** Everything the plugin offers or uses is in the manifest, and `configure` binds exactly
+   what the manifest declares.
+2. **Capabilities come from the factory's context.** List them in the manifest. Never inject them, look them up in
+   Spring, or keep them in static fields.
+3. **Keep handlers thin.** A handler reads the input, calls a domain service and maps the result. The rules live in
+   plain classes in `plugin-core`, as `PlaceOrder` and `OrderPlacement` show.
+4. **Let the runtime own transactions.** No `@Transactional`. Narrow a block with `unitOfWork()` only when you need
+   to.
+5. **Ids from `IdGeneratorCapability`, a `tenant_id` on every row.** Never trust a tenant ID from a request body.
+6. **Publish facts in the unit of work that changes your data.** Never use Kafka clients, `KafkaTemplate`,
+   `@KafkaListener` or topic names.
+7. **Migrations hold business tables only,** and an applied migration never changes.
+8. **Refuse bad input with `EndpointHandlingException`** and a stable error code.
+9. **No threads, executors, timers or `@Scheduled`,** and no static mutable state. The runtime owns the resources
+   a plugin runs on.
 
 ## Next Steps
 
-- [Frontend Development](./frontend-development) - Build the frontend
-- [Testing Guide](./testing) - Complete testing strategies
-- [Architecture Guard](./architecture-guard) - Enforce rules
+- [Events and Commands](./events-and-commands.md) - Publish, subscribe and send commands
+- [Event-Driven Plugin](../examples/event-driven-plugin.md) - The two samples, step by step
+- [Frontend Development](./frontend-development.md) - Build the frontend
+- [Testing Guide](./testing.md) - Testing strategies
+- [Architecture Guard](./architecture-guard.md) - Enforce rules

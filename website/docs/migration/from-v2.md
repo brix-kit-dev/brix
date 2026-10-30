@@ -189,27 +189,23 @@ public class OrderService {
 ```
 
 **After (v3.x):**
+
+Declare the event in `META-INF/brix/plugin-manifest.yaml` (`events.publishes` with its schema and reliability, plus
+`data.outbox`), then publish it in the unit of work that changes your data:
+
 ```java
-// Use EventBusCapability
-@Service
-public class OrderService {
-    private final EventBusCapability eventBus;
-    
-    public Order createOrder(CreateOrderCommand command) {
-        Order order = // create order
-        
-        // Capability publish
-        eventBus.publish(new OrderCreatedEvent(
-            UUID.randomUUID().toString(),
-            Instant.now().toString(),
-            order.getId(),
-            order.getCustomerId()
-        ));
-        
-        return order;
-    }
-}
+// The handler factory hands in the capabilities the manifest requires
+persistence.unitOfWork().required(() -> {
+    Order order = // create and save the order through persistence.repository(...)
+
+    // Written to the plugin's outbox in the same transaction; the relay sends it after the commit
+    events.publishIntegration(new OrderCreated(order));
+    return order;
+});
 ```
+
+`OrderCreated` extends `IntegrationEvent`: it names its manifest event type, its routing key and its payload. See
+[Events and Commands](../guides/events-and-commands.md#publishing-an-event).
 
 ### Step 5: Migrate Event Handlers
 
@@ -227,22 +223,28 @@ public class PaymentListener {
 ```
 
 **After (v3.x):**
+
+Declare the subscription in the manifest (`events.subscribes` with `handlerId`, `schemaRange`,
+`publisherPolicyRef: <publisher>-owner` and `idempotencyPolicyRef: persistent-inbox`, plus `data.inbox`), and bind a
+handler class that names its payload type:
+
 ```java
-// EventHandler annotation
-@Component
-public class PaymentEventHandler {
-    
-    @EventHandler(topic = "payment.completed")
-    public void onPaymentCompleted(PaymentCompletedEvent event) {
-        // Idempotency check first!
-        if (alreadyProcessed(event.eventId())) {
-            return;
-        }
-        
-        // Handle event
+bootstrap.bindEventHandlerFactory("orders.payment-completed.v1",
+    context -> new PaymentCompletedHandler(context.require(PersistenceCapability.class)));
+
+final class PaymentCompletedHandler implements EventHandler<PaymentCompleted> {
+    @Override
+    public CompletionStage<Void> handle(EventInvocation<PaymentCompleted> invocation) {
+        // Runs in your unit of work, in the event's tenant; the runtime's inbox skips redeliveries,
+        // so no idempotency bookkeeping is needed here.
+        PaymentCompleted payment = invocation.event().payload();
+        // ... change your data
+        return CompletableFuture.completedFuture(null);
     }
 }
 ```
+
+See [Events and Commands](../guides/events-and-commands.md#handling-an-event).
 
 ### Step 6: Migrate Cross-Plugin Dependencies
 
@@ -262,35 +264,25 @@ public class OrderService {
 ```
 
 **After (v3.x):**
-```java
-// Event-driven communication
-@Service
-public class OrderService {
-    private final EventBusCapability eventBus;  // ✅ Event bus only
-    
-    public Order createOrder(CreateOrderCommand command) {
-        Order order = // save order
-        
-        // Publish event - Inventory plugin subscribes
-        eventBus.publish(new OrderCreatedEvent(
-            // ... event data
-        ));
-        
-        return order;
-    }
-}
 
-// In Inventory plugin - subscribes to event
-@Component
-public class OrderEventHandler {
-    private final InventoryService inventoryService;
-    
-    @EventHandler(topic = "order.created")
-    public void onOrderCreated(OrderCreatedEvent event) {
-        inventoryService.reserveStock(event.orderId(), /* ... */);
-    }
-}
+Reserving stock changes Inventory's data, so the Order plugin sends Inventory a **command**; Inventory alone provides
+it. (An event would only say that an order was created, and nobody would be obliged to reserve anything.)
+
+```java
+// Order plugin: declares ReserveStock under commands.consumes and CommandCapability under capabilities.required
+persistence.unitOfWork().required(() -> {
+    Order order = // save the order
+    commands.submit(CommandRequest.of("ReserveStock",
+        new ReserveStock(command.getProductId(), command.getQuantity()), "order", order.getId()));
+    return order;
+});
+
+// Inventory plugin: declares ReserveStock under commands.provides and binds its handler
+bootstrap.bindCommandHandlerFactory("inventory.reserve-stock.v1", context -> new ReserveStockHandler(...));
 ```
+
+The command commits with the order. Inventory handles it once per idempotency key (`"order"`, the order id) and
+reports the outcome with its own event. See [Commands](../guides/events-and-commands.md#commands).
 
 ### Step 7: Migrate Frontend React Imports
 
@@ -327,15 +319,46 @@ function OrderList() {
 
 ### Step 8: Add Architecture Tests
 
-Add Architecture Guard tests to enforce rules:
+Add the Architecture Guard to each backend module, with the ArchUnit engine that runs its rules, both at test scope:
+
+```xml
+<dependency>
+    <groupId>io.brix</groupId>
+    <artifactId>architecture-guard</artifactId>
+    <version>3.2.0</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>com.tngtech.archunit</groupId>
+    <artifactId>archunit-junit6</artifactId>
+    <version>1.5.1</version>
+    <scope>test</scope>
+</dependency>
+```
+
+Then add one test class. It applies the guard's rule set for plugin code:
 
 ```java
 // src/test/java/com/example/ArchitectureTest.java
-@AnalyzeClasses(packages = "com.example")
-class ArchitectureTest extends AdapterIsolationRule {
-    // Inherits all 13 standard rules
+package com.example;
+
+import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.junit.ArchTests;
+
+import io.brix.architecture.guard.BrixArchitectureRules;
+
+@AnalyzeClasses(packages = "com.example", importOptions = ImportOption.DoNotIncludeTests.class)
+class ArchitectureTest {
+
+    @ArchTest
+    static final ArchTests brixRules = BrixArchitectureRules.pluginProfile();
 }
 ```
+
+Do not extend a rule class such as `AdapterIsolationRule`: the rule classes are final and offer static rules only.
+[Standard Architecture Rules](../guides/testing.md#standard-architecture-rules) lists what the plugin profile refuses.
 
 Run tests:
 ```bash
@@ -352,12 +375,12 @@ mvn test -Dtest=*ArchitectureTest
 - [ ] Replace `@Repository` with `DataAccessCapability`
 - [ ] Replace `RedisTemplate` with `CacheCapability`
 - [ ] Replace `KafkaTemplate` with `EventBusCapability`
-- [ ] Replace `@KafkaListener` with `@EventHandler`
-- [ ] Add idempotency checks to event handlers
+- [ ] Replace `@KafkaListener` with a manifest subscription and a bound `EventHandler`
+- [ ] Subscribe with `persistent-inbox` (the runtime deduplicates redeliveries)
 - [ ] Remove cross-plugin service imports
-- [ ] Use events for cross-plugin communication
+- [ ] Use events for facts and commands for changes to another plugin's data
 - [ ] Update to Java 17 syntax (records, etc.)
-- [ ] Add `ArchitectureTest` extending `AdapterIsolationRule`
+- [ ] Add an `ArchitectureTest` that applies `BrixArchitectureRules.pluginProfile()`
 - [ ] Run `mvn test` to verify architecture rules
 
 ### Frontend
@@ -402,17 +425,12 @@ import { useState } from '@brix/shared-runtime-web';
 
 ### Event Handler Not Invoked
 
-**Cause:** Topic name mismatch.
+**Cause:** the subscription does not match the publication, or its handler is not bound.
 
-**Fix:** Verify topic names match exactly:
-```java
-// Publisher
-eventBus.publish(new MyEvent(...)); // publishes to topic derived from class
-
-// Handler - topic must match
-@EventHandler(topic = "my.event")  // Check topic name!
-public void handle(MyEvent event) {}
-```
+**Fix:** check that the subscription's `eventType` is the publisher's `events.publishes[].eventType`, that its
+`schemaRange` contains the published version, and that `configure(...)` binds a factory for its `handlerId`. A new
+subscription receives only events published after it was first registered. Parked events are listed at
+`GET /actuator/events` on the management port. See the [FAQ](../faq.md#plugin-events-not-received).
 
 ## Resources
 

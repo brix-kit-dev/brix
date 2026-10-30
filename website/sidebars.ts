@@ -53,6 +53,7 @@ const sidebars: SidebarsConfig = {
       label: 'Guides',
       items: [
         'guides/plugin-development',
+        'guides/events-and-commands',
         'guides/frontend-development',
         'guides/backend-development',
         'guides/testing',

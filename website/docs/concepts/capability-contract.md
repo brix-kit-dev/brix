@@ -21,52 +21,69 @@ sidebar_position: 2
 
 ### EventBusCapability
 
-Publish and subscribe to domain and integration events.
+Publishes the plugin's integration events. Subscriptions are not made through this interface: a subscriber declares
+them in its manifest and binds an `EventHandler`. See [Events and Commands](../guides/events-and-commands.md).
 
 ```java
 public interface EventBusCapability {
-    
+
+    /** Publishes an event inside the publisher (not carried between plugins by the owner outbox bus). */
+    void publish(DomainEvent event);
+
     /**
-     * Publishes a domain event within the current bounded context.
-     *
-     * @param eventType the event type identifier
-     * @param payload the event payload
+     * Publishes an integration event the plugin declares under events.publishes. CRITICAL and STANDARD events go
+     * to the plugin's outbox in its current unit of work; BEST_EFFORT events are sent after it commits.
      */
-    void publish(String eventType, Object payload);
-    
-    /**
-     * Publishes an integration event for cross-plugin communication.
-     *
-     * @param eventType the event type identifier  
-     * @param payload the event payload
-     */
-    void publishIntegration(String eventType, Object payload);
-    
-    /**
-     * Subscribes to events of the specified type.
-     *
-     * @param eventType the event type to subscribe to
-     * @param handler the event handler
-     */
-    void subscribe(String eventType, EventHandler handler);
+    void publishIntegration(IntegrationEvent event);
+}
+```
+
+**Usage** (from the `sample-orders` plugin):
+
+```java
+// In configure(...): the runtime creates the handler once the plugin has started.
+bootstrap.bindEndpointHandlerFactory(PLACE_ORDER, context -> new PlaceOrder(new OrderPlacement(
+    context.require(PersistenceCapability.class),
+    context.require(EventBusCapability.class),
+    context.require(IdGeneratorCapability.class),
+    Clock.systemUTC())));
+
+// In OrderPlacement, the plugin's domain service: the order and its events commit together.
+return persistence.unitOfWork().required(() -> {
+    SampleOrder placed = SampleOrder.place(Long.parseLong(ids.generate()), tenantId, request.sku(),
+        request.quantity(), OffsetDateTime.now(clock));
+    persistence.repository(SampleOrderRepository.class).save(placed);
+    events.publishIntegration(new SampleOrderPlaced(placed));
+    events.publishIntegration(new SampleOrderActivity(placed, "placed"));
+    return placed;
+});
+```
+
+**Implementations:** each plugin gets an owner outbox bus from the persistence adapter. The host's relay delivers
+outbox messages over the transport it selects: Kafka in production, or in-process.
+
+---
+
+### CommandCapability
+
+Asks the one plugin that provides a command to change its data. The command is written to the sender's outbox in its
+unit of work, and the provider handles it once per business idempotency key.
+
+```java
+public interface CommandCapability {
+
+    /** Submits a command the plugin declares under commands.consumes. */
+    <C> CommandSubmission submit(CommandRequest<C> request);
 }
 ```
 
 **Usage:**
 
 ```java
-// Publishing
-eventBus.publish("order.created", new OrderCreatedEvent(orderId));
-
-// Subscribing
-eventBus.subscribe("user.registered", event -> {
-    sendWelcomeEmail(event.getUserId());
-});
+CommandSubmission submission = commands.submit(
+    CommandRequest.of("ReserveStock", new ReserveStock(sku, quantity), "order", orderId));
+// submission.durableReceipt() completes once the command is durably queued (QUEUED), not when it is handled.
 ```
-
-**Implementations:**
-- `KafkaEventBusAdapter` - Production (Kafka)
-- `SimpleEventBusAdapter` - Development (In-memory)
 
 ---
 
@@ -341,5 +358,5 @@ PaymentGatewayCapability payments = context.getCapability(PaymentGatewayCapabili
 ## Next Steps
 
 - [Plugin Model](./plugin-model) - How plugins are structured
-- [Event Model](./event-model) - Domain vs Integration events
+- [Event Model](./event-model) - Integration events and commands between plugins
 - [Architecture Guard](../guides/architecture-guard) - Enforcing capability-only dependencies

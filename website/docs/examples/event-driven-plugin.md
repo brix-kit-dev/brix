@@ -7,719 +7,329 @@ sidebar_position: 3
 
 # Event-Driven Plugin Example
 
-A complete example demonstrating cross-plugin communication via events.
+This example walks through two plugins in the repository that talk through events:
+
+| Plugin | Role |
+|---|---|
+| `sample-orders` | Takes orders over HTTP and publishes what happened |
+| `sample-shipping` | Prepares a shipment for each order |
+
+The build runs them end to end on PostgreSQL and Kafka (`sample-e2e`). Neither plugin knows the other's code, the
+broker or any table but its own.
+
+The code lives in `packages/@brix/samples/`. For the rules behind each step, see
+[Events and Commands](../guides/events-and-commands.md); for the guarantees, see the
+[Event Model](../concepts/event-model.md).
 
 ## Scenario
 
-An e-commerce system with three plugins:
-- **Order Plugin** - Creates orders and publishes events
-- **Inventory Plugin** - Reserves stock on order creation
-- **Notification Plugin** - Sends notifications on order events
+1. A tenant member calls `POST /api/sample-orders/orders` with `{"sku": "sku-1", "quantity": 2}`.
+2. `sample-orders` stores the order and publishes two events:
+   - `SampleOrderPlaced` (STANDARD). It is written to the plugin's outbox in the same transaction, so it exists if
+     and only if the order does.
+   - `SampleOrderActivity` (BEST_EFFORT). It is sent after the commit, for an activity feed, with no guarantee.
+3. The relay publishes `SampleOrderPlaced` to Kafka.
+4. `sample-shipping` receives it in the order's tenant and prepares one shipment. Its inbox records the event in the
+   same transaction, so a redelivery changes nothing.
+5. The member reads the shipment from `sample-shipping`'s own endpoint.
 
-## Architecture
+## Layout
 
-```mermaid
-graph LR
-    subgraph Order Plugin
-        OS[OrderService]
-    end
-    
-    subgraph Event Bus
-        EB((EventBusCapability))
-    end
-    
-    subgraph Inventory Plugin
-        IH[InventoryHandler]
-        IS[InventoryService]
-    end
-    
-    subgraph Notification Plugin
-        NH[NotificationHandler]
-        NS[NotificationService]
-    end
-    
-    OS -->|publish| EB
-    EB -->|subscribe| IH
-    EB -->|subscribe| NH
-    IH --> IS
-    NH --> NS
+Each plugin is three artifacts, as every plugin with a backend is:
+
+| Artifact | Holds | Depends on |
+|---|---|---|
+| `*-api` (`plugin-api`) | What the plugin offers: payload and endpoint records, JSON schemas | Nothing |
+| `*-core` (`plugin-core`) | Domain logic, entities, repositories, event classes | Its api, `runtime-sdk-api`, JPA |
+| `*-server` (`plugin-server`) | Plugin class, handlers, manifest, migrations | Its core, `runtime-sdk-api` |
+
+```text
+samples/
+├── sample-orders-api/                               publisher's contract
+│   └── src/main/
+│       ├── java/io/brix/samples/orders/api/
+│       │   ├── SampleOrderEvents.java               event type names
+│       │   ├── SampleOrderPlacedPayload.java        payloads, as their schemas describe them
+│       │   ├── SampleOrderActivityPayload.java
+│       │   ├── PlaceOrderRequest.java               endpoint request and response
+│       │   └── PlacedOrder.java
+│       └── resources/META-INF/brix/schemas/sample-orders/…/1.0.0.json
+├── sample-orders-core/
+│   └── src/main/java/io/brix/samples/orders/core/
+│       ├── OrderPlacement.java                      rules, unit of work, publishing
+│       ├── InvalidOrderException.java
+│       ├── SampleOrder.java                         entity (tenant_id, assigned id)
+│       ├── SampleOrderRepository.java
+│       ├── SampleOrderPlaced.java                   STANDARD event
+│       └── SampleOrderActivity.java                 BEST_EFFORT event
+├── sample-orders-server/
+│   └── src/main/
+│       ├── java/io/brix/samples/orders/server/
+│       │   ├── SampleOrdersPlugin.java              binds the endpoint handler
+│       │   └── PlaceOrder.java                      the endpoint handler
+│       └── resources/
+│           ├── META-INF/services/io.runtime.sdk.plugin.BrixPlugin
+│           ├── META-INF/brix/plugin-manifest.yaml
+│           └── db/migration/sample-orders/V1__sample_orders.sql   business table only
+├── sample-shipping-api/                             ShipmentView and its schemas
+├── sample-shipping-core/                            OrderPlaced, SampleShipment, SampleShipmentRepository,
+│                                                    ShipmentDesk
+├── sample-shipping-server/                          SampleShippingPlugin, PrepareShipment, FindShipment,
+│                                                    manifest, migration
+└── sample-e2e/                                      a host made of configuration, and the end-to-end test
 ```
 
-## Event Definitions
+`sample-shipping` depends on no `sample-orders` artifact. It reads the event as `OrderPlaced`, its own record of
+the published schema, so the two plugins share only the schema.
 
-Events are shared via a common shared module:
+Neither plugin creates its outbox or inbox: the manifests declare `data.outbox` and `data.inbox`, and the platform
+creates `sample_orders_outbox` and `sample_shipping_inbox` from its own versioned migrations.
 
-```java
-// platform-commons/src/main/java/io/brix/platform/commons/event/IntegrationEvent.java
-package io.brix.platform.commons.event;
+## The publisher
 
-/**
- * Marker interface for integration events.
- * Integration events cross plugin boundaries.
- */
-public interface IntegrationEvent {
-    String eventId();
-    String timestamp();
+The manifest lists the three artifacts, and declares the endpoint, who may call it, the two events and the data the
+plugin owns:
+
+```yaml title="sample-orders-server: META-INF/brix/plugin-manifest.yaml (excerpt)"
+modules:
+  - groupId: io.brix.samples
+    artifactId: sample-orders-api
+    version: 3.2.0
+    moduleKind: plugin-api
+  - groupId: io.brix.samples
+    artifactId: sample-orders-core
+    version: 3.2.0
+    moduleKind: plugin-core
+  - groupId: io.brix.samples
+    artifactId: sample-orders-server
+    version: 3.2.0
+    moduleKind: plugin-server
+endpoints:
+  provides:
+    - endpointId: sample-orders.place.v1
+      transport: http
+      method: POST
+      path: /api/sample-orders/orders
+      request:
+        schemaRef: brix://schemas/sample-orders/place-order-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-orders/placed-order/1.0.0
+      handlerId: sample-orders.place.v1
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - sample-orders:order:place
+        decision: all
+        resourcePolicyRef: sample-orders-place
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      idempotency:
+        mode: not-applicable
+events:
+  publishes:
+    - eventType: SampleOrderPlaced
+      schemaRef: brix://schemas/sample-orders/sample-order-placed/1.0.0
+      version: 1.0.0
+      reliability: STANDARD
+    - eventType: SampleOrderActivity
+      schemaRef: brix://schemas/sample-orders/sample-order-activity/1.0.0
+      version: 1.0.0
+      reliability: BEST_EFFORT
+data:
+  storageId: sample_orders
+  schema: sample-orders
+  migrationLocation: db/migration/sample-orders
+  outbox: sample_orders_outbox
+```
+
+The plugin class binds the handler. The runtime creates it after the plugin started, with the capabilities the
+manifest requires:
+
+```java title="sample-orders-server: SampleOrdersPlugin.java"
+@Override
+public void configure(PluginBootstrapContext bootstrap) {
+    bootstrap.bindEndpointHandlerFactory(PLACE_ORDER, context -> new PlaceOrder(new OrderPlacement(
+        context.require(PersistenceCapability.class),
+        context.require(EventBusCapability.class),
+        context.require(IdGeneratorCapability.class),
+        Clock.systemUTC())));
 }
 ```
 
-```java
-// order-plugin-shared/src/main/java/com/example/order/event/OrderCreatedEvent.java
-package com.example.order.event;
+The runtime has already done three things before the handler runs:
+- authenticated the caller;
+- checked the `sample-orders:order:place` permission;
+- bound the tenant.
 
-import io.brix.platform.commons.event.IntegrationEvent;
+The handler only adapts HTTP to the domain service:
 
-/**
- * Published when a new order is created.
- * Contains only primitive types for serialization safety.
- */
-public record OrderCreatedEvent(
-    String eventId,
-    String timestamp,
-    String orderId,
-    String customerId,
-    String customerEmail,
-    String totalAmount,
-    String itemsJson  // JSON array of items
-) implements IntegrationEvent {}
-```
-
-```java
-// order-plugin-shared/src/main/java/com/example/order/event/OrderCompletedEvent.java
-package com.example.order.event;
-
-import io.brix.platform.commons.event.IntegrationEvent;
-
-public record OrderCompletedEvent(
-    String eventId,
-    String timestamp,
-    String orderId,
-    String customerId
-) implements IntegrationEvent {}
-```
-
-```java
-// order-plugin-shared/src/main/java/com/example/order/event/OrderCancelledEvent.java
-package com.example.order.event;
-
-import io.brix.platform.commons.event.IntegrationEvent;
-
-public record OrderCancelledEvent(
-    String eventId,
-    String timestamp,
-    String orderId,
-    String reason
-) implements IntegrationEvent {}
-```
-
-## Order Plugin (Publisher)
-
-### Order Service
-
-```java
-// order-plugin-core/src/main/java/com/example/order/service/OrderService.java
-package com.example.order.service;
-
-import com.example.order.event.*;
-import com.example.order.shared.*;
-import io.brix.runtime.sdk.api.DataAccessCapability;
-import io.brix.runtime.sdk.api.EventBusCapability;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.UUID;
-
-@Service
-public class OrderService {
-    
-    private final DataAccessCapability dataAccess;
-    private final EventBusCapability eventBus;
-    private final ObjectMapper objectMapper;
-    
-    public OrderService(
-            DataAccessCapability dataAccess,
-            EventBusCapability eventBus,
-            ObjectMapper objectMapper) {
-        this.dataAccess = dataAccess;
-        this.eventBus = eventBus;
-        this.objectMapper = objectMapper;
-    }
-    
-    /**
-     * Creates a new order and publishes OrderCreatedEvent.
-     */
-    @Transactional
-    public Order createOrder(CreateOrderCommand command) {
-        // Create order
-        Order order = Order.builder()
-            .id(UUID.randomUUID().toString())
-            .customerId(command.customerId())
-            .customerEmail(command.customerEmail())
-            .items(command.items())
-            .status(OrderStatus.PENDING)
-            .total(calculateTotal(command.items()))
-            .createdAt(Instant.now())
-            .build();
-        
-        // Save to database
-        Order saved = dataAccess.save(order);
-        
-        // Publish integration event
-        String itemsJson = serializeItems(saved.getItems());
-        
-        OrderCreatedEvent event = new OrderCreatedEvent(
-            UUID.randomUUID().toString(),      // eventId
-            Instant.now().toString(),           // timestamp
-            saved.getId(),                      // orderId
-            saved.getCustomerId(),              // customerId
-            saved.getCustomerEmail(),           // customerEmail
-            saved.getTotal().toString(),        // totalAmount
-            itemsJson                           // itemsJson
-        );
-        
-        eventBus.publish(event);
-        
-        return saved;
-    }
-    
-    /**
-     * Completes an order and publishes OrderCompletedEvent.
-     */
-    @Transactional
-    public Order completeOrder(String orderId) {
-        Order order = dataAccess.findById(Order.class, orderId);
-        if (order == null) {
-            throw new OrderNotFoundException(orderId);
-        }
-        
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setCompletedAt(Instant.now());
-        
-        Order saved = dataAccess.save(order);
-        
-        eventBus.publish(new OrderCompletedEvent(
-            UUID.randomUUID().toString(),
-            Instant.now().toString(),
-            saved.getId(),
-            saved.getCustomerId()
-        ));
-        
-        return saved;
-    }
-    
-    /**
-     * Cancels an order and publishes OrderCancelledEvent.
-     */
-    @Transactional
-    public void cancelOrder(String orderId, String reason) {
-        Order order = dataAccess.findById(Order.class, orderId);
-        if (order == null) {
-            throw new OrderNotFoundException(orderId);
-        }
-        
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setCancellationReason(reason);
-        order.setCancelledAt(Instant.now());
-        
-        dataAccess.save(order);
-        
-        eventBus.publish(new OrderCancelledEvent(
-            UUID.randomUUID().toString(),
-            Instant.now().toString(),
-            orderId,
-            reason
-        ));
-    }
-    
-    private String serializeItems(List<OrderItem> items) {
-        try {
-            return objectMapper.writeValueAsString(items);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize items", e);
-        }
-    }
-    
-    private BigDecimal calculateTotal(List<OrderItem> items) {
-        return items.stream()
-            .map(item -> item.price().multiply(BigDecimal.valueOf(item.quantity())))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+```java title="sample-orders-server: PlaceOrder.java"
+@Override
+public EndpointResponse handle(EndpointInvocation<Object> request) {
+    Map<?, ?> body = request.body() instanceof Map<?, ?> map ? map : Map.of();
+    String sku = body.get("sku") instanceof String text ? text : null;
+    int quantity = body.get("quantity") instanceof Number number ? number.intValue() : 0;
+    long tenantId = Long.parseLong(request.tenantId().orElseThrow());
+    try {
+        SampleOrder order = orders.place(tenantId, new PlaceOrderRequest(sku, quantity));
+        return EndpointResponse.created(new PlacedOrder(String.valueOf(order.getId()), order.version()));
+    } catch (InvalidOrderException invalid) {
+        throw new EndpointHandlingException(400, INVALID, invalid.getMessage());
     }
 }
 ```
 
-## Inventory Plugin (Subscriber)
+`OrderPlacement` in the core checks the order's rules, then writes the order and publishes both events in one unit of
+work:
 
-### Inventory Event Handler
-
-```java
-// inventory-plugin-core/src/main/java/com/example/inventory/handler/OrderEventHandler.java
-package com.example.inventory.handler;
-
-import com.example.inventory.service.InventoryService;
-import com.example.order.event.OrderCreatedEvent;
-import com.example.order.event.OrderCancelledEvent;
-import io.brix.runtime.sdk.api.EventHandler;
-import io.brix.runtime.sdk.api.CacheCapability;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.stereotype.Component;
-
-import java.time.Duration;
-import java.util.List;
-
-/**
- * Handles order events to manage inventory.
- */
-@Component
-public class OrderEventHandler {
-    
-    private static final String PROCESSED_KEY_PREFIX = "inventory:processed:";
-    
-    private final InventoryService inventoryService;
-    private final CacheCapability cache;
-    private final ObjectMapper objectMapper;
-    
-    public OrderEventHandler(
-            InventoryService inventoryService,
-            CacheCapability cache,
-            ObjectMapper objectMapper) {
-        this.inventoryService = inventoryService;
-        this.cache = cache;
-        this.objectMapper = objectMapper;
+```java title="sample-orders-core: OrderPlacement.java"
+public SampleOrder place(long tenantId, PlaceOrderRequest request) {
+    Objects.requireNonNull(request, "request must not be null");
+    if (request.sku() == null || request.sku().isBlank() || request.sku().length() > MAX_SKU) {
+        throw new InvalidOrderException("An order needs a sku of at most " + MAX_SKU + " characters");
     }
-    
-    /**
-     * Reserves inventory when an order is created.
-     */
-    @EventHandler(topic = "order.created")
-    public void onOrderCreated(OrderCreatedEvent event) {
-        // Idempotency check
-        String processedKey = PROCESSED_KEY_PREFIX + event.eventId();
-        if (cache.exists(processedKey)) {
-            return; // Already processed
-        }
-        
-        try {
-            // Parse items from JSON
-            List<OrderItemDto> items = parseItems(event.itemsJson());
-            
-            // Reserve inventory for each item
-            for (OrderItemDto item : items) {
-                inventoryService.reserveStock(
-                    event.orderId(),
-                    item.productId(),
-                    item.quantity()
-                );
-            }
-            
-            // Mark as processed (keep for 7 days for debugging)
-            cache.set(processedKey, "1", Duration.ofDays(7));
-            
-        } catch (Exception e) {
-            // Don't mark as processed - allow retry
-            throw new EventProcessingException(
-                "Failed to reserve inventory for order: " + event.orderId(), e
-            );
-        }
+    if (request.quantity() < 1 || request.quantity() > MAX_QUANTITY) {
+        throw new InvalidOrderException("An order needs a quantity from 1 to " + MAX_QUANTITY);
     }
-    
-    /**
-     * Releases reserved inventory when an order is cancelled.
-     */
-    @EventHandler(topic = "order.cancelled")
-    public void onOrderCancelled(OrderCancelledEvent event) {
-        String processedKey = PROCESSED_KEY_PREFIX + event.eventId();
-        if (cache.exists(processedKey)) {
-            return;
-        }
-        
-        try {
-            // Release all reservations for this order
-            inventoryService.releaseReservations(event.orderId());
-            
-            cache.set(processedKey, "1", Duration.ofDays(7));
-            
-        } catch (Exception e) {
-            throw new EventProcessingException(
-                "Failed to release inventory for order: " + event.orderId(), e
-            );
-        }
-    }
-    
-    private List<OrderItemDto> parseItems(String itemsJson) {
-        try {
-            return objectMapper.readValue(
-                itemsJson, 
-                new TypeReference<List<OrderItemDto>>() {}
-            );
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse items JSON", e);
-        }
-    }
-    
-    private record OrderItemDto(
-        String productId,
-        int quantity, 
-        String price
-    ) {}
+    return persistence.unitOfWork().required(() -> {
+        SampleOrder placed = SampleOrder.place(Long.parseLong(ids.generate()), tenantId, request.sku(),
+            request.quantity(), OffsetDateTime.now(clock));
+        persistence.repository(SampleOrderRepository.class).save(placed);
+        events.publishIntegration(new SampleOrderPlaced(placed));
+        events.publishIntegration(new SampleOrderActivity(placed, "placed"));
+        return placed;
+    });
 }
 ```
 
-### Inventory Service
+The events name their manifest type, their partition key and their payload, a record from the api. The tenant passed
+to the constructor makes them TENANT events:
 
-```java
-// inventory-plugin-core/src/main/java/com/example/inventory/service/InventoryService.java
-package com.example.inventory.service;
+```java title="sample-orders-core: SampleOrderPlaced.java (excerpt)"
+SampleOrderPlaced(SampleOrder order) {
+    // The tenant makes it a TENANT event; the runtime binds the publisher itself.
+    super(SampleOrderEvents.PUBLISHER, String.valueOf(order.tenantId()));
+    this.payload = new SampleOrderPlacedPayload(order.tenantId(), String.valueOf(order.getId()), order.sku(),
+        order.quantity(), order.version());
+}
 
-import com.example.inventory.shared.*;
-import io.brix.runtime.sdk.api.DataAccessCapability;
-import io.brix.runtime.sdk.api.LockCapability;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+@Override
+public String eventTypeId() {
+    return SampleOrderEvents.PLACED;      // "SampleOrderPlaced"
+}
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+@Override
+public String getRoutingKey() {
+    return "order." + payload.orderId();  // events of one order stay in order
+}
+```
 
-@Service
-public class InventoryService {
-    
-    private final DataAccessCapability dataAccess;
-    private final LockCapability lock;
-    
-    public InventoryService(DataAccessCapability dataAccess, LockCapability lock) {
-        this.dataAccess = dataAccess;
-        this.lock = lock;
-    }
-    
-    /**
-     * Reserves stock for an order.
-     * Uses distributed locking to prevent overselling.
-     */
-    @Transactional
-    public void reserveStock(String orderId, String productId, int quantity) {
-        // Acquire lock on product
-        var productLock = lock.acquire(
-            "inventory:" + productId, 
-            Duration.ofSeconds(10)
-        );
-        
-        try {
-            // Get current inventory
-            Inventory inventory = dataAccess.findById(Inventory.class, productId);
-            if (inventory == null) {
-                throw new ProductNotFoundException(productId);
-            }
-            
-            // Check available stock
-            int available = inventory.getQuantity() - inventory.getReserved();
-            if (available < quantity) {
-                throw new InsufficientStockException(productId, quantity, available);
-            }
-            
-            // Reserve stock
-            inventory.setReserved(inventory.getReserved() + quantity);
-            dataAccess.save(inventory);
-            
-            // Create reservation record
-            StockReservation reservation = new StockReservation(
-                UUID.randomUUID().toString(),
-                orderId,
-                productId,
-                quantity,
-                Instant.now()
-            );
-            dataAccess.save(reservation);
-            
-        } finally {
-            lock.release(productLock);
-        }
-    }
-    
-    /**
-     * Releases all reservations for an order.
-     */
-    @Transactional
-    public void releaseReservations(String orderId) {
-        // Find all reservations for this order
-        List<StockReservation> reservations = dataAccess.findBy(
-            StockReservation.class,
-            Map.of("orderId", orderId)
-        );
-        
-        for (StockReservation reservation : reservations) {
-            var productLock = lock.acquire(
-                "inventory:" + reservation.productId(),
-                Duration.ofSeconds(10)
-            );
-            
-            try {
-                // Get inventory
-                Inventory inventory = dataAccess.findById(
-                    Inventory.class, 
-                    reservation.productId()
-                );
-                
-                if (inventory != null) {
-                    // Release reserved quantity
-                    inventory.setReserved(
-                        Math.max(0, inventory.getReserved() - reservation.quantity())
-                    );
-                    dataAccess.save(inventory);
-                }
-                
-                // Delete reservation
-                dataAccess.delete(reservation);
-                
-            } finally {
-                lock.release(productLock);
-            }
-        }
+`SampleOrdersEventSchemasTest` checks both payload records against their JSON schemas, so a drifting payload fails
+the publisher's build.
+
+## The subscriber
+
+```yaml title="sample-shipping-server: META-INF/brix/plugin-manifest.yaml (excerpt)"
+events:
+  subscribes:
+    - subscriptionId: prepare-shipment
+      eventType: SampleOrderPlaced
+      schemaRange: ">=1.0.0 <2.0.0"
+      handlerId: sample-shipping.prepare-shipment.v1
+      scopePolicyRef: sample-shipping-order-tenant
+      publisherPolicyRef: sample-orders-owner
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: partition-serial
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
+data:
+  storageId: sample_shipping
+  schema: sample-shipping
+  migrationLocation: db/migration/sample-shipping
+  inbox: sample_shipping_inbox
+```
+
+The handler reads the event as its own record and hands it to the core's `ShipmentDesk`:
+
+```java title="sample-shipping-server: PrepareShipment.java"
+final class PrepareShipment implements EventHandler<OrderPlaced> {
+
+    @Override
+    public CompletionStage<Void> handle(EventInvocation<OrderPlaced> invocation) {
+        shipments.prepare(invocation.event().payload());
+        return CompletableFuture.completedFuture(null);
     }
 }
 ```
 
-## Notification Plugin (Subscriber)
+The runtime has opened a unit of work in the event's tenant, and `required(...)` joins it. The shipment and the
+inbox receipt therefore commit together:
 
-### Notification Event Handler
-
-```java
-// notification-plugin-core/src/main/java/com/example/notification/handler/OrderNotificationHandler.java
-package com.example.notification.handler;
-
-import com.example.notification.service.NotificationService;
-import com.example.order.event.OrderCreatedEvent;
-import com.example.order.event.OrderCompletedEvent;
-import com.example.order.event.OrderCancelledEvent;
-import io.brix.runtime.sdk.api.EventHandler;
-import io.brix.runtime.sdk.api.CacheCapability;
-import org.springframework.stereotype.Component;
-
-import java.time.Duration;
-
-/**
- * Sends notifications for order events.
- */
-@Component
-public class OrderNotificationHandler {
-    
-    private static final String PROCESSED_KEY_PREFIX = "notification:processed:";
-    
-    private final NotificationService notificationService;
-    private final CacheCapability cache;
-    
-    public OrderNotificationHandler(
-            NotificationService notificationService,
-            CacheCapability cache) {
-        this.notificationService = notificationService;
-        this.cache = cache;
-    }
-    
-    @EventHandler(topic = "order.created")
-    public void onOrderCreated(OrderCreatedEvent event) {
-        if (alreadyProcessed(event.eventId())) return;
-        
-        notificationService.sendEmail(
-            event.customerEmail(),
-            "Order Confirmation",
-            String.format(
-                "Your order %s has been received. Total: $%s",
-                event.orderId(),
-                event.totalAmount()
-            )
-        );
-        
-        markProcessed(event.eventId());
-    }
-    
-    @EventHandler(topic = "order.completed")
-    public void onOrderCompleted(OrderCompletedEvent event) {
-        if (alreadyProcessed(event.eventId())) return;
-        
-        // Look up customer email
-        String email = notificationService.getCustomerEmail(event.customerId());
-        
-        notificationService.sendEmail(
-            email,
-            "Order Shipped",
-            String.format(
-                "Your order %s has been shipped!",
-                event.orderId()
-            )
-        );
-        
-        markProcessed(event.eventId());
-    }
-    
-    @EventHandler(topic = "order.cancelled")
-    public void onOrderCancelled(OrderCancelledEvent event) {
-        if (alreadyProcessed(event.eventId())) return;
-        
-        // This could send cancellation confirmation
-        // Omitted for brevity
-        
-        markProcessed(event.eventId());
-    }
-    
-    private boolean alreadyProcessed(String eventId) {
-        return cache.exists(PROCESSED_KEY_PREFIX + eventId);
-    }
-    
-    private void markProcessed(String eventId) {
-        cache.set(PROCESSED_KEY_PREFIX + eventId, "1", Duration.ofDays(7));
-    }
+```java title="sample-shipping-core: ShipmentDesk.java"
+public SampleShipment prepare(OrderPlaced order) {
+    Objects.requireNonNull(order, "order must not be null");
+    return persistence.unitOfWork().required(() -> persistence.repository(SampleShipmentRepository.class)
+        .save(SampleShipment.prepare(Long.parseLong(ids.generate()), order, OffsetDateTime.now(clock))));
 }
 ```
 
-## Testing Event Handlers
+If the handler throws, the shipment and the inbox receipt roll back and the event is retried. After the last
+attempt it is parked for an operator.
 
-```java
-// inventory-plugin-core/src/test/java/com/example/inventory/handler/OrderEventHandlerTest.java
-package com.example.inventory.handler;
+`sample-shipping` also shows each order's shipment at `GET /api/sample-shipping/shipments/{orderId}`. The endpoint
+requires the `sample-shipping:shipment:read` permission, and its answer is `ShipmentView` from `sample-shipping-api`:
 
-import com.example.inventory.service.InventoryService;
-import com.example.order.event.OrderCreatedEvent;
-import io.brix.runtime.sdk.api.CacheCapability;
-import io.brix.testing.BrixTest;
-import io.brix.testing.MockCapability;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-
-import java.util.Optional;
-
-import static org.mockito.Mockito.*;
-
-@BrixTest
-class OrderEventHandlerTest {
-    
-    @MockCapability
-    private CacheCapability cache;
-    
-    @Mock
-    private InventoryService inventoryService;
-    
-    private OrderEventHandler handler;
-    
-    @BeforeEach
-    void setUp() {
-        handler = new OrderEventHandler(
-            inventoryService,
-            cache,
-            new ObjectMapper()
-        );
-    }
-    
-    @Test
-    void shouldReserveInventoryOnOrderCreated() {
-        // Arrange
-        when(cache.exists(anyString())).thenReturn(false);
-        
-        String itemsJson = """
-            [{"productId":"prod-1","quantity":2,"price":"9.99"}]
-            """;
-        
-        OrderCreatedEvent event = new OrderCreatedEvent(
-            "event-1",
-            "2024-01-01T00:00:00Z",
-            "order-123",
-            "customer-1",
-            "test@example.com",
-            "19.98",
-            itemsJson
-        );
-        
-        // Act
-        handler.onOrderCreated(event);
-        
-        // Assert
-        verify(inventoryService).reserveStock("order-123", "prod-1", 2);
-        verify(cache).set(eq("inventory:processed:event-1"), any(), any());
-    }
-    
-    @Test
-    void shouldBeIdempotent() {
-        // Arrange - event already processed
-        when(cache.exists("inventory:processed:event-1")).thenReturn(true);
-        
-        OrderCreatedEvent event = new OrderCreatedEvent(
-            "event-1", "2024-01-01T00:00:00Z",
-            "order-123", "customer-1", "test@example.com",
-            "19.98", "[]"
-        );
-        
-        // Act
-        handler.onOrderCreated(event);
-        
-        // Assert - shouldn't process
-        verify(inventoryService, never()).reserveStock(any(), any(), anyInt());
-    }
+```java title="sample-shipping-server: FindShipment.java"
+@Override
+public EndpointResponse handle(EndpointInvocation<Object> request) {
+    long tenantId = Long.parseLong(request.tenantId().orElseThrow());
+    String orderId = request.pathVariables().get("orderId");
+    return shipments.find(tenantId, orderId).map(EndpointResponse::ok).orElseThrow(
+        () -> new EndpointHandlingException(404, NOT_FOUND, "The order has no shipment"));
 }
 ```
 
-## Frontend Event Subscription
+## Running it end to end
 
-```typescript
-// order-plugin-web/src/viewmodels/useOrderEvents.ts
-import { useEffect, useCallback } from '@brix/shared-runtime-web';
-import { useCapability, EventBusCapability } from '@brix/runtime-sdk-api-web';
+`sample-e2e` starts both plugins in a host made only of auto-configurations and properties:
+- PostgreSQL in a fresh schema;
+- an embedded Kafka broker with topic auto-creation off;
+- the Kafka transport.
 
-interface OrderCreatedEvent {
-  orderId: string;
-  customerId: string;
-  totalAmount: string;
-}
+It places an order over HTTP and then checks:
+- the order's event reached the outbox and was published;
+- `sample-shipping` prepared exactly one shipment in tenant 42 and recorded the event in its inbox;
+- the member reads the shipment over HTTP, and an unknown order answers 404;
+- the BEST_EFFORT event reached its topic without the outbox;
+- a refused request changed nothing;
+- the messaging tables came from the platform.
 
-interface UseOrderEventsProps {
-  onOrderCreated?: (event: OrderCreatedEvent) => void;
-}
+It needs a throwaway PostgreSQL, and is skipped without one:
 
-export function useOrderEvents({ onOrderCreated }: UseOrderEventsProps) {
-  const eventBus = useCapability(EventBusCapability);
-  
-  useEffect(() => {
-    if (!onOrderCreated) return;
-    
-    const subscription = eventBus.subscribe<OrderCreatedEvent>(
-      'order.created',
-      onOrderCreated
-    );
-    
-    return () => {
-      eventBus.unsubscribe(subscription);
-    };
-  }, [eventBus, onOrderCreated]);
-}
-
-// Usage
-function OrderDashboard() {
-  const addOrder = useCallback((event: OrderCreatedEvent) => {
-    // Update real-time dashboard
-    console.log('New order:', event.orderId);
-  }, []);
-  
-  useOrderEvents({ onOrderCreated: addOrder });
-  
-  return <div>...</div>;
-}
+```bash
+BRIX_P0_POSTGRES_URL=jdbc:postgresql://127.0.0.1:5432/scratch BRIX_P0_POSTGRES_USER=scratch BRIX_P0_POSTGRES_PASSWORD=scratch mvn -pl :sample-e2e -am verify -Dtest=SamplePluginsEndToEndTest -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
-## Key Patterns
+The host properties the test sets show what a host needs for this chain:
+- `brix.outbox.relay.enabled`;
+- `brix.outbox.relay.persistence.enabled`;
+- `brix.outbox.relay.transport=kafka`;
+- `brix.infra.kafka.bootstrap-servers`;
+- the required plugins;
+- `EventBusCapability` and `IdGeneratorCapability` under `brix.capability.required`.
 
-1. **Event naming** - `{entity}.{action}` format (e.g., `order.created`)
-2. **Idempotency** - Track processed event IDs in cache
-3. **Error handling** - Don't mark as processed on failure
-4. **Primitive payloads** - Only strings and numbers in events
-5. **Distributed locks** - Prevent race conditions
-6. **Loose coupling** - Plugins don't import each other
+## Extending it
 
-## Next Steps
-
-- [Hello Plugin](./hello-plugin) - Start simple
-- [CRUD Plugin](./crud-plugin) - Data operations
-- [Event Model](../concepts/event-model) - Event concepts
+- **Another subscriber.** Declare the same event under `events.subscribes` with a new `handlerId`. It gets its own
+  consumer group and inbox rows, and starts with the events published from then on.
+- **A new field.** Add it as optional in `sample-order-placed/1.1.0`, publish 1.1.0, and keep subscribers on
+  `>=1.0.0 <2.0.0`. They ignore the field until they need it.
+- **A cancellation.** Publish `SampleOrderCancelled` with the order's next `version`. A subscriber that receives
+  both event types keeps the shipment's `order_version` and ignores anything older.
+- **Asking another plugin to act.** Send a command with `CommandCapability.submit(...)` rather than an event; see
+  [Commands](../guides/events-and-commands.md#commands).

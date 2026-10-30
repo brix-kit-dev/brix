@@ -249,16 +249,13 @@ Your plugin code works in both modes without changes:
 
 ```java
 // This works in BOTH Standalone and Embedded
-@Service
-public class OrderService {
-    private final EventBusCapability eventBus; // Same interface!
-    
-    public void completeOrder(String orderId) {
-        // In Standalone: goes to Kafka
-        // In Embedded: stays in-memory
-        eventBus.publish("order.completed", event);
-    }
-}
+persistence.unitOfWork().required(() -> {
+    order.complete();
+    // Same interface everywhere: the event goes to the plugin's outbox, and the host's relay
+    // delivers it over Kafka or in-process, whichever transport the host selects.
+    events.publishIntegration(new OrderCompleted(order));
+    return order;
+});
 ```
 
 ## Host Anti-Patterns

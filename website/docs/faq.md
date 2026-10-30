@@ -340,16 +340,16 @@ if (myCapability == null) {
 
 ### Plugin events not received
 
-1. Verify event topic name matches
-2. Check event schema compatibility
-3. Ensure handler is annotated correctly
+1. Check that the subscription's `eventType` equals the publisher's `events.publishes[].eventType` and that its
+   `publisherPolicyRef` is `<publisher pluginId>-owner`; the runtime refuses a mismatch at startup.
+2. Check that `schemaRange` contains the published version; an event outside it is parked.
+3. Check that `configure(...)` binds a factory for the subscription's `handlerId` with
+   `bootstrap.bindEventHandlerFactory(...)`, and that the handler class names its payload type
+   (`implements EventHandler<OrderPlaced>`).
+4. A subscription starts when it is first registered and does not receive older events.
+5. Look at `GET /actuator/events` on the management port for parked events and their error codes.
 
-```java
-@EventHandler("order.created")  // Topic must match publisher
-public void onOrderCreated(OrderCreatedEvent event) {
-    // Handler code
-}
-```
+See [Events and Commands](./guides/events-and-commands.md).
 
 ---
 

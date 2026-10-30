@@ -9,6 +9,47 @@ sidebar_position: 2
 
 All notable changes to Brix Framework are documented here.
 
+## [Unreleased] - the standard event chain
+
+### ✨ Added
+
+- **One event and command chain for every plugin.** Integration events and commands travel the same path: the
+  publisher's outbox, the relay, Kafka (or in-process), and the subscriber's inbox. Everything is declared in
+  `META-INF/brix/plugin-manifest.yaml`. See [Events and Commands](../guides/events-and-commands.md).
+- **Commands.** `CommandCapability.submit(CommandRequest.of(...))` goes to the one plugin that provides the command.
+  The provider handles it once per business idempotency key.
+- **BEST_EFFORT from the same bus.** `publishIntegration` sends a BEST_EFFORT event directly after the unit of work
+  commits.
+- **Messaging tables from the platform.** The platform creates `<storageId>_outbox`, `<storageId>_inbox` and
+  `<storageId>_command_idempotency` from its own versioned migrations. Plugins write no messaging DDL.
+- **Operations.**
+  - Parked messages can be replayed, discarded (also a whole subscription's) or republished within retention. Each
+    action is recorded in the platform audit with an operator and a reason.
+  - Outbox, inbox and idempotency records are cleaned up after 14 and 30 days.
+  - New metrics and alerts.
+- **Production Kafka.** Under the `prod`/`production` profile the host requires TLS with client certificates, three
+  replicas and two in-sync replicas.
+- **Sample plugins** (`packages/@brix/samples`): a publisher and a subscriber run end to end on PostgreSQL and Kafka.
+  See the [Event-Driven Plugin Example](../examples/event-driven-plugin.md).
+
+### 🔄 Changed
+
+- **Handlers are bound through factories.** Plugins bind endpoint, query, command, event and task handlers with
+  `bindEndpointHandlerFactory`, `bindEventHandlerFactory` and the like. The runtime creates them after the plugin
+  started, with the capabilities the manifest requires.
+- **Subscriptions start when they are first registered.** A new or renamed subscription does not receive older
+  events.
+- **The manifest is checked at startup.** Unknown retry, timeout and concurrency policies, a missing schema file, an
+  event type with two publishers and an unbound handler all stop the plugin at startup.
+
+### 🗑️ Deprecated
+
+- `io.runtime.sdk.annotation.EventHandler`: nothing reads it. Declare the subscription in the manifest and bind an
+  `io.runtime.sdk.plugin.EventHandler` with `bindEventHandlerFactory`.
+- The instance binds `bindEndpoint`, `bindQueryHandler`, `bindCommandHandler` and `bindTask`: use the factory binds.
+
+---
+
 ## [3.0.0] - 2024-01-15
 
 ### 🚀 Major Release - Runtime Shell Architecture

@@ -16,41 +16,33 @@ Make sure you have completed the [Installation](./installation) guide.
 ## Step 1: Create a New Plugin
 
 ```bash
-# Create a new plugin called "todo-plugin"
-pnpm create @brix/brix plugin todo-plugin
-
-# Follow the prompts:
-# ? Plugin name: todo-plugin
-# ? Description: A simple TODO management plugin
-# ? Include frontend? Yes
-# ? Frontend type: Web
-# ? Include backend? Yes
+# Create a new plugin called "todo"
+create-brix phase7 plugin todo --runtime-version 3.2.0 --runtime-range ">=3.2.0 <4.0.0"
 ```
 
-This generates:
+`create-brix` is the CLI of `@brix-sdk/create-brix` (see [Installation](./installation)). Its `plugin` command is
+legacy and disabled: `phase7 plugin` is the one that works. Pass the runtime version and range explicitly, so the
+plugin targets the runtime you run.
+
+This generates the plugin's three backend modules and its entry point:
 
 ```
-todo-plugin/
-├── frontend/
-│   ├── web/
-│   │   ├── pages/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   └── repositories/
-│   └── shared/           # Shared types between frontend/backend
-├── backend/
-│   ├── core/             # Domain logic
-│   ├── server/           # REST controllers
-│   └── test/             # Architecture tests
-├── package.json
-└── pom.xml
+app-todo/
+├── pom.xml               # Parent of the three modules
+├── app-todo-api/         # plugin-api: records and JSON schemas
+├── app-todo-core/        # plugin-core: domain logic, entities, repositories
+├── app-todo-server/      # plugin-server: plugin class, manifest, services file
+├── migration/            # Phase 7 migration plan
+└── README.md
 ```
+
+`create-brix phase7 ui todo` generates a web module, `todo-ui-web`, the same way.
 
 ## Step 2: Understand the Structure
 
 ### Frontend (Layer 1 - Plugin)
 
-```typescript title="frontend/web/hooks/useTodoList.ts"
+```typescript title="todo-ui-web: src/hooks/useTodoList.ts"
 import { useCapability } from '@brix/runtime-sdk-api-web';
 import { HttpCapability } from '@brix/runtime-sdk-api-web';
 
@@ -73,69 +65,57 @@ export function useTodoList() {
 
 ### Backend (Layer 1 - Plugin)
 
-```java title="backend/core/TodoService.java"
-import io.brix.runtime.sdk.api.EventBusCapability;
-import io.brix.runtime.sdk.api.RuntimeContext;
+```java title="app-todo-server: CompleteTodo.java"
+import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.plugin.EndpointHandler;
+import io.runtime.sdk.plugin.EndpointInvocation;
 
 /**
- * TODO domain service.
- * 
- * Note: No Kafka imports! Uses EventBusCapability from runtime.
+ * POST /api/todos/{todoId}/complete: no Kafka, no database driver. The plugin's configure(...) binds it with
+ * bootstrap.bindEndpointHandlerFactory("todo.complete.v1", context -> new CompleteTodo(
+ *     context.require(PersistenceCapability.class), context.require(EventBusCapability.class)));
  */
-@Service
-public class TodoService {
-    
-    private final EventBusCapability eventBus;
-    
-    public TodoService(RuntimeContext context) {
-        // Get capability from runtime - NOT Kafka client
-        this.eventBus = context.getCapability(EventBusCapability.class);
+final class CompleteTodo implements EndpointHandler<EndpointInvocation<Object>, Object> {
+
+    private final PersistenceCapability persistence;
+    private final EventBusCapability events;
+
+    CompleteTodo(PersistenceCapability persistence, EventBusCapability events) {
+        this.persistence = persistence;
+        this.events = events;
     }
-    
-    public void completeTodo(String todoId) {
-        // Business logic here
-        
-        // Publish domain event - infrastructure agnostic
-        eventBus.publish("todo.completed", new TodoCompletedEvent(todoId));
+
+    @Override
+    public Object handle(EndpointInvocation<Object> request) {
+        String todoId = request.pathVariables().get("todoId");
+        return persistence.unitOfWork().required(() -> {
+            // Business logic here, then publish the event the manifest declares under events.publishes;
+            // it commits together with the change.
+            events.publishIntegration(new TodoCompleted(todoId, request.tenantId().orElseThrow()));
+            return java.util.Map.of("todoId", todoId, "status", "COMPLETED");
+        });
     }
 }
 ```
 
 ## Step 3: Run the Plugin
 
-```bash
-cd todo-plugin
-
-# Install dependencies
-pnpm install
-
-# Start frontend development server
-pnpm dev:frontend
-
-# In another terminal, start backend
-pnpm dev:backend
-```
-
-Access your plugin:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8080
+A plugin does not run on its own: a host runs it. The host is a Spring Boot application with no business code, and
+the plugin's server artifact is on its class path. [Run and Test](./create-first-plugin.md#part-6-run-and-test) in
+the tutorial sets up a host the way the repository's `sample-e2e` does.
 
 ## Step 4: Run Architecture Tests
 
-Every plugin includes Architecture Guard tests:
+The scaffold generates no tests. Add the Architecture Guard test from
+[Architecture Tests](./create-first-plugin.md#part-5-architecture-tests) to each backend module that has code, then
+run:
 
 ```bash
-# Run architecture tests
-mvn test -pl backend
-
-# Expected output:
-# ✓ noInfrastructureImportsInDomain
-# ✓ controllersDependOnlyOnContracts
-# ✓ noDirectDatabaseAccess
-# ... (13 red-line rules)
+mvn test
 ```
 
-These tests enforce the Brix design constraints automatically.
+These tests enforce the Brix design constraints automatically. A class that breaks a rule fails the build.
 
 ## What's Happening Under the Hood?
 
@@ -151,10 +131,10 @@ sequenceDiagram
     participant A as Adapter
     participant I as Infrastructure
     
-    P->>C: eventBus.publish(event)
+    P->>C: events.publishIntegration(event)
     C->>H: resolve implementation
-    H->>A: KafkaEventBusAdapter
-    A->>I: send to Kafka topic
+    H->>A: owner outbox, then the relay's transport
+    A->>I: send to the event type's Kafka topic
 ```
 
 ## Next Steps

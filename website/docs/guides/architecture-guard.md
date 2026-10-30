@@ -11,7 +11,8 @@ sidebar_position: 6
 
 ## Overview
 
-Every Brix plugin includes Architecture Guard tests that run during build. These tests:
+Add Architecture Guard tests to every Brix plugin, as [Using Architecture Guard](#using-architecture-guard) shows.
+They run with the build and:
 - Prevent infrastructure leakage into plugins
 - Enforce layer boundaries
 - Validate capability-only dependencies
@@ -52,20 +53,27 @@ public class OrderService {
 
 **Correct Approach:**
 ```java
-// ✅ CORRECT: Use EventBusCapability
-import io.brix.runtime.sdk.api.EventBusCapability;
+// ✅ CORRECT: Use EventBusCapability, passed in by the handler factory
+import io.runtime.sdk.capability.EventBusCapability;
 
-@Service
-public class OrderService {
-    private final EventBusCapability eventBus; // OK!
+public final class OrderService {
+    private final EventBusCapability events; // OK!
+
+    public OrderService(EventBusCapability events) {
+        this.events = events;
+    }
 }
 ```
+
+A domain service is a plain class: no `@Service`, and its capabilities come from the handler factory. See
+[Domain services](./backend-development.md#domain-services).
 
 ---
 
 ### Rule 2: Core Depends Only on Contracts
 
-The `core` package can only depend on capability contracts and its own classes.
+The `core` package depends only on capability contracts, the plugin's own types, and the JPA and Spring Data types
+of its entities and repositories.
 
 ```java
 @ArchTest
@@ -73,15 +81,16 @@ static final ArchRule coreDependsOnContractsOnly = classes()
     .that().resideInAPackage("..core..")
     .should().onlyDependOnClassesThat()
     .resideInAnyPackage(
-        "io.brix.runtime.sdk.api..",   // Capability contracts
+        "io.runtime.sdk..",             // Capability contracts
         "..core..",                     // Own package
-        "..shared..",                   // Shared types
+        "..api..",                      // The plugin's api types
         "java..",                       // Java stdlib
-        "org.springframework.stereotype..",
-        "org.springframework.transaction..",
-        "jakarta.validation.."
+        "jakarta.persistence..",        // Entities
+        "org.springframework.data.."    // Repository interfaces
     );
 ```
+
+This is a rule of your own, not part of the guard's plugin profile. The sample plugins' core artifacts pass it.
 
 ---
 
@@ -142,23 +151,28 @@ static final ArchRule noDirectJpaInDomain = noClasses()
 
 ### Rule 6: Event Handlers Are Idempotent
 
-Event handlers should store processed event IDs for idempotency.
+Delivery is at least once, so a handler may see an event twice. Subscribe with a persistent inbox and let the runtime
+deduplicate: it records `(handlerId, eventId)` in your inbox in the same transaction as your handler's writes, and a
+redelivered event never reaches the handler again.
 
-```java
-// This is a code review guideline enforced by documentation
-// Event handlers MUST check for duplicate delivery:
-
-@EventHandler("payment.completed")
-public void onPaymentCompleted(PaymentCompletedEvent event) {
-    // ✅ REQUIRED: Idempotency check
-    if (processedEvents.contains(event.getId())) {
-        return;
-    }
-    
-    // Process event
-    processedEvents.add(event.getId());
-}
+```yaml
+# META-INF/brix/plugin-manifest.yaml
+events:
+  subscribes:
+    - subscriptionId: payment-completed
+      eventType: PaymentCompleted
+      schemaRange: ">=1.0.0 <2.0.0"
+      handlerId: orders.payment-completed.v1
+      scopePolicyRef: orders-payment-tenant
+      publisherPolicyRef: payments-owner
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: partition-serial
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox   # the runtime's inbox makes each event apply once
 ```
+
+Keep everything the handler does inside its own unit of work. A side effect outside your data, such as a call to
+another system, is repeated when the handler is retried. See [Events and Commands](./events-and-commands.md).
 
 ---
 
@@ -284,10 +298,19 @@ static final ArchRule noCircularDependencies = slices()
 
 ### 1. Add Dependency
 
+Add the guard and the ArchUnit engine that runs its rules with JUnit, both at test scope:
+
 ```xml
 <dependency>
     <groupId>io.brix</groupId>
     <artifactId>architecture-guard</artifactId>
+    <version>3.2.0</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>com.tngtech.archunit</groupId>
+    <artifactId>archunit-junit6</artifactId>
+    <version>1.5.1</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -297,31 +320,53 @@ static final ArchRule noCircularDependencies = slices()
 ```java
 package com.example.myplugin;
 
-import io.brix.architecture.guard.AdapterIsolationRule;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.junit.ArchTests;
 import com.tngtech.archunit.lang.ArchRule;
 
-@AnalyzeClasses(packages = "com.example.myplugin")
-class ArchitectureTest extends AdapterIsolationRule {
-    
-    // All 13 rules are inherited from AdapterIsolationRule
-    
-    // Add custom rules if needed:
+import io.brix.architecture.guard.BrixArchitectureRules;
+
+@AnalyzeClasses(packages = "com.example.myplugin", importOptions = ImportOption.DoNotIncludeTests.class)
+class ArchitectureTest {
+
+    /** The guard's rule set for plugin code. */
     @ArchTest
-    static final ArchRule customRule = // your rule
+    static final ArchTests brixRules = BrixArchitectureRules.pluginProfile();
+
+    /** Rules of your own sit next to it, such as Rule 2 above. */
+    @ArchTest
+    static final ArchRule coreDependsOnContractsOnly = classes()
+        .that().resideInAPackage("..core..")
+        .should().onlyDependOnClassesThat()
+        .resideInAnyPackage(
+            "io.runtime.sdk..",
+            "..core..",
+            "..api..",
+            "java..",
+            "jakarta.persistence..",
+            "org.springframework.data..");
 }
 ```
+
+- `BrixArchitectureRules`, in `io.brix.architecture.guard`, is the entry point. The rule classes behind it, such as
+  `AdapterIsolationRule`, are final and offer static rules only: use them, do not extend them.
+- [Standard Architecture Rules](./testing.md#standard-architecture-rules) lists what the plugin profile refuses.
+- Other modules use other profiles: `adapterProfile()` for infrastructure adapters, `sdkProfile()` for the SDK,
+  `commonsProfile()` for platform commons and `operationalProfile()` for platform operational modules.
+  `hostProfile()` and `coreProfileV2()` are deprecated since 3.2.0.
 
 ### 3. Run Tests
 
 ```bash
 mvn test
-
-# Output:
-# [INFO] Running com.example.myplugin.ArchitectureTest
-# [INFO] Tests run: 13, Failures: 0, Errors: 0
 ```
+
+Every rule runs as a test. A class that breaks one fails the build, with the rule's reason and each offending
+dependency.
 
 ## CI/CD Integration
 

@@ -62,7 +62,7 @@ corepack prepare pnpm@latest --activate
 
 ```bash
 # Install the scaffold CLI globally
-pnpm add -g @brix/create-brix
+pnpm add -g @brix-sdk/create-brix
 ```
 
 Verify installation:
@@ -71,6 +71,10 @@ Verify installation:
 create-brix --version
 # Expected: 3.x.x
 ```
+
+In a checkout of the Brix repository you can build the CLI instead: after `pnpm install`, run
+`pnpm --filter @brix-sdk/create-brix build`, then `node packages/@brix/platform-devtools/@brix/create-brix/dist/cli.js`
+in place of `create-brix`.
 
 ## Step 4: Configure IDE
 

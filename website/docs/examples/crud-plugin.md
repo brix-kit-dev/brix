@@ -19,56 +19,25 @@ This example builds a **Task Management** plugin with:
 
 ## Backend Implementation
 
+The backend is a plugin of three Maven modules (see
+[Project structure](../guides/backend-development.md#project-structure)):
+
+```text
+task-plugin-api/      plugin-api: enums, commands, queries and the views the endpoints return
+task-plugin-core/     plugin-core: the Task entity, its repository and TaskService
+task-plugin-server/   plugin-server: TaskPlugin, the endpoint handlers, the manifest, the migration
+```
+
+It serves the five routes the frontend below calls. The runtime does the rest for every request:
+- it checks the caller's token and permission;
+- it binds the caller's tenant;
+- it runs the handler in a unit of work: read-only for `GET`, read-write otherwise.
+
 ### Domain Model
 
 ```java
-// task-plugin-shared/src/main/java/com/example/task/shared/Task.java
-package com.example.task.shared;
-
-import java.time.Instant;
-
-public record Task(
-    String id,
-    String title,
-    String description,
-    TaskStatus status,
-    TaskPriority priority,
-    String assigneeId,
-    Instant createdAt,
-    Instant updatedAt,
-    Instant dueDate
-) {
-    public static Builder builder() {
-        return new Builder();
-    }
-    
-    public static class Builder {
-        private String id;
-        private String title;
-        private String description;
-        private TaskStatus status = TaskStatus.TODO;
-        private TaskPriority priority = TaskPriority.MEDIUM;
-        private String assigneeId;
-        private Instant createdAt;
-        private Instant updatedAt;
-        private Instant dueDate;
-        
-        public Builder id(String id) { this.id = id; return this; }
-        public Builder title(String title) { this.title = title; return this; }
-        public Builder description(String description) { this.description = description; return this; }
-        public Builder status(TaskStatus status) { this.status = status; return this; }
-        public Builder priority(TaskPriority priority) { this.priority = priority; return this; }
-        public Builder assigneeId(String assigneeId) { this.assigneeId = assigneeId; return this; }
-        public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
-        public Builder updatedAt(Instant updatedAt) { this.updatedAt = updatedAt; return this; }
-        public Builder dueDate(Instant dueDate) { this.dueDate = dueDate; return this; }
-        
-        public Task build() {
-            return new Task(id, title, description, status, priority, 
-                           assigneeId, createdAt, updatedAt, dueDate);
-        }
-    }
-}
+// task-plugin-api/src/main/java/com/example/task/api/TaskStatus.java and TaskPriority.java
+package com.example.task.api;
 
 public enum TaskStatus {
     TODO, IN_PROGRESS, DONE, CANCELLED
@@ -79,18 +48,145 @@ public enum TaskPriority {
 }
 ```
 
+The entity follows the persistence rules:
+- the id comes from `IdGeneratorCapability`, never from `@GeneratedValue`;
+- every row has a `tenant_id`;
+- `Persistable` tells Spring Data that a task with an assigned id is new.
+
+```java
+// task-plugin-core/src/main/java/com/example/task/core/Task.java
+package com.example.task.core;
+
+import java.time.OffsetDateTime;
+
+import com.example.task.api.CreateTaskCommand;
+import com.example.task.api.TaskPriority;
+import com.example.task.api.TaskStatus;
+import com.example.task.api.UpdateTaskCommand;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import org.springframework.data.domain.Persistable;
+
+@Entity
+@Table(name = "task_task")
+public class Task implements Persistable<Long> {
+
+    @Id
+    @Column(name = "id", nullable = false, updatable = false)
+    private Long id;
+
+    @Column(name = "tenant_id", nullable = false, updatable = false)
+    private Long tenantId;
+
+    @Column(name = "title", nullable = false, length = 200)
+    private String title;
+
+    @Column(name = "description", length = 2000)
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private TaskStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, length = 20)
+    private TaskPriority priority;
+
+    @Column(name = "assignee_id", length = 64)
+    private String assigneeId;
+
+    @Column(name = "due_date")
+    private OffsetDateTime dueDate;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
+    @Transient
+    private boolean fresh = true;
+
+    protected Task() {
+    }
+
+    public static Task create(long id, long tenantId, CreateTaskCommand command, OffsetDateTime now) {
+        Task task = new Task();
+        task.id = id;
+        task.tenantId = tenantId;
+        task.title = command.title();
+        task.description = command.description();
+        task.status = TaskStatus.TODO;
+        task.priority = command.priority() != null ? command.priority() : TaskPriority.MEDIUM;
+        task.assigneeId = command.assigneeId();
+        task.dueDate = command.dueDate();
+        task.createdAt = now;
+        task.updatedAt = now;
+        return task;
+    }
+
+    /** Applies the fields the command sets; a field it leaves null keeps its value. */
+    public void update(UpdateTaskCommand command, OffsetDateTime now) {
+        if (command.title() != null) {
+            title = command.title();
+        }
+        if (command.description() != null) {
+            description = command.description();
+        }
+        if (command.status() != null) {
+            status = command.status();
+        }
+        if (command.priority() != null) {
+            priority = command.priority();
+        }
+        if (command.assigneeId() != null) {
+            assigneeId = command.assigneeId();
+        }
+        if (command.dueDate() != null) {
+            dueDate = command.dueDate();
+        }
+        updatedAt = now;
+    }
+
+    @PostPersist
+    @PostLoad
+    void stored() {
+        fresh = false;
+    }
+
+    @Override
+    public Long getId() {
+        return id;
+    }
+
+    @Override
+    public boolean isNew() {
+        return fresh;
+    }
+
+    // Getters for title, description, status, priority, assigneeId, dueDate, createdAt and updatedAt
+}
+```
+
 ### Commands and Queries
 
 ```java
-// Commands
-package com.example.task.shared;
+// task-plugin-api/src/main/java/com/example/task/api: commands
+package com.example.task.api;
 
 public record CreateTaskCommand(
     String title,
     String description,
     TaskPriority priority,
     String assigneeId,
-    Instant dueDate
+    OffsetDateTime dueDate
 ) {}
 
 public record UpdateTaskCommand(
@@ -99,7 +195,7 @@ public record UpdateTaskCommand(
     TaskStatus status,
     TaskPriority priority,
     String assigneeId,
-    Instant dueDate
+    OffsetDateTime dueDate
 ) {}
 
 // Query parameters
@@ -116,213 +212,508 @@ public record TaskQuery(
         if (size > 100) size = 100;
     }
 }
+
+// What the endpoints return: the JSON the frontend reads
+public record TaskView(
+    String id,
+    String title,
+    String description,
+    TaskStatus status,
+    TaskPriority priority,
+    String assigneeId,
+    OffsetDateTime createdAt,
+    OffsetDateTime updatedAt,
+    OffsetDateTime dueDate
+) {}
+
+public record TaskPage(List<TaskView> items, int page, int size, long totalItems, int totalPages) {}
+```
+
+### Repository
+
+```java
+// task-plugin-core/src/main/java/com/example/task/core/TaskRepository.java
+package com.example.task.core;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+/** Reached only through PersistenceCapability.repository(...); the adapter keeps it inside the caller's tenant. */
+public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
+}
 ```
 
 ### Service
 
 ```java
-// task-plugin-core/src/main/java/com/example/task/service/TaskService.java
-package com.example.task.service;
+// task-plugin-core/src/main/java/com/example/task/core/TaskService.java
+package com.example.task.core;
 
-import com.example.task.shared.*;
-import io.brix.runtime.sdk.api.DataAccessCapability;
-import io.brix.runtime.sdk.api.EventBusCapability;
-import io.brix.platform.commons.Page;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
-import java.time.Instant;
-import java.util.*;
+import com.example.task.api.CreateTaskCommand;
+import com.example.task.api.TaskQuery;
+import com.example.task.api.UpdateTaskCommand;
+import io.runtime.sdk.capability.IdGeneratorCapability;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
-@Service
-public class TaskService {
-    
-    private final DataAccessCapability dataAccess;
-    private final EventBusCapability eventBus;
-    
-    public TaskService(DataAccessCapability dataAccess, EventBusCapability eventBus) {
-        this.dataAccess = dataAccess;
-        this.eventBus = eventBus;
+/**
+ * Task management: a plain class that a handler factory creates. Every call runs in the unit of work the
+ * runtime opened for the handler, in the caller's tenant, so no query names a tenant.
+ */
+public final class TaskService {
+
+    private final TaskRepository tasks;
+    private final IdGeneratorCapability ids;
+    private final Clock clock;
+
+    public TaskService(TaskRepository tasks, IdGeneratorCapability ids, Clock clock) {
+        this.tasks = Objects.requireNonNull(tasks, "tasks must not be null");
+        this.ids = Objects.requireNonNull(ids, "ids must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
-    
-    /**
-     * Creates a new task.
-     */
-    @Transactional
-    public Task createTask(CreateTaskCommand command) {
-        validate(command);
-        
-        Task task = Task.builder()
-            .id(UUID.randomUUID().toString())
-            .title(command.title())
-            .description(command.description())
-            .status(TaskStatus.TODO)
-            .priority(command.priority())
-            .assigneeId(command.assigneeId())
-            .createdAt(Instant.now())
-            .updatedAt(Instant.now())
-            .dueDate(command.dueDate())
-            .build();
-        
-        Task saved = dataAccess.save(task);
-        
-        eventBus.publish(new TaskCreatedEvent(saved.id(), saved.title()));
-        
-        return saved;
+
+    public Task create(long tenantId, CreateTaskCommand command) {
+        return tasks.save(Task.create(Long.parseLong(ids.generate()), tenantId, command, OffsetDateTime.now(clock)));
     }
-    
-    /**
-     * Finds a task by ID.
-     */
-    public Optional<Task> findById(String id) {
-        return Optional.ofNullable(dataAccess.findById(Task.class, id));
+
+    public Optional<Task> find(long id) {
+        return tasks.findById(id);
     }
-    
-    /**
-     * Lists tasks with pagination and filtering.
-     */
-    public Page<Task> findTasks(TaskQuery query) {
-        Map<String, Object> criteria = buildCriteria(query);
-        
-        List<Task> tasks = dataAccess.findBy(Task.class, criteria);
-        long total = dataAccess.count(Task.class, criteria);
-        
-        // Apply pagination
-        int start = (query.page() - 1) * query.size();
-        int end = Math.min(start + query.size(), tasks.size());
-        List<Task> page = tasks.subList(start, end);
-        
-        return new Page<>(page, query.page(), query.size(), total);
+
+    public Page<Task> search(TaskQuery query) {
+        Specification<Task> filter = (root, criteria, builder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (query.status() != null) {
+                predicates.add(builder.equal(root.get("status"), query.status()));
+            }
+            if (query.priority() != null) {
+                predicates.add(builder.equal(root.get("priority"), query.priority()));
+            }
+            if (query.assigneeId() != null) {
+                predicates.add(builder.equal(root.get("assigneeId"), query.assigneeId()));
+            }
+            return builder.and(predicates.toArray(Predicate[]::new));
+        };
+        return tasks.findAll(filter,
+            PageRequest.of(query.page() - 1, query.size(), Sort.by(Sort.Direction.DESC, "createdAt", "id")));
     }
-    
-    /**
-     * Updates an existing task.
-     */
-    @Transactional
-    public Task updateTask(String id, UpdateTaskCommand command) {
-        Task existing = findById(id)
-            .orElseThrow(() -> new TaskNotFoundException(id));
-        
-        Task updated = Task.builder()
-            .id(existing.id())
-            .title(command.title() != null ? command.title() : existing.title())
-            .description(command.description() != null ? command.description() : existing.description())
-            .status(command.status() != null ? command.status() : existing.status())
-            .priority(command.priority() != null ? command.priority() : existing.priority())
-            .assigneeId(command.assigneeId() != null ? command.assigneeId() : existing.assigneeId())
-            .createdAt(existing.createdAt())
-            .updatedAt(Instant.now())
-            .dueDate(command.dueDate() != null ? command.dueDate() : existing.dueDate())
-            .build();
-        
-        Task saved = dataAccess.save(updated);
-        
-        eventBus.publish(new TaskUpdatedEvent(saved.id(), saved.status().name()));
-        
-        return saved;
+
+    /** Changes a task; the change is written when the unit of work commits. */
+    public Optional<Task> update(long id, UpdateTaskCommand command) {
+        Optional<Task> task = tasks.findById(id);
+        task.ifPresent(found -> found.update(command, OffsetDateTime.now(clock)));
+        return task;
     }
-    
-    /**
-     * Deletes a task.
-     */
-    @Transactional
-    public void deleteTask(String id) {
-        Task task = findById(id)
-            .orElseThrow(() -> new TaskNotFoundException(id));
-        
-        dataAccess.delete(task);
-        
-        eventBus.publish(new TaskDeletedEvent(id));
-    }
-    
-    private void validate(CreateTaskCommand command) {
-        if (command.title() == null || command.title().isBlank()) {
-            throw new ValidationException("Title is required");
-        }
-        if (command.title().length() > 200) {
-            throw new ValidationException("Title must be 200 characters or less");
-        }
-    }
-    
-    private Map<String, Object> buildCriteria(TaskQuery query) {
-        Map<String, Object> criteria = new HashMap<>();
-        if (query.status() != null) {
-            criteria.put("status", query.status());
-        }
-        if (query.priority() != null) {
-            criteria.put("priority", query.priority());
-        }
-        if (query.assigneeId() != null) {
-            criteria.put("assigneeId", query.assigneeId());
-        }
-        return criteria;
+
+    public boolean delete(long id) {
+        Optional<Task> task = tasks.findById(id);
+        task.ifPresent(tasks::delete);
+        return task.isPresent();
     }
 }
 ```
 
-### Controller
+`findById` of a task in another tenant finds nothing: the persistence adapter limits every read and write to the
+tenant of the unit of work.
+
+### Migration
+
+```sql
+-- task-plugin-server/src/main/resources/db/migration/task/V1__task.sql
+CREATE TABLE task_task (
+    id           BIGINT         NOT NULL,
+    tenant_id    BIGINT         NOT NULL,
+    title        VARCHAR(200)   NOT NULL,
+    description  VARCHAR(2000),
+    status       VARCHAR(20)    NOT NULL,
+    priority     VARCHAR(20)    NOT NULL,
+    assignee_id  VARCHAR(64),
+    due_date     TIMESTAMPTZ,
+    created_at   TIMESTAMPTZ    NOT NULL,
+    updated_at   TIMESTAMPTZ    NOT NULL,
+    CONSTRAINT pk_task_task PRIMARY KEY (id),
+    CONSTRAINT chk_task_task_status CHECK (status IN ('TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED')),
+    CONSTRAINT chk_task_task_priority CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT'))
+);
+
+CREATE INDEX idx_task_task_tenant ON task_task (tenant_id, created_at);
+```
+
+`assignee_id` holds a member's ID as a plain value, with no foreign key to platform tables.
+
+### Endpoints
+
+Each route is declared in the manifest. Here is the first one, with the plugin's capabilities, data and
+permissions:
+
+```yaml
+# task-plugin-server/src/main/resources/META-INF/brix/plugin-manifest.yaml (excerpt)
+endpoints:
+  provides:
+    - endpointId: task.create.v1
+      transport: http
+      method: POST
+      path: /api/tasks
+      request:
+        schemaRef: brix://schemas/task/create-task-request/1.0.0
+      response:
+        schemaRef: brix://schemas/task/task/1.0.0
+      handlerId: task.create.v1
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - task:write
+        decision: all
+        resourcePolicyRef: task-write
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      idempotency:
+        mode: not-applicable
+    # task.get.v1, task.search.v1, task.update.v1 and task.delete.v1 have the same fields
+capabilities:
+  required:
+    - id: io.runtime.sdk.capability.PersistenceCapability
+      version: ">=3.2.0 <4.0.0"
+    - id: io.runtime.sdk.capability.IdGeneratorCapability
+      version: ">=3.2.0 <4.0.0"
+  optional: []
+data:
+  storageId: task
+  schema: task
+  migrationLocation: db/migration/task
+permissions:
+  - id: task:read
+    name: Read tasks
+    description: Allows reading the tasks of the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
+  - id: task:write
+    name: Change tasks
+    description: Allows creating, changing and deleting tasks in the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
+```
+
+| `endpointId` and `handlerId` | Method | Path | Permission | Handler |
+|---|---|---|---|---|
+| `task.create.v1` | `POST` | `/api/tasks` | `task:write` | `TaskEndpoints.Create` |
+| `task.get.v1` | `GET` | `/api/tasks/{id}` | `task:read` | `TaskEndpoints.Get` |
+| `task.search.v1` | `GET` | `/api/tasks` | `task:read` | `TaskEndpoints.Search` |
+| `task.update.v1` | `PUT` | `/api/tasks/{id}` | `task:write` | `TaskEndpoints.Update` |
+| `task.delete.v1` | `DELETE` | `/api/tasks/{id}` | `task:write` | `TaskEndpoints.Delete` |
+
+Each endpoint names its own request and response schema under `brix://schemas/task/`. The plugin ships these
+schema files under `META-INF/brix/schemas/task/`.
+
+### Endpoint Handlers
+
+One small handler class per endpoint:
 
 ```java
-// task-plugin-core/src/main/java/com/example/task/controller/TaskController.java
-package com.example.task.controller;
+// task-plugin-server/src/main/java/com/example/task/server/TaskEndpoints.java
+package com.example.task.server;
 
-import com.example.task.service.TaskService;
-import com.example.task.shared.*;
-import io.brix.platform.commons.Page;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import java.util.Objects;
 
-@RestController
-@RequestMapping("/api/tasks")
-public class TaskController {
-    
-    private final TaskService taskService;
-    
-    public TaskController(TaskService taskService) {
-        this.taskService = taskService;
+import com.example.task.api.TaskPage;
+import com.example.task.api.TaskQuery;
+import com.example.task.api.TaskView;
+import com.example.task.core.Task;
+import com.example.task.core.TaskService;
+import io.runtime.sdk.plugin.EndpointHandler;
+import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.EndpointResponse;
+import org.springframework.data.domain.Page;
+
+final class TaskEndpoints {
+
+    private TaskEndpoints() {
     }
-    
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public Task createTask(@Valid @RequestBody CreateTaskCommand command) {
-        return taskService.createTask(command);
+
+    /** POST /api/tasks: 201 with the new task. */
+    static final class Create implements EndpointHandler<EndpointInvocation<Object>, EndpointResponse> {
+
+        private final TaskService tasks;
+
+        Create(TaskService tasks) {
+            this.tasks = Objects.requireNonNull(tasks, "tasks must not be null");
+        }
+
+        @Override
+        public EndpointResponse handle(EndpointInvocation<Object> request) {
+            long tenantId = Long.parseLong(request.tenantId().orElseThrow());
+            return EndpointResponse.created(view(tasks.create(tenantId, TaskRequests.create(request))));
+        }
     }
-    
-    @GetMapping("/{id}")
-    public ResponseEntity<Task> getTask(@PathVariable String id) {
-        return taskService.findById(id)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+
+    /** GET /api/tasks/{id}: 200 with the task, or 404. */
+    static final class Get implements EndpointHandler<EndpointInvocation<Object>, TaskView> {
+
+        private final TaskService tasks;
+
+        Get(TaskService tasks) {
+            this.tasks = Objects.requireNonNull(tasks, "tasks must not be null");
+        }
+
+        @Override
+        public TaskView handle(EndpointInvocation<Object> request) {
+            return tasks.find(TaskRequests.id(request)).map(TaskEndpoints::view).orElseThrow(TaskRequests::notFound);
+        }
     }
-    
-    @GetMapping
-    public Page<Task> listTasks(
-            @RequestParam(required = false) TaskStatus status,
-            @RequestParam(required = false) TaskPriority priority,
-            @RequestParam(required = false) String assigneeId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        
-        TaskQuery query = new TaskQuery(status, priority, assigneeId, page, size);
-        return taskService.findTasks(query);
+
+    /** GET /api/tasks?status=&priority=&assigneeId=&page=&size=: 200 with one page. */
+    static final class Search implements EndpointHandler<EndpointInvocation<Object>, TaskPage> {
+
+        private final TaskService tasks;
+
+        Search(TaskService tasks) {
+            this.tasks = Objects.requireNonNull(tasks, "tasks must not be null");
+        }
+
+        @Override
+        public TaskPage handle(EndpointInvocation<Object> request) {
+            TaskQuery query = TaskRequests.query(request);
+            Page<Task> page = tasks.search(query);
+            return new TaskPage(page.getContent().stream().map(TaskEndpoints::view).toList(),
+                query.page(), query.size(), page.getTotalElements(), page.getTotalPages());
+        }
     }
-    
-    @PutMapping("/{id}")
-    public Task updateTask(
-            @PathVariable String id,
-            @Valid @RequestBody UpdateTaskCommand command) {
-        return taskService.updateTask(id, command);
+
+    /** PUT /api/tasks/{id}: 200 with the changed task, or 404. */
+    static final class Update implements EndpointHandler<EndpointInvocation<Object>, TaskView> {
+
+        private final TaskService tasks;
+
+        Update(TaskService tasks) {
+            this.tasks = Objects.requireNonNull(tasks, "tasks must not be null");
+        }
+
+        @Override
+        public TaskView handle(EndpointInvocation<Object> request) {
+            return tasks.update(TaskRequests.id(request), TaskRequests.update(request))
+                .map(TaskEndpoints::view)
+                .orElseThrow(TaskRequests::notFound);
+        }
     }
-    
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteTask(@PathVariable String id) {
-        taskService.deleteTask(id);
+
+    /** DELETE /api/tasks/{id}: 204, or 404. */
+    static final class Delete implements EndpointHandler<EndpointInvocation<Object>, EndpointResponse> {
+
+        private final TaskService tasks;
+
+        Delete(TaskService tasks) {
+            this.tasks = Objects.requireNonNull(tasks, "tasks must not be null");
+        }
+
+        @Override
+        public EndpointResponse handle(EndpointInvocation<Object> request) {
+            if (!tasks.delete(TaskRequests.id(request))) {
+                throw TaskRequests.notFound();
+            }
+            return new EndpointResponse(204, null);
+        }
+    }
+
+    private static TaskView view(Task task) {
+        return new TaskView(String.valueOf(task.getId()), task.getTitle(), task.getDescription(), task.getStatus(),
+            task.getPriority(), task.getAssigneeId(), task.getCreatedAt(), task.getUpdatedAt(), task.getDueDate());
     }
 }
 ```
+
+`TaskRequests` reads each request. Anything that is not a task is refused with a 400 before the service runs:
+
+```java
+// task-plugin-server/src/main/java/com/example/task/server/TaskRequests.java
+package com.example.task.server;
+
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Map;
+
+import com.example.task.api.CreateTaskCommand;
+import com.example.task.api.TaskPriority;
+import com.example.task.api.TaskQuery;
+import com.example.task.api.TaskStatus;
+import com.example.task.api.UpdateTaskCommand;
+import io.runtime.sdk.plugin.EndpointHandlingException;
+import io.runtime.sdk.plugin.EndpointInvocation;
+
+final class TaskRequests {
+
+    private TaskRequests() {
+    }
+
+    static CreateTaskCommand create(EndpointInvocation<Object> request) {
+        Map<?, ?> body = body(request);
+        String title = text(body.get("title"));
+        if (title == null || title.length() > 200) {
+            throw invalid("A task needs a title of at most 200 characters");
+        }
+        return new CreateTaskCommand(title, text(body.get("description")),
+            constant(TaskPriority.class, body.get("priority")), text(body.get("assigneeId")),
+            time(body.get("dueDate")));
+    }
+
+    static UpdateTaskCommand update(EndpointInvocation<Object> request) {
+        Map<?, ?> body = body(request);
+        String title = text(body.get("title"));
+        if (title != null && title.length() > 200) {
+            throw invalid("A title has at most 200 characters");
+        }
+        return new UpdateTaskCommand(title, text(body.get("description")),
+            constant(TaskStatus.class, body.get("status")), constant(TaskPriority.class, body.get("priority")),
+            text(body.get("assigneeId")), time(body.get("dueDate")));
+    }
+
+    static TaskQuery query(EndpointInvocation<Object> request) {
+        Map<String, List<String>> parameters = request.queryParameters();
+        return new TaskQuery(
+            constant(TaskStatus.class, first(parameters, "status")),
+            constant(TaskPriority.class, first(parameters, "priority")),
+            text(first(parameters, "assigneeId")),
+            number(first(parameters, "page"), 1),
+            number(first(parameters, "size"), 10));
+    }
+
+    /** The {id} path variable; a value that is not a number names no task. */
+    static long id(EndpointInvocation<Object> request) {
+        try {
+            return Long.parseLong(request.pathVariables().get("id"));
+        } catch (NumberFormatException notAnId) {
+            throw notFound();
+        }
+    }
+
+    static EndpointHandlingException notFound() {
+        return new EndpointHandlingException(404, "TASK_NOT_FOUND", "No such task");
+    }
+
+    private static Map<?, ?> body(EndpointInvocation<Object> request) {
+        return request.body() instanceof Map<?, ?> map ? map : Map.of();
+    }
+
+    private static String first(Map<String, List<String>> parameters, String name) {
+        List<String> values = parameters.getOrDefault(name, List.of());
+        return values.isEmpty() ? null : values.get(0);
+    }
+
+    private static String text(Object value) {
+        return value instanceof String text && !text.isBlank() ? text : null;
+    }
+
+    private static <E extends Enum<E>> E constant(Class<E> type, Object value) {
+        String text = text(value);
+        try {
+            return text == null ? null : Enum.valueOf(type, text);
+        } catch (IllegalArgumentException unknown) {
+            throw invalid("Unknown " + type.getSimpleName());
+        }
+    }
+
+    private static OffsetDateTime time(Object value) {
+        String text = text(value);
+        try {
+            return text == null ? null : OffsetDateTime.parse(text);
+        } catch (DateTimeParseException notATime) {
+            throw invalid("Dates must be ISO-8601 date-times");
+        }
+    }
+
+    private static int number(String value, int fallback) {
+        try {
+            return value == null ? fallback : Integer.parseInt(value);
+        } catch (NumberFormatException notANumber) {
+            throw invalid("page and size must be numbers");
+        }
+    }
+
+    private static EndpointHandlingException invalid(String message) {
+        return new EndpointHandlingException(400, "TASK_INVALID", message);
+    }
+}
+```
+
+### Plugin Class
+
+The plugin class binds a factory to each handler ID. The factories get the repository and the ID generator from the
+plugin's context. `META-INF/services/io.runtime.sdk.plugin.BrixPlugin` names this class.
+
+```java
+// task-plugin-server/src/main/java/com/example/task/server/TaskPlugin.java
+package com.example.task.server;
+
+import java.time.Clock;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.example.task.core.TaskRepository;
+import com.example.task.core.TaskService;
+import io.runtime.sdk.capability.IdGeneratorCapability;
+import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.plugin.BrixHealth;
+import io.runtime.sdk.plugin.BrixPlugin;
+import io.runtime.sdk.plugin.PluginBootstrapContext;
+import io.runtime.sdk.plugin.PluginContext;
+
+public final class TaskPlugin implements BrixPlugin {
+
+    private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
+
+    @Override
+    public void configure(PluginBootstrapContext bootstrap) {
+        bootstrap.bindEndpointHandlerFactory("task.create.v1", context -> new TaskEndpoints.Create(tasks(context)));
+        bootstrap.bindEndpointHandlerFactory("task.get.v1", context -> new TaskEndpoints.Get(tasks(context)));
+        bootstrap.bindEndpointHandlerFactory("task.search.v1", context -> new TaskEndpoints.Search(tasks(context)));
+        bootstrap.bindEndpointHandlerFactory("task.update.v1", context -> new TaskEndpoints.Update(tasks(context)));
+        bootstrap.bindEndpointHandlerFactory("task.delete.v1", context -> new TaskEndpoints.Delete(tasks(context)));
+    }
+
+    private static TaskService tasks(PluginContext context) {
+        return new TaskService(
+            context.require(PersistenceCapability.class).repository(TaskRepository.class),
+            context.require(IdGeneratorCapability.class),
+            Clock.systemUTC());
+    }
+
+    @Override
+    public void onStart(PluginContext context) {
+        health.set(BrixHealth.up());
+    }
+
+    @Override
+    public void onStop() {
+        health.set(BrixHealth.down("stopped"));
+    }
+
+    @Override
+    public BrixHealth health() {
+        return health.get();
+    }
+}
+```
+
+To tell other plugins that a task changed, publish an integration event from `TaskService`; see
+[Events and Commands](../guides/events-and-commands.md).
 
 ## Frontend Implementation
 
