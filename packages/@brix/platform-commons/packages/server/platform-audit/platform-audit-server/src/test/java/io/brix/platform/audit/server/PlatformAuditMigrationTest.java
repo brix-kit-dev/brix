@@ -119,6 +119,25 @@ class PlatformAuditMigrationTest {
     }
 
     @Test
+    void onlyTheMessageOperationsCustodianWritesAnOperatorsMessageActions() throws SQLException {
+        // V006 (Kafka design D33): replays, discards and republishes come from runtime.message-operations alone.
+        custodialInsert("MESSAGE_REPLAYED", "runtime.message-operations", "trace-message-replayed");
+        custodialInsert("MESSAGE_DISCARDED", "runtime.message-operations", "trace-message-discarded");
+        custodialInsert("MESSAGE_REPUBLISHED", "runtime.message-operations", "trace-message-republished");
+
+        assertThatThrownBy(() -> custodialInsert("MESSAGE_REPLAYED", "platform-audit", "trace-0004-abcdef"))
+            .as("nobody else writes a message action")
+            .isInstanceOf(SQLException.class);
+        assertThatThrownBy(() -> custodialInsert(PlatformAuditActions.TENANT_CREATED, "runtime.message-operations",
+                "trace-0005-abcdef"))
+            .as("the custodian writes only message actions")
+            .isInstanceOf(SQLException.class);
+        assertThatThrownBy(() -> custodialInsert("MESSAGE_DISCARDED", "runtime.message-operations", null))
+            .as("a message action carries a trace id")
+            .isInstanceOf(SQLException.class);
+    }
+
+    @Test
     void everyNewRowNamesItsWriter() throws SQLException {
         // V004 (P4e): platform-identity's rows were the ones without a writer; it writes none any more.
         String withoutWriter = "INSERT INTO sys_platform_audit_log"

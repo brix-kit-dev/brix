@@ -52,6 +52,8 @@ class PlatformAuditDescriptorTest {
         assertThat(classes.getResource("db/migration/platform-audit/V002__platform_audit_policy_use_fields.sql")).isNotNull();
         assertThat(classes.getResource("db/migration/platform-audit/V003__platform_audit_inbox.sql")).isNotNull();
         assertThat(classes.getResource("db/migration/platform-audit/V004__platform_audit_writer_required.sql")).isNotNull();
+        assertThat(classes.getResource("db/migration/platform-audit/V006__platform_audit_message_operations.sql"))
+            .isNotNull();
     }
 
     @Test
