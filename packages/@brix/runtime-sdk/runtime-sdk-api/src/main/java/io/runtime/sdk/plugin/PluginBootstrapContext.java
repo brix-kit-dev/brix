@@ -27,6 +27,10 @@ package io.runtime.sdk.plugin;
  * fills in {@code onStart}. The Runtime Shell rejects any mismatch between YAML
  * declarations and code bindings.</p>
  *
+ * <p>The Runtime Shell's context implements every binding. The factory bindings added in 3.3.0 have defaults that
+ * refuse the binding, so that a context written against an earlier SDK, such as a plugin test's recording context,
+ * still compiles.</p>
+ *
  * @author Runtime SDK Team
  * @since 3.0.10
  */
@@ -37,24 +41,36 @@ public interface PluginBootstrapContext {
      *
      * @param handlerId the endpoint's {@code handlerId} (or, when it declares none, its {@code endpointId})
      * @param factory creates the endpoint handler
+     * @throws UnsupportedOperationException when this context binds no handler factories
+     * @since 3.3.0
      */
-    void bindEndpointHandlerFactory(String handlerId, HandlerFactory<? extends EndpointHandler<?, ?>> factory);
+    default void bindEndpointHandlerFactory(String handlerId, HandlerFactory<? extends EndpointHandler<?, ?>> factory) {
+        throw unsupported("endpoint");
+    }
 
     /**
      * Binds a manifest-declared query provider to the factory of its handler.
      *
      * @param handlerId the query's handler id from the YAML manifest
      * @param factory creates the query handler
+     * @throws UnsupportedOperationException when this context binds no handler factories
+     * @since 3.3.0
      */
-    void bindQueryHandlerFactory(String handlerId, HandlerFactory<? extends QueryHandler<?, ?>> factory);
+    default void bindQueryHandlerFactory(String handlerId, HandlerFactory<? extends QueryHandler<?, ?>> factory) {
+        throw unsupported("query handler");
+    }
 
     /**
      * Binds a manifest-declared command handler to its factory.
      *
      * @param handlerId the command's handler id from the YAML manifest
      * @param factory creates the command handler
+     * @throws UnsupportedOperationException when this context binds no handler factories
+     * @since 3.3.0
      */
-    void bindCommandHandlerFactory(String handlerId, HandlerFactory<? extends CommandHandler<?>> factory);
+    default void bindCommandHandlerFactory(String handlerId, HandlerFactory<? extends CommandHandler<?>> factory) {
+        throw unsupported("command handler");
+    }
 
     /**
      * Binds a manifest-declared event subscription to the factory of its handler (root BRX-RS-CAP-025).
@@ -70,8 +86,12 @@ public interface PluginBootstrapContext {
      *
      * @param handlerId the task id from the YAML manifest
      * @param factory creates the managed task
+     * @throws UnsupportedOperationException when this context binds no handler factories
+     * @since 3.3.0
      */
-    void bindTaskFactory(String handlerId, HandlerFactory<? extends ManagedTask> factory);
+    default void bindTaskFactory(String handlerId, HandlerFactory<? extends ManagedTask> factory) {
+        throw unsupported("task");
+    }
 
     /**
      * Binds a manifest-declared endpoint to a handler created before the plugin has a context.
@@ -113,4 +133,8 @@ public interface PluginBootstrapContext {
      */
     @Deprecated(since = "3.3.0", forRemoval = true)
     void bindTask(String manifestTaskId, ManagedTask task);
+
+    private UnsupportedOperationException unsupported(String what) {
+        return new UnsupportedOperationException(getClass().getName() + " does not bind " + what + " factories");
+    }
 }

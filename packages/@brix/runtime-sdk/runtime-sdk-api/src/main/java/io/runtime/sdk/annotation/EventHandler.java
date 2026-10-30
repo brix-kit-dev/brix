@@ -33,7 +33,7 @@ import java.lang.annotation.Target;
  * @author Runtime SDK Team
  * @since 3.0.0
  */
-@Deprecated(since = "3.2.0", forRemoval = true)
+@Deprecated(since = "3.3.0", forRemoval = true)
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
