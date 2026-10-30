@@ -13,8 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
@@ -101,6 +104,33 @@ class SubscriptionDeliveryTest {
         SubscriptionDelivery.Outcome outcome = delivery.receive(event("1.0.0"), 1);
 
         assertEquals(SubscriptionDelivery.Kind.RETRY, outcome.kind());
+    }
+
+    @ParameterizedTest
+    @MethodSource("handlerErrors")
+    void everyErrorAHandlerThrowsFailsOnlyItsDelivery(Error error) {
+        // Kafka design §14 K10: not only a class that cannot load; a failed assertion or a broken service file too.
+        world.failNextWith(error);
+
+        SubscriptionDelivery.Outcome outcome = delivery.receive(event("1.0.0"), 1);
+
+        assertEquals(SubscriptionDelivery.Kind.RETRY, outcome.kind());
+        assertEquals(SubscriptionDelivery.Outcome.DELIVERED, delivery.receive(event("1.0.0"), 2));
+    }
+
+    static Stream<Error> handlerErrors() {
+        return Stream.of(new AssertionError("an invariant the handler checks"),
+            new java.util.ServiceConfigurationError("a provider that cannot be instantiated"),
+            new StackOverflowError());
+    }
+
+    @Test
+    void theProcessRunningOutOfMemoryIsNotChargedToTheEvent() {
+        // The JVM failing is not the handler's failure: it goes on to the consumer's loop, which starts again from the
+        // committed position without spending an attempt.
+        world.failNextWith(new OutOfMemoryError("Java heap space"));
+
+        assertThrows(OutOfMemoryError.class, () -> delivery.receive(event("1.0.0"), 1));
     }
 
     @Test

@@ -85,6 +85,17 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
     }
 
     @Override
+    public synchronized void releaseWaiting(String relayOwner, String messageId, OffsetDateTime availableAt,
+            String errorCode) {
+        Row row = claimedBy(relayOwner, messageId);
+        row.status = Status.PENDING;
+        row.claimedBy = null;
+        row.availableAt = availableAt;
+        row.errorCode = errorCode;
+        row.attempts = Math.max(0, row.attempts - 1);
+    }
+
+    @Override
     public synchronized void park(String relayOwner, String messageId, String errorCode, OffsetDateTime parkedAt) {
         Row row = claimedBy(relayOwner, messageId);
         row.status = Status.PARKED;
@@ -162,6 +173,21 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
             }
         }
         return false;
+    }
+
+    @Override
+    public synchronized int purge(OffsetDateTime before, int limit) {
+        int purged = 0;
+        for (java.util.Iterator<Row> rows = this.rows.iterator(); rows.hasNext() && purged < limit;) {
+            Row row = rows.next();
+            boolean published = row.status == Status.PUBLISHED && row.publishedAt.isBefore(before);
+            boolean discarded = row.status == Status.DISCARDED && row.availableAt.isBefore(before);
+            if (published || discarded) {
+                rows.remove();
+                purged++;
+            }
+        }
+        return purged;
     }
 
     /**

@@ -40,6 +40,7 @@ import io.runtime.orchestrator.tracing.MessageTracing;
 public final class OutboxRelay implements AutoCloseable {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OutboxRelay.class);
+    private static final Duration MIN_WAIT = Duration.ofSeconds(1);
 
     private static final String ERROR_INVALID_ENVELOPE = "OUTBOX_INVALID_ENVELOPE";
     private static final String ERROR_UNEXPECTED = "OUTBOX_UNEXPECTED";
@@ -207,7 +208,14 @@ public final class OutboxRelay implements AutoCloseable {
                 continue;
             }
             try {
-                if (failure == null) {
+                if (failure != null && failure.unavailable()) {
+                    // The subscriber cannot take it now (not started, database down): it waits without spending
+                    // an attempt, as the transport's own outages do (Kafka design §14 K11, D21); its key waits too.
+                    store.releaseWaiting(claim, message.messageId(), nextWaitAt(), failure.errorCode());
+                    heldBack.add(message.partitionKey());
+                    log.info("event=outbox.delivery_waiting type={} message_id={} code={}", message.messageType(),
+                        message.messageId(), failure.errorCode());
+                } else if (failure == null) {
                     store.markPublished(claim, message.messageId(), now());
                     metrics.recordPublished(message.messageType());
                     published++;
@@ -289,6 +297,12 @@ public final class OutboxRelay implements AutoCloseable {
 
     private OffsetDateTime nextAvailableAt(CanonicalOutboxMessage message) {
         return now().plus(policy.backoffAfter(message.attemptCount())).plus(jitter.apply(message.attemptCount()));
+    }
+
+    /** When a message whose subscriber could not take it is tried again: the first backoff, at least a second. */
+    private OffsetDateTime nextWaitAt() {
+        Duration wait = policy.backoffAfter(1);
+        return now().plus(wait.compareTo(MIN_WAIT) < 0 ? MIN_WAIT : wait);
     }
 
     private void handBack(String claim, CanonicalOutboxMessage message) {

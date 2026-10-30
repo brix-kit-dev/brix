@@ -333,7 +333,12 @@ public final class EventDelivery {
             if (handled) {
                 scope.committed(List.copyOf(reached));
             }
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | Error thrown) {
+            // An Error from a handler, such as a class that cannot load or a failed assertion, fails this delivery like
+            // an exception: its unit of work has rolled back, and the transport retries it (Kafka design §14 K10).
+            Failures.rethrowFatal(thrown);
+            RuntimeException failure = thrown instanceof RuntimeException exception ? exception
+                : new IllegalStateException(handlerId + " threw " + thrown, thrown);
             if (scope != null) {
                 scope.failed(List.copyOf(reached), failure);
             }

@@ -116,6 +116,7 @@ class InProcessEventTransportTest {
         assertFalse(transport.ready());
         assertEquals(InProcessEventTransport.SUBSCRIBER_NOT_READY, waiting.errorCode());
         assertFalse(waiting.permanent());
+        assertTrue(waiting.unavailable(), "the relay waits without spending an attempt (Kafka design §14 K11)");
         assertTrue(handled.isEmpty());
         assertTrue(inbox.isEmpty());
     }
@@ -160,6 +161,7 @@ class InProcessEventTransportTest {
 
         assertEquals(InProcessEventTransport.SUBSCRIBER_NOT_READY, waiting.errorCode());
         assertFalse(waiting.permanent());
+        assertTrue(waiting.unavailable(), "the relay waits without spending an attempt (Kafka design §14 K11)");
     }
 
     @Test

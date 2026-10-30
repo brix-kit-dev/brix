@@ -284,6 +284,33 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
     }
 
     @Override
+    public void releaseWaiting(String relayOwner, String messageId, OffsetDateTime availableAt, String errorCode) {
+        requireRelayOwner(relayOwner);
+        requireText(messageId, "messageId");
+        Objects.requireNonNull(availableAt, "availableAt must not be null");
+        requireText(errorCode, "errorCode");
+        int updated = jdbcTemplate.update("""
+            UPDATE %s
+               SET status = ?,
+                   available_at = ?,
+                   last_error_code = ?,
+                   claim_owner = NULL,
+                   claim_until = NULL,
+                   attempt_count = CASE WHEN attempt_count > 0 THEN attempt_count - 1 ELSE 0 END
+             WHERE message_id = ?
+               AND status = ?
+               AND claim_owner = ?
+            """.formatted(tableName),
+            STATUS_PENDING,
+            timestamp(availableAt),
+            errorCode,
+            messageId,
+            STATUS_IN_FLIGHT,
+            relayOwner);
+        requireUpdated(updated, messageId);
+    }
+
+    @Override
     public void park(String relayOwner, String messageId, String errorCode, OffsetDateTime parkedAt) {
         requireRelayOwner(relayOwner);
         requireText(messageId, "messageId");

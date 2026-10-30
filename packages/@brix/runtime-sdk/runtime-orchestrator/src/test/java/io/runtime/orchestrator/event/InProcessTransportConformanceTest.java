@@ -14,6 +14,7 @@ import org.springframework.boot.actuate.endpoint.SecurityContext;
 
 import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.event.conformance.EventTransportConformance;
+import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxRelay;
 import io.runtime.orchestrator.outbox.OutboxRelayManagedResource;
 import io.runtime.orchestrator.outbox.OutboxRelayMetrics;
@@ -29,6 +30,7 @@ class InProcessTransportConformanceTest extends EventTransportConformance {
         return new Harness() {
 
             private OutboxRelayManagedResource loop;
+            private OutboxRelayManagedResource second;
 
             @Override
             public void start() {
@@ -45,6 +47,19 @@ class InProcessTransportConformanceTest extends EventTransportConformance {
                     loop.stop();
                     loop = null;
                 }
+                if (second != null) {
+                    second.stop();
+                    second = null;
+                }
+            }
+
+            @Override
+            public void startAnotherRelay() {
+                OutboxRelay relay = new OutboxRelay("conformance", world.outbox(),
+                    new InProcessEventTransport(world.newDelivery()), world.policy(), Clock.systemUTC(),
+                    OutboxRelayMetrics.NOOP, world.tracing());
+                second = new OutboxRelayManagedResource(relay, Duration.ofMillis(20), "conformance-relay-2");
+                second.start();
             }
 
             @Override
@@ -75,6 +90,12 @@ class InProcessTransportConformanceTest extends EventTransportConformance {
             @Override
             public ConformanceWorld world() {
                 return world;
+            }
+
+            @Override
+            public void sendAtOnce(CanonicalOutboxMessage message, int copies) {
+                InProcessEventTransport transport = new InProcessEventTransport(world.newDelivery());
+                atOnce(copies, () -> transport.publish(message));
             }
 
             @Override

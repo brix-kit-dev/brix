@@ -135,6 +135,11 @@ public final class OutboxRelayManagedResource implements SmartLifecycle {
         } catch (RuntimeException ex) {
             lastFailure = ex;
             log.error("Outbox relay polling pass failed", ex);
+        } catch (Error error) {
+            // A pass that throws ends the schedule for good; the relay keeps polling instead, as the consumers do
+            // (Kafka design §14 K10).
+            lastFailure = new IllegalStateException("Outbox relay polling pass failed with " + error, error);
+            log.error("Outbox relay polling pass failed", error);
         }
     }
 }

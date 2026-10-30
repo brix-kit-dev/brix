@@ -122,8 +122,9 @@ public final class SubscriptionDelivery {
                 return Outcome.waitFor(OWNER_UNAVAILABLE, wait);
             }
             return failed(message, failure.errorCode(), failure.permanent(), attempt);
-        } catch (RuntimeException | LinkageError | StackOverflowError failure) {
+        } catch (RuntimeException | Error failure) {
             // An Error from a handler fails this delivery, not the consumer's thread (Kafka design §14 K10).
+            Failures.rethrowFatal(failure);
             log.warn("event=event.delivery_failed subscription={} type={} event_id={} code={} attempt={}",
                 subscription.name(), message.messageType(), message.eventId(), UNEXPECTED, attempt, failure);
             return failed(message, UNEXPECTED, false, attempt);

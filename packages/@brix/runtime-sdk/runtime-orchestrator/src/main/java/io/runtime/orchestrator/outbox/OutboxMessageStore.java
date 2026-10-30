@@ -82,6 +82,20 @@ public interface OutboxMessageStore {
     void releaseUntried(String relayOwner, String messageId);
 
     /**
+     * Hands a claimed message back without counting the attempt, to be tried again at {@code availableAt}, because
+     * the receiving side could not take it now, for example a subscriber whose database is down (Kafka design §14
+     * K11). Later messages of its partition key wait for it, as for a retry.
+     *
+     * @param relayOwner the claim token the message was claimed under
+     * @param messageId canonical message id
+     * @param availableAt when to try again
+     * @param errorCode why it waits
+     */
+    default void releaseWaiting(String relayOwner, String messageId, OffsetDateTime availableAt, String errorCode) {
+        releaseUntried(relayOwner, messageId);
+    }
+
+    /**
      * Parks a claimed message after retry exhaustion or permanent failure.
      *
      * @param relayOwner the claim token the message was claimed under

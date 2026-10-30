@@ -32,19 +32,25 @@ import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.CommandMessages;
 import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.event.EventDelivery;
-import io.runtime.orchestrator.event.EventDeliveryScopes;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.event.EventSubscribers;
 import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
 import io.runtime.orchestrator.outbox.OutboxEndpoint;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxRelayPolicy;
+import io.runtime.orchestrator.persistence.PolicyAuditWriter;
+import io.runtime.orchestrator.persistence.PolicyEventDeliveryScopes;
+import io.runtime.orchestrator.persistence.PolicyUseRecord;
+import io.runtime.orchestrator.persistence.TenantAccessPolicy;
 import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
+import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 import io.runtime.sdk.capability.UnitOfWork;
+import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
 
@@ -68,6 +74,20 @@ public final class ConformanceWorld {
     /** The command the publisher submits and the subscriber provides (Kafka design §14 K22). */
     public static final String COMMAND = "ReserveStock";
     public static final String COMMAND_HANDLER = "reserve-stock.v1";
+
+    /**
+     * A PLATFORM fact the subscriber takes under the registered cross-tenant policy
+     * {@code first-owner-invitee-setup-fanout} (multi-tenant §6.4, P-3).
+     */
+    public static final String SETUP_EVENT = "FirstOwnerInviteeSetupCompleted";
+    /** The plugin that publishes {@link #SETUP_EVENT}. */
+    public static final String IDENTITY_PUBLISHER = "conformance-identity";
+    /** The subscriber's handler of {@link #SETUP_EVENT}. */
+    public static final String SETUP_HANDLER = "invitee-setup-fanout.v1";
+    /** The e-mail the identity source gives every invitee: the key of the policy scope. */
+    public static final String INVITEE_EMAIL = "invitee@conformance.test";
+    /** The tenants the fan-out reaches, as the persistence adapter would report them. */
+    public static final List<Long> FANOUT_TENANTS = List.of(910001L, 910002L);
 
     /** The payload of {@link #COMMAND}. */
     public record Reserve(String sku) {
@@ -96,6 +116,34 @@ public final class ConformanceWorld {
 
     private final InMemoryOutboxStore outbox = new InMemoryOutboxStore();
     private final RecordingMessageAudit audit = new RecordingMessageAudit();
+    private final List<PolicyUseRecord> policyUses = new CopyOnWriteArrayList<>();
+    private final PolicyAuditWriter policyAudit = new PolicyAuditWriter() {
+        @Override
+        public boolean covers(String action) {
+            return TenantAccessPolicy.FIRST_OWNER_INVITEE_SETUP_FANOUT.auditAction().orElseThrow().equals(action);
+        }
+
+        @Override
+        public void record(PolicyUseRecord record) {
+            policyUses.add(record);
+        }
+    };
+    private final FirstOwnerInviteeIdentitySetupCapability identities = new FirstOwnerInviteeIdentitySetupCapability() {
+        @Override
+        public boolean sendSetupIfRequired(Long tenantId, String inviteeEmail, String platformOperatorRef, String locale) {
+            return false;
+        }
+
+        @Override
+        public String requireIdentityEmail(Long identityId) {
+            return INVITEE_EMAIL;
+        }
+
+        @Override
+        public String requireActiveIdentityEmail(Long identityId) {
+            return INVITEE_EMAIL;
+        }
+    };
     private final RecordingMessageTracing tracing = new RecordingMessageTracing();
     private final OutboxRelayPolicy policy =
         new OutboxRelayPolicy(10, 3, Duration.ofSeconds(10), Duration.ofMillis(100), Duration.ZERO);
@@ -110,11 +158,15 @@ public final class ConformanceWorld {
     private final AtomicInteger duplicates = new AtomicInteger();
     private final PluginRuntimeDescriptor.EventSubscription subscription;
     private final BoundEventHandler bound;
+    private final PluginRuntimeDescriptor.EventSubscription setupSubscription;
+    private final BoundEventHandler setupBound;
     private final String reliability;
     private volatile boolean pluginsStarted = true;
     private volatile boolean failing;
     private volatile Error nextError;
     private volatile boolean hanging;
+    private final AtomicInteger hangsLeft = new AtomicInteger();
+    private volatile boolean databaseDown;
 
     private final UnitOfWork unitOfWork = new UnitOfWork() {
         @Override
@@ -163,6 +215,11 @@ public final class ConformanceWorld {
         this.subscription = new PluginRuntimeDescriptor.EventSubscription(
             "member-accepted", EVENT, ">=1.0.0 <2.0.0", HANDLER, "event-standard", idempotencyPolicy);
         this.bound = new BoundEventHandler(SUBSCRIBER, subscription, new Projection(), MemberAccepted.class);
+        this.setupSubscription = new PluginRuntimeDescriptor.EventSubscription("invitee-setup-fanout", SETUP_EVENT,
+            ">=1.0.0 <2.0.0", SETUP_HANDLER, "event-standard", PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX,
+            TenantAccessPolicy.FIRST_OWNER_INVITEE_SETUP_FANOUT.id());
+        this.setupBound = new BoundEventHandler(SUBSCRIBER, setupSubscription, new InviteeSetupFanout(),
+            FirstOwnerInviteeSetupCompletedEvent.class);
         this.reliability = reliability;
     }
 
@@ -224,7 +281,8 @@ public final class ConformanceWorld {
     public EventDelivery newDelivery(Duration deadline) {
         return new EventDelivery(subscribers(),
             owner -> SUBSCRIBER.equals(owner) && subscription.persistentInbox() ? Optional.of(persistence) : Optional.empty(),
-            inboxStore, new ObjectMapper(), Clock.systemUTC(), deadline, EventDeliveryScopes.ENVELOPE, tracing)
+            inboxStore, new ObjectMapper(), Clock.systemUTC(), deadline,
+            new PolicyEventDeliveryScopes(() -> identities, () -> policyAudit), tracing)
             .deliveringCommandsWith(new CommandDelivery(commandProviders(),
                 owner -> SUBSCRIBER.equals(owner) ? Optional.of(persistence) : Optional.empty(), inboxStore,
                 (owner, handlerId, message, scope, key) -> {
@@ -302,12 +360,52 @@ public final class ConformanceWorld {
      */
     public CanonicalOutboxMessage publish(String eventId, String partitionKey, Long tenantId, long memberId,
             String schemaVersion) {
-        CanonicalOutboxMessage message = new CanonicalOutboxMessage("message-" + UUID.randomUUID(), eventId, "EVENT", EVENT,
-            schemaVersion, reliability, PUBLISHER, tenantId == null ? "PLATFORM" : "TENANT", tenantId, partitionKey,
-            OffsetDateTime.now(ZoneOffset.UTC), "correlation-" + eventId, null, TRACEPARENT, "conformance=1",
-            "{\"tenantId\":" + tenantId + ",\"memberId\":" + memberId + "}", 0);
+        CanonicalOutboxMessage message = message(eventId, partitionKey, tenantId, memberId, schemaVersion);
         outbox.append(message);
         return message;
+    }
+
+    /**
+     * Returns the event the publisher would commit, without committing it, for a test that sends it itself.
+     *
+     * @param eventId event id
+     * @param partitionKey partition key
+     * @param tenantId tenant of a TENANT event, or {@code null} for a PLATFORM event
+     * @param memberId payload member
+     * @return the event
+     */
+    public CanonicalOutboxMessage message(String eventId, String partitionKey, Long tenantId, long memberId) {
+        return message(eventId, partitionKey, tenantId, memberId, "1.0.0");
+    }
+
+    private CanonicalOutboxMessage message(String eventId, String partitionKey, Long tenantId, long memberId,
+            String schemaVersion) {
+        return new CanonicalOutboxMessage("message-" + UUID.randomUUID(), eventId, "EVENT", EVENT, schemaVersion,
+            reliability, PUBLISHER, tenantId == null ? "PLATFORM" : "TENANT", tenantId, partitionKey,
+            OffsetDateTime.now(ZoneOffset.UTC), "correlation-" + eventId, null, TRACEPARENT, "conformance=1",
+            "{\"tenantId\":" + tenantId + ",\"memberId\":" + memberId + "}", 0);
+    }
+
+    /**
+     * Commits {@link #SETUP_EVENT} to the identity publisher's outbox: a PLATFORM fact that an identity finished its
+     * setup, which the subscriber fans out under its cross-tenant policy.
+     *
+     * @param eventId event id
+     * @param identityId the identity
+     * @return the outbox message
+     */
+    public CanonicalOutboxMessage publishSetupCompleted(String eventId, long identityId) {
+        CanonicalOutboxMessage message = new CanonicalOutboxMessage("message-" + UUID.randomUUID(), eventId, "EVENT",
+            SETUP_EVENT, "1.0.0", "CRITICAL", IDENTITY_PUBLISHER, "PLATFORM", null, "IDENTITY:" + identityId,
+            OffsetDateTime.now(ZoneOffset.UTC), "correlation-" + eventId, null, TRACEPARENT, "conformance=1",
+            "{\"identityId\":" + identityId + "}", 0);
+        outbox.append(message);
+        return message;
+    }
+
+    /** The uses of the cross-tenant policy the delivery core recorded, in order. */
+    public List<PolicyUseRecord> policyUses() {
+        return List.copyOf(policyUses);
     }
 
     /** Makes the plugins started or not; until they start no event can be judged or delivered. */
@@ -333,6 +431,16 @@ public final class ConformanceWorld {
     /** Makes the handler return a stage that never completes, as a handler that hangs does. */
     public void hanging(boolean hanging) {
         this.hanging = hanging;
+    }
+
+    /** Makes the handler hang on its next calls, as a handler past its deadline does. */
+    public void hangNext(int count) {
+        hangsLeft.set(count);
+    }
+
+    /** Makes the subscriber's database unreachable, or reachable again: its units of work cannot begin. */
+    public void subscriberDatabaseDown(boolean down) {
+        this.databaseDown = down;
     }
 
     /** Makes the handler fail until told otherwise. */
@@ -369,22 +477,26 @@ public final class ConformanceWorld {
 
             @Override
             public Optional<String> publisherOf(String eventType) {
-                return EVENT.equals(eventType) ? Optional.of(PUBLISHER) : Optional.empty();
+                return EVENT.equals(eventType) ? Optional.of(PUBLISHER)
+                    : SETUP_EVENT.equals(eventType) ? Optional.of(IDENTITY_PUBLISHER) : Optional.empty();
             }
 
             @Override
             public List<DeclaredSubscriber> subscribersOf(String eventType) {
-                return EVENT.equals(eventType) ? subscriptions() : List.of();
+                return subscriptions().stream()
+                    .filter(declared -> declared.subscription().eventType().equals(eventType))
+                    .toList();
             }
 
             @Override
             public List<DeclaredSubscriber> subscriptions() {
-                return List.of(new DeclaredSubscriber(SUBSCRIBER, subscription, bound));
+                return List.of(new DeclaredSubscriber(SUBSCRIBER, subscription, bound),
+                    new DeclaredSubscriber(SUBSCRIBER, setupSubscription, setupBound));
             }
 
             @Override
             public Set<String> publishedEventTypes() {
-                return Set.of(EVENT);
+                return new java.util.TreeSet<>(List.of(EVENT, SETUP_EVENT));
             }
         };
     }
@@ -438,6 +550,10 @@ public final class ConformanceWorld {
         if (transaction.get() != null) {
             return work.get();
         }
+        if (databaseDown) {
+            throw new PersistenceCapabilityException(PersistenceCapabilityException.Code.UNAVAILABLE,
+                Map.of("owner", SUBSCRIBER));
+        }
         Transaction current = new Transaction();
         transaction.set(current);
         try {
@@ -473,7 +589,7 @@ public final class ConformanceWorld {
                 nextError = null;
                 throw error;
             }
-            if (hanging) {
+            if (hanging || hangsLeft.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
                 return new CompletableFuture<>();
             }
             AtomicInteger ofEvent = failuresOfEvent.get(invocation.event().eventId());
@@ -486,6 +602,25 @@ public final class ConformanceWorld {
             Transaction current = transaction.get();
             if (current == null) {
                 // Without a unit of work there is nothing to commit with.
+                handled.add(event);
+            } else {
+                current.handled.add(event);
+            }
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Fans an identity's completed setup out to the tenants the policy reaches. */
+    private final class InviteeSetupFanout implements EventHandler<FirstOwnerInviteeSetupCompletedEvent> {
+
+        @Override
+        public CompletionStage<Void> handle(EventInvocation<FirstOwnerInviteeSetupCompletedEvent> invocation) {
+            // The persistence adapter reports each tenant a policy scope reaches; in this world the handler does.
+            FANOUT_TENANTS.forEach(TenantScopes::reportBound);
+            Handled event = new Handled(invocation.event().eventId(), invocation.event().payload().identityId(),
+                TenantScopes.requested(), invocation.trace().traceparent(), invocation.deliveryAttempt());
+            Transaction current = transaction.get();
+            if (current == null) {
                 handled.add(event);
             } else {
                 current.handled.add(event);

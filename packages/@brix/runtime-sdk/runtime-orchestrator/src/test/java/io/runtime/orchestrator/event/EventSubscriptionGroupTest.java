@@ -61,12 +61,15 @@ class EventSubscriptionGroupTest {
         await(group::isReady);
         // Kafka design §14 K22: the provided command is consumed like a subscription.
         String command = ConformanceWorld.SUBSCRIBER + ".command." + ConformanceWorld.COMMAND_HANDLER;
-        assertEquals(List.of("prepare [" + ConformanceWorld.EVENT + "] [" + SUBSCRIPTION + ", " + command + "]",
-            "consume " + SUBSCRIPTION, "consume " + command), broker.calls);
+        String fanout = ConformanceWorld.SUBSCRIBER + "." + ConformanceWorld.SETUP_HANDLER;
+        assertEquals(List.of("prepare [" + ConformanceWorld.SETUP_EVENT + ", " + ConformanceWorld.EVENT + "] ["
+                + SUBSCRIPTION + ", " + fanout + ", " + command + "]",
+            "consume " + SUBSCRIPTION, "consume " + fanout, "consume " + command), broker.calls);
 
         group.stop();
         assertTrue(broker.calls.contains("stop " + SUBSCRIPTION));
         assertTrue(broker.calls.contains("stop " + command));
+        assertTrue(broker.calls.contains("stop " + fanout));
         assertFalse(group.isRunning());
     }
 

@@ -183,7 +183,7 @@ public final class MessageRetention implements SmartLifecycle {
     private void pass() {
         try {
             purgeOnce();
-        } catch (RuntimeException | LinkageError | StackOverflowError failure) {
+        } catch (RuntimeException | Error failure) {
             // A pass that throws would end the schedule; report it and try again at the next one.
             log.warn("event=messaging.retention_failed code=RETENTION_PASS_FAILED", failure);
         }

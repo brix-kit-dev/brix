@@ -199,6 +199,30 @@ class JdbcOutboxMessageStoreTest {
     }
 
     @Test
+    void aMessageWhoseSubscriberIsDownWaitsWithoutSpendingAnAttemptAndHoldsItsKeyBack() {
+        // Kafka design §14 K11: the in-process transport found the subscriber or its database unavailable. The relay
+        // hands the message back to wait, and the later message of its key back untried.
+        insert("a", "PENDING", 2, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(30));
+        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+        store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+
+        store.releaseWaiting("relay-a", "a", NOW.plusSeconds(5), "OWNER_UNAVAILABLE");
+        store.releaseUntried("relay-a", "b");
+
+        assertEquals("PENDING", queryString("status", "a"));
+        assertEquals("2", queryString("attempt_count", "a"));
+        assertEquals("OWNER_UNAVAILABLE", queryString("last_error_code", "a"));
+        assertEquals(null, queryString("claim_owner", "a"));
+        assertEquals(List.of(), store.claimDue("relay-a", NOW.plusSeconds(1), Duration.ofSeconds(30), 10),
+            "neither is due before the wait is over: b stays behind a");
+        assertEquals(List.of("a", "b"), store.claimDue("relay-b", NOW.plusSeconds(6), Duration.ofSeconds(30), 10)
+            .stream().map(CanonicalOutboxMessage::messageId).toList());
+        assertThrows(IllegalStateException.class,
+            () -> store.releaseWaiting("relay-a", "a", NOW.plusSeconds(10), "OWNER_UNAVAILABLE"),
+            "only the relay that holds the claim hands it back");
+    }
+
+    @Test
     void twoRelayOwnersCannotClaimSameActiveLease() {
         insert("m-1", "PENDING", 0, NOW.minusSeconds(10), null);
 

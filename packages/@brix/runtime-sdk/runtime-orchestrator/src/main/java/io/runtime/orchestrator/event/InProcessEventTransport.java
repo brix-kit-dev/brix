@@ -105,6 +105,12 @@ public final class InProcessEventTransport implements OutboxTransport {
         try {
             delivery.deliverToAll(message);
         } catch (EventDeliveryException failure) {
+            if (SubscriptionDelivery.unavailable(failure)) {
+                // Not the event's fault: the relay waits for the subscriber without spending an attempt (§14 K11).
+                String code = HANDLER_FAILED.equals(failure.errorCode()) ? SubscriptionDelivery.OWNER_UNAVAILABLE
+                    : failure.errorCode();
+                throw OutboxTransportException.unavailable(code, failure.getMessage(), failure);
+            }
             throw new OutboxTransportException(failure.errorCode(), failure.getMessage(), failure.getCause(),
                 failure.permanent());
         }

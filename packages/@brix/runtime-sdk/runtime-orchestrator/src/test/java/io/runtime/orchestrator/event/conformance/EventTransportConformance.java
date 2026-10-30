@@ -24,7 +24,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.actuate.endpoint.SecurityContext;
 
 import io.runtime.orchestrator.event.EventDelivery;
+import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxEndpoint;
+import io.runtime.orchestrator.persistence.PolicyUseRecord;
+import io.runtime.orchestrator.persistence.TenantAccessPolicy;
 import io.runtime.orchestrator.persistence.TenantScope;
 
 /**
@@ -84,6 +87,16 @@ public abstract class EventTransportConformance {
 
         /** The world the harness delivers. */
         ConformanceWorld world();
+
+        /**
+         * Sends copies of one message through the transport at the same moment, as two relays that both claimed it
+         * would, or a retry racing a slow first send. Sends that fail because another copy won are ignored, as the
+         * relay that made them would retry.
+         */
+        void sendAtOnce(CanonicalOutboxMessage message, int copies);
+
+        /** Starts a second relay on the same outbox and transport, as a second host would. */
+        void startAnotherRelay();
 
         @Override
         void close();
@@ -294,6 +307,166 @@ public abstract class EventTransportConformance {
         settle();
         assertEquals(List.of("event-1"), world.handledIds());
         assertEquals("MESSAGE_REPUBLISHED", world.audit().recorded().get(0).action());
+    }
+
+    @Test
+    void copiesOfAnEventSentAtOnceTakeEffectOnce() {
+        // Design §4.6: concurrent duplicate delivery takes effect once; the inbox's key decides which copy wins.
+        harness.start();
+        CanonicalOutboxMessage message = world.message("event-copies", "member-1", ConformanceWorld.TENANT, 1);
+
+        harness.sendAtOnce(message, 4);
+
+        await("event-copies is handled", () -> world.handledIds().contains("event-copies"));
+        settle();
+        assertEquals(List.of("event-copies"), world.handledIds());
+        assertTrue(world.inboxed("event-copies"));
+    }
+
+    @Test
+    void aPolicySubscriptionRunsInItsPolicyScopeAndEachUseIsAudited() {
+        // Design §4.6, multi-tenant §6.4 (P-3): a PLATFORM fact taken under a registered cross-tenant policy is handled
+        // in that policy's scope, keyed by what the runtime binds (here the invitee's e-mail), and each use is in the
+        // policy audit with the tenants it reached. A redelivery the inbox skips is no use and leaves no record.
+        world.publishSetupCompleted("setup-1", 77L);
+        harness.start();
+
+        await("the fan-out ran", () -> world.handledIds().contains("setup-1"));
+        await("the use is audited", () -> !world.policyUses().isEmpty());
+        settle();
+        ConformanceWorld.Handled handled = world.handled().get(0);
+        assertEquals(TenantScope.policy(TenantAccessPolicy.FIRST_OWNER_INVITEE_SETUP_FANOUT, ConformanceWorld.INVITEE_EMAIL),
+            handled.scope());
+        assertEquals(1, world.policyUses().size());
+        PolicyUseRecord use = world.policyUses().get(0);
+        assertEquals(TenantAccessPolicy.FIRST_OWNER_INVITEE_SETUP_FANOUT, use.policy());
+        assertEquals(77L, use.actorIdentityId());
+        assertEquals(ConformanceWorld.FANOUT_TENANTS, use.affectedTenants());
+        assertTrue(use.success());
+
+        int duplicates = world.duplicates();
+        assertTrue(harness.republish("setup-1"));
+        await("the inbox recognises the redelivery", () -> world.duplicates() > duplicates);
+        settle();
+        assertEquals(List.of("setup-1"), world.handledIds());
+        assertEquals(1, world.policyUses().size(), "a skipped redelivery is no use of the policy");
+    }
+
+    @Test
+    void aSubscriberWhoseDatabaseIsDownWaitsForItWithoutSpendingAttempts() {
+        // Kafka design §14 K11: the subscriber's database being down is no fault of the event. Its events wait, spend
+        // no attempt and are not parked; the later events of their key wait behind them; all arrive once it is back.
+        world.subscriberDatabaseDown(true);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        world.publish("event-2", "member-1", ConformanceWorld.TENANT, 2);
+        harness.start();
+
+        // Three attempts 100 ms apart would have parked both long before this.
+        pause(Duration.ofSeconds(3));
+        assertEquals(List.of(), harness.parked());
+        assertEquals(List.of(), world.handledIds());
+
+        world.subscriberDatabaseDown(false);
+        await("both are handled", () -> world.handledIds().size() == 2);
+        settle();
+        assertEquals(List.of("event-1", "event-2"), world.handledIds());
+        assertEquals(List.of(), harness.parked());
+    }
+
+    @Test
+    void aHandlerThatThrowsAnErrorFailsOnlyThatDelivery() {
+        // Kafka design §14 K10: an Error from a handler, such as a failed assertion or a class that cannot load, fails
+        // that delivery like an exception. The transport keeps delivering and the event is tried again.
+        world.failNextWith(new AssertionError("an invariant the handler checks"));
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        world.publish("event-2", "member-2", ConformanceWorld.TENANT, 2);
+        harness.start();
+
+        await("both are handled", () -> world.handledIds().size() == 2);
+        settle();
+        assertEquals(java.util.Set.of("event-1", "event-2"), java.util.Set.copyOf(world.handledIds()));
+        assertTrue(world.handled().stream().anyMatch(handled -> handled.attempt() >= 2), "the failed one was tried again");
+        assertEquals(List.of(), harness.parked());
+    }
+
+    @Test
+    void aHandlerPastItsDeadlineIsCancelledAndTriedAgain() {
+        // Kafka design §14 K10: the deadline is enforced. A handler that does not finish in time is cancelled, its
+        // delivery counts as failed, and the event is tried again instead of holding its key for good.
+        world.hangNext(1);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        harness.start();
+
+        await("event-1 is handled", () -> world.handledIds().contains("event-1"));
+        settle();
+        assertEquals(List.of("event-1"), world.handledIds());
+        assertTrue(world.handled().get(0).attempt() >= 2, "handled on a later attempt");
+        assertEquals(List.of(), harness.parked());
+    }
+
+    @Test
+    void twoRelaysOnOneOutboxDeliverEachEventOnceInItsKeyOrder() {
+        // Kafka design §14 K12: hosts share an outbox. A relay claims a key's later messages only together with its
+        // earlier ones, so two relays never send one event at once and each key keeps its order.
+        for (int i = 1; i <= 24; i++) {
+            world.publish("event-" + i, "member-" + (i % 3), ConformanceWorld.TENANT, i);
+        }
+        harness.start();
+        harness.startAnotherRelay();
+
+        await("all are handled", () -> world.handledIds().size() == 24);
+        settle();
+        assertEquals(24, java.util.Set.copyOf(world.handledIds()).size());
+        for (int key = 0; key < 3; key++) {
+            int k = key;
+            List<Long> order = world.handled().stream().map(ConformanceWorld.Handled::memberId)
+                .filter(member -> member % 3 == k).toList();
+            assertEquals(order.stream().sorted().toList(), order, "the events of member-" + k + " in order");
+        }
+    }
+
+    @Test
+    void anEventTheRetentionRemovedCannotBeRepublished() {
+        // Kafka design D34: an event can be republished only while its outbox keeps it. Once the cleaning removed it,
+        // nothing can send it again, so no inbox meets it after its own record has expired.
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        harness.start();
+        await("event-1 is handled", () -> world.handledIds().contains("event-1"));
+        await("event-1 is published", () -> world.outbox().find("event-1")
+            .filter(stored -> "PUBLISHED".equals(stored.status())).isPresent());
+
+        assertEquals(1, world.outbox().purge(java.time.OffsetDateTime.now().plusDays(1), 10));
+
+        assertFalse(harness.republish("event-1"));
+        settle();
+        assertEquals(List.of("event-1"), world.handledIds());
+    }
+
+    /**
+     * Runs the sends at the same moment and waits for them; what a send throws is ignored.
+     *
+     * @param copies how many
+     * @param send one send
+     */
+    protected static void atOnce(int copies, Runnable send) {
+        java.util.concurrent.CyclicBarrier start = new java.util.concurrent.CyclicBarrier(copies);
+        List<Thread> threads = IntStream.range(0, copies).mapToObj(copy -> new Thread(() -> {
+            try {
+                start.await();
+                send.run();
+            } catch (Exception lost) {
+                // Another copy committed first; a relay would retry this one and its inbox would skip it.
+            }
+        }, "conformance-copy-" + copy)).toList();
+        threads.forEach(Thread::start);
+        for (Thread thread : threads) {
+            try {
+                thread.join(WAIT.toMillis());
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                fail("interrupted while sending copies");
+            }
+        }
     }
 
     @Test
