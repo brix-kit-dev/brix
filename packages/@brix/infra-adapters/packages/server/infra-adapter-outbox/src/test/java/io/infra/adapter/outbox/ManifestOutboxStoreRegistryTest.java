@@ -40,10 +40,64 @@ class ManifestOutboxStoreRegistryTest {
 
             JdbcDataSource dataSource = new JdbcDataSource();
             dataSource.setURL("jdbc:h2:mem:registry;DB_CLOSE_DELAY=-1");
-            ManifestOutboxStoreRegistry registry = new ManifestOutboxStoreRegistry(manifests, new JdbcTemplate(dataSource),
+            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+            createCanonicalOutbox(jdbc, "owner_a_outbox");
+            createCanonicalOutbox(jdbc, "owner_b_outbox");
+            ManifestOutboxStoreRegistry registry = new ManifestOutboxStoreRegistry(manifests, jdbc,
                 new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
             assertEquals(Set.of("owner_a_outbox", "owner_b_outbox"), registry.stores().keySet());
         }
+    }
+
+    @Test
+    void anOutboxThatDoesNotMatchThePlatformSchemaGetsNoRelay() throws IOException {
+        // Kafka design §14 K19: polling a missing or incomplete outbox would only fail, pass after pass.
+        try (URLClassLoader manifests = manifests(Map.of("owner-a", "owner_a_outbox", "owner-b", "owner_b_outbox"))) {
+            JdbcDataSource dataSource = new JdbcDataSource();
+            dataSource.setURL("jdbc:h2:mem:registry_partial;DB_CLOSE_DELAY=-1");
+            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+            createCanonicalOutbox(jdbc, "owner_a_outbox");
+            ManifestOutboxStoreRegistry registry = new ManifestOutboxStoreRegistry(manifests, jdbc,
+                new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
+            assertEquals(Set.of("owner_a_outbox"), registry.stores().keySet());
+        }
+    }
+
+    static void createCanonicalOutbox(JdbcTemplate jdbc, String table) {
+        jdbc.execute("""
+            CREATE TABLE %1$s (
+                message_id VARCHAR(64) NOT NULL PRIMARY KEY,
+                seq BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE,
+                event_id VARCHAR(64) NOT NULL,
+                message_kind VARCHAR(20) NOT NULL,
+                message_type VARCHAR(128) NOT NULL,
+                event_type VARCHAR(128) NOT NULL,
+                schema_version VARCHAR(16) NOT NULL,
+                tenant_id BIGINT,
+                partition_key VARCHAR(128) NOT NULL,
+                payload VARCHAR(4000) NOT NULL,
+                reliability VARCHAR(20) NOT NULL,
+                producer_plugin_id VARCHAR(128) NOT NULL,
+                scope VARCHAR(20) NOT NULL,
+                correlation_id VARCHAR(128) NOT NULL,
+                causation_id VARCHAR(128),
+                traceparent VARCHAR(128),
+                tracestate VARCHAR(512),
+                status VARCHAR(20) NOT NULL,
+                occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                available_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                attempt_count INTEGER NOT NULL,
+                claim_owner VARCHAR(128),
+                claim_until TIMESTAMP WITH TIME ZONE,
+                published_at TIMESTAMP WITH TIME ZONE,
+                last_error_code VARCHAR(128),
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL
+            )
+            """.formatted(table));
+        jdbc.execute("CREATE INDEX %1$s_key ON %1$s (partition_key, seq)".formatted(table));
+        jdbc.execute("CREATE INDEX %1$s_due ON %1$s (status, available_at)".formatted(table));
+        jdbc.execute("CREATE INDEX %1$s_event ON %1$s (event_id)".formatted(table));
+        jdbc.execute("CREATE INDEX %1$s_published ON %1$s (status, published_at)".formatted(table));
     }
 
     @Test

@@ -19,16 +19,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.manifest.validation.PluginManifestValidator;
+import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
 import io.runtime.orchestrator.outbox.OutboxMessageStore;
 import io.runtime.orchestrator.outbox.OutboxStoreRegistry;
 
@@ -38,6 +42,8 @@ import io.runtime.orchestrator.outbox.OutboxStoreRegistry;
  * the Host configuration repeats them.
  */
 public final class ManifestOutboxStoreRegistry implements OutboxStoreRegistry {
+
+    private static final Logger log = LoggerFactory.getLogger(ManifestOutboxStoreRegistry.class);
 
     private final ClassLoader classLoader;
     private final JdbcTemplate jdbcTemplate;
@@ -67,6 +73,14 @@ public final class ManifestOutboxStoreRegistry implements OutboxStoreRegistry {
                 if (found == null) {
                     Map<String, OutboxMessageStore> created = new TreeMap<>();
                     for (Map.Entry<String, String> outbox : outboxes(classLoader).entrySet()) {
+                        List<String> problems = CanonicalMessagingTables.problems(CanonicalMessagingTables.Kind.OUTBOX,
+                            MessagingTableCheck.read(jdbcTemplate.getDataSource(), outbox.getValue()));
+                        if (!problems.isEmpty()) {
+                            // Its Owner is refused when its event bus is created; polling it would only fail.
+                            log.error("event=outbox.relay_skipped owner={} outbox={} reason=\"{}\"", outbox.getKey(),
+                                outbox.getValue(), String.join("; ", problems));
+                            continue;
+                        }
                         created.put(outbox.getValue(),
                             new JdbcOutboxMessageStore(jdbcTemplate, transactionTemplate, outbox.getValue()));
                     }

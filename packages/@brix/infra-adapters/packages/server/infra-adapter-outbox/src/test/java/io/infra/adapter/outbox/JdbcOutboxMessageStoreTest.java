@@ -10,11 +10,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+
+import javax.sql.DataSource;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +64,7 @@ class JdbcOutboxMessageStoreTest {
         jdbcTemplate.execute("""
             CREATE TABLE %s (
                 message_id VARCHAR(64) PRIMARY KEY,
+                seq BIGINT GENERATED ALWAYS AS IDENTITY,
                 event_id VARCHAR(64) NOT NULL,
                 message_kind VARCHAR(20) NOT NULL,
                 message_type VARCHAR(128) NOT NULL,
@@ -85,6 +91,7 @@ class JdbcOutboxMessageStoreTest {
                 created_at TIMESTAMP NOT NULL
             )
             """.formatted(table));
+        jdbcTemplate.execute("CREATE INDEX " + table + "_key ON " + table + " (partition_key, seq)");
     }
 
     @AfterEach
@@ -113,13 +120,64 @@ class JdbcOutboxMessageStoreTest {
     }
 
     @Test
-    void dueMessagesOfOneKeyAreClaimedTogetherInTheirOrder() {
-        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
-        insert("a", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(30));
+    void dueMessagesOfOneKeyAreClaimedTogetherInTheOrderTheOutboxRecordedThem() {
+        // Kafka design §14 K13: the outbox numbers its messages; the producers' clocks do not decide.
+        insert("a", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(30));
 
         List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
 
         assertEquals(List.of("a", "b"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+    }
+
+    @Test
+    void aRelayDoesNotTakeTheLaterMessageOfAKeyWhileAnotherRelayClaimsTheEarlierOne() throws Exception {
+        // Kafka design §14 K12: relay x has claimed "a" but not committed yet; relay b reads "a" as pending, so its
+        // candidates are "a" and "b". It must not take "b": "b" would leave before "a".
+        assumeTrue(System.getenv("BRIX_P0_POSTGRES_URL") != null, "needs PostgreSQL's row locks and re-checks");
+        insert("a", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(10));
+        DataSource dataSource = jdbcTemplate.getDataSource();
+        try (Connection other = dataSource.getConnection()) {
+            other.setAutoCommit(false);
+            try (PreparedStatement claim = other.prepareStatement("UPDATE " + table
+                    + " SET status = 'IN_FLIGHT', claim_owner = 'relay-x', claim_until = ?,"
+                    + " attempt_count = attempt_count + 1 WHERE message_id = 'a'")) {
+                claim.setTimestamp(1, timestamp(NOW.plusSeconds(30)));
+                assertEquals(1, claim.executeUpdate());
+            }
+            Thread committer = new Thread(() -> {
+                try {
+                    Thread.sleep(500);
+                    other.commit();
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            committer.start();
+
+            List<CanonicalOutboxMessage> claimed = store.claimDue("relay-b", NOW, Duration.ofSeconds(30), 10);
+
+            committer.join();
+            assertEquals(List.of(), claimed);
+        }
+        assertEquals("relay-x", queryString("claim_owner", "a"));
+        assertEquals("PENDING", queryString("status", "b"));
+        assertEquals("0", queryString("attempt_count", "b"));
+    }
+
+    @Test
+    void anUnreadableRowIsParkedInsteadOfStoppingTheOutbox() {
+        insert("bad", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+        jdbcTemplate.update("UPDATE " + table + " SET correlation_id = '' WHERE message_id = 'bad'");
+        insert("good", "PENDING", 0, NOW.minusSeconds(1), null, "key-2", NOW.minusSeconds(10));
+
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+
+        assertEquals(List.of("good"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+        assertEquals("PARKED", queryString("status", "bad"));
+        assertEquals(JdbcOutboxMessageStore.ERROR_INVALID_ROW, queryString("last_error_code", "bad"));
+        assertEquals(null, queryString("claim_owner", "bad"));
     }
 
     @Test

@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -33,6 +35,13 @@ import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
  * own the same active lease. A parked row keeps the time it was parked in
  * {@code available_at}; nothing claims it until it is replayed.</p>
  *
+ * <p>Messages leave in the order the database numbered them ({@code seq}, an identity column of the
+ * canonical table), not by the producers' clocks. A message is claimed only while every earlier message
+ * of its partition key that is still pending or in flight belongs to the same claim; the claim UPDATE
+ * checks this itself, so two relays that read the same candidates cannot split one key between them
+ * (root BRX-RS-MESSAGE-027). A claimed row that does not form a canonical message is parked with
+ * {@value #ERROR_INVALID_ROW} instead of failing the claim.</p>
+ *
  * @author Brix Platform Authors
  * @since 3.0.10
  */
@@ -42,6 +51,11 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
     private static final String STATUS_IN_FLIGHT = "IN_FLIGHT";
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_PARKED = "PARKED";
+
+    /** Error code of a claimed row that does not form a canonical message. */
+    public static final String ERROR_INVALID_ROW = "OUTBOX_INVALID_ROW";
+
+    private static final Logger log = LoggerFactory.getLogger(JdbcOutboxMessageStore.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactionTemplate;
@@ -114,8 +128,8 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
         return transactionTemplate.execute(status -> {
             // A message stays behind an earlier one of its partition key that waits for its retry or is in
             // flight (root BRX-RS-MESSAGE-027); due messages of one key come together, in order.
-            List<String> candidateIds = jdbcTemplate.queryForList("""
-                SELECT m.message_id
+            List<Candidate> candidates = jdbcTemplate.query("""
+                SELECT m.message_id, m.partition_key, m.seq
                   FROM %1$s m
                  WHERE m.reliability IN ('CRITICAL', 'STANDARD')
                    AND (
@@ -126,17 +140,17 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
                         SELECT 1
                           FROM %1$s e
                          WHERE e.partition_key = m.partition_key
+                           AND e.seq < m.seq
                            AND e.reliability IN ('CRITICAL', 'STANDARD')
-                           AND (e.occurred_at < m.occurred_at
-                                OR (e.occurred_at = m.occurred_at AND e.message_id < m.message_id))
                            AND (
                                 (e.status = ? AND e.available_at > ?)
                              OR (e.status = ? AND e.claim_until >= ?)
                            )
                    )
-                 ORDER BY m.occurred_at, m.message_id
+                 ORDER BY m.seq
                  LIMIT ?
-                """.formatted(tableName), String.class,
+                """.formatted(tableName),
+                (rs, rowNum) -> new Candidate(rs.getString(1), rs.getString(2), rs.getLong(3)),
                 STATUS_PENDING,
                 timestamp(now),
                 STATUS_IN_FLIGHT,
@@ -148,9 +162,11 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
                 batchSize);
             List<CanonicalOutboxMessage> claimed = new ArrayList<>();
             OffsetDateTime claimUntil = now.plus(leaseDuration);
-            for (String messageId : candidateIds) {
+            for (Candidate candidate : candidates) {
+                // Every earlier message of the key that is still pending or in flight must be ours already:
+                // another relay may hold one that this transaction cannot see as claimed yet.
                 int updated = jdbcTemplate.update("""
-                    UPDATE %s
+                    UPDATE %1$s
                        SET status = ?,
                            claim_owner = ?,
                            claim_until = ?,
@@ -160,17 +176,35 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
                             (status = ? AND available_at <= ?)
                          OR (status = ? AND claim_until < ?)
                        )
+                       AND NOT EXISTS (
+                            SELECT 1
+                              FROM %1$s e
+                             WHERE e.partition_key = ?
+                               AND e.seq < ?
+                               AND e.reliability IN ('CRITICAL', 'STANDARD')
+                               AND e.status IN (?, ?)
+                               AND NOT (e.status = ? AND e.claim_owner = ?)
+                       )
                     """.formatted(tableName),
                     STATUS_IN_FLIGHT,
                     relayOwner,
                     timestamp(claimUntil),
-                    messageId,
+                    candidate.messageId(),
                     STATUS_PENDING,
                     timestamp(now),
                     STATUS_IN_FLIGHT,
-                    timestamp(now));
+                    timestamp(now),
+                    candidate.partitionKey(),
+                    candidate.seq(),
+                    STATUS_PENDING,
+                    STATUS_IN_FLIGHT,
+                    STATUS_IN_FLIGHT,
+                    relayOwner);
                 if (updated == 1) {
-                    claimed.add(loadClaimed(relayOwner, messageId));
+                    CanonicalOutboxMessage message = loadClaimed(relayOwner, candidate.messageId(), now);
+                    if (message != null) {
+                        claimed.add(message);
+                    }
                 }
             }
             return claimed;
@@ -337,17 +371,39 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
             STATUS_PARKED) > 0;
     }
 
-    private CanonicalOutboxMessage loadClaimed(String relayOwner, String messageId) {
-        return jdbcTemplate.queryForObject("""
-            SELECT message_id, event_id, message_kind, message_type, schema_version,
-                   reliability, producer_plugin_id, scope, tenant_id, partition_key,
-                   occurred_at, correlation_id, causation_id, traceparent, tracestate,
-                   payload, attempt_count
-              FROM %s
-             WHERE message_id = ?
-               AND status = ?
-               AND claim_owner = ?
-            """.formatted(tableName), this::mapMessage, messageId, STATUS_IN_FLIGHT, relayOwner);
+    private CanonicalOutboxMessage loadClaimed(String relayOwner, String messageId, OffsetDateTime now) {
+        try {
+            return jdbcTemplate.queryForObject("""
+                SELECT message_id, event_id, message_kind, message_type, schema_version,
+                       reliability, producer_plugin_id, scope, tenant_id, partition_key,
+                       occurred_at, correlation_id, causation_id, traceparent, tracestate,
+                       payload, attempt_count
+                  FROM %s
+                 WHERE message_id = ?
+                   AND status = ?
+                   AND claim_owner = ?
+                """.formatted(tableName), this::mapMessage, messageId, STATUS_IN_FLIGHT, relayOwner);
+        } catch (IllegalArgumentException | NullPointerException invalid) {
+            // A row that is not a canonical message would otherwise roll back every claim of this outbox.
+            jdbcTemplate.update("""
+                UPDATE %s
+                   SET status = ?,
+                       available_at = ?,
+                       claim_owner = NULL,
+                       claim_until = NULL,
+                       last_error_code = ?
+                 WHERE message_id = ?
+                   AND claim_owner = ?
+                """.formatted(tableName),
+                STATUS_PARKED,
+                timestamp(now),
+                ERROR_INVALID_ROW,
+                messageId,
+                relayOwner);
+            log.warn("event=outbox.parked table={} message_id={} code={}", tableName, messageId, ERROR_INVALID_ROW,
+                invalid);
+            return null;
+        }
     }
 
     private CanonicalOutboxMessage mapMessage(ResultSet rs, int rowNum) throws SQLException {
@@ -420,6 +476,9 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
     private static OffsetDateTime offsetDateTime(ResultSet rs, int column) throws SQLException {
         Timestamp timestamp = rs.getTimestamp(column);
         return timestamp == null ? null : OffsetDateTime.ofInstant(timestamp.toInstant(), ZoneOffset.UTC);
+    }
+
+    private record Candidate(String messageId, String partitionKey, long seq) {
     }
 
     private volatile String jsonPlaceholder;

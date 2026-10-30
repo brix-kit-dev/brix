@@ -121,6 +121,52 @@ class CanonicalKafkaOutboxTransportTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void aRecordKafkaCanNeverTakeIsAPermanentFailure() {
+        // Kafka design §14 K13: retrying a record that is too large only holds its key back; it is parked at once.
+        CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
+        future.completeExceptionally(new org.apache.kafka.common.errors.RecordTooLargeException("too large"));
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
+
+        assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
+            .isInstanceOf(OutboxTransportException.class)
+            .satisfies(failure -> {
+                OutboxTransportException ex = (OutboxTransportException) failure;
+                assertThat(ex.errorCode()).isEqualTo("KAFKA_RECORD_REJECTED");
+                assertThat(ex.permanent()).isTrue();
+            });
+        verify(broker, never()).suspect();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aSendThatFailsOnTheConnectionMakesTheBrokerProbeAgain() {
+        // Kafka design D21: the relay's next readiness check asks the broker instead of trusting the cached answer.
+        CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
+        future.completeExceptionally(new org.apache.kafka.common.errors.TimeoutException("expired"));
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
+
+        assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
+            .isInstanceOf(OutboxTransportException.class)
+            .satisfies(failure -> assertThat(((OutboxTransportException) failure).permanent()).isFalse());
+        verify(broker).suspect();
+    }
+
+    @Test
+    void aCommandIsNotSentAsAnEvent() {
+        CanonicalOutboxMessage event = message("{\"tenantId\":100}");
+        CanonicalOutboxMessage command = new CanonicalOutboxMessage(event.messageId(), event.eventId(), "COMMAND",
+            event.messageType(), event.schemaVersion(), event.reliability(), event.producerPluginId(), event.scope(),
+            event.tenantId(), event.partitionKey(), event.occurredAt(), event.correlationId(), event.causationId(),
+            event.traceparent(), event.tracestate(), event.payload(), event.attemptCount());
+
+        assertThatThrownBy(() -> transport.publish(command))
+            .isInstanceOf(OutboxTransportException.class)
+            .satisfies(failure -> assertThat(((OutboxTransportException) failure).permanent()).isTrue());
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+    }
+
+    @Test
     void theTransportIsReadyWhileTheBrokerAnswers() {
         // Kafka design D21: while Kafka cannot be reached the relay claims nothing and spends no attempts.
         when(broker.reachable()).thenReturn(false, true);

@@ -122,8 +122,33 @@ public class KafkaAutoConfiguration {
         configs.put(ProducerConfig.BATCH_SIZE_CONFIG, producer.getBatchSize());
         configs.put(ProducerConfig.LINGER_MS_CONFIG, producer.getLingerMs());
         configs.put(ProducerConfig.BUFFER_MEMORY_CONFIG, producer.getBufferMemory());
+        configs.putAll(deliveryTimeouts(properties.getOutbox().getPublishTimeoutMs(), producer.getLingerMs()));
         
         return new DefaultKafkaProducerFactory<>(configs);
+    }
+
+    /**
+     * The producer gives up on a record within the publish timeout: {@code delivery.timeout.ms} is the
+     * timeout, a request waits at most what is left of it after the linger, and {@code send()} blocks for
+     * metadata at most that long. The relay waits a little longer than the timeout, so a record it records
+     * as failed is not still being sent (Kafka design D21).
+     *
+     * @param publishTimeoutMs the outbox publish timeout
+     * @param lingerMs the producer linger
+     * @return the producer settings
+     */
+    static Map<String, Object> deliveryTimeouts(long publishTimeoutMs, int lingerMs) {
+        if (publishTimeoutMs <= lingerMs + 1000L) {
+            throw new IllegalStateException("brix.infra.kafka.outbox.publish-timeout-ms must exceed the linger by"
+                + " more than one second");
+        }
+        int deliveryTimeout = (int) Math.min(Integer.MAX_VALUE, publishTimeoutMs);
+        int requestTimeout = Math.min(30000, deliveryTimeout - lingerMs);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, deliveryTimeout);
+        configs.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeout);
+        configs.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, (long) deliveryTimeout);
+        return configs;
     }
 
     /**

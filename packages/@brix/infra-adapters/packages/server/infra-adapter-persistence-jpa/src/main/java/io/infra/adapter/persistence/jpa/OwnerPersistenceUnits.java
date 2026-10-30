@@ -47,6 +47,7 @@ import tools.jackson.databind.ObjectMapper;
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.orchestrator.event.EventInboxStore;
+import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
@@ -342,6 +343,30 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
                     + "' and by " + type.getName() + " of '" + other.get() + "'; a table belongs to one owner");
             }
         });
+    }
+
+    @Override
+    public void requireMessagingTables(String ownerModuleId) {
+        Objects.requireNonNull(ownerModuleId, "ownerModuleId must not be null");
+        owners.outboxOf(ownerModuleId)
+            .ifPresent(outbox -> requireCanonical(ownerModuleId, CanonicalMessagingTables.Kind.OUTBOX, outbox));
+        owners.inboxOf(ownerModuleId)
+            .ifPresent(inbox -> requireCanonical(ownerModuleId, CanonicalMessagingTables.Kind.INBOX, inbox));
+    }
+
+    /**
+     * Refuses an Owner whose canonical messaging table does not match the platform schema (root
+     * BRX-RS-MESSAGE-026, Kafka design §14 K19).
+     */
+    private void requireCanonical(String ownerId, CanonicalMessagingTables.Kind kind, String table) {
+        if (!validateSchema) {
+            return;
+        }
+        try {
+            MessagingTableCheck.require(dataSource, ownerId, kind, OwnerTenantTables.normalize(table));
+        } catch (IllegalStateException mismatch) {
+            throw rejected(Map.of("owner", ownerId), mismatch.getMessage());
+        }
     }
 
     private static PersistenceCapabilityException rejected(Map<String, String> safeParameters, String detail) {

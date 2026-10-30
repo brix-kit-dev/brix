@@ -17,6 +17,10 @@ import java.util.List;
  * must not read Owner business tables and must enforce ownership of an active
  * claim when finalizing, retrying, or parking a message.</p>
  *
+ * <p>The {@code relayOwner} argument identifies one claim: the relay passes a token of its own for every
+ * pass ({@code <relay>:<uuid>}), so a relay finalizes only what it claimed in that pass, and several relays
+ * may share one outbox.</p>
+ *
  * @author Runtime SDK Team
  * @since 3.0.10
  */
@@ -30,12 +34,13 @@ public interface OutboxMessageStore {
     void append(CanonicalOutboxMessage message);
 
     /**
-     * Atomically claims due messages for a relay owner, in the order they occurred.
+     * Atomically claims due messages, in the order the outbox recorded them.
      * <p>A message whose partition key has an earlier message that waits for its retry or is in flight is not
      * claimed: it stays behind that message, so the events of one key leave in their order (root
-     * BRX-RS-MESSAGE-027). Due messages of one key are claimed together, in order.</p>
+     * BRX-RS-MESSAGE-027). Due messages of one key are claimed together, in order. This holds when several
+     * relays claim from the same outbox at once.</p>
      *
-     * @param relayOwner stable relay instance identity
+     * @param relayOwner the claim token of this pass
      * @param now claim timestamp
      * @param leaseDuration lease duration
      * @param batchSize maximum number of messages
@@ -50,7 +55,7 @@ public interface OutboxMessageStore {
     /**
      * Marks a claimed message as published.
      *
-     * @param relayOwner stable relay instance identity
+     * @param relayOwner the claim token the message was claimed under
      * @param messageId canonical message id
      * @param publishedAt publish timestamp
      */
@@ -59,7 +64,7 @@ public interface OutboxMessageStore {
     /**
      * Releases a claimed message for a future retry.
      *
-     * @param relayOwner stable relay instance identity
+     * @param relayOwner the claim token the message was claimed under
      * @param messageId canonical message id
      * @param availableAt next retry timestamp
      * @param errorCode stable error code
@@ -70,7 +75,7 @@ public interface OutboxMessageStore {
      * Hands a claimed message back untried, because an earlier message with its partition key failed in the
      * same pass: it waits for that message. The claim's attempt is not counted.
      *
-     * @param relayOwner stable relay instance identity
+     * @param relayOwner the claim token the message was claimed under
      * @param messageId canonical message id
      */
     void releaseUntried(String relayOwner, String messageId);
@@ -78,7 +83,7 @@ public interface OutboxMessageStore {
     /**
      * Parks a claimed message after retry exhaustion or permanent failure.
      *
-     * @param relayOwner stable relay instance identity
+     * @param relayOwner the claim token the message was claimed under
      * @param messageId canonical message id
      * @param errorCode stable error code
      * @param parkedAt parking timestamp

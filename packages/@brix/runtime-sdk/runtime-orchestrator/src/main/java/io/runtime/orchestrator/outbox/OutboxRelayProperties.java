@@ -56,6 +56,11 @@ public class OutboxRelayProperties {
     private Duration retryJitterMax = Duration.ofSeconds(5);
 
     /**
+     * Upper bound of the exponential retry backoff.
+     */
+    private Duration retryBackoffMax = OutboxRelayPolicy.DEFAULT_RETRY_BACKOFF_MAX;
+
+    /**
      * Fixed delay between polling passes.
      */
     private Duration pollDelay = Duration.ofSeconds(1);
@@ -106,6 +111,14 @@ public class OutboxRelayProperties {
 
     public void setRetryJitterMax(Duration retryJitterMax) {
         this.retryJitterMax = retryJitterMax;
+    }
+
+    public Duration getRetryBackoffMax() {
+        return retryBackoffMax;
+    }
+
+    public void setRetryBackoffMax(Duration retryBackoffMax) {
+        this.retryBackoffMax = retryBackoffMax;
     }
 
     public Duration getPollDelay() {

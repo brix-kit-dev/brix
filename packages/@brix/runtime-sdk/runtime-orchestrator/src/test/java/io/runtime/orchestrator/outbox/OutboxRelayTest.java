@@ -49,7 +49,7 @@ class OutboxRelayTest {
 
         assertEquals(new OutboxRelayRunResult(1, 1, 0, 0), result);
         assertEquals("PUBLISHED", store.status("m-1"));
-        assertEquals("relay-a", store.claimOwner("m-1"));
+        assertTrue(store.claimOwner("m-1").startsWith("relay-a:"), "claimed under a token of the pass");
         assertSame(published.get(), store.claimedMessage("m-1"));
         assertEquals("event-m-1", published.get().eventId());
     }
@@ -188,6 +188,99 @@ class OutboxRelayTest {
 
         assertEquals(new OutboxRelayRunResult(1, 1, 0, 0), delivered);
         assertEquals(1, published.get().attemptCount());
+    }
+
+    @Test
+    void everyPassClaimsUnderATokenOfItsOwn() {
+        // Kafka design §14 K12: a relay finalizes only what it claimed in that pass, so relays may share an outbox.
+        InMemoryStore store = new InMemoryStore();
+        store.add("m-1", 0);
+        OutboxRelay relay = relay(store, ignored -> {
+        });
+        relay.processDueBatch();
+        store.add("m-2", 0);
+        relay.processDueBatch();
+
+        assertTrue(store.claimOwner("m-2").startsWith("relay-a:"));
+        assertFalse(store.claimOwner("m-1").equals(store.claimOwner("m-2")), "two passes, two claims");
+    }
+
+    @Test
+    void theRetryWaitDoublesUpToItsBound() {
+        // Root BRX-RS-RESILIENCE-002: exponential backoff with a bound.
+        OutboxRelayPolicy policy = new OutboxRelayPolicy(10, 9, Duration.ofSeconds(30), Duration.ofSeconds(5),
+            Duration.ZERO, Duration.ofSeconds(12));
+        InMemoryStore store = new InMemoryStore();
+        OffsetDateTime occurred = OffsetDateTime.now(CLOCK).minusSeconds(1);
+        store.append(message("m-1", 0, "key-1", occurred));
+        store.append(message("m-2", 1, "key-2", occurred));
+        store.append(message("m-3", 2, "key-3", occurred));
+        OutboxRelay relay = new OutboxRelay("relay-a", store, ignored -> {
+            throw new OutboxTransportException("KAFKA_TIMEOUT", "timeout", null);
+        }, policy, CLOCK, ignored -> Duration.ZERO, OutboxRelayMetrics.NOOP);
+
+        relay.processDueBatch();
+
+        OffsetDateTime now = OffsetDateTime.now(CLOCK);
+        assertEquals(now.plusSeconds(5), store.availableAt("m-1"), "after the first attempt");
+        assertEquals(now.plusSeconds(10), store.availableAt("m-2"), "after the second attempt");
+        assertEquals(now.plusSeconds(12), store.availableAt("m-3"), "bounded");
+    }
+
+    @Test
+    void aTransportLostDuringAPassHandsTheRestBackUntried() {
+        // Kafka design D21: once the broker is gone, the rest of the pass spends no attempts.
+        InMemoryStore store = new InMemoryStore();
+        OffsetDateTime now = OffsetDateTime.now(CLOCK);
+        store.add("m-a", "key-1", now.minusSeconds(3));
+        store.add("m-b", "key-2", now.minusSeconds(2));
+        store.add("m-c", "key-3", now.minusSeconds(1));
+        AtomicBoolean ready = new AtomicBoolean(true);
+        List<String> published = new ArrayList<>();
+        OutboxRelay relay = relay(store, new OutboxTransport() {
+            @Override
+            public void publish(CanonicalOutboxMessage message) {
+                ready.set(false);
+                throw new OutboxTransportException("KAFKA_SEND_TIMEOUT", "timeout", null);
+            }
+
+            @Override
+            public boolean ready() {
+                return ready.get();
+            }
+        });
+
+        OutboxRelayRunResult result = relay.processDueBatch();
+
+        assertEquals(new OutboxRelayRunResult(3, 0, 1, 0), result);
+        assertEquals(1, store.attempts("m-a"), "the timed-out send counts");
+        assertEquals("PENDING", store.status("m-b"));
+        assertEquals(0, store.attempts("m-b"), "handed back untried");
+        assertEquals(0, store.attempts("m-c"), "handed back untried");
+        assertEquals(List.of(), published);
+    }
+
+    @Test
+    void aPassCutShortByStoppingCostsNoAttempt() {
+        InMemoryStore store = new InMemoryStore();
+        OffsetDateTime now = OffsetDateTime.now(CLOCK);
+        store.add("m-a", "key-1", now.minusSeconds(2));
+        store.add("m-b", "key-2", now.minusSeconds(1));
+        OutboxRelay relay = relay(store, message -> {
+            Thread.currentThread().interrupt();
+            throw new OutboxTransportException("KAFKA_SEND_INTERRUPTED", "interrupted", null);
+        });
+
+        try {
+            OutboxRelayRunResult result = relay.processDueBatch();
+
+            assertEquals(new OutboxRelayRunResult(2, 0, 0, 0), result);
+            assertEquals("PENDING", store.status("m-a"));
+            assertEquals(0, store.attempts("m-a"), "an interrupted send is not a failed attempt");
+            assertEquals(0, store.attempts("m-b"));
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @Test

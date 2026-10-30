@@ -65,6 +65,12 @@ public class FlywayModuleMigrationProperties {
     private boolean enabled = true;
 
     /**
+     * Whether the plugin manifests' {@code data.migrationLocation} are migrated too (root BRX-RS-DATA-031),
+     * after the listed modules, each in {@code <table-prefix><data.storageId>}.
+     */
+    private boolean discoverFromManifests = true;
+
+    /**
      * List of business module names. Each module corresponds to a Flyway migration script directory
      * under {@code db/migration/{module}/} on the classpath. Migration scripts from each module's
      * {@code -server} JAR are automatically discovered via classpath scanning.
@@ -113,6 +119,14 @@ public class FlywayModuleMigrationProperties {
     private boolean failOnError = false;
 
     // ==================== Getters and Setters ====================
+
+    public boolean isDiscoverFromManifests() {
+        return discoverFromManifests;
+    }
+
+    public void setDiscoverFromManifests(boolean discoverFromManifests) {
+        this.discoverFromManifests = discoverFromManifests;
+    }
 
     public boolean isEnabled() {
         return enabled;

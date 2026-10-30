@@ -633,6 +633,7 @@ public final class PluginRuntimeManager {
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
+            ownerPersistence.requireMessagingTables(plugin.id());
             PluginContext context = new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence);
             plugin.provider.onStart(context);
             plugin.eventHandlers = createEventHandlers(plugin.id(), bootstrapContext.eventHandlerFactories(), context);

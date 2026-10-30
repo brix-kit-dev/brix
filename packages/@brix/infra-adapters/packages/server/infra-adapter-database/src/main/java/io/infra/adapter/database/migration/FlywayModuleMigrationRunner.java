@@ -15,9 +15,15 @@
  */
 package io.infra.adapter.database.migration;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import javax.sql.DataSource;
 
@@ -27,6 +33,10 @@ import org.flywaydb.core.api.MigrationInfoService;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.runtime.manifest.loader.PluginManifestLoader;
+import io.runtime.manifest.model.PluginManifest;
+import io.runtime.manifest.validation.PluginManifestValidator;
 
 /**
  * Executes Flyway database migrations for each configured business module independently.
@@ -95,8 +105,24 @@ public class FlywayModuleMigrationRunner {
      * name is derived from the module name with hyphens replaced by underscores.</p>
      */
     private void runModuleMigrations() {
+        Map<String, Migration> migrations = new LinkedHashMap<>();
         List<String> modules = properties.getModules();
-        if (modules == null || modules.isEmpty()) {
+        if (modules != null) {
+            for (String module : modules) {
+                migrations.putIfAbsent(location(properties.getLocationsPrefix() + module),
+                    new Migration(module, location(properties.getLocationsPrefix() + module),
+                        properties.getTablePrefix() + module.replace("-", "_")));
+            }
+        }
+        // Root BRX-RS-DATA-031: every Owner's manifest names its migrations; an Owner the Host does not list
+        // still gets its tables, in its own history table, after the listed modules.
+        if (properties.isDiscoverFromManifests()) {
+            for (Migration declared : declaredMigrations(Thread.currentThread().getContextClassLoader(),
+                    properties.getTablePrefix())) {
+                migrations.putIfAbsent(declared.location(), declared);
+            }
+        }
+        if (migrations.isEmpty()) {
             log.info("[Flyway] No modules configured — skipping multi-module migration.");
             return;
         }
@@ -105,8 +131,8 @@ public class FlywayModuleMigrationRunner {
         int failCount = 0;
         long startTime = System.currentTimeMillis();
 
-        for (String module : modules) {
-            ModuleMigrationResult result = migrateModule(module);
+        for (Migration migration : migrations.values()) {
+            ModuleMigrationResult result = migrateModule(migration);
             results.add(result);
 
             if (result.isSuccess()) {
@@ -115,7 +141,7 @@ public class FlywayModuleMigrationRunner {
                 failCount++;
                 if (properties.isFailOnError()) {
                     throw new FlywayModuleMigrationException(
-                            "Migration failed for module '" + module + "': " + result.getErrorMessage(),
+                            "Migration failed for module '" + migration.module() + "': " + result.getErrorMessage(),
                             result.getError());
                 }
             }
@@ -123,21 +149,60 @@ public class FlywayModuleMigrationRunner {
 
         long elapsed = System.currentTimeMillis() - startTime;
         log.info("[Flyway] Multi-module migration completed in {}ms — {} succeeded, {} failed out of {} modules.",
-                elapsed, successCount, failCount, modules.size());
+                elapsed, successCount, failCount, migrations.size());
     }
 
     /**
-     * Executes Flyway migration for a single business module.
+     * Returns the migrations the plugin manifests on the class path declare under {@code data}: the
+     * location {@code data.migrationLocation}, the history table {@code <table-prefix><data.storageId>}.
      *
-     * @param module the module name (e.g., "app-identity")
-     * @return the migration result containing status, applied migration count, and any error
+     * @param classLoader where to look for manifests
+     * @param tablePrefix prefix of the schema history tables
+     * @return the declared migrations, by plugin id
      */
-    private ModuleMigrationResult migrateModule(String module) {
-        // Build the classpath location for this module's migration scripts
-        String location = properties.getLocationsPrefix() + module;
+    static List<Migration> declaredMigrations(ClassLoader classLoader, String tablePrefix) {
+        PluginManifestLoader loader = new PluginManifestLoader();
+        Map<String, Migration> declared = new TreeMap<>();
+        try {
+            for (URL resource : Collections.list(classLoader.getResources(PluginManifestValidator.ACTIVE_MANIFEST_RESOURCE))) {
+                PluginManifest manifest;
+                try (InputStream input = resource.openStream()) {
+                    manifest = loader.load(input);
+                }
+                PluginManifest.DataSection data = manifest.getData();
+                if (data == null || data.getMigrationLocation() == null || data.getMigrationLocation().isBlank()
+                        || data.getStorageId() == null || data.getStorageId().isBlank()) {
+                    continue;
+                }
+                String pluginId = manifest.getMetadata().getPluginId();
+                declared.put(pluginId, new Migration(pluginId, location(data.getMigrationLocation()),
+                    tablePrefix + data.getStorageId()));
+            }
+        } catch (IOException e) {
+            throw new FlywayModuleMigrationException("Failed to read the plugin manifests for their migrations", e);
+        }
+        return new ArrayList<>(declared.values());
+    }
 
-        // Build the history table name: flyway_schema_history_app_identity
-        String tableName = properties.getTablePrefix() + module.replace("-", "_");
+    private static String location(String location) {
+        String trimmed = location.endsWith("/") ? location.substring(0, location.length() - 1) : location;
+        return trimmed.startsWith("classpath:") || trimmed.startsWith("filesystem:") ? trimmed : "classpath:" + trimmed;
+    }
+
+    /**
+     * One module's migrations.
+     *
+     * @param module module or plugin id, for the logs
+     * @param location Flyway location
+     * @param table schema history table
+     */
+    record Migration(String module, String location, String table) {
+    }
+
+    private ModuleMigrationResult migrateModule(Migration migration) {
+        String module = migration.module();
+        String location = migration.location();
+        String tableName = migration.table();
 
         long moduleStart = System.currentTimeMillis();
 

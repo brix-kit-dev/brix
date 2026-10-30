@@ -47,6 +47,7 @@ class OutboxRelayPersistenceAutoConfigurationTest {
         jdbcTemplate.execute("""
             CREATE TABLE phase4_owner_outbox (
                 message_id VARCHAR(64) PRIMARY KEY,
+                seq BIGINT GENERATED ALWAYS AS IDENTITY,
                 event_id VARCHAR(64) NOT NULL,
                 message_kind VARCHAR(20) NOT NULL,
                 message_type VARCHAR(128) NOT NULL,

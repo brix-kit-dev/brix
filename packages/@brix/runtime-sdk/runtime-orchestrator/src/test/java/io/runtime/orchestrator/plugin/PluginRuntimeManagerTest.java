@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 import io.runtime.orchestrator.event.PluginEventSubscribers;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.EventReliability;
@@ -173,6 +175,46 @@ class PluginRuntimeManagerTest {
 
         assertTrue(plugin.started);
         assertTrue(manager.ready());
+    }
+
+    @Test
+    void aPluginWhoseMessagingTablesAreRefusedFailsBeforeItStarts() {
+        // Kafka design §14 K19: a missing or incomplete outbox fails the plugin at start, not at its first event.
+        RecordingPlugin plugin = new RecordingPlugin();
+        DefaultCapabilityRegistry registry = eventBusRegistry();
+        List<String> checked = new ArrayList<>();
+        OwnerPersistenceProvider persistence = new OwnerPersistenceProvider() {
+            @Override
+            public Optional<io.runtime.sdk.capability.PersistenceCapability> forOwner(String ownerModuleId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public void requireMessagingTables(String ownerModuleId) {
+                checked.add(ownerModuleId);
+                throw new IllegalStateException("plugin_a_outbox has no column seq");
+            }
+        };
+        PluginRuntimeManager manager = new PluginRuntimeManager(
+            () -> List.of(plugin),
+            candidate -> Optional.of(PluginRuntimeDescriptor.builder("plugin-a")
+                .requiredCapabilities(List.of(EventBusCapability.class.getName()))
+                .data("plugin_a", "plugin_a_outbox", "")
+                .eventPublication("OrderPlaced", "1.0.0", EventReliability.CRITICAL)
+                .build()),
+            registry,
+            List.of("plugin-a"),
+            PluginEndpointDispatcher.none(),
+            ignored -> {
+            },
+            List::of,
+            new InternalContractBinder(registry, registry, getClass().getClassLoader()),
+            persistence);
+
+        assertThrows(PluginRuntimeException.class, manager::start);
+        assertEquals(List.of("plugin-a"), checked);
+        assertFalse(plugin.started);
+        assertFalse(manager.ready());
     }
 
     @Test

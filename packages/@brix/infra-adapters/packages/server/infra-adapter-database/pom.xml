@@ -64,6 +64,12 @@
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
+        <!-- Plugin manifests name each Owner's migration location (root BRX-RS-DATA-031) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-manifest</artifactId>
+            <version>${runtime-sdk.version}</version>
+        </dependency>
 
         <!-- ========== Spring Boot ========== -->
         <dependency>

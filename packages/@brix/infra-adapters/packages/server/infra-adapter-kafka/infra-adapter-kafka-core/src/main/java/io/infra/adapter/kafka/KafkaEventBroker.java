@@ -134,6 +134,14 @@ public final class KafkaEventBroker implements AutoCloseable {
         ensure(wanted);
     }
 
+    /**
+     * Forgets the last reachability answer, so the next {@link #reachable()} asks the broker again; the
+     * transport calls it when a send times out or the connection fails.
+     */
+    public synchronized void suspect() {
+        probedAt = null;
+    }
+
     @Override
     public void close() {
         admin.close(Duration.ofSeconds(5));

@@ -60,6 +60,18 @@ public interface OwnerPersistenceProvider {
     }
 
     /**
+     * Refuses an Owner whose canonical messaging tables (the {@code data.outbox} and {@code data.inbox} its
+     * manifest declares) do not match the platform schema (root BRX-RS-MESSAGE-026, Kafka design §14 K19).
+     * The runtime calls it before the plugin starts, so a missing or incomplete table fails the plugin by its
+     * required/optional rules instead of its first message. The default checks nothing.
+     *
+     * @param ownerModuleId owner module id
+     * @throws RuntimeException when a declared table does not conform
+     */
+    default void requireMessagingTables(String ownerModuleId) {
+    }
+
+    /**
      * Returns a provider used when no persistence adapter is assembled.
      *
      * @return a provider that never supplies a capability
