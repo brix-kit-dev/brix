@@ -6,6 +6,8 @@ package io.brix.architecture.guard.rules;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 
+import io.brix.architecture.guard.ArchitectureLayers;
+
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -57,7 +59,7 @@ public final class NoCyclicDependencyRule {
      */
     public static ArchRule noCyclesBetweenAdapters() {
         return SlicesRuleDefinition.slices()
-                .matching("io.brix.infra.adapter.(*)..")
+                .matching("io.infra.adapter.(*)..")
                 .should().beFreeOfCycles()
                 .because("Red Line 11: Adapters must not have circular dependencies.");
     }
@@ -132,7 +134,7 @@ public final class NoCyclicDependencyRule {
                 .resideInAnyPackage(
                         "io.runtime.sdk.impl..",
                         "io.runtime.orchestrator..",
-                        "io.brix.infra.adapter.."
+                        ArchitectureLayers.INFRA_ADAPTER_ROOT
                 )
                 .because("Red Line 11: runtime-sdk-api must not depend on implementation layers. " +
                         "It is the stable contract at the top of the dependency chain.")

@@ -11,6 +11,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
+import io.brix.architecture.guard.ArchitectureLayers;
+
 /**
  * A-25/A-26 rules for {@code moduleKind=platform-operational} artifacts.
  *
@@ -22,7 +24,7 @@ public final class OperationalProfile {
     private static final String[] FORBIDDEN_IMPLEMENTATION_PACKAGES = {
         "io.brix.app..",
         "io.brix.enterprise..",
-        "io.brix.infra..",
+        ArchitectureLayers.INFRA_ADAPTER_ROOT,
         "org.springframework.context..",
         "org.springframework.beans.factory..",
         "org.springframework.web.bind.annotation.."

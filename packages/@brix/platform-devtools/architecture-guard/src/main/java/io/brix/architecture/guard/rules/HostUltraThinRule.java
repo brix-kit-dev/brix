@@ -95,7 +95,7 @@ public final class HostUltraThinRule {
      * <pre>{@code
      * // infra-adapter-core/src/main/resources/META-INF/spring.factories
      * org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-     *   io.brix.infra.adapter.core.CapabilityRegistryAutoConfiguration
+     *   io.infra.adapter.core.CapabilityRegistryAutoConfiguration
      * }</pre>
      *
      * @return ArchUnit rule instance

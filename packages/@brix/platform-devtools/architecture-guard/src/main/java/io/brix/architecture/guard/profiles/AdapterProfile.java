@@ -35,7 +35,7 @@ import io.brix.architecture.guard.rules.AdapterIsolationRule;
  * <h2>Usage</h2>
  * <pre>{@code
  * // In infra-adapter-kafka module
- * @AnalyzeClasses(packages = "io.brix.infra.adapter.kafka")
+ * @AnalyzeClasses(packages = "io.infra.adapter.kafka")
  * class AdapterArchitectureTest {
  *     @ArchTest
  *     static final ArchTests rules = BrixArchitectureRules.adapterProfile();

@@ -14,6 +14,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import io.brix.devtools.governance.artifact.ModuleKind;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -56,7 +57,7 @@ class JavaStaticBoundaryExecutorTest {
     void hostSourceCannotImportAdapterImplementationTypes() {
         JavaClasses classes = new ClassFileImporter().importPackages(
             "io.brix.phase2fixtures.violating.host",
-            "io.brix.infra.adapter.kafka");
+            "io.infra.adapter.kafka");
 
         JavaStaticBoundaryViolationException error = org.junit.jupiter.api.Assertions.assertThrows(
             JavaStaticBoundaryViolationException.class,
@@ -66,6 +67,26 @@ class JavaStaticBoundaryExecutorTest {
             result.requirementId().equals("A-6:host-no-adapter-source")
                 && result.diagnosticCode().equals(JavaStaticBoundaryExecutor.RULE_VIOLATION)
                 && result.targetCardinality() > 0));
+    }
+
+    @Test
+    void everyKindThatForbidsAdaptersRejectsAnAdapterImport() {
+        JavaClasses classes = new ClassFileImporter().importPackages(
+            "io.brix.phase2fixtures.violating.adapter");
+
+        Map<ModuleKind, String> adapterRequirements = Map.of(
+            ModuleKind.PLUGIN_API, "A-1:plugin-api-no-l0",
+            ModuleKind.PLUGIN_CORE, "A-1:plugin-core-no-adapter",
+            ModuleKind.PLUGIN_SERVER, "A-1:plugin-server-no-adapter",
+            ModuleKind.HOST, "A-6:host-no-adapter-source",
+            ModuleKind.PLATFORM_OPERATIONAL, "A-26:operational-no-adapter");
+
+        adapterRequirements.forEach((moduleKind, requirementId) -> assertTrue(
+            executor.execute(moduleKind, classes).stream().anyMatch(result ->
+                result.requirementId().equals(requirementId)
+                    && result.diagnosticCode().equals(JavaStaticBoundaryExecutor.RULE_VIOLATION)
+                    && result.targetCardinality() > 0),
+            moduleKind + " must reject an adapter import through " + requirementId));
     }
 
     @Test

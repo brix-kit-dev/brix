@@ -66,7 +66,7 @@ public class HostProfile {
     // ============================================================================
     // Relaxed Rules
     // ============================================================================
-    // Rule 1 - Relaxed (Host may use infra adapters, needs to import io.brix.infra.adapter.*)
+    // Rule 1 - Relaxed (Host may use infra adapters, needs to import io.infra.adapter.*)
     // Rule 5 - Relaxed (Host may use Spring container API, needs ApplicationContext)
 
     // ============================================================================

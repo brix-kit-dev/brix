@@ -17,6 +17,7 @@ package io.brix.architecture.guard.rules;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -213,8 +214,10 @@ class NoSpringContainerApiRuleTest {
             ArchRule infraAdapterRule = NoInfraAdapterRule.rule().allowEmptyShould(true);
             ArchRule middlewareRule = NoMiddlewareClientsRule.noSpringKafka().allowEmptyShould(true);
 
+            // The guard's own test fixtures import adapter packages on purpose; check the library only.
             assertDoesNotThrow(() -> {
                 JavaClasses classes = new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                         .importPackages("io.brix.architecture.guard");
                 containerRule.check(classes);
                 infraAdapterRule.check(classes);

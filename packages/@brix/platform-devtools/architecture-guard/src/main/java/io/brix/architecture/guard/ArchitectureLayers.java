@@ -30,7 +30,7 @@ package io.brix.architecture.guard;
  *  ├───────────────────────┤
  *  │  Orchestrator Layer   │  io.runtime.orchestrator.**
  *  ├───────────────────────┤
- *  │  Infrastructure       │  io.brix.infra.adapter.**
+ *  │  Infrastructure       │  io.infra.adapter.**
  *  └───────────────────────┘
  * </pre>
  *
@@ -45,20 +45,25 @@ public final class ArchitectureLayers {
 
     // ==================== Infrastructure Adapter Packages ====================
 
-    /** Root package for all infrastructure adapters */
-    public static final String INFRA_ADAPTER_ROOT = "io.brix.infra.adapter..";
+    /**
+     * Root package for all infrastructure adapters.
+     *
+     * <p>Every class in {@code packages/@brix/infra-adapters} lives under
+     * {@code io.infra.adapter}; {@code NoInfraAdapterRuleTest} fails if that drifts.</p>
+     */
+    public static final String INFRA_ADAPTER_ROOT = "io.infra.adapter..";
 
     /** Kafka adapter package */
-    public static final String INFRA_ADAPTER_KAFKA = "io.brix.infra.adapter.kafka..";
+    public static final String INFRA_ADAPTER_KAFKA = "io.infra.adapter.kafka..";
 
     /** Redis adapter package */
-    public static final String INFRA_ADAPTER_REDIS = "io.brix.infra.adapter.redis..";
+    public static final String INFRA_ADAPTER_REDIS = "io.infra.adapter.redis..";
 
     /** Webhook adapter package */
-    public static final String INFRA_ADAPTER_WEBHOOK = "io.brix.infra.adapter.webhook..";
+    public static final String INFRA_ADAPTER_WEBHOOK = "io.infra.adapter.webhook..";
 
     /** OpenTelemetry adapter package */
-    public static final String INFRA_ADAPTER_OTEL = "io.brix.infra.adapter.otel..";
+    public static final String INFRA_ADAPTER_OTEL = "io.infra.adapter.otel..";
 
     // ==================== Middleware Client Packages ====================
 

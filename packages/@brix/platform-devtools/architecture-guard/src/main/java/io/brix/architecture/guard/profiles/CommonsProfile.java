@@ -18,6 +18,8 @@ package io.brix.architecture.guard.profiles;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
+import io.brix.architecture.guard.ArchitectureLayers;
+
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS;
 
@@ -77,7 +79,7 @@ public class CommonsProfile {
     static final ArchRule commonsNotDependOnAdapters = noClasses()
             .that().resideInAPackage("io.brix.commons..")
             .should().dependOnClassesThat()
-            .resideInAPackage("io.brix.infra.adapter..")
+            .resideInAPackage(ArchitectureLayers.INFRA_ADAPTER_ROOT)
             .because("platform-commons must not depend on infrastructure adapters")
             .allowEmptyShould(true);
 

@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import org.junit.jupiter.api.Test;
 
+import io.brix.test.operational.AdapterEscapingOperationalComponent;
 import io.brix.test.operational.CompliantOperationalComponent;
 import io.brix.test.operational.EnterpriseEscapingOperationalComponent;
 
@@ -38,6 +39,15 @@ class OperationalProfileTest {
         var classes = new ClassFileImporter().importClasses(
             EnterpriseEscapingOperationalComponent.class,
             io.brix.enterprise.ForbiddenEnterpriseService.class);
+
+        assertThrows(
+            AssertionError.class,
+            () -> OperationalProfile.operationalImplementationBoundary.check(classes));
+    }
+
+    @Test
+    void rejectsAdapterImplementationEscapeHatch() {
+        var classes = new ClassFileImporter().importClasses(AdapterEscapingOperationalComponent.class);
 
         assertThrows(
             AssertionError.class,

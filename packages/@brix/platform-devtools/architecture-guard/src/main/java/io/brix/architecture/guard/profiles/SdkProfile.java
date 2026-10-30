@@ -18,6 +18,8 @@ package io.brix.architecture.guard.profiles;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
+import io.brix.architecture.guard.ArchitectureLayers;
+
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -86,7 +88,7 @@ public class SdkProfile {
     static final ArchRule sdkNotDependOnAdapters = noClasses()
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
-            .resideInAPackage("io.brix.infra.adapter..")
+            .resideInAPackage(ArchitectureLayers.INFRA_ADAPTER_ROOT)
             .because("Red Line 11: runtime-sdk must not depend on infrastructure adapters")
             .allowEmptyShould(true);
 

@@ -5,7 +5,7 @@
  */
 package io.brix.phase2fixtures.violating.host;
 
-import io.brix.infra.adapter.kafka.KafkaAdapter;
+import io.infra.adapter.kafka.KafkaAdapter;
 
 public final class HostImportsAdapter {
 

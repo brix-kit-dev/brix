@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
-package io.brix.infra.adapter.kafka;
+package io.infra.adapter.kafka;
 
 public final class KafkaAdapter {
 }
