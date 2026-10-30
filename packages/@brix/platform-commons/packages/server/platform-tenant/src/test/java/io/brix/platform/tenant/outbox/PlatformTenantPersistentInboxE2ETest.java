@@ -51,7 +51,6 @@ import io.brix.platform.tenant.PlatformTenantPlugin;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.entity.InstallationQuota;
 import io.brix.platform.tenant.entity.PlatformTenantFirstOwnerProjection;
-import io.brix.platform.tenant.entity.PlatformTenantOutbox;
 import io.brix.platform.tenant.entity.Tenant;
 import io.brix.platform.tenant.entity.TenantInvitation;
 import io.brix.platform.tenant.enums.InvitationInviterType;
@@ -65,7 +64,6 @@ import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.repository.BizUserProfileRepository;
 import io.brix.platform.tenant.repository.InstallationQuotaRepository;
 import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
-import io.brix.platform.tenant.repository.PlatformTenantOutboxRepository;
 import io.brix.platform.tenant.repository.TenantAuditLogRepository;
 import io.brix.platform.tenant.repository.TenantInvitationRepository;
 import io.brix.platform.tenant.repository.TenantMemberRepository;
@@ -118,9 +116,6 @@ class PlatformTenantPersistentInboxE2ETest {
     private PlatformTenantFirstOwnerProjectionRepository projectionRepository;
 
     @Autowired
-    private PlatformTenantOutboxRepository outboxRepository;
-
-    @Autowired
     private TenantRepository tenantRepository;
 
     @Autowired
@@ -162,9 +157,32 @@ class PlatformTenantPersistentInboxE2ETest {
                 processed_at   TIMESTAMP WITH TIME ZONE NOT NULL,
                 created_at     TIMESTAMP WITH TIME ZONE NOT NULL,
                 CONSTRAINT pk_platform_tenant_inbox PRIMARY KEY (handler_id, message_id))""");
+        jdbc.execute("""
+            CREATE TABLE IF NOT EXISTS platform_tenant_outbox (
+                message_id         VARCHAR(64)  NOT NULL PRIMARY KEY,
+                event_id           VARCHAR(64)  NOT NULL,
+                message_kind       VARCHAR(20)  NOT NULL,
+                message_type       VARCHAR(128) NOT NULL,
+                event_type         VARCHAR(128) NOT NULL,
+                schema_version     VARCHAR(16)  NOT NULL,
+                tenant_id          BIGINT,
+                partition_key      VARCHAR(128) NOT NULL,
+                payload            VARCHAR(4000) NOT NULL,
+                reliability        VARCHAR(20)  NOT NULL,
+                producer_plugin_id VARCHAR(128) NOT NULL,
+                scope              VARCHAR(20)  NOT NULL,
+                correlation_id     VARCHAR(128) NOT NULL,
+                causation_id       VARCHAR(128),
+                traceparent        VARCHAR(128),
+                tracestate         VARCHAR(512),
+                status             VARCHAR(20)  NOT NULL,
+                occurred_at        TIMESTAMP WITH TIME ZONE NOT NULL,
+                available_at       TIMESTAMP WITH TIME ZONE NOT NULL,
+                attempt_count      INTEGER      NOT NULL,
+                created_at         TIMESTAMP WITH TIME ZONE NOT NULL)""");
         jdbc.update("DELETE FROM platform_tenant_inbox");
+        jdbc.update("DELETE FROM platform_tenant_outbox");
         projectionRepository.deleteAll();
-        outboxRepository.deleteAll();
         auditLogRepository.deleteAll();
         profileRepository.deleteAll();
         tenantMemberRepository.deleteAll();
@@ -263,12 +281,13 @@ class PlatformTenantPersistentInboxE2ETest {
         String rawToken = "raw-first-owner-token";
         seedPendingTenantAndInvitation(110L, 410L, rawToken);
         committed(() -> firstOwnerInvitationService().accept(new AcceptFirstOwnerInvitationCommand(rawToken, 900L)));
-        PlatformTenantOutbox row = outboxRepository.findAll().get(0);
-        return new CanonicalOutboxMessage(row.getMessageId(), row.getEventId(), row.getMessageKind(),
-            row.getMessageType(), row.getSchemaVersion(), row.getReliability(), row.getProducerPluginId(),
-            row.getScope(), row.getTenantId(), row.getPartitionKey(), row.getOccurredAt(), row.getCorrelationId(),
-            row.getCausationId(), row.getTraceparent(), row.getTracestate(), row.getPayload(),
-            row.getAttemptCount() + 1);
+        return jdbc.queryForObject("SELECT * FROM platform_tenant_outbox", (row, number) -> new CanonicalOutboxMessage(
+            row.getString("message_id"), row.getString("event_id"), row.getString("message_kind"),
+            row.getString("message_type"), row.getString("schema_version"), row.getString("reliability"),
+            row.getString("producer_plugin_id"), row.getString("scope"), row.getObject("tenant_id", Long.class),
+            row.getString("partition_key"), row.getObject("occurred_at", OffsetDateTime.class),
+            row.getString("correlation_id"), row.getString("causation_id"), row.getString("traceparent"),
+            row.getString("tracestate"), row.getString("payload"), row.getInt("attempt_count") + 1));
     }
 
     private static CanonicalOutboxMessage redelivered(CanonicalOutboxMessage message) {
@@ -398,26 +417,16 @@ class PlatformTenantPersistentInboxE2ETest {
         public void publishIntegration(IntegrationEvent event) {
             PluginRuntimeDescriptor.EventPublication publication = DESCRIPTOR.eventPublications().get(event.eventTypeId());
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-            PlatformTenantOutbox row = new PlatformTenantOutbox();
-            row.setMessageId(event.getEventId());
-            row.setEventId(event.getEventId());
-            row.setMessageKind("EVENT");
-            row.setMessageType(event.eventTypeId());
-            row.setEventType(event.eventTypeId());
-            row.setSchemaVersion(publication.version());
-            row.setReliability(publication.reliability().name());
-            row.setProducerPluginId(OWNER);
-            row.setScope(event.scope().name());
-            row.setTenantId(Long.valueOf(event.getTenantId()));
-            row.setPartitionKey(event.getRoutingKey());
-            row.setOccurredAt(OffsetDateTime.ofInstant(event.getTimestamp(), ZoneOffset.UTC));
-            row.setCorrelationId(event.getEventId());
-            row.setPayload(objectMapper.writeValueAsString(event.payload()));
-            row.setStatus("PENDING");
-            row.setAvailableAt(now);
-            row.setAttemptCount(0);
-            row.setCreatedAt(now);
-            outboxRepository.save(row);
+            jdbc.update("""
+                INSERT INTO platform_tenant_outbox (message_id, event_id, message_kind, message_type, event_type,
+                    schema_version, tenant_id, partition_key, payload, reliability, producer_plugin_id, scope,
+                    correlation_id, status, occurred_at, available_at, attempt_count, created_at)
+                VALUES (?, ?, 'EVENT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, 0, ?)""",
+                event.getEventId(), event.getEventId(), event.eventTypeId(), event.eventTypeId(), publication.version(),
+                Long.valueOf(event.getTenantId()), event.getRoutingKey(),
+                objectMapper.writeValueAsString(event.payload()), publication.reliability().name(), OWNER,
+                event.scope().name(), event.getEventId(), OffsetDateTime.ofInstant(event.getTimestamp(), ZoneOffset.UTC),
+                now, now);
         }
     }
 
