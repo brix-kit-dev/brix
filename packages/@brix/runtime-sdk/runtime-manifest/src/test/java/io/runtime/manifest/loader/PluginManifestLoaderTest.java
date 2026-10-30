@@ -16,6 +16,7 @@
 package io.runtime.manifest.loader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
@@ -109,7 +110,34 @@ class PluginManifestLoaderTest {
         assertThatThrownBy(() -> loader.loadFromString(subscriberManifest()
                 .replace("  inbox: platform_tenant_inbox\n", "")))
             .isInstanceOf(ManifestValidationException.class)
-            .hasMessageContaining("Event subscribers must declare data.inbox");
+            .hasMessageContaining("must declare data.inbox");
+    }
+
+    @Test
+    void anOutboxNamedOtherwiseThanItsStorageIsRefused() {
+        // Root BRX-RS-MESSAGE-023: canonical tables are named after the storage id.
+        assertThatThrownBy(() -> loader.loadFromString(subscriberManifest()
+                .replace("inbox: platform_tenant_inbox", "inbox: tenant_events")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("the inbox must be named platform_tenant_inbox");
+    }
+
+    @Test
+    void aSubscriberThatKeepsAnInboxRequiresPersistence() {
+        // Root BRX-RS-MESSAGE-025: the inbox record and the handler's effects share the Owner's transaction.
+        assertThatThrownBy(() -> loader.loadFromString(subscriberManifest()
+                .replace("io.runtime.sdk.capability.PersistenceCapability", "io.runtime.sdk.capability.CacheCapability")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("must require PersistenceCapability");
+    }
+
+    @Test
+    void aSubscriberThatKeepsNoInboxNeedsNoInboxTable() {
+        // Root BRX-RS-MANIFEST-025, Kafka design §13 K3: no-durable-idempotency subscriptions keep no inbox.
+        assertThatCode(() -> loader.loadFromString(subscriberManifest()
+                .replace("  inbox: platform_tenant_inbox\n", "")
+                .replace("idempotencyPolicyRef: persistent-inbox", "idempotencyPolicyRef: no-durable-idempotency")))
+            .doesNotThrowAnyException();
     }
 
     private String validManifest() {
@@ -166,7 +194,9 @@ class PluginManifestLoaderTest {
     }
 
     private String subscriberManifest() {
-        return validManifest().replace(
+        return validManifest().replace("capabilities:\n  required:\n",
+            "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.PersistenceCapability\n"
+                + "      version: \">=3.2.0 <4.0.0\"\n").replace(
             "events:\n  publishes: []\n  subscribes: []\n",
             """
             events:

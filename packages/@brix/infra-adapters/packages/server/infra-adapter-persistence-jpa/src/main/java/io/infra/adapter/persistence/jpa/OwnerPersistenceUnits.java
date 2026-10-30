@@ -46,6 +46,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
+import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
@@ -85,6 +86,7 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     private final ConcurrentMap<String, JpaOwnerPersistence> units = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Optional<EventBusCapability>> eventBuses = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, OwnerPersistenceValidator> validators = new ConcurrentHashMap<>();
+    private volatile Supplier<BestEffortEventSender> bestEffort = () -> null;
 
     /**
      * Creates the owner persistence registry.
@@ -175,6 +177,18 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     }
 
     /**
+     * Sets how the Owners' BEST_EFFORT events are sent (Kafka design §14 K21).
+     *
+     * @param sender supplies the sender, or {@code null} when there is none and such events are dropped
+     * @return this registry
+     */
+    public OwnerPersistenceUnits sendingBestEffortEventsWith(Supplier<BestEffortEventSender> sender) {
+        Objects.requireNonNull(sender, "sender must not be null");
+        this.bestEffort = sender;
+        return this;
+    }
+
+    /**
      * Makes the owners' persistent event inboxes (root BRX-RS-MESSAGE-025), the {@code data.inbox} tables of
      * their manifests, written on each owner's current transaction.
      *
@@ -231,9 +245,11 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     @Override
     public Optional<EventBusCapability> eventBusFor(String ownerModuleId) {
         Objects.requireNonNull(ownerModuleId, "ownerModuleId must not be null");
+        // Every Owner that declares the event bus gets its own (Kafka design §14 K21): it writes CRITICAL and
+        // STANDARD events to its data.outbox, and sends BEST_EFFORT ones with the identity the runtime binds.
         return eventBuses.computeIfAbsent(ownerModuleId, ownerId -> owners.declaresEventBus(ownerId)
-            ? owners.outboxOf(ownerId).map(outbox -> (EventBusCapability) new OwnerOutboxEventBus(
-                ownerId, outbox, owners.publicationsOf(ownerId), dataSource, json, Clock.systemUTC()))
+            ? Optional.of((EventBusCapability) new OwnerOutboxEventBus(ownerId, owners.outboxOf(ownerId).orElse(null),
+                owners.publicationsOf(ownerId), dataSource, json, Clock.systemUTC(), () -> bestEffort.get()))
             : Optional.empty());
     }
 

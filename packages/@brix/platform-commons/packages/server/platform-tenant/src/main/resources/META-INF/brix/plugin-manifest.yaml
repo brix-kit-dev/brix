@@ -95,7 +95,7 @@ events:
       scopePolicyRef: tenant-first-owner-projection-scope
       publisherPolicyRef: platform-tenant-owner
       timeoutPolicyRef: event-standard
-      concurrencyPolicyRef: tenant-first-owner-projection
+      concurrencyPolicyRef: partition-serial
       retryPolicyRef: event-standard
       idempotencyPolicyRef: persistent-inbox
     # Delivered from platform_identity_outbox after the identity owner commits (P4 design §4.3); the
@@ -108,7 +108,7 @@ events:
       scopePolicyRef: first-owner-invitee-setup-fanout
       publisherPolicyRef: platform-identity-owner
       timeoutPolicyRef: event-standard
-      concurrencyPolicyRef: first-owner-invitee-setup
+      concurrencyPolicyRef: partition-serial
       retryPolicyRef: event-standard
       idempotencyPolicyRef: persistent-inbox
 tasks:

@@ -24,7 +24,9 @@ import io.runtime.orchestrator.event.EventSubscriptionGroup;
 import io.runtime.orchestrator.event.EventSubscriptionMetricsFactory;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.event.EventsEndpoint;
+import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.InProcessEventTransport;
+import io.runtime.orchestrator.event.TransportBestEffortSender;
 import io.runtime.orchestrator.event.MicrometerEventSubscriptionMetrics;
 import io.runtime.orchestrator.event.PluginEventSubscribers;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
@@ -101,6 +103,21 @@ public class OutboxRelayAutoConfiguration {
         return new OutboxRelayGroup(properties, policy, stores::getIfAvailable, transport,
             outbox -> metrics.getIfAvailable(() -> OutboxRelayMetricsFactory.NOOP).forOutbox(outbox),
             tracing.getIfAvailable(() -> MessageTracing.NOOP));
+    }
+
+    /**
+     * BEST_EFFORT events skip the outbox but go out through the relay's transport, so the same subscriptions
+     * receive them on either transport (Kafka design §14 K21).
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public BestEffortEventSender bestEffortEventSender(
+            OutboxRelayProperties properties,
+            EventDeliveryProvider deliveries,
+            ObjectProvider<OutboxTransport> brokerTransport) {
+        return new TransportBestEffortSender(IN_PROCESS.equals(properties.getTransport())
+            ? () -> inProcess(deliveries.get())
+            : brokerTransport::getIfAvailable);
     }
 
     /**

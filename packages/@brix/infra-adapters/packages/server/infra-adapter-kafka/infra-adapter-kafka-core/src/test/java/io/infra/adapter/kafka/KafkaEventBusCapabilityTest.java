@@ -189,23 +189,25 @@ class KafkaEventBusCapabilityTest {
     }
 
     @Test
-    void anEventTypeAManifestDeclaresCriticalGoesThroughItsOutbox() {
+    void anEventTypeAManifestDeclaresCriticalGoesThroughItsOwnersBus() {
         declared = Map.of("MessageSent", EventReliability.CRITICAL);
 
         assertThatThrownBy(() -> bus.publishIntegration(new MessageSentEvent("910001", "m-1")))
             .isInstanceOf(EventPublishException.class)
-            .hasMessageContaining("outbox");
+            .hasMessageContaining("PluginContext");
         verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
     }
 
     @Test
-    void anEventTypeDeclaredBestEffortIsSent() {
+    void anEventTypeAPluginDeclaresIsRefusedEvenWhenBestEffort() {
+        // Kafka design §14 K21: this bus takes the producer and tenant the event names, so it cannot carry a type a
+        // plugin declares; that plugin's own bus binds them.
         declared = Map.of("MessageSent", EventReliability.BEST_EFFORT);
-        sendSucceeds();
 
-        bus.publishIntegration(new MessageSentEvent("910001", "m-1"));
-
-        verify(kafkaTemplate).send(any(ProducerRecord.class));
+        assertThatThrownBy(() -> bus.publishIntegration(new MessageSentEvent("910001", "m-1")))
+            .isInstanceOf(EventPublishException.class)
+            .hasMessageContaining("PluginContext");
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
     }
 
     @Test

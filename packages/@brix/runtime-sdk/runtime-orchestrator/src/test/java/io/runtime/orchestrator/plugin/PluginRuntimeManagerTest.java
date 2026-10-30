@@ -283,6 +283,115 @@ class PluginRuntimeManagerTest {
     }
 
     @Test
+    void aRetryPolicyTheRuntimeDoesNotKnowStopsThePluginBeforeItStarts() {
+        // Kafka design §14 K20: a subscription names only policies of the platform's catalog, which take effect.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("platform_tenant", "", "platform_tenant_inbox")
+                .eventSubscription("projection", "TenantFirstOwnerAccepted", ">=1.0.0 <2.0.0", "projection.v1",
+                    "retry-forever", PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX)
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("unknown retry policy 'retry-forever'"), refused.getMessage());
+        assertFalse(plugin.started);
+    }
+
+    @Test
+    void aConcurrencyPolicyTheRuntimeDoesNotKnowStopsThePluginBeforeItStarts() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("platform_tenant", "", "platform_tenant_inbox")
+                .eventSubscription("projection", "TenantFirstOwnerAccepted", ">=1.0.0 <2.0.0", "projection.v1",
+                    "event-standard", PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX)
+                .subscriptionPolicies("projection.v1", "event-standard", "ten-at-once", "")
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("unknown concurrency policy 'ten-at-once'"), refused.getMessage());
+    }
+
+    @Test
+    void aHandlerIdThatCannotNameAConsumerGroupStopsThePluginBeforeItStarts() {
+        // Kafka design §14 K15: handler ids become consumer group names.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.eventHandlers.put("projection v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(plugin),
+            Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("platform_tenant", "", "platform_tenant_inbox")
+                .eventSubscription("projection", "TenantFirstOwnerAccepted", ">=1.0.0 <2.0.0", "projection v1",
+                    "event-standard", PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX)
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("is not a legal name"), refused.getMessage());
+    }
+
+    @Test
+    void twoPluginsThatPublishOneEventTypeAreBothRefused() {
+        // Root BRX-RS-BOOT-005: an event type has one publisher; an ambiguous one fails every plugin it concerns.
+        RecordingPlugin first = new RecordingPlugin();
+        RecordingPlugin second = new RecordingPlugin();
+        PluginRuntimeManager manager = manager(
+            List.of(first, second),
+            Map.of(first, publisher("plugin-a", "1.0.0"), second, publisher("plugin-b", "1.0.0")),
+            eventBusRegistry(),
+            List.of());
+
+        manager.start();
+
+        assertFalse(first.started);
+        assertFalse(second.started);
+    }
+
+    @Test
+    void aSubscriptionWhoseRangeDoesNotTakeThePublishedVersionStopsTheSubscriber() {
+        RecordingPlugin publisher = new RecordingPlugin();
+        RecordingPlugin subscriber = new RecordingPlugin();
+        subscriber.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(publisher, subscriber),
+            Map.of(publisher, publisher("plugin-a", "2.0.0"), subscriber, subscriber("plugin-a-owner")),
+            eventBusRegistry(),
+            List.of());
+
+        manager.start();
+
+        assertTrue(publisher.started);
+        assertFalse(subscriber.started, "accepts >=1.0.0 <2.0.0 of an event published as 2.0.0");
+    }
+
+    @Test
+    void aSubscriptionThatTrustsAnotherPublisherStopsTheSubscriber() {
+        RecordingPlugin publisher = new RecordingPlugin();
+        RecordingPlugin subscriber = new RecordingPlugin();
+        subscriber.eventHandlers.put("projection.v1", context -> new AcceptedHandler());
+        PluginRuntimeManager manager = manager(
+            List.of(publisher, subscriber),
+            Map.of(publisher, publisher("plugin-a", "1.0.0"), subscriber, subscriber("plugin-x-owner")),
+            eventBusRegistry(),
+            List.of());
+
+        manager.start();
+
+        assertTrue(publisher.started);
+        assertFalse(subscriber.started, "trusts plugin-x, but plugin-a publishes the event type");
+    }
+
+    @Test
     void anIdempotencyPolicyTheRuntimeDoesNotKnowStopsThePluginBeforeItStarts() {
         // Root BRX-RS-MANIFEST-026: a policy reference must resolve.
         RecordingPlugin plugin = new RecordingPlugin();
@@ -598,6 +707,23 @@ class PluginRuntimeManagerTest {
     }
 
     interface TestCapability {
+    }
+
+    private static PluginRuntimeDescriptor publisher(String pluginId, String version) {
+        return PluginRuntimeDescriptor.builder(pluginId)
+            .requiredCapabilities(List.of(EventBusCapability.class.getName()))
+            .data(pluginId.replace('-', '_'), pluginId.replace('-', '_') + "_outbox", "")
+            .eventPublication("OrderPlaced", version, EventReliability.CRITICAL)
+            .build();
+    }
+
+    private static PluginRuntimeDescriptor subscriber(String publisherPolicyRef) {
+        return PluginRuntimeDescriptor.builder("plugin-s")
+            .data("plugin_s", "", "plugin_s_inbox")
+            .eventSubscription("projection", "OrderPlaced", ">=1.0.0 <2.0.0", "projection.v1",
+                "event-standard", PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX)
+            .subscriptionPolicies("projection.v1", "event-standard", "partition-serial", publisherPolicyRef)
+            .build();
     }
 
     private static DefaultCapabilityRegistry eventBusRegistry() {

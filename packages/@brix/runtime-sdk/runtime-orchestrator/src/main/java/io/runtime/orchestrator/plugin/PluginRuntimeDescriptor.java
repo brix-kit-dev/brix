@@ -59,6 +59,8 @@ public final class PluginRuntimeDescriptor {
     private final DataDeclaration data;
     private final Map<String, EventPublication> eventPublications;
     private final Map<String, EventSubscription> eventSubscriptions;
+    private final Map<String, SubscriptionPolicies> subscriptionPolicies;
+    private final Map<String, String> publicationSchemas;
     private final Map<String, ProvidedInternalContract> providedInternalContracts;
 
     private PluginRuntimeDescriptor(Builder builder) {
@@ -76,6 +78,8 @@ public final class PluginRuntimeDescriptor {
         this.data = builder.data;
         this.eventPublications = Map.copyOf(builder.eventPublications);
         this.eventSubscriptions = Map.copyOf(builder.eventSubscriptions);
+        this.subscriptionPolicies = Map.copyOf(builder.subscriptionPolicies);
+        this.publicationSchemas = Map.copyOf(builder.publicationSchemas);
         this.providedInternalContracts = Map.copyOf(builder.providedInternalContracts);
     }
 
@@ -242,6 +246,24 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
+     * Returns the timeout, concurrency and publisher policies of each subscription, by handler id.
+     *
+     * @return immutable policies
+     */
+    public Map<String, SubscriptionPolicies> subscriptionPolicies() {
+        return subscriptionPolicies;
+    }
+
+    /**
+     * Returns the {@code schemaRef} of each published event type.
+     *
+     * @return immutable schema references
+     */
+    public Map<String, String> publicationSchemas() {
+        return publicationSchemas;
+    }
+
+    /**
      * Returns internal contracts provided by this plugin artifact.
      *
      * @return immutable internal contract declarations keyed by contract id
@@ -328,6 +350,8 @@ public final class PluginRuntimeDescriptor {
         private DataDeclaration data = new DataDeclaration("", "", "");
         private final Map<String, EventPublication> eventPublications = new LinkedHashMap<>();
         private final Map<String, EventSubscription> eventSubscriptions = new LinkedHashMap<>();
+        private final Map<String, SubscriptionPolicies> subscriptionPolicies = new LinkedHashMap<>();
+        private final Map<String, String> publicationSchemas = new LinkedHashMap<>();
         private final Map<String, ProvidedInternalContract> providedInternalContracts = new LinkedHashMap<>();
         private String version = "0.0.0";
 
@@ -474,6 +498,38 @@ public final class PluginRuntimeDescriptor {
          */
         public Builder data(String storageId, String outbox, String inbox) {
             this.data = new DataDeclaration(storageId, outbox, inbox);
+            return this;
+        }
+
+        /**
+         * Records the schema a published event type refers to.
+         *
+         * @param eventType published event type
+         * @param schemaRef its {@code schemaRef}
+         * @return this builder
+         */
+        public Builder publicationSchema(String eventType, String schemaRef) {
+            if (eventType != null && !eventType.isBlank() && schemaRef != null && !schemaRef.isBlank()) {
+                publicationSchemas.put(eventType, schemaRef.trim());
+            }
+            return this;
+        }
+
+        /**
+         * Records a subscription's timeout, concurrency and publisher policies.
+         *
+         * @param handlerId the subscription's handler id
+         * @param timeoutPolicyRef timeout policy reference
+         * @param concurrencyPolicyRef concurrency policy reference
+         * @param publisherPolicyRef publisher policy reference
+         * @return this builder
+         */
+        public Builder subscriptionPolicies(
+                String handlerId, String timeoutPolicyRef, String concurrencyPolicyRef, String publisherPolicyRef) {
+            if (handlerId != null && !handlerId.isBlank()) {
+                subscriptionPolicies.put(handlerId.trim(),
+                    new SubscriptionPolicies(timeoutPolicyRef, concurrencyPolicyRef, publisherPolicyRef));
+            }
             return this;
         }
 
@@ -759,6 +815,25 @@ public final class PluginRuntimeDescriptor {
          */
         public boolean persistentInbox() {
             return !NO_DURABLE_IDEMPOTENCY.equals(idempotencyPolicyRef);
+        }
+    }
+
+    /**
+     * A subscription's policies beyond retry, idempotency and scope.
+     *
+     * @param timeoutPolicyRef timeout policy reference
+     * @param concurrencyPolicyRef concurrency policy reference
+     * @param publisherPolicyRef publisher policy reference
+     */
+    public record SubscriptionPolicies(String timeoutPolicyRef, String concurrencyPolicyRef, String publisherPolicyRef) {
+
+        /**
+         * Creates the policies, blank when not declared.
+         */
+        public SubscriptionPolicies {
+            timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
+            concurrencyPolicyRef = concurrencyPolicyRef == null ? "" : concurrencyPolicyRef.trim();
+            publisherPolicyRef = publisherPolicyRef == null ? "" : publisherPolicyRef.trim();
         }
     }
 

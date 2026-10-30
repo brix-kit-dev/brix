@@ -130,6 +130,12 @@ public final class PluginManifestValidator {
         validateRange(result, "runtime.supportedRange", runtime.getSupportedRange());
     }
 
+    private boolean requires(PluginManifest manifest, String capability) {
+        String simpleName = capability.substring(capability.lastIndexOf('.') + 1);
+        return capabilities(manifest, true).stream()
+            .anyMatch(ref -> ref != null && (capability.equals(ref.getId()) || simpleName.equals(ref.getId())));
+    }
+
     private List<PluginManifest.CapabilityRef> capabilities(PluginManifest manifest, boolean required) {
         if (manifest.getCapabilities() == null) {
             return List.of();
@@ -237,8 +243,16 @@ public final class PluginManifestValidator {
             }
         }
 
-        if (!subscribes.isEmpty() && !hasText(manifest.getData() != null ? manifest.getData().getInbox() : null)) {
-            result.addError("data.inbox", "Event subscribers must declare data.inbox");
+        // Root BRX-RS-MANIFEST-025: a subscription with no-durable-idempotency keeps no inbox.
+        boolean keepsInbox = subscribes.stream()
+            .anyMatch(subscribe -> !"no-durable-idempotency".equals(subscribe.getIdempotencyPolicyRef()));
+        if (keepsInbox && !hasText(manifest.getData() != null ? manifest.getData().getInbox() : null)) {
+            result.addError("data.inbox", "Event subscribers that keep a persistent inbox must declare data.inbox");
+        }
+        // Root BRX-RS-MESSAGE-025: the inbox record and the handler's effects share the Owner's transaction.
+        if (keepsInbox && !requires(manifest, "io.runtime.sdk.capability.PersistenceCapability")) {
+            result.addError("capabilities.required",
+                "Event subscribers that keep a persistent inbox must require PersistenceCapability");
         }
         if (!subscribes.isEmpty() && !hasText(manifest.getData() != null ? manifest.getData().getStorageId() : null)) {
             result.addError("data.storageId", "Event subscribers must declare data.storageId");
@@ -271,6 +285,15 @@ public final class PluginManifestValidator {
         }
         if (data.getStorageId() != null && !STORAGE_ID_PATTERN.matcher(data.getStorageId()).matches()) {
             result.addError("data.storageId", "storageId must match [a-z][a-z0-9_]{0,30}");
+        }
+        // Root BRX-RS-MESSAGE-023: the canonical messaging tables are named after the storage id.
+        if (hasText(data.getStorageId())) {
+            if (hasText(data.getOutbox()) && !data.getOutbox().equals(data.getStorageId() + "_outbox")) {
+                result.addError("data.outbox", "the outbox must be named " + data.getStorageId() + "_outbox");
+            }
+            if (hasText(data.getInbox()) && !data.getInbox().equals(data.getStorageId() + "_inbox")) {
+                result.addError("data.inbox", "the inbox must be named " + data.getStorageId() + "_inbox");
+            }
         }
         validateCustodialWrites(data, result);
     }

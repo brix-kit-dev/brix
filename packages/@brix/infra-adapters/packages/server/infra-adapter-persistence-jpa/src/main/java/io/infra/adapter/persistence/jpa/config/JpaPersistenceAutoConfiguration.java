@@ -42,6 +42,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.event.EventInboxStore;
+import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.sdk.capability.EventBusCapability;
@@ -80,7 +81,8 @@ public class JpaPersistenceAutoConfiguration {
             PlatformTransactionManager transactionManager,
             DataSource dataSource,
             PersistenceProperties properties,
-            ObjectProvider<ObjectMapper> json) {
+            ObjectProvider<ObjectMapper> json,
+            ObjectProvider<BestEffortEventSender> bestEffort) {
         if (!(transactionManager instanceof JpaTransactionManager jpaTransactionManager)) {
             throw new IllegalStateException("Owner persistence requires a JpaTransactionManager, found "
                 + transactionManager.getClass().getName());
@@ -92,7 +94,8 @@ public class JpaPersistenceAutoConfiguration {
             properties.getTransactionTimeout(),
             properties.isSchemaValidation(),
             ClassUtils.getDefaultClassLoader(),
-            json.getIfAvailable(ObjectMapper::new));
+            json.getIfAvailable(ObjectMapper::new))
+            .sendingBestEffortEventsWith(bestEffort::getIfAvailable);
     }
 
     /**

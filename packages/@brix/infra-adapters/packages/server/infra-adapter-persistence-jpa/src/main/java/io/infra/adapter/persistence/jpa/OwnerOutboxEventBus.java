@@ -10,23 +10,32 @@ import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.manifest.model.PluginManifest;
+import io.runtime.orchestrator.event.BestEffortEventSender;
+import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.event.DomainEvent;
@@ -47,6 +56,8 @@ import io.runtime.sdk.event.IntegrationEvent;
  */
 final class OwnerOutboxEventBus implements EventBusCapability {
 
+    private static final Logger log = LoggerFactory.getLogger(OwnerOutboxEventBus.class);
+
     private static final String MDC_CORRELATION_ID = "correlationId";
     private static final String MDC_TRACEPARENT = "traceparent";
     private static final String MDC_TRACESTATE = "tracestate";
@@ -54,6 +65,7 @@ final class OwnerOutboxEventBus implements EventBusCapability {
 
     private final String ownerId;
     private final String outbox;
+    private final Supplier<BestEffortEventSender> bestEffort;
     private final Map<String, PluginManifest.EventPublish> publications;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
@@ -67,11 +79,29 @@ final class OwnerOutboxEventBus implements EventBusCapability {
             DataSource dataSource,
             ObjectMapper json,
             Clock clock) {
+        this(ownerId, outbox, publications, dataSource, json, clock, () -> null);
+    }
+
+    /**
+     * Creates the Owner's event bus.
+     *
+     * @param outbox the Owner's {@code data.outbox}, or {@code null} when it publishes BEST_EFFORT events only
+     * @param bestEffort sends the Owner's BEST_EFFORT events; it may supply {@code null}, and they are dropped
+     */
+    OwnerOutboxEventBus(
+            String ownerId,
+            String outbox,
+            List<PluginManifest.EventPublish> publications,
+            DataSource dataSource,
+            ObjectMapper json,
+            Clock clock,
+            Supplier<BestEffortEventSender> bestEffort) {
         this.ownerId = Objects.requireNonNull(ownerId, "ownerId must not be null");
-        this.outbox = OwnerTenantTables.normalize(Objects.requireNonNull(outbox, "outbox must not be null"));
-        if (!this.outbox.matches("[a-z][a-z0-9_]{0,62}")) {
+        this.outbox = outbox == null ? null : OwnerTenantTables.normalize(outbox);
+        if (this.outbox != null && !this.outbox.matches("[a-z][a-z0-9_]{0,62}")) {
             throw new IllegalArgumentException(ownerId + " declares an invalid data.outbox: " + outbox);
         }
+        this.bestEffort = Objects.requireNonNull(bestEffort, "bestEffort must not be null");
         this.publications = publications.stream()
             .collect(Collectors.toUnmodifiableMap(PluginManifest.EventPublish::getEventType, Function.identity()));
         this.jdbc = new JdbcTemplate(Objects.requireNonNull(dataSource, "dataSource must not be null"));
@@ -95,7 +125,11 @@ final class OwnerOutboxEventBus implements EventBusCapability {
         }
         EventReliability reliability = reliability(event, publication);
         if (reliability == EventReliability.BEST_EFFORT) {
-            throw rejected(event, eventType + " is BEST_EFFORT, which is not written to an outbox");
+            publishBestEffort(event, eventType, publication);
+            return;
+        }
+        if (outbox == null) {
+            throw rejected(event, ownerId + " declares no data.outbox, which " + reliability + " events need");
         }
         OwnerTransactionScope transaction = OwnerTransactionScope.joinable(ownerId);
         if (transaction == null) {
@@ -131,6 +165,64 @@ final class OwnerOutboxEventBus implements EventBusCapability {
             payload(event),
             Timestamp.from(now),
             Timestamp.from(now));
+    }
+
+    /**
+     * Sends a BEST_EFFORT event without the outbox (root BRX-RS-MESSAGE-019; Kafka design §14 K21). The runtime
+     * binds the producer, and the tenant of a TENANT event must be one the Owner's unit of work reaches, as for the
+     * outbox's events: the envelope is the runtime's, not what the event says about itself (multi-tenant §10).
+     * Inside a transaction the event leaves after it commits, and not at all when it rolls back.
+     */
+    private void publishBestEffort(IntegrationEvent event, String eventType, PluginManifest.EventPublish publication) {
+        EventScope scope = event.scope();
+        Long tenantId = null;
+        if (scope == EventScope.TENANT) {
+            OwnerTransactionScope transaction = OwnerTransactionScope.joinable(ownerId);
+            if (transaction == null) {
+                throw rejected(event, "a TENANT event is published inside a unit of work of " + ownerId);
+            }
+            tenantId = tenantOf(event, scope, transaction);
+        } else if (scope != EventScope.PLATFORM) {
+            throw rejected(event, "an event is TENANT or PLATFORM, not " + scope);
+        }
+        Instant now = clock.instant();
+        CanonicalOutboxMessage message = new CanonicalOutboxMessage(
+            event.getEventId(),
+            event.getEventId(),
+            "EVENT",
+            eventType,
+            publication.getVersion(),
+            EventReliability.BEST_EFFORT.name(),
+            ownerId,
+            scope.name(),
+            tenantId,
+            firstText(event.getRoutingKey(), event.getEventId()),
+            OffsetDateTime.ofInstant(event.getTimestamp() != null ? event.getTimestamp() : now, ZoneOffset.UTC),
+            firstText(event.getCorrelationId(), MDC.get(MDC_CORRELATION_ID), event.getEventId()),
+            event.getCausationId(),
+            traceparent(event.getTraceId()),
+            MDC.get(MDC_TRACESTATE),
+            payload(event),
+            0);
+        Runnable send = () -> {
+            BestEffortEventSender sender = bestEffort.get();
+            if (sender == null) {
+                log.warn("event=event.best_effort_dropped type={} event_id={} reason=no_sender", eventType,
+                    event.getEventId());
+                return;
+            }
+            sender.send(message);
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    send.run();
+                }
+            });
+        } else {
+            send.run();
+        }
     }
 
     private Long tenantOf(IntegrationEvent event, EventScope scope, OwnerTransactionScope transaction) {

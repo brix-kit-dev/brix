@@ -220,6 +220,7 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                 for (PluginManifest.EventPublish publish : manifest.getEvents().getPublishes()) {
                     builder.eventPublication(publish.getEventType(), publish.getVersion(),
                         EventReliability.valueOf(publish.getReliability()));
+                    builder.publicationSchema(publish.getEventType(), publish.getSchemaRef());
                 }
                 for (PluginManifest.EventSubscribe subscribe : manifest.getEvents().getSubscribes()) {
                     builder.eventSubscription(
@@ -230,6 +231,8 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         subscribe.getRetryPolicyRef(),
                         subscribe.getIdempotencyPolicyRef(),
                         subscribe.getScopePolicyRef());
+                    builder.subscriptionPolicies(subscribe.getHandlerId(), subscribe.getTimeoutPolicyRef(),
+                        subscribe.getConcurrencyPolicyRef(), subscribe.getPublisherPolicyRef());
                 }
             }
             if (manifest.getInternalContracts() != null) {

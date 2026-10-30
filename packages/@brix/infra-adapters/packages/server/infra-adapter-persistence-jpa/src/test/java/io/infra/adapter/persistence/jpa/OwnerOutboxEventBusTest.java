@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +34,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
+import io.runtime.orchestrator.event.BestEffortEventSender;
+import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.sdk.capability.EventPublishException;
 import io.runtime.sdk.event.DomainEvent;
@@ -229,11 +232,9 @@ class OwnerOutboxEventBusTest {
     }
 
     @Test
-    void onlyDeclaredReliableEventsAreWritten() {
+    void onlyDeclaredEventsArePublished() {
         assertThrows(EventPublishException.class, () -> inUnitOfWork(OWNER, false, TenantScope.none(),
             status -> bus.publishIntegration(new UndeclaredEvent())), "not under events.publishes");
-        assertThrows(EventPublishException.class, () -> inUnitOfWork(OWNER, false, TenantScope.none(),
-            status -> bus.publishIntegration(new HeartbeatEvent())), "BEST_EFFORT");
         assertThrows(EventPublishException.class, () -> inUnitOfWork(OWNER, false, TenantScope.none(),
             status -> bus.publish(new DomainEvent() {
                 @Override
@@ -247,6 +248,67 @@ class OwnerOutboxEventBusTest {
                 }
             })), "a domain event");
         assertEquals(0, rows());
+    }
+
+    @Test
+    void aBestEffortEventLeavesAfterTheTransactionCommitsWithTheProducerTheRuntimeBinds() {
+        // Kafka design §14 K21: no outbox row; the runtime's producer, not what the event says about itself.
+        List<CanonicalOutboxMessage> sent = new ArrayList<>();
+        OwnerOutboxEventBus bestEffortBus = busSendingTo(sent::add);
+
+        inUnitOfWork(OWNER, true, TenantScope.none(), status -> {
+            bestEffortBus.publishIntegration(new HeartbeatEvent());
+            assertEquals(List.of(), sent, "not before the commit");
+        });
+
+        assertEquals(1, sent.size());
+        CanonicalOutboxMessage message = sent.get(0);
+        assertEquals("Heartbeat", message.messageType());
+        assertEquals("BEST_EFFORT", message.reliability());
+        assertEquals(OWNER, message.producerPluginId());
+        assertEquals("PLATFORM", message.scope());
+        assertEquals(0, rows());
+    }
+
+    @Test
+    void aBestEffortEventOfARolledBackTransactionNeverLeaves() {
+        List<CanonicalOutboxMessage> sent = new ArrayList<>();
+        OwnerOutboxEventBus bestEffortBus = busSendingTo(sent::add);
+
+        inUnitOfWork(OWNER, false, TenantScope.none(), status -> {
+            bestEffortBus.publishIntegration(new HeartbeatEvent());
+            status.setRollbackOnly();
+        });
+
+        assertEquals(List.of(), sent);
+    }
+
+    @Test
+    void aPlatformBestEffortEventOutsideAUnitOfWorkLeavesAtOnce() {
+        List<CanonicalOutboxMessage> sent = new ArrayList<>();
+
+        busSendingTo(sent::add).publishIntegration(new HeartbeatEvent());
+
+        assertEquals(1, sent.size());
+    }
+
+    @Test
+    void anOwnerWithoutAnOutboxPublishesOnlyBestEffortEvents() {
+        List<PluginManifest.EventPublish> publications = new PluginManifestLoader()
+            .loadActiveFromClasspath(OwnerOutboxEventBusTest.class).getEvents().getPublishes();
+        OwnerOutboxEventBus withoutOutbox = new OwnerOutboxEventBus(OWNER, null, publications, dataSource, json,
+            Clock.fixed(NOW, ZoneOffset.UTC), () -> message -> { });
+
+        assertThrows(EventPublishException.class, () -> inUnitOfWork(OWNER, false, TenantScope.tenant(910001L),
+            status -> withoutOutbox.publishIntegration(new MemberAcceptedEvent("910001"))));
+        assertEquals(0, rows());
+    }
+
+    private OwnerOutboxEventBus busSendingTo(BestEffortEventSender sender) {
+        List<PluginManifest.EventPublish> publications = new PluginManifestLoader()
+            .loadActiveFromClasspath(OwnerOutboxEventBusTest.class).getEvents().getPublishes();
+        return new OwnerOutboxEventBus(OWNER, outbox, publications, dataSource, json, Clock.fixed(NOW, ZoneOffset.UTC),
+            () -> sender);
     }
 
     @Test

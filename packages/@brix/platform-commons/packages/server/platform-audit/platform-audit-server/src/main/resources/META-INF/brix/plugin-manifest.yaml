@@ -52,7 +52,7 @@ events:
       scopePolicyRef: identity-audit-fact-scope
       publisherPolicyRef: platform-identity-owner
       timeoutPolicyRef: event-standard
-      concurrencyPolicyRef: identity-audit-fact
+      concurrencyPolicyRef: partition-serial
       retryPolicyRef: event-standard
       idempotencyPolicyRef: persistent-inbox
 tasks:

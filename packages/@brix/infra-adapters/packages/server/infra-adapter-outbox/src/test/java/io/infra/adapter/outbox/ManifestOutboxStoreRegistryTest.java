@@ -102,8 +102,9 @@ class ManifestOutboxStoreRegistryTest {
 
     @Test
     void twoOwnersCannotShareAnOutbox() throws IOException {
+        // Root BRX-RS-MESSAGE-023: an outbox is named after its owner's storage id, so a shared one is refused.
         try (URLClassLoader manifests = manifests(Map.of("owner-a", "shared_outbox", "owner-b", "shared_outbox"))) {
-            assertThrows(IllegalStateException.class, () -> ManifestOutboxStoreRegistry.outboxes(manifests));
+            assertThrows(RuntimeException.class, () -> ManifestOutboxStoreRegistry.outboxes(manifests));
         }
     }
 

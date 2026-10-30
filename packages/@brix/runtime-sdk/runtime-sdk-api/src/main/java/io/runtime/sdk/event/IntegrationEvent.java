@@ -172,14 +172,11 @@ public abstract class IntegrationEvent implements Serializable {
     /**
      * Tenant ID this event belongs to.
      *
-     * <p>Identifies the tenant context in which the event was produced.
-     * Automatically populated from {@code TenantContext} by the EventBus adapter
-     * if not explicitly set by the publisher.  Consumers <b>must</b> use this
-     * field to enforce tenant-level data isolation during event processing.</p>
-     *
-     * <p>When {@code tenantId} is {@code null} at publish time and
-     * {@code TenantContext} has no active tenant, the EventBus adapter will
-     * throw {@link IllegalArgumentException} to prevent cross-tenant data leaks.</p>
+     * <p>A TENANT event names its tenant; an event without one is a PLATFORM event ({@link #scope()}). The event
+     * bus a plugin gets from its {@code PluginContext} publishes a TENANT event only for a tenant the publisher's
+     * unit of work reaches, and subscribers receive the tenant in the runtime's verified envelope (root
+     * BRX-RS-MESSAGE-021). Only the host's legacy direct bus, kept for modules that are not runtime-managed
+     * plugins, still takes a missing tenant from {@code TenantContext}.</p>
      *
      * @since 3.2.0
      */
@@ -230,13 +227,14 @@ public abstract class IntegrationEvent implements Serializable {
     /**
      * Constructor with tenant ID.
      *
-     * <p>Preferred constructor for tenant-aware event publishing.
-     * If the caller does not know the tenant ID at construction time,
-     * use {@link #IntegrationEvent(String)} and let the EventBus adapter
-     * populate the tenant ID from {@code TenantContext} automatically.</p>
+     * <p>The tenant decides the event's {@link #scope()}: an event that names a tenant is a TENANT event, and
+     * the runtime publishes it only for a tenant the publisher's unit of work reaches; an event that names none is
+     * a PLATFORM event. Nothing fills the tenant in for a plugin: an event meant for a tenant must name it
+     * (root BRX-RS-MESSAGE-021). The producer is not taken from {@code sourceModule}: the runtime binds the
+     * publishing plugin.</p>
      *
      * @param sourceModule source module identifier, cannot be null
-     * @param tenantId     tenant identifier, may be null (auto-populated by adapter)
+     * @param tenantId     tenant identifier; {@code null} makes a PLATFORM event
      * @since 3.2.0
      */
     protected IntegrationEvent(String sourceModule, String tenantId) {
@@ -253,7 +251,7 @@ public abstract class IntegrationEvent implements Serializable {
      *
      * @param sourceModule source module identifier, cannot be null
      * @param version      event version number
-     * @param tenantId     tenant identifier, may be null (auto-populated by adapter)
+     * @param tenantId     tenant identifier; {@code null} makes a PLATFORM event
      * @since 3.2.0
      */
     protected IntegrationEvent(String sourceModule, int version, String tenantId) {
@@ -439,8 +437,7 @@ public abstract class IntegrationEvent implements Serializable {
     /**
      * Set tenant ID.
      *
-     * <p>Typically called by the EventBus adapter to auto-populate
-     * from {@code TenantContext} when the publisher did not set it explicitly.</p>
+     * <p>Names the tenant of a TENANT event (see {@link #scope()}).</p>
      *
      * @param tenantId tenant identifier
      * @since 3.2.0

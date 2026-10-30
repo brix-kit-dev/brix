@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ResolvableType;
 
+import io.runtime.orchestrator.event.EventPolicies;
+import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.sdk.capability.EventBusCapability;
@@ -81,6 +83,8 @@ public final class PluginRuntimeManager {
     private final Supplier<List<InternalContractProvider>> internalProviderDiscovery;
     private final InternalContractBinder internalContracts;
     private final OwnerPersistenceProvider ownerPersistence;
+
+    private static final tools.jackson.databind.ObjectMapper SCHEMA_READER = new tools.jackson.databind.ObjectMapper();
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
     private boolean prepared;
     private boolean started;
@@ -260,6 +264,7 @@ public final class PluginRuntimeManager {
         for (ManagedPlugin plugin : new ArrayList<>(plugins.values())) {
             resolvePlugin(plugin);
         }
+        validateEventContractsAcrossPlugins();
         bindProvidedInternalContracts(internalProviderDiscovery.get());
         return states();
     }
@@ -737,6 +742,133 @@ public final class PluginRuntimeManager {
                     + "' declares incomplete event subscription policy");
             }
             validateIdempotencyPolicy(plugin, subscription);
+            validateSubscriptionContract(plugin, subscription);
+        }
+        validatePublicationContracts(plugin);
+    }
+
+    /**
+     * Event types and handler ids become topic and consumer group names, a subscription names only policies the
+     * runtime knows (root BRX-RS-BOOT-005, MESSAGE-029). Kafka design §14 K15, K20.
+     */
+    private void validateSubscriptionContract(ManagedPlugin plugin, PluginRuntimeDescriptor.EventSubscription subscription) {
+        String where = "Plugin '" + plugin.id() + "' subscription '" + subscription.subscriptionId() + "'";
+        requireEventName(where + " event type", subscription.eventType());
+        requireEventName(where + " handler id", subscription.handlerId());
+        if (!EventPolicies.RETRY.contains(subscription.retryPolicyRef())) {
+            throw new PluginRuntimeException(where + " names unknown retry policy '" + subscription.retryPolicyRef()
+                + "'; known: " + EventPolicies.RETRY);
+        }
+        PluginRuntimeDescriptor.SubscriptionPolicies policies =
+            plugin.descriptor.subscriptionPolicies().get(subscription.handlerId());
+        if (policies != null) {
+            if (!policies.timeoutPolicyRef().isEmpty() && !EventPolicies.TIMEOUT.contains(policies.timeoutPolicyRef())) {
+                throw new PluginRuntimeException(where + " names unknown timeout policy '"
+                    + policies.timeoutPolicyRef() + "'; known: " + EventPolicies.TIMEOUT);
+            }
+            if (!policies.concurrencyPolicyRef().isEmpty()
+                    && !EventPolicies.CONCURRENCY.contains(policies.concurrencyPolicyRef())) {
+                throw new PluginRuntimeException(where + " names unknown concurrency policy '"
+                    + policies.concurrencyPolicyRef() + "'; known: " + EventPolicies.CONCURRENCY);
+            }
+        }
+    }
+
+    /**
+     * Every published event type has a legal name, and its {@code schemaRef} resolves to a schema file the plugin
+     * ships that names itself by that reference and is the schema of the declared version (Kafka design D24, §14 K20).
+     */
+    private static void validatePublicationContracts(ManagedPlugin plugin) {
+        for (PluginRuntimeDescriptor.EventPublication publication : plugin.descriptor.eventPublications().values()) {
+            String where = "Plugin '" + plugin.id() + "' publication '" + publication.id() + "'";
+            requireEventName(where, publication.id());
+            String schemaRef = plugin.descriptor.publicationSchemas().get(publication.id());
+            if (schemaRef == null) {
+                continue;
+            }
+            String resource = EventPolicies.schemaResource(schemaRef);
+            if (resource == null || !schemaRef.endsWith("/" + publication.version())) {
+                throw new PluginRuntimeException(where + " refers to schema " + schemaRef
+                    + ", which is not brix://schemas/.../" + publication.version());
+            }
+            ClassLoader loader = plugin.provider.getClass().getClassLoader();
+            try (java.io.InputStream input = loader == null ? null : loader.getResourceAsStream(resource)) {
+                if (input == null) {
+                    throw new PluginRuntimeException(where + " refers to schema " + schemaRef
+                        + ", but the plugin ships no " + resource);
+                }
+                String id = SCHEMA_READER.readTree(input).path("$id").asString();
+                if (!schemaRef.equals(id)) {
+                    throw new PluginRuntimeException(where + ": " + resource + " names itself '" + id + "', not "
+                        + schemaRef);
+                }
+            } catch (java.io.IOException | tools.jackson.core.JacksonException unreadable) {
+                throw new PluginRuntimeException(where + " has an unreadable schema " + resource, unreadable);
+            }
+        }
+    }
+
+    private static void requireEventName(String what, String name) {
+        if (!EventPolicies.NAME.matcher(name).matches()) {
+            throw new PluginRuntimeException(what + " '" + name + "' is not a legal name: letters, digits, '.', '-'"
+                + " and '_', at most 100, starting with a letter or digit");
+        }
+    }
+
+    /**
+     * Across the plugins: an event type has one publisher, a subscriber's publisher policy names it, and the
+     * subscriber's schema range takes the version it publishes (root BRX-RS-BOOT-005). An ambiguous or
+     * inconsistent declaration fails the plugins it concerns, by their required/optional rules.
+     */
+    private void validateEventContractsAcrossPlugins() {
+        Map<String, List<ManagedPlugin>> publishers = new LinkedHashMap<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() != PluginLifecycleState.RESOLVED) {
+                continue;
+            }
+            for (String eventType : plugin.descriptor.eventPublications().keySet()) {
+                publishers.computeIfAbsent(eventType, ignored -> new ArrayList<>()).add(plugin);
+            }
+        }
+        publishers.forEach((eventType, declaring) -> {
+            if (declaring.size() > 1) {
+                List<String> ids = declaring.stream().map(ManagedPlugin::id).sorted().toList();
+                for (ManagedPlugin plugin : declaring) {
+                    handleStartupFailure(plugin, new PluginRuntimeException("Event type " + eventType
+                        + " is published by more than one plugin " + ids + "; an event type has one publisher"));
+                }
+            }
+        });
+        for (ManagedPlugin subscriber : new ArrayList<>(plugins.values())) {
+            if (subscriber.state.lifecycleState() != PluginLifecycleState.RESOLVED) {
+                continue;
+            }
+            try {
+                for (PluginRuntimeDescriptor.EventSubscription subscription
+                        : subscriber.descriptor.eventSubscriptions().values()) {
+                    List<ManagedPlugin> declaring = publishers.getOrDefault(subscription.eventType(), List.of());
+                    if (declaring.size() != 1) {
+                        continue;
+                    }
+                    ManagedPlugin publisher = declaring.get(0);
+                    String where = "Plugin '" + subscriber.id() + "' subscription '" + subscription.subscriptionId() + "'";
+                    PluginRuntimeDescriptor.SubscriptionPolicies policies =
+                        subscriber.descriptor.subscriptionPolicies().get(subscription.handlerId());
+                    if (policies != null && !policies.publisherPolicyRef().isEmpty()
+                            && !policies.publisherPolicyRef().equals(EventPolicies.publisherPolicyOf(publisher.id()))) {
+                        throw new PluginRuntimeException(where + " trusts publisher policy '"
+                            + policies.publisherPolicyRef() + "', but " + subscription.eventType() + " is published by '"
+                            + publisher.id() + "' (" + EventPolicies.publisherPolicyOf(publisher.id()) + ")");
+                    }
+                    String version = publisher.descriptor.eventPublications().get(subscription.eventType()).version();
+                    if (!version.isBlank() && !BrixRange.contains(version, subscription.schemaRange())) {
+                        throw new PluginRuntimeException(where + " accepts " + subscription.eventType() + " "
+                            + subscription.schemaRange() + ", but '" + publisher.id() + "' publishes " + version);
+                    }
+                }
+            } catch (RuntimeException e) {
+                handleStartupFailure(subscriber, e);
+            }
         }
     }
 

@@ -52,9 +52,11 @@ import io.runtime.sdk.event.IntegrationEvent;
  * §13 K2).
  * <p>An event published here leaves at once, outside any outbox, so it may be lost: it is written as a canonical
  * envelope marked BEST_EFFORT to the event type's topic {@code brix.event.<eventType>}, through the same sender the
- * outbox relay uses, which creates the topic before the first send. An event type that a plugin manifest declares
- * CRITICAL or STANDARD is refused: it must be published through its owner's outbox in the business transaction
- * (MESSAGE-017, MESSAGE-018, MESSAGE-022). Domain events stay inside their plugin (root §6.1) and are refused too.</p>
+ * outbox relay uses, which creates the topic before the first send. It remains for the modules that are not yet
+ * runtime-managed plugins (Kafka design §5): an event type that a plugin manifest declares is refused, whatever its
+ * reliability, because this bus takes the producer and tenant the event names. A declared type is published
+ * through the event bus the declaring plugin's {@code PluginContext} gives it, which binds them (§14 K21). Domain
+ * events stay inside their plugin (root §6.1) and are refused too.</p>
  * <p>Each event is sent in a PRODUCER span, a child of the caller's current span when one is recorded (§13 K8);
  * without a tracing adapter the envelope carries the event's own trace id.</p>
  * <p>The payload is the event's typed {@link IntegrationEvent#payload()}; an event written before typed payloads
@@ -150,11 +152,13 @@ public class KafkaEventBusCapability implements EventBusCapability {
         Objects.requireNonNull(event, "Integration event cannot be null");
         IntegrationEventMetadataSupport.enrich(event, tenantIdProvider);
         String eventType = event.eventTypeId();
-        Optional<EventReliability> declared = declaredReliability.apply(eventType)
-            .filter(reliability -> reliability != EventReliability.BEST_EFFORT);
+        Optional<EventReliability> declared = declaredReliability.apply(eventType);
         if (declared.isPresent()) {
+            // The direct bus takes the producer and tenant the event names; a type a plugin declares goes through
+            // that plugin's own bus, which binds them (multi-tenant §10; Kafka design §14 K21).
             throw new EventPublishException(event.getEventId(), eventType + " is declared " + declared.get()
-                + ": publish it through its owner's outbox, not the direct bus (root BRX-RS-MESSAGE-022)", null);
+                + " by a plugin manifest: publish it through the event bus that plugin's PluginContext gives it,"
+                + " not the host's direct bus", null);
         }
         CanonicalOutboxMessage message = envelope(event, eventType);
         Timer.Sample sample = meterRegistry != null ? Timer.start(meterRegistry) : null;
