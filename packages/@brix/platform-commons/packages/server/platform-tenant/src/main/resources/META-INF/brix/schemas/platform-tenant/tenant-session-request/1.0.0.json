@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-tenant/tenant-session-request/1.0.0",
+  "title": "The calling staff member's session: GET /api/tenant/session takes no parameters",
+  "type": "object",
+  "additionalProperties": false
+}

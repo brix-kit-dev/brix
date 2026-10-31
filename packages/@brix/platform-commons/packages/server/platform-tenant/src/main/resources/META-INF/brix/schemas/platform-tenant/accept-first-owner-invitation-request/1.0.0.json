@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-tenant/accept-first-owner-invitation-request/1.0.0",
+  "title": "Accept a FIRST_OWNER invitation: the token from the invitation link",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["invitationToken"],
+  "properties": {
+    "invitationToken": { "type": "string", "minLength": 1, "maxLength": 1024 }
+  }
+}

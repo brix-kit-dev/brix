@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-tenant/tenant-session/1.0.0",
+  "title": "The calling staff member's tenant, member and effective permissions (multi-tenant BRX-TENANT-AUTHZ-009)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId", "memberType", "permissions", "scopes"],
+  "properties": {
+    "tenantId": { "type": "string", "minLength": 1 },
+    "memberId": { "type": ["string", "null"] },
+    "memberType": { "type": "string", "minLength": 1 },
+    "permissions": { "type": "array", "items": { "type": "string" } },
+    "scopes": {
+      "type": "object",
+      "additionalProperties": { "enum": ["SELF", "TENANT"] }
+    }
+  }
+}

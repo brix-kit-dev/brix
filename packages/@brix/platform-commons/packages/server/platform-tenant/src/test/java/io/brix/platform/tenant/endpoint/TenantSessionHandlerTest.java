@@ -29,7 +29,7 @@ class TenantSessionHandlerTest {
                 Optional.of("7"),
                 Map.of("tenant:profile:read", AccessScope.TENANT,
                         "tenant:member:read", AccessScope.SELF,
-                        "app-booking:template:read", AccessScope.TENANT))));
+                        "app-booking:template:read", AccessScope.TENANT)))).toCompletableFuture().join();
 
         assertEquals("42", session.tenantId());
         assertEquals("7", session.memberId());

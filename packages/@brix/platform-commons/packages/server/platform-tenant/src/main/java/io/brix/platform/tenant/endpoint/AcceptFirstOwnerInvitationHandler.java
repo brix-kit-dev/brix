@@ -9,20 +9,26 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import io.brix.platform.tenant.internal.AcceptFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
-import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * Tenant Data Owner Runtime Entry for FIRST_OWNER invitation acceptance.
+ *
+ * <p>The runtime checks the request against
+ * {@code brix://schemas/platform-tenant/accept-first-owner-invitation-request/1.0.0} before the caller, and the answer
+ * against {@code brix://schemas/platform-tenant/first-owner-acceptance/1.0.0} (standard-link plan L7.9).</p>
  */
 public final class AcceptFirstOwnerInvitationHandler
-        implements EndpointHandler<EndpointInvocation<AcceptFirstOwnerInvitationRequest>, FirstOwnerAcceptanceDto> {
+        implements TypedEndpointHandler<AcceptFirstOwnerInvitationRequest, FirstOwnerAcceptanceDto> {
 
     static final String FIRST_OWNER_ACCEPT_ACTION = "first_owner_accept";
     private static final String TOKEN_ROLE_HEADER = "x-auth-token-role";
@@ -38,12 +44,14 @@ public final class AcceptFirstOwnerInvitationHandler
     }
 
     @Override
-    public FirstOwnerAcceptanceDto handle(EndpointInvocation<AcceptFirstOwnerInvitationRequest> invocation) {
+    public CompletionStage<FirstOwnerAcceptanceDto> handle(
+            EndpointInvocation<AcceptFirstOwnerInvitationRequest> invocation) {
         Long identityId = requireVerifiedActorIdentity(invocation);
         AcceptFirstOwnerInvitationRequest request = request(invocation.body());
         try {
-            return FirstOwnerAcceptanceDto.from(tenantAdministration().acceptFirstOwnerInvitation(
-                new AcceptFirstOwnerInvitationCommand(request.invitationToken(), identityId)));
+            return CompletableFuture.completedFuture(FirstOwnerAcceptanceDto.from(
+                tenantAdministration().acceptFirstOwnerInvitation(
+                    new AcceptFirstOwnerInvitationCommand(request.invitationToken(), identityId))));
         } catch (TenantAdministrationException ex) {
             throw PlatformTenantEndpointErrors.tenantAdministration(ex);
         }

@@ -45,7 +45,7 @@ class AcceptFirstOwnerInvitationHandlerTest {
             Optional.empty(),
             "actor",
             "identity",
-            Set.of(AcceptFirstOwnerInvitationHandler.FIRST_OWNER_ACCEPT_ACTION)));
+            Set.of(AcceptFirstOwnerInvitationHandler.FIRST_OWNER_ACCEPT_ACTION))).toCompletableFuture().join();
 
         assertEquals(42L, response.tenantId());
         assertEquals(500L, response.memberId());

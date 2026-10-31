@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-tenant/first-owner-acceptance/1.0.0",
+  "title": "The accepted FIRST_OWNER invitation: the tenant, the owner member and profile, the tenant's status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId", "memberId", "profileId", "tenantStatus"],
+  "properties": {
+    "tenantId": { "type": "string", "pattern": "^[0-9]+$" },
+    "memberId": { "type": "string", "pattern": "^[0-9]+$" },
+    "profileId": { "type": "string", "pattern": "^[0-9]+$" },
+    "tenantStatus": { "type": "string", "minLength": 1 }
+  }
+}

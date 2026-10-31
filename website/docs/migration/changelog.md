@@ -26,7 +26,8 @@ All notable changes to Brix Framework are documented here.
   - `EndpointInvocation` carries a cancellation signal, set at the deadline; a late handler answers 504
     `endpoint.deadline_exceeded`.
   - Lists use `page`, `size` (at most 100) and `sort` and answer `Page` (`io.runtime.sdk.page`).
-  - The samples' endpoints use the new shape. See [Endpoints](../guides/endpoints.md).
+  - The samples' endpoints, and platform-tenant's FIRST_OWNER acceptance and tenant session, use the new shape.
+    See [Endpoints](../guides/endpoints.md).
 - **Calls to external services** (root BRX-RS-ERROR-014, A-11). A plugin declares each service under
   `externalServices` (`id`, `baseUrlRef` and its timeout, retry and concurrency policies) and calls it through
   `ExternalHttpCapability.service(id)` with a path within the service.
