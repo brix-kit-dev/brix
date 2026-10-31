@@ -62,6 +62,8 @@ endpoints:
         schemaRef: brix://schemas/sample-shipping/refuse-shipment-request/1.0.0
       response:
         schemaRef: brix://schemas/sample-shipping/refused-shipment/1.0.0
+        # The cancellation is queued, not done: 202 Accepted (standard-link plan L7.3).
+        status: 202
       handlerId: sample-shipping.refuse-shipment.v1
       authentication:
         mode: required

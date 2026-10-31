@@ -16,6 +16,17 @@ All notable changes to Brix Framework are documented here.
 - **One event and command chain for every plugin.** Integration events and commands travel the same path: the
   publisher's outbox, the relay, Kafka (or in-process), and the subscriber's inbox. Everything is declared in
   `META-INF/brix/plugin-manifest.yaml`. See [Events and Commands](../guides/events-and-commands.md).
+- **Typed endpoints.** A handler implements `TypedEndpointHandler<B, R>`, the root's
+  `CompletionStage<R> handle(EndpointInvocation<B>)`.
+  - The runtime builds `B` from the body or the query parameters and the path variables, checks it against
+    `request.schemaRef`, and answers 400 `endpoint.invalid_request` with the broken paths and rules.
+  - It answers with `response.status` (`200`, `201`, `202` or `204`) and checks `R` against `response.schemaRef`.
+  - A handler fails with a `BrixException` whose code names an `ErrorCategory`, which the runtime maps to a status.
+    `ErrorCode.category()` is new, and `INTERNAL` unless a code says otherwise.
+  - `EndpointInvocation` carries a cancellation signal, set at the deadline; a late handler answers 504
+    `endpoint.deadline_exceeded`.
+  - Lists use `page`, `size` (at most 100) and `sort` and answer `Page` (`io.runtime.sdk.page`).
+  - The samples' endpoints use the new shape. See [Endpoints](../guides/endpoints.md).
 - **Tasks run.** A plugin declares its tasks under `tasks.provides` and binds a `ManagedTask`. The runtime's scheduler
   runs them:
   - triggers: `every:<duration>` aligned to the epoch, or `cron:<expression>` in UTC;
@@ -76,6 +87,12 @@ All notable changes to Brix Framework are documented here.
   and its timeout, retry and idempotency policies. A sender declares `CommandCapability` and `data.outbox`, a provider
   `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
   business key.
+- **An endpoint failure the handler does not map answers `platform.unknown`** with
+  `{"errorCode", "message"}`; the cause stays in the log.
+- **Endpoint idempotency `required` and `optional` stop the plugin** (root BRX-RS-MANIFEST-018). They need the
+  runtime to replay results, which it does not do yet. The nine platform endpoints that declared `required`, eight in
+  platform-admin and one in platform-tenant, now declare `not-applicable`: the runtime never acted on the
+  declaration, and their handlers are idempotent by their business keys.
 - **`ManagedTask.execute(TaskInvocation)`** (root BRX-RS-MANIFEST-027). The run receives its trigger, deadline,
   cancellation and attempt. `ManagedTask` is no longer a functional interface: implement `execute` in a class. A
   compiled task that implements `run()` still runs, and a task that implements neither method is refused at startup.

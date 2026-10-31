@@ -14,4 +14,16 @@ public interface ErrorCode {
      * @return a stable wire code such as {@code notification.request.invalid}
      */
     String wireCode();
+
+    /**
+     * Returns what kind of failure this is, which the runtime answers with its protocol's status (standard-link plan
+     * L7.3). A code that does not say is {@link ErrorCategory#INTERNAL}: declare the category of every code a caller
+     * can cause.
+     *
+     * @return the category
+     * @since 3.3.0
+     */
+    default ErrorCategory category() {
+        return ErrorCategory.INTERNAL;
+    }
 }

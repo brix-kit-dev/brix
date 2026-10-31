@@ -176,7 +176,7 @@ class SamplePluginsEndToEndTest {
         assertEquals(1L, view.get("orderVersion").asLong(), shipment.body());
         HttpResponse<String> unknown = get("/api/sample-shipping/shipments/1");
         assertEquals(404, unknown.statusCode(), unknown.body());
-        assertEquals("SAMPLE_SHIPMENT_NOT_FOUND", JSON.readTree(unknown.body()).get("errorCode").asString());
+        assertEquals("sample-shipping.shipment_not_found", JSON.readTree(unknown.body()).get("errorCode").asString());
 
         // sample-orders shows the order with its shipment, read through sample-shipping's typed query in the member's
         // tenant, for the member (query design §4); sample-orders never touches sample-shipping's tables.
@@ -188,6 +188,7 @@ class SamplePluginsEndToEndTest {
         assertEquals("PREPARED", shown.get("shipment").asString(), detail.body());
         HttpResponse<String> noOrder = get("/api/sample-orders/orders/1");
         assertEquals(404, noOrder.statusCode(), noOrder.body());
+        assertEquals("sample-orders.order_not_found", JSON.readTree(noOrder.body()).get("errorCode").asString());
         assertEquals("PLACED", shown.get("status").asString(), detail.body());
 
         // The member refuses the shipment: sample-shipping asks sample-orders to cancel the order with its typed
@@ -242,8 +243,12 @@ class SamplePluginsEndToEndTest {
         assertEquals("BEST_EFFORT", envelope.get("reliability").asString(), activity.get(0));
 
         // A request the handler refuses changes nothing.
+        // A request that breaks its schema never reaches the handler: the runtime names the path and the rule.
         HttpResponse<String> refused = post("/api/sample-orders/orders", Map.of("sku", "sku-2", "quantity", 0));
         assertEquals(400, refused.statusCode(), refused.body());
+        JsonNode invalid = JSON.readTree(refused.body());
+        assertEquals("endpoint.invalid_request", invalid.get("errorCode").asString(), refused.body());
+        assertEquals("minimum", invalid.get("violations").get(0).get("rule").asString(), refused.body());
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_order"));
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_shipping_shipment"));
 

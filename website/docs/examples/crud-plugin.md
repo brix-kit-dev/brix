@@ -9,6 +9,12 @@ sidebar_position: 2
 
 A complete CRUD (Create, Read, Update, Delete) plugin demonstrating persistent data operations.
 
+:::note
+The handlers on this page use the shape from before 3.3.0, which still works. A new handler implements
+`TypedEndpointHandler`, lets the request schema refuse bad input, answers lists with `Page`, and fails with a
+`BrixException` whose code names its category. See [Endpoints](../guides/endpoints.md).
+:::
+
 ## Overview
 
 This example builds a **Task Management** plugin with:

@@ -480,8 +480,24 @@ public final class PluginRuntimeDescriptor {
          * @return this builder
          */
         public Builder endpoint(String id, String method, String path, EndpointAccessPolicy accessPolicy) {
+            return endpoint(id, method, path, accessPolicy, null);
+        }
+
+        /**
+         * Declares an endpoint with the request and response contract its manifest names (standard-link plan L7.2,
+         * L7.3).
+         *
+         * @param id endpoint id
+         * @param method HTTP method
+         * @param path path template
+         * @param accessPolicy declared access policy
+         * @param contract request and response schemas and the success status; {@code null} for none
+         * @return this builder
+         */
+        public Builder endpoint(String id, String method, String path, EndpointAccessPolicy accessPolicy,
+                io.runtime.orchestrator.endpoint.EndpointContract contract) {
             if (id != null && !id.isBlank()) {
-                endpoints.put(id, new EndpointDeclaration(id, method, path, accessPolicy));
+                endpoints.put(id, new EndpointDeclaration(id, method, path, accessPolicy, contract));
             }
             return this;
         }
@@ -831,7 +847,8 @@ public final class PluginRuntimeDescriptor {
      * @param accessPolicy declared access policy; {@code null} for legacy
      *        id-only declarations, which cannot be published
      */
-    public record EndpointDeclaration(String id, String method, String path, EndpointAccessPolicy accessPolicy) {
+    public record EndpointDeclaration(String id, String method, String path, EndpointAccessPolicy accessPolicy,
+            io.runtime.orchestrator.endpoint.EndpointContract contract) {
 
         /**
          * Creates an endpoint declaration.
@@ -840,6 +857,14 @@ public final class PluginRuntimeDescriptor {
             id = id == null ? "" : id.trim();
             method = method == null ? "" : method.trim();
             path = path == null ? "" : path.trim();
+            contract = contract != null ? contract : io.runtime.orchestrator.endpoint.EndpointContract.none();
+        }
+
+        /**
+         * Creates a declaration without a request or response contract.
+         */
+        public EndpointDeclaration(String id, String method, String path, EndpointAccessPolicy accessPolicy) {
+            this(id, method, path, accessPolicy, null);
         }
     }
 

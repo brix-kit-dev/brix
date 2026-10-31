@@ -6,29 +6,30 @@
  */
 package io.brix.samples.shipping.server;
 
-import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import io.brix.samples.orders.api.CancelOrder;
+import io.brix.samples.shipping.api.RefuseShipmentRequest;
+import io.brix.samples.shipping.api.RefusedShipment;
 import io.brix.samples.shipping.core.ShipmentDesk;
 import io.runtime.sdk.capability.CommandSubmission;
 import io.runtime.sdk.command.CommandClient;
-import io.runtime.sdk.plugin.EndpointHandler;
-import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointInvocation;
-import io.runtime.sdk.plugin.EndpointResponse;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * {@code POST /api/sample-shipping/shipments/{orderId}/refuse}: the warehouse cannot ship an order and asks sample-orders
  * to cancel it with the typed command {@code sample-orders.cancel-order} (root §6.1: a state change of another plugin is
- * a command; standard-link plan L4.7).
+ * a command; standard-link plan L4.7). It answers {@code 202}: the cancellation is queued, not done.
  *
  * <p>The runtime runs a POST handler in sample-shipping's read-write unit of work, bound to the caller's tenant (root
  * BRX-RS-DATA-028). The command is written to sample-shipping's outbox in that unit of work and reaches sample-orders
  * after the commit. Its business key is the order id, so refusing the same order again cancels it once. The handler
  * names neither the tenant nor the sender.</p>
  */
-final class RefuseShipment implements EndpointHandler<EndpointInvocation<Object>, EndpointResponse> {
+final class RefuseShipment implements TypedEndpointHandler<RefuseShipmentRequest, RefusedShipment> {
 
     private final ShipmentDesk shipments;
     private final CommandClient<CancelOrder> cancellations;
@@ -39,14 +40,14 @@ final class RefuseShipment implements EndpointHandler<EndpointInvocation<Object>
     }
 
     @Override
-    public EndpointResponse handle(EndpointInvocation<Object> request) {
+    public CompletionStage<RefusedShipment> handle(EndpointInvocation<RefuseShipmentRequest> request) {
         long tenantId = Long.parseLong(request.tenantId().orElseThrow());
-        String orderId = request.pathVariables().get("orderId");
+        String orderId = request.body().orderId();
         if (shipments.find(tenantId, orderId).isEmpty()) {
-            throw new EndpointHandlingException(404, FindShipment.NOT_FOUND, "The order has no shipment");
+            throw new SampleShippingException(SampleShippingException.Code.SHIPMENT_NOT_FOUND);
         }
         CommandSubmission cancellation = cancellations.submit(
             CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
-        return new EndpointResponse(202, Map.of("orderId", orderId, "commandId", cancellation.commandId()));
+        return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellation.commandId()));
     }
 }

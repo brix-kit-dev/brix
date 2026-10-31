@@ -298,6 +298,32 @@ class PluginManifestLoaderTest {
             """.replace("data:\n", extra + "data:\n");
     }
 
+    @Test
+    void anEndpointDeclaresTheStatusItsSuccessAnswersWith() {
+        // Standard-link plan L7.3: 200 unless the endpoint names 201, 202 or 204.
+        assertThatCode(() -> loader.loadFromString(templateEndpointManifest().replace(
+                "template-status-response/1.0.0\n",
+                "template-status-response/1.0.0\n        status: 202\n")))
+            .doesNotThrowAnyException();
+        assertThatThrownBy(() -> loader.loadFromString(templateEndpointManifest().replace(
+                "template-status-response/1.0.0\n",
+                "template-status-response/1.0.0\n        status: 418\n")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("200, 201, 202 or 204");
+    }
+
+    @Test
+    void anEndpointCannotClaimIdempotencyTheRuntimeDoesNotReplay() {
+        // Root BRX-RS-MANIFEST-018; standard-link plan D47: replay comes later, so required and optional stop the plugin.
+        for (String mode : java.util.List.of("required", "optional")) {
+            assertThatThrownBy(() -> loader.loadFromString(templateEndpointManifest()
+                    .replace("mode: not-applicable", "mode: " + mode)))
+                .as(mode)
+                .isInstanceOf(ManifestValidationException.class)
+                .hasMessageContaining("result replay");
+        }
+    }
+
     private String validManifest() {
         return """
             apiVersion: brix.io/v1

@@ -46,6 +46,9 @@ public final class PluginManifestValidator {
      */
     public static final String ACTIVE_MANIFEST_RESOURCE = "META-INF/brix/plugin-manifest.yaml";
 
+    /** The statuses a successful endpoint can declare (standard-link plan L7.3). */
+    private static final Set<Object> ENDPOINT_STATUSES = Set.of(200, 201, 202, 204);
+
     /** The units of work a task can declare (root BRX-RS-DATA-028). */
     private static final Set<String> TASK_TRANSACTIONS = Set.of("required", "read-only", "none");
 
@@ -491,6 +494,19 @@ public final class PluginManifestValidator {
             requirePresent(result, prefix + ".method", route.getMethod());
             if (route.getEndpointId() != null && !ids.add(route.getEndpointId())) {
                 result.addError(prefix + ".endpointId", "Duplicate endpoint id: " + route.getEndpointId());
+            }
+            // Standard-link plan L7.3: the status a success answers with, 200 unless the endpoint names another.
+            Object status = route.getResponse() == null ? null : route.getResponse().get("status");
+            if (status != null && !ENDPOINT_STATUSES.contains(status)) {
+                result.addError(prefix + ".response.status", "A successful endpoint answers 200, 201, 202 or 204");
+            }
+            // Root BRX-RS-MANIFEST-018: required and optional idempotency need the runtime's replay, which this
+            // release does not have (standard-link plan D47).
+            Object idempotency = route.getIdempotency() == null ? null : route.getIdempotency().get("mode");
+            if ("required".equals(idempotency) || "optional".equals(idempotency)) {
+                result.addError(prefix + ".idempotency.mode", "Endpoint idempotency " + idempotency + " needs the "
+                    + "runtime's result replay, which this release does not provide; declare not-applicable and keep "
+                    + "the handler idempotent by its business key");
             }
         }
     }

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/test-endpoints/create-thing-request/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "size"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1, "maxLength": 20 },
+    "size": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "tags": { "type": "array", "maxItems": 3, "items": { "type": "string" } }
+  }
+}

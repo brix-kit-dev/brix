@@ -285,7 +285,9 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         route.getEndpointId(),
                         route.getMethod(),
                         route.getPath(),
-                        accessPolicy(manifest.pluginId(), route));
+                        accessPolicy(manifest.pluginId(), route),
+                        new io.runtime.orchestrator.endpoint.EndpointContract(schemaRef(route.getRequest()),
+                            schemaRef(route.getResponse()), status(route.getResponse())));
                     builder.endpointHandler(route.getHandlerId(), route.getEndpointId());
                 }
             }
@@ -298,6 +300,12 @@ public final class ClasspathPluginRuntimeDescriptorResolver
         } catch (IOException e) {
             throw new PluginRuntimeException("Failed to read plugin manifest " + manifestUrl, e);
         }
+    }
+
+    /** The status a successful endpoint answers with (standard-link plan L7.3): 200 unless it names another. */
+    private static int status(Map<String, Object> response) {
+        Object status = response == null ? null : response.get("status");
+        return status instanceof Number number ? number.intValue() : 200;
     }
 
     private static EndpointAccessPolicy accessPolicy(String pluginId, PluginManifest.Route route) {

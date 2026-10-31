@@ -26,7 +26,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.runtime.orchestrator.invocation.RuntimeInvocation;
 import io.runtime.orchestrator.invocation.RuntimeInvocations;
@@ -34,6 +38,7 @@ import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 import io.runtime.sdk.plugin.TraceContext;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * Default in-process endpoint dispatcher backed by an immutable route snapshot.
@@ -65,6 +70,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         new AtomicReference<>(new Snapshot(List.of(), TenantGrantTable.empty()));
     private final Duration endpointDeadline;
     private final EndpointInvocationBoundary invocationBoundary;
+    private final TypedEndpoints typed;
 
     /**
      * Creates a dispatcher that invokes handlers directly.
@@ -82,11 +88,27 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
      * @param invocationBoundary runtime policy applied around every handler invocation
      */
     public DefaultPluginEndpointDispatcher(Duration endpointDeadline, EndpointInvocationBoundary invocationBoundary) {
+        this(endpointDeadline, invocationBoundary, JsonMapper.builder().build());
+    }
+
+    /**
+     * Creates a dispatcher that reads and checks typed requests and responses with the host's mapper (standard-link
+     * plan L7.2, L7.3).
+     *
+     * @param endpointDeadline maximum endpoint handling duration
+     * @param invocationBoundary runtime policy applied around every handler invocation
+     * @param json the host's mapper, which also writes the responses
+     */
+    public DefaultPluginEndpointDispatcher(Duration endpointDeadline, EndpointInvocationBoundary invocationBoundary,
+            ObjectMapper json) {
         if (endpointDeadline == null || endpointDeadline.isZero() || endpointDeadline.isNegative()) {
             throw new IllegalArgumentException("endpointDeadline must be positive");
         }
         this.endpointDeadline = endpointDeadline;
         this.invocationBoundary = Objects.requireNonNull(invocationBoundary, "invocationBoundary must not be null");
+        ClassLoader classes = Thread.currentThread().getContextClassLoader();
+        this.typed = new TypedEndpoints(Objects.requireNonNull(json, "json must not be null"),
+            classes != null ? classes : DefaultPluginEndpointDispatcher.class.getClassLoader());
     }
 
     /**
@@ -134,6 +156,14 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             .orElseThrow(() -> new EndpointDispatchException(
                 "No published Runtime Shell endpoint for " + normalizedMethod + " " + normalizedPath));
 
+        // Root BRX-RS-MANIFEST-022: a typed request is normalized and checked against its schema before the
+        // authentication, tenant and permission checks.
+        Object request = body;
+        if (match.route().handler() instanceof TypedEndpointHandler<?, ?> handler) {
+            request = typed.input(match.route(), handler, normalizedMethod, body,
+                queryParameters != null ? queryParameters : Map.of(), match.pathVariables());
+        }
+
         AccessDecision access = EndpointAccessGuard.enforce(match.route(), new EndpointAccessGuard.Caller(
             firstHeader(normalizedHeaders, ACTOR_HEADER),
             firstHeader(normalizedHeaders, TENANT_HEADER),
@@ -144,8 +174,9 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             firstHeader(normalizedHeaders, TENANT_ROLE_TYPE_HEADER),
             firstHeader(normalizedHeaders, TENANT_REF_HEADER)), current.grants());
 
+        AtomicBoolean cancelled = new AtomicBoolean();
         EndpointInvocation<Object> invocation = new EndpointInvocation<>(
-            body,
+            request,
             match.pathVariables(),
             queryParameters != null ? queryParameters : Map.of(),
             normalizedHeaders,
@@ -157,7 +188,8 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             headerValues(normalizedHeaders, ALLOWED_ACTION_HEADER),
             firstHeader(normalizedHeaders, TRACE_HEADER),
             Instant.now().plus(endpointDeadline),
-            access);
+            access,
+            cancelled::get);
         // Typed queries the handler makes take their caller, user, tenant and deadline from this call (root
         // BRX-RS-MANIFEST-028). A tenant user's permissions come only from the grant table, so none are forwarded.
         boolean tenantUser = firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER)
@@ -165,7 +197,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         RuntimeInvocation call = RuntimeInvocation.forEndpoint(match.route().pluginId(), invocation,
             tenantUser ? Set.of() : headerValues(normalizedHeaders, PERMISSION_HEADER),
             traceContext(normalizedHeaders));
-        return RuntimeInvocations.within(call, () -> invokeHandler(match.route(), invocation));
+        return RuntimeInvocations.within(call, () -> invokeHandler(match.route(), invocation, cancelled));
     }
 
     private static Optional<TraceContext> traceContext(Map<String, List<String>> headers) {
@@ -182,7 +214,13 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     }
 
     @SuppressWarnings("unchecked")
-    private Object invokeHandler(EndpointRoute route, EndpointInvocation<Object> invocation) {
+    private Object invokeHandler(EndpointRoute route, EndpointInvocation<Object> invocation, AtomicBoolean cancelled) {
+        if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
+            // Root BRX-RS-DATA-028: the unit of work commits once the stage has completed and the response checks.
+            TypedEndpointHandler<Object, Object> typedHandler = (TypedEndpointHandler<Object, Object>) handler;
+            return invocationBoundary.invoke(route, invocation, () -> typed.output(route, TypedEndpoints.await(route,
+                typedHandler.handle(invocation), invocation.deadline(), () -> cancelled.set(true))));
+        }
         try {
             EndpointHandler<EndpointInvocation<Object>, Object> handler =
                 (EndpointHandler<EndpointInvocation<Object>, Object>) route.handler();

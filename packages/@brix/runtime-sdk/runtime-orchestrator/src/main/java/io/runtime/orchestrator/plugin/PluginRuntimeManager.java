@@ -69,6 +69,7 @@ import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.sdk.plugin.QueryHandler;
 import io.runtime.sdk.plugin.TaskInvocation;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * L2B runtime manager for v3.0.10 backend plugins.
@@ -930,6 +931,7 @@ public final class PluginRuntimeManager {
             Map<String, EndpointHandler<?, ?>> endpointHandlers = new LinkedHashMap<>(bootstrapContext.endpoints());
             endpointHandlers.putAll(create(plugin.id(), "endpoint", bootstrapContext.endpointHandlerFactories(), context));
             plugin.endpointHandlers = Map.copyOf(endpointHandlers);
+            requireTypedEndpointSchemas(plugin);
             Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>(bootstrapContext.commandHandlers());
             commandHandlers.putAll(create(plugin.id(), "command", bootstrapContext.commandHandlerFactories(), context));
             plugin.commandHandlers = typedCommandHandlers(plugin.id(), commandHandlers);
@@ -1052,6 +1054,34 @@ public final class PluginRuntimeManager {
                 throw new PluginRuntimeException(where + " runs in the plugin's unit of work, but the plugin has no "
                     + "persistence unit; a task that touches no data declares transaction: none");
             }
+        }
+    }
+
+    /**
+     * A typed endpoint's request and response schemas are on the plugin's class path (root BRX-RS-MANIFEST-018;
+     * standard-link plan L7.2): the runtime checks every request and response of it against them.
+     */
+    private static void requireTypedEndpointSchemas(ManagedPlugin plugin) {
+        ClassLoader classes = plugin.provider.getClass().getClassLoader();
+        plugin.endpointHandlers.forEach((endpointId, handler) -> {
+            PluginRuntimeDescriptor.EndpointDeclaration declaration =
+                plugin.descriptor.endpointDeclarations().get(endpointId);
+            if (!(handler instanceof TypedEndpointHandler<?, ?>) || declaration == null) {
+                return;
+            }
+            requireSchema(plugin, endpointId, "request", declaration.contract().requestSchemaRef(), classes);
+            if (declaration.contract().status() != 204) {
+                requireSchema(plugin, endpointId, "response", declaration.contract().responseSchemaRef(), classes);
+            }
+        });
+    }
+
+    private static void requireSchema(ManagedPlugin plugin, String endpointId, String kind, String schemaRef,
+            ClassLoader classes) {
+        String resource = EventPolicies.schemaResource(schemaRef);
+        if (resource == null || classes.getResource(resource) == null) {
+            throw new PluginRuntimeException("Plugin '" + plugin.id() + "' endpoint '" + endpointId
+                + "' has a typed handler, so its " + kind + " schema '" + schemaRef + "' must be on its class path");
         }
     }
 
@@ -1453,7 +1483,8 @@ public final class PluginRuntimeManager {
                     declaration.method(),
                     declaration.path(),
                     declaration.accessPolicy(),
-                    binding.getValue()));
+                    binding.getValue(),
+                    declaration.contract()));
             }
         }
         return List.copyOf(routes);

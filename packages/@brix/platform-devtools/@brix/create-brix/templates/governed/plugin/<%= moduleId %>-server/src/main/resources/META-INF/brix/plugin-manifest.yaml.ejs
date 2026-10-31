@@ -24,6 +24,8 @@ modules:
     artifactId: <%= moduleId %>-server
     version: <%= version %>
     moduleKind: plugin-server
+# Endpoints: a handler implements TypedEndpointHandler; its request and response schemas go in <%= moduleId %>-api,
+# and response.status names what a success answers with. See the Endpoints guide in the Brix documentation.
 endpoints:
   provides: []
 capabilities:

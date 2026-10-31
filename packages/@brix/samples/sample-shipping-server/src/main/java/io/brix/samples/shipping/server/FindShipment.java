@@ -7,26 +7,26 @@
 package io.brix.samples.shipping.server;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
+import io.brix.samples.shipping.api.FindShipmentRequest;
+import io.brix.samples.shipping.api.Shipment;
 import io.brix.samples.shipping.core.ShipmentDesk;
-import io.runtime.sdk.plugin.EndpointHandler;
-import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointInvocation;
-import io.runtime.sdk.plugin.EndpointResponse;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * {@code GET /api/sample-shipping/shipments/{orderId}}: the shipment of an order in the caller's tenant.
  *
- * <p>The runtime has already authenticated the caller, checked {@code sample-shipping:shipment:read} and bound the
- * tenant. An order of another tenant is as unknown as one that does not exist.</p>
+ * <p>The runtime has already checked the path variable against {@code sample-shipping/find-shipment-request},
+ * authenticated the caller, checked {@code sample-shipping:shipment:read} and bound the tenant. An order of another
+ * tenant is as unknown as one that does not exist: {@code sample-shipping.shipment_not_found}.</p>
  *
  * @author Brix Platform Authors
  * @since 3.2.0
  */
-final class FindShipment implements EndpointHandler<EndpointInvocation<Object>, EndpointResponse> {
-
-    /** The order has no shipment in the caller's tenant. */
-    static final String NOT_FOUND = "SAMPLE_SHIPMENT_NOT_FOUND";
+final class FindShipment implements TypedEndpointHandler<FindShipmentRequest, Shipment> {
 
     private final ShipmentDesk shipments;
 
@@ -35,10 +35,9 @@ final class FindShipment implements EndpointHandler<EndpointInvocation<Object>, 
     }
 
     @Override
-    public EndpointResponse handle(EndpointInvocation<Object> request) {
+    public CompletionStage<Shipment> handle(EndpointInvocation<FindShipmentRequest> request) {
         long tenantId = Long.parseLong(request.tenantId().orElseThrow());
-        String orderId = request.pathVariables().get("orderId");
-        return shipments.find(tenantId, orderId).map(EndpointResponse::ok).orElseThrow(
-            () -> new EndpointHandlingException(404, NOT_FOUND, "The order has no shipment"));
+        return CompletableFuture.completedFuture(shipments.find(tenantId, request.body().orderId())
+            .orElseThrow(() -> new SampleShippingException(SampleShippingException.Code.SHIPMENT_NOT_FOUND)));
     }
 }

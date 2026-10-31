@@ -823,6 +823,57 @@ class PluginRuntimeManagerTest {
         }
     }
 
+    @Test
+    void aTypedEndpointWhoseSchemaIsNotOnTheClassPathStopsThePlugin() {
+        // Root BRX-RS-MANIFEST-018; standard-link plan L7.2: the runtime checks typed requests against their schema.
+        TypedPlugin missing = new TypedPlugin();
+        PluginRuntimeManager refused = manager(List.of(missing), Map.of(missing, typedDescriptor(
+            "brix://schemas/test-endpoints/absent/1.0.0")), new DefaultCapabilityRegistry(), List.of("plugin-t"));
+
+        PluginRuntimeException failure = assertThrows(PluginRuntimeException.class, refused::start);
+        assertTrue(failure.getMessage().contains("request schema"), failure.getMessage());
+
+        TypedPlugin present = new TypedPlugin();
+        PluginRuntimeManager started = manager(List.of(present), Map.of(present, typedDescriptor(
+            "brix://schemas/test-endpoints/create-thing-request/1.0.0")), new DefaultCapabilityRegistry(),
+            List.of("plugin-t"));
+        started.start();
+        assertTrue(started.ready());
+    }
+
+    private static PluginRuntimeDescriptor typedDescriptor(String requestSchemaRef) {
+        return PluginRuntimeDescriptor.builder("plugin-t")
+            .endpoint("plugin-t.create.v1", "POST", "/api/plugin-t/things",
+                io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies.anonymous("plugin-t-public"),
+                new io.runtime.orchestrator.endpoint.EndpointContract(requestSchemaRef,
+                    "brix://schemas/test-endpoints/thing/1.0.0", 201))
+            .build();
+    }
+
+    /** A plugin whose one endpoint has a typed handler. */
+    static final class TypedPlugin implements BrixPlugin {
+
+        @Override
+        public void configure(PluginBootstrapContext bootstrap) {
+            bootstrap.bindEndpointHandlerFactory("plugin-t.create.v1", context ->
+                (io.runtime.sdk.plugin.TypedEndpointHandler<Object, Object>) invocation ->
+                    CompletableFuture.completedFuture(Map.of("id", "t-1", "name", "x")));
+        }
+
+        @Override
+        public void onStart(PluginContext context) {
+        }
+
+        @Override
+        public void onStop() {
+        }
+
+        @Override
+        public BrixHealth health() {
+            return BrixHealth.up();
+        }
+    }
+
     private PluginRuntimeManager manager(
             List<BrixPlugin> plugins,
             Map<BrixPlugin, PluginRuntimeDescriptor> descriptors,

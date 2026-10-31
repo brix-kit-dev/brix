@@ -37,6 +37,8 @@ endpoints:
         schemaRef: brix://schemas/sample-orders/place-order-request/1.0.0
       response:
         schemaRef: brix://schemas/sample-orders/placed-order/1.0.0
+        # A new order answers 201 Created (standard-link plan L7.3).
+        status: 201
       handlerId: sample-orders.place.v1
       # A tenant member signed in with an access token; the runtime binds the tenant from the token.
       authentication:

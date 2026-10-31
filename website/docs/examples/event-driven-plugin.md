@@ -161,25 +161,23 @@ public void configure(PluginBootstrapContext bootstrap) {
 }
 ```
 
-The runtime has already done three things before the handler runs:
+The runtime has already done four things before the handler runs:
+- checked the body against `sample-orders/place-order-request` and read it as `PlaceOrderRequest`;
 - authenticated the caller;
 - checked the `sample-orders:order:place` permission;
 - bound the tenant.
 
-The handler only adapts HTTP to the domain service:
+The handler only adapts HTTP to the domain service, and the runtime answers `201`, as the manifest declares:
 
 ```java title="sample-orders-server: PlaceOrder.java"
 @Override
-public EndpointResponse handle(EndpointInvocation<Object> request) {
-    Map<?, ?> body = request.body() instanceof Map<?, ?> map ? map : Map.of();
-    String sku = body.get("sku") instanceof String text ? text : null;
-    int quantity = body.get("quantity") instanceof Number number ? number.intValue() : 0;
+public CompletionStage<PlacedOrder> handle(EndpointInvocation<PlaceOrderRequest> request) {
     long tenantId = Long.parseLong(request.tenantId().orElseThrow());
     try {
-        SampleOrder order = orders.place(tenantId, new PlaceOrderRequest(sku, quantity));
-        return EndpointResponse.created(new PlacedOrder(String.valueOf(order.getId()), order.version()));
+        SampleOrder order = orders.place(tenantId, request.body());
+        return CompletableFuture.completedFuture(new PlacedOrder(String.valueOf(order.getId()), order.version()));
     } catch (InvalidOrderException invalid) {
-        throw new EndpointHandlingException(400, INVALID, invalid.getMessage());
+        throw new SampleOrdersException(SampleOrdersException.Code.ORDER_INVALID);
     }
 }
 ```
@@ -286,13 +284,15 @@ requires the `sample-shipping:shipment:read` permission, and its answer is `Ship
 
 ```java title="sample-shipping-server: FindShipment.java"
 @Override
-public EndpointResponse handle(EndpointInvocation<Object> request) {
+public CompletionStage<Shipment> handle(EndpointInvocation<FindShipmentRequest> request) {
     long tenantId = Long.parseLong(request.tenantId().orElseThrow());
-    String orderId = request.pathVariables().get("orderId");
-    return shipments.find(tenantId, orderId).map(EndpointResponse::ok).orElseThrow(
-        () -> new EndpointHandlingException(404, NOT_FOUND, "The order has no shipment"));
+    return CompletableFuture.completedFuture(shipments.find(tenantId, request.body().orderId())
+        .orElseThrow(() -> new SampleShippingException(SampleShippingException.Code.SHIPMENT_NOT_FOUND)));
 }
 ```
+
+An order without a shipment answers 404 `sample-shipping.shipment_not_found`: the code's category is `NOT_FOUND`.
+See [Endpoints](../guides/endpoints.md).
 
 ## Running it end to end
 

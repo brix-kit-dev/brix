@@ -105,6 +105,11 @@ class OperationalModuleDescriptorTest {
     }
 
     private static OperationalModuleDescriptor load(Path directory, String accessSections) throws Exception {
+        return load(directory, accessSections, "not-applicable");
+    }
+
+    private static OperationalModuleDescriptor load(Path directory, String accessSections, String idempotency)
+            throws Exception {
         Path descriptor = directory.resolve("platform-operational.yaml");
         Files.writeString(descriptor, """
             apiVersion: brix.io/platform-operational/v1
@@ -138,11 +143,25 @@ class OperationalModuleDescriptorTest {
                   timeout:
                     policyRef: interactive-read
                   idempotency:
-                    mode: not-applicable
+                    mode: IDEMPOTENCY
             tasks:
               provides: []
-            """);
+            """.replace("IDEMPOTENCY", idempotency));
         return new OperationalModuleDescriptorLoader().load(descriptor.toUri().toURL());
+    }
+
+    @Test
+    void loaderRejectsIdempotencyTheRuntimeDoesNotReplay(@TempDir Path directory) throws Exception {
+        // Root BRX-RS-MANIFEST-018; standard-link plan D47.
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class, () -> load(directory, """
+              authentication:
+                mode: anonymous
+              authorization:
+                policyRef: runtime-status
+            """, "required"));
+
+        assertEquals("operational.descriptor.invalid", failure.diagnosticCode());
+        assertTrue(failure.getMessage().contains("result replay"), failure.getMessage());
     }
 
     @Test

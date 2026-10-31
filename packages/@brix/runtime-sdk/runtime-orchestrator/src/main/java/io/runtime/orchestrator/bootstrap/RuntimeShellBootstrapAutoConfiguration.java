@@ -94,16 +94,20 @@ public class RuntimeShellBootstrapAutoConfiguration {
      * Creates the Runtime Shell endpoint dispatcher.
      *
      * @param properties bootstrap properties
+     * @param ownerPersistence the owners' persistence, for the units of work around handlers
+     * @param json the host's mapper, which reads typed requests and writes their responses
      * @return endpoint dispatcher
      */
     @Bean
     @ConditionalOnMissingBean
     public PluginEndpointDispatcher pluginEndpointDispatcher(
             RuntimeShellBootstrapProperties properties,
-            ObjectProvider<OwnerPersistenceProvider> ownerPersistence) {
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
+            ObjectProvider<tools.jackson.databind.ObjectMapper> json) {
         return new DefaultPluginEndpointDispatcher(
             java.time.Duration.ofMillis(properties.getEndpointDeadlineMillis()),
-            new OwnerUnitOfWorkEndpointBoundary(ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none)));
+            new OwnerUnitOfWorkEndpointBoundary(ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none)),
+            json.getIfAvailable(() -> tools.jackson.databind.json.JsonMapper.builder().build()));
     }
 
     /**

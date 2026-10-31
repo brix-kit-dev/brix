@@ -56,6 +56,7 @@ const sidebars: SidebarsConfig = {
         'guides/events-and-commands',
         'guides/queries',
         'guides/tasks',
+        'guides/endpoints',
         'guides/frontend-development',
         'guides/backend-development',
         'guides/testing',

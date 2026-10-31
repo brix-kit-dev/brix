@@ -39,7 +39,8 @@ public record EndpointRoute(
         String method,
         String path,
         EndpointAccessPolicy accessPolicy,
-        EndpointHandler<?, ?> handler) {
+        EndpointHandler<?, ?> handler,
+        EndpointContract contract) {
 
     /**
      * Creates a route entry.
@@ -52,6 +53,15 @@ public record EndpointRoute(
         accessPolicy = Objects.requireNonNull(accessPolicy,
             "Endpoint '" + endpointId + "' must declare an access policy");
         handler = Objects.requireNonNull(handler, "handler must not be null");
+        contract = contract != null ? contract : EndpointContract.none();
+    }
+
+    /**
+     * Creates a route whose manifest declares no request or response contract.
+     */
+    public EndpointRoute(String pluginId, String endpointId, String method, String path,
+            EndpointAccessPolicy accessPolicy, EndpointHandler<?, ?> handler) {
+        this(pluginId, endpointId, method, path, accessPolicy, handler, EndpointContract.none());
     }
 
     private static String requireText(String value, String name) {

@@ -45,6 +45,8 @@ import java.util.Set;
  * @param access authorization result of the Dispatcher; {@link AccessDecision#none()}
  *        when the endpoint declares no permission and has no verified tenant caller
  *        (since 3.2.0)
+ * @param cancellation set when the deadline passes or the caller goes away; long work checks it (root
+ *        BRX-RS-MANIFEST-022; since 3.3.0)
  * @param <I> request body type
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -62,7 +64,8 @@ public record EndpointInvocation<I>(
         Set<String> allowedActions,
         Optional<String> traceId,
         Instant deadline,
-        AccessDecision access) {
+        AccessDecision access,
+        CancellationSignal cancellation) {
 
     /**
      * Creates an immutable endpoint invocation.
@@ -80,6 +83,40 @@ public record EndpointInvocation<I>(
         traceId = traceId != null ? traceId : Optional.empty();
         deadline = Objects.requireNonNull(deadline, "deadline must not be null");
         access = access != null ? access : AccessDecision.none();
+        cancellation = cancellation != null ? cancellation : CancellationSignal.none();
+    }
+
+    /**
+     * Creates an invocation without a cancellation signal, as runtimes before 3.3.0 did.
+     */
+    public EndpointInvocation(
+            I body,
+            Map<String, String> pathVariables,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Optional<String> tenantId,
+            Optional<String> actorId,
+            Optional<String> identityEmail,
+            Optional<String> tokenRole,
+            Optional<String> tokenType,
+            Set<String> allowedActions,
+            Optional<String> traceId,
+            Instant deadline,
+            AccessDecision access) {
+        this(body, pathVariables, queryParameters, headers, tenantId, actorId, identityEmail, tokenRole, tokenType,
+            allowedActions, traceId, deadline, access, CancellationSignal.none());
+    }
+
+    /**
+     * Returns the same invocation with another body, as the runtime makes it once it has built the typed request.
+     *
+     * @param typed the typed body
+     * @param <B> its type
+     * @return the invocation
+     */
+    public <B> EndpointInvocation<B> withBody(B typed) {
+        return new EndpointInvocation<>(typed, pathVariables, queryParameters, headers, tenantId, actorId,
+            identityEmail, tokenRole, tokenType, allowedActions, traceId, deadline, access, cancellation);
     }
 
     /**

@@ -31,7 +31,7 @@ three artifacts, laid out as [Project structure](#project-structure) describes:
 | `META-INF/brix/plugin-manifest.yaml` | Declares the plugin: endpoints, events, commands, capabilities, data and permissions |
 | `META-INF/services/io.runtime.sdk.plugin.BrixPlugin` | Names the plugin class, so the runtime can find it |
 | Plugin class (`BrixPlugin`) | Binds a handler factory to each handler ID the manifest declares |
-| Handlers | `EndpointHandler`, `EventHandler`, `CommandHandler`: one per manifest entry, called by the runtime |
+| Handlers | `TypedEndpointHandler`, `EventHandler`, `CommandHandler`, `ManagedTask`: one per manifest entry, called by the runtime |
 | Domain services | Plain classes with the business rules, created by the handler factories |
 | Entities, repositories, migrations | The plugin's own tables, reached through `PersistenceCapability` |
 | JSON schemas | The versioned contracts of requests, responses and events |
@@ -358,6 +358,7 @@ endpoints:
         schemaRef: brix://schemas/sample-orders/place-order-request/1.0.0
       response:
         schemaRef: brix://schemas/sample-orders/placed-order/1.0.0
+        status: 201
       handlerId: sample-orders.place.v1
       # A tenant member signed in with an access token; the runtime binds the tenant from the token.
       authentication:
@@ -382,12 +383,13 @@ endpoints:
 |---|---|
 | `endpointId` | Stable ID of the endpoint |
 | `method`, `path` | HTTP method and path. A path segment such as `{orderId}` is a path variable. Two plugins cannot declare the same method and path. |
-| `request.schemaRef`, `response.schemaRef` | The versioned JSON schemas of the body and the result. A GET names a schema too, for its query parameters. |
+| `request.schemaRef`, `response.schemaRef` | The versioned JSON schemas of the request and the result. A GET names a schema too, for its query parameters and path variables. The runtime checks both for a typed handler. |
+| `response.status` | What a success answers with: `200` (the default), `201`, `202` or `204` |
 | `handlerId` | The ID your plugin class binds a factory to |
 | `authentication` | `mode: required` with a `policyRef`: `tenant-actor` for tenant staff, `tenant-subject` for a tenant's end users, `platform-token` for platform administrators |
 | `authorization` | The permission IDs the caller needs (declared under `permissions`) and how they combine (`all` or `any`) |
 | `tenantContext` | `required`, `optional` or `forbidden`. With `required`, the runtime takes the tenant from the verified token. |
-| `timeout`, `idempotency` | The deadline policy, and whether a retried request may be replayed |
+| `timeout`, `idempotency` | The deadline policy, and `idempotency.mode: not-applicable`: the runtime does not replay results yet |
 
 The runtime refuses the request before your handler runs when:
 - the caller is not signed in (401);
@@ -399,14 +401,12 @@ Your handler never parses tokens or tenant headers.
 
 ### 2. Write the handler
 
-An endpoint handler implements `EndpointHandler<EndpointInvocation<Object>, R>`. It only adapts the protocol: it
-reads the request, calls the domain service, and maps the result or the failure:
+An endpoint handler implements `TypedEndpointHandler<B, R>`. It only adapts the protocol: the runtime has already
+checked the request against its schema and read it as `B`, and the handler calls the domain service and answers
+with `R`:
 
 ```java title="sample-orders-server: PlaceOrder.java"
-final class PlaceOrder implements EndpointHandler<EndpointInvocation<Object>, EndpointResponse> {
-
-    /** The request is not an order. */
-    static final String INVALID = "SAMPLE_ORDER_INVALID";
+final class PlaceOrder implements TypedEndpointHandler<PlaceOrderRequest, PlacedOrder> {
 
     private final OrderPlacement orders;
 
@@ -415,73 +415,36 @@ final class PlaceOrder implements EndpointHandler<EndpointInvocation<Object>, En
     }
 
     @Override
-    public EndpointResponse handle(EndpointInvocation<Object> request) {
-        Map<?, ?> body = request.body() instanceof Map<?, ?> map ? map : Map.of();
-        String sku = body.get("sku") instanceof String text ? text : null;
-        int quantity = body.get("quantity") instanceof Number number ? number.intValue() : 0;
+    public CompletionStage<PlacedOrder> handle(EndpointInvocation<PlaceOrderRequest> request) {
         long tenantId = Long.parseLong(request.tenantId().orElseThrow());
         try {
-            SampleOrder order = orders.place(tenantId, new PlaceOrderRequest(sku, quantity));
-            return EndpointResponse.created(new PlacedOrder(String.valueOf(order.getId()), order.version()));
+            SampleOrder order = orders.place(tenantId, request.body());
+            return CompletableFuture.completedFuture(new PlacedOrder(String.valueOf(order.getId()), order.version()));
         } catch (InvalidOrderException invalid) {
-            throw new EndpointHandlingException(400, INVALID, invalid.getMessage());
+            throw new SampleOrdersException(SampleOrdersException.Code.ORDER_INVALID);
         }
     }
 }
 ```
 
-- The JSON body becomes `PlaceOrderRequest`, and the answer is `PlacedOrder`. Both are records in
-  `sample-orders-api`, as the request and response schemas describe them.
+- `PlaceOrderRequest` and `PlacedOrder` are records in `sample-orders-api`, as the request and response schemas
+  describe them. A path variable is a property of the request: `ShowOrder` takes `FindOrderRequest(orderId)`.
 - The tenant is the one the runtime verified, never one from the body.
-- A broken rule comes back from `OrderPlacement` as `InvalidOrderException`, and the handler answers 400 with a
-  stable error code.
+- A failure is a `BrixException` whose code names its category, such as `sample-orders.order_invalid` (`INVALID`,
+  400) or `sample-orders.order_not_found` (`NOT_FOUND`, 404). The handler never sets a status.
 - The class and its constructor are package-private: only the plugin class creates the handler.
 
 What the handler receives on `EndpointInvocation`:
 
 | Accessor | Content |
 |---|---|
-| `body()` | The JSON request body: a `Map` for a JSON object, or `null` when there is none |
-| `pathVariables()` | Path variables by name, such as `orderId` for a `{orderId}` segment |
-| `queryParameters()` | Query parameters by name, each a `List<String>` |
-| `headers()` | Request headers by lower-case name, without the session cookie |
+| `body()` | The request as `B` |
 | `tenantId()`, `actorId()` | The tenant and the caller the runtime verified |
 | `access()` | The authorization result, such as the caller's tenant role and effective permissions |
-| `traceId()`, `deadline()` | The request's trace ID and its absolute deadline |
+| `traceId()`, `deadline()`, `cancellation()` | The request's trace ID, its absolute deadline, and the signal the runtime sets at it |
 
-Treat the body as untrusted input. Read each field by its type, as `PlaceOrder` does, and refuse what breaks a rule
-with an `EndpointHandlingException`.
-
-A path variable is read by name. `FindShipment`, in `sample-shipping-server`, serves
-`GET /api/sample-shipping/shipments/{orderId}`. It answers 404 when the order has no shipment in the caller's tenant:
-
-```java title="sample-shipping-server: FindShipment.java (excerpt)"
-@Override
-public EndpointResponse handle(EndpointInvocation<Object> request) {
-    long tenantId = Long.parseLong(request.tenantId().orElseThrow());
-    String orderId = request.pathVariables().get("orderId");
-    return shipments.find(tenantId, orderId).map(EndpointResponse::ok).orElseThrow(
-        () -> new EndpointHandlingException(404, NOT_FOUND, "The order has no shipment"));
-}
-```
-
-A query parameter is a list of values:
-
-```java
-List<String> status = request.queryParameters().getOrDefault("status", List.of());
-```
-
-What the handler returns:
-
-| Return | HTTP response |
-|---|---|
-| Any object, such as a record or a `Map` | 200, with the object as JSON |
-| `EndpointResponse.ok(body)`, `EndpointResponse.created(body)` | 200 or 201 |
-| `new EndpointResponse(status, body)` | That status, such as `new EndpointResponse(204, null)` |
-| `throw new EndpointHandlingException(status, errorCode, message)` | That 4xx or 5xx status, with `{"errorCode": ..., "message": ...}` |
-
-Use a stable `errorCode`, such as `SAMPLE_ORDER_INVALID` or `SAMPLE_SHIPMENT_NOT_FOUND`, that clients can test for.
-The message must be safe to show: never put stack traces, SQL or other tenants' data in it.
+[Endpoints](./endpoints.md) covers the rest: query parameters, lists and paging, failures and the runtime's own
+codes, and handlers written before 3.3.0.
 
 ### 3. Bind its factory
 
@@ -887,11 +850,12 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.brix.samples.orders.api.PlaceOrderRequest;
 import io.brix.samples.orders.core.OrderPlacement;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
-import io.runtime.sdk.plugin.EndpointHandlingException;
+import io.runtime.sdk.error.ErrorCategory;
 import io.runtime.sdk.plugin.EndpointInvocation;
 
 class PlaceOrderTest {
@@ -902,16 +866,15 @@ class PlaceOrderTest {
         mock(IdGeneratorCapability.class), Clock.systemUTC()));
 
     @Test
-    void answers400WhenTheOrderBreaksARule() {
-        EndpointHandlingException refused = assertThrows(EndpointHandlingException.class,
-            () -> handler.handle(invocation(Map.of("sku", "sku-1"))));
+    void refusesAnOrderThatBreaksARule() {
+        SampleOrdersException refused = assertThrows(SampleOrdersException.class,
+            () -> handler.handle(invocation(new PlaceOrderRequest("sku-1", 0))));
 
-        assertEquals(400, refused.status());
-        assertEquals(PlaceOrder.INVALID, refused.errorCode());
+        assertEquals(ErrorCategory.INVALID, refused.errorCode().category());
         verifyNoInteractions(persistence, events);
     }
 
-    private static EndpointInvocation<Object> invocation(Map<String, Object> body) {
+    private static EndpointInvocation<PlaceOrderRequest> invocation(PlaceOrderRequest body) {
         return new EndpointInvocation<>(body, Map.of(), Map.of(), Map.of(), Optional.of("42"), Optional.of("2001"),
             Optional.empty(), Instant.now().plusSeconds(5));
     }
@@ -1000,12 +963,14 @@ approach for your own plugins.
 6. **Publish facts in the unit of work that changes your data.** Never use Kafka clients, `KafkaTemplate`,
    `@KafkaListener` or topic names.
 7. **Migrations hold business tables only,** and an applied migration never changes.
-8. **Refuse bad input with `EndpointHandlingException`** and a stable error code.
+8. **Let the schema refuse bad input, and fail with a `BrixException`** whose code names its category. A handler
+   never sets an HTTP status.
 9. **No threads, executors, timers or `@Scheduled`,** and no static mutable state. The runtime owns the resources
    a plugin runs on.
 
 ## Next Steps
 
+- [Endpoints](./endpoints.md) - Typed handlers, schemas, failures and lists
 - [Events and Commands](./events-and-commands.md) - Publish, subscribe and send commands
 - [Event-Driven Plugin](../examples/event-driven-plugin.md) - The two samples, step by step
 - [Frontend Development](./frontend-development.md) - Build the frontend

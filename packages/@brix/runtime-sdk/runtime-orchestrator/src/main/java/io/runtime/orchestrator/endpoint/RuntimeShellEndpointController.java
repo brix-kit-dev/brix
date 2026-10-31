@@ -37,6 +37,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
+import io.runtime.sdk.error.BrixException;
+import io.runtime.sdk.error.ErrorCategory;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointResponse;
 import io.runtime.sdk.query.BrixQueryException;
@@ -66,6 +68,9 @@ public class RuntimeShellEndpointController {
     private static final String TENANT_REF_HEADER = "x-auth-tenant-ref-id";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
     private static final String COOKIE_HEADER = "cookie";
+
+    private static final String UNKNOWN = "platform.unknown";
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RuntimeShellEndpointController.class);
 
     private final PluginEndpointDispatcher dispatcher;
     private final Supplier<AuthCapability> authCapabilitySupplier;
@@ -136,7 +141,41 @@ public class RuntimeShellEndpointController {
                     "message", e.getMessage()));
         } catch (BrixQueryException e) {
             return queryFailure(e);
+        } catch (EndpointRequestInvalidException e) {
+            // Standard-link plan L7.2: the paths and rules the request breaks, never its values.
+            return ResponseEntity.status(HttpStatusCode.valueOf(400)).body(Map.of(
+                "errorCode", EndpointRequestInvalidException.CODE,
+                "message", EndpointRequestInvalidException.CODE,
+                "violations", e.violations()));
+        } catch (EndpointDeadlineExceededException e) {
+            return failure(504, EndpointDeadlineExceededException.CODE);
+        } catch (EndpointResponseInvalidException e) {
+            return failure(500, UNKNOWN);
+        } catch (BrixException e) {
+            // Root BRX-RS-MANIFEST-022: an expected failure answers with its code, at the status of its category.
+            return failure(status(e.errorCode().category()), e.errorCode().wireCode());
+        } catch (RuntimeException e) {
+            // Root BRX-RS-MANIFEST-022, ERROR-012: anything else is platform.unknown, with the cause in the log only.
+            log.error("event=endpoint.failed method={} path={}", request.getMethod(), requestPath(request), e);
+            return failure(500, UNKNOWN);
         }
+    }
+
+    private static ResponseEntity<Object> failure(int status, String code) {
+        return ResponseEntity.status(HttpStatusCode.valueOf(status)).body(Map.of("errorCode", code, "message", code));
+    }
+
+    /** The HTTP status of an error category (standard-link plan L7.3). */
+    static int status(ErrorCategory category) {
+        return switch (category) {
+            case INVALID -> 400;
+            case DENIED -> 403;
+            case NOT_FOUND -> 404;
+            case CONFLICT -> 409;
+            case UNAVAILABLE -> 503;
+            case DEADLINE_EXCEEDED -> 504;
+            case INTERNAL -> 500;
+        };
     }
 
     /**

@@ -516,12 +516,14 @@ bootstrap.bindEndpointHandlerFactory("sample-shipping.refuse-shipment.v1", conte
 ```
 
 ```java title="RefuseShipment.handle"
+String orderId = request.body().orderId();
 if (shipments.find(tenantId, orderId).isEmpty()) {
-    throw new EndpointHandlingException(404, FindShipment.NOT_FOUND, "The order has no shipment");
+    throw new SampleShippingException(SampleShippingException.Code.SHIPMENT_NOT_FOUND);
 }
 CommandSubmission cancellation = cancellations.submit(
     CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
-return new EndpointResponse(202, Map.of("orderId", orderId, "commandId", cancellation.commandId()));
+// The manifest declares response.status 202: the cancellation is queued, not done.
+return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellation.commandId()));
 ```
 
 - The runtime runs every handler in your plugin's unit of work (root BRX-RS-DATA-028): a read-write one for an

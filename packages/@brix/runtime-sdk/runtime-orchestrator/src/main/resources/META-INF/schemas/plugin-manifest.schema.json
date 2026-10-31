@@ -186,7 +186,7 @@
         "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
         "path": { "type": "string", "pattern": "^/" },
         "request": { "$ref": "#/definitions/schemaRef" },
-        "response": { "$ref": "#/definitions/schemaRef" },
+        "response": { "$ref": "#/definitions/endpointResponse" },
         "handlerId": { "type": "string", "minLength": 1 },
         "authentication": { "$ref": "#/definitions/policy" },
         "authorization": { "$ref": "#/definitions/policy" },
@@ -431,6 +431,15 @@
         "enabled": { "type": "boolean" },
         "manifestUrl": { "type": "string", "pattern": "^/" },
         "runtimeRange": { "$ref": "#/definitions/range" }
+      }
+    },
+    "endpointResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaRef"],
+      "properties": {
+        "schemaRef": { "type": "string", "minLength": 1 },
+        "status": { "enum": [200, 201, 202, 204] }
       }
     },
     "schemaRef": {

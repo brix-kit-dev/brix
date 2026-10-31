@@ -82,8 +82,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.bootstrap.create-first-admin.v1
       transport: http
       method: POST
@@ -101,8 +103,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.auth.setup.validate.v1
       transport: http
       method: GET
@@ -139,8 +143,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.auth.setup.complete.v1
       transport: http
       method: POST
@@ -158,8 +164,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.auth.login.v1
       transport: http
       method: POST
@@ -284,8 +292,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.tenants.first-owner-invitations.create.v1
       transport: http
       method: POST
@@ -306,8 +316,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.tenants.first-owner-invitations.current.v1
       transport: http
       method: GET
@@ -350,8 +362,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.tenants.first-owner-invitations.revoke.v1
       transport: http
       method: DELETE
@@ -372,8 +386,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
+      # idempotent by its business key.
       idempotency:
-        mode: required
+        mode: not-applicable
     - endpointId: platform.audit-logs.list.v1
       transport: http
       method: GET

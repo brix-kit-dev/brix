@@ -27,6 +27,9 @@ import org.springframework.http.ResponseEntity;
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.DataScope;
+import io.runtime.sdk.error.BrixException;
+import io.runtime.sdk.error.ErrorCategory;
+import io.runtime.sdk.error.ErrorCode;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 import io.runtime.sdk.query.BrixQueryException;
@@ -244,6 +247,81 @@ class RuntimeShellEndpointControllerTest {
             assertEquals(response.get(0), failed.getStatusCode().value(), code.name());
             assertEquals(Map.of("errorCode", response.get(1), "message", response.get(1)), failed.getBody());
         });
+    }
+
+    @Test
+    void anExpectedFailureAnswersWithItsCodeAtTheStatusOfItsCategory() {
+        // Root BRX-RS-MANIFEST-022; standard-link plan L7.3: the handler names the code, the runtime the status.
+        Map<ErrorCategory, Integer> expected = Map.of(ErrorCategory.INVALID, 400, ErrorCategory.DENIED, 403,
+            ErrorCategory.NOT_FOUND, 404, ErrorCategory.CONFLICT, 409, ErrorCategory.UNAVAILABLE, 503,
+            ErrorCategory.DEADLINE_EXCEEDED, 504, ErrorCategory.INTERNAL, 500);
+        expected.forEach((category, status) -> {
+            ResponseEntity<Object> failed = dispatchThrowing(new SampleFailure(category));
+
+            assertEquals(status, failed.getStatusCode().value(), category.name());
+            assertEquals(Map.of("errorCode", "sample.failure", "message", "sample.failure"), failed.getBody());
+        });
+    }
+
+    @Test
+    void anInvalidRequestAnswers400WithThePathsAndRulesItBreaks() {
+        ResponseEntity<Object> failed = dispatchThrowing(new EndpointRequestInvalidException(
+            List.of(Map.of("path", "$.size", "rule", "maximum"))));
+
+        assertEquals(400, failed.getStatusCode().value());
+        assertEquals(Map.of("errorCode", "endpoint.invalid_request", "message", "endpoint.invalid_request",
+            "violations", List.of(Map.of("path", "$.size", "rule", "maximum"))), failed.getBody());
+    }
+
+    @Test
+    void anUnexpectedFailureIsPlatformUnknownWithoutItsCause() {
+        ResponseEntity<Object> failed = dispatchThrowing(new IllegalStateException("connection refused by db-7.internal"));
+
+        assertEquals(500, failed.getStatusCode().value());
+        assertEquals(Map.of("errorCode", "platform.unknown", "message", "platform.unknown"), failed.getBody());
+        assertEquals(504, dispatchThrowing(new EndpointDeadlineExceededException("e")).getStatusCode().value());
+        assertEquals(Map.of("errorCode", "platform.unknown", "message", "platform.unknown"),
+            dispatchThrowing(new EndpointResponseInvalidException("e")).getBody());
+    }
+
+    private static ResponseEntity<Object> dispatchThrowing(RuntimeException failure) {
+        PluginEndpointDispatcher dispatcher = new PluginEndpointDispatcher() {
+            @Override
+            public void replaceSnapshot(Collection<EndpointRoute> routes) {
+            }
+
+            @Override
+            public Object invoke(String method, String path, Object body, Map<String, List<String>> queryParameters,
+                    Map<String, List<String>> headers) {
+                throw failure;
+            }
+
+            @Override
+            public List<EndpointRoute> routes() {
+                return List.of();
+            }
+        };
+        return new RuntimeShellEndpointController(dispatcher, () -> platformAdmin(Set.of()))
+            .dispatch(null, request(Map.of()));
+    }
+
+    private static final class SampleFailure extends BrixException {
+
+        private static final long serialVersionUID = 1L;
+
+        SampleFailure(ErrorCategory category) {
+            super(new ErrorCode() {
+                @Override
+                public String wireCode() {
+                    return "sample.failure";
+                }
+
+                @Override
+                public ErrorCategory category() {
+                    return category;
+                }
+            }, Map.of(), null);
+        }
     }
 
     private static TestAuthCapability platformAdmin(Set<String> permissions) {
