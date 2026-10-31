@@ -1,6 +1,6 @@
 # The sample publisher (Kafka design §14 K23). Everything the runtime needs to know about the plugin is here: the
-# endpoint and who may call it, the events it publishes with their schemas and reliability, the capabilities it
-# uses and the data it owns. The plugin code only binds the endpoint handler; the schemas ship in sample-orders-api.
+# endpoints and who may call them, the events it publishes with their schemas and reliability, the query of another
+# plugin it calls, the capabilities it uses and the data it owns. The plugin code only binds the endpoint handler; the schemas ship in sample-orders-api.
 apiVersion: brix.io/v1
 kind: Plugin
 metadata:
@@ -55,6 +55,30 @@ endpoints:
       # A retried request places another order; a client that needs exactly-once sends a business key of its own.
       idempotency:
         mode: not-applicable
+    - endpointId: sample-orders.show.v1
+      transport: http
+      method: GET
+      path: /api/sample-orders/orders/{orderId}
+      request:
+        schemaRef: brix://schemas/sample-orders/find-order-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-orders/order-detail/1.0.0
+      handlerId: sample-orders.show.v1
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - sample-orders:order:read
+        decision: all
+        resourcePolicyRef: sample-orders-read
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      idempotency:
+        mode: not-applicable
 capabilities:
   required:
     - id: io.runtime.sdk.capability.EventBusCapability
@@ -63,10 +87,19 @@ capabilities:
       version: ">=3.2.0 <4.0.0"
     - id: io.runtime.sdk.capability.IdGeneratorCapability
       version: ">=3.2.0 <4.0.0"
+    - id: io.runtime.sdk.capability.QueryCapability
+      version: ">=3.3.0 <4.0.0"
   optional: []
+# The order detail reads the shipment through sample-shipping's typed query (query design §4.2). Optional: without
+# sample-shipping the order is still shown, with its shipment UNAVAILABLE.
 queries:
   provides: []
-  consumes: []
+  consumes:
+    - queryType: sample-shipping.find-shipment
+      versionRange: ">=1.0.0 <2.0.0"
+      required: false
+      timeoutPolicyRef: query-interactive
+      retryPolicyRef: query-no-retry
 commands:
   provides: []
   consumes: []
@@ -95,6 +128,13 @@ data:
   migrationLocation: db/migration/sample-orders
   outbox: sample_orders_outbox
 permissions:
+  - id: sample-orders:order:read
+    name: Read sample orders
+    description: Allows reading the orders of the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
   - id: sample-orders:order:place
     name: Place sample orders
     description: Allows placing an order in the current tenant.

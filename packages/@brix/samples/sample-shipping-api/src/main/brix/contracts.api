@@ -1,0 +1,15 @@
+accessor FindShipmentRequest.orderId(): String required
+accessor Shipment.orderId(): String required
+accessor Shipment.orderVersion(): long required
+accessor Shipment.quantity(): long required
+accessor Shipment.sku(): String required
+builder FindShipmentRequest.Builder.orderId(String)
+builder Shipment.Builder.orderId(String)
+builder Shipment.Builder.orderVersion(Long)
+builder Shipment.Builder.quantity(Long)
+builder Shipment.Builder.sku(String)
+constructor FindShipmentRequest(String)
+constructor Shipment(String, String, long, long)
+query SampleShippingQueries.FIND_SHIPMENT = sample-shipping.find-shipment major 1 optional FindShipmentRequest -> Shipment
+record FindShipmentRequest schema sample-shipping/find-shipment-request major 1
+record Shipment schema sample-shipping/shipment major 1

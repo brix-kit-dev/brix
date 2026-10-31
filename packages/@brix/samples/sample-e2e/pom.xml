@@ -119,4 +119,39 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <!-- Both plugins in one host -->
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/SampleOrdersWithoutShippingEndToEndTest.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <!-- sample-orders without sample-shipping: its optional query has no provider (query design Q9).
+                         The test is fixed here, so a -Dtest given for the other execution does not change it. -->
+                    <execution>
+                        <id>orders-without-shipping</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <test>SampleOrdersWithoutShippingEndToEndTest</test>
+                            <classpathDependencyExcludes>
+                                <classpathDependencyExclude>io.brix.samples:sample-shipping-server</classpathDependencyExclude>
+                                <classpathDependencyExclude>io.brix.samples:sample-shipping-core</classpathDependencyExclude>
+                            </classpathDependencyExcludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -10,17 +10,20 @@ import java.time.Clock;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.brix.samples.orders.core.OrderPlacement;
+import io.brix.samples.shipping.api.SampleShippingQueries;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
 import io.runtime.sdk.plugin.PluginContext;
 
 /**
- * The sample publisher (Kafka design §14 K23). Its manifest declares the endpoint, the two events with their schemas
- * and reliability, and the data it owns; this class only binds the endpoint handler. The runtime creates the handler
+ * The sample publisher (Kafka design §14 K23). Its manifest declares the endpoints, the two events with their schemas
+ * and reliability, the query of sample-shipping it calls and the data it owns; this class only binds the endpoint
+ * handlers. The runtime creates the handler
  * after the plugin started, with the capabilities the manifest requires.
  *
  * @author Brix Platform Authors
@@ -31,15 +34,25 @@ public final class SampleOrdersPlugin implements BrixPlugin {
     /** The handler of {@code POST /api/sample-orders/orders}, as the manifest names it. */
     public static final String PLACE_ORDER = "sample-orders.place.v1";
 
+    /** The handler of {@code GET /api/sample-orders/orders/{orderId}}, as the manifest names it. */
+    public static final String SHOW_ORDER = "sample-orders.show.v1";
+
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
 
     @Override
     public void configure(PluginBootstrapContext bootstrap) {
-        bootstrap.bindEndpointHandlerFactory(PLACE_ORDER, context -> new PlaceOrder(new OrderPlacement(
+        bootstrap.bindEndpointHandlerFactory(PLACE_ORDER, context -> new PlaceOrder(orders(context)));
+        // The order detail reads sample-shipping's shipment through its typed query (query design §4.2).
+        bootstrap.bindEndpointHandlerFactory(SHOW_ORDER, context -> new ShowOrder(orders(context),
+            context.require(QueryCapability.class).client(SampleShippingQueries.FIND_SHIPMENT)));
+    }
+
+    private static OrderPlacement orders(PluginContext context) {
+        return new OrderPlacement(
             context.require(PersistenceCapability.class),
             context.require(EventBusCapability.class),
             context.require(IdGeneratorCapability.class),
-            Clock.systemUTC())));
+            Clock.systemUTC());
     }
 
     @Override

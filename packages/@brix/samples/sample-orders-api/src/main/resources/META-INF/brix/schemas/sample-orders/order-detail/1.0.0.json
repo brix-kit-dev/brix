@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-orders/order-detail/1.0.0",
+  "title": "An order and how far its shipment is",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId", "sku", "quantity", "version", "shipment"],
+  "properties": {
+    "orderId": { "type": "string" },
+    "sku": { "type": "string" },
+    "quantity": { "type": "integer", "minimum": 1 },
+    "version": { "type": "integer", "minimum": 1 },
+    "shipment": {
+      "type": "string",
+      "enum": ["PREPARED", "NOT_PREPARED", "UNAVAILABLE"],
+      "description": "UNAVAILABLE when the host has no sample-shipping: the order is shown without it"
+    }
+  }
+}

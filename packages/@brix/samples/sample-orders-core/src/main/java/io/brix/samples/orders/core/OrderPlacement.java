@@ -9,6 +9,7 @@ package io.brix.samples.orders.core;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Objects;
+import java.util.Optional;
 
 import io.brix.samples.orders.api.PlaceOrderRequest;
 import io.runtime.sdk.capability.EventBusCapability;
@@ -79,5 +80,16 @@ public final class OrderPlacement {
             events.publishIntegration(new SampleOrderActivity(placed, "placed"));
             return placed;
         });
+    }
+
+    /**
+     * Finds an order of the caller's tenant; the runtime's tenant filter hides every other tenant's orders.
+     *
+     * @param orderId the order
+     * @return the order, if the tenant has it
+     */
+    public Optional<SampleOrder> find(long orderId) {
+        return persistence.unitOfWork().readOnly(() -> persistence.repository(SampleOrderRepository.class)
+            .findById(orderId));
     }
 }

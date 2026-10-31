@@ -6,33 +6,21 @@
  */
 package io.brix.samples.e2e;
 
+import static io.brix.samples.e2e.SampleInfrastructure.JSON;
+import static io.brix.samples.e2e.SampleInfrastructure.WAIT;
+import static io.brix.samples.e2e.SampleInfrastructure.await;
+import static io.brix.samples.e2e.SampleInfrastructure.count;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 
 import javax.sql.DataSource;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -41,14 +29,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.kafka.test.EmbeddedKafkaBroker;
-import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
 
@@ -76,20 +60,16 @@ import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
     "brix.outbox.relay.poll-delay=100ms",
     "brix.outbox.relay.retry-backoff-base=200ms",
     "brix.outbox.relay.retry-jitter-max=50ms",
-    "brix.infra.kafka.outbox.publish-timeout-ms=10000"
+    "brix.infra.kafka.outbox.publish-timeout-ms=10000",
+    // The hard cap of every typed query; a host whose plugins declare queries does not start without it (MESSAGE-005).
+    "brix.query.max-deadline=5s"
 })
 @EnabledIfEnvironmentVariable(named = "BRIX_P0_POSTGRES_URL", matches = ".+",
     disabledReason = "needs a throwaway PostgreSQL in BRIX_P0_POSTGRES_URL, _USER and _PASSWORD")
 class SamplePluginsEndToEndTest {
 
-    private static final String RUN = Long.toHexString(System.nanoTime() & 0xffffffL);
-    private static final String SCHEMA = "sample_e2e_" + RUN;
-    private static final String TOPICS = "sample-e2e-" + RUN + "-";
-    private static final Duration WAIT = Duration.ofSeconds(60);
-    private static final ObjectMapper JSON = JsonMapper.builder().build();
-    private static final HttpClient HTTP = HttpClient.newHttpClient();
-
-    private static EmbeddedKafkaBroker kafka;
+    private static final SampleInfrastructure INFRASTRUCTURE = new SampleInfrastructure();
+    private static final String SCHEMA = INFRASTRUCTURE.schema();
 
     @LocalServerPort
     private int port;
@@ -102,37 +82,17 @@ class SamplePluginsEndToEndTest {
 
     @BeforeAll
     static void startInfrastructure() throws SQLException {
-        try (Connection connection = DriverManager.getConnection(System.getenv("BRIX_P0_POSTGRES_URL"),
-                System.getenv("BRIX_P0_POSTGRES_USER"), System.getenv("BRIX_P0_POSTGRES_PASSWORD"));
-                Statement statement = connection.createStatement()) {
-            statement.execute("CREATE SCHEMA " + SCHEMA);
-        }
-        kafka = new EmbeddedKafkaKraftBroker(1, 3).brokerProperties(Map.of(
-            "auto.create.topics.enable", "false",
-            "group.initial.rebalance.delay.ms", "0"));
-        kafka.afterPropertiesSet();
+        INFRASTRUCTURE.start();
     }
 
     @AfterAll
     static void stopInfrastructure() throws SQLException {
-        if (kafka != null) {
-            kafka.destroy();
-        }
-        try (Connection connection = DriverManager.getConnection(System.getenv("BRIX_P0_POSTGRES_URL"),
-                System.getenv("BRIX_P0_POSTGRES_USER"), System.getenv("BRIX_P0_POSTGRES_PASSWORD"));
-                Statement statement = connection.createStatement()) {
-            statement.execute("DROP SCHEMA IF EXISTS " + SCHEMA + " CASCADE");
-        }
+        INFRASTRUCTURE.stop();
     }
 
     @DynamicPropertySource
     static void connections(DynamicPropertyRegistry registry) {
-        String url = System.getenv("BRIX_P0_POSTGRES_URL");
-        registry.add("spring.datasource.url", () -> url + (url.contains("?") ? "&" : "?") + "currentSchema=" + SCHEMA);
-        registry.add("spring.datasource.username", () -> System.getenv("BRIX_P0_POSTGRES_USER"));
-        registry.add("spring.datasource.password", () -> System.getenv("BRIX_P0_POSTGRES_PASSWORD"));
-        registry.add("brix.infra.kafka.bootstrap-servers", () -> kafka.getBrokersAsString());
-        registry.add("brix.infra.kafka.topic-prefix", () -> TOPICS);
+        INFRASTRUCTURE.register(registry);
     }
 
     @Test
@@ -184,10 +144,21 @@ class SamplePluginsEndToEndTest {
         assertEquals(404, unknown.statusCode(), unknown.body());
         assertEquals("SAMPLE_SHIPMENT_NOT_FOUND", JSON.readTree(unknown.body()).get("errorCode").asString());
 
+        // sample-orders shows the order with its shipment, read through sample-shipping's typed query in the member's
+        // tenant, for the member (query design §4); sample-orders never touches sample-shipping's tables.
+        HttpResponse<String> detail = get("/api/sample-orders/orders/" + orderId);
+        assertEquals(200, detail.statusCode(), detail.body());
+        JsonNode shown = JSON.readTree(detail.body());
+        assertEquals("sku-1", shown.get("sku").asString(), detail.body());
+        assertEquals(2, shown.get("quantity").asInt(), detail.body());
+        assertEquals("PREPARED", shown.get("shipment").asString(), detail.body());
+        HttpResponse<String> noOrder = get("/api/sample-orders/orders/1");
+        assertEquals(404, noOrder.statusCode(), noOrder.body());
+
         // SampleOrderActivity is BEST_EFFORT: it skipped the outbox and was sent once the order committed.
         assertEquals(0, count(jdbc,
             "SELECT COUNT(*) FROM sample_orders_outbox WHERE message_type = 'SampleOrderActivity'"));
-        List<String> activity = read(TOPICS + "brix.event.SampleOrderActivity");
+        List<String> activity = INFRASTRUCTURE.read(INFRASTRUCTURE.topic("brix.event.SampleOrderActivity"));
         assertEquals(1, activity.size(), activity.toString());
         JsonNode envelope = JSON.readTree(activity.get(0));
         assertTrue(activity.get(0).contains(orderId), activity.get(0));
@@ -201,58 +172,10 @@ class SamplePluginsEndToEndTest {
     }
 
     private HttpResponse<String> post(String path, Map<String, Object> body) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-            .header("Content-Type", "application/json")
-            .timeout(Duration.ofSeconds(30))
-            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)))
-            .build();
-        return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        return SampleInfrastructure.post(port, path, body);
     }
 
     private HttpResponse<String> get(String path) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-            .timeout(Duration.ofSeconds(30))
-            .GET()
-            .build();
-        return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-    }
-
-    private static List<String> read(String topic) {
-        Map<String, Object> configs = new HashMap<>();
-        configs.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBrokersAsString());
-        configs.put(ConsumerConfig.GROUP_ID_CONFIG, "sample-e2e-reader-" + UUID.randomUUID());
-        configs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        configs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        configs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        List<String> values = new ArrayList<>();
-        try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(configs)) {
-            consumer.subscribe(List.of(topic));
-            long deadline = System.nanoTime() + WAIT.toNanos();
-            while (values.isEmpty() && System.nanoTime() < deadline) {
-                for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
-                    values.add(record.value());
-                }
-            }
-            // Anything else sent with it arrives in the same polls.
-            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofSeconds(1))) {
-                values.add(record.value());
-            }
-        }
-        return values;
-    }
-
-    private static int count(JdbcTemplate jdbc, String sql, Object... arguments) {
-        Integer count = jdbc.queryForObject(sql, Integer.class, arguments);
-        return count == null ? 0 : count;
-    }
-
-    private static void await(String what, BooleanSupplier condition) throws InterruptedException {
-        long deadline = System.nanoTime() + WAIT.toNanos();
-        while (!condition.getAsBoolean()) {
-            if (System.nanoTime() > deadline) {
-                fail("timed out waiting until " + what);
-            }
-            Thread.sleep(100);
-        }
+        return SampleInfrastructure.get(port, path);
     }
 }

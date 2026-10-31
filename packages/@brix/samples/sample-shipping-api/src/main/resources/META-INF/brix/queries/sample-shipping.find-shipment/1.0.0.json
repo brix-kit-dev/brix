@@ -1,0 +1,8 @@
+{
+  "queryType": "sample-shipping.find-shipment",
+  "version": "1.0.0",
+  "request": "brix://schemas/sample-shipping/find-shipment-request/1.0.0",
+  "response": "brix://schemas/sample-shipping/shipment/1.0.0",
+  "optional": true,
+  "description": "the shipment of an order in the caller's tenant"
+}

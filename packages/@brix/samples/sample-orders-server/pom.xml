@@ -26,6 +26,12 @@
             <artifactId>sample-orders-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The contract of the sample-shipping query the order detail calls: its api artifact only (root LIFE-010) -->
+        <dependency>
+            <groupId>io.brix.samples</groupId>
+            <artifactId>sample-shipping-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>

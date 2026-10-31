@@ -19,4 +19,24 @@
     <artifactId>sample-shipping-api</artifactId>
     <name>Brix Sample - Shipping API (plugin-api)</name>
     <description>What sample-shipping offers: the shipment view and its JSON schema; no implementation and no framework</description>
+    <dependencies>
+        <!-- The generated query contract types carry @ContractSchema and their QueryType constants (query design D38) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <version>${brix.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- ContractSourcesTest fails when the checked-in contract sources are not what the schemas generate -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-contract-generator</artifactId>
+            <version>${brix.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -19,7 +19,8 @@ import io.runtime.sdk.plugin.PluginContext;
 
 /**
  * The sample subscriber (Kafka design §14 K23). Its manifest subscribes to {@code SampleOrderPlaced} with a persistent
- * inbox and offers a read endpoint; this class binds both handlers under the manifest's handler ids. The plugin
+ * inbox, offers a read endpoint and provides the typed query {@code sample-shipping.find-shipment} (query design §4.1);
+ * this class binds the three handlers under the manifest's handler ids. The plugin
  * depends on no artifact of the publisher: it reads the event as its own {@code OrderPlaced}, a view of the
  * published schema.
  *
@@ -34,12 +35,16 @@ public final class SampleShippingPlugin implements BrixPlugin {
     /** The handler of {@code GET /api/sample-shipping/shipments/{orderId}}, as the manifest names it. */
     public static final String FIND_SHIPMENT = "sample-shipping.find-shipment.v1";
 
+    /** The handler of the typed query {@code sample-shipping.find-shipment}, as the manifest names it. */
+    public static final String FIND_SHIPMENT_QUERY = "sample-shipping.find-shipment.query.v1";
+
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
 
     @Override
     public void configure(PluginBootstrapContext bootstrap) {
         bootstrap.bindEventHandlerFactory(PREPARE_SHIPMENT, context -> new PrepareShipment(desk(context)));
         bootstrap.bindEndpointHandlerFactory(FIND_SHIPMENT, context -> new FindShipment(desk(context)));
+        bootstrap.bindQueryHandlerFactory(FIND_SHIPMENT_QUERY, context -> new FindShipmentQuery(desk(context)));
     }
 
     private static ShipmentDesk desk(PluginContext context) {

@@ -19,7 +19,7 @@ import jakarta.persistence.Transient;
 
 import org.springframework.data.domain.Persistable;
 
-import io.brix.samples.shipping.api.ShipmentView;
+import io.brix.samples.shipping.api.Shipment;
 
 /**
  * A shipment prepared for an order, in the order's tenant.
@@ -110,7 +110,7 @@ public class SampleShipment implements Persistable<Long> {
      *
      * @return its view
      */
-    public ShipmentView view() {
-        return new ShipmentView(orderId, sku, quantity, orderVersion);
+    public Shipment view() {
+        return new Shipment(orderId, sku, quantity, orderVersion);
     }
 }

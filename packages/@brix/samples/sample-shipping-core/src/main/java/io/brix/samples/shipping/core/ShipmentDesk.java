@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
 
-import io.brix.samples.shipping.api.ShipmentView;
+import io.brix.samples.shipping.api.Shipment;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 
@@ -63,7 +63,7 @@ public final class ShipmentDesk {
      * @param orderId the order
      * @return its shipment, if one was prepared
      */
-    public Optional<ShipmentView> find(long tenantId, String orderId) {
+    public Optional<Shipment> find(long tenantId, String orderId) {
         return persistence.unitOfWork().readOnly(() -> persistence.repository(SampleShipmentRepository.class)
             .findByTenantIdAndOrderId(tenantId, orderId).map(SampleShipment::view));
     }
