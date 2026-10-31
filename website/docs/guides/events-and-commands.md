@@ -508,28 +508,26 @@ With `required: true` your plugin starts only on a host where a plugin provides 
 With `required: false` it starts anyway, and a submission fails with `command.provider_missing` while no plugin
 provides the command.
 
-**3. Send it** inside a unit of work of your plugin. Take the client once, in the handler factory:
+**3. Send it** from a handler. Take the client once, in the handler factory:
 
 ```java
-bootstrap.bindEndpointHandlerFactory("sample-shipping.refuse-shipment.v1", context -> new RefuseShipment(
-    context.require(PersistenceCapability.class), desk(context),
+bootstrap.bindEndpointHandlerFactory("sample-shipping.refuse-shipment.v1", context -> new RefuseShipment(desk(context),
     context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
 ```
 
 ```java title="RefuseShipment.handle"
-return persistence.unitOfWork().required(() -> {
-    if (shipments.find(tenantId, orderId).isEmpty()) {
-        throw new EndpointHandlingException(404, FindShipment.NOT_FOUND, "The order has no shipment");
-    }
-    CommandSubmission cancellation = cancellations.submit(
-        CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
-    return new EndpointResponse(202, Map.of("orderId", orderId, "commandId", cancellation.commandId()));
-});
+if (shipments.find(tenantId, orderId).isEmpty()) {
+    throw new EndpointHandlingException(404, FindShipment.NOT_FOUND, "The order has no shipment");
+}
+CommandSubmission cancellation = cancellations.submit(
+    CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
+return new EndpointResponse(202, Map.of("orderId", orderId, "commandId", cancellation.commandId()));
 ```
 
-- The command is written to your outbox in that transaction and leaves after the commit. If the transaction rolls
-  back, it never leaves. An event or command handler already runs in your unit of work; an endpoint opens one, as
-  above.
+- The runtime runs every handler in your plugin's unit of work (root BRX-RS-DATA-028): a read-write one for an
+  endpoint other than `GET` and `HEAD`, and for an event or command handler. The command is written to your
+  outbox in that transaction and leaves after the commit. If the transaction rolls back, it never leaves. A `GET`
+  endpoint's unit of work is read-only, so it cannot send a command.
 - The second argument is the business key, here the order id. The owner applies one command per key from your plugin
   in a tenant, so use the id of what the command is about. A third argument sets a partition key when the order of
   commands should follow something else; by default it is the business key.

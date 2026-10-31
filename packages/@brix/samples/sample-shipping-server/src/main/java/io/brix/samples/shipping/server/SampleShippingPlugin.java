@@ -52,8 +52,7 @@ public final class SampleShippingPlugin implements BrixPlugin {
         bootstrap.bindEndpointHandlerFactory(FIND_SHIPMENT, context -> new FindShipment(desk(context)));
         bootstrap.bindQueryHandlerFactory(FIND_SHIPMENT_QUERY, context -> new FindShipmentQuery(desk(context)));
         // Refusing a shipment asks sample-orders to cancel the order with its typed command (plan L4.7).
-        bootstrap.bindEndpointHandlerFactory(REFUSE_SHIPMENT, context -> new RefuseShipment(
-            context.require(PersistenceCapability.class), desk(context),
+        bootstrap.bindEndpointHandlerFactory(REFUSE_SHIPMENT, context -> new RefuseShipment(desk(context),
             context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
     }
 
