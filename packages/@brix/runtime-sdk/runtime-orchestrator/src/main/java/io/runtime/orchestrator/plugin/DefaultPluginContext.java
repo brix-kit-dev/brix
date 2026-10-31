@@ -20,11 +20,13 @@ import java.util.Optional;
 
 import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.PluginCommandCapability;
+import io.runtime.orchestrator.external.ExternalHttpRuntime;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.orchestrator.query.QuerySideEffects;
 import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.ExternalHttpCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
@@ -57,6 +59,7 @@ public final class DefaultPluginContext implements PluginContext {
     private final OwnerPersistenceProvider ownerPersistence;
     private final QueryRuntime queries;
     private final CommandProviders commands;
+    private final ExternalHttpRuntime external;
 
     /**
      * Creates a plugin context without owner persistence.
@@ -114,6 +117,26 @@ public final class DefaultPluginContext implements PluginContext {
             OwnerPersistenceProvider ownerPersistence,
             QueryRuntime queries,
             CommandProviders commands) {
+        this(descriptor, capabilityRegistry, ownerPersistence, queries, commands, ExternalHttpRuntime.none());
+    }
+
+    /**
+     * Creates the context of a plugin that may also call the external services it declares (standard-link plan L8.1).
+     * @param descriptor the plugin's descriptor
+     * @param capabilityRegistry the host's capabilities
+     * @param ownerPersistence the owners' persistence
+     * @param queries the host's query runtime
+     * @param commands the host's command providers, or {@code null} when not known
+     * @param external the host's external calls
+     */
+    public DefaultPluginContext(
+            PluginRuntimeDescriptor descriptor,
+            CapabilityRegistry capabilityRegistry,
+            OwnerPersistenceProvider ownerPersistence,
+            QueryRuntime queries,
+            CommandProviders commands,
+            ExternalHttpRuntime external) {
+        this.external = Objects.requireNonNull(external, "external must not be null");
         this.commands = commands;
         this.queries = Objects.requireNonNull(queries, "queries must not be null");
         this.descriptor = Objects.requireNonNull(descriptor, "descriptor must not be null");
@@ -151,6 +174,9 @@ public final class DefaultPluginContext implements PluginContext {
                 .orElseThrow(() -> new PluginRuntimeException("Plugin '" + descriptor.identity().pluginId()
                     + "' has no command capability: it needs data.outbox and commands.consumes"))));
         }
+        if (capabilityType == ExternalHttpCapability.class) {
+            return capabilityType.cast(external.forModule(descriptor.identity().pluginId()));
+        }
         return QuerySideEffects.guard(capabilityType, capabilityRegistry.getRequired(capabilityType));
     }
 
@@ -179,6 +205,9 @@ public final class DefaultPluginContext implements PluginContext {
         if (capabilityType == CommandCapability.class) {
             return commandCapability().map(capabilityType::cast)
                 .map(bus -> QuerySideEffects.guard(capabilityType, bus));
+        }
+        if (capabilityType == ExternalHttpCapability.class) {
+            return Optional.of(capabilityType.cast(external.forModule(descriptor.identity().pluginId())));
         }
         return capabilityRegistry.get(capabilityType).map(capability -> QuerySideEffects.guard(capabilityType, capability));
     }

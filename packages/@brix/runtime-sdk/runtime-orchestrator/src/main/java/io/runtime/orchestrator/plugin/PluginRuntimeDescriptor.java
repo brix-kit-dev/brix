@@ -67,6 +67,7 @@ public final class PluginRuntimeDescriptor {
     private final Map<String, ConsumedQuery> consumedQueries;
     private final Map<String, ProvidedInternalContract> providedInternalContracts;
     private final Map<String, ProvidedTask> providedTasks;
+    private final Map<String, io.runtime.orchestrator.external.ExternalServiceDeclaration> externalServices;
 
     private PluginRuntimeDescriptor(Builder builder) {
         this.identity = Objects.requireNonNull(builder.identity, "identity must not be null");
@@ -91,6 +92,7 @@ public final class PluginRuntimeDescriptor {
         this.consumedQueries = Map.copyOf(builder.consumedQueries);
         this.providedInternalContracts = Map.copyOf(builder.providedInternalContracts);
         this.providedTasks = Map.copyOf(builder.providedTasks);
+        this.externalServices = Map.copyOf(builder.externalServices);
     }
 
     /**
@@ -301,6 +303,15 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
+     * Returns the external services the plugin calls, by id (root BRX-RS-ERROR-014; standard-link plan L8.2).
+     *
+     * @return immutable external service declarations
+     */
+    public Map<String, io.runtime.orchestrator.external.ExternalServiceDeclaration> externalServices() {
+        return externalServices;
+    }
+
+    /**
      * Returns the queries the plugin provides, by query type and major version, such as
      * {@code sample-shipping.find-shipment#1} (root BRX-RS-MANIFEST-025).
      *
@@ -410,6 +421,8 @@ public final class PluginRuntimeDescriptor {
         private final Map<String, String> publicationSchemas = new LinkedHashMap<>();
         private final Map<String, ProvidedCommand> providedCommands = new LinkedHashMap<>();
         private final Map<String, ProvidedTask> providedTasks = new LinkedHashMap<>();
+        private final Map<String, io.runtime.orchestrator.external.ExternalServiceDeclaration> externalServices =
+            new LinkedHashMap<>();
         private final Map<String, ConsumedCommand> consumedCommands = new LinkedHashMap<>();
         private final Map<String, ProvidedQuery> providedQueries = new LinkedHashMap<>();
         private final Map<String, ConsumedQuery> consumedQueries = new LinkedHashMap<>();
@@ -814,6 +827,17 @@ public final class PluginRuntimeDescriptor {
                 providedTasks.put(task.handlerId(), task);
                 tasks.add(task.handlerId());
             }
+            return this;
+        }
+
+        /**
+         * Declares an external service the plugin calls (standard-link plan L8.2).
+         *
+         * @param service the declaration
+         * @return this builder
+         */
+        public Builder externalService(io.runtime.orchestrator.external.ExternalServiceDeclaration service) {
+            externalServices.put(Objects.requireNonNull(service, "service must not be null").id(), service);
             return this;
         }
 

@@ -290,6 +290,11 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                     builder.endpointHandler(route.getHandlerId(), route.getEndpointId());
                 }
             }
+            for (PluginManifest.ExternalService service : manifest.getExternalServices()) {
+                if (service != null) {
+                    builder.externalService(externalService(manifest.pluginId(), service));
+                }
+            }
             for (PluginManifest.Permission permission : manifest.getPermissions()) {
                 if (permission != null && permission.getId() != null && !permission.getId().isBlank()) {
                     builder.permission(permission.getId(), grants(permission));
@@ -311,6 +316,19 @@ public final class ClasspathPluginRuntimeDescriptorResolver
         } catch (IllegalArgumentException e) {
             throw new PluginRuntimeException("Plugin '" + pluginId + "' endpoint '" + route.getEndpointId()
                 + "' declares an invalid contract: " + e.getMessage(), e);
+        }
+    }
+
+    /** Root BRX-RS-MANIFEST-026; standard-link plan L8.2: a policy the runtime does not know stops the plugin. */
+    private static io.runtime.orchestrator.external.ExternalServiceDeclaration externalService(String pluginId,
+            PluginManifest.ExternalService service) {
+        try {
+            return new io.runtime.orchestrator.external.ExternalServiceDeclaration(service.getId(),
+                service.getBaseUrlRef(), service.getAuthPolicyRef(), service.getTimeoutPolicyRef(),
+                service.getRetryPolicyRef(), service.getConcurrencyPolicyRef());
+        } catch (IllegalArgumentException e) {
+            throw new PluginRuntimeException("Plugin '" + pluginId + "' declares an invalid external service: "
+                + e.getMessage(), e);
         }
     }
 

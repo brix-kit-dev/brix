@@ -67,8 +67,12 @@ import io.runtime.sdk.annotation.Since;
  * @author Runtime SDK Team
  * @since 3.1.0
  * @see HttpResult
+ * @deprecated since 3.3.0, removed in 4.0 (root BRX-RS-CAP-022; standard-link plan L8.5, D63): it takes any URL,
+ *     so the runtime cannot hold a call to the plugin's declared services or keep it off this host (root
+ *     BRX-RS-ERROR-014). Declare the service under {@code externalServices} and use {@link ExternalHttpCapability}.
  */
 @Since("3.1.0")
+@Deprecated(since = "3.3.0", forRemoval = true)
 public interface HttpCapability {
 
     /**

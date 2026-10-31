@@ -320,11 +320,14 @@
     "externalService": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "baseUrlRef"],
+      "required": ["id", "baseUrlRef", "timeoutPolicyRef", "retryPolicyRef", "concurrencyPolicyRef"],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "baseUrlRef": { "type": "string", "minLength": 1 },
-        "authPolicyRef": { "type": "string" }
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "baseUrlRef": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "authPolicyRef": { "enum": ["none"] },
+        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
+        "retryPolicyRef": { "type": "string", "minLength": 1 },
+        "concurrencyPolicyRef": { "type": "string", "minLength": 1 }
       }
     },
     "dataSection": {

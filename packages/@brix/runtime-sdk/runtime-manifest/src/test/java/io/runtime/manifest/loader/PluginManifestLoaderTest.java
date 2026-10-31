@@ -277,6 +277,39 @@ class PluginManifestLoaderTest {
             .hasMessageContaining("required, read-only or none");
     }
 
+    @Test
+    void anExternalServiceNamesItsDirectoryEntryAndItsPolicies() {
+        // Root BRX-RS-ERROR-014; standard-link plan L8.2.
+        assertThatCode(() -> loader.loadFromString(externalManifest("google-oauth-jwks", "google-oauth-jwks")))
+            .doesNotThrowAnyException();
+        for (String field : java.util.List.of("timeoutPolicyRef", "retryPolicyRef", "concurrencyPolicyRef")) {
+            String without = java.util.Arrays.stream(externalManifest("keys", "keys").split("\n"))
+                .filter(line -> !line.trim().startsWith(field + ":"))
+                .reduce((a, b) -> a + "\n" + b).orElseThrow() + "\n";
+            assertThatThrownBy(() -> loader.loadFromString(without))
+                .as(field)
+                .isInstanceOf(ManifestValidationException.class)
+                .hasMessageContaining(field);
+        }
+        assertThatThrownBy(() -> loader.loadFromString(externalManifest("Keys!", "keys")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("externalServices[0].id");
+        assertThatThrownBy(() -> loader.loadFromString(externalManifest("keys", "https://keys.example.test")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("baseUrlRef");
+    }
+
+    private String externalManifest(String id, String baseUrlRef) {
+        return validManifest() + """
+            externalServices:
+              - id: ID
+                baseUrlRef: REF
+                timeoutPolicyRef: external-default
+                retryPolicyRef: external-no-retry
+                concurrencyPolicyRef: external-standard
+            """.replace("ID", id).replace("REF", baseUrlRef);
+    }
+
     private String taskManifest(String extra) {
         return validManifest().replace("capabilities:\n  required:\n",
             "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.PersistenceCapability\n"

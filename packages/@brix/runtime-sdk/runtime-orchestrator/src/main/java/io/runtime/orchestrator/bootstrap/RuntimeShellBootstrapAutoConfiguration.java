@@ -32,6 +32,15 @@ import io.runtime.orchestrator.endpoint.EndpointMetrics;
 import io.runtime.orchestrator.endpoint.EndpointTracing;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
+import io.runtime.orchestrator.external.ExternalHttpGateway;
+import io.runtime.orchestrator.external.ExternalHttpMetrics;
+import io.runtime.orchestrator.external.ExternalHttpProperties;
+import io.runtime.orchestrator.external.ExternalHttpRuntime;
+import io.runtime.orchestrator.external.ExternalHttpTracing;
+import io.runtime.orchestrator.external.ExternalHttpTransport;
+import io.runtime.orchestrator.external.ExternalServiceDirectory;
+import io.runtime.orchestrator.external.ExternalTargetPolicy;
+import io.runtime.orchestrator.external.JdkExternalHttpTransport;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.OwnerUnitOfWorkEndpointBoundary;
 import io.runtime.orchestrator.plugin.ClasspathPluginRuntimeDescriptorResolver;
@@ -67,7 +76,8 @@ import io.runtime.sdk.plugin.BrixPlugin;
 @AutoConfiguration(after = CapabilityAutoConfiguration.class)
 @ConditionalOnClass(BrixPlugin.class)
 @ConditionalOnProperty(prefix = "brix.runtime-shell", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties({RuntimeShellBootstrapProperties.class, QueryProperties.class, TaskProperties.class})
+@EnableConfigurationProperties({RuntimeShellBootstrapProperties.class, QueryProperties.class, TaskProperties.class,
+    ExternalHttpProperties.class, ExternalHttpProperties.Directory.class})
 public class RuntimeShellBootstrapAutoConfiguration {
 
     /**
@@ -143,7 +153,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
             AutowireCapableBeanFactory beanFactory,
             RuntimeShellBootstrapProperties properties,
             QueryRuntime queryRuntime,
-            ObjectProvider<TaskProperties> tasks) {
+            ObjectProvider<TaskProperties> tasks,
+            ExternalHttpRuntime externalHttp) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable(DefaultCapabilityRegistry::new);
         return new PluginRuntimeManager(
             discovery::discover,
@@ -160,7 +171,48 @@ public class RuntimeShellBootstrapAutoConfiguration {
             internalContracts.getIfAvailable(),
             ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none),
             queryRuntime,
-            tasks.getIfAvailable(TaskProperties::new).limits());
+            tasks.getIfAvailable(TaskProperties::new).limits(),
+            externalHttp);
+    }
+
+    /**
+     * Creates the transport external calls are sent with (standard-link plan L8.4).
+     *
+     * @return the JDK's HTTP client, which follows no redirects
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public ExternalHttpTransport externalHttpTransport() {
+        return new JdkExternalHttpTransport();
+    }
+
+    /**
+     * Creates the host's external calls: the directory, the target policy and the gateway (standard-link plan L8.3,
+     * L8.4). Under the {@code prod} and {@code production} profiles every address must be {@code https}.
+     *
+     * @param properties the limits under {@code brix.external-http}
+     * @param directory the addresses under {@code brix.external-services}
+     * @param environment tells whether a production profile is active
+     * @param transport sends each attempt
+     * @param tracing starts each attempt's client span; without one the call only carries the current trace
+     * @param metrics records each call; without them nothing is recorded
+     * @return the external calls
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public ExternalHttpRuntime externalHttpRuntime(
+            ExternalHttpProperties properties,
+            ExternalHttpProperties.Directory directory,
+            org.springframework.core.env.Environment environment,
+            ExternalHttpTransport transport,
+            ObjectProvider<ExternalHttpTracing> tracing,
+            ObjectProvider<ExternalHttpMetrics> metrics) {
+        return new ExternalHttpRuntime(
+            ExternalServiceDirectory.of(directory.baseUrls(), environment.matchesProfiles("prod", "production")),
+            new ExternalHttpGateway(properties.limits(), transport,
+                new ExternalTargetPolicy(properties.getSelfAddresses()),
+                tracing.getIfAvailable(() -> ExternalHttpTracing.NOOP),
+                metrics.getIfAvailable(() -> ExternalHttpMetrics.NOOP)));
     }
 
     /**
@@ -382,6 +434,18 @@ public class RuntimeShellBootstrapAutoConfiguration {
                 PluginEndpointDispatcher dispatcher,
                 ObjectProvider<AuthCapability> authCapabilityProvider) {
             return new RuntimeShellEndpointController(dispatcher, authCapabilityProvider);
+        }
+    }
+
+    /** External call meters, when the host has Micrometer (standard-link plan L8.4). */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
+    static class ExternalHttpMeters {
+
+        @Bean
+        @ConditionalOnMissingBean
+        ExternalHttpMetrics externalHttpMetrics(ObjectProvider<io.micrometer.core.instrument.MeterRegistry> registry) {
+            return new io.runtime.orchestrator.external.MicrometerExternalHttpMetrics(registry::getIfAvailable);
         }
     }
 

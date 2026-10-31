@@ -19,9 +19,11 @@ import io.infra.adapter.otel.OTelObservabilityCapability;
 import io.infra.adapter.otel.OTelSdkBuilder;
 import io.infra.adapter.otel.tracing.OTelMessageTracing;
 import io.infra.adapter.otel.tracing.OTelEndpointTracing;
+import io.infra.adapter.otel.tracing.OTelExternalHttpTracing;
 import io.infra.adapter.otel.tracing.OTelQueryTracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.runtime.orchestrator.endpoint.EndpointTracing;
+import io.runtime.orchestrator.external.ExternalHttpTracing;
 import io.runtime.orchestrator.query.QueryTracing;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.ObservabilityCapability;
@@ -171,5 +173,18 @@ public class OTelAdapterAutoConfiguration {
     @ConditionalOnMissingBean(EndpointTracing.class)
     public EndpointTracing otelEndpointTracing(OpenTelemetry openTelemetry) {
         return new OTelEndpointTracing(openTelemetry);
+    }
+
+    /**
+     * Records the client span of each attempt of an external call, with the trace context it carries (standard-link
+     * plan L8.4).
+     *
+     * @param openTelemetry OpenTelemetry instance
+     * @return the external call spans
+     */
+    @Bean
+    @ConditionalOnMissingBean(ExternalHttpTracing.class)
+    public ExternalHttpTracing otelExternalHttpTracing(OpenTelemetry openTelemetry) {
+        return new OTelExternalHttpTracing(openTelemetry);
     }
 }

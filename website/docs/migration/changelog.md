@@ -27,6 +27,19 @@ All notable changes to Brix Framework are documented here.
     `endpoint.deadline_exceeded`.
   - Lists use `page`, `size` (at most 100) and `sort` and answer `Page` (`io.runtime.sdk.page`).
   - The samples' endpoints use the new shape. See [Endpoints](../guides/endpoints.md).
+- **Calls to external services** (root BRX-RS-ERROR-014, A-11). A plugin declares each service under
+  `externalServices` (`id`, `baseUrlRef` and its timeout, retry and concurrency policies) and calls it through
+  `ExternalHttpCapability.service(id)` with a path within the service.
+  - The host's directory `brix.external-services.<baseUrlRef>.base-url` gives the address, `https` only under a
+    production profile.
+  - An address that resolves to this host, a loopback, link-local or multicast address stops the plugin, and is
+    refused again before every attempt.
+  - Each call gets the earlier of its own deadline and the deadline of the call the plugin is handling, a limit of
+    calls at once and a circuit breaker per plugin and service, bounded retries of idempotent methods, a size limit
+    on the answer, and the trace. Redirects are not followed.
+  - Failures are `external_http.*` codes; any answer is a response. Meter `brix.external_http.calls`.
+  - platform-auth reads Google's signing keys through its declared service `google-oauth-jwks`. See
+    [External services](../guides/external-services.md).
 - **Endpoint deadlines, limits and traces.**
   - `timeout.policyRef` sets the deadline: `endpoint-default` (the host's endpoint deadline, 30 s), `interactive-read`
     (10 s) or `interactive-write` (15 s), set under `brix.runtime-shell.endpoints`. The plugin's transaction ends at
@@ -137,6 +150,8 @@ All notable changes to Brix Framework are documented here.
   the owner's generated `CommandType` through `CommandCapability.client(...)`.
 - `TenantDirectoryCapability`: no runtime implements it. Ask the typed query `platform-tenant.tenant-reference` from
   `platform-tenant-api` whether a member or principal belongs to the caller's tenant.
+- `HttpCapability`: it takes any URL. Declare the service under `externalServices` and call it through
+  `ExternalHttpCapability`.
 
 ---
 

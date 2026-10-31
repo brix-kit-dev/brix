@@ -35,6 +35,15 @@ tasks:
   provides: []
 internalContracts:
   provides: []
+# Google's signing keys for "Sign in with Google" (standard-link plan L8.5). The host's directory gives the address:
+# brix.external-services.google-oauth-jwks.base-url, normally https://www.googleapis.com.
+externalServices:
+  - id: google-oauth-jwks
+    baseUrlRef: google-oauth-jwks
+    authPolicyRef: none
+    timeoutPolicyRef: external-default
+    retryPolicyRef: external-idempotent-retry
+    concurrencyPolicyRef: external-standard
 data:
   storageId: platform_auth
   schema: platform-auth

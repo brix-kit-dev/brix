@@ -17,8 +17,10 @@ import java.security.Signature;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,15 +28,20 @@ import org.slf4j.LoggerFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-import io.runtime.sdk.capability.HttpCapability;
-import io.runtime.sdk.capability.HttpCapability.HttpResult;
+import io.runtime.sdk.capability.ExternalHttpCapability;
+import io.runtime.sdk.capability.ExternalHttpRequest;
+import io.runtime.sdk.capability.ExternalHttpResponse;
 
 /**
  * <h2>Google ID Token Verifier</h2>
  *
  * <p>Verifies the signature and claims of a Google-issued OpenID Connect ID Token
  * using RS256 + Google's published JWKS. This is a pure cryptographic component
- * — no database / capability dependencies beyond {@link HttpCapability}.</p>
+ * — no database or capability dependencies beyond the external service it reads the keys from.</p>
+ *
+ * <p>The keys come from platform-auth's declared external service {@value #JWKS_SERVICE}, whose address is the
+ * host's directory entry {@code brix.external-services.google-oauth-jwks.base-url}, normally
+ * {@code https://www.googleapis.com} (root BRX-RS-ERROR-014; standard-link plan L8.5).</p>
  *
  * <p>Migrated from {@code app-identity} (D2) into the platform layer so that
  * {@code OAuth2FederationCapability} can be implemented without reaching into
@@ -46,19 +53,29 @@ public class GoogleIdTokenVerifier {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleIdTokenVerifier.class);
 
-    private static final String GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+    /** The external service platform-auth declares for Google's signing keys. */
+    public static final String JWKS_SERVICE = "google-oauth-jwks";
+
+    private static final String JWKS_PATH = "/oauth2/v3/certs";
     private static final String ISSUER_HTTPS = "https://accounts.google.com";
     private static final String ISSUER_SHORT = "accounts.google.com";
     private static final long JWKS_CACHE_TTL_MS = 3_600_000L;
     private static final long CLOCK_SKEW_SECONDS = 300L;
 
-    private final HttpCapability httpClient;
+    private final Supplier<ExternalHttpCapability.ExternalService> jwksService;
     private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<String, PublicKey> jwksCache = new ConcurrentHashMap<>();
     private final AtomicLong lastJwksRefresh = new AtomicLong(0L);
 
-    public GoogleIdTokenVerifier(HttpCapability httpClient, ObjectMapper objectMapper) {
-        this.httpClient = httpClient;
+    /**
+     * Creates the verifier.
+     *
+     * @param jwksService supplies the client of {@value #JWKS_SERVICE}, once the module has started
+     * @param objectMapper reads the keys
+     */
+    public GoogleIdTokenVerifier(Supplier<ExternalHttpCapability.ExternalService> jwksService,
+            ObjectMapper objectMapper) {
+        this.jwksService = Objects.requireNonNull(jwksService, "jwksService must not be null");
         this.objectMapper = objectMapper;
     }
 
@@ -164,15 +181,15 @@ public class GoogleIdTokenVerifier {
 
     private void refreshJwksCache() {
         try {
-            log.info("Refreshing Google JWKS cache from {}", GOOGLE_JWKS_URL);
-            HttpResult response = httpClient.get(GOOGLE_JWKS_URL,
-                    Map.of("Accept", "application/json"));
-            if (response.statusCode() != 200) {
+            log.info("Refreshing Google JWKS cache from external service {}", JWKS_SERVICE);
+            ExternalHttpResponse response = jwksService.get().send(ExternalHttpRequest.get(JWKS_PATH)
+                    .withHeader("Accept", "application/json"));
+            if (response.status() != 200) {
                 throw new OAuth2Exception(
-                        "JWKS fetch failed with HTTP status " + response.statusCode(),
+                        "JWKS fetch failed with HTTP status " + response.status(),
                         "OAUTH2_JWKS_FAILURE");
             }
-            JsonNode jwks = objectMapper.readTree(response.body());
+            JsonNode jwks = objectMapper.readTree(response.text());
             JsonNode keys = jwks.path("keys");
             if (!keys.isArray()) {
                 throw new OAuth2Exception(

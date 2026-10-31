@@ -857,6 +857,97 @@ class PluginRuntimeManagerTest {
         assertTrue(failure.getMessage().contains("/api/platform/**"), failure.getMessage());
     }
 
+    @Test
+    void aPluginCallsOnlyTheExternalServicesItDeclaresAndNoneOnThisHost() {
+        // Root BRX-RS-ERROR-014, A-11; standard-link plan L8.1, L8.3.
+        io.runtime.orchestrator.external.ExternalHttpRuntime external =
+            new io.runtime.orchestrator.external.ExternalHttpRuntime(
+                io.runtime.orchestrator.external.ExternalServiceDirectory.of(
+                    Map.of("billing", "https://203.0.113.10", "self", "https://127.0.0.1:8443"), false),
+                new io.runtime.orchestrator.external.ExternalHttpGateway(
+                    io.runtime.orchestrator.external.ExternalHttpPolicies.Limits.defaults(),
+                    new io.runtime.orchestrator.external.JdkExternalHttpTransport(),
+                    new io.runtime.orchestrator.external.ExternalTargetPolicy(List.of()),
+                    io.runtime.orchestrator.external.ExternalHttpTracing.NOOP,
+                    io.runtime.orchestrator.external.ExternalHttpMetrics.NOOP));
+        ExternalPlugin billing = new ExternalPlugin("billing");
+
+        PluginRuntimeManager started = externalManager(billing, external);
+        started.start();
+
+        assertTrue(started.ready());
+        assertEquals("billing", billing.service.id());
+        io.runtime.sdk.capability.BrixExternalHttpException undeclared = assertThrows(
+            io.runtime.sdk.capability.BrixExternalHttpException.class, () -> billing.capability.service("payroll"));
+        assertEquals(io.runtime.sdk.capability.BrixExternalHttpException.Code.UNDECLARED_SERVICE, undeclared.code());
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class,
+            externalManager(new ExternalPlugin("self"), external)::start);
+        assertTrue(messages(refused).contains("resolves to this host"), messages(refused));
+    }
+
+    private static PluginRuntimeManager externalManager(ExternalPlugin plugin,
+            io.runtime.orchestrator.external.ExternalHttpRuntime external) {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        return new PluginRuntimeManager(
+            () -> List.of(plugin),
+            candidate -> Optional.of(PluginRuntimeDescriptor.builder("plugin-x")
+                .requiredCapabilities(List.of(io.runtime.sdk.capability.ExternalHttpCapability.class.getName()))
+                .externalService(new io.runtime.orchestrator.external.ExternalServiceDeclaration(plugin.serviceId,
+                    plugin.serviceId, null, "external-default", "external-no-retry", "external-standard"))
+                .build()),
+            registry,
+            List.of("plugin-x"),
+            PluginEndpointDispatcher.none(),
+            ignored -> {
+            },
+            List::of,
+            new InternalContractBinder(registry, registry, PluginRuntimeManagerTest.class.getClassLoader()),
+            io.runtime.orchestrator.persistence.OwnerPersistenceProvider.none(),
+            io.runtime.orchestrator.query.QueryRuntime.unconfigured(),
+            io.runtime.orchestrator.task.TaskPolicies.Limits.defaults(),
+            external);
+    }
+
+    private static String messages(Throwable failure) {
+        StringBuilder text = new StringBuilder();
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            text.append(cause.getMessage()).append(" | ");
+        }
+        return text.toString();
+    }
+
+    /** A plugin that takes its external calls when it starts. */
+    static final class ExternalPlugin implements BrixPlugin {
+
+        final String serviceId;
+        io.runtime.sdk.capability.ExternalHttpCapability capability;
+        io.runtime.sdk.capability.ExternalHttpCapability.ExternalService service;
+
+        ExternalPlugin(String serviceId) {
+            this.serviceId = serviceId;
+        }
+
+        @Override
+        public void configure(PluginBootstrapContext bootstrap) {
+        }
+
+        @Override
+        public void onStart(PluginContext context) {
+            capability = context.require(io.runtime.sdk.capability.ExternalHttpCapability.class);
+            service = capability.service(serviceId);
+        }
+
+        @Override
+        public void onStop() {
+        }
+
+        @Override
+        public BrixHealth health() {
+            return BrixHealth.up();
+        }
+    }
+
     private static PluginRuntimeDescriptor typedDescriptor(String requestSchemaRef) {
         return PluginRuntimeDescriptor.builder("plugin-t")
             .endpoint("plugin-t.create.v1", "POST", "/api/plugin-t/things",

@@ -36,6 +36,7 @@ import org.springframework.core.ResolvableType;
 
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
+import io.runtime.orchestrator.external.ExternalHttpRuntime;
 import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.TenantGrantTable;
@@ -53,6 +54,7 @@ import io.runtime.orchestrator.task.TaskProviders;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.ExternalHttpCapability;
 import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
@@ -98,6 +100,7 @@ public final class PluginRuntimeManager {
     private final OwnerPersistenceProvider ownerPersistence;
     private final QueryRuntime queries;
     private final TaskPolicies.Limits taskLimits;
+    private final ExternalHttpRuntime external;
 
     private static final tools.jackson.databind.ObjectMapper SCHEMA_READER = new tools.jackson.databind.ObjectMapper();
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
@@ -284,6 +287,40 @@ public final class PluginRuntimeManager {
             OwnerPersistenceProvider ownerPersistence,
             QueryRuntime queries,
             TaskPolicies.Limits taskLimits) {
+        this(discovery, descriptorResolver, capabilityRegistry, requiredPluginIds, endpointDispatcher, pluginInitializer,
+            internalProviderDiscovery, internalContracts, ownerPersistence, queries, taskLimits,
+            ExternalHttpRuntime.none());
+    }
+
+    /**
+     * Creates a runtime manager whose plugins may also call external services (standard-link plan L8).
+     *
+     * @param discovery plugin discovery supplier
+     * @param descriptorResolver descriptor resolver
+     * @param capabilityRegistry capability registry
+     * @param requiredPluginIds composition-required plugin ids
+     * @param endpointDispatcher Runtime Shell endpoint dispatcher
+     * @param pluginInitializer Runtime-owned provider initializer
+     * @param internalProviderDiscovery internal contract provider discovery
+     * @param internalContracts internal contract binder
+     * @param ownerPersistence source of owner-scoped persistence capabilities
+     * @param queries the typed queries of this host (root BRX-RS-MESSAGE-002 to MESSAGE-009)
+     * @param taskLimits the host's limits on tasks, which a task's policies are checked against at startup
+     * @param external the host's external calls, which a plugin's declared services are admitted to when it starts
+     */
+    public PluginRuntimeManager(
+            Supplier<List<BrixPlugin>> discovery,
+            PluginRuntimeDescriptorResolver descriptorResolver,
+            CapabilityRegistry capabilityRegistry,
+            Collection<String> requiredPluginIds,
+            PluginEndpointDispatcher endpointDispatcher,
+            Consumer<BrixPlugin> pluginInitializer,
+            Supplier<List<InternalContractProvider>> internalProviderDiscovery,
+            InternalContractBinder internalContracts,
+            OwnerPersistenceProvider ownerPersistence,
+            QueryRuntime queries,
+            TaskPolicies.Limits taskLimits,
+            ExternalHttpRuntime external) {
         this.discovery = Objects.requireNonNull(discovery, "discovery must not be null");
         this.descriptorResolver = Objects.requireNonNull(descriptorResolver, "descriptorResolver must not be null");
         this.capabilityRegistry = Objects.requireNonNull(capabilityRegistry, "capabilityRegistry must not be null");
@@ -297,6 +334,7 @@ public final class PluginRuntimeManager {
         this.ownerPersistence = Objects.requireNonNull(ownerPersistence, "ownerPersistence must not be null");
         this.queries = Objects.requireNonNull(queries, "queries must not be null");
         this.taskLimits = Objects.requireNonNull(taskLimits, "taskLimits must not be null");
+        this.external = Objects.requireNonNull(external, "external must not be null");
     }
 
     /**
@@ -925,8 +963,14 @@ public final class PluginRuntimeManager {
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
             ownerPersistence.requireMessagingTables(plugin.id());
+            // Root BRX-RS-ERROR-014; standard-link plan L8.3: a declared service whose address is this host stops it.
+            try {
+                external.register(plugin.id(), plugin.descriptor.externalServices().values());
+            } catch (IllegalStateException e) {
+                throw new PluginRuntimeException("Plugin '" + plugin.id() + "': " + e.getMessage(), e);
+            }
             PluginContext context = new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence,
-                queries, CommandProviders.of(this));
+                queries, CommandProviders.of(this), external);
             plugin.provider.onStart(context);
             plugin.eventHandlers = createEventHandlers(plugin.id(), bootstrapContext.eventHandlerFactories(), context);
             // Root BRX-RS-MANIFEST-019: every other handler is created by its factory with the plugin's context.
@@ -961,7 +1005,7 @@ public final class PluginRuntimeManager {
                 ? ownerPersistence.forOwner(plugin.id()).isPresent()
                 : declaresQueries(declaration) ? queries.configured()
                 : declaresCommands(declaration) ? ownerPersistence.commandBusFor(plugin.id()).isPresent()
-                : capabilityAvailable(declaration);
+                : declaresExternalHttp(declaration) || capabilityAvailable(declaration);
             if (!available) {
                 missing.add(declaration);
             }
@@ -1412,6 +1456,12 @@ public final class PluginRuntimeManager {
             || CommandCapability.class.getSimpleName().equals(declaration);
     }
 
+    /** The runtime provides every plugin its own external calls (standard-link plan L8.1). */
+    private static boolean declaresExternalHttp(String declaration) {
+        return ExternalHttpCapability.class.getName().equals(declaration)
+            || ExternalHttpCapability.class.getSimpleName().equals(declaration);
+    }
+
     private static boolean declaresPersistence(String declaration) {
         return PersistenceCapability.class.getName().equals(declaration)
             || PersistenceCapability.class.getSimpleName().equals(declaration);
@@ -1497,6 +1547,8 @@ public final class PluginRuntimeManager {
             plugin.provider.onStop();
         } catch (RuntimeException e) {
             log.warn("Plugin '{}' failed during stop: {}", plugin.id(), e.getMessage());
+        } finally {
+            external.unregister(plugin.id());
         }
     }
 

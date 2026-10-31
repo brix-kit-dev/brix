@@ -1061,10 +1061,41 @@ public class PluginManifest {
     /**
      * External HTTP service allowlist entry.
      */
+    /**
+     * A service outside the platform the plugin calls through {@code ExternalHttpCapability} (root BRX-RS-ERROR-014;
+     * standard-link plan L8.2).
+     */
     public static class ExternalService {
         private String id;
         private String baseUrlRef;
         private String authPolicyRef;
+        private String timeoutPolicyRef;
+        private String retryPolicyRef;
+        private String concurrencyPolicyRef;
+
+        public String getTimeoutPolicyRef() {
+            return timeoutPolicyRef;
+        }
+
+        public void setTimeoutPolicyRef(String timeoutPolicyRef) {
+            this.timeoutPolicyRef = timeoutPolicyRef;
+        }
+
+        public String getRetryPolicyRef() {
+            return retryPolicyRef;
+        }
+
+        public void setRetryPolicyRef(String retryPolicyRef) {
+            this.retryPolicyRef = retryPolicyRef;
+        }
+
+        public String getConcurrencyPolicyRef() {
+            return concurrencyPolicyRef;
+        }
+
+        public void setConcurrencyPolicyRef(String concurrencyPolicyRef) {
+            this.concurrencyPolicyRef = concurrencyPolicyRef;
+        }
 
         public String getId() {
             return id;

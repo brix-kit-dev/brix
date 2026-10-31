@@ -11,6 +11,7 @@ package io.brix.platform.auth.oauth2;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -20,8 +21,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.brix.platform.auth.flow.AuthFlowAutoConfiguration;
 import io.runtime.sdk.capability.AuthFlowCapability;
+import io.runtime.sdk.capability.BrixExternalHttpException;
 import io.runtime.sdk.capability.ConfigStoreCapability;
-import io.runtime.sdk.capability.HttpCapability;
+import io.runtime.sdk.capability.ExternalHttpModules;
 import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.OAuth2FederationCapability;
 import io.runtime.sdk.capability.TenantAccessCapability;
@@ -30,7 +32,7 @@ import io.runtime.sdk.capability.TenantAccessCapability;
  * Auto-configuration that exposes the {@link OAuth2FederationCapability} contract
  * backed by {@link OAuth2FederationCapabilityImpl} (Google).
  *
- * <p>Activates only when {@link HttpCapability}, {@link IdentityAccountCapability},
+ * <p>Activates only when {@link IdentityAccountCapability},
  * {@link TenantAccessCapability}, and {@link AuthFlowCapability} are all on the context — a missing bean degrades
  * gracefully (no OAuth2 endpoint exposed) rather than failing at startup.</p>
  *
@@ -51,6 +53,9 @@ public class OAuth2FederationAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(OAuth2FederationAutoConfiguration.class);
 
+    /** The module whose manifest declares the JWKS service. */
+    private static final String PLATFORM_AUTH = "platform-auth";
+
     /**
      * Registers a JWKS-backed Google ID token verifier under an explicit, namespaced
      * bean name {@code platformAuthGoogleIdTokenVerifier} to avoid colliding with
@@ -67,9 +72,18 @@ public class OAuth2FederationAutoConfiguration {
      */
     @Bean("platformAuthGoogleIdTokenVerifier")
     @ConditionalOnMissingBean(GoogleIdTokenVerifier.class)
-    public GoogleIdTokenVerifier googleIdTokenVerifier(HttpCapability httpClient, ObjectMapper objectMapper) {
+    public GoogleIdTokenVerifier googleIdTokenVerifier(ObjectProvider<ExternalHttpModules> externalHttp,
+            ObjectMapper objectMapper) {
         log.info("Registering default GoogleIdTokenVerifier (JWKS-backed) as bean 'platformAuthGoogleIdTokenVerifier'");
-        return new GoogleIdTokenVerifier(httpClient, objectMapper);
+        // Standard-link plan L8.5: Google's keys come through platform-auth's declared external service.
+        return new GoogleIdTokenVerifier(() -> {
+            ExternalHttpModules modules = externalHttp.getIfAvailable();
+            if (modules == null) {
+                throw new BrixExternalHttpException(BrixExternalHttpException.Code.UNDECLARED_SERVICE,
+                    GoogleIdTokenVerifier.JWKS_SERVICE, null);
+            }
+            return modules.forModule(PLATFORM_AUTH).service(GoogleIdTokenVerifier.JWKS_SERVICE);
+        }, objectMapper);
     }
 
     @Bean

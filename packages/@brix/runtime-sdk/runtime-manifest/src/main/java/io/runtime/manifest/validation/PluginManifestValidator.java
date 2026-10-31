@@ -96,6 +96,7 @@ public final class PluginManifestValidator {
         validateEvents(manifest, result);
         validateInternalContracts(manifest.getInternalContracts(), result);
         validateRoutes(manifest, result);
+        validateExternalServices(manifest, result);
         validateData(manifest.getData(), result);
         validateConfig(manifest.getConfig(), result);
         return result;
@@ -508,6 +509,31 @@ public final class PluginManifestValidator {
                     + "runtime's result replay, which this release does not provide; declare not-applicable and keep "
                     + "the handler idempotent by its business key");
             }
+        }
+    }
+
+    /** Root BRX-RS-ERROR-014; standard-link plan L8.2: each service names its directory entry and its policies. */
+    private void validateExternalServices(PluginManifest manifest, ValidationResult result) {
+        Set<String> ids = new HashSet<>();
+        for (int i = 0; i < manifest.getExternalServices().size(); i++) {
+            PluginManifest.ExternalService service = manifest.getExternalServices().get(i);
+            String prefix = "externalServices[" + i + "]";
+            if (service == null) {
+                result.addError(prefix, "External service declaration is required");
+                continue;
+            }
+            if (service.getId() == null || !PLUGIN_ID_PATTERN.matcher(service.getId()).matches()) {
+                result.addError(prefix + ".id", "External service id must be lower-case letters, digits and -");
+            } else if (!ids.add(service.getId())) {
+                result.addError(prefix + ".id", "Duplicate external service id: " + service.getId());
+            }
+            if (service.getBaseUrlRef() == null || !PLUGIN_ID_PATTERN.matcher(service.getBaseUrlRef()).matches()) {
+                result.addError(prefix + ".baseUrlRef",
+                    "baseUrlRef must name the host's directory entry in lower-case letters, digits and -");
+            }
+            requirePresent(result, prefix + ".timeoutPolicyRef", service.getTimeoutPolicyRef());
+            requirePresent(result, prefix + ".retryPolicyRef", service.getRetryPolicyRef());
+            requirePresent(result, prefix + ".concurrencyPolicyRef", service.getConcurrencyPolicyRef());
         }
     }
 
