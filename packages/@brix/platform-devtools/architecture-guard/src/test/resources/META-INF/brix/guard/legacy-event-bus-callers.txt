@@ -1,0 +1,2 @@
+# Classes of this module's tests that may still call RuntimeContext.getEventBus().
+io.brix.architecture.guard.testfixtures.legacybus.ListedLegacyBusCaller

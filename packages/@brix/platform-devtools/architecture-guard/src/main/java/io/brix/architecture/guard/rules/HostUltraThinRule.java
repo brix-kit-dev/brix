@@ -63,6 +63,13 @@ public final class HostUltraThinRule {
     /** Maximum allowed @Bean methods in Host AutoConfiguration (0 = strict mode). */
     private static final int MAX_BEAN_METHODS = 0;
 
+    /**
+     * The one bean a Host defines: the runtime requires standalone and local Hosts to provide their terminal action
+     * (root §11.3: a non-zero exit after the drain), and the Host's composition contract pins it there. It is not a
+     * Capability implementation, so it does not count against {@link #MAX_BEAN_METHODS}.
+     */
+    private static final String HOST_FATAL_ACTION = "io.runtime.orchestrator.bootstrap.RuntimeShellFatalAction";
+
     /** Maximum effective lines per Host class (50 as transitional threshold). */
     private static final int MAX_EFFECTIVE_LINES = 50;
 
@@ -108,6 +115,7 @@ public final class HostUltraThinRule {
                     public void check(JavaClass javaClass, ConditionEvents events) {
                         long beanMethodCount = javaClass.getMethods().stream()
                                 .filter(method -> method.isAnnotatedWith("org.springframework.context.annotation.Bean"))
+                                .filter(method -> !method.getRawReturnType().getName().equals(HOST_FATAL_ACTION))
                                 .count();
 
                         if (beanMethodCount > MAX_BEAN_METHODS) {

@@ -51,6 +51,16 @@
             <version>${archunit.version}</version>
             <scope>compile</scope>
         </dependency>
+        <!--
+            The JUnit Platform engine that runs @ArchTest fields. Without it on a consumer's test class path, its
+            @AnalyzeClasses tests are discovered by nothing and never run (standard-link plan L2.1).
+        -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit6-engine</artifactId>
+            <version>${archunit.version}</version>
+            <scope>compile</scope>
+        </dependency>
 
         <!-- JUnit 5 (used only for this library's own tests) -->
         <dependency>

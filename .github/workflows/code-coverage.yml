@@ -29,6 +29,26 @@ jobs:
   java-coverage:
     name: Java Coverage (JaCoCo ≥ 80%)
     runs-on: ubuntu-latest
+    # The tests that need PostgreSQL skip without BRIX_P0_POSTGRES_*: outbox claims across instances, the transport
+    # conformance suites' PostgreSQL scenarios, the sample plugins end to end (standard-link plan L2.4).
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: p0
+          POSTGRES_PASSWORD: p0secret
+          POSTGRES_DB: p0
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U p0 -d p0"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      BRIX_P0_POSTGRES_URL: jdbc:postgresql://localhost:5432/p0
+      BRIX_P0_POSTGRES_USER: p0
+      BRIX_P0_POSTGRES_PASSWORD: p0secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4

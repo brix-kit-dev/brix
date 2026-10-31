@@ -25,6 +25,7 @@ import io.brix.architecture.guard.rules.LoggingViaCapabilityRule;
 import io.brix.architecture.guard.rules.NoDirectHttpClientsRule;
 import io.brix.architecture.guard.rules.NoDirectPluginDependencyRule;
 import io.brix.architecture.guard.rules.NoInfraAdapterRule;
+import io.brix.architecture.guard.rules.NoLegacyEventBusRule;
 import io.brix.architecture.guard.rules.NoMiddlewareClientsRule;
 import io.brix.architecture.guard.rules.NoPlatformTenantRelationshipAccessRule;
 import io.brix.architecture.guard.rules.NoRestControllerInCoreRule;
@@ -117,6 +118,10 @@ public class PluginProfile {
     /** No direct plugin-to-plugin dependencies */
     @ArchTest
     static final ArchRule noDirectPluginDependency = NoDirectPluginDependencyRule.rule();
+
+    /** No new callers of the retired RuntimeContext.getEventBus(); the listed ones only shrink */
+    @ArchTest
+    static final ArchRule noLegacyEventBus = NoLegacyEventBusRule.rule();
 
     // ==================== Rule 5: No Spring container API ====================
 
