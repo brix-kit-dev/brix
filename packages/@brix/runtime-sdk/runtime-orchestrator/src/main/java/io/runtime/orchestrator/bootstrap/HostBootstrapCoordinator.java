@@ -79,8 +79,9 @@ public final class HostBootstrapCoordinator {
         try {
             plugins.prepare();
             operationalModules.prepare();
-            List<EndpointRouteDeclaration> declarations =
-                new ArrayList<>(plugins.preparedRouteDeclarations());
+            List<EndpointRouteDeclaration> pluginDeclarations = plugins.preparedRouteDeclarations();
+            EndpointRouteValidator.validatePluginRoutes(pluginDeclarations);
+            List<EndpointRouteDeclaration> declarations = new ArrayList<>(pluginDeclarations);
             declarations.addAll(operationalModules.preparedRouteDeclarations());
             declarations.sort(Comparator
                 .comparing(EndpointRouteDeclaration::method)

@@ -8,6 +8,7 @@ package io.runtime.orchestrator.endpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -199,10 +200,9 @@ class RuntimeShellEndpointControllerTest {
             .dispatch(null, request(Map.of()));
 
         assertEquals(401, anonymous.getStatusCode().value());
-        assertEquals(Map.of(
-                "errorCode", EndpointAccessDeniedException.AUTHENTICATION_REQUIRED,
-                "message", "Authentication is required"),
-            anonymous.getBody());
+        assertEquals(EndpointAccessDeniedException.AUTHENTICATION_REQUIRED, errorCode(anonymous));
+        assertEquals("Authentication is required", ((Map<?, ?>) anonymous.getBody()).get("message"));
+        assertTrue(String.valueOf(((Map<?, ?>) anonymous.getBody()).get("traceId")).matches("[0-9a-f]{32}"));
         assertEquals(403, actor.getStatusCode().value());
         assertEquals(EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED, errorCode(actor));
         assertEquals(403, unprivileged.getStatusCode().value());
@@ -245,7 +245,12 @@ class RuntimeShellEndpointControllerTest {
                 .dispatch(null, request(Map.of()));
 
             assertEquals(response.get(0), failed.getStatusCode().value(), code.name());
-            assertEquals(Map.of("errorCode", response.get(1), "message", response.get(1)), failed.getBody());
+            Map<?, ?> body = (Map<?, ?>) failed.getBody();
+            assertEquals(response.get(1), body.get("errorCode"));
+            assertEquals(response.get(1), body.get("message"));
+            // Root BRX-RS-ERROR-013: the envelope names the trace the runtime gave the call.
+            assertTrue(String.valueOf(body.get("traceId")).matches("[0-9a-f]{32}"), String.valueOf(body));
+            assertEquals(3, body.size(), String.valueOf(body));
         });
     }
 
@@ -282,6 +287,15 @@ class RuntimeShellEndpointControllerTest {
         assertEquals(504, dispatchThrowing(new EndpointDeadlineExceededException("e")).getStatusCode().value());
         assertEquals(Map.of("errorCode", "platform.unknown", "message", "platform.unknown"),
             dispatchThrowing(new EndpointResponseInvalidException("e")).getBody());
+    }
+
+    @Test
+    void aFullEndpointAnswers503Rejected() {
+        // Standard-link plan L7.5, D60.
+        ResponseEntity<Object> rejected = dispatchThrowing(new EndpointRejectedException("e"));
+
+        assertEquals(503, rejected.getStatusCode().value());
+        assertEquals(Map.of("errorCode", "endpoint.rejected", "message", "endpoint.rejected"), rejected.getBody());
     }
 
     private static ResponseEntity<Object> dispatchThrowing(RuntimeException failure) {

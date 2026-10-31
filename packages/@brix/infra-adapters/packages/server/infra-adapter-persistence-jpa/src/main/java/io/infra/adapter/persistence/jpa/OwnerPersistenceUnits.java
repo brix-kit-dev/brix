@@ -237,6 +237,15 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     }
 
     @Override
+    public <T> T readWrite(String ownerModuleId, Duration timeout, Supplier<T> work) {
+        Optional<PersistenceCapability> owner = forOwner(ownerModuleId);
+        if (owner.isEmpty()) {
+            return work.get();
+        }
+        return ((OwnerUnitOfWork) owner.get().unitOfWork()).requiredWithin(timeout, work);
+    }
+
+    @Override
     public Optional<PersistenceCapability> forOwner(String ownerModuleId) {
         Objects.requireNonNull(ownerModuleId, "ownerModuleId must not be null");
         return owners.owner(ownerModuleId)

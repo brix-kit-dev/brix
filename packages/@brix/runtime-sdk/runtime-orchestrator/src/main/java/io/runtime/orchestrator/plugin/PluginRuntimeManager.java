@@ -307,7 +307,9 @@ public final class PluginRuntimeManager {
      */
     public synchronized List<PluginRuntimeState> start() {
         prepare();
-        EndpointRouteValidator.validate(preparedRouteDeclarations());
+        List<EndpointRouteDeclaration> declarations = preparedRouteDeclarations();
+        EndpointRouteValidator.validatePluginRoutes(declarations);
+        EndpointRouteValidator.validate(declarations);
         TenantGrantTable grants = preparedGrantTable();
         startPrepared();
         endpointDispatcher.replaceSnapshot(preparedRoutes(), grants);

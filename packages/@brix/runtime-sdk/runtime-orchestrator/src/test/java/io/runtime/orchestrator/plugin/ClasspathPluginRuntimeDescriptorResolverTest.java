@@ -58,6 +58,30 @@ class ClasspathPluginRuntimeDescriptorResolverTest {
         assertTrue((Boolean) method.invoke(resolver, manifest, codeSource));
     }
 
+    @Test
+    void readsTheEndpointsTimeoutPolicyAndRefusesOneTheRuntimeDoesNotKnow() throws Exception {
+        // Root BRX-RS-MANIFEST-026; standard-link plan L7.5: a policy the runtime cannot resolve stops the plugin.
+        Method contract = ClasspathPluginRuntimeDescriptorResolver.class.getDeclaredMethod(
+            "contract", String.class, io.runtime.manifest.model.PluginManifest.Route.class);
+        contract.setAccessible(true);
+        io.runtime.manifest.model.PluginManifest.Route route = new io.runtime.manifest.model.PluginManifest.Route();
+        route.setEndpointId("plugin-x.read.v1");
+
+        route.setTimeout(java.util.Map.of("policyRef", "interactive-read"));
+        assertEquals("interactive-read",
+            ((io.runtime.orchestrator.endpoint.EndpointContract) contract.invoke(null, "plugin-x", route))
+                .timeoutPolicyRef());
+        route.setTimeout(null);
+        assertEquals("endpoint-default",
+            ((io.runtime.orchestrator.endpoint.EndpointContract) contract.invoke(null, "plugin-x", route))
+                .timeoutPolicyRef());
+        route.setTimeout(java.util.Map.of("policyRef", "interactive-forever"));
+        InvocationTargetException failure = org.junit.jupiter.api.Assertions.assertThrows(
+            InvocationTargetException.class, () -> contract.invoke(null, "plugin-x", route));
+        assertTrue(failure.getCause() instanceof PluginRuntimeException, String.valueOf(failure.getCause()));
+        assertTrue(failure.getCause().getMessage().contains("unknown endpoint timeout policy"));
+    }
+
     private static URL url(String value) {
         try {
             return new URL(null, value, new URLStreamHandler() {

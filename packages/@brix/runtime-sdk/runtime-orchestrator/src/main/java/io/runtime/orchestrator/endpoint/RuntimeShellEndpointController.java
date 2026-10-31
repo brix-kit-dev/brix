@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,11 +38,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
-import io.runtime.sdk.error.BrixException;
 import io.runtime.sdk.error.ErrorCategory;
-import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointResponse;
-import io.runtime.sdk.query.BrixQueryException;
 
 /**
  * Spring Web adapter for Runtime Shell plugin endpoints.
@@ -69,7 +67,6 @@ public class RuntimeShellEndpointController {
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
     private static final String COOKIE_HEADER = "cookie";
 
-    private static final String UNKNOWN = "platform.unknown";
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RuntimeShellEndpointController.class);
 
     private final PluginEndpointDispatcher dispatcher;
@@ -121,78 +118,53 @@ public class RuntimeShellEndpointController {
     public ResponseEntity<Object> dispatch(
             @RequestBody(required = false) Object body,
             HttpServletRequest request) {
+        AtomicReference<String> traceId = new AtomicReference<>();
         try {
             Object result = dispatcher.invoke(
                 request.getMethod(),
                 requestPath(request),
                 body,
                 queryParameters(request),
-                trustedInvocationHeaders(headers(request)));
+                trustedInvocationHeaders(headers(request)),
+                traceId::set);
             if (result instanceof EndpointResponse response) {
                 return ResponseEntity.status(HttpStatusCode.valueOf(response.status())).body(response.body());
             }
             return ResponseEntity.ok(result);
         } catch (EndpointDispatchException e) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, e.getMessage(), e);
-        } catch (EndpointHandlingException e) {
-            return ResponseEntity.status(HttpStatusCode.valueOf(e.status()))
-                .body(Map.of(
-                    "errorCode", e.errorCode(),
-                    "message", e.getMessage()));
-        } catch (BrixQueryException e) {
-            return queryFailure(e);
-        } catch (EndpointRequestInvalidException e) {
-            // Standard-link plan L7.2: the paths and rules the request breaks, never its values.
-            return ResponseEntity.status(HttpStatusCode.valueOf(400)).body(Map.of(
-                "errorCode", EndpointRequestInvalidException.CODE,
-                "message", EndpointRequestInvalidException.CODE,
-                "violations", e.violations()));
-        } catch (EndpointDeadlineExceededException e) {
-            return failure(504, EndpointDeadlineExceededException.CODE);
-        } catch (EndpointResponseInvalidException e) {
-            return failure(500, UNKNOWN);
-        } catch (BrixException e) {
-            // Root BRX-RS-MANIFEST-022: an expected failure answers with its code, at the status of its category.
-            return failure(status(e.errorCode().category()), e.errorCode().wireCode());
         } catch (RuntimeException e) {
-            // Root BRX-RS-MANIFEST-022, ERROR-012: anything else is platform.unknown, with the cause in the log only.
-            log.error("event=endpoint.failed method={} path={}", request.getMethod(), requestPath(request), e);
-            return failure(500, UNKNOWN);
+            EndpointFailures.Failure failure = EndpointFailures.of(e);
+            if (failure.unexpected()) {
+                // Root BRX-RS-MANIFEST-022, ERROR-012: anything else is platform.unknown, with the cause in the log only.
+                log.error("event=endpoint.failed method={} path={} traceId={}", request.getMethod(), requestPath(request),
+                    traceId.get(), e);
+            }
+            return failure(failure, traceId.get());
         }
     }
 
-    private static ResponseEntity<Object> failure(int status, String code) {
-        return ResponseEntity.status(HttpStatusCode.valueOf(status)).body(Map.of("errorCode", code, "message", code));
-    }
-
-    /** The HTTP status of an error category (standard-link plan L7.3). */
-    static int status(ErrorCategory category) {
-        return switch (category) {
-            case INVALID -> 400;
-            case DENIED -> 403;
-            case NOT_FOUND -> 404;
-            case CONFLICT -> 409;
-            case UNAVAILABLE -> 503;
-            case DEADLINE_EXCEEDED -> 504;
-            case INTERNAL -> 500;
-        };
-    }
-
     /**
-     * Maps a typed query failure the handler did not handle (query design §5.4): an unavailable provider is 503 and a
-     * late one 504, so that clients may try again; a failing provider is {@code platform.unknown}. The response
-     * carries only the stable code; the cause and the query stay in the logs (root BRX-RS-ERROR-010, ERROR-012).
+     * Writes the error envelope: the code, the message, the violations of an invalid request, and the call's trace id
+     * (root BRX-RS-ERROR-013).
      */
-    private static ResponseEntity<Object> queryFailure(BrixQueryException failure) {
-        int status = switch (failure.code()) {
-            case PROVIDER_MISSING, REJECTED, CIRCUIT_OPEN -> 503;
-            case DEADLINE_EXCEEDED -> 504;
-            case ACCESS_DENIED -> 403;
-            case INVALID_REQUEST, SERIALIZATION_FAILED, PROVIDER_FAILED -> 500;
-        };
-        String code = failure.is(BrixQueryException.Code.PROVIDER_FAILED)
-            ? "platform.unknown" : failure.code().wireCode();
-        return ResponseEntity.status(HttpStatusCode.valueOf(status)).body(Map.of("errorCode", code, "message", code));
+    private static ResponseEntity<Object> failure(EndpointFailures.Failure failure, String traceId) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("errorCode", failure.code());
+        body.put("message", failure.message());
+        if (EndpointRequestInvalidException.CODE.equals(failure.code())) {
+            // Standard-link plan L7.2: the paths and rules the request breaks, never its values.
+            body.put("violations", failure.violations());
+        }
+        if (traceId != null) {
+            body.put("traceId", traceId);
+        }
+        return ResponseEntity.status(HttpStatusCode.valueOf(failure.status())).body(body);
+    }
+
+    /** Returns the HTTP status of an error category. */
+    static int status(ErrorCategory category) {
+        return EndpointFailures.status(category);
     }
 
     private Map<String, List<String>> trustedInvocationHeaders(Map<String, List<String>> requestHeaders) {

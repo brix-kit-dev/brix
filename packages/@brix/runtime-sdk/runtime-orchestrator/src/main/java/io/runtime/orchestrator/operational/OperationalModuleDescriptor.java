@@ -166,13 +166,16 @@ public record OperationalModuleDescriptor(
      * @param path normalized absolute path
      * @param handlerId code factory identifier
      * @param accessPolicy declared endpoint access policy
+     * @param timeoutPolicyRef declared deadline policy of {@link io.runtime.orchestrator.endpoint.EndpointPolicies},
+     *     blank for the host's endpoint deadline
      */
     public record EndpointDeclaration(
             String endpointId,
             String method,
             String path,
             String handlerId,
-            EndpointAccessPolicy accessPolicy) {
+            EndpointAccessPolicy accessPolicy,
+            String timeoutPolicyRef) {
 
         /**
          * Validates declaration fields.
@@ -183,6 +186,7 @@ public record OperationalModuleDescriptor(
             path = requireText(path, "path");
             handlerId = requireText(handlerId, "handlerId");
             accessPolicy = Objects.requireNonNull(accessPolicy, "accessPolicy must not be null");
+            timeoutPolicyRef = io.runtime.orchestrator.endpoint.EndpointPolicies.timeout(timeoutPolicyRef);
             if (!path.startsWith("/api/platform/")) {
                 throw new IllegalArgumentException("Operational endpoint must use /api/platform/**: " + path);
             }
@@ -196,6 +200,20 @@ public record OperationalModuleDescriptor(
                 throw new IllegalArgumentException("Authenticated operational endpoint '" + endpointId
                     + "' must declare authorization.permissions");
             }
+        }
+
+        /**
+         * Creates a declaration with the host's endpoint deadline.
+         *
+         * @param endpointId stable endpoint identifier
+         * @param method HTTP method
+         * @param path normalized absolute path
+         * @param handlerId code factory identifier
+         * @param accessPolicy declared endpoint access policy
+         */
+        public EndpointDeclaration(String endpointId, String method, String path, String handlerId,
+                EndpointAccessPolicy accessPolicy) {
+            this(endpointId, method, path, handlerId, accessPolicy, null);
         }
     }
 

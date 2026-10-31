@@ -841,6 +841,22 @@ class PluginRuntimeManagerTest {
         assertTrue(started.ready());
     }
 
+    @Test
+    void aPluginRouteUnderTheOperationalNamespaceStopsTheHost() {
+        // Root BRX-RS-LAYER-017, MANIFEST-023; standard-link plan L7.4.
+        TypedPlugin plugin = new TypedPlugin();
+        PluginRuntimeManager refused = manager(List.of(plugin), Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-t")
+            .endpoint("plugin-t.create.v1", "POST", "/api/Platform/things",
+                io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies.anonymous("plugin-t-public"),
+                new io.runtime.orchestrator.endpoint.EndpointContract("brix://schemas/test-endpoints/create-thing-request/1.0.0",
+                    "brix://schemas/test-endpoints/thing/1.0.0", 201))
+            .build()), new DefaultCapabilityRegistry(), List.of("plugin-t"));
+
+        io.runtime.orchestrator.endpoint.EndpointDispatchException failure =
+            assertThrows(io.runtime.orchestrator.endpoint.EndpointDispatchException.class, refused::start);
+        assertTrue(failure.getMessage().contains("/api/platform/**"), failure.getMessage());
+    }
+
     private static PluginRuntimeDescriptor typedDescriptor(String requestSchemaRef) {
         return PluginRuntimeDescriptor.builder("plugin-t")
             .endpoint("plugin-t.create.v1", "POST", "/api/plugin-t/things",

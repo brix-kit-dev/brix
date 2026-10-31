@@ -7,8 +7,10 @@
 package io.runtime.orchestrator.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.endpoint.EndpointDeadlineExceededException;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 import io.runtime.sdk.plugin.EndpointInvocation;
@@ -114,6 +117,57 @@ class OwnerUnitOfWorkEndpointBoundaryTest {
         boundary.invoke(route("POST", sourcePolicy("first-owner-invitee-setup-fanout")), invocation(null), () -> null);
 
         assertEquals(List.of(TenantScope.none(), TenantScope.none()), persistence.scopes());
+    }
+
+    @Test
+    void aCallsTransactionLastsNoLongerThanTheTimeLeftBeforeItsDeadline() {
+        // Standard-link plan L7.5: statements stop, and connection waits end, at the endpoint's deadline.
+        RecordingPersistence persistence = new RecordingPersistence();
+        List<String> calls = new java.util.ArrayList<>();
+        OwnerPersistenceProvider owners = new OwnerPersistenceProvider() {
+            @Override
+            public Optional<io.runtime.sdk.capability.PersistenceCapability> forOwner(String ownerModuleId) {
+                return Optional.of(persistence);
+            }
+
+            @Override
+            public <T> T readOnly(String ownerModuleId, Duration timeout, java.util.function.Supplier<T> work) {
+                calls.add("readOnly " + within(timeout));
+                return work.get();
+            }
+
+            @Override
+            public <T> T readWrite(String ownerModuleId, Duration timeout, java.util.function.Supplier<T> work) {
+                calls.add("readWrite " + within(timeout));
+                return work.get();
+            }
+        };
+        OwnerUnitOfWorkEndpointBoundary boundary = new OwnerUnitOfWorkEndpointBoundary(owners);
+
+        boundary.invoke(route("GET"), invocationUntil(Instant.now().plusSeconds(5)), () -> null);
+        boundary.invoke(route("POST"), invocationUntil(Instant.now().plusSeconds(5)), () -> null);
+
+        assertEquals(List.of("readOnly true", "readWrite true"), calls);
+    }
+
+    @Test
+    void aCallPastItsDeadlineOpensNoTransaction() {
+        RecordingPersistence persistence = new RecordingPersistence();
+        OwnerUnitOfWorkEndpointBoundary boundary =
+            new OwnerUnitOfWorkEndpointBoundary(owner -> Optional.of(persistence));
+
+        assertThrows(EndpointDeadlineExceededException.class,
+            () -> boundary.invoke(route("POST"), invocationUntil(Instant.now().minusMillis(1)), () -> "late"));
+        assertTrue(persistence.modes().isEmpty());
+    }
+
+    private static boolean within(Duration timeout) {
+        return timeout.compareTo(Duration.ofSeconds(4)) > 0 && timeout.compareTo(Duration.ofSeconds(5)) <= 0;
+    }
+
+    private static EndpointInvocation<Object> invocationUntil(Instant deadline) {
+        return new EndpointInvocation<>(null, Map.of(), Map.of(), Map.of(),
+            Optional.empty(), Optional.empty(), Optional.empty(), deadline);
     }
 
     private static EndpointRoute route(String method) {

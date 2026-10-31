@@ -18,8 +18,10 @@ package io.infra.adapter.otel.autoconfigure;
 import io.infra.adapter.otel.OTelObservabilityCapability;
 import io.infra.adapter.otel.OTelSdkBuilder;
 import io.infra.adapter.otel.tracing.OTelMessageTracing;
+import io.infra.adapter.otel.tracing.OTelEndpointTracing;
 import io.infra.adapter.otel.tracing.OTelQueryTracing;
 import io.opentelemetry.api.OpenTelemetry;
+import io.runtime.orchestrator.endpoint.EndpointTracing;
 import io.runtime.orchestrator.query.QueryTracing;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.ObservabilityCapability;
@@ -156,5 +158,18 @@ public class OTelAdapterAutoConfiguration {
     @ConditionalOnMissingBean(QueryTracing.class)
     public QueryTracing otelQueryTracing(OpenTelemetry openTelemetry) {
         return new OTelQueryTracing(openTelemetry);
+    }
+
+    /**
+     * Records the server span of each HTTP endpoint call, in a new trace linked to the caller's (standard-link plan
+     * L7.6).
+     *
+     * @param openTelemetry OpenTelemetry instance
+     * @return the endpoint spans
+     */
+    @Bean
+    @ConditionalOnMissingBean(EndpointTracing.class)
+    public EndpointTracing otelEndpointTracing(OpenTelemetry openTelemetry) {
+        return new OTelEndpointTracing(openTelemetry);
     }
 }

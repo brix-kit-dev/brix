@@ -27,6 +27,15 @@ All notable changes to Brix Framework are documented here.
     `endpoint.deadline_exceeded`.
   - Lists use `page`, `size` (at most 100) and `sort` and answer `Page` (`io.runtime.sdk.page`).
   - The samples' endpoints use the new shape. See [Endpoints](../guides/endpoints.md).
+- **Endpoint deadlines, limits and traces.**
+  - `timeout.policyRef` sets the deadline: `endpoint-default` (the host's endpoint deadline, 30 s), `interactive-read`
+    (10 s) or `interactive-write` (15 s), set under `brix.runtime-shell.endpoints`. The plugin's transaction ends at
+    the deadline.
+  - Each endpoint runs at most 64 calls at once (`brix.runtime-shell.endpoints.concurrency`); one more answers 503
+    `endpoint.rejected`.
+  - Each call is a server span in a new trace, linked to a well-formed caller `traceparent`. Error bodies carry its
+    `traceId`.
+  - Meters `brix.endpoint.calls` and `brix.endpoint.in_flight`.
 - **Tasks run.** A plugin declares its tasks under `tasks.provides` and binds a `ManagedTask`. The runtime's scheduler
   runs them:
   - triggers: `every:<duration>` aligned to the epoch, or `cron:<expression>` in UTC;
@@ -88,7 +97,16 @@ All notable changes to Brix Framework are documented here.
   `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
   business key.
 - **An endpoint failure the handler does not map answers `platform.unknown`** with
-  `{"errorCode", "message"}`; the cause stays in the log.
+  `{"errorCode", "message", "traceId"}`; the cause stays in the log.
+- **Routes are compared after normalizing** (root BRX-RS-MANIFEST-023). Routes of one method that differ only in
+  variable names, slashes, letter case or percent-encoding stop the host. Where two routes match a request, the one
+  with a literal segment where the other has a variable answers; before, such a request answered 404. Path variables
+  arrive decoded. A plugin route under `/api/platform/**`, or any route under `/oauth2/**`, `/.well-known/**`,
+  `/auth/**` or `/bff/**`, stops the host.
+- **Handlers no longer see `Authorization`, `Proxy-Authorization`, `traceparent`, `tracestate`, `baggage` or
+  `x-trace-id`.** `EndpointInvocation.traceId()` is the runtime's trace id, never the caller's `x-trace-id`. A
+  `setup-token` or `bootstrap-setup` entry still sees `Authorization`: its handler hands the token to the token's data
+  owner, which verifies and spends it.
 - **Endpoint idempotency `required` and `optional` stop the plugin** (root BRX-RS-MANIFEST-018). They need the
   runtime to replay results, which it does not do yet. The nine platform endpoints that declared `required`, eight in
   platform-admin and one in platform-tenant, now declare `not-applicable`: the runtime never acted on the

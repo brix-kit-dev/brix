@@ -100,6 +100,23 @@ public interface OwnerPersistenceProvider {
     }
 
     /**
+     * Runs an endpoint handler's work in a read-write unit of work of the owner whose transaction lasts at most
+     * {@code timeout}, the time left before the endpoint's deadline (root BRX-RS-DATA-011, DATA-028; standard-link plan
+     * L7.5): the owner's statements stop, and waits for a pooled connection end, when the deadline passes. Joining
+     * the owner's open transaction keeps that transaction's timeout. An owner without persistence runs the work as it
+     * is. The default applies no timeout of its own.
+     *
+     * @param ownerModuleId the owner of the endpoint
+     * @param timeout how long the call may still take; positive
+     * @param work the handler's work
+     * @param <T> result type
+     * @return the work's result
+     */
+    default <T> T readWrite(String ownerModuleId, java.time.Duration timeout, java.util.function.Supplier<T> work) {
+        return forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
+    }
+
+    /**
      * Returns a provider used when no persistence adapter is assembled.
      *
      * @return a provider that never supplies a capability

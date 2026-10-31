@@ -100,6 +100,26 @@ class OwnerQueryScopeTest {
         assertTrue(timeToLive <= JpaTestEnvironment.TRANSACTION_TIMEOUT.toMillis(), "capped: " + timeToLive);
     }
 
+    @Test
+    void anEndpointsTransactionLastsNoLongerThanItsDeadlineAndMayWrite() {
+        // Standard-link plan L7.5: an endpoint's read-write unit of work is bounded by the time left to it.
+        long timeToLive = provider.requiredWithin(Duration.ofMillis(1500), () -> {
+            notes.save(new OwnedNote(2L, "n-2", "written"));
+            return holder().getTimeToLiveInMillis();
+        });
+
+        assertTrue(timeToLive > 0 && timeToLive <= 2000, "rounded up to the next second: " + timeToLive);
+        assertEquals(2L, environment.count(OwnedNote.class));
+    }
+
+    @Test
+    void anEndpointJoiningItsOwnersOpenTransactionKeepsThatTransactionsTimeout() {
+        long joined = provider.required(() -> provider.requiredWithin(Duration.ofMillis(1500),
+            () -> holder().getTimeToLiveInMillis()));
+
+        assertTrue(joined > 2000, "the open transaction's timeout: " + joined);
+    }
+
     private EntityManagerHolder holder() {
         EntityManagerHolder holder = (EntityManagerHolder) TransactionSynchronizationManager.getResource(
             environment.entityManagerFactory);

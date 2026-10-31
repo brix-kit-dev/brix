@@ -110,6 +110,11 @@ class OperationalModuleDescriptorTest {
 
     private static OperationalModuleDescriptor load(Path directory, String accessSections, String idempotency)
             throws Exception {
+        return load(directory, accessSections, idempotency, "interactive-read");
+    }
+
+    private static OperationalModuleDescriptor load(Path directory, String accessSections, String idempotency,
+            String timeout) throws Exception {
         Path descriptor = directory.resolve("platform-operational.yaml");
         Files.writeString(descriptor, """
             apiVersion: brix.io/platform-operational/v1
@@ -141,12 +146,12 @@ class OperationalModuleDescriptorTest {
                   tenantContext:
                     mode: forbidden
                   timeout:
-                    policyRef: interactive-read
+                    policyRef: TIMEOUT
                   idempotency:
                     mode: IDEMPOTENCY
             tasks:
               provides: []
-            """.replace("IDEMPOTENCY", idempotency));
+            """.replace("IDEMPOTENCY", idempotency).replace("TIMEOUT", timeout));
         return new OperationalModuleDescriptorLoader().load(descriptor.toUri().toURL());
     }
 
@@ -163,6 +168,30 @@ class OperationalModuleDescriptorTest {
         assertEquals("operational.descriptor.invalid", failure.diagnosticCode());
         assertTrue(failure.getMessage().contains("result replay"), failure.getMessage());
     }
+
+    @Test
+    void loaderReadsTheEndpointsTimeoutPolicy(@TempDir Path directory) throws Exception {
+        // Standard-link plan L7.5: the endpoint's deadline comes from its declared policy.
+        OperationalModuleDescriptor descriptor = load(directory, ANONYMOUS_STATUS, "not-applicable", "interactive-read");
+
+        assertEquals("interactive-read", descriptor.endpoints().get("runtime.status.v1").timeoutPolicyRef());
+    }
+
+    @Test
+    void loaderRejectsATimeoutPolicyTheRuntimeDoesNotKnow(@TempDir Path directory) throws Exception {
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class,
+            () -> load(directory, ANONYMOUS_STATUS, "not-applicable", "interactive-forever"));
+
+        assertEquals("operational.descriptor.invalid", failure.diagnosticCode());
+        assertTrue(failure.getMessage().contains("unknown endpoint timeout policy"), failure.getMessage());
+    }
+
+    private static final String ANONYMOUS_STATUS = """
+          authentication:
+            mode: anonymous
+          authorization:
+            policyRef: runtime-status
+        """;
 
     @Test
     void descriptorRejectsUnapprovedInternalContractPrivilege() {

@@ -15,12 +15,15 @@
  */
 package io.runtime.orchestrator.persistence;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.endpoint.EndpointDeadlineExceededException;
 import io.runtime.orchestrator.endpoint.EndpointInvocationBoundary;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -32,7 +35,8 @@ import io.runtime.sdk.plugin.EndpointInvocation;
  * and binds it to the tenant the dispatcher verified (BRX-RS-DATA-011, BRX-RS-DATA-040).
  *
  * <p>Safe methods ({@code GET}, {@code HEAD}) run in a read-only unit of work, every other method in
- * a read-write one. An entry with a verified tenant reaches that tenant only; an entry whose
+ * a read-write one, and the transaction lasts no longer than the time left before the endpoint's deadline. An
+ * entry with a verified tenant reaches that tenant only; an entry whose
  * {@code tenantContext.sourcePolicyRef} names a registered cross-tenant policy gets that policy;
  * any other entry reaches no tenant data. Routes whose module has no owner persistence, such as
  * platform-operational modules, are invoked directly.</p>
@@ -66,10 +70,21 @@ public final class OwnerUnitOfWorkEndpointBoundary implements EndpointInvocation
         if (persistence.isEmpty()) {
             return handlerCall.get();
         }
-        UnitOfWork unitOfWork = persistence.get().unitOfWork();
-        return TenantScopes.within(scopeOf(route.accessPolicy(), invocation), () -> READ_ONLY_METHODS.contains(route.method())
-            ? unitOfWork.readOnly(handlerCall)
-            : unitOfWork.required(handlerCall));
+        boolean readOnly = READ_ONLY_METHODS.contains(route.method());
+        if (invocation == null) {
+            UnitOfWork unitOfWork = persistence.get().unitOfWork();
+            return TenantScopes.within(scopeOf(route.accessPolicy(), null), () -> readOnly
+                ? unitOfWork.readOnly(handlerCall)
+                : unitOfWork.required(handlerCall));
+        }
+        // Standard-link plan L7.5: the transaction lasts no longer than the time left before the endpoint's deadline.
+        Duration left = Duration.between(Instant.now(), invocation.deadline());
+        if (left.isZero() || left.isNegative()) {
+            throw new EndpointDeadlineExceededException(route.endpointId());
+        }
+        return TenantScopes.within(scopeOf(route.accessPolicy(), invocation), () -> readOnly
+            ? ownerPersistence.readOnly(route.pluginId(), left, handlerCall)
+            : ownerPersistence.readWrite(route.pluginId(), left, handlerCall));
     }
 
     /**

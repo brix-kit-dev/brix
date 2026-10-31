@@ -147,7 +147,8 @@ public final class OperationalModuleDescriptorLoader {
                 EndpointAccessPolicy.fromDeclaration(
                     section(node, "authentication"),
                     section(node, "authorization"),
-                    section(node, "tenantContext")));
+                    section(node, "tenantContext")),
+                node.path("timeout").path("policyRef").asString(""));
         } catch (IllegalArgumentException e) {
             throw new OperationalRuntimeException(
                 "operational.descriptor.invalid",

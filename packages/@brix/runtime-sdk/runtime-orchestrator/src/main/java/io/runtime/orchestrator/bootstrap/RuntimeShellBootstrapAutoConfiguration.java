@@ -28,6 +28,8 @@ import org.springframework.context.annotation.Configuration;
 import io.runtime.orchestrator.autoconfigure.CapabilityAutoConfiguration;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.EndpointMetrics;
+import io.runtime.orchestrator.endpoint.EndpointTracing;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
@@ -96,6 +98,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
      * @param properties bootstrap properties
      * @param ownerPersistence the owners' persistence, for the units of work around handlers
      * @param json the host's mapper, which reads typed requests and writes their responses
+     * @param tracing starts each call's server span; without one each call only gets a new trace id
+     * @param metrics records each call; without them nothing is recorded
      * @return endpoint dispatcher
      */
     @Bean
@@ -103,11 +107,15 @@ public class RuntimeShellBootstrapAutoConfiguration {
     public PluginEndpointDispatcher pluginEndpointDispatcher(
             RuntimeShellBootstrapProperties properties,
             ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
-            ObjectProvider<tools.jackson.databind.ObjectMapper> json) {
+            ObjectProvider<tools.jackson.databind.ObjectMapper> json,
+            ObjectProvider<EndpointTracing> tracing,
+            ObjectProvider<EndpointMetrics> metrics) {
         return new DefaultPluginEndpointDispatcher(
-            java.time.Duration.ofMillis(properties.getEndpointDeadlineMillis()),
+            properties.endpointLimits(),
             new OwnerUnitOfWorkEndpointBoundary(ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none)),
-            json.getIfAvailable(() -> tools.jackson.databind.json.JsonMapper.builder().build()));
+            json.getIfAvailable(() -> tools.jackson.databind.json.JsonMapper.builder().build()),
+            tracing.getIfAvailable(() -> EndpointTracing.NOOP),
+            metrics.getIfAvailable(() -> EndpointMetrics.NOOP));
     }
 
     /**
@@ -374,6 +382,18 @@ public class RuntimeShellBootstrapAutoConfiguration {
                 PluginEndpointDispatcher dispatcher,
                 ObjectProvider<AuthCapability> authCapabilityProvider) {
             return new RuntimeShellEndpointController(dispatcher, authCapabilityProvider);
+        }
+    }
+
+    /** Endpoint meters, when the host has Micrometer (standard-link plan L7.5). */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
+    static class EndpointMeters {
+
+        @Bean
+        @ConditionalOnMissingBean
+        EndpointMetrics endpointMetrics(ObjectProvider<io.micrometer.core.instrument.MeterRegistry> registry) {
+            return new io.runtime.orchestrator.endpoint.MicrometerEndpointMetrics(registry::getIfAvailable);
         }
     }
 

@@ -18,6 +18,7 @@ package io.runtime.orchestrator.endpoint;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import io.runtime.sdk.plugin.EndpointInvocation;
 
@@ -66,6 +67,29 @@ public interface PluginEndpointDispatcher {
             Object body,
             Map<String, List<String>> queryParameters,
             Map<String, List<String>> headers);
+
+    /**
+     * Invokes a published endpoint and reports the trace id the runtime gave the call (root BRX-RS-ERROR-013): the
+     * caller writes it into the error envelope and its log lines. A dispatcher that makes no trace ids reports none.
+     *
+     * @param method request method
+     * @param path request path as the client sent it
+     * @param body request body
+     * @param queryParameters query parameters
+     * @param headers request headers
+     * @param traceIds receives the call's trace id once the route is found
+     * @return handler result
+     * @since 3.3.0
+     */
+    default Object invoke(
+            String method,
+            String path,
+            Object body,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Consumer<String> traceIds) {
+        return invoke(method, path, body, queryParameters, headers);
+    }
 
     /**
      * Returns the current immutable route snapshot.

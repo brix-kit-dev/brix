@@ -348,7 +348,8 @@ public final class OperationalModuleRuntimeManager {
                 declaration.method(),
                 declaration.path(),
                 declaration.accessPolicy(),
-                handlers.get(declaration.handlerId())));
+                handlers.get(declaration.handlerId()),
+                io.runtime.orchestrator.endpoint.EndpointContract.timeout(declaration.timeoutPolicyRef())));
         }
         module.routes = List.copyOf(routes);
         for (OperationalModuleDescriptor.TaskDeclaration declaration : module.descriptor.tasksByHandlerId().values()) {

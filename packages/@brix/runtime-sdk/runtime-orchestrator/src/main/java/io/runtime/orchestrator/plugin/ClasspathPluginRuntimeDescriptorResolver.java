@@ -286,8 +286,7 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         route.getMethod(),
                         route.getPath(),
                         accessPolicy(manifest.pluginId(), route),
-                        new io.runtime.orchestrator.endpoint.EndpointContract(schemaRef(route.getRequest()),
-                            schemaRef(route.getResponse()), status(route.getResponse())));
+                        contract(manifest.pluginId(), route));
                     builder.endpointHandler(route.getHandlerId(), route.getEndpointId());
                 }
             }
@@ -299,6 +298,19 @@ public final class ClasspathPluginRuntimeDescriptorResolver
             return builder.build();
         } catch (IOException e) {
             throw new PluginRuntimeException("Failed to read plugin manifest " + manifestUrl, e);
+        }
+    }
+
+    private static io.runtime.orchestrator.endpoint.EndpointContract contract(String pluginId,
+            PluginManifest.Route route) {
+        Object timeout = route.getTimeout() == null ? null : route.getTimeout().get("policyRef");
+        try {
+            return new io.runtime.orchestrator.endpoint.EndpointContract(schemaRef(route.getRequest()),
+                schemaRef(route.getResponse()), status(route.getResponse()),
+                timeout instanceof String policy ? policy : null);
+        } catch (IllegalArgumentException e) {
+            throw new PluginRuntimeException("Plugin '" + pluginId + "' endpoint '" + route.getEndpointId()
+                + "' declares an invalid contract: " + e.getMessage(), e);
         }
     }
 

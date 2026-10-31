@@ -42,9 +42,15 @@ public class RuntimeShellBootstrapProperties {
     private int fatalExitCode = 70;
 
     /**
-     * Maximum endpoint handling duration in milliseconds.
+     * Maximum endpoint handling duration in milliseconds: the deadline of timeout policy {@code endpoint-default} and
+     * the cap on the others.
      */
     private long endpointDeadlineMillis = 30000;
+
+    /**
+     * The other endpoint limits (standard-link plan L7.5).
+     */
+    private Endpoints endpoints = new Endpoints();
 
     /**
      * Returns required plugin ids.
@@ -154,6 +160,101 @@ public class RuntimeShellBootstrapProperties {
      */
     public void setEndpointDeadlineMillis(long endpointDeadlineMillis) {
         this.endpointDeadlineMillis = endpointDeadlineMillis;
+    }
+
+    /**
+     * Returns the other endpoint limits.
+     * @return the limits under {@code brix.runtime-shell.endpoints}
+     */
+    public Endpoints getEndpoints() {
+        return endpoints;
+    }
+
+    /**
+     * Sets the other endpoint limits.
+     * @param endpoints the limits under {@code brix.runtime-shell.endpoints}
+     */
+    public void setEndpoints(Endpoints endpoints) {
+        this.endpoints = endpoints;
+    }
+
+    /**
+     * Returns the endpoint limits these properties describe.
+     * @return the deadlines of the three timeout policies and the per-endpoint concurrency
+     * @throws IllegalArgumentException when a deadline is not positive or exceeds the endpoint deadline
+     */
+    public io.runtime.orchestrator.endpoint.EndpointPolicies.Limits endpointLimits() {
+        java.time.Duration cap = java.time.Duration.ofMillis(endpointDeadlineMillis);
+        io.runtime.orchestrator.endpoint.EndpointPolicies.Limits defaults =
+            io.runtime.orchestrator.endpoint.EndpointPolicies.Limits.defaults(cap);
+        Endpoints configured = endpoints != null ? endpoints : new Endpoints();
+        return new io.runtime.orchestrator.endpoint.EndpointPolicies.Limits(cap,
+            configured.getInteractiveRead() != null ? configured.getInteractiveRead() : defaults.interactiveRead(),
+            configured.getInteractiveWrite() != null ? configured.getInteractiveWrite() : defaults.interactiveWrite(),
+            configured.getConcurrency() != null ? configured.getConcurrency() : defaults.concurrency());
+    }
+
+    /**
+     * Endpoint limits under {@code brix.runtime-shell.endpoints} (standard-link plan L7.5).
+     */
+    public static class Endpoints {
+
+        /** The deadline of timeout policy {@code interactive-read}; 10 s, or the endpoint deadline if shorter. */
+        private java.time.Duration interactiveRead;
+
+        /** The deadline of timeout policy {@code interactive-write}; 15 s, or the endpoint deadline if shorter. */
+        private java.time.Duration interactiveWrite;
+
+        /** How many calls each endpoint runs at once; 64. */
+        private Integer concurrency;
+
+        /**
+         * Returns the deadline of {@code interactive-read}.
+         * @return the deadline, or {@code null} for the default
+         */
+        public java.time.Duration getInteractiveRead() {
+            return interactiveRead;
+        }
+
+        /**
+         * Sets the deadline of {@code interactive-read}.
+         * @param interactiveRead the deadline
+         */
+        public void setInteractiveRead(java.time.Duration interactiveRead) {
+            this.interactiveRead = interactiveRead;
+        }
+
+        /**
+         * Returns the deadline of {@code interactive-write}.
+         * @return the deadline, or {@code null} for the default
+         */
+        public java.time.Duration getInteractiveWrite() {
+            return interactiveWrite;
+        }
+
+        /**
+         * Sets the deadline of {@code interactive-write}.
+         * @param interactiveWrite the deadline
+         */
+        public void setInteractiveWrite(java.time.Duration interactiveWrite) {
+            this.interactiveWrite = interactiveWrite;
+        }
+
+        /**
+         * Returns how many calls each endpoint runs at once.
+         * @return the limit, or {@code null} for the default
+         */
+        public Integer getConcurrency() {
+            return concurrency;
+        }
+
+        /**
+         * Sets how many calls each endpoint runs at once.
+         * @param concurrency the limit
+         */
+        public void setConcurrency(Integer concurrency) {
+            this.concurrency = concurrency;
+        }
     }
 
     /**

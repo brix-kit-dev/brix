@@ -17,7 +17,6 @@ package io.runtime.orchestrator.endpoint;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,9 +25,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
+import org.slf4j.MDC;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -37,6 +39,7 @@ import io.runtime.orchestrator.invocation.RuntimeInvocations;
 import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.EndpointResponse;
 import io.runtime.sdk.plugin.TraceContext;
 import io.runtime.sdk.plugin.TypedEndpointHandler;
 
@@ -48,6 +51,12 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  * context and permission checks run before the handler and fail closed. It
  * does not know plugin business types and does not expose framework objects to
  * handlers.</p>
+ *
+ * <p>Standard-link plan L7.4 to L7.6: a request goes to the most specific matching template
+ * ({@link EndpointPathTemplate}); each call starts a server span in a new trace ({@link EndpointTracing}), gets the
+ * deadline of its endpoint's timeout policy and waits for none of the endpoint's limited permits
+ * ({@link EndpointPolicies}). A handler sees no credentials and no trace headers, except the token of a
+ * {@code setup-token} or {@code bootstrap-setup} entry, which it hands to the token's data owner to verify and spend.</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -64,13 +73,20 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     private static final String TENANT_ROLE_TYPE_HEADER = "x-auth-tenant-role-type";
     private static final String TENANT_REF_HEADER = "x-auth-tenant-ref-id";
     private static final String ALLOWED_ACTION_HEADER = "x-auth-allowed-action";
-    private static final String TRACE_HEADER = "x-trace-id";
+    private static final String AUTHORIZATION_HEADER = "authorization";
+    private static final String TRACEPARENT_HEADER = "traceparent";
+    /** What a handler never sees (root BRX-RS-MANIFEST-022: plugins do not parse credentials or trace headers). */
+    private static final Set<String> HIDDEN_HEADERS =
+        Set.of("proxy-authorization", TRACEPARENT_HEADER, "tracestate", "baggage", "x-trace-id");
+    private static final String MDC_TRACEPARENT = "traceparent";
+    private static final String MDC_TRACE_ID = "traceId";
 
-    private final AtomicReference<Snapshot> snapshot =
-        new AtomicReference<>(new Snapshot(List.of(), TenantGrantTable.empty()));
-    private final Duration endpointDeadline;
+    private final AtomicReference<Snapshot> snapshot = new AtomicReference<>(Snapshot.EMPTY);
+    private final EndpointPolicies.Limits limits;
     private final EndpointInvocationBoundary invocationBoundary;
     private final TypedEndpoints typed;
+    private final EndpointTracing tracing;
+    private final EndpointMetrics metrics;
 
     /**
      * Creates a dispatcher that invokes handlers directly.
@@ -82,7 +98,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     }
 
     /**
-     * Creates a dispatcher.
+     * Creates a dispatcher with a runtime invocation boundary.
      *
      * @param endpointDeadline maximum endpoint handling duration
      * @param invocationBoundary runtime policy applied around every handler invocation
@@ -101,14 +117,28 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
      */
     public DefaultPluginEndpointDispatcher(Duration endpointDeadline, EndpointInvocationBoundary invocationBoundary,
             ObjectMapper json) {
-        if (endpointDeadline == null || endpointDeadline.isZero() || endpointDeadline.isNegative()) {
-            throw new IllegalArgumentException("endpointDeadline must be positive");
-        }
-        this.endpointDeadline = endpointDeadline;
+        this(EndpointPolicies.Limits.defaults(positive(endpointDeadline)), invocationBoundary, json,
+            EndpointTracing.NOOP, EndpointMetrics.NOOP);
+    }
+
+    /**
+     * Creates a dispatcher with the host's endpoint limits, server spans and meters (standard-link plan L7.5, L7.6).
+     *
+     * @param limits the host's deadlines and per-endpoint concurrency
+     * @param invocationBoundary runtime policy applied around every handler invocation
+     * @param json the host's mapper, which also writes the responses
+     * @param tracing starts each call's server span
+     * @param metrics records each call
+     */
+    public DefaultPluginEndpointDispatcher(EndpointPolicies.Limits limits, EndpointInvocationBoundary invocationBoundary,
+            ObjectMapper json, EndpointTracing tracing, EndpointMetrics metrics) {
+        this.limits = Objects.requireNonNull(limits, "limits must not be null");
         this.invocationBoundary = Objects.requireNonNull(invocationBoundary, "invocationBoundary must not be null");
         ClassLoader classes = Thread.currentThread().getContextClassLoader();
         this.typed = new TypedEndpoints(Objects.requireNonNull(json, "json must not be null"),
             classes != null ? classes : DefaultPluginEndpointDispatcher.class.getClassLoader());
+        this.tracing = Objects.requireNonNull(tracing, "tracing must not be null");
+        this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
     /**
@@ -134,7 +164,11 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
                 route.method(),
                 route.path()))
             .toList());
-        snapshot.set(new Snapshot(normalized, grants));
+        List<PublishedRoute> published = normalized.stream()
+            .map(route -> new PublishedRoute(route, EndpointPathTemplate.parse(route.path()),
+                limits.deadline(route.contract().timeoutPolicyRef()), new Semaphore(limits.concurrency())))
+            .toList();
+        snapshot.set(new Snapshot(normalized, published, grants));
     }
 
     /**
@@ -147,62 +181,68 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             Object body,
             Map<String, List<String>> queryParameters,
             Map<String, List<String>> headers) {
+        return invoke(method, path, body, queryParameters, headers, traceId -> { });
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object invoke(
+            String method,
+            String path,
+            Object body,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Consumer<String> traceIds) {
+        Objects.requireNonNull(traceIds, "traceIds must not be null");
         String normalizedMethod = normalizeMethod(method);
-        String normalizedPath = normalizePath(path);
+        String requestPath = requirePath(path);
         Map<String, List<String>> normalizedHeaders = normalizeHeaders(headers);
 
         Snapshot current = snapshot.get();
-        RouteMatch match = findRoute(current.routes(), normalizedMethod, normalizedPath)
+        RouteMatch match = findRoute(current.published(), normalizedMethod, requestPath)
             .orElseThrow(() -> new EndpointDispatchException(
-                "No published Runtime Shell endpoint for " + normalizedMethod + " " + normalizedPath));
+                "No published Runtime Shell endpoint for " + normalizedMethod + " " + requestPath));
+        EndpointRoute route = match.published().route();
+        long started = System.nanoTime();
+        Instant deadline = Instant.now().plus(match.published().deadline());
 
-        // Root BRX-RS-MANIFEST-022: a typed request is normalized and checked against its schema before the
-        // authentication, tenant and permission checks.
-        Object request = body;
-        if (match.route().handler() instanceof TypedEndpointHandler<?, ?> handler) {
-            request = typed.input(match.route(), handler, normalizedMethod, body,
-                queryParameters != null ? queryParameters : Map.of(), match.pathVariables());
+        // Root BRX-RS-MANIFEST-022, OTEL-002: the server span comes first, in a new trace; the caller's trace context
+        // is checked and at most linked.
+        EndpointTracing.EndpointSpan span = tracing.server(route,
+            EndpointTracing.caller(firstHeader(normalizedHeaders, TRACEPARENT_HEADER).orElse(null)));
+        TraceContext trace = span.trace();
+        String traceId = EndpointTracing.traceId(trace);
+        String outerTraceparent = MDC.get(MDC_TRACEPARENT);
+        String outerTraceId = MDC.get(MDC_TRACE_ID);
+        MDC.put(MDC_TRACEPARENT, trace.traceparent());
+        MDC.put(MDC_TRACE_ID, traceId);
+        int status = 500;
+        String code = EndpointFailures.UNKNOWN;
+        try {
+            traceIds.accept(traceId);
+            Object result = dispatch(current, match, normalizedMethod, body,
+                queryParameters != null ? queryParameters : Map.of(), normalizedHeaders, deadline, trace, traceId);
+            status = result instanceof EndpointResponse response ? response.status() : 200;
+            code = null;
+            return result;
+        } catch (RuntimeException failure) {
+            EndpointFailures.Failure answer = EndpointFailures.of(failure);
+            status = answer.status();
+            code = answer.code();
+            throw failure;
+        } finally {
+            try {
+                span.finished(status, code);
+            } finally {
+                span.close();
+                restore(MDC_TRACEPARENT, outerTraceparent);
+                restore(MDC_TRACE_ID, outerTraceId);
+                metrics.finished(route.pluginId(), route.endpointId(), EndpointFailures.outcome(status, code),
+                    Duration.ofNanos(System.nanoTime() - started));
+            }
         }
-
-        AccessDecision access = EndpointAccessGuard.enforce(match.route(), new EndpointAccessGuard.Caller(
-            firstHeader(normalizedHeaders, ACTOR_HEADER),
-            firstHeader(normalizedHeaders, TENANT_HEADER),
-            firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER),
-            firstHeader(normalizedHeaders, TOKEN_TYPE_HEADER),
-            firstHeader(normalizedHeaders, TOKEN_SCOPE_HEADER),
-            headerValues(normalizedHeaders, PERMISSION_HEADER),
-            firstHeader(normalizedHeaders, TENANT_ROLE_TYPE_HEADER),
-            firstHeader(normalizedHeaders, TENANT_REF_HEADER)), current.grants());
-
-        AtomicBoolean cancelled = new AtomicBoolean();
-        EndpointInvocation<Object> invocation = new EndpointInvocation<>(
-            request,
-            match.pathVariables(),
-            queryParameters != null ? queryParameters : Map.of(),
-            normalizedHeaders,
-            firstHeader(normalizedHeaders, TENANT_HEADER),
-            firstHeader(normalizedHeaders, ACTOR_HEADER),
-            firstHeader(normalizedHeaders, IDENTITY_EMAIL_HEADER),
-            firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER),
-            firstHeader(normalizedHeaders, TOKEN_TYPE_HEADER),
-            headerValues(normalizedHeaders, ALLOWED_ACTION_HEADER),
-            firstHeader(normalizedHeaders, TRACE_HEADER),
-            Instant.now().plus(endpointDeadline),
-            access,
-            cancelled::get);
-        // Typed queries the handler makes take their caller, user, tenant and deadline from this call (root
-        // BRX-RS-MANIFEST-028). A tenant user's permissions come only from the grant table, so none are forwarded.
-        boolean tenantUser = firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER)
-            .filter(role -> "actor".equals(role) || "subject".equals(role)).isPresent();
-        RuntimeInvocation call = RuntimeInvocation.forEndpoint(match.route().pluginId(), invocation,
-            tenantUser ? Set.of() : headerValues(normalizedHeaders, PERMISSION_HEADER),
-            traceContext(normalizedHeaders));
-        return RuntimeInvocations.within(call, () -> invokeHandler(match.route(), invocation, cancelled));
-    }
-
-    private static Optional<TraceContext> traceContext(Map<String, List<String>> headers) {
-        Optional<String> traceparent = firstHeader(headers, "traceparent").filter(value -> !value.isBlank());
-        return traceparent.map(value -> new TraceContext(value, firstHeader(headers, "tracestate").orElse(null)));
     }
 
     /**
@@ -211,6 +251,67 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     @Override
     public List<EndpointRoute> routes() {
         return snapshot.get().routes();
+    }
+
+    private Object dispatch(Snapshot current, RouteMatch match, String method, Object body,
+            Map<String, List<String>> queryParameters, Map<String, List<String>> headers, Instant deadline,
+            TraceContext trace, String traceId) {
+        EndpointRoute route = match.published().route();
+        // Root BRX-RS-MANIFEST-022: a typed request is normalized and checked against its schema before the
+        // authentication, tenant and permission checks.
+        Object request = body;
+        if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
+            request = typed.input(route, handler, method, body, queryParameters, match.pathVariables());
+        }
+
+        AccessDecision access = EndpointAccessGuard.enforce(route, new EndpointAccessGuard.Caller(
+            firstHeader(headers, ACTOR_HEADER),
+            firstHeader(headers, TENANT_HEADER),
+            firstHeader(headers, TOKEN_ROLE_HEADER),
+            firstHeader(headers, TOKEN_TYPE_HEADER),
+            firstHeader(headers, TOKEN_SCOPE_HEADER),
+            headerValues(headers, PERMISSION_HEADER),
+            firstHeader(headers, TENANT_ROLE_TYPE_HEADER),
+            firstHeader(headers, TENANT_REF_HEADER)), current.grants());
+
+        // Root BRX-RS-RESILIENCE-001; standard-link plan L7.5: an endpoint runs at most the host's limit at once, and a
+        // call over it is answered at once.
+        if (!Instant.now().isBefore(deadline)) {
+            throw new EndpointDeadlineExceededException(route.endpointId());
+        }
+        Semaphore permits = match.published().permits();
+        if (!permits.tryAcquire()) {
+            throw new EndpointRejectedException(route.endpointId());
+        }
+        metrics.inFlight(route.pluginId(), route.endpointId(), 1);
+        try {
+            AtomicBoolean cancelled = new AtomicBoolean();
+            EndpointInvocation<Object> invocation = new EndpointInvocation<>(
+                request,
+                match.pathVariables(),
+                queryParameters,
+                handlerHeaders(headers, route),
+                firstHeader(headers, TENANT_HEADER),
+                firstHeader(headers, ACTOR_HEADER),
+                firstHeader(headers, IDENTITY_EMAIL_HEADER),
+                firstHeader(headers, TOKEN_ROLE_HEADER),
+                firstHeader(headers, TOKEN_TYPE_HEADER),
+                headerValues(headers, ALLOWED_ACTION_HEADER),
+                Optional.of(traceId),
+                deadline,
+                access,
+                cancelled::get);
+            // Typed queries the handler makes take their caller, user, tenant and deadline from this call (root
+            // BRX-RS-MANIFEST-028). A tenant user's permissions come only from the grant table, so none are forwarded.
+            boolean tenantUser = firstHeader(headers, TOKEN_ROLE_HEADER)
+                .filter(role -> "actor".equals(role) || "subject".equals(role)).isPresent();
+            RuntimeInvocation call = RuntimeInvocation.forEndpoint(route.pluginId(), invocation,
+                tenantUser ? Set.of() : headerValues(headers, PERMISSION_HEADER), Optional.of(trace));
+            return RuntimeInvocations.within(call, () -> invokeHandler(route, invocation, cancelled));
+        } finally {
+            permits.release();
+            metrics.inFlight(route.pluginId(), route.endpointId(), -1);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -231,47 +332,67 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         }
     }
 
-    private static Optional<RouteMatch> findRoute(List<EndpointRoute> routes, String method, String path) {
-        List<RouteMatch> matches = new ArrayList<>();
-        for (EndpointRoute route : routes) {
-            if (!route.method().equals(method)) {
-                continue;
-            }
-            matchPath(route, path).ifPresent(variables -> matches.add(new RouteMatch(route, variables)));
+    /**
+     * The headers a handler sees: no credentials and no trace headers, except the token of an entry whose data owner
+     * verifies and spends it.
+     */
+    private static Map<String, List<String>> handlerHeaders(Map<String, List<String>> headers, EndpointRoute route) {
+        EndpointAccessPolicy.AuthenticationMode authentication = route.accessPolicy().authentication();
+        boolean ownerVerifiedToken = authentication == EndpointAccessPolicy.AuthenticationMode.SETUP_TOKEN
+            || authentication == EndpointAccessPolicy.AuthenticationMode.BOOTSTRAP_SETUP;
+        Map<String, List<String>> visible = new LinkedHashMap<>(headers);
+        visible.keySet().removeAll(HIDDEN_HEADERS);
+        if (!ownerVerifiedToken) {
+            visible.remove(AUTHORIZATION_HEADER);
         }
-        if (matches.size() > 1) {
-            throw new EndpointDispatchException("Ambiguous Runtime Shell endpoint route for " + method + " " + path);
-        }
-        return matches.stream().findFirst();
+        return Map.copyOf(visible);
     }
 
-    private static Optional<Map<String, String>> matchPath(EndpointRoute route, String path) {
-        String[] routeParts = splitPath(route.path());
-        String[] requestParts = splitPath(path);
-        if (routeParts.length != requestParts.length) {
+    /**
+     * Finds the most specific route that matches (root BRX-RS-MANIFEST-023; standard-link plan L7.4).
+     */
+    private static Optional<RouteMatch> findRoute(List<PublishedRoute> routes, String method, String path) {
+        Optional<List<String>> segments = EndpointPathTemplate.requestSegments(path);
+        if (segments.isEmpty()) {
             return Optional.empty();
         }
-        Map<String, String> variables = new LinkedHashMap<>();
-        for (int i = 0; i < routeParts.length; i++) {
-            String routePart = routeParts[i];
-            String requestPart = requestParts[i];
-            if (routePart.startsWith("{") && routePart.endsWith("}") && routePart.length() > 2) {
-                variables.put(routePart.substring(1, routePart.length() - 1), requestPart);
+        RouteMatch best = null;
+        boolean tied = false;
+        for (PublishedRoute route : routes) {
+            if (!route.route().method().equals(method)) {
                 continue;
             }
-            if (!routePart.equals(requestPart)) {
-                return Optional.empty();
+            Optional<Map<String, String>> variables = route.template().match(segments.get());
+            if (variables.isEmpty()) {
+                continue;
+            }
+            int order = best == null ? -1 : EndpointPathTemplate.compare(route.template(), best.published().template());
+            if (order < 0) {
+                best = new RouteMatch(route, variables.get());
+                tied = false;
+            } else if (order == 0) {
+                tied = true;
             }
         }
-        return Optional.of(variables);
+        if (tied) {
+            throw new EndpointDispatchException("Ambiguous Runtime Shell endpoint route for " + method + " " + path);
+        }
+        return Optional.ofNullable(best);
     }
 
-    private static String[] splitPath(String path) {
-        String normalized = normalizePath(path);
-        if ("/".equals(normalized)) {
-            return new String[0];
+    private static Duration positive(Duration endpointDeadline) {
+        if (endpointDeadline == null || endpointDeadline.isZero() || endpointDeadline.isNegative()) {
+            throw new IllegalArgumentException("endpointDeadline must be positive");
         }
-        return normalized.substring(1).split("/");
+        return endpointDeadline;
+    }
+
+    private static void restore(String key, String value) {
+        if (value == null) {
+            MDC.remove(key);
+        } else {
+            MDC.put(key, value);
+        }
     }
 
     private static String normalizeMethod(String method) {
@@ -281,18 +402,11 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         return method.trim().toUpperCase(Locale.ROOT);
     }
 
-    private static String normalizePath(String path) {
+    private static String requirePath(String path) {
         if (path == null || path.isBlank()) {
             throw new EndpointDispatchException("Endpoint request path must not be blank");
         }
-        String normalized = path.trim();
-        if (!normalized.startsWith("/")) {
-            normalized = "/" + normalized;
-        }
-        while (normalized.length() > 1 && normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
+        return path.trim();
     }
 
     private static Map<String, List<String>> normalizeHeaders(Map<String, List<String>> headers) {
@@ -326,12 +440,21 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
-    private record RouteMatch(EndpointRoute route, Map<String, String> pathVariables) {
+    /**
+     * A published route with what the dispatcher keeps for it: its template, its deadline and its permits.
+     */
+    private record PublishedRoute(EndpointRoute route, EndpointPathTemplate template, Duration deadline,
+            Semaphore permits) {
+    }
+
+    private record RouteMatch(PublishedRoute published, Map<String, String> pathVariables) {
     }
 
     /**
      * Routes and tenant grants of one published entry generation, swapped together.
      */
-    private record Snapshot(List<EndpointRoute> routes, TenantGrantTable grants) {
+    private record Snapshot(List<EndpointRoute> routes, List<PublishedRoute> published, TenantGrantTable grants) {
+
+        static final Snapshot EMPTY = new Snapshot(List.of(), List.of(), TenantGrantTable.empty());
     }
 }

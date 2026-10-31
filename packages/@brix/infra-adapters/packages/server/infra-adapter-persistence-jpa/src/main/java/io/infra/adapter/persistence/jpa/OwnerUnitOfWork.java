@@ -133,6 +133,26 @@ final class OwnerUnitOfWork implements UnitOfWork {
             () -> inNewTransaction(newTransactions(transactionManager, bounded, true), true, work));
     }
 
+    /**
+     * Runs {@code work} read-write, in a new transaction that lasts at most {@code timeout} when one is started: an
+     * endpoint handler's statements stop, and its waits for a pooled connection end, at the endpoint's deadline
+     * (standard-link plan L7.5). Joining this owner's open transaction keeps that transaction's timeout.
+     * @param timeout the longest the transaction may last; capped by the owner's transaction timeout
+     * @param work the work
+     * @param <T> result type
+     * @return the work's result
+     */
+    <T> T requiredWithin(Duration timeout, Supplier<T> work) {
+        Objects.requireNonNull(timeout, "timeout must not be null");
+        Objects.requireNonNull(work, "work must not be null");
+        if (OwnerTransactionScope.joinable(ownerId) != null) {
+            return required(work);
+        }
+        Duration bounded = timeout.compareTo(transactionTimeout) < 0 ? timeout : transactionTimeout;
+        return ConnectionAcquisition.within(bounded,
+            () -> inNewTransaction(newTransactions(transactionManager, bounded, false), false, work));
+    }
+
     private <T> T inNewTransaction(TransactionTemplate transactions, boolean readOnly, Supplier<T> work) {
         // A new transaction binds the scope the runtime requested; a joined one keeps its own.
         TenantScopeState tenancy = new TenantScopeState(TenantScopes.requested(), tenantTables);
