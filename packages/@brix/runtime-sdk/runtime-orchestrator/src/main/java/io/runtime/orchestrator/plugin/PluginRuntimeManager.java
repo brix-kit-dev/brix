@@ -47,6 +47,9 @@ import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.query.PublishedQuery;
 import io.runtime.orchestrator.query.QueryRuntime;
+import io.runtime.orchestrator.task.TaskPolicies;
+import io.runtime.orchestrator.task.TaskProvider;
+import io.runtime.orchestrator.task.TaskProviders;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -61,9 +64,11 @@ import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.HandlerFactory;
+import io.runtime.sdk.plugin.ManagedTask;
 import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.sdk.plugin.QueryHandler;
+import io.runtime.sdk.plugin.TaskInvocation;
 
 /**
  * L2B runtime manager for v3.0.10 backend plugins.
@@ -91,6 +96,7 @@ public final class PluginRuntimeManager {
     private final InternalContractBinder internalContracts;
     private final OwnerPersistenceProvider ownerPersistence;
     private final QueryRuntime queries;
+    private final TaskPolicies.Limits taskLimits;
 
     private static final tools.jackson.databind.ObjectMapper SCHEMA_READER = new tools.jackson.databind.ObjectMapper();
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
@@ -246,6 +252,37 @@ public final class PluginRuntimeManager {
             InternalContractBinder internalContracts,
             OwnerPersistenceProvider ownerPersistence,
             QueryRuntime queries) {
+        this(discovery, descriptorResolver, capabilityRegistry, requiredPluginIds, endpointDispatcher, pluginInitializer,
+            internalProviderDiscovery, internalContracts, ownerPersistence, queries, TaskPolicies.Limits.defaults());
+    }
+
+    /**
+     * Creates a runtime manager whose plugins may provide and call typed queries and declare tasks.
+     *
+     * @param discovery plugin discovery supplier
+     * @param descriptorResolver descriptor resolver
+     * @param capabilityRegistry capability registry
+     * @param requiredPluginIds composition-required plugin ids
+     * @param endpointDispatcher Runtime Shell endpoint dispatcher
+     * @param pluginInitializer Runtime-owned provider initializer
+     * @param internalProviderDiscovery internal contract provider discovery
+     * @param internalContracts internal contract binder
+     * @param ownerPersistence source of owner-scoped persistence capabilities
+     * @param queries the typed queries of this host (root BRX-RS-MESSAGE-002 to MESSAGE-009)
+     * @param taskLimits the host's limits on tasks, which a task's policies are checked against at startup
+     */
+    public PluginRuntimeManager(
+            Supplier<List<BrixPlugin>> discovery,
+            PluginRuntimeDescriptorResolver descriptorResolver,
+            CapabilityRegistry capabilityRegistry,
+            Collection<String> requiredPluginIds,
+            PluginEndpointDispatcher endpointDispatcher,
+            Consumer<BrixPlugin> pluginInitializer,
+            Supplier<List<InternalContractProvider>> internalProviderDiscovery,
+            InternalContractBinder internalContracts,
+            OwnerPersistenceProvider ownerPersistence,
+            QueryRuntime queries,
+            TaskPolicies.Limits taskLimits) {
         this.discovery = Objects.requireNonNull(discovery, "discovery must not be null");
         this.descriptorResolver = Objects.requireNonNull(descriptorResolver, "descriptorResolver must not be null");
         this.capabilityRegistry = Objects.requireNonNull(capabilityRegistry, "capabilityRegistry must not be null");
@@ -258,6 +295,7 @@ public final class PluginRuntimeManager {
         this.internalContracts = internalContracts;
         this.ownerPersistence = Objects.requireNonNull(ownerPersistence, "ownerPersistence must not be null");
         this.queries = Objects.requireNonNull(queries, "queries must not be null");
+        this.taskLimits = Objects.requireNonNull(taskLimits, "taskLimits must not be null");
     }
 
     /**
@@ -865,6 +903,7 @@ public final class PluginRuntimeManager {
         try {
             validateRequiredCapabilities(plugin);
             validateReliableEventDeclarations(plugin);
+            validateTasks(plugin);
             plugin.state = state(plugin, PluginLifecycleState.RESOLVED, false,
                 BrixHealth.unknown("Plugin resolved"), "Plugin manifest resolved");
         } catch (RuntimeException e) {
@@ -878,6 +917,7 @@ public final class PluginRuntimeManager {
             plugin.provider.configure(bootstrapContext);
             requireBoundEventSubscriptions(plugin, bootstrapContext.eventHandlerFactories().keySet());
             requireBoundCommandHandlers(plugin, bootstrapContext);
+            requireBoundTasks(plugin, bootstrapContext);
             plugin.state = state(plugin, PluginLifecycleState.WIRED, false,
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
@@ -896,7 +936,9 @@ public final class PluginRuntimeManager {
             Map<String, QueryHandler<?, ?>> queryHandlers = new LinkedHashMap<>(bootstrapContext.queryHandlers());
             queryHandlers.putAll(create(plugin.id(), "query", bootstrapContext.queryHandlerFactories(), context));
             plugin.queries = queries.bind(plugin.descriptor, queryHandlers);
-            create(plugin.id(), "task", bootstrapContext.taskFactories(), context);
+            Map<String, ManagedTask> tasks = new LinkedHashMap<>(bootstrapContext.tasks());
+            tasks.putAll(create(plugin.id(), "task", bootstrapContext.taskFactories(), context));
+            plugin.tasks = executableTasks(plugin.id(), tasks);
             BrixHealth health = pluginHealth(plugin);
             plugin.state = state(plugin, PluginLifecycleState.STARTED, false, health, health.message());
             if (isRequired(plugin) && !health.isReadyStatus()) {
@@ -984,6 +1026,107 @@ public final class PluginRuntimeManager {
         for (PluginRuntimeDescriptor.ConsumedCommand command : plugin.descriptor.consumedCommands().values()) {
             validateConsumedCommandPolicies(plugin, command);
         }
+    }
+
+    /**
+     * A task names one platform policy of each kind and is due no more often than this host allows (root
+     * BRX-RS-MANIFEST-025, MANIFEST-026; standard-link plan L6.2). One that claims its triggers needs the plugin's
+     * task-run table, so its {@code data.storageId}; one that runs in a unit of work needs the plugin's persistence
+     * (root BRX-RS-DATA-028).
+     */
+    private void validateTasks(ManagedPlugin plugin) {
+        for (PluginRuntimeDescriptor.ProvidedTask task : plugin.descriptor.providedTasks().values()) {
+            String where = "Plugin '" + plugin.id() + "' task '" + task.taskId() + "'";
+            TaskPolicies.Resolved resolved;
+            try {
+                resolved = TaskPolicies.resolve(task, taskLimits);
+            } catch (IllegalArgumentException refused) {
+                throw new PluginRuntimeException(where + ": " + refused.getMessage(), refused);
+            }
+            if (resolved.claimed() && plugin.descriptor.data().storageId().isBlank()) {
+                throw new PluginRuntimeException(where + " claims each trigger in the plugin's task-run table, "
+                    + "which needs data.storageId");
+            }
+            if (!PluginRuntimeDescriptor.ProvidedTask.TRANSACTION_NONE.equals(resolved.transaction())
+                    && ownerPersistence.forOwner(plugin.id()).isEmpty()) {
+                throw new PluginRuntimeException(where + " runs in the plugin's unit of work, but the plugin has no "
+                    + "persistence unit; a task that touches no data declares transaction: none");
+            }
+        }
+    }
+
+    /** Every declared task has its factory, and every factory its declaration (root BRX-RS-MANIFEST-026). */
+    private static void requireBoundTasks(ManagedPlugin plugin, DefaultPluginBootstrapContext bootstrap) {
+        Set<String> bound = new java.util.TreeSet<>(bootstrap.taskFactories().keySet());
+        bound.addAll(bootstrap.tasks().keySet());
+        List<String> unbound = plugin.descriptor.providedTasks().keySet().stream()
+            .filter(handlerId -> !bound.contains(handlerId))
+            .sorted()
+            .toList();
+        if (!unbound.isEmpty()) {
+            throw new PluginRuntimeException("Plugin '" + plugin.id() + "' declares tasks whose factories it does not "
+                + "bind in configure: " + unbound);
+        }
+    }
+
+    /**
+     * A task implements {@code execute(TaskInvocation)} or, written before 3.3.0, {@code run()}; one that implements
+     * neither is refused at startup (standard-link plan D56).
+     */
+    private static Map<String, ManagedTask> executableTasks(String pluginId, Map<String, ManagedTask> tasks) {
+        tasks.forEach((handlerId, task) -> {
+            if (!overrides(task.getClass(), "execute", TaskInvocation.class) && !overrides(task.getClass(), "run")) {
+                throw new PluginRuntimeException("Task '" + handlerId + "' of plugin '" + pluginId + "' ("
+                    + task.getClass().getName() + ") implements neither execute(TaskInvocation) nor run()");
+            }
+        });
+        return Map.copyOf(tasks);
+    }
+
+    private static boolean overrides(Class<?> type, String name, Class<?>... parameters) {
+        try {
+            return type.getMethod(name, parameters).getDeclaringClass() != ManagedTask.class;
+        } catch (NoSuchMethodException absent) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns the tasks of the started plugins, for the runtime's scheduler (standard-link plan L6.3). The scheduler
+     * starts once the host's entries are published, and looks a task up again for each trigger, so a plugin that
+     * stopped has no runs.
+     *
+     * @return the plugins' tasks
+     */
+    public TaskProviders taskProviders() {
+        return new TaskProviders() {
+            @Override
+            public boolean ready() {
+                synchronized (PluginRuntimeManager.this) {
+                    return entriesPublished && PluginRuntimeManager.this.ready();
+                }
+            }
+
+            @Override
+            public List<TaskProvider> tasks() {
+                synchronized (PluginRuntimeManager.this) {
+                    List<TaskProvider> tasks = new ArrayList<>();
+                    for (ManagedPlugin plugin : plugins.values()) {
+                        if (!pluginReady(plugin.id())) {
+                            continue;
+                        }
+                        plugin.tasks.forEach((handlerId, task) -> {
+                            PluginRuntimeDescriptor.ProvidedTask declaration =
+                                plugin.descriptor.providedTasks().get(handlerId);
+                            if (declaration != null) {
+                                tasks.add(new TaskProvider(plugin.id(), declaration, task));
+                            }
+                        });
+                    }
+                    return List.copyOf(tasks);
+                }
+            }
+        };
     }
 
     /**
@@ -1373,6 +1516,7 @@ public final class PluginRuntimeManager {
         private Map<String, CreatedCommandHandler> commandHandlers = Map.of();
         private Map<String, CreatedEventHandler> eventHandlers = Map.of();
         private Map<String, PublishedQuery> queries = Map.of();
+        private Map<String, ManagedTask> tasks = Map.of();
         private PluginRuntimeState state;
 
         private ManagedPlugin(BrixPlugin provider, PluginRuntimeDescriptor descriptor) {

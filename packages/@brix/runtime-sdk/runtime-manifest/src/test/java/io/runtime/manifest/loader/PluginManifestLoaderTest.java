@@ -245,6 +245,59 @@ class PluginManifestLoaderTest {
         assertThatCode(() -> loader.loadFromString(declared)).doesNotThrowAnyException();
     }
 
+    @Test
+    void aTaskNamesEveryPolicy() {
+        // Root BRX-RS-MANIFEST-025 (standard-link plan L6.2): the nine fields of a task.
+        assertThatCode(() -> loader.loadFromString(taskManifest(""))).doesNotThrowAnyException();
+        for (String field : java.util.List.of("taskId", "handlerId", "scopePolicyRef", "executionIdentityPolicyRef",
+                "triggerPolicyRef", "timeoutPolicyRef", "concurrencyPolicyRef", "retryPolicyRef", "idempotencyPolicyRef")) {
+            String without = java.util.Arrays.stream(taskManifest("").split("\n"))
+                .filter(line -> !line.trim().startsWith(field + ":") && !line.trim().startsWith("- " + field + ":"))
+                .reduce((a, b) -> a + "\n" + b).orElseThrow() + "\n";
+            assertThatThrownBy(() -> loader.loadFromString(without.replace("  provides:\n      handlerId",
+                    "  provides:\n    - handlerId")))
+                .as(field)
+                .isInstanceOf(ManifestValidationException.class)
+                .hasMessageContaining(field);
+        }
+    }
+
+    @Test
+    void aTaskRunsInTheUnitOfWorkItDeclaresAndThatNeedsPersistence() {
+        // Root BRX-RS-DATA-028: read-write unless the task declares read-only or none.
+        assertThatThrownBy(() -> loader.loadFromString(taskManifest("")
+                .replace("    - id: io.runtime.sdk.capability.PersistenceCapability\n      version: \">=3.2.0 <4.0.0\"\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("transaction: none");
+        assertThatCode(() -> loader.loadFromString(taskManifest("      transaction: none\n")
+                .replace("    - id: io.runtime.sdk.capability.PersistenceCapability\n      version: \">=3.2.0 <4.0.0\"\n", "")))
+            .doesNotThrowAnyException();
+        assertThatThrownBy(() -> loader.loadFromString(taskManifest("      transaction: serializable\n")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("required, read-only or none");
+    }
+
+    private String taskManifest(String extra) {
+        return validManifest().replace("capabilities:\n  required:\n",
+            "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.PersistenceCapability\n"
+                + "      version: \">=3.2.0 <4.0.0\"\n")
+            + """
+            tasks:
+              provides:
+                - taskId: sample-plugin.heartbeat
+                  handlerId: sample-plugin.heartbeat.v1
+                  scopePolicyRef: task-platform
+                  executionIdentityPolicyRef: plugin-service
+                  triggerPolicyRef: every:PT1H
+                  timeoutPolicyRef: task-standard
+                  concurrencyPolicyRef: task-no-overlap
+                  retryPolicyRef: task-no-retry
+                  idempotencyPolicyRef: task-trigger
+            data:
+              storageId: sample_plugin
+            """.replace("data:\n", extra + "data:\n");
+    }
+
     private String validManifest() {
         return """
             apiVersion: brix.io/v1

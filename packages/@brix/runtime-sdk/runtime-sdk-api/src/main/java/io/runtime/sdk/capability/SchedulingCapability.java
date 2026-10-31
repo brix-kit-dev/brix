@@ -68,8 +68,13 @@ import io.runtime.sdk.annotation.Since;
  * 
  * @author Runtime SDK Team
  * @since 3.0.0
+ * @deprecated since 3.3.0, for removal in 4.0.0: a plugin declares its tasks under {@code tasks.provides} and binds a
+ *     {@link io.runtime.sdk.plugin.ManagedTask} with {@code bindTaskFactory}; the runtime's scheduler runs them, once
+ *     per trigger across hosts, with a deadline, retries and metrics (root BRX-RS-MANIFEST-026: a task comes only from
+ *     the manifest, never from code at runtime)
  */
 @Since("3.0.0")
+@Deprecated(since = "3.3.0", forRemoval = true)
 public interface SchedulingCapability {
 
     /**

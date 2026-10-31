@@ -292,7 +292,8 @@
         "timeoutPolicyRef": { "type": "string", "minLength": 1 },
         "concurrencyPolicyRef": { "type": "string", "minLength": 1 },
         "retryPolicyRef": { "type": "string", "minLength": 1 },
-        "idempotencyPolicyRef": { "type": "string", "minLength": 1 }
+        "idempotencyPolicyRef": { "type": "string", "minLength": 1 },
+        "transaction": { "type": "string", "enum": ["required", "read-only", "none"] }
       }
     },
     "providedInternalContract": {

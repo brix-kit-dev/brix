@@ -54,6 +54,7 @@ import io.runtime.orchestrator.outbox.MessageOperationAudit;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.persistence.TenantIsolationRegister;
+import io.runtime.orchestrator.task.TaskRunClaims;
 import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
@@ -398,6 +399,10 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             owners.storageIdOf(ownerModuleId).ifPresent(storageId -> requireCanonical(ownerModuleId,
                 CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY, CanonicalMessagingTables.commandIdempotencyOf(storageId)));
         }
+        if (owners.providesTasks(ownerModuleId)) {
+            owners.storageIdOf(ownerModuleId).ifPresent(storageId -> requireCanonical(ownerModuleId,
+                CanonicalMessagingTables.Kind.TASK_RUN, CanonicalMessagingTables.taskRunOf(storageId)));
+        }
     }
 
     @Override
@@ -417,6 +422,16 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
      */
     public OwnerCommandIdempotency commandIdempotency() {
         return new JdbcOwnerCommandIdempotency(owners, dataSource, Clock.systemUTC());
+    }
+
+    /**
+     * Returns the owners' task-run tables, in which the runtime's scheduler claims each trigger of a task that runs on
+     * one host (standard-link plan L6.4).
+     *
+     * @return the claims
+     */
+    public TaskRunClaims taskRunClaims() {
+        return JdbcTaskRunClaims.of(owners, dataSource, Clock.systemUTC());
     }
 
     /**

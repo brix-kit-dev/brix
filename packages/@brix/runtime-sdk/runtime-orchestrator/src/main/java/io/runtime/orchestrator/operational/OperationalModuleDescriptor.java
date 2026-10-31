@@ -14,6 +14,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 
 /**
  * Validated Runtime representation of {@code platform-operational.yaml}.
@@ -199,12 +200,21 @@ public record OperationalModuleDescriptor(
     }
 
     /**
-     * Descriptor declaration for an operational managed task.
+     * Descriptor declaration for an operational managed task (root BRX-RS-MANIFEST-025; standard-link plan L6.6).
      *
      * @param taskId stable task identifier
      * @param handlerId code factory identifier
+     * @param scopePolicyRef scope policy reference
+     * @param executionIdentityPolicyRef execution identity policy reference
+     * @param triggerPolicyRef trigger policy reference
+     * @param timeoutPolicyRef timeout policy reference
+     * @param concurrencyPolicyRef concurrency policy reference
+     * @param retryPolicyRef retry policy reference
+     * @param idempotencyPolicyRef idempotency policy reference
      */
-    public record TaskDeclaration(String taskId, String handlerId) {
+    public record TaskDeclaration(String taskId, String handlerId, String scopePolicyRef,
+            String executionIdentityPolicyRef, String triggerPolicyRef, String timeoutPolicyRef,
+            String concurrencyPolicyRef, String retryPolicyRef, String idempotencyPolicyRef) {
 
         /**
          * Validates declaration fields.
@@ -212,6 +222,25 @@ public record OperationalModuleDescriptor(
         public TaskDeclaration {
             taskId = requireText(taskId, "taskId");
             handlerId = requireText(handlerId, "handlerId");
+            scopePolicyRef = requireText(scopePolicyRef, "scopePolicyRef");
+            executionIdentityPolicyRef = requireText(executionIdentityPolicyRef, "executionIdentityPolicyRef");
+            triggerPolicyRef = requireText(triggerPolicyRef, "triggerPolicyRef");
+            timeoutPolicyRef = requireText(timeoutPolicyRef, "timeoutPolicyRef");
+            concurrencyPolicyRef = requireText(concurrencyPolicyRef, "concurrencyPolicyRef");
+            retryPolicyRef = requireText(retryPolicyRef, "retryPolicyRef");
+            idempotencyPolicyRef = requireText(idempotencyPolicyRef, "idempotencyPolicyRef");
+        }
+
+        /**
+         * Returns the task as the scheduler takes it. An operational module has no owner persistence, so its tasks
+         * run without a unit of work.
+         *
+         * @return the declaration
+         */
+        public PluginRuntimeDescriptor.ProvidedTask provided() {
+            return new PluginRuntimeDescriptor.ProvidedTask(taskId, handlerId, scopePolicyRef,
+                executionIdentityPolicyRef, triggerPolicyRef, timeoutPolicyRef, concurrencyPolicyRef, retryPolicyRef,
+                idempotencyPolicyRef, PluginRuntimeDescriptor.ProvidedTask.TRANSACTION_NONE);
         }
     }
 }

@@ -22,9 +22,9 @@ import io.runtime.sdk.plugin.PluginContext;
 
 /**
  * The sample publisher (Kafka design §14 K23). Its manifest declares the endpoints, the two events with their schemas
- * and reliability, the query of sample-shipping it calls and the data it owns; this class only binds the endpoint
- * handlers. The runtime creates the handler
- * after the plugin started, with the capabilities the manifest requires.
+ * and reliability, the query of sample-shipping it calls, the command it handles, its task and the data it owns; this
+ * class only binds the handlers. The runtime creates them after the plugin started, with the capabilities the manifest
+ * requires.
  *
  * @author Brix Platform Authors
  * @since 3.2.0
@@ -40,6 +40,9 @@ public final class SampleOrdersPlugin implements BrixPlugin {
     /** The handler of the typed command {@code sample-orders.cancel-order}, as the manifest names it. */
     public static final String CANCEL_ORDER = "sample-orders.cancel-order.v1";
 
+    /** The handler of the task {@code sample-orders.heartbeat}, as the manifest names it. */
+    public static final String HEARTBEAT = "sample-orders.heartbeat.v1";
+
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
 
     @Override
@@ -51,6 +54,8 @@ public final class SampleOrdersPlugin implements BrixPlugin {
         // Other plugins ask for a cancellation with the typed command; the runtime delivers each command once
         // (standard-link plan L4.7).
         bootstrap.bindCommandHandlerFactory(CANCEL_ORDER, context -> new CancelOrderHandler(orders(context)));
+        // The runtime's scheduler runs the declared task at each trigger, on one host (standard-link plan L6.7).
+        bootstrap.bindTaskFactory(HEARTBEAT, context -> new Heartbeat());
     }
 
     private static OrderPlacement orders(PluginContext context) {

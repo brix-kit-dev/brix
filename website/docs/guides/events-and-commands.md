@@ -525,7 +525,8 @@ return new EndpointResponse(202, Map.of("orderId", orderId, "commandId", cancell
 ```
 
 - The runtime runs every handler in your plugin's unit of work (root BRX-RS-DATA-028): a read-write one for an
-  endpoint other than `GET` and `HEAD`, and for an event or command handler. The command is written to your
+  endpoint other than `GET` and `HEAD`, for an event or command handler, and for a [task](./tasks.md) unless it
+  declares otherwise. The command is written to your
   outbox in that transaction and leaves after the commit. If the transaction rolls back, it never leaves. A `GET`
   endpoint's unit of work is read-only, so it cannot send a command.
 - The second argument is the business key, here the order id. The owner applies one command per key from your plugin

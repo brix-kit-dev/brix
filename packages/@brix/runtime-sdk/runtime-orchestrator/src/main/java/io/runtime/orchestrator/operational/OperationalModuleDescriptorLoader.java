@@ -94,7 +94,14 @@ public final class OperationalModuleDescriptorLoader {
             OperationalModuleDescriptor.TaskDeclaration declaration =
                 new OperationalModuleDescriptor.TaskDeclaration(
                     text(node, "taskId"),
-                    text(node, "handlerId"));
+                    text(node, "handlerId"),
+                    text(node, "scopePolicyRef"),
+                    text(node, "executionIdentityPolicyRef"),
+                    text(node, "triggerPolicyRef"),
+                    text(node, "timeoutPolicyRef"),
+                    text(node, "concurrencyPolicyRef"),
+                    text(node, "retryPolicyRef"),
+                    text(node, "idempotencyPolicyRef"));
             tasks.put(declaration.taskId(), declaration);
         }
         return new OperationalModuleDescriptor(

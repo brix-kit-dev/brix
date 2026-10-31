@@ -66,6 +66,7 @@ public final class PluginRuntimeDescriptor {
     private final Map<String, ProvidedQuery> providedQueries;
     private final Map<String, ConsumedQuery> consumedQueries;
     private final Map<String, ProvidedInternalContract> providedInternalContracts;
+    private final Map<String, ProvidedTask> providedTasks;
 
     private PluginRuntimeDescriptor(Builder builder) {
         this.identity = Objects.requireNonNull(builder.identity, "identity must not be null");
@@ -89,6 +90,7 @@ public final class PluginRuntimeDescriptor {
         this.providedQueries = Map.copyOf(builder.providedQueries);
         this.consumedQueries = Map.copyOf(builder.consumedQueries);
         this.providedInternalContracts = Map.copyOf(builder.providedInternalContracts);
+        this.providedTasks = Map.copyOf(builder.providedTasks);
     }
 
     /**
@@ -290,6 +292,15 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
+     * Returns the tasks the plugin provides, by handler id (root BRX-RS-MANIFEST-025; standard-link plan L6.2).
+     *
+     * @return immutable provided tasks
+     */
+    public Map<String, ProvidedTask> providedTasks() {
+        return providedTasks;
+    }
+
+    /**
      * Returns the queries the plugin provides, by query type and major version, such as
      * {@code sample-shipping.find-shipment#1} (root BRX-RS-MANIFEST-025).
      *
@@ -398,6 +409,7 @@ public final class PluginRuntimeDescriptor {
         private final Map<String, SubscriptionPolicies> subscriptionPolicies = new LinkedHashMap<>();
         private final Map<String, String> publicationSchemas = new LinkedHashMap<>();
         private final Map<String, ProvidedCommand> providedCommands = new LinkedHashMap<>();
+        private final Map<String, ProvidedTask> providedTasks = new LinkedHashMap<>();
         private final Map<String, ConsumedCommand> consumedCommands = new LinkedHashMap<>();
         private final Map<String, ProvidedQuery> providedQueries = new LinkedHashMap<>();
         private final Map<String, ConsumedQuery> consumedQueries = new LinkedHashMap<>();
@@ -776,6 +788,20 @@ public final class PluginRuntimeDescriptor {
         }
 
         /**
+         * Declares a task the plugin provides, with its policies; its handler id becomes a declared task.
+         *
+         * @param task the declaration
+         * @return this builder
+         */
+        public Builder providedTask(ProvidedTask task) {
+            if (!task.handlerId().isEmpty()) {
+                providedTasks.put(task.handlerId(), task);
+                tasks.add(task.handlerId());
+            }
+            return this;
+        }
+
+        /**
          * Builds an immutable descriptor.
          *
          * @return descriptor
@@ -994,6 +1020,50 @@ public final class PluginRuntimeDescriptor {
          */
         public ProvidedCommand(String commandType, String handlerId, String version) {
             this(commandType, handlerId, version, "", "", "");
+        }
+    }
+
+    /**
+     * A task the plugin provides (root BRX-RS-MANIFEST-025, DATA-028; standard-link plan L6.2).
+     *
+     * @param taskId the task id
+     * @param handlerId its handler id
+     * @param scopePolicyRef scope policy reference
+     * @param executionIdentityPolicyRef execution identity policy reference
+     * @param triggerPolicyRef trigger policy reference, such as {@code every:PT1H}
+     * @param timeoutPolicyRef timeout policy reference
+     * @param concurrencyPolicyRef concurrency policy reference
+     * @param retryPolicyRef retry policy reference
+     * @param idempotencyPolicyRef idempotency policy reference
+     * @param transaction the unit of work: {@code required}, {@code read-only} or {@code none}
+     */
+    public record ProvidedTask(String taskId, String handlerId, String scopePolicyRef, String executionIdentityPolicyRef,
+            String triggerPolicyRef, String timeoutPolicyRef, String concurrencyPolicyRef, String retryPolicyRef,
+            String idempotencyPolicyRef, String transaction) {
+
+        /** The read-write unit of work, a task's default. */
+        public static final String TRANSACTION_REQUIRED = "required";
+
+        /** A read-only unit of work. */
+        public static final String TRANSACTION_READ_ONLY = "read-only";
+
+        /** No unit of work: the task touches no data. */
+        public static final String TRANSACTION_NONE = "none";
+
+        /**
+         * Creates the declaration, blank when not declared; the transaction defaults to {@code required}.
+         */
+        public ProvidedTask {
+            taskId = taskId == null ? "" : taskId.trim();
+            handlerId = handlerId == null ? "" : handlerId.trim();
+            scopePolicyRef = scopePolicyRef == null ? "" : scopePolicyRef.trim();
+            executionIdentityPolicyRef = executionIdentityPolicyRef == null ? "" : executionIdentityPolicyRef.trim();
+            triggerPolicyRef = triggerPolicyRef == null ? "" : triggerPolicyRef.trim();
+            timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
+            concurrencyPolicyRef = concurrencyPolicyRef == null ? "" : concurrencyPolicyRef.trim();
+            retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
+            idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
+            transaction = transaction == null || transaction.isBlank() ? TRANSACTION_REQUIRED : transaction.trim();
         }
     }
 

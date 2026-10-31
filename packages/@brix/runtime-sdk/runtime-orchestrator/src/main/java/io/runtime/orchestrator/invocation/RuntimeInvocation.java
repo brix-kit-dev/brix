@@ -19,6 +19,7 @@ import io.runtime.sdk.plugin.CommandInvocation;
 import io.runtime.sdk.plugin.EndpointInvocation;
 import io.runtime.sdk.plugin.EventInvocation;
 import io.runtime.sdk.plugin.InvocationScope;
+import io.runtime.sdk.plugin.TaskInvocation;
 import io.runtime.sdk.plugin.TraceContext;
 
 /**
@@ -172,6 +173,19 @@ public record RuntimeInvocation(
             deadline,
             cancellation,
             depth + 1);
+    }
+
+    /**
+     * Returns the invocation of a task run: the module as caller, in the platform scope (root BRX-RS-MANIFEST-028;
+     * standard-link plan L6.5).
+     *
+     * @param moduleId the module the task belongs to
+     * @param invocation the run
+     * @return the invocation
+     */
+    public static RuntimeInvocation forTask(String moduleId, TaskInvocation invocation) {
+        return service(moduleId, Kind.TASK, EventScope.PLATFORM, null, invocation.trace(), invocation.deadline(),
+            invocation.cancellation());
     }
 
     private static RuntimeInvocation service(String pluginId, Kind kind, EventScope scope, String tenantId,

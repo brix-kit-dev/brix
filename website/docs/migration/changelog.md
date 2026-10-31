@@ -16,6 +16,16 @@ All notable changes to Brix Framework are documented here.
 - **One event and command chain for every plugin.** Integration events and commands travel the same path: the
   publisher's outbox, the relay, Kafka (or in-process), and the subscriber's inbox. Everything is declared in
   `META-INF/brix/plugin-manifest.yaml`. See [Events and Commands](../guides/events-and-commands.md).
+- **Tasks run.** A plugin declares its tasks under `tasks.provides` and binds a `ManagedTask`. The runtime's scheduler
+  runs them:
+  - triggers: `every:<duration>` aligned to the epoch, or `cron:<expression>` in UTC;
+  - with `task-trigger`, one host per trigger, which claims it in the plugin's `<storageId>_task_run` table (created by
+    the platform);
+  - without overlapping runs, with a deadline, with optional retries, in the plugin's unit of work.
+
+  Metrics `brix_task_*`. Platform operational modules' tasks use the same scheduler. Host settings `brix.tasks.*`; a
+  trigger more frequent than `brix.tasks.min-interval` (default one minute) stops the plugin. See
+  [Tasks](../guides/tasks.md).
 - **Published contracts are pinned.** `contracts.api` holds the SHA-256 of every published schema version of a
   query, command or event, so a published file cannot change: a change is a new version (a patch for documentation).
   Events get contract files, `META-INF/brix/events/<eventType>/<version>.json`, which `EventSchemaContract` requires
@@ -66,6 +76,10 @@ All notable changes to Brix Framework are documented here.
   and its timeout, retry and idempotency policies. A sender declares `CommandCapability` and `data.outbox`, a provider
   `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
   business key.
+- **`ManagedTask.execute(TaskInvocation)`** (root BRX-RS-MANIFEST-027). The run receives its trigger, deadline,
+  cancellation and attempt. `ManagedTask` is no longer a functional interface: implement `execute` in a class. A
+  compiled task that implements `run()` still runs, and a task that implements neither method is refused at startup.
+  `tasks.provides[].transaction` (`required`, `read-only`, `none`) picks the unit of work.
 - **Enums are open** (root BRX-RS-CAP-021). A minor version may add enum values at the end. When a command or event
   arrives with a value the receiver's type does not know, the runtime reads it as null: an optional property is
   empty, and a payload that requires it is invalid. A type list `["<type>", "null"]` is accepted for an optional
@@ -81,6 +95,9 @@ All notable changes to Brix Framework are documented here.
 - `io.runtime.sdk.annotation.EventHandler`: nothing reads it. Declare the subscription in the manifest and bind an
   `io.runtime.sdk.plugin.EventHandler` with `bindEventHandlerFactory`.
 - The instance binds `bindEndpoint`, `bindQueryHandler`, `bindCommandHandler` and `bindTask`: use the factory binds.
+- `ManagedTask.run()`: implement `execute(TaskInvocation)`.
+- `SchedulingCapability` and `RuntimeContext.getScheduling()`: a task comes only from the manifest (root
+  BRX-RS-MANIFEST-026). Declare it under `tasks.provides`.
 - `CommandCapability.submit(CommandRequest)`: it takes a string command type and a tenant the caller names. Submit
   the owner's generated `CommandType` through `CommandCapability.client(...)`.
 - `TenantDirectoryCapability`: no runtime implements it. Ask the typed query `platform-tenant.tenant-reference` from

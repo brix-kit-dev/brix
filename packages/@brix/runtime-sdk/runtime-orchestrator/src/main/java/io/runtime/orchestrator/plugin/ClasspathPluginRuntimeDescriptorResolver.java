@@ -235,6 +235,14 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         consumed.getIdempotencyPolicyRef()));
                 }
             }
+            if (manifest.getTasks() != null) {
+                for (PluginManifest.Task task : manifest.getTasks().getProvides()) {
+                    builder.providedTask(new PluginRuntimeDescriptor.ProvidedTask(task.getTaskId(), task.getHandlerId(),
+                        task.getScopePolicyRef(), task.getExecutionIdentityPolicyRef(), task.getTriggerPolicyRef(),
+                        task.getTimeoutPolicyRef(), task.getConcurrencyPolicyRef(), task.getRetryPolicyRef(),
+                        task.getIdempotencyPolicyRef(), task.getTransaction()));
+                }
+            }
             if (manifest.getData() != null) {
                 builder.data(
                     manifest.getData().getStorageId(),

@@ -164,6 +164,16 @@ final class OwnerDirectory {
     }
 
     /**
+     * Returns whether the owner's manifest provides a task.
+     */
+    boolean providesTasks(String ownerId) {
+        return manifestOf(ownerId)
+            .map(PluginManifest::getTasks)
+            .map(tasks -> !tasks.getProvides().isEmpty())
+            .orElse(false);
+    }
+
+    /**
      * Returns whether the owner's manifest declares {@link io.runtime.sdk.capability.CommandCapability}.
      */
     boolean declaresCommandBus(String ownerId) {

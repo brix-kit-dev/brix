@@ -969,6 +969,7 @@ public class PluginManifest {
         private String concurrencyPolicyRef;
         private String retryPolicyRef;
         private String idempotencyPolicyRef;
+        private String transaction;
 
         public String getTaskId() {
             return taskId;
@@ -1040,6 +1041,20 @@ public class PluginManifest {
 
         public void setIdempotencyPolicyRef(String idempotencyPolicyRef) {
             this.idempotencyPolicyRef = idempotencyPolicyRef;
+        }
+
+        /**
+         * Returns the unit of work the runtime runs the task in (root BRX-RS-DATA-028): {@code required}, the
+         * default, {@code read-only}, or {@code none} for a task that touches no data.
+         *
+         * @return the declared transaction, or {@code null} for the default
+         */
+        public String getTransaction() {
+            return transaction;
+        }
+
+        public void setTransaction(String transaction) {
+            this.transaction = transaction;
         }
     }
 

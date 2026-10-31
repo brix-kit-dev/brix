@@ -128,8 +128,22 @@ events:
       version: 1.0.0
       reliability: BEST_EFFORT
   subscribes: []
+# A task the runtime's scheduler runs (standard-link plan L6.7): at each trigger one host claims it in
+# sample_orders_task_run and runs it. The short interval is for the sample's end-to-end test; a host allows it only
+# with brix.tasks.min-interval at or below it.
 tasks:
-  provides: []
+  provides:
+    - taskId: sample-orders.heartbeat
+      handlerId: sample-orders.heartbeat.v1
+      scopePolicyRef: task-platform
+      executionIdentityPolicyRef: plugin-service
+      triggerPolicyRef: "every:PT2S"
+      timeoutPolicyRef: task-standard
+      concurrencyPolicyRef: task-no-overlap
+      retryPolicyRef: task-no-retry
+      idempotencyPolicyRef: task-trigger
+      # It touches no data, so it runs without a unit of work (root BRX-RS-DATA-028).
+      transaction: none
 internalContracts:
   provides: []
 # The platform creates sample_orders_outbox, sample_orders_inbox and sample_orders_command_idempotency from its own

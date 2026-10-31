@@ -46,6 +46,9 @@ public final class PluginManifestValidator {
      */
     public static final String ACTIVE_MANIFEST_RESOURCE = "META-INF/brix/plugin-manifest.yaml";
 
+    /** The units of work a task can declare (root BRX-RS-DATA-028). */
+    private static final Set<String> TASK_TRANSACTIONS = Set.of("required", "read-only", "none");
+
     private static final Pattern PLUGIN_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9-]*$");
     private static final Pattern QUERY_TYPE_PATTERN = Pattern.compile("^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$");
     private static final Pattern STORAGE_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,30}$");
@@ -86,6 +89,7 @@ public final class PluginManifestValidator {
         validateCapabilities("capabilities.optional", capabilities(manifest, false), result);
         validateQueries(manifest, result);
         validateCommands(manifest, result);
+        validateTasks(manifest, result);
         validateEvents(manifest, result);
         validateInternalContracts(manifest.getInternalContracts(), result);
         validateRoutes(manifest, result);
@@ -349,6 +353,51 @@ public final class PluginManifestValidator {
         }
         if (!consumes.isEmpty() && (data == null || !hasText(data.getOutbox()))) {
             result.addError("data.outbox", "Command consumers must declare data.outbox");
+        }
+    }
+
+    /**
+     * Tasks come only from the manifest (root BRX-RS-MANIFEST-025, MANIFEST-026): each names one policy of each kind,
+     * which the runtime resolves at startup, and a handler of its own. A task runs in the plugin's read-write unit of
+     * work unless it declares {@code transaction: read-only} or {@code none} (root BRX-RS-DATA-028), so the plugin
+     * then requires its persistence.
+     */
+    private void validateTasks(PluginManifest manifest, ValidationResult result) {
+        List<PluginManifest.Task> tasks = manifest.getTasks() != null ? manifest.getTasks().getProvides() : List.of();
+        Set<String> ids = new HashSet<>();
+        Set<String> handlers = new HashSet<>();
+        boolean inUnitOfWork = false;
+        for (int i = 0; i < tasks.size(); i++) {
+            PluginManifest.Task task = tasks.get(i);
+            String prefix = "tasks.provides[" + i + "]";
+            if (task == null) {
+                result.addError(prefix, "Task is required");
+                continue;
+            }
+            requirePresent(result, prefix + ".taskId", task.getTaskId());
+            requirePresent(result, prefix + ".handlerId", task.getHandlerId());
+            requirePresent(result, prefix + ".scopePolicyRef", task.getScopePolicyRef());
+            requirePresent(result, prefix + ".executionIdentityPolicyRef", task.getExecutionIdentityPolicyRef());
+            requirePresent(result, prefix + ".triggerPolicyRef", task.getTriggerPolicyRef());
+            requirePresent(result, prefix + ".timeoutPolicyRef", task.getTimeoutPolicyRef());
+            requirePresent(result, prefix + ".concurrencyPolicyRef", task.getConcurrencyPolicyRef());
+            requirePresent(result, prefix + ".retryPolicyRef", task.getRetryPolicyRef());
+            requirePresent(result, prefix + ".idempotencyPolicyRef", task.getIdempotencyPolicyRef());
+            if (task.getTaskId() != null && !ids.add(task.getTaskId())) {
+                result.addError(prefix + ".taskId", "Duplicate task id: " + task.getTaskId());
+            }
+            if (task.getHandlerId() != null && !handlers.add(task.getHandlerId())) {
+                result.addError(prefix + ".handlerId", "Duplicate task handler id: " + task.getHandlerId());
+            }
+            String transaction = task.getTransaction();
+            if (transaction != null && !TASK_TRANSACTIONS.contains(transaction)) {
+                result.addError(prefix + ".transaction", "A task's transaction is required, read-only or none");
+            }
+            inUnitOfWork |= !"none".equals(transaction);
+        }
+        if (inUnitOfWork && !requires(manifest, "io.runtime.sdk.capability.PersistenceCapability")) {
+            result.addError("capabilities.required", "A task runs in the plugin's unit of work and needs "
+                + "PersistenceCapability; a task that touches no data declares transaction: none");
         }
     }
 

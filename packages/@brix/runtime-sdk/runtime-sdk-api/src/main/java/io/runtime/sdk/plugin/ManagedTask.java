@@ -3,29 +3,46 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 package io.runtime.sdk.plugin;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
 /**
- * Contract for a task managed by the Runtime Shell.
+ * A task the runtime's scheduler runs, as {@code tasks.provides} declares it (root BRX-RS-MANIFEST-025, MANIFEST-027;
+ * standard-link plan L6). The runtime runs it in its module's unit of work, cancels it at its deadline and records
+ * how it ended; a run ends when the returned stage completes.
+ *
+ * <p>Implement {@link #execute(TaskInvocation)}. A task written before 3.3.0 implements {@link #run()}; the runtime
+ * refuses, at startup, a task that implements neither.</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10
  */
-@FunctionalInterface
 public interface ManagedTask {
 
     /**
-     * Executes one task invocation.
+     * Executes one run.
+     *
+     * @param invocation the run: its trigger, identity, scope, deadline, cancellation and attempt
+     * @return completes when the run has finished; completes exceptionally when it failed
+     * @since 3.3.0
      */
-    void run();
+    default CompletionStage<Void> execute(TaskInvocation invocation) {
+        run();
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Executes one run, without its invocation.
+     *
+     * @deprecated since 3.3.0, for removal in 4.0.0: implement {@link #execute(TaskInvocation)}, which receives the
+     *     trigger, deadline and cancellation of the run (root BRX-RS-MANIFEST-027)
+     */
+    @Deprecated(since = "3.3.0", forRemoval = true)
+    default void run() {
+        throw new UnsupportedOperationException(getClass().getName()
+            + " implements neither execute(TaskInvocation) nor run()");
+    }
 }

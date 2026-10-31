@@ -3,3 +3,4 @@ io.runtime.orchestrator.autoconfigure.PluginRegistryAutoConfiguration
 io.runtime.orchestrator.bootstrap.RuntimeShellBootstrapAutoConfiguration
 io.runtime.orchestrator.outbox.OutboxRelayAutoConfiguration
 io.runtime.orchestrator.persistence.TenantIsolationAutoConfiguration
+io.runtime.orchestrator.task.TaskSchedulerAutoConfiguration

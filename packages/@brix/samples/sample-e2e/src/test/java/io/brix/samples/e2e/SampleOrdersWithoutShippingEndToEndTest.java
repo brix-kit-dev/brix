@@ -49,7 +49,9 @@ import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
     "brix.outbox.relay.owner=sample-e2e",
     "brix.outbox.relay.transport=kafka",
     "brix.outbox.relay.poll-delay=100ms",
-    "brix.query.max-deadline=5s"
+    "brix.query.max-deadline=5s",
+    // sample-orders' heartbeat is due every two seconds, more often than a host allows by default.
+    "brix.tasks.min-interval=1s"
 })
 @EnabledIfEnvironmentVariable(named = "BRIX_P0_POSTGRES_URL", matches = ".+",
     disabledReason = "needs a throwaway PostgreSQL in BRIX_P0_POSTGRES_URL, _USER and _PASSWORD")

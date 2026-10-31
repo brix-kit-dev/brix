@@ -54,6 +54,7 @@ import io.runtime.orchestrator.outbox.MessageOperationAudit;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
 import io.runtime.orchestrator.query.QueryRuntime;
+import io.runtime.orchestrator.task.TaskRunClaims;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -125,6 +126,19 @@ public class JpaPersistenceAutoConfiguration {
     @ConditionalOnMissingBean
     public OwnerCommandIdempotency ownerCommandIdempotency(OwnerPersistenceUnits ownerPersistenceUnits) {
         return ownerPersistenceUnits.commandIdempotency();
+    }
+
+    /**
+     * The owners' task-run tables, in which the runtime's scheduler claims the triggers of tasks that run on one host
+     * (standard-link plan L6.4).
+     *
+     * @param ownerPersistenceUnits owner persistence registry, which knows the active manifests
+     * @return the claims
+     */
+    @Bean
+    @ConditionalOnMissingBean(TaskRunClaims.class)
+    public TaskRunClaims ownerTaskRunClaims(OwnerPersistenceUnits ownerPersistenceUnits) {
+        return ownerPersistenceUnits.taskRunClaims();
     }
 
     /**

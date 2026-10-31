@@ -28,6 +28,9 @@ final class ExpiredRecords {
     /** Primary key of a command idempotency table. */
     static final List<String> IDEMPOTENCY_KEY = List.of("handler_id", "idempotency_scope", "idempotency_key");
 
+    /** Primary key of a task-run table. */
+    static final List<String> TASK_RUN_KEY = List.of("task_id", "trigger_id");
+
     private ExpiredRecords() {
     }
 

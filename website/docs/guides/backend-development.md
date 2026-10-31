@@ -252,7 +252,7 @@ call services. There is one bind method for each kind of manifest entry:
 | `events.subscribes[].handlerId` | `bindEventHandlerFactory` | `EventHandler` |
 | `commands.provides[].handlerId` | `bindCommandHandlerFactory` | `CommandHandler` |
 | `queries.provides[].handlerId` | `bindQueryHandlerFactory` | `QueryHandler` |
-| `tasks.provides[].taskId` | `bindTaskFactory` | `ManagedTask` |
+| `tasks.provides[].handlerId` | `bindTaskFactory` | `ManagedTask`; see [Tasks](./tasks.md) |
 
 The older `bindEndpoint(...)`, `bindQueryHandler(...)`, `bindCommandHandler(...)` and `bindTask(...)` take a handler
 that was built before the plugin had a context. They are deprecated for removal: use the factory methods.

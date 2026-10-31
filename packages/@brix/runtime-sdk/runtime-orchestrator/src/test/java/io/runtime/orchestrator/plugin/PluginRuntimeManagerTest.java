@@ -17,6 +17,7 @@ package io.runtime.orchestrator.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,6 +43,8 @@ import io.runtime.orchestrator.event.PluginEventSubscribers;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.task.TaskProvider;
+import io.runtime.orchestrator.task.TaskProviders;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.EventReliability;
@@ -49,14 +52,16 @@ import io.runtime.sdk.event.IntegrationEvent;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.BrixPlugin;
-import io.runtime.sdk.plugin.CommandInvocation;
 import io.runtime.sdk.plugin.CommandHandler;
+import io.runtime.sdk.plugin.CommandInvocation;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
 import io.runtime.sdk.plugin.HandlerFactory;
+import io.runtime.sdk.plugin.ManagedTask;
 import io.runtime.sdk.plugin.PluginBootstrapContext;
 import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
+import io.runtime.sdk.plugin.TaskInvocation;
 
 class PluginRuntimeManagerTest {
 
@@ -745,6 +750,79 @@ class PluginRuntimeManagerTest {
         assertEquals(ownerCapability, binder.require(requirement(), Runnable.class));
     }
 
+    @Test
+    void aTaskWithAPolicyTheRuntimeDoesNotKnowStopsThePluginBeforeItStarts() {
+        // Root BRX-RS-MANIFEST-026; standard-link plan L6.2: every task policy resolves at startup.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.tasks.put("heartbeat.v1", context -> new HeartbeatTask());
+        PluginRuntimeManager manager = manager(List.of(plugin),
+            Map.of(plugin, taskDescriptor("task-forever")), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("retry"), refused.getMessage());
+        assertFalse(plugin.started);
+    }
+
+    @Test
+    void aDeclaredTaskWithoutItsFactoryStopsThePlugin() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        PluginRuntimeManager manager = manager(List.of(plugin),
+            Map.of(plugin, taskDescriptor("task-no-retry")), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("does not bind"), refused.getMessage());
+    }
+
+    @Test
+    void aTaskThatImplementsNeitherExecuteNorRunIsRefused() {
+        // Standard-link plan D56: ManagedTask's two methods are default ones, so the runtime checks.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.tasks.put("heartbeat.v1", context -> new ManagedTask() {
+        });
+        PluginRuntimeManager manager = manager(List.of(plugin),
+            Map.of(plugin, taskDescriptor("task-no-retry")), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+        assertTrue(refused.getMessage().contains("implements neither"), refused.getMessage());
+    }
+
+    @Test
+    void theTasksOfStartedPluginsAreOfferedToTheSchedulerOnceTheEntriesArePublished() {
+        RecordingPlugin plugin = new RecordingPlugin();
+        HeartbeatTask heartbeat = new HeartbeatTask();
+        plugin.tasks.put("heartbeat.v1", context -> heartbeat);
+        PluginRuntimeManager manager = manager(List.of(plugin),
+            Map.of(plugin, taskDescriptor("task-no-retry")), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        manager.prepare();
+        manager.startPrepared();
+        assertFalse(manager.taskProviders().ready(), "no task runs before the host's entries are published");
+        manager.markPublished();
+
+        TaskProviders providers = manager.taskProviders();
+        assertTrue(providers.ready());
+        assertEquals(1, providers.tasks().size());
+        TaskProvider provider = providers.tasks().get(0);
+        assertEquals("plugin-a", provider.moduleId());
+        assertEquals("heartbeat", provider.declaration().taskId());
+        assertSame(heartbeat, provider.task());
+    }
+
+    private static PluginRuntimeDescriptor taskDescriptor(String retryPolicy) {
+        return PluginRuntimeDescriptor.builder("plugin-a")
+            .providedTask(new PluginRuntimeDescriptor.ProvidedTask("heartbeat", "heartbeat.v1", "task-platform",
+                "plugin-service", "every:PT1H", "task-standard", "task-no-overlap", retryPolicy, "task-instance-local",
+                PluginRuntimeDescriptor.ProvidedTask.TRANSACTION_NONE))
+            .build();
+    }
+
+    static final class HeartbeatTask implements ManagedTask {
+        @Override
+        public CompletionStage<Void> execute(TaskInvocation invocation) {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
     private PluginRuntimeManager manager(
             List<BrixPlugin> plugins,
             Map<BrixPlugin, PluginRuntimeDescriptor> descriptors,
@@ -841,6 +919,7 @@ class PluginRuntimeManagerTest {
 
         private final Map<String, HandlerFactory<? extends EventHandler<?>>> eventHandlers = new LinkedHashMap<>();
         private final Map<String, HandlerFactory<? extends CommandHandler<?>>> commandHandlers = new LinkedHashMap<>();
+        private final Map<String, HandlerFactory<? extends ManagedTask>> tasks = new LinkedHashMap<>();
 
         private boolean started;
         private boolean configured;
@@ -861,6 +940,7 @@ class PluginRuntimeManagerTest {
             }
             eventHandlers.forEach(bootstrap::bindEventHandlerFactory);
             commandHandlers.forEach(bootstrap::bindCommandHandlerFactory);
+            tasks.forEach(bootstrap::bindTaskFactory);
         }
 
         @Override

@@ -40,6 +40,7 @@ import io.runtime.orchestrator.query.QueryGateway;
 import io.runtime.orchestrator.query.QueryMetrics;
 import io.runtime.orchestrator.query.QueryProperties;
 import io.runtime.orchestrator.query.QueryRuntime;
+import io.runtime.orchestrator.task.TaskProperties;
 import io.runtime.orchestrator.query.QuerySettings;
 import io.runtime.orchestrator.query.QueryTracing;
 import io.runtime.orchestrator.operational.OperationalModuleRuntimeManager;
@@ -64,7 +65,7 @@ import io.runtime.sdk.plugin.BrixPlugin;
 @AutoConfiguration(after = CapabilityAutoConfiguration.class)
 @ConditionalOnClass(BrixPlugin.class)
 @ConditionalOnProperty(prefix = "brix.runtime-shell", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties({RuntimeShellBootstrapProperties.class, QueryProperties.class})
+@EnableConfigurationProperties({RuntimeShellBootstrapProperties.class, QueryProperties.class, TaskProperties.class})
 public class RuntimeShellBootstrapAutoConfiguration {
 
     /**
@@ -114,6 +115,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
      * @param internalContracts internal contract binder
      * @param beanFactory Spring bean factory used only to initialize ServiceLoader providers
      * @param properties bootstrap properties
+     * @param queryRuntime the typed queries of this host
+     * @param tasks {@code brix.tasks.*}, whose limits a plugin's tasks are checked against at startup
      * @return plugin runtime manager
      */
     @Bean
@@ -127,7 +130,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
             ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
             AutowireCapableBeanFactory beanFactory,
             RuntimeShellBootstrapProperties properties,
-            QueryRuntime queryRuntime) {
+            QueryRuntime queryRuntime,
+            ObjectProvider<TaskProperties> tasks) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable(DefaultCapabilityRegistry::new);
         return new PluginRuntimeManager(
             discovery::discover,
@@ -143,7 +147,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
                 .toList(),
             internalContracts.getIfAvailable(),
             ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none),
-            queryRuntime);
+            queryRuntime,
+            tasks.getIfAvailable(TaskProperties::new).limits());
     }
 
     /**

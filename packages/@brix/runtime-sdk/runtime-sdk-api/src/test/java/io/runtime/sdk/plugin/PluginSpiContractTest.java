@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.Test;
 
@@ -154,7 +155,12 @@ class PluginSpiContractTest {
                 context -> invocation -> CompletableFuture.completedFuture(null));
             bootstrap.bindEventHandlerFactory("sample.subscription",
                 context -> invocation -> java.util.concurrent.CompletableFuture.completedFuture(null));
-            bootstrap.bindTaskFactory("sample.task", context -> () -> { });
+            bootstrap.bindTaskFactory("sample.task", context -> new ManagedTask() {
+                @Override
+                public CompletionStage<Void> execute(TaskInvocation invocation) {
+                    return CompletableFuture.completedFuture(null);
+                }
+            });
         }
 
         @Override

@@ -43,6 +43,9 @@ commands:
 events:
   publishes: []
   subscribes: []
+# Tasks: declared here and bound with bindTaskFactory; the runtime's scheduler runs them. A task that runs in a unit
+# of work requires io.runtime.sdk.capability.PersistenceCapability, and one with task-trigger needs data.storageId.
+# See the Tasks guide in the Brix documentation.
 tasks:
   provides: []
 internalContracts:

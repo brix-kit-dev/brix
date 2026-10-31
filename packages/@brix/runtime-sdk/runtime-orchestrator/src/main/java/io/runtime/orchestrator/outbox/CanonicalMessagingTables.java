@@ -63,6 +63,10 @@ public final class CanonicalMessagingTables {
         "handler_id", "idempotency_scope", "idempotency_key", "command_id", "command_type", "schema_version",
         "tenant_id", "status", "created_at");
 
+    private static final List<String> TASK_RUN_COLUMNS = List.of(
+        "task_id", "trigger_id", "scheduled_at", "claimed_by", "claimed_at", "status", "attempts", "error_code",
+        "finished_at");
+
     /** The canonical tables an Owner can have. */
     public enum Kind {
         /** {@code {storageId}_outbox}: the messages the Owner sends. */
@@ -74,7 +78,9 @@ public final class CanonicalMessagingTables {
         /** {@code {storageId}_command_idempotency}: the business idempotency keys of the Owner's commands. */
         COMMAND_IDEMPOTENCY("command-idempotency", IDEMPOTENCY_COLUMNS,
             List.of("handler_id", "idempotency_scope", "idempotency_key"),
-            List.of(List.of("handler_id", "command_id"), List.of("created_at")));
+            List.of(List.of("handler_id", "command_id"), List.of("created_at"))),
+        /** {@code {storageId}_task_run}: the claimed runs of the Owner's tasks (standard-link plan L6.4). */
+        TASK_RUN("task-run", TASK_RUN_COLUMNS, List.of("task_id", "trigger_id"), List.of(List.of("finished_at")));
 
         private final String part;
         private final List<String> columns;
@@ -91,7 +97,7 @@ public final class CanonicalMessagingTables {
         /**
          * Returns the name of this table's migrations, as their directory and history tables use it.
          *
-         * @return {@code outbox}, {@code inbox} or {@code command-idempotency}
+         * @return {@code outbox}, {@code inbox}, {@code command-idempotency} or {@code task-run}
          */
         public String part() {
             return part;
@@ -208,6 +214,16 @@ public final class CanonicalMessagingTables {
      */
     public static String commandIdempotencyOf(String storageId) {
         return requireStorageId(storageId) + "_command_idempotency";
+    }
+
+    /**
+     * Returns an Owner's task-run table.
+     *
+     * @param storageId the Owner's {@code data.storageId}
+     * @return {@code {storageId}_task_run}
+     */
+    public static String taskRunOf(String storageId) {
+        return requireStorageId(storageId) + "_task_run";
     }
 
     /**

@@ -27,6 +27,9 @@ import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
 import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
+import io.runtime.orchestrator.task.TaskPolicies;
+import io.runtime.orchestrator.task.TaskProvider;
+import io.runtime.orchestrator.task.TaskProviders;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.BrixHealth;
 import io.runtime.sdk.plugin.EndpointHandler;
@@ -348,7 +351,50 @@ public final class OperationalModuleRuntimeManager {
                 handlers.get(declaration.handlerId())));
         }
         module.routes = List.copyOf(routes);
+        for (OperationalModuleDescriptor.TaskDeclaration declaration : module.descriptor.tasksByHandlerId().values()) {
+            // No owner persistence holds a task-run table for an operational module: its tasks run on every host.
+            if (!TaskPolicies.IDEMPOTENCY_LOCAL.equals(declaration.idempotencyPolicyRef())) {
+                throw failure("operational.task.idempotency", "Operational task " + declaration.taskId()
+                    + " runs on every host and declares " + TaskPolicies.IDEMPOTENCY_LOCAL);
+            }
+        }
         module.tasks = Map.copyOf(tasks);
+    }
+
+    /**
+     * Returns the tasks of the started operational modules, for the runtime's scheduler (standard-link plan L6.6).
+     *
+     * @return the modules' tasks
+     */
+    public TaskProviders taskProviders() {
+        return new TaskProviders() {
+            @Override
+            public boolean ready() {
+                synchronized (OperationalModuleRuntimeManager.this) {
+                    return published && OperationalModuleRuntimeManager.this.ready();
+                }
+            }
+
+            @Override
+            public List<TaskProvider> tasks() {
+                synchronized (OperationalModuleRuntimeManager.this) {
+                    List<TaskProvider> tasks = new ArrayList<>();
+                    for (ManagedModule module : modules.values()) {
+                        if (!module.state.ready()) {
+                            continue;
+                        }
+                        module.tasks.forEach((handlerId, task) -> {
+                            OperationalModuleDescriptor.TaskDeclaration declaration =
+                                module.descriptor.tasksByHandlerId().get(handlerId);
+                            if (declaration != null) {
+                                tasks.add(new TaskProvider(module.id(), declaration.provided(), task));
+                            }
+                        });
+                    }
+                    return List.copyOf(tasks);
+                }
+            }
+        };
     }
 
     private void bindProvidedContracts(

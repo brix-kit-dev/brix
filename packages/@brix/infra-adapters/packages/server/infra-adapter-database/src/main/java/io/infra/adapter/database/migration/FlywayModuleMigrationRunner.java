@@ -178,8 +178,9 @@ public class FlywayModuleMigrationRunner {
     /**
      * Returns the canonical messaging tables the plugin manifests on the class path need: an outbox for
      * {@code data.outbox}, an inbox for {@code data.inbox}, a command idempotency table for a provided command (root
-     * BRX-RS-MESSAGE-023, MESSAGE-026; Kafka design §14 K19). Each has its own schema history table,
-     * {@code brix_msg_history_<storageId>_<outbox|inbox|idempotency>}.
+     * BRX-RS-MESSAGE-023, MESSAGE-026; Kafka design §14 K19), a task-run table for a provided task (standard-link plan
+     * L6.4). Each has its own schema history table,
+     * {@code brix_msg_history_<storageId>_<outbox|inbox|idempotency|task_run>}.
      *
      * @param classLoader where to look for manifests
      * @return the messaging migrations, by plugin id and table
@@ -207,6 +208,9 @@ public class FlywayModuleMigrationRunner {
                 }
                 if (manifest.getCommands() != null && !manifest.getCommands().getProvides().isEmpty()) {
                     kinds.add(CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY);
+                }
+                if (manifest.getTasks() != null && !manifest.getTasks().getProvides().isEmpty()) {
+                    kinds.add(CanonicalMessagingTables.Kind.TASK_RUN);
                 }
                 for (CanonicalMessagingTables.Kind kind : kinds) {
                     MessagingMigration migration = new MessagingMigration(pluginId, data.getStorageId(), kind);
@@ -244,6 +248,7 @@ public class FlywayModuleMigrationRunner {
                 case OUTBOX -> "outbox";
                 case INBOX -> "inbox";
                 case COMMAND_IDEMPOTENCY -> "idempotency";
+                case TASK_RUN -> "task_run";
             };
             return "brix_msg_history_" + storageId + "_" + suffix;
         }

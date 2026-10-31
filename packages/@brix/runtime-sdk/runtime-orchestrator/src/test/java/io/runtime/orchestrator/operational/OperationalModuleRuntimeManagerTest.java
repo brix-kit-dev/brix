@@ -316,7 +316,14 @@ class OperationalModuleRuntimeManagerTest {
             TestEndpointAccessPolicies.platform("platform:runtime:read"));
         var task = new OperationalModuleDescriptor.TaskDeclaration(
             "runtime.task.v1",
-            "runtime.task");
+            "runtime.task",
+            "task-platform",
+            "plugin-service",
+            "every:PT1H",
+            "task-standard",
+            "task-no-overlap",
+            "task-no-retry",
+            "task-instance-local");
         return new OperationalModuleDescriptor(
             new OperationalModuleIdentity(id, "3.2.0", "runtime-tests"),
             ">=3.2.0 <4.0.0",

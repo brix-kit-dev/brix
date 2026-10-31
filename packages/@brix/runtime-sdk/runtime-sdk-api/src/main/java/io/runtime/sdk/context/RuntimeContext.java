@@ -271,7 +271,10 @@ public interface RuntimeContext {
      * Equivalent to {@code getCapability(SchedulingCapability.class)}.</p>
      * 
      * @return Scheduling capability, returns {@link Optional#empty()} if unavailable
+     * @deprecated since 3.3.0, for removal in 4.0.0: declare tasks under {@code tasks.provides} instead
      */
+    @Deprecated(since = "3.3.0", forRemoval = true)
+    @SuppressWarnings("removal")
     default Optional<SchedulingCapability> getScheduling() {
         return getCapability(SchedulingCapability.class);
     }

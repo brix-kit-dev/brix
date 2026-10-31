@@ -15,8 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.http.HttpResponse;
 import java.sql.SQLException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
@@ -34,7 +39,14 @@ import org.springframework.test.context.DynamicPropertySource;
 
 import tools.jackson.databind.JsonNode;
 
+import io.brix.samples.orders.server.Heartbeat;
 import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.plugin.PluginRuntimeManager;
+import io.runtime.orchestrator.task.RuntimeTaskScheduler;
+import io.runtime.orchestrator.task.TaskMetrics;
+import io.runtime.orchestrator.task.TaskProperties;
+import io.runtime.orchestrator.task.TaskRunClaims;
 
 /**
  * The sample plugins end to end, through the plugin runtime, on PostgreSQL and Kafka (Kafka design §14 K23, §14.5
@@ -43,7 +55,8 @@ import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
  * sample-shipping prepares one shipment in the order's tenant, records the event in its inbox and shows the shipment
  * over HTTP. When the member refuses the shipment, sample-shipping sends sample-orders' typed command
  * {@code sample-orders.cancel-order} through its own outbox and Kafka, and sample-orders cancels the order once
- * however often it is asked (standard-link plan L4.7).
+ * however often it is asked (standard-link plan L4.7). sample-orders' heartbeat task runs once per trigger across
+ * hosts (L6.7).
  *
  * <p>The host is the auto-configurations and the properties below; the plugins bring only their manifests, their
  * code and their business tables. Each run gets its own PostgreSQL schema and topic prefix, so nothing is shared.</p>
@@ -64,7 +77,9 @@ import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
     "brix.outbox.relay.retry-jitter-max=50ms",
     "brix.infra.kafka.outbox.publish-timeout-ms=10000",
     // The hard cap of every typed query; a host whose plugins declare queries does not start without it (MESSAGE-005).
-    "brix.query.max-deadline=5s"
+    "brix.query.max-deadline=5s",
+    // sample-orders' heartbeat is due every two seconds, more often than a host allows by default.
+    "brix.tasks.min-interval=1s"
 })
 @EnabledIfEnvironmentVariable(named = "BRIX_P0_POSTGRES_URL", matches = ".+",
     disabledReason = "needs a throwaway PostgreSQL in BRIX_P0_POSTGRES_URL, _USER and _PASSWORD")
@@ -81,6 +96,18 @@ class SamplePluginsEndToEndTest {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private PluginRuntimeManager plugins;
+
+    @Autowired
+    private OwnerPersistenceProvider owners;
+
+    @Autowired
+    private TaskRunClaims claims;
+
+    @Autowired
+    private RuntimeTaskScheduler scheduler;
 
     @BeforeAll
     static void startInfrastructure() throws SQLException {
@@ -104,11 +131,12 @@ class SamplePluginsEndToEndTest {
 
         // The platform made the messaging tables from its own migrations; the plugins' migrations hold none.
         // sample-orders takes commands (an inbox and a business key table), sample-shipping sends them (an outbox).
+        // Its task's triggers are claimed in a task-run table.
         assertEquals(List.of("brix_msg_history_sample_orders_idempotency", "brix_msg_history_sample_orders_inbox",
-                "brix_msg_history_sample_orders_outbox", "brix_msg_history_sample_shipping_inbox",
-                "brix_msg_history_sample_shipping_outbox", "sample_orders_command_idempotency", "sample_orders_inbox",
-                "sample_orders_order", "sample_orders_outbox", "sample_shipping_inbox", "sample_shipping_outbox",
-                "sample_shipping_shipment"),
+                "brix_msg_history_sample_orders_outbox", "brix_msg_history_sample_orders_task_run",
+                "brix_msg_history_sample_shipping_inbox", "brix_msg_history_sample_shipping_outbox",
+                "sample_orders_command_idempotency", "sample_orders_inbox", "sample_orders_order", "sample_orders_outbox",
+                "sample_orders_task_run", "sample_shipping_inbox", "sample_shipping_outbox", "sample_shipping_shipment"),
             jdbc.queryForList("SELECT table_name FROM information_schema.tables WHERE table_schema = ?"
                 + " AND table_name LIKE 'sample%' OR table_schema = ? AND table_name LIKE 'brix_msg%'"
                 + " ORDER BY table_name", String.class, SCHEMA, SCHEMA));
@@ -218,6 +246,48 @@ class SamplePluginsEndToEndTest {
         assertEquals(400, refused.statusCode(), refused.body());
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_order"));
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_shipping_shipment"));
+
+        // sample-orders' heartbeat runs once per trigger across hosts (standard-link plan L6.7): this host's scheduler
+        // and another one on the same database, as a second host's would be, claim each trigger in
+        // sample_orders_task_run, and only the one whose claim commits first runs it.
+        TaskProperties otherHost = new TaskProperties();
+        otherHost.setInstanceId("sample-e2e-other-host");
+        otherHost.setMinInterval(Duration.ofSeconds(1));
+        List<String> competed = new CopyOnWriteArrayList<>();
+        RuntimeTaskScheduler other = new RuntimeTaskScheduler(otherHost, plugins::taskProviders, owners, () -> claims,
+            new TaskMetrics() {
+                @Override
+                public void finished(String moduleId, String taskId, String outcome, Duration took, Instant at) {
+                    competed.add("ran");
+                }
+
+                @Override
+                public void skipped(String moduleId, String taskId, String reason) {
+                    competed.add(reason);
+                }
+            }, Clock.systemUTC());
+        String heartbeats = "SELECT COUNT(*) FROM sample_orders_task_run"
+            + " WHERE task_id = 'sample-orders.heartbeat' AND status = 'SUCCEEDED'";
+        int before = count(jdbc, heartbeats);
+        other.start();
+        try {
+            await("three more heartbeats ran while both hosts competed", () -> count(jdbc, heartbeats) >= before + 3
+                && competed.size() >= 3);
+        } finally {
+            other.stop();
+        }
+        assertTrue(competed.stream().allMatch(outcome -> "ran".equals(outcome) || "claimed".equals(outcome)),
+            competed.toString());
+        Heartbeat heartbeat = (Heartbeat) plugins.taskProviders().tasks().stream()
+            .filter(provider -> "sample-orders.heartbeat".equals(provider.declaration().taskId()))
+            .findFirst().orElseThrow().task();
+        List<String> ran = heartbeat.triggers();
+        assertEquals(ran.size(), Set.copyOf(ran).size(), "no trigger ran twice: " + ran);
+        List<String> succeeded = jdbc.queryForList("SELECT trigger_id FROM sample_orders_task_run"
+            + " WHERE task_id = 'sample-orders.heartbeat' AND status = 'SUCCEEDED'", String.class);
+        assertTrue(ran.containsAll(succeeded), ran + " ran, " + succeeded + " recorded");
+        assertTrue(Set.of(scheduler.instanceId(), "sample-e2e-other-host").containsAll(
+            jdbc.queryForList("SELECT DISTINCT claimed_by FROM sample_orders_task_run", String.class)));
     }
 
     private HttpResponse<String> post(String path, Map<String, Object> body) throws Exception {
