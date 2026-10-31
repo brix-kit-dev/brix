@@ -113,8 +113,9 @@ final class OwnerUnitOfWork implements UnitOfWork {
 
     /**
      * Runs {@code work} read-only, in a new transaction that lasts at most {@code timeout} when one is started: a
-     * query's provider stops reading when the query's deadline passes (query design §5.2). Joining this owner's open
-     * transaction keeps that transaction's timeout.
+     * query's provider stops reading when the query's deadline passes (query design §5.2), and waits for a pooled
+     * connection no longer than that either (§5.8). Joining this owner's open transaction keeps that transaction's
+     * timeout.
      *
      * @param timeout the longest the transaction may last; capped by the owner's transaction timeout
      * @param work the work
@@ -128,7 +129,8 @@ final class OwnerUnitOfWork implements UnitOfWork {
             return readOnly(work);
         }
         Duration bounded = timeout.compareTo(transactionTimeout) < 0 ? timeout : transactionTimeout;
-        return inNewTransaction(newTransactions(transactionManager, bounded, true), true, work);
+        return ConnectionAcquisition.within(bounded,
+            () -> inNewTransaction(newTransactions(transactionManager, bounded, true), true, work));
     }
 
     private <T> T inNewTransaction(TransactionTemplate transactions, boolean readOnly, Supplier<T> work) {

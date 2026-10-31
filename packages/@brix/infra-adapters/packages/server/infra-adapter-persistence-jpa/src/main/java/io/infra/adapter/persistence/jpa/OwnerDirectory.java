@@ -130,6 +130,30 @@ final class OwnerDirectory {
     }
 
     /**
+     * Returns the work of the active owners that holds a pooled connection while it runs: one relay per outbox, and
+     * one consumer per event subscription and per provided command.
+     */
+    ConnectionPoolBudget.Demand connectionDemand() {
+        int relays = 0;
+        int consumers = 0;
+        for (String ownerId : ownerIds()) {
+            if (outboxOf(ownerId).isPresent()) {
+                relays++;
+            }
+            Optional<PluginManifest> manifest = manifestOf(ownerId);
+            consumers += manifest.map(PluginManifest::getEvents)
+                .map(PluginManifest.EventSection::getSubscribes)
+                .map(List::size)
+                .orElse(0);
+            consumers += manifest.map(PluginManifest::getCommands)
+                .map(PluginManifest.ContractSection::getProvides)
+                .map(List::size)
+                .orElse(0);
+        }
+        return new ConnectionPoolBudget.Demand(relays, consumers);
+    }
+
+    /**
      * Returns whether the owner's manifest provides a command.
      */
     boolean providesCommands(String ownerId) {

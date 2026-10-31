@@ -85,6 +85,15 @@ public final class QueryRuntime {
     }
 
     /**
+     * Returns how deeply queries may call queries in this host.
+     *
+     * @return the depth limit, or 0 without query settings
+     */
+    public int maxDepth() {
+        return gateway == null ? 0 : gateway.settings().maxDepth();
+    }
+
+    /**
      * Checks the query declarations of the resolved plugins and resolves each consumer's provider. A plugin whose
      * declarations fail is reported, and the others are resolved again without it, until no new plugin fails (root
      * BRX-RS-BOOT-012).

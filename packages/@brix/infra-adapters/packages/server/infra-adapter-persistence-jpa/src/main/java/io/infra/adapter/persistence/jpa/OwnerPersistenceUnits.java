@@ -420,6 +420,15 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
     }
 
     /**
+     * Returns the work of the active owners that holds a pooled connection while it runs (query design §5.8).
+     *
+     * @return the relays and consumers
+     */
+    public ConnectionPoolBudget.Demand connectionDemand() {
+        return owners.connectionDemand();
+    }
+
+    /**
      * Refuses an Owner whose canonical messaging table does not match the platform schema (root
      * BRX-RS-MESSAGE-026, Kafka design §14 K19).
      */

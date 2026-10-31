@@ -45,7 +45,7 @@ public final class NoPlatformTenantRelationshipAccessRule {
                 .resideInAnyPackage(PLATFORM_TENANT_INTERNAL_PACKAGES)
                 .because("v3.1.3 T-23/T-24: plugins must not directly access "
                         + "sys_tenant_member/sys_tenant_principal implementation types. "
-                        + "Use TenantDirectoryCapability or another runtime capability contract.")
+                        + "Ask the typed query platform-tenant.tenant-reference from platform-tenant-api.")
                 .allowEmptyShould(true);
     }
 }

@@ -20,9 +20,17 @@ import io.runtime.sdk.annotation.Since;
  * authenticated tenant context. It intentionally does not expose arbitrary
  * tenant-id lookup methods, so plugins cannot bypass tenant isolation.</p>
  *
+ * <p>No runtime implements it. Tenant data is read through the tenant owner's typed queries (root
+ * BRX-RS-ERROR-016): a plugin that stores a member or principal id asks {@code platform-tenant.tenant-reference}
+ * from the {@code platform-tenant-api} artifact whether it belongs to the caller's tenant and is active.</p>
+ *
  * @since 3.2.2
+ * @deprecated since 3.3.0, for removal in 4.0.0: use the typed query {@code platform-tenant.tenant-reference}
+ *     ({@code PlatformTenantQueries.TENANT_REFERENCE} in {@code platform-tenant-api}) through
+ *     {@link QueryCapability}
  */
 @Since("3.2.2")
+@Deprecated(since = "3.3.0", forRemoval = true)
 public interface TenantDirectoryCapability {
 
     /**

@@ -50,12 +50,17 @@ All notable changes to Brix Framework are documented here.
 - **`QueryHandler.handle` takes a `QueryInvocation` and returns a `CompletionStage`** (root BRX-RS-MANIFEST-025): the
   request, the caller, the tenant scope, the access decision, the trace and the deadline. A host whose plugins provide
   or call queries must set `brix.query.max-deadline`.
+- **Connections are taken lazily.** A unit of work takes a pooled connection only for its first statement, and a
+  query's provider waits for one no longer than the query's deadline. The host warns at startup when its pool is
+  smaller than the work that holds connections. `brix.persistence.lazy-connections: false` turns it off.
 
 ### 🗑️ Deprecated
 
 - `io.runtime.sdk.annotation.EventHandler`: nothing reads it. Declare the subscription in the manifest and bind an
   `io.runtime.sdk.plugin.EventHandler` with `bindEventHandlerFactory`.
 - The instance binds `bindEndpoint`, `bindQueryHandler`, `bindCommandHandler` and `bindTask`: use the factory binds.
+- `TenantDirectoryCapability`: no runtime implements it. Ask the typed query `platform-tenant.tenant-reference` from
+  `platform-tenant-api` whether a member or principal belongs to the caller's tenant.
 
 ---
 

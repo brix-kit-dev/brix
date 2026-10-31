@@ -21,9 +21,11 @@ import javax.sql.DataSource;
 
 import jakarta.persistence.EntityManagerFactory;
 
+import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -31,8 +33,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactory;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -40,6 +44,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.ClassUtils;
 import tools.jackson.databind.ObjectMapper;
 
+import io.infra.adapter.persistence.jpa.ConnectionAcquisition;
+import io.infra.adapter.persistence.jpa.ConnectionPoolBudget;
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
@@ -47,6 +53,7 @@ import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.outbox.MessageOperationAudit;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.PolicyAuditWriter;
+import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -191,5 +198,51 @@ public class JpaPersistenceAutoConfiguration {
             InjectionPoint injectionPoint,
             OwnerPersistenceUnits ownerPersistenceUnits) {
         return ownerPersistenceUnits.eventBusForComponent(injectionPoint.getMember().getDeclaringClass());
+    }
+
+    /**
+     * Warns at startup when the Host's connection pool is clearly too small for the work that holds connections
+     * (query design §5.8 item 4).
+     *
+     * @param dataSource the Host's data source
+     * @param ownerPersistenceUnits owner persistence registry, which knows the active manifests
+     * @param queries the Host's query runtime, if any
+     * @return the check, run once every singleton exists
+     */
+    @Bean
+    @ConditionalOnBean(OwnerPersistenceUnits.class)
+    public SmartInitializingSingleton connectionPoolBudget(
+            DataSource dataSource,
+            OwnerPersistenceUnits ownerPersistenceUnits,
+            ObjectProvider<QueryRuntime> queries) {
+        return () -> ConnectionPoolBudget.report(dataSource, ownerPersistenceUnits.connectionDemand(),
+            queries.getIfAvailable(QueryRuntime::unconfigured).maxDepth());
+    }
+
+    /**
+     * Owner units of work take a pooled connection only for their first statement, and a query's provider waits for
+     * one no longer than the query's deadline (query design §5.8 items 2 and 3).
+     *
+     * <p>Hibernate gets the lazy data source; the transaction manager and the adapter's JDBC access keep the pool,
+     * and in a transaction both use the session's one connection. {@code brix.persistence.lazy-connections=false}
+     * gives Hibernate the pool itself again.</p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(HibernatePropertiesCustomizer.class)
+    @ConditionalOnProperty(prefix = "brix.persistence", name = "lazy-connections", havingValue = "true",
+        matchIfMissing = true)
+    static class LazyConnectionsConfiguration {
+
+        @Bean(destroyMethod = "close")
+        @ConditionalOnMissingBean
+        ConnectionAcquisition connectionAcquisition() {
+            return new ConnectionAcquisition();
+        }
+
+        @Bean
+        HibernatePropertiesCustomizer lazyConnections(DataSource dataSource, ConnectionAcquisition acquisition) {
+            DataSource lazy = acquisition.lazy(dataSource);
+            return properties -> properties.put(AvailableSettings.JAKARTA_NON_JTA_DATASOURCE, lazy);
+        }
     }
 }

@@ -386,6 +386,13 @@ brix:
 
 Only `max-deadline` has no default. A timeout policy longer than the cap keeps the host from starting.
 
+**Connections.** A unit of work takes a pooled connection only when its first statement runs, and a query's provider
+waits for a free connection no longer than the query's deadline. When the pool stays exhausted, the call fails within
+its deadline: `query.deadline_exceeded` when the wait used up the deadline, or a transient `query.provider_failed` when
+the pool's own timeout ended it first. At startup the host logs `event=connection_pool.too_small` at WARN when the pool
+is smaller than one connection per relay, per consumer and per query level, plus one for a request.
+`brix.persistence.lazy-connections: false` turns lazy connections off.
+
 ## Testing
 
 | Level | How |
@@ -426,5 +433,7 @@ and any other failure at WARN without a stack. A retried call is logged as `even
 - Do return empty for "not found". Don't turn a failure into an empty result, and don't turn an empty result into an
   error.
 - Do keep a query handler read-only and quick. Don't write, publish or call slow outside services from it.
+- Do call the queries a handler needs before it writes. A handler that has not run a statement yet holds no connection
+  while the provider takes one; after its first write it holds its own for the rest of the call.
 - Do degrade visibly when an optional query has no provider. Don't hide it as "no data".
 - Don't call queries in a loop. Publish a query that takes a list of ids instead.

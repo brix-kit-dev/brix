@@ -59,10 +59,16 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- Spring Boot 4: HibernateJpaAutoConfiguration (ordering only) -->
+        <!-- Spring Boot 4: HibernateJpaAutoConfiguration (ordering) and HibernatePropertiesCustomizer (lazy connections) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-hibernate</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Reads the pool's maximum size for the startup check, when the Host's pool is HikariCP -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>
