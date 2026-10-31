@@ -1,0 +1,13 @@
+accessor TenantReference.active(): boolean required
+accessor TenantReferenceQuery.refId(): long required
+accessor TenantReferenceQuery.refKind(): RefKind required
+builder TenantReference.Builder.active(Boolean)
+builder TenantReferenceQuery.Builder.refId(Long)
+builder TenantReferenceQuery.Builder.refKind(RefKind)
+constructor TenantReference(boolean)
+constructor TenantReferenceQuery(long, RefKind)
+enum TenantReferenceQuery.RefKind.MEMBER
+enum TenantReferenceQuery.RefKind.PRINCIPAL
+query PlatformTenantQueries.TENANT_REFERENCE = platform-tenant.tenant-reference major 1 optional TenantReferenceQuery -> TenantReference
+record TenantReference schema platform-tenant/tenant-reference major 1
+record TenantReferenceQuery schema platform-tenant/tenant-reference-query major 1

@@ -1,0 +1,8 @@
+{
+  "queryType": "platform-tenant.tenant-reference",
+  "version": "1.0.0",
+  "request": "brix://schemas/platform-tenant/tenant-reference-query/1.0.0",
+  "response": "brix://schemas/platform-tenant/tenant-reference/1.0.0",
+  "optional": true,
+  "description": "a member or principal of the caller's tenant, by the id a plugin stores"
+}

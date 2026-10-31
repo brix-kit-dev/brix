@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-tenant/tenant-reference/1.0.0",
+  "title": "A member or principal of the caller's tenant",
+  "description": "What TenantReferenceQuery finds. A member or principal of another tenant is not found, like one that does not exist, so a caller learns nothing about other tenants. x-brix-classification marks each field (root BRX-RS-SECURITY-008).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["active"],
+  "properties": {
+    "active": {
+      "type": "boolean",
+      "description": "whether it is active now, not pending, inactive, suspended, disabled, revoked or deleted",
+      "x-brix-classification": "operational"
+    }
+  }
+}

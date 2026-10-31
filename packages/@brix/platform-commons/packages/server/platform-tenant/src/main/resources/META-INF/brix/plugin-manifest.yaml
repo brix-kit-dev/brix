@@ -11,6 +11,11 @@ runtime:
   compiledAgainst: 3.2.0
   supportedRange: ">=3.0.10 <4.0.0"
 modules:
+  # The contract of TenantReferenceQuery; other plugins depend on it, never on platform-tenant (root BRX-RS-LIFE-010).
+  - groupId: io.brix.platform
+    artifactId: platform-tenant-api
+    version: 3.2.0
+    moduleKind: plugin-api
   - groupId: io.brix.platform
     artifactId: platform-tenant
     version: 3.2.0
@@ -75,8 +80,22 @@ capabilities:
       version: ">=3.2.0 <4.0.0"
     - id: io.runtime.sdk.capability.NotificationCapability
       version: ">=3.2.0 <4.0.0"
+# TenantReferenceQuery (multi-tenant §7.1, BRX-TENANT-CONTRACT-003, T-7): plugins check the member and principal ids
+# they store through it; its contract and generated types ship in platform-tenant-api (query design Q10).
 queries:
-  provides: []
+  provides:
+    - queryType: platform-tenant.tenant-reference
+      request:
+        schemaRef: brix://schemas/platform-tenant/tenant-reference-query/1.0.0
+      response:
+        schemaRef: brix://schemas/platform-tenant/tenant-reference/1.0.0
+      handlerId: platform-tenant.tenant-reference.v1
+      # In the caller's tenant, for any plugin that declares it: the answer says only whether an id is an active
+      # member or principal there, with no personal data.
+      scopePolicyRef: query-caller-tenant
+      accessPolicyRef: declared-consumers
+      timeoutPolicyRef: query-interactive
+      concurrencyPolicyRef: query-standard
   consumes: []
 commands:
   provides: []

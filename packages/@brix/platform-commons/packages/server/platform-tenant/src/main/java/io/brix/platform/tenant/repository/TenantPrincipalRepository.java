@@ -122,6 +122,17 @@ public interface TenantPrincipalRepository extends JpaRepository<TenantPrincipal
     boolean existsByIdAndTenantId(Long id, Long tenantId);
 
     /**
+     * Finds a principal in the given tenant. {@code TenantReferenceQuery} uses it: the tenant comes
+     * from the caller's call, so a principal of another tenant is not found.
+     *
+     * @param id       principal ID
+     * @param tenantId tenant of the caller's call
+     * @return the principal, if it is in that tenant
+     * @since 3.3.0
+     */
+    Optional<TenantPrincipal> findByIdAndTenantId(Long id, Long tenantId);
+
+    /**
      * Checks if an identity is an active principal of a tenant.
      *
      * <p>Used during Subject token validation to verify the principal

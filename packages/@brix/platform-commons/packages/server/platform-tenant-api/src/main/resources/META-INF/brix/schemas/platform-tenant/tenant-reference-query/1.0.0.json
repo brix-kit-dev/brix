@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-tenant/tenant-reference-query/1.0.0",
+  "title": "Check a member or principal reference in the caller's tenant",
+  "description": "TenantReferenceQuery (multi-tenant BRX-TENANT-CONTRACT-003, T-7). The tenant is the caller's, from the runtime; the request carries none. refKind is explicit because a member and a principal may have the same id. x-brix-classification marks each field (root BRX-RS-SECURITY-008).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["refId", "refKind"],
+  "properties": {
+    "refId": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "the member id or principal id the plugin stores",
+      "x-brix-classification": "internal-identifier"
+    },
+    "refKind": {
+      "type": "string",
+      "enum": ["MEMBER", "PRINCIPAL"],
+      "description": "whether refId names a staff member or a principal (an end customer)",
+      "x-brix-classification": "operational"
+    }
+  }
+}

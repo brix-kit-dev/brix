@@ -14,7 +14,10 @@ import io.brix.platform.tenant.endpoint.TenantSessionHandler;
 import io.brix.platform.tenant.event.FirstOwnerInviteeSetupCompletedHandler;
 import io.brix.platform.tenant.event.TenantFirstOwnerAcceptedProjectionHandler;
 import io.brix.platform.tenant.internal.TenantAdministration;
+import io.brix.platform.tenant.query.TenantReferenceQueryHandler;
 import io.brix.platform.tenant.repository.PlatformTenantFirstOwnerProjectionRepository;
+import io.brix.platform.tenant.repository.TenantMemberRepository;
+import io.brix.platform.tenant.repository.TenantPrincipalRepository;
 import io.brix.platform.tenant.service.JpaFirstOwnerProjectionWriter;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.plugin.BrixHealth;
@@ -34,6 +37,8 @@ public final class PlatformTenantPlugin implements BrixPlugin {
     public static final String ENDPOINT_TENANT_SESSION = "platform-tenant.session.v1";
     public static final String HANDLER_FIRST_OWNER_INVITEE_SETUP = "first-owner-invitee-setup.v1";
     public static final String HANDLER_FIRST_OWNER_PROJECTION = "tenant-first-owner-projection.v1";
+    /** The handler of the typed query {@code platform-tenant.tenant-reference} (multi-tenant T-7). */
+    public static final String QUERY_TENANT_REFERENCE = "platform-tenant.tenant-reference.v1";
 
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.unknown("Not started"));
 
@@ -51,6 +56,11 @@ public final class PlatformTenantPlugin implements BrixPlugin {
             HANDLER_FIRST_OWNER_PROJECTION,
             context -> new TenantFirstOwnerAcceptedProjectionHandler(new JpaFirstOwnerProjectionWriter(
                 context.require(PersistenceCapability.class).repository(PlatformTenantFirstOwnerProjectionRepository.class))));
+        bootstrap.bindQueryHandlerFactory(QUERY_TENANT_REFERENCE, context -> {
+            PersistenceCapability persistence = context.require(PersistenceCapability.class);
+            return new TenantReferenceQueryHandler(persistence.repository(TenantMemberRepository.class),
+                persistence.repository(TenantPrincipalRepository.class));
+        });
     }
 
     @Override

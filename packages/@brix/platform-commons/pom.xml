@@ -103,7 +103,8 @@
         <module>packages/server/platform-audit/platform-audit-api</module>
         <module>packages/server/platform-audit/platform-audit-core</module>
         <module>packages/server/platform-audit/platform-audit-server</module>
-        <!-- 多租户能力模块（Phase 1 MVP - 数据库骨架） -->
+        <!-- 多租户能力模块（Phase 1 MVP - 数据库骨架）；api 构件放 TenantReferenceQuery 契约（查询设计方案 Q10） -->
+        <module>packages/server/platform-tenant-api</module>
         <module>packages/server/platform-tenant</module>
         <!-- 平台能力模块 -->
         <module>packages/server/platform-gateway</module>
@@ -163,6 +164,12 @@
             <dependency>
                 <groupId>io.brix.platform</groupId>
                 <artifactId>platform-common-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- What other plugins depend on to call platform-tenant's typed queries (root BRX-RS-LIFE-010) -->
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-tenant-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

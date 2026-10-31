@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    Platform tenant Data Owner, plugin-api artifact (root BRX-RS-MANIFEST-006): the typed query
+    TenantReferenceQuery (multi-tenant BRX-TENANT-CONTRACT-003, T-7), its schemas and the types
+    generated from them. Plugins that check a member or principal reference depend on this
+    artifact only, never on platform-tenant (root BRX-RS-LIFE-010). No implementation and no
+    framework runtime dependency.
+    -->
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-tenant-api</artifactId>
+    <name>platform-tenant-api</name>
+    <description>Platform tenant Data Owner: the TenantReferenceQuery contract and its schemas</description>
+
+    <dependencies>
+        <!-- The generated contract types carry @ContractSchema and their QueryType constants (query design D38) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- ContractSourcesTest fails when the checked-in contract sources are not what the schemas generate -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-contract-generator</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

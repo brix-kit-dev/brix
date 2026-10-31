@@ -121,6 +121,17 @@ public interface TenantMemberRepository extends JpaRepository<TenantMember, Long
     boolean existsByIdAndTenantId(Long id, Long tenantId);
 
     /**
+     * Finds a member in the given tenant. {@code TenantReferenceQuery} uses it: the tenant comes
+     * from the caller's call, so a member of another tenant is not found.
+     *
+     * @param id       member ID
+     * @param tenantId tenant of the caller's call
+     * @return the member, if it is in that tenant
+     * @since 3.3.0
+     */
+    Optional<TenantMember> findByIdAndTenantId(Long id, Long tenantId);
+
+    /**
      * Checks if an identity is an active member of a tenant.
      *
      * @param tenantId the tenant ID
