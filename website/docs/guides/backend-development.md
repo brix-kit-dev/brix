@@ -256,6 +256,7 @@ call services. There is one bind method for each kind of manifest entry:
 
 The older `bindEndpoint(...)`, `bindQueryHandler(...)`, `bindCommandHandler(...)` and `bindTask(...)` take a handler
 that was built before the plugin had a context. They are deprecated for removal: use the factory methods.
+[Queries](./queries.md) shows a query handler and the client another plugin calls it with.
 
 The runtime calls each factory with the plugin's `PluginContext`. This is the only way to reach a capability:
 - `context.require(X.class)` returns a capability the manifest lists under `capabilities.required`.

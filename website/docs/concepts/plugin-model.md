@@ -264,7 +264,8 @@ Plugins must NOT:
 
 Name an event as a fact in the past tense, such as `SampleOrderPlaced`. A request for another plugin to act is a
 command, not an event. A process of several steps sends commands and watches events; there are no distributed
-transactions. [Events and Commands](../guides/events-and-commands.md) shows both.
+transactions. [Events and Commands](../guides/events-and-commands.md) shows both, and [Queries](../guides/queries.md)
+shows how a plugin publishes a typed query and how another one calls it.
 
 ```mermaid
 graph LR

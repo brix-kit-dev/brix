@@ -88,7 +88,8 @@ app-<name>/
 
 The manifest lists the three modules and declares no endpoints and no capabilities. The plugin class binds nothing
 and reports `UP`. Add endpoints, events and handlers as the Backend Development Guide in the Brix documentation
-describes. Dashes in `<name>` become dots in the Java package, `io.brix.app.<name>`.
+describes, and typed queries as its Queries guide describes: a query you provide keeps its contract, schemas and
+generated types in `app-<name>-api`. Dashes in `<name>` become dots in the Java package, `io.brix.app.<name>`.
 
 ### Operational
 

@@ -31,6 +31,12 @@ All notable changes to Brix Framework are documented here.
   replicas and two in-sync replicas.
 - **Sample plugins** (`packages/@brix/samples`): a publisher and a subscriber run end to end on PostgreSQL and Kafka.
   See the [Event-Driven Plugin Example](../examples/event-driven-plugin.md).
+- **Typed queries.** A plugin reads another plugin's data through a query that plugin publishes: the contract and its
+  generated types live in the provider's api artifact, the caller declares the query under `queries.consumes` and
+  calls `QueryCapability.client(...)`. The runtime resolves the provider, passes on the caller, user, tenant and
+  deadline, applies the access policy, a circuit breaker and a concurrency limit, and runs the provider read-only.
+  platform-tenant publishes `TenantReferenceQuery` in the new `platform-tenant-api` artifact. See
+  [Queries](../guides/queries.md).
 
 ### 🔄 Changed
 
@@ -41,6 +47,9 @@ All notable changes to Brix Framework are documented here.
   events.
 - **The manifest is checked at startup.** Unknown retry, timeout and concurrency policies, a missing schema file, an
   event type with two publishers and an unbound handler all stop the plugin at startup.
+- **`QueryHandler.handle` takes a `QueryInvocation` and returns a `CompletionStage`** (root BRX-RS-MANIFEST-025): the
+  request, the caller, the tenant scope, the access decision, the trace and the deadline. A host whose plugins provide
+  or call queries must set `brix.query.max-deadline`.
 
 ### 🗑️ Deprecated
 
