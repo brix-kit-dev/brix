@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import io.brix.platform.auth.AuditAction;
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.identity.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.identity.core.IdGenerator;
 import io.brix.platform.identity.entity.BootstrapState;
@@ -120,7 +120,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         if (configuredCode == null || !SecretHashing.sha256Base64Url(configuredCode)
                 .equals(SecretHashing.sha256Base64Url(command.setupCode()))) {
             log.warn("[PlatformIdentity] security event action={} resourceType={} success=false",
-                    AuditAction.SETUP_TOKEN_INVALID, RESOURCE_TYPE_BOOTSTRAP);
+                    PlatformAuditActions.SETUP_TOKEN_INVALID, RESOURCE_TYPE_BOOTSTRAP);
             throw new IllegalArgumentException("bootstrap setup code is invalid");
         }
         JwtIssuerCapability issuer = jwtIssuerCapability.orElseThrow(
@@ -141,7 +141,7 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         state.openSetupCode(SecretHashing.sha256Base64Url(configuredCode), now.plusSeconds(setupCodeTtlSeconds));
         state.activateSession(SecretHashing.sha256Base64Url(token), now.plusSeconds(ttlSeconds));
         bootstrapStateRepository.save(state);
-        auditFacts.record(AuditAction.BOOTSTRAP_SESSION_OPENED, null, RESOURCE_TYPE_BOOTSTRAP, null,
+        auditFacts.record(PlatformAuditActions.BOOTSTRAP_SESSION_OPENED, null, RESOURCE_TYPE_BOOTSTRAP, null,
                 IdentityAuditFacts.REASON_BOOTSTRAP);
         return new BootstrapSessionView("BOOTSTRAP_SETUP", token, ttlSeconds);
     }
@@ -197,9 +197,9 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
 
         state.consumeSession();
         bootstrapStateRepository.save(state);
-        auditFacts.record(AuditAction.BOOTSTRAP_ADMIN_CREATED, identity.getId(), RESOURCE_TYPE_PLATFORM_ADMIN, null,
+        auditFacts.record(PlatformAuditActions.BOOTSTRAP_ADMIN_CREATED, identity.getId(), RESOURCE_TYPE_PLATFORM_ADMIN, null,
                 IdentityAuditFacts.REASON_BOOTSTRAP);
-        auditFacts.record(AuditAction.SETUP_TOKEN_ISSUED, identity.getId(), "SETUP_TOKEN", null,
+        auditFacts.record(PlatformAuditActions.SETUP_TOKEN_ISSUED, identity.getId(), "SETUP_TOKEN", null,
                 IdentityAuditFacts.REASON_BOOTSTRAP);
         return new PlatformAdminCreationView(admin.getId(), identity.getId(), true);
     }

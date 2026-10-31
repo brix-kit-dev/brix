@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 
-import io.brix.platform.auth.AuditAction;
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.identity.entity.BootstrapState;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
@@ -107,9 +107,9 @@ public class BootstrapCompletionListener {
                 identityRepository.save(bootstrapIdentity);
 
                 String anchor = String.valueOf(bootstrapIdentity.getId());
-                auditFacts.record(AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED, completedByIdentityId, "BOOTSTRAP", anchor,
+                auditFacts.record(PlatformAuditActions.BOOTSTRAP_ADMIN_DEACTIVATED, completedByIdentityId, "BOOTSTRAP", anchor,
                         IdentityAuditFacts.REASON_BOOTSTRAP_COMPLETED);
-                auditFacts.record(AuditAction.IDENTITY_DISABLED, completedByIdentityId, "IDENTITY", anchor,
+                auditFacts.record(PlatformAuditActions.IDENTITY_DISABLED, completedByIdentityId, "IDENTITY", anchor,
                         IdentityAuditFacts.REASON_BOOTSTRAP_COMPLETED);
             });
         }

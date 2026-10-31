@@ -17,7 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
-import io.brix.platform.auth.AuditAction;
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
 import io.brix.platform.identity.entity.SetupToken;
@@ -151,10 +151,10 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         token.setUsedAt(OffsetDateTime.now());
         setupTokenRepository.save(token);
         String reason = IdentityAuditFacts.setupReason(token.getPurpose());
-        auditFacts.record(AuditAction.IDENTITY_PASSWORD_SET, identity.getId(), "IDENTITY", null, reason);
-        auditFacts.record(AuditAction.TOTP_BOUND, identity.getId(), "IDENTITY", null, reason);
-        auditFacts.record(AuditAction.SETUP_TOKEN_USED, identity.getId(), "SETUP_TOKEN", null, reason);
-        auditFacts.record(AuditAction.IDENTITY_ACTIVATED, identity.getId(), "IDENTITY", null, reason);
+        auditFacts.record(PlatformAuditActions.IDENTITY_PASSWORD_SET, identity.getId(), "IDENTITY", null, reason);
+        auditFacts.record(PlatformAuditActions.TOTP_BOUND, identity.getId(), "IDENTITY", null, reason);
+        auditFacts.record(PlatformAuditActions.SETUP_TOKEN_USED, identity.getId(), "SETUP_TOKEN", null, reason);
+        auditFacts.record(PlatformAuditActions.IDENTITY_ACTIVATED, identity.getId(), "IDENTITY", null, reason);
         bootstrapCompletionListener.completeIfEligible(identity.getId());
         eventPublisher.publishEvent(new BootstrapCompletionListener.IdentitySetupCompletedEvent(identity.getId()));
         return new PlatformSetupCompletionView(true);

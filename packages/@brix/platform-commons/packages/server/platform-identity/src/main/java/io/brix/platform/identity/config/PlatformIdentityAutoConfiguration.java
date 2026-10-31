@@ -17,8 +17,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 
-import io.brix.platform.auth.flow.MfaLoginSupport;
-import io.brix.platform.auth.jwt.JwtValidator;
 import io.brix.platform.identity.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.identity.core.IdGenerator;
 import io.brix.platform.identity.core.SnowflakeIdGenerator;
@@ -35,7 +33,6 @@ import io.brix.platform.identity.service.IdentityAuditFacts;
 import io.brix.platform.identity.service.IdentityFirstOwnerInviteeSetupCapabilityImpl;
 import io.brix.platform.identity.service.PlatformBootstrapAdministrationService;
 import io.brix.platform.identity.service.PlatformIdentityAdministrationService;
-import io.brix.platform.identity.service.PlatformMfaLoginSupport;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.IdentityAccountCapability;
@@ -179,23 +176,5 @@ public class PlatformIdentityAutoConfiguration {
                 bootstrapCompletionListener,
                 eventPublisher,
                 auditFacts);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(MfaLoginSupport.class)
-    public MfaLoginSupport platformMfaLoginSupport(
-            PersistenceCapability persistence,
-            ObjectProvider<JwtValidator> jwtValidatorProvider,
-            ObjectProvider<JwtIssuerCapability> jwtIssuerCapabilityProvider,
-            ObjectProvider<TotpCapability> totpCapabilityProvider,
-            ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider) {
-        return new PlatformMfaLoginSupport(
-                persistence.repository(IdentityRepository.class),
-                persistence.repository(PlatformAdminRepository.class),
-                Optional.ofNullable(jwtValidatorProvider.getIfAvailable()),
-                Optional.ofNullable(jwtIssuerCapabilityProvider.getIfAvailable()),
-                Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
-                Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()),
-                persistence.unitOfWork());
     }
 }

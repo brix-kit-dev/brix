@@ -142,18 +142,6 @@
         </dependency>
 
         <!--
-        Platform Auth (optional) — used by TenantCapabilityImpl to delegate
-        getCurrentRole/isActor/isSubject to SecurityContextHolder.
-        Both modules are Layer 2C in platform-commons; this is a legal same-layer dependency.
-        -->
-        <dependency>
-            <groupId>io.brix.platform</groupId>
-            <artifactId>platform-auth</artifactId>
-            <version>${project.version}</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!--
         ========== Utility Dependencies ==========
         -->
         

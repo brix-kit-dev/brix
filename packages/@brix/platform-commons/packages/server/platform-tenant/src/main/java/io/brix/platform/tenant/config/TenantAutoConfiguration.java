@@ -31,7 +31,6 @@ import org.springframework.context.annotation.Bean;
 
 import tools.jackson.databind.ObjectMapper;
 
-import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.tenant.TenantCapabilityImpl;
 import io.brix.platform.tenant.core.IdGenerator;
 import io.brix.platform.tenant.core.SnowflakeIdGenerator;
@@ -54,6 +53,7 @@ import io.brix.platform.tenant.service.TenantQuotaServiceImpl;
 import io.brix.platform.tenant.service.TenantAccessCapabilityImpl;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
+import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.TenantCapability;
 import io.runtime.sdk.capability.NotificationCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -167,9 +167,9 @@ public class TenantAutoConfiguration {
     @ConditionalOnMissingBean(TenantCapability.class)
     public TenantCapability tenantCapability(
             @Value("${brix.tenant.default-id:default}") String defaultTenantId,
-            ObjectProvider<SecurityContextHolder> securityContextHolderProvider) {
+            ObjectProvider<AuthCapability> authProvider) {
         log.info("Registering TenantCapabilityImpl: defaultTenantId={}", defaultTenantId);
-        return new TenantCapabilityImpl(defaultTenantId, securityContextHolderProvider.getIfAvailable());
+        return new TenantCapabilityImpl(defaultTenantId, authProvider.getIfUnique());
     }
 
 

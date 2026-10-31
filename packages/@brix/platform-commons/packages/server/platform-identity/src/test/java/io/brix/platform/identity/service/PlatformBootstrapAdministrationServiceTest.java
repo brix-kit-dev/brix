@@ -24,7 +24,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.brix.platform.auth.AuditAction;
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.identity.bootstrap.SuperAdminBootstrapProperties;
 import io.brix.platform.identity.core.IdGenerator;
 import io.brix.platform.identity.entity.BootstrapState;
@@ -117,7 +117,7 @@ class PlatformBootstrapAdministrationServiceTest {
                         "bootstrap:status",
                         "bootstrap:session",
                         "bootstrap:create-first-admin"))));
-        assertEquals(List.of(AuditAction.BOOTSTRAP_SESSION_OPENED), audit.actions());
+        assertEquals(List.of(PlatformAuditActions.BOOTSTRAP_SESSION_OPENED), audit.actions());
         assertEquals(null, audit.facts().get(0).actorIdentityId(), "the bootstrap request is anonymous");
         assertEquals(IdentityAuditFacts.REASON_BOOTSTRAP, audit.facts().get(0).reasonCode());
     }
@@ -180,7 +180,7 @@ class PlatformBootstrapAdministrationServiceTest {
         order.verify(platformAdminRepository).flush();
         order.verify(setupTokenRepository).save(any(SetupToken.class));
         verify(notification).send(any());
-        assertEquals(List.of(AuditAction.BOOTSTRAP_ADMIN_CREATED, AuditAction.SETUP_TOKEN_ISSUED), audit.actions());
+        assertEquals(List.of(PlatformAuditActions.BOOTSTRAP_ADMIN_CREATED, PlatformAuditActions.SETUP_TOKEN_ISSUED), audit.actions());
         assertEquals(List.of("PLATFORM_ADMIN", "SETUP_TOKEN"),
                 audit.facts().stream().map(fact -> fact.targetType()).toList());
         assertEquals(true, audit.facts().stream()

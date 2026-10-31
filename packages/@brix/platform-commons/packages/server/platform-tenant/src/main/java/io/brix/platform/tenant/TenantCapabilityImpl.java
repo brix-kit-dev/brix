@@ -15,14 +15,15 @@
  */
 package io.brix.platform.tenant;
 
+import java.security.Principal;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.brix.platform.auth.context.AuthenticatedUser;
-import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.common.tenant.TenantContext;
+import io.runtime.sdk.capability.AuthCapability;
+import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.capability.TenantCapability;
 
 /**
@@ -83,25 +84,28 @@ public class TenantCapabilityImpl implements TenantCapability {
      */
     private final String defaultTenantId;
 
+    private static final String ACTOR = "actor";
+    private static final String SUBJECT = "subject";
+
     /**
-     * Security context holder for accessing authenticated user information.
-     * Optional dependency from platform-auth module — may be null if platform-auth
-     * is not on the classpath (e.g., in test or embedded scenarios).
+     * The Host's authentication capability (L2A), which knows the verified caller of the current request. It may be
+     * null where the Host has none, as in tests or embedded scenarios. platform-tenant reads the caller only through
+     * it, not through the platform-auth plugin's own types (root BRX-RS-LIFE-010; standard-link plan L3.1).
      */
-    private final SecurityContextHolder securityContextHolder;
+    private final AuthCapability auth;
 
     /**
      * Constructs a TenantCapabilityImpl with the given default tenant ID and
-     * optional security context holder.
+     * optional authentication capability.
      *
-     * @param defaultTenantId        the fallback tenant ID when no context is available
-     * @param securityContextHolder  security context for auth user access (nullable)
+     * @param defaultTenantId the fallback tenant ID when no context is available
+     * @param auth            the Host's authentication capability (nullable)
      */
-    public TenantCapabilityImpl(String defaultTenantId, SecurityContextHolder securityContextHolder) {
+    public TenantCapabilityImpl(String defaultTenantId, AuthCapability auth) {
         this.defaultTenantId = defaultTenantId != null ? defaultTenantId : TenantContext.DEFAULT_TENANT_ID;
-        this.securityContextHolder = securityContextHolder;
+        this.auth = auth;
         log.info("TenantCapabilityImpl initialized: defaultTenantId={}, authIntegration={}",
-                this.defaultTenantId, securityContextHolder != null);
+                this.defaultTenantId, auth != null);
     }
 
     /**
@@ -194,86 +198,67 @@ public class TenantCapabilityImpl implements TenantCapability {
     /**
      * {@inheritDoc}
      *
-     * <p>Delegates to {@link SecurityContextHolder} to extract the current role from
-     * the authenticated JWT token. For Actor tokens, returns {@code memberType};
-     * for Subject tokens, returns {@code principalType}.</p>
+     * <p>The verified caller's tenant role type: {@code memberType} for an actor token,
+     * {@code principalType} for a subject token, {@code null} for other tokens.</p>
      *
-     * @throws UnsupportedOperationException if platform-auth is not on the classpath
+     * @throws UnsupportedOperationException if the Host has no {@link AuthCapability}
      */
     @Override
     public String getCurrentRole() {
-        AuthenticatedUser user = requireAuthenticatedUser("getCurrentRole");
-        if (user.isActor()) {
-            return user.getMemberType();
-        } else if (user.isSubject()) {
-            return user.getPrincipalType();
-        }
-        // Fallback: return first role if available
-        return user.getRoles().isEmpty() ? null : user.getRoles().get(0);
+        return requirePrincipal("getCurrentRole").getTenantRoleType();
     }
 
     @Override
     public String getCurrentRefId() {
-        AuthenticatedUser user = requireAuthenticatedUser("getCurrentRefId");
-        if (user.isActor()) {
-            return user.getMemberId();
-        }
-        if (user.isSubject()) {
-            return user.getPrincipalId();
-        }
-        return null;
+        return requirePrincipal("getCurrentRefId").getTenantRefId();
     }
 
     @Override
     public String getCurrentUserId() {
-        return requireAuthenticatedUser("getCurrentUserId").getUserId();
+        return requirePrincipal("getCurrentUserId").getUserId();
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Delegates to {@link AuthenticatedUser#isActor()} via the security context.
-     * An Actor (B-side) identity is identified by the presence of {@code memberId}
-     * (mid claim) in the JWT token.</p>
+     * <p>An actor (B-side) caller carries an actor token.</p>
      *
-     * @throws UnsupportedOperationException if platform-auth is not on the classpath
+     * @throws UnsupportedOperationException if the Host has no {@link AuthCapability}
      */
     @Override
     public boolean isActor() {
-        AuthenticatedUser user = requireAuthenticatedUser("isActor");
-        return user.isActor();
+        return ACTOR.equalsIgnoreCase(requirePrincipal("isActor").getTokenRole());
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Delegates to {@link AuthenticatedUser#isSubject()} via the security context.
-     * A Subject (C-side) identity is identified by the presence of {@code principalId}
-     * (pid claim) in the JWT token.</p>
+     * <p>A subject (C-side) caller carries a subject token.</p>
      *
-     * @throws UnsupportedOperationException if platform-auth is not on the classpath
+     * @throws UnsupportedOperationException if the Host has no {@link AuthCapability}
      */
     @Override
     public boolean isSubject() {
-        AuthenticatedUser user = requireAuthenticatedUser("isSubject");
-        return user.isSubject();
+        return SUBJECT.equalsIgnoreCase(requirePrincipal("isSubject").getTokenRole());
     }
 
     /**
-     * Retrieves the authenticated user from the security context, validating
-     * that platform-auth integration is available.
+     * Returns the verified caller of the current request.
      *
      * @param methodName the calling method name for error reporting
-     * @return the current authenticated user
-     * @throws UnsupportedOperationException if SecurityContextHolder is not available
-     * @throws SecurityException if no user is authenticated
+     * @return the current caller
+     * @throws UnsupportedOperationException if the Host has no {@link AuthCapability}
+     * @throws SecurityException if no caller is authenticated
      */
-    private AuthenticatedUser requireAuthenticatedUser(String methodName) {
-        if (securityContextHolder == null) {
+    private AuthenticatedPrincipal requirePrincipal(String methodName) {
+        if (auth == null) {
             throw new UnsupportedOperationException(
-                    methodName + "() requires platform-auth module on the classpath. " +
-                    "Add platform-auth dependency to enable B2B2C dual-track methods.");
+                    methodName + "() needs the Host's AuthCapability to read the verified caller.");
         }
-        return securityContextHolder.requireCurrentUser();
+        Principal current = auth.getCurrentPrincipal();
+        if (current instanceof AuthenticatedPrincipal principal) {
+            return principal;
+        }
+        throw new SecurityException("No authenticated user in the current request");
     }
 }

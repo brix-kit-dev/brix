@@ -15,7 +15,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.brix.platform.auth.AuditAction;
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
 import io.brix.platform.identity.entity.SetupToken;
@@ -204,10 +204,10 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
             token.setUsedAt(now);
             credentialSetup.setupTokens().save(token);
             String reason = IdentityAuditFacts.setupReason(token.getPurpose());
-            audit(identity.getId(), AuditAction.IDENTITY_PASSWORD_SET, "IDENTITY", reason);
-            audit(identity.getId(), AuditAction.TOTP_BOUND, "IDENTITY", reason);
-            audit(identity.getId(), AuditAction.SETUP_TOKEN_USED, "SETUP_TOKEN", reason);
-            audit(identity.getId(), AuditAction.IDENTITY_ACTIVATED, "IDENTITY", reason);
+            audit(identity.getId(), PlatformAuditActions.IDENTITY_PASSWORD_SET, "IDENTITY", reason);
+            audit(identity.getId(), PlatformAuditActions.TOTP_BOUND, "IDENTITY", reason);
+            audit(identity.getId(), PlatformAuditActions.SETUP_TOKEN_USED, "SETUP_TOKEN", reason);
+            audit(identity.getId(), PlatformAuditActions.IDENTITY_ACTIVATED, "IDENTITY", reason);
             if (SetupTokenPurposes.TENANT_FIRST_OWNER_SETUP.equals(token.getPurpose())) {
                 // Committed with the setup; once delivered the tenant Owner resends the invitation link.
                 credentialSetup.outbox().publishIntegration(new InviteeSetupCompletedEvent(identity.getId()));
@@ -353,7 +353,7 @@ public class IdentityAccountCapabilityImpl implements IdentityAccountCapability 
             }
             identityRepository.save(identity);
             if (isLocked && !wasLocked) {
-                auditFacts.ifPresent(facts -> facts.record(AuditAction.IDENTITY_LOCKED, identity.getId(), "IDENTITY",
+                auditFacts.ifPresent(facts -> facts.record(PlatformAuditActions.IDENTITY_LOCKED, identity.getId(), "IDENTITY",
                         String.valueOf(identity.getId()), IdentityAuditFacts.REASON_LOGIN_FAILURES, clientIp));
             }
             Instant lockedUntil = identity.getLockedUntil() != null ? identity.getLockedUntil().toInstant() : null;

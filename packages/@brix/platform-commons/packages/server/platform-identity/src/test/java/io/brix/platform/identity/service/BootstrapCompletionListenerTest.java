@@ -14,7 +14,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.brix.platform.auth.AuditAction;
+import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.identity.entity.BootstrapState;
 import io.brix.platform.identity.entity.Identity;
 import io.brix.platform.identity.entity.PlatformAdmin;
@@ -97,10 +97,10 @@ class BootstrapCompletionListenerTest {
         verify(identityRepository).findById(2L);
         verify(identityRepository).findById(3L);
 
-        assertEquals(List.of(AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED, AuditAction.IDENTITY_DISABLED,
-                AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED, AuditAction.IDENTITY_DISABLED), audit.actions());
+        assertEquals(List.of(PlatformAuditActions.BOOTSTRAP_ADMIN_DEACTIVATED, PlatformAuditActions.IDENTITY_DISABLED,
+                PlatformAuditActions.BOOTSTRAP_ADMIN_DEACTIVATED, PlatformAuditActions.IDENTITY_DISABLED), audit.actions());
         assertTrue(audit.facts().stream()
-            .filter(fact -> AuditAction.BOOTSTRAP_ADMIN_DEACTIVATED.equals(fact.action()))
+            .filter(fact -> PlatformAuditActions.BOOTSTRAP_ADMIN_DEACTIVATED.equals(fact.action()))
             .allMatch(fact -> "BOOTSTRAP".equals(fact.targetType())));
         assertEquals(List.of("1", "1", "3", "3"), audit.facts().stream().map(IdentityAuditFact::targetId).toList());
         assertTrue(audit.facts().stream().allMatch(fact -> fact.actorIdentityId() == 2L

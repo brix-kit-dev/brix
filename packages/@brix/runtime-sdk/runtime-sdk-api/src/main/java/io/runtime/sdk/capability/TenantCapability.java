@@ -181,9 +181,8 @@ public interface TenantCapability {
      * used in JWT claims.</p>
      *
      * <p>Default implementation throws {@link UnsupportedOperationException} — the
-     * platform-tenant module must override this method and delegate to the
-     * authentication context (e.g., {@code SecurityContextHolder}) to extract the
-     * role from the current JWT token.</p>
+     * platform-tenant module must override this method and read the verified caller
+     * through {@link AuthCapability} to return the role of the current token.</p>
      *
      * @return the current role string (e.g., "OWNER", "ADMIN", "MEMBER", "CUSTOMER", "GUEST"),
      *         or {@code null} if no role information is available

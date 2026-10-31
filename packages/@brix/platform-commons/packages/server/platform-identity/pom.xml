@@ -27,9 +27,14 @@
             <artifactId>runtime-manifest</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!--
+        The audit action names the identity's audit facts carry. platform-identity depends on no other plugin's
+        core or server artifact (root BRX-RS-LIFE-010): platform-auth reaches the identity through the L2A
+        IdentityAccountCapability.
+        -->
         <dependency>
             <groupId>io.brix.platform</groupId>
-            <artifactId>platform-auth</artifactId>
+            <artifactId>platform-audit-api</artifactId>
             <version>${project.version}</version>
         </dependency>
 

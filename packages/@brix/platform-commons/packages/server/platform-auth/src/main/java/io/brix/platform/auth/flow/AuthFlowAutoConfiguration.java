@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Bean;
 
 import io.brix.platform.auth.internal.RbacResolver;
 import io.brix.platform.auth.jwt.JwtIssuerAutoConfiguration;
+import io.brix.platform.auth.jwt.JwtValidator;
 import io.brix.platform.auth.password.PasswordCapabilityAutoConfiguration;
 import io.brix.platform.auth.ticket.ContextSelectionTicketService;
 import io.runtime.sdk.capability.AuthFlowCapability;
@@ -100,5 +101,25 @@ public class AuthFlowAutoConfiguration {
         return new AuthFlowCapabilityImpl(identityAccountCapability, tenantAccessCapability, passwordCapability,
                 jwtIssuerCapability, resolver, refreshTokenCapability, mfaLoginSupportProvider::getIfAvailable,
                 lockoutProperties, contextSelectionTicketService, tenantCapability);
+    }
+
+    /**
+     * Completes platform administrators' TOTP login here, with the identity steps on the identity owner's
+     * {@link IdentityAccountCapability} (standard-link plan L3.2). The challenge validator comes from the servlet
+     * adapter; without it every verification fails as unavailable.
+     *
+     * @param identityAccountCapability the identity owner's capability
+     * @param jwtIssuerCapability the token issuer
+     * @param jwtValidatorProvider the challenge validator, if the Host has one
+     * @return the verification
+     */
+    @Bean
+    @ConditionalOnMissingBean(MfaLoginSupport.class)
+    public MfaLoginSupport platformAdminMfaVerification(
+            IdentityAccountCapability identityAccountCapability,
+            JwtIssuerCapability jwtIssuerCapability,
+            ObjectProvider<JwtValidator> jwtValidatorProvider) {
+        return new PlatformAdminMfaVerification(identityAccountCapability, jwtIssuerCapability,
+                jwtValidatorProvider::getIfAvailable);
     }
 }

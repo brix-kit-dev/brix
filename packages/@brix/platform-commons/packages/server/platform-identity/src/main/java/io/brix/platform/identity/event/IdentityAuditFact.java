@@ -24,7 +24,7 @@ import java.util.Objects;
  * fields of one platform audit record, nothing else. There is no description, e-mail address or token
  * (super-admin BRX-SA-AUDIT-001); the client address is its masked network prefix.
  *
- * @param action audit action id, as platform-auth's {@code AuditAction} names it
+ * @param action audit action id, one of platform-audit-api's {@code PlatformAuditActions}
  * @param actorIdentityId authenticated actor, or {@code null} for an anonymous bootstrap request
  * @param executionIdentity identity the change ran as
  * @param targetType type of the affected resource

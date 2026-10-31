@@ -77,6 +77,17 @@
             <artifactId>platform-audit-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!--
+        PlatformAdminEndpointAuthorizationTest checks the admin endpoints against platform-auth's default role
+        permissions. platform-admin's own code does not use platform-auth; it used to arrive here through
+        platform-identity, which no longer depends on it.
+        -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-auth</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Runtime SDK API: EndpointInvocation and BrixHealth contracts. -->
         <dependency>
