@@ -18,5 +18,26 @@
 
     <artifactId>sample-orders-api</artifactId>
     <name>Brix Sample - Orders API (plugin-api)</name>
-    <description>What sample-orders publishes: event payloads, its HTTP contract and their JSON schemas; no implementation and no framework</description>
+    <description>What sample-orders publishes: event payloads, its HTTP contract, its typed command and their JSON schemas; no implementation and no framework</description>
+
+    <dependencies>
+        <!-- The generated command contract types carry @ContractSchema and their CommandType constants (plan L4.1) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <version>${brix.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- ContractSourcesTest fails when the checked-in contract sources are not what the schemas generate -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-contract-generator</artifactId>
+            <version>${brix.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

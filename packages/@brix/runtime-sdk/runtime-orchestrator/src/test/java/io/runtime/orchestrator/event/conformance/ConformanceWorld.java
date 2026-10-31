@@ -30,6 +30,7 @@ import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.CommandMessages;
+import io.runtime.orchestrator.command.CommandPolicies;
 import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.event.EventDelivery;
 import io.runtime.orchestrator.event.EventInboxStore;
@@ -167,6 +168,7 @@ public final class ConformanceWorld {
     private volatile boolean hanging;
     private final AtomicInteger hangsLeft = new AtomicInteger();
     private volatile boolean databaseDown;
+    private volatile String commandAccessPolicy = CommandPolicies.ACCESS_DECLARED_CONSUMERS;
 
     private final UnitOfWork unitOfWork = new UnitOfWork() {
         @Override
@@ -308,12 +310,36 @@ public final class ConformanceWorld {
      * @return the outbox message
      */
     public CanonicalOutboxMessage submit(String commandId, String idempotencyKey) {
+        return submit(commandId, idempotencyKey, null, null);
+    }
+
+    /**
+     * Commits a command the publisher submits in a tenant, for a user or for none (standard-link plan L4.4, L4.5).
+     *
+     * @param commandId command id
+     * @param idempotencyKey business key, also its partition key
+     * @param tenantId the command's tenant, or {@code null} for a platform command
+     * @param actorId the user the publisher acted for, or {@code null}
+     * @return the outbox message
+     */
+    public CanonicalOutboxMessage submit(String commandId, String idempotencyKey, Long tenantId, String actorId) {
         CanonicalOutboxMessage message = new CanonicalOutboxMessage(commandId, commandId, "COMMAND", COMMAND, "1.0.0",
-            "STANDARD", PUBLISHER, "PLATFORM", null, idempotencyKey, OffsetDateTime.now(ZoneOffset.UTC),
-            "correlation-" + commandId, null, TRACEPARENT, "conformance=1",
-            CommandMessages.encode(new ObjectMapper(), new Reserve("sku-" + idempotencyKey), "order", idempotencyKey), 0);
+            "STANDARD", PUBLISHER, tenantId == null ? "PLATFORM" : "TENANT", tenantId, idempotencyKey,
+            OffsetDateTime.now(ZoneOffset.UTC), "correlation-" + commandId, null, TRACEPARENT, "conformance=1",
+            CommandMessages.encode(new ObjectMapper(), new Reserve("sku-" + idempotencyKey), "order", idempotencyKey,
+                actorId), 0);
         outbox.append(message);
         return message;
+    }
+
+    /**
+     * Makes the provider take {@link #COMMAND} only on behalf of a user holding {@code permission} (standard-link plan
+     * L4.4). Call it before the transport starts.
+     *
+     * @param permission the permission the publisher's user must hold
+     */
+    public void commandsOnlyOnBehalfOf(String permission) {
+        commandAccessPolicy = CommandPolicies.ACCESS_ON_BEHALF_OF + permission;
     }
 
     /**
@@ -527,8 +553,9 @@ public final class ConformanceWorld {
 
             private PluginRuntimeManager.CommandProvider provider() {
                 return new PluginRuntimeManager.CommandProvider(SUBSCRIBER,
-                    new PluginRuntimeDescriptor.ProvidedCommand(COMMAND, COMMAND_HANDLER, "1.0.0"), new Stock(),
-                    Reserve.class);
+                    new PluginRuntimeDescriptor.ProvidedCommand(COMMAND, COMMAND_HANDLER, "1.0.0", "event-standard",
+                        "event-standard", "partition-serial", CommandPolicies.SCOPE_ENVELOPE, commandAccessPolicy,
+                        "persistent-inbox"), new Stock(), Reserve.class);
             }
         };
     }

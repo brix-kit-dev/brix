@@ -58,6 +58,7 @@ import io.runtime.orchestrator.query.QueryMetrics;
 import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.orchestrator.query.QuerySettings;
 import io.runtime.orchestrator.query.QueryTracing;
+import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.ObservabilityCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
@@ -152,6 +153,35 @@ class CapabilityAutoConfigurationTest {
                 beanProvider(QueryRuntime.class, QueryRuntime.unconfigured()));
 
         assertFalse(verifiedAvailability(manifestLoader).test("sample-orders", QueryCapability.class.getName()));
+    }
+
+    @Test
+    void commandRequirementIsSatisfiedOnlyForPluginsWithACommandBus() {
+        // Standard-link plan L4.6: a sender's CommandCapability is the owner command bus over its outbox.
+        UIManifestLoader manifestLoader = mock(UIManifestLoader.class);
+        OwnerPersistenceProvider ownerPersistence = new OwnerPersistenceProvider() {
+            @Override
+            public Optional<PersistenceCapability> forOwner(String ownerModuleId) {
+                return Optional.of(mock(PersistenceCapability.class));
+            }
+
+            @Override
+            public Optional<CommandCapability> commandBusFor(String ownerModuleId) {
+                return "sample-shipping".equals(ownerModuleId)
+                        ? Optional.of(mock(CommandCapability.class))
+                        : Optional.empty();
+            }
+        };
+
+        new PluginRegistryAutoConfiguration().pluginCapabilityVerifier(manifestLoader,
+                beanProvider(CapabilityRegistry.class, emptyCapabilityRegistry()),
+                beanProvider(OwnerPersistenceProvider.class, ownerPersistence),
+                noBean(QueryRuntime.class));
+
+        BiPredicate<String, String> available = verifiedAvailability(manifestLoader);
+        assertTrue(available.test("sample-shipping", CommandCapability.class.getName()));
+        assertTrue(available.test("sample-shipping", CommandCapability.class.getSimpleName()));
+        assertFalse(available.test("sample-orders", CommandCapability.class.getName()));
     }
 
     @Test

@@ -210,6 +210,41 @@ class PluginManifestLoaderTest {
             .doesNotThrowAnyException();
     }
 
+    @Test
+    void aCommandProviderNamesEveryPolicy() {
+        // Root BRX-RS-MANIFEST-025 (standard-link plan L4.3): scope, access, timeout, concurrency, retry, idempotency.
+        for (String policy : java.util.List.of("scopePolicyRef", "accessPolicyRef", "timeoutPolicyRef",
+                "concurrencyPolicyRef", "retryPolicyRef", "idempotencyPolicyRef")) {
+            String without = java.util.Arrays.stream(commandProviderManifest().split("\n"))
+                .filter(line -> !line.trim().startsWith(policy + ":"))
+                .reduce((a, b) -> a + "\n" + b).orElseThrow() + "\n";
+            assertThatThrownBy(() -> loader.loadFromString(without))
+                .as(policy)
+                .isInstanceOf(ManifestValidationException.class)
+                .hasMessageContaining(policy);
+        }
+    }
+
+    @Test
+    void aCommandConsumerDeclaresTheCommandCapability() {
+        String consumer = commandProviderManifest().replace("  consumes: []\nevents:", """
+              consumes:
+                - commandType: ShipOrder
+                  versionRange: ">=1.0.0 <2.0.0"
+                  required: true
+                  timeoutPolicyRef: event-standard
+                  retryPolicyRef: event-standard
+                  idempotencyPolicyRef: persistent-inbox
+            events:""");
+        assertThatThrownBy(() -> loader.loadFromString(consumer))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("Command consumers must declare io.runtime.sdk.capability.CommandCapability");
+        String declared = consumer.replace("capabilities:\n  required:\n",
+            "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.CommandCapability\n"
+                + "      version: \">=3.3.0 <4.0.0\"\n");
+        assertThatCode(() -> loader.loadFromString(declared)).doesNotThrowAnyException();
+    }
+
     private String validManifest() {
         return """
             apiVersion: brix.io/v1

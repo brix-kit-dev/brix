@@ -1,6 +1,7 @@
 # The sample subscriber (Kafka design §14 K23): it subscribes to sample-orders' SampleOrderPlaced with a persistent
 # inbox, so each event changes its data once however often it arrives, and shows each order's shipment, over HTTP and
-# as a typed query other plugins call (query design §4.1).
+# as a typed query other plugins call (query design §4.1). A shipment it refuses asks sample-orders to cancel the
+# order with sample-orders' typed command (standard-link plan L4.7).
 apiVersion: brix.io/v1
 kind: Plugin
 metadata:
@@ -53,11 +54,38 @@ endpoints:
         policyRef: endpoint-default
       idempotency:
         mode: not-applicable
+    - endpointId: sample-shipping.refuse-shipment.v1
+      transport: http
+      method: POST
+      path: /api/sample-shipping/shipments/{orderId}/refuse
+      request:
+        schemaRef: brix://schemas/sample-shipping/refuse-shipment-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-shipping/refused-shipment/1.0.0
+      handlerId: sample-shipping.refuse-shipment.v1
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - sample-shipping:shipment:refuse
+        decision: all
+        resourcePolicyRef: sample-shipping-shipment-refuse
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: endpoint-default
+      # A repeated refusal is harmless: the command's business key is the order id, so sample-orders cancels once.
+      idempotency:
+        mode: not-applicable
 capabilities:
   required:
     - id: io.runtime.sdk.capability.PersistenceCapability
       version: ">=3.2.0 <4.0.0"
     - id: io.runtime.sdk.capability.IdGeneratorCapability
+      version: ">=3.2.0 <4.0.0"
+    - id: io.runtime.sdk.capability.CommandCapability
       version: ">=3.2.0 <4.0.0"
   optional: []
 # A typed query for other plugins (query design §4.1): its contract and generated types ship in sample-shipping-api.
@@ -75,9 +103,18 @@ queries:
       timeoutPolicyRef: query-interactive
       concurrencyPolicyRef: query-standard
   consumes: []
+# A refused shipment cancels the order: sample-orders owns orders, so sample-shipping asks with its command, whose
+# contract and generated type it takes from sample-orders-api (root LIFE-010: the api artifact only).
 commands:
   provides: []
-  consumes: []
+  consumes:
+    - commandType: sample-orders.cancel-order
+      versionRange: ">=1.0.0 <2.0.0"
+      # Refusing a shipment means nothing without the order's owner, so the plugin starts only next to sample-orders.
+      required: true
+      timeoutPolicyRef: event-standard
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
 events:
   publishes: []
   subscribes:
@@ -98,17 +135,25 @@ tasks:
   provides: []
 internalContracts:
   provides: []
-# The platform creates sample_shipping_inbox from its own versioned migrations; db/migration/sample-shipping holds
-# only the plugin's business tables.
+# The platform creates sample_shipping_inbox, and sample_shipping_outbox for the commands it sends, from its own
+# versioned migrations; db/migration/sample-shipping holds only the plugin's business tables.
 data:
   storageId: sample_shipping
   schema: sample-shipping
   migrationLocation: db/migration/sample-shipping
+  outbox: sample_shipping_outbox
   inbox: sample_shipping_inbox
 permissions:
   - id: sample-shipping:shipment:read
     name: Read sample shipments
     description: Allows reading the shipments of the current tenant.
+    grants:
+      - {role: OWNER, scope: TENANT}
+      - {role: ADMIN, scope: TENANT}
+      - {role: MEMBER, scope: TENANT}
+  - id: sample-shipping:shipment:refuse
+    name: Refuse sample shipments
+    description: Allows refusing a shipment of the current tenant, which cancels its order.
     grants:
       - {role: OWNER, scope: TENANT}
       - {role: ADMIN, scope: TENANT}

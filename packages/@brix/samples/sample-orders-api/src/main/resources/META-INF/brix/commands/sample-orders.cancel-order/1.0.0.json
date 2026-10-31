@@ -1,0 +1,6 @@
+{
+  "commandType": "sample-orders.cancel-order",
+  "version": "1.0.0",
+  "request": "brix://schemas/sample-orders/cancel-order/1.0.0",
+  "description": "asks sample-orders to cancel an order of the command's tenant; an order already cancelled stays as it is"
+}

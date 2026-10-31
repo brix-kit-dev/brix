@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-shipping/refused-shipment/1.0.0",
+  "title": "A refused shipment: the cancellation sample-shipping asked sample-orders for",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId", "commandId"],
+  "properties": {
+    "orderId": { "type": "string", "maxLength": 32, "x-brix-classification": "internal-identifier" },
+    "commandId": {
+      "type": "string",
+      "description": "the queued sample-orders.cancel-order command; sample-orders applies it after this commit",
+      "x-brix-classification": "internal-identifier"
+    }
+  }
+}

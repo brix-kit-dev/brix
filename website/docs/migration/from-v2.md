@@ -269,20 +269,26 @@ Reserving stock changes Inventory's data, so the Order plugin sends Inventory a 
 it. (An event would only say that an order was created, and nobody would be obliged to reserve anything.)
 
 ```java
-// Order plugin: declares ReserveStock under commands.consumes and CommandCapability under capabilities.required
+// Order plugin: depends on inventory-api, declares inventory.reserve-stock under commands.consumes and
+// CommandCapability under capabilities.required, and takes the client in its handler factory
+CommandClient<ReserveStock> reservations = context.require(CommandCapability.class)
+    .client(InventoryCommands.RESERVE_STOCK);
+
 persistence.unitOfWork().required(() -> {
     Order order = // save the order
-    commands.submit(CommandRequest.of("ReserveStock",
-        new ReserveStock(command.getProductId(), command.getQuantity()), "order", order.getId()));
+    reservations.submit(ReserveStock.builder().productId(command.getProductId())
+        .quantity(command.getQuantity()).build(), String.valueOf(order.getId()));
     return order;
 });
 
-// Inventory plugin: declares ReserveStock under commands.provides and binds its handler
+// Inventory plugin: publishes the command's contract in inventory-api, declares it under commands.provides and binds
+// its handler
 bootstrap.bindCommandHandlerFactory("inventory.reserve-stock.v1", context -> new ReserveStockHandler(...));
 ```
 
-The command commits with the order. Inventory handles it once per idempotency key (`"order"`, the order id) and
-reports the outcome with its own event. See [Commands](../guides/events-and-commands.md#commands).
+The command commits with the order, in the order's tenant. Inventory applies it once per business key (the order
+id) from the Order plugin in that tenant, and reports the outcome with its own event. See
+[Commands](../guides/events-and-commands.md#commands).
 
 ### Step 7: Migrate Frontend React Imports
 

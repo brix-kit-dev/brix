@@ -12,8 +12,10 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
@@ -39,8 +41,10 @@ import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.command.CommandEnvelope;
 import io.runtime.sdk.event.EventScope;
+import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.CommandInvocation;
+import io.runtime.sdk.plugin.IdempotencyContext;
 import io.runtime.sdk.plugin.TraceContext;
 
 /**
@@ -76,6 +80,11 @@ public final class CommandDelivery {
     public static final String SUBSCRIPTION_UNKNOWN = "COMMAND_SUBSCRIPTION_UNKNOWN";
     /** The handler failed. */
     public static final String HANDLER_FAILED = "COMMAND_HANDLER_FAILED";
+    /**
+     * The owner accepts the command only on behalf of a user, and it carries none (standard-link plan L4.4). The
+     * sender's runtime checks the user's permission when the command is submitted.
+     */
+    public static final String ACCESS_DENIED = "COMMAND_ACCESS_DENIED";
 
     private static final Logger log = LoggerFactory.getLogger(CommandDelivery.class);
 
@@ -223,13 +232,18 @@ public final class CommandDelivery {
             throw permanent(PAYLOAD_INVALID, message.messageType() + " payload does not decode to "
                 + provider.payloadType().getSimpleName(), invalid);
         }
+        CommandPolicies.Access access = CommandPolicies.access(provider.command().accessPolicyRef());
+        if (access.kind() == CommandPolicies.Access.Kind.ON_BEHALF_OF && decoded.actorId() == null) {
+            throw permanent(ACCESS_DENIED, provider.pluginId() + " takes " + message.messageType()
+                + " only on behalf of a user holding " + access.permission() + ", and it names none", null);
+        }
         Optional<PersistenceCapability> persistence = owners.forOwner(ownerId);
         if (persistence.isEmpty()) {
             throw new EventDeliveryException(PROVIDER_NOT_READY, ownerId + " has no persistence unit for its inbox",
                 null, false);
         }
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
-        CommandInvocation<Object> invocation = invocation(message, decoded, span, cancelled);
+        CommandInvocation<Object> invocation = invocation(message, decoded, access, span, cancelled);
         @SuppressWarnings("unchecked")
         CommandHandler<Object> handler = (CommandHandler<Object>) provider.handler();
         TenantScope scope = message.tenantId() == null ? TenantScope.none() : TenantScope.tenant(message.tenantId());
@@ -238,8 +252,10 @@ public final class CommandDelivery {
                 if (!inbox.insertProcessed(ownerId, handlerId, message)) {
                     return "duplicate";
                 }
-                if (!idempotency.reserve(ownerId, handlerId, message, decoded.idempotencyScope(),
-                        decoded.idempotencyKey())) {
+                // A key is unique for its sender and tenant: other senders or tenants never take it (plan D54).
+                String ownerScope = CommandPolicies.ownerScope(message.producerPluginId(), message.tenantId(),
+                    decoded.idempotencyScope());
+                if (!idempotency.reserve(ownerId, handlerId, message, ownerScope, decoded.idempotencyKey())) {
                     return "duplicate_key";
                 }
                 // Typed queries the handler makes run as this provider, in the command's tenant (root
@@ -262,7 +278,8 @@ public final class CommandDelivery {
     }
 
     private CommandInvocation<Object> invocation(CanonicalOutboxMessage message, CommandMessages.Decoded decoded,
-            MessageTracing.MessageSpan span, java.util.concurrent.atomic.AtomicBoolean cancelled) {
+            CommandPolicies.Access access, MessageTracing.MessageSpan span,
+            java.util.concurrent.atomic.AtomicBoolean cancelled) {
         String traceparent = span.traceparent() == null || span.traceparent().isBlank()
             ? newTraceparent()
             : span.traceparent();
@@ -283,10 +300,17 @@ public final class CommandDelivery {
                 : message.partitionKey(),
             decoded.idempotencyScope(),
             decoded.idempotencyKey(),
-            decoded.payload());
+            decoded.payload(),
+            decoded.actorId());
         Instant now = clock.instant();
-        return new CommandInvocation<>(envelope, new TraceContext(traceparent, span.tracestate()), now.plus(deadline),
-            () -> stopped || cancelled.get(), Math.max(1, message.attemptCount()));
+        // What the access policy admitted: the permission the sender's user was verified to hold, if any.
+        AccessDecision admitted = access.kind() == CommandPolicies.Access.Kind.ON_BEHALF_OF
+            ? new AccessDecision(Set.of(access.permission()), Map.of(), Optional.empty(), Optional.empty())
+            : AccessDecision.none();
+        return new CommandInvocation<>(envelope, admitted, new TraceContext(traceparent, span.tracestate()),
+            now.plus(deadline), () -> stopped || cancelled.get(),
+            new IdempotencyContext(decoded.idempotencyScope(), decoded.idempotencyKey()),
+            Math.max(1, message.attemptCount()));
     }
 
     /** The versions of the provider's major: a minor or patch change keeps a command readable. */

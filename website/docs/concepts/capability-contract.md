@@ -67,12 +67,16 @@ outbox messages over the transport it selects: Kafka in production, or in-proces
 ### CommandCapability
 
 Asks the one plugin that provides a command to change its data. The command is written to the sender's outbox in its
-unit of work, and the provider handles it once per business idempotency key.
+unit of work, and the provider applies it once per business key of the sender and tenant.
 
 ```java
 public interface CommandCapability {
 
-    /** Submits a command the plugin declares under commands.consumes. */
+    /** The client of a command the plugin declares under commands.consumes, from the owner's generated type. */
+    <C> CommandClient<C> client(CommandType<C> type);
+
+    /** Deprecated, for removal in 4.0: a string command type and a tenant the caller names. */
+    @Deprecated(since = "3.3.0", forRemoval = true)
     <C> CommandSubmission submit(CommandRequest<C> request);
 }
 ```
@@ -80,10 +84,15 @@ public interface CommandCapability {
 **Usage:**
 
 ```java
-CommandSubmission submission = commands.submit(
-    CommandRequest.of("ReserveStock", new ReserveStock(sku, quantity), "order", orderId));
+CommandClient<CancelOrder> cancellations = context.require(CommandCapability.class)
+    .client(SampleOrdersCommands.CANCEL_ORDER);
+// inside a unit of work of the sending plugin; the tenant is the current call's
+CommandSubmission submission = cancellations.submit(
+    CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
 // submission.durableReceipt() completes once the command is durably queued (QUEUED), not when it is handled.
 ```
+
+See [Commands](../guides/events-and-commands.md#commands).
 
 ---
 

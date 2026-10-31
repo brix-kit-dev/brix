@@ -4,15 +4,44 @@
   "title": "An order and how far its shipment is",
   "type": "object",
   "additionalProperties": false,
-  "required": ["orderId", "sku", "quantity", "version", "shipment"],
+  "required": [
+    "orderId",
+    "sku",
+    "quantity",
+    "version",
+    "status",
+    "shipment"
+  ],
   "properties": {
-    "orderId": { "type": "string" },
-    "sku": { "type": "string" },
-    "quantity": { "type": "integer", "minimum": 1 },
-    "version": { "type": "integer", "minimum": 1 },
+    "orderId": {
+      "type": "string"
+    },
+    "sku": {
+      "type": "string"
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PLACED",
+        "CANCELLED"
+      ],
+      "description": "CANCELLED once the order's cancel-order command was applied"
+    },
     "shipment": {
       "type": "string",
-      "enum": ["PREPARED", "NOT_PREPARED", "UNAVAILABLE"],
+      "enum": [
+        "PREPARED",
+        "NOT_PREPARED",
+        "UNAVAILABLE"
+      ],
       "description": "UNAVAILABLE when the host has no sample-shipping: the order is shown without it"
     }
   }

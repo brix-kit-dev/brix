@@ -224,11 +224,15 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                 for (PluginManifest.ContractRef provided : manifest.getCommands().getProvides()) {
                     builder.providedCommand(new PluginRuntimeDescriptor.ProvidedCommand(provided.getCommandType(),
                         provided.getHandlerId(), schemaVersion(provided.getRequest()), provided.getRetryPolicyRef(),
-                        provided.getTimeoutPolicyRef(), provided.getConcurrencyPolicyRef()));
+                        provided.getTimeoutPolicyRef(), provided.getConcurrencyPolicyRef(),
+                        provided.getScopePolicyRef(), provided.getAccessPolicyRef(),
+                        provided.getIdempotencyPolicyRef()));
                 }
                 for (PluginManifest.ContractRef consumed : manifest.getCommands().getConsumes()) {
-                    builder.consumedCommand(consumed.getCommandType(), consumed.getVersionRange(),
-                        !Boolean.FALSE.equals(consumed.getRequired()));
+                    builder.consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand(consumed.getCommandType(),
+                        consumed.getVersionRange(), !Boolean.FALSE.equals(consumed.getRequired()),
+                        consumed.getTimeoutPolicyRef(), consumed.getRetryPolicyRef(),
+                        consumed.getIdempotencyPolicyRef()));
                 }
             }
             if (manifest.getData() != null) {

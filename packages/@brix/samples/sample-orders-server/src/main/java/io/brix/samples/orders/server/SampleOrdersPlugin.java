@@ -37,6 +37,9 @@ public final class SampleOrdersPlugin implements BrixPlugin {
     /** The handler of {@code GET /api/sample-orders/orders/{orderId}}, as the manifest names it. */
     public static final String SHOW_ORDER = "sample-orders.show.v1";
 
+    /** The handler of the typed command {@code sample-orders.cancel-order}, as the manifest names it. */
+    public static final String CANCEL_ORDER = "sample-orders.cancel-order.v1";
+
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
 
     @Override
@@ -45,6 +48,9 @@ public final class SampleOrdersPlugin implements BrixPlugin {
         // The order detail reads sample-shipping's shipment through its typed query (query design §4.2).
         bootstrap.bindEndpointHandlerFactory(SHOW_ORDER, context -> new ShowOrder(orders(context),
             context.require(QueryCapability.class).client(SampleShippingQueries.FIND_SHIPMENT)));
+        // Other plugins ask for a cancellation with the typed command; the runtime delivers each command once
+        // (standard-link plan L4.7).
+        bootstrap.bindCommandHandlerFactory(CANCEL_ORDER, context -> new CancelOrderHandler(orders(context)));
     }
 
     private static OrderPlacement orders(PluginContext context) {

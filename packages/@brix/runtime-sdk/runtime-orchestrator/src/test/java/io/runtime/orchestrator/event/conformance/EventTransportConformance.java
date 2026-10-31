@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.actuate.endpoint.SecurityContext;
 
+import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.event.EventDelivery;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxEndpoint;
@@ -163,6 +164,40 @@ public abstract class EventTransportConformance {
         assertEquals(java.util.Set.of("command-1", "command-3"), java.util.Set.copyOf(world.handledCommands()));
         assertEquals(2, world.handledCommands().size());
         assertTrue(harness.parked().isEmpty());
+    }
+
+    @Test
+    void aKeyTakenInOneTenantIsFreeInAnother() {
+        // Standard-link plan L4.5 (D54): the owner keeps a key unique for its sender and tenant only.
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null);
+        world.submit("command-2", "order-7", ConformanceWorld.FANOUT_TENANTS.get(1), null);
+        world.submit("command-3", "order-7", ConformanceWorld.TENANT, null);
+
+        harness.start();
+
+        await("command-2 is handled", () -> world.handledCommands().contains("command-2"));
+        await("command-3 is acknowledged", () -> world.inboxed("command-3"));
+        settle();
+        assertEquals(java.util.Set.of("command-1", "command-2"), java.util.Set.copyOf(world.handledCommands()));
+        assertEquals(2, world.handledCommands().size());
+        assertTrue(harness.parked().isEmpty());
+    }
+
+    @Test
+    void aCommandTheOwnerTakesOnlyForAUserIsParkedWithoutOne() {
+        // Standard-link plan L4.4 (D54): the owner checks its access policy before the handler, and a command it can
+        // never take is parked at once.
+        world.commandsOnlyOnBehalfOf("stock:reserve");
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null);
+        world.submit("command-2", "order-8", ConformanceWorld.TENANT, "user-1");
+
+        harness.start();
+
+        await("command-2 is handled", () -> world.handledCommands().contains("command-2"));
+        await("command-1 is parked", () -> !harness.parked().isEmpty());
+        settle();
+        assertEquals(List.of(new Parked("command-1", CommandDelivery.ACCESS_DENIED)), harness.parked());
+        assertEquals(List.of("command-2"), world.handledCommands());
     }
 
     @Test

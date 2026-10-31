@@ -31,6 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.orchestrator.command.CommandMessages;
+import io.runtime.orchestrator.command.CommandSender;
 import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.CommandReceipt;
 import io.runtime.sdk.capability.CommandSubmission;
@@ -52,7 +53,7 @@ import io.runtime.sdk.command.CommandRequest;
  * @author Brix Platform Authors
  * @since 3.3.0
  */
-final class OwnerCommandBus implements CommandCapability {
+final class OwnerCommandBus implements CommandCapability, CommandSender {
 
     private static final Pattern LOWER_BOUND = Pattern.compile(">=\\s*(\\d+\\.\\d+\\.\\d+)");
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -81,12 +82,31 @@ final class OwnerCommandBus implements CommandCapability {
     }
 
     @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public <C> CommandSubmission submit(CommandRequest<C> request) {
         Objects.requireNonNull(request, "request must not be null");
         PluginManifest.ContractRef declared = consumed.get(request.commandType());
         if (declared == null) {
             throw refused(CommandSubmitException.Code.UNDECLARED_COMMAND, request);
         }
+        return write(request, sentVersion(declared), null);
+    }
+
+    /**
+     * Writes a typed client's command: its version is the sender's generated type's, and it names the user the sender
+     * acted for (standard-link plan L4.2).
+     */
+    @Override
+    public CommandSubmission send(CommandRequest<?> request, String schemaVersion, String actorId) {
+        Objects.requireNonNull(request, "request must not be null");
+        PluginManifest.ContractRef declared = consumed.get(request.commandType());
+        if (declared == null) {
+            throw refused(CommandSubmitException.Code.UNDECLARED_COMMAND, request);
+        }
+        return write(request, Objects.requireNonNull(schemaVersion, "schemaVersion must not be null"), actorId);
+    }
+
+    private CommandSubmission write(CommandRequest<?> request, String schemaVersion, String actorId) {
         if (outbox == null) {
             throw refused(CommandSubmitException.Code.OUTBOX_APPEND_FAILED, request);
         }
@@ -100,7 +120,8 @@ final class OwnerCommandBus implements CommandCapability {
         String commandId = UUID.randomUUID().toString();
         String payload;
         try {
-            payload = CommandMessages.encode(json, request.payload(), request.idempotencyScope(), request.idempotencyKey());
+            payload = CommandMessages.encode(json, request.payload(), request.idempotencyScope(), request.idempotencyKey(),
+                actorId);
         } catch (JacksonException invalid) {
             throw new CommandSubmitException(CommandSubmitException.Code.INVALID_COMMAND,
                 Map.of("commandType", request.commandType()), invalid);
@@ -117,7 +138,7 @@ final class OwnerCommandBus implements CommandCapability {
                 commandId,
                 request.commandType(),
                 request.commandType(),
-                sentVersion(declared),
+                schemaVersion,
                 ownerId,
                 tenantId == null ? "PLATFORM" : "TENANT",
                 tenantId,

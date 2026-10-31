@@ -13,7 +13,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,7 +27,6 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.runtime.orchestrator.invocation.RuntimeInvocation;
 import io.runtime.orchestrator.invocation.RuntimeInvocations;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
-import io.runtime.sdk.plugin.AccessScope;
 import io.runtime.sdk.plugin.CancellationSignal;
 import io.runtime.sdk.plugin.QueryInvocation;
 import io.runtime.sdk.plugin.TraceContext;
@@ -350,24 +348,12 @@ public final class QueryGateway {
                     }
                     return;
                 }
-                if (!holds(parent, access.permission())) {
+                if (!parent.holds(access.permission())) {
                     throw failure(BrixQueryException.Code.ACCESS_DENIED, type, "permission", null);
                 }
             }
             default -> throw new IllegalStateException("unknown access policy " + access.kind());
         }
-    }
-
-    /** A tenant user holds what the grant table gives their role; a platform user what their token carries. */
-    private static boolean holds(RuntimeInvocation parent, String permission) {
-        boolean tenantUser = parent.caller().principalRole()
-            .filter(role -> "actor".equals(role) || "subject".equals(role)).isPresent();
-        if (tenantUser) {
-            Map<String, AccessScope> effective = parent.access().effectivePermissions();
-            return effective.containsKey(permission);
-        }
-        Set<String> platform = parent.platformPermissions();
-        return platform.contains(permission);
     }
 
     private static boolean countsAgainstCircuit(BrixQueryException failure) {

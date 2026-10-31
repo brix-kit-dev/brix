@@ -401,7 +401,8 @@ class PluginRuntimeManagerTest {
             List.of(plugin),
             Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
                 .data("plugin_a", "", "plugin_a_inbox")
-                .providedCommand("ReserveStock", "reserve-stock.v1", "1.0.0")
+                .providedCommand(new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", "1.0.0",
+                    "event-standard", "event-standard", "partition-serial", "command-envelope", "declared-consumers", "persistent-inbox"))
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"));
@@ -419,7 +420,8 @@ class PluginRuntimeManagerTest {
             List.of(plugin),
             Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
                 .data("plugin_a", "plugin_a_outbox", "")
-                .consumedCommand("ReserveStock", ">=1.0.0 <2.0.0", true)
+                .consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand("ReserveStock", ">=1.0.0 <2.0.0", true,
+                    "event-standard", "event-standard", "persistent-inbox"))
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"));
@@ -437,11 +439,13 @@ class PluginRuntimeManagerTest {
             List.of(provider, consumer),
             Map.of(provider, PluginRuntimeDescriptor.builder("plugin-p")
                     .data("plugin_p", "", "plugin_p_inbox")
-                    .providedCommand("ReserveStock", "reserve-stock.v1", "2.0.0")
+                    .providedCommand(new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", "2.0.0",
+                    "event-standard", "event-standard", "partition-serial", "command-envelope", "declared-consumers", "persistent-inbox"))
                     .build(),
                 consumer, PluginRuntimeDescriptor.builder("plugin-c")
                     .data("plugin_c", "plugin_c_outbox", "")
-                    .consumedCommand("ReserveStock", ">=1.0.0 <2.0.0", false)
+                    .consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand("ReserveStock", ">=1.0.0 <2.0.0", false,
+                    "event-standard", "event-standard", "persistent-inbox"))
                     .build()),
             new DefaultCapabilityRegistry(),
             List.of());

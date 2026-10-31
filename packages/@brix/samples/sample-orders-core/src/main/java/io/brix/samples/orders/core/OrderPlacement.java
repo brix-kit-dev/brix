@@ -88,6 +88,21 @@ public final class OrderPlacement {
      * @param orderId the order
      * @return the order, if the tenant has it
      */
+    /**
+     * Cancels an order of the current tenant, in the caller's unit of work (a command handler's). An order that does
+     * not exist, or that is already cancelled, is left as it is.
+     *
+     * @param orderId the order
+     * @param reason why it is cancelled
+     * @return {@code true} when an order was cancelled
+     */
+    public boolean cancel(long orderId, String reason) {
+        return persistence.unitOfWork().required(() -> persistence.repository(SampleOrderRepository.class)
+            .findById(orderId)
+            .map(order -> order.cancel(reason) && persistence.repository(SampleOrderRepository.class).save(order) != null)
+            .orElse(false));
+    }
+
     public Optional<SampleOrder> find(long orderId) {
         return persistence.unitOfWork().readOnly(() -> persistence.repository(SampleOrderRepository.class)
             .findById(orderId));

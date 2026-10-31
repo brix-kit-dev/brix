@@ -43,6 +43,7 @@ import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.UnitOfWork;
 import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.CommandInvocation;
+import io.runtime.sdk.plugin.IdempotencyContext;
 
 /**
  * Kafka design §14 K22 (root BRX-RS-MESSAGE-010 to MESSAGE-016): a command reaches its one provider, once per command
@@ -75,6 +76,7 @@ class CommandDeliveryTest {
     private final Set<String> keys = new HashSet<>();
     private boolean started = true;
     private String providerVersion = "1.2.0";
+    private String accessPolicy = "declared-consumers";
     private CommandDelivery delivery;
 
     @BeforeEach
@@ -101,7 +103,8 @@ class CommandDeliveryTest {
 
             @Override
             public Optional<PluginRuntimeDescriptor.ConsumedCommand> consumed(String pluginId, String commandType) {
-                return "app-orders".equals(pluginId) && "ReserveStock".equals(commandType)
+                return ("app-orders".equals(pluginId) || "app-billing".equals(pluginId))
+                    && "ReserveStock".equals(commandType)
                     ? Optional.of(new PluginRuntimeDescriptor.ConsumedCommand(commandType, ">=1.0.0 <2.0.0", true))
                     : Optional.empty();
             }
@@ -114,7 +117,8 @@ class CommandDeliveryTest {
 
     private PluginRuntimeManager.CommandProvider provider() {
         return new PluginRuntimeManager.CommandProvider("app-stock",
-            new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", providerVersion),
+            new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", providerVersion,
+                "event-standard", "event-standard", "partition-serial", "command-envelope", accessPolicy, "persistent-inbox"),
             started ? handler : null, Reserve.class);
     }
 
@@ -197,9 +201,60 @@ class CommandDeliveryTest {
         assertEquals(CommandDelivery.SUBSCRIPTION_UNKNOWN, refused.errorCode());
     }
 
+    @Test
+    void aKeyIsUniqueForItsSenderAndTenantOnly() {
+        // Standard-link plan D54: another sender or tenant using the same business key is another command.
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+        delivery.deliver(command("c-2", "order-7", "app-billing", "1.0.0"));
+        delivery.deliver(command("c-3", "order-7", "app-orders", "1.0.0", 42L, null));
+        delivery.deliver(command("c-4", "order-7", "app-orders", "1.0.0", 42L, null));
+
+        assertEquals(List.of("c-1", "c-2", "c-3"), handler.handled.stream()
+            .map(invocation -> invocation.command().commandId()).toList());
+        assertTrue(keys.contains("app-stock/reserve-stock.v1/app-orders|42|order/order-7"), keys.toString());
+    }
+
+    @Test
+    void anOwnerThatTakesACommandOnlyForAUserParksOneWithoutAUser() {
+        accessPolicy = "on-behalf-of:stock:reserve";
+
+        EventDeliveryException refused = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertEquals(CommandDelivery.ACCESS_DENIED, refused.errorCode());
+        assertTrue(refused.permanent());
+        assertEquals(List.of(), handler.handled);
+    }
+
+    @Test
+    void theHandlerSeesTheUserAndThePermissionTheCommandWasAdmittedFor() {
+        accessPolicy = "on-behalf-of:stock:reserve";
+
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0", null, "u-1"));
+
+        CommandInvocation<Reserve> invocation = handler.handled.get(0);
+        assertEquals("u-1", invocation.command().actorId());
+        assertEquals(Set.of("stock:reserve"), invocation.access().permissions());
+        assertEquals(new IdempotencyContext("order", "order-7"), invocation.idempotency());
+    }
+
+    @Test
+    void withoutAnOnBehalfPolicyTheHandlerSeesNoPermission() {
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+
+        CommandInvocation<Reserve> invocation = handler.handled.get(0);
+        assertEquals(Set.of(), invocation.access().permissions());
+        assertEquals(null, invocation.command().actorId());
+    }
+
     private static CanonicalOutboxMessage command(String commandId, String key, String producer, String version) {
+        return command(commandId, key, producer, version, null, null);
+    }
+
+    private static CanonicalOutboxMessage command(String commandId, String key, String producer, String version,
+            Long tenantId, String actorId) {
         return new CanonicalOutboxMessage(commandId, commandId, "COMMAND", "ReserveStock", version, "STANDARD", producer,
-            "PLATFORM", null, key, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC), commandId, null, null, null,
-            CommandMessages.encode(JSON, new Reserve("sku-1", 2), "order", key), 1);
+            tenantId == null ? "PLATFORM" : "TENANT", tenantId, key, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
+            commandId, null, null, null, CommandMessages.encode(JSON, new Reserve("sku-1", 2), "order", key, actorId), 1);
     }
 }

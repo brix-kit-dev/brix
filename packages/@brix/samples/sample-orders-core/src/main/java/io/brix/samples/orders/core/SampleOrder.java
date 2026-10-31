@@ -31,6 +31,12 @@ import org.springframework.data.domain.Persistable;
 @Table(name = "sample_orders_order")
 public class SampleOrder implements Persistable<Long> {
 
+    /** An order as placed. */
+    public static final String PLACED = "PLACED";
+
+    /** An order a {@code sample-orders.cancel-order} command cancelled. */
+    public static final String CANCELLED = "CANCELLED";
+
     @Id
     @Column(name = "id", nullable = false, updatable = false)
     private Long id;
@@ -50,6 +56,12 @@ public class SampleOrder implements Persistable<Long> {
 
     @Column(name = "placed_at", nullable = false, updatable = false)
     private OffsetDateTime placedAt;
+
+    @Column(name = "status", nullable = false, length = 16)
+    private String status;
+
+    @Column(name = "cancel_reason", length = 32)
+    private String cancelReason;
 
     @Transient
     private boolean fresh = true;
@@ -75,7 +87,25 @@ public class SampleOrder implements Persistable<Long> {
         order.quantity = quantity;
         order.version = 1;
         order.placedAt = Objects.requireNonNull(placedAt, "placedAt must not be null");
+        order.status = PLACED;
         return order;
+    }
+
+    /**
+     * Cancels the order: it becomes {@code CANCELLED} and its version goes up. An order already cancelled stays as it
+     * is.
+     *
+     * @param reason why it is cancelled
+     * @return {@code true} when the order changed
+     */
+    public boolean cancel(String reason) {
+        if (CANCELLED.equals(status)) {
+            return false;
+        }
+        status = CANCELLED;
+        cancelReason = Objects.requireNonNull(reason, "reason must not be null");
+        version++;
+        return true;
     }
 
     @PostPersist
@@ -112,5 +142,14 @@ public class SampleOrder implements Persistable<Long> {
 
     public OffsetDateTime placedAt() {
         return placedAt;
+    }
+
+    /**
+     * Returns the order's status.
+     *
+     * @return {@code PLACED} or {@code CANCELLED}
+     */
+    public String status() {
+        return status;
     }
 }

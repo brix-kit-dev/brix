@@ -71,6 +71,8 @@ public final class QueryContractGenerator {
         "x-brix-classification");
     private static final Set<String> CONTRACT_KEYWORDS = Set.of("queryType", "version", "request", "response",
         "optional", "description");
+    private static final Set<String> COMMAND_CONTRACT_KEYWORDS = Set.of("commandType", "version", "request",
+        "description");
 
     private QueryContractGenerator() {
     }
@@ -106,10 +108,20 @@ public final class QueryContractGenerator {
         Objects.requireNonNull(javaPackage, "javaPackage must not be null");
         Map<String, Schema> schemas = loadSchemas(resources.resolve("META-INF/brix/schemas"));
         List<Contract> contracts = loadContracts(resources.resolve("META-INF/brix/queries"), schemas);
+        List<CommandContract> commands = loadCommandContracts(resources.resolve("META-INF/brix/commands"), schemas);
+        String plugins = java.util.stream.Stream.concat(contracts.stream().map(Contract::plugin),
+                commands.stream().map(CommandContract::plugin))
+            .distinct().reduce((a, b) -> a + ", " + b).orElse("");
+        if (plugins.contains(",")) {
+            throw new IllegalArgumentException("one api module holds the contracts of one plugin, not " + plugins);
+        }
         Map<String, Type> types = new TreeMap<>();
         for (Contract contract : contracts) {
             collect(contract.request(), schemas, types);
             collect(contract.response(), schemas, types);
+        }
+        for (CommandContract command : commands) {
+            collect(command.request(), schemas, types);
         }
         Map<String, String> sources = new TreeMap<>();
         Set<String> api = new TreeSet<>();
@@ -123,6 +135,14 @@ public final class QueryContractGenerator {
             sources.put(constants, constantsSource(constants, plugin, contracts, javaPackage, types));
             for (Contract contract : contracts) {
                 api.add(contract.api(constants, types));
+            }
+        }
+        if (!commands.isEmpty()) {
+            String plugin = commands.get(0).plugin();
+            String constants = pascal(plugin) + "Commands";
+            sources.put(constants, commandConstantsSource(constants, plugin, commands, javaPackage, types));
+            for (CommandContract command : commands) {
+                api.add(command.api(constants, types));
             }
         }
         return new Generated(sources, List.copyOf(api));
@@ -200,6 +220,52 @@ public final class QueryContractGenerator {
                         + " refers to " + ref + ", but the module has " + newest + "; add the query contract of that "
                         + "version");
                 }
+            }
+        }
+        return List.copyOf(latest.values());
+    }
+
+    /**
+     * Loads the command contracts: {@code META-INF/brix/commands/<commandType>/<version>.json} names the command, its
+     * version and its request schema (standard-link plan L4.1). A command has no result: its owner reports the outcome
+     * through an event or queryable state (root §6.3).
+     */
+    private static List<CommandContract> loadCommandContracts(Path root, Map<String, Schema> schemas) {
+        List<CommandContract> contracts = new ArrayList<>();
+        for (Path file : jsonFiles(root)) {
+            Path relative = root.relativize(file);
+            JsonNode node = read(file);
+            requireOnly(file, node, COMMAND_CONTRACT_KEYWORDS);
+            String commandType = node.path("commandType").asText("");
+            String version = node.path("version").asText("");
+            if (relative.getNameCount() != 2 || !relative.getName(0).toString().equals(commandType)
+                    || !relative.getName(1).toString().equals(version + ".json")) {
+                throw invalid(file, "a command contract lives at <commandType>/<version>.json and names both");
+            }
+            if (!QUERY_TYPE.matcher(commandType).matches() || !VERSION.matcher(version).matches()) {
+                throw invalid(file, "commandType must be <plugin>.<name> and version major.minor.patch");
+            }
+            String request = node.path("request").asText("");
+            if (!schemas.containsKey(request)) {
+                throw invalid(file, "refers to schema '" + request + "', which this module does not contain");
+            }
+            if (!request.endsWith("/" + version)) {
+                throw invalid(file, "its request schema carries the contract's version " + version + ", but it refers to "
+                    + request);
+            }
+            contracts.add(new CommandContract(commandType, version, request, node.path("description").asText("")));
+        }
+        Map<String, CommandContract> latest = new TreeMap<>();
+        for (CommandContract contract : contracts) {
+            latest.merge(contract.commandType() + "#" + contract.major(), contract,
+                (a, b) -> compare(a.version(), b.version()) >= 0 ? a : b);
+        }
+        for (CommandContract contract : latest.values()) {
+            String newest = newestOf(schemas.get(contract.request()), schemas).ref();
+            if (!newest.equals(contract.request())) {
+                throw new IllegalArgumentException("command " + contract.commandType() + " " + contract.version()
+                    + " refers to " + contract.request() + ", but the module has " + newest + "; add the command "
+                    + "contract of that version");
             }
         }
         return List.copyOf(latest.values());
@@ -571,6 +637,35 @@ public final class QueryContractGenerator {
         return java.toString();
     }
 
+    private static String commandConstantsSource(String className, String plugin, List<CommandContract> commands,
+            String javaPackage, Map<String, Type> types) {
+        Java java = new Java();
+        java.header(String.join(", ", commands.stream().map(command -> command.commandType() + " " + command.version())
+            .toList()), javaPackage);
+        java.imports(new TreeSet<>(List.of("io.runtime.sdk.command.CommandType")));
+        java.line("/**");
+        java.line(" * The typed commands {@code " + plugin + "} handles, as senders declare them under {@code commands.consumes}.");
+        java.line(" */");
+        java.line("public final class " + className + " {");
+        for (CommandContract command : commands) {
+            String request = typeOf(command.request(), types);
+            java.blank();
+            java.line("    /**");
+            String description = command.description();
+            java.doc("     * ", "{@code " + command.commandType() + "} " + command.version() + (description.isEmpty() ? "."
+                : ": " + description + (description.endsWith(".") ? "" : ".")));
+            java.line("     */");
+            java.line("    public static final CommandType<" + request + "> " + command.constant() + " =");
+            java.line("        CommandType.of(\"" + command.commandType() + "\", \"" + command.version() + "\", "
+                + request + ".class);");
+        }
+        java.blank();
+        java.line("    private " + className + "() {");
+        java.line("    }");
+        java.line("}");
+        return java.toString();
+    }
+
     private static String parameters(List<Property> properties, Map<String, Type> types) {
         List<String> parameters = new ArrayList<>();
         for (Property property : properties) {
@@ -654,6 +749,27 @@ public final class QueryContractGenerator {
 
         private static String constant(String name) {
             return QueryContractGenerator.constant(name);
+        }
+    }
+
+    private record CommandContract(String commandType, String version, String request, String description) {
+
+        String plugin() {
+            return commandType.substring(0, commandType.indexOf('.'));
+        }
+
+        int major() {
+            return Integer.parseInt(version.substring(0, version.indexOf('.')));
+        }
+
+        String constant() {
+            String name = QueryContractGenerator.constant(commandType.substring(commandType.indexOf('.') + 1));
+            return major() > 1 ? name + "_V" + major() : name;
+        }
+
+        String api(String constants, Map<String, Type> types) {
+            return "command " + constants + "." + constant() + " = " + commandType + " major " + major() + " "
+                + typeOf(request, types);
         }
     }
 

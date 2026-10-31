@@ -16,8 +16,13 @@ All notable changes to Brix Framework are documented here.
 - **One event and command chain for every plugin.** Integration events and commands travel the same path: the
   publisher's outbox, the relay, Kafka (or in-process), and the subscriber's inbox. Everything is declared in
   `META-INF/brix/plugin-manifest.yaml`. See [Events and Commands](../guides/events-and-commands.md).
-- **Commands.** `CommandCapability.submit(CommandRequest.of(...))` goes to the one plugin that provides the command.
-  The provider handles it once per business idempotency key.
+- **Typed commands.** The owner of a command publishes its contract in its api artifact
+  (`META-INF/brix/commands/<commandType>/<version>.json`); the generator writes the request record and a
+  `CommandType` constant. A sender declares the command under `commands.consumes` and submits the generated type
+  through `CommandCapability.client(...)`: the runtime takes the tenant from the current call and records the sender
+  and the version. The owner applies a command once per business key of the sender and tenant. An access policy can
+  require a user holding a permission (`on-behalf-of:<permission>`). See
+  [Commands](../guides/events-and-commands.md#commands).
 - **BEST_EFFORT from the same bus.** `publishIntegration` sends a BEST_EFFORT event directly after the unit of work
   commits.
 - **Messaging tables from the platform.** The platform creates `<storageId>_outbox`, `<storageId>_inbox` and
@@ -50,6 +55,13 @@ All notable changes to Brix Framework are documented here.
 - **`QueryHandler.handle` takes a `QueryInvocation` and returns a `CompletionStage`** (root BRX-RS-MANIFEST-025): the
   request, the caller, the tenant scope, the access decision, the trace and the deadline. A host whose plugins provide
   or call queries must set `brix.query.max-deadline`.
+- **Command declarations name their policies** (root BRX-RS-MANIFEST-025). A provided command names its scope,
+  access, timeout, concurrency, retry and idempotency policies; a consumed command names `required`, `versionRange`
+  and its timeout, retry and idempotency policies. A sender declares `CommandCapability` and `data.outbox`, a provider
+  `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
+  business key.
+- **A command's business key is unique per sender and tenant.** Two senders, or two tenants, using the same key no
+  longer meet at the owner.
 - **Connections are taken lazily.** A unit of work takes a pooled connection only for its first statement, and a
   query's provider waits for one no longer than the query's deadline. The host warns at startup when its pool is
   smaller than the work that holds connections. `brix.persistence.lazy-connections: false` turns it off.
@@ -59,6 +71,8 @@ All notable changes to Brix Framework are documented here.
 - `io.runtime.sdk.annotation.EventHandler`: nothing reads it. Declare the subscription in the manifest and bind an
   `io.runtime.sdk.plugin.EventHandler` with `bindEventHandlerFactory`.
 - The instance binds `bindEndpoint`, `bindQueryHandler`, `bindCommandHandler` and `bindTask`: use the factory binds.
+- `CommandCapability.submit(CommandRequest)`: it takes a string command type and a tenant the caller names. Submit
+  the owner's generated `CommandType` through `CommandCapability.client(...)`.
 - `TenantDirectoryCapability`: no runtime implements it. Ask the typed query `platform-tenant.tenant-reference` from
   `platform-tenant-api` whether a member or principal belongs to the caller's tenant.
 

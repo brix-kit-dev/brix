@@ -232,6 +232,57 @@ class QueryContractGeneratorTest {
               "placedAt": {"type": "string", "format": "date-time"}""" + extra + "\n}";
     }
 
+    @Test
+    void aCommandContractGeneratesItsRequestAndACommandTypeConstant() throws Exception {
+        // Standard-link plan L4.1: commands get generated types too (root A-22).
+        schema("cancel-order", "1.0.0", """
+            "title": "Cancel an order",
+            "type": "object", "additionalProperties": false, "required": ["orderId", "reason"],
+            "properties": {
+              "orderId": {"type": "string", "minLength": 1, "maxLength": 32},
+              "reason": {"type": "string", "enum": ["REJECTED_BY_SHIPPING"]}
+            }""");
+        command("cancel-order", "1.0.0");
+
+        QueryContractGenerator.Generated generated = QueryContractGenerator.generate(resources, PACKAGE);
+
+        assertTrue(generated.sources().containsKey("CancelOrder"), generated.sources().keySet().toString());
+        String constants = generated.sources().get("TestShopCommands");
+        assertTrue(constants.contains("public static final CommandType<CancelOrder> CANCEL_ORDER ="), constants);
+        assertTrue(constants.contains("CommandType.of(\"test-shop.cancel-order\", \"1.0.0\", CancelOrder.class)"),
+            constants);
+        assertTrue(generated.api().contains(
+            "command TestShopCommands.CANCEL_ORDER = test-shop.cancel-order major 1 CancelOrder"),
+            generated.api().toString());
+        try (URLClassLoader loader = compile(generated)) {
+            assertEquals("test-shop.cancel-order", loader.loadClass(PACKAGE + ".TestShopCommands")
+                .getField("CANCEL_ORDER").get(null).toString().replace("@1.0.0", ""));
+        }
+    }
+
+    @Test
+    void aCommandContractMustLiveAtItsTypeAndVersion() throws IOException {
+        schema("cancel-order", "1.0.0", """
+            "type": "object", "additionalProperties": false, "required": ["orderId"],
+            "properties": {"orderId": {"type": "string", "maxLength": 32}}""");
+        Path misplaced = resources.resolve("META-INF/brix/commands/test-shop.cancel-order/2.0.0.json");
+        Files.createDirectories(misplaced.getParent());
+        Files.writeString(misplaced, """
+            {"commandType": "test-shop.cancel-order", "version": "1.0.0",
+             "request": "brix://schemas/test-shop/cancel-order/1.0.0"}""");
+
+        IllegalArgumentException refused = org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class, () -> QueryContractGenerator.generate(resources, PACKAGE));
+        assertTrue(refused.getMessage().contains("<commandType>/<version>.json"), refused.getMessage());
+    }
+
+    private void command(String name, String version) throws IOException {
+        Path file = resources.resolve("META-INF/brix/commands/test-shop." + name + "/" + version + ".json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, "{\"commandType\": \"test-shop." + name + "\", \"version\": \"" + version
+            + "\", \"request\": \"brix://schemas/test-shop/" + name + "/" + version + "\"}");
+    }
+
     private void schema(String name, String version, String body) throws IOException {
         Path file = resources.resolve("META-INF/brix/schemas/test-shop/" + name + "/" + version + ".json");
         Files.createDirectories(file.getParent());

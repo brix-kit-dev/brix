@@ -27,8 +27,8 @@ Each is three artifacts:
 
 | Sample | Path | What it shows |
 |---|---|---|
-| `sample-orders` | `packages/@brix/samples/sample-orders-api`, `-core`, `-server` | An HTTP endpoint places an order; the domain service writes it and publishes a STANDARD event through the outbox and a BEST_EFFORT event |
-| `sample-shipping` | `packages/@brix/samples/sample-shipping-api`, `-core`, `-server` | A subscriber with a persistent inbox that prepares one shipment per order, and an endpoint that shows it |
+| `sample-orders` | `packages/@brix/samples/sample-orders-api`, `-core`, `-server` | An HTTP endpoint places an order; the domain service writes it and publishes a STANDARD event through the outbox and a BEST_EFFORT event. It provides the typed command `sample-orders.cancel-order` |
+| `sample-shipping` | `packages/@brix/samples/sample-shipping-api`, `-core`, `-server` | A subscriber with a persistent inbox that prepares one shipment per order, and an endpoint that shows it. Refusing a shipment sends `sample-orders.cancel-order` |
 | `sample-e2e` | `packages/@brix/samples/sample-e2e` | Both plugins in a host made of configuration only |
 
 ## How a message travels
@@ -356,71 +356,205 @@ private static ShipmentDesk desk(PluginContext context) {
 ## Commands
 
 Use a command when you need another plugin to change **its** data. Do not use an event that you expect someone to
-act on. A command has exactly one provider, travels the same outbox, broker and inbox chain, and is deduplicated
-twice:
-- by its command id, in the provider's inbox;
-- by your business idempotency key, in the provider's idempotency table.
+act on. A command has exactly one provider, its owner. It travels the same outbox, broker and inbox chain as an
+event, and the owner applies it once:
+- the owner's inbox drops a redelivered command id;
+- the owner's idempotency table drops a second command with the same business key from the same sender in the same
+  tenant.
 
-The consumer declares the command and submits it:
+The samples show both sides. When a member refuses a shipment, `sample-shipping` sends `sample-orders.cancel-order`,
+and `sample-orders` cancels the order.
 
-```yaml
+### Providing a command
+
+**1. Write the contract** in your `-api` artifact. The command file is
+`META-INF/brix/commands/<commandType>/<version>.json`:
+
+```json title="sample-orders-api/src/main/resources/META-INF/brix/commands/sample-orders.cancel-order/1.0.0.json"
+{
+  "commandType": "sample-orders.cancel-order",
+  "version": "1.0.0",
+  "request": "brix://schemas/sample-orders/cancel-order/1.0.0",
+  "description": "asks sample-orders to cancel an order of the command's tenant; an order already cancelled stays as it is"
+}
+```
+
+The request schema goes under `META-INF/brix/schemas/<plugin>/<name>/<version>.json`, like every other schema:
+
+```json title="sample-orders-api/src/main/resources/META-INF/brix/schemas/sample-orders/cancel-order/1.0.0.json"
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-orders/cancel-order/1.0.0",
+  "title": "Cancel an order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId", "reason"],
+  "properties": {
+    "orderId": { "type": "string", "minLength": 1, "maxLength": 32, "x-brix-classification": "internal-identifier" },
+    "reason": {
+      "type": "string",
+      "enum": ["SHIPPING_REFUSED"],
+      "description": "why the sender asks for the cancellation",
+      "x-brix-classification": "operational"
+    }
+  }
+}
+```
+
+The generator that writes query types writes command types too, and the same `ContractSourcesTest` keeps them in
+step (see [Queries](./queries.md#1-write-the-contract)). For this contract it writes the record `CancelOrder` with
+its enum `Reason`, and `SampleOrdersCommands.CANCEL_ORDER`, a `CommandType<CancelOrder>`. The schema subset and the
+rules for a new version are the same as for queries.
+
+**2. Declare it**, with one policy of each kind (see [Command policies](#command-policies)) and the inbox commands
+arrive through:
+
+```yaml title="sample-orders-server/src/main/resources/META-INF/brix/plugin-manifest.yaml"
+commands:
+  provides:
+    - commandType: sample-orders.cancel-order
+      request:
+        schemaRef: brix://schemas/sample-orders/cancel-order/1.0.0
+      handlerId: sample-orders.cancel-order.v1
+      scopePolicyRef: command-envelope
+      accessPolicyRef: declared-consumers
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: partition-serial
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
+data:
+  storageId: sample_orders
+  inbox: sample_orders_inbox                # commands arrive through your inbox
+```
+
+A provider also requires `PersistenceCapability`.
+
+**3. Write the handler** and bind it under the manifest's handler id:
+
+```java
+bootstrap.bindCommandHandlerFactory("sample-orders.cancel-order.v1",
+    context -> new CancelOrderHandler(placement(context)));
+
+final class CancelOrderHandler implements CommandHandler<CancelOrder> {
+    @Override
+    public CompletionStage<Void> handle(CommandInvocation<CancelOrder> invocation) {
+        CancelOrder command = invocation.command().payload();
+        orders.cancel(Long.parseLong(command.orderId()), command.reason().name());
+        return CompletableFuture.completedFuture(null);
+    }
+}
+```
+
+- The runtime runs the handler in your unit of work, bound to the command's tenant (none for a platform command),
+  after it has recorded the inbox receipt and the business key. Your writes commit with them.
+- To fail, throw. Everything rolls back, and the command is retried and then parked like an event.
+- `invocation.command()` carries the command id, type, schema version, sender (`producerPluginId`), tenant, business
+  key and trace, and the user the sender acted for when the access policy needs one.
+- A command has no reply. If someone needs the outcome, publish it as your own event.
+
+### Sending a command
+
+**1. Depend on the owner's api artifact**, and on nothing else of it (root LIFE-010):
+
+```xml title="sample-shipping-server/pom.xml"
+<dependency>
+    <groupId>io.brix.samples</groupId>
+    <artifactId>sample-orders-api</artifactId>
+    <version>${project.version}</version>
+</dependency>
+```
+
+**2. Declare it**, with `CommandCapability` and the outbox your commands leave through:
+
+```yaml title="sample-shipping-server/src/main/resources/META-INF/brix/plugin-manifest.yaml"
 capabilities:
   required:
     - id: io.runtime.sdk.capability.CommandCapability
       version: ">=3.2.0 <4.0.0"
 commands:
   consumes:
-    - commandType: ReserveStock
+    - commandType: sample-orders.cancel-order
       versionRange: ">=1.0.0 <2.0.0"
       required: true
       timeoutPolicyRef: event-standard
       retryPolicyRef: event-standard
       idempotencyPolicyRef: persistent-inbox
 data:
-  storageId: shop
-  outbox: shop_outbox                       # commands leave through your outbox
+  storageId: sample_shipping
+  outbox: sample_shipping_outbox            # commands leave through your outbox
 ```
+
+With `required: true` your plugin starts only on a host where a plugin provides the command in the declared range.
+With `required: false` it starts anyway, and a submission fails with `command.provider_missing` while no plugin
+provides the command.
+
+**3. Send it** inside a unit of work of your plugin. Take the client once, in the handler factory:
 
 ```java
-CommandSubmission submission = commands.submit(
-    CommandRequest.of("ReserveStock", new ReserveStock(sku, quantity), "order", orderId));
-// durableReceipt() completes once your unit of work has committed and the command is queued (status QUEUED).
-// It does not mean the provider accepted it: the provider reports the outcome with its own events.
+bootstrap.bindEndpointHandlerFactory("sample-shipping.refuse-shipment.v1", context -> new RefuseShipment(
+    context.require(PersistenceCapability.class), desk(context),
+    context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
 ```
 
-The provider declares and binds a `CommandHandler`:
-
-```yaml
-commands:
-  provides:
-    - commandType: ReserveStock
-      request:
-        schemaRef: brix://schemas/inventory/reserve-stock/1.0.0
-      handlerId: inventory.reserve-stock.v1
-      scopePolicyRef: platform
-      accessPolicyRef: platform
-      timeoutPolicyRef: event-standard
-      concurrencyPolicyRef: partition-serial
-      retryPolicyRef: event-standard
-      idempotencyPolicyRef: persistent-inbox
-```
-
-```java
-bootstrap.bindCommandHandlerFactory("inventory.reserve-stock.v1", context -> new ReserveStockHandler(...));
-
-final class ReserveStockHandler implements CommandHandler<ReserveStock> {
-    @Override
-    public CompletionStage<Void> handle(CommandInvocation<ReserveStock> invocation) {
-        ReserveStock request = invocation.command().payload();
-        // change your data, then publish the outcome as an event
-        return CompletableFuture.completedFuture(null);
+```java title="RefuseShipment.handle"
+return persistence.unitOfWork().required(() -> {
+    if (shipments.find(tenantId, orderId).isEmpty()) {
+        throw new EndpointHandlingException(404, FindShipment.NOT_FOUND, "The order has no shipment");
     }
-}
+    CommandSubmission cancellation = cancellations.submit(
+        CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
+    return new EndpointResponse(202, Map.of("orderId", orderId, "commandId", cancellation.commandId()));
+});
 ```
 
-The runtime does not run the handler twice:
-- for a second command with the same `(handlerId, idempotency scope, idempotency key)`;
-- for a redelivered command id.
+- The command is written to your outbox in that transaction and leaves after the commit. If the transaction rolls
+  back, it never leaves. An event or command handler already runs in your unit of work; an endpoint opens one, as
+  above.
+- The second argument is the business key, here the order id. The owner applies one command per key from your plugin
+  in a tenant, so use the id of what the command is about. A third argument sets a partition key when the order of
+  commands should follow something else; by default it is the business key.
+- The runtime fills in the rest: the tenant of the current call (outside any call, the command is a platform
+  command), your plugin as the sender, and the version of the generated type. You cannot name another tenant or
+  sender.
+- `durableReceipt()` completes once your transaction has committed and the command is queued (status `QUEUED`). It
+  does not mean the owner has applied it.
+- A query is read-only. It cannot send a command.
+
+`CommandCapability.submit(CommandRequest)`, which takes the command type as a string and a tenant you name, is
+deprecated and will be removed in 4.0.
+
+### Command policies
+
+| Policy | Value | Effect |
+|---|---|---|
+| `scopePolicyRef` | `command-envelope` | The handler runs in the command's tenant, or in none for a platform command |
+| `accessPolicyRef` | `declared-consumers` | Any plugin that declares the command under `commands.consumes` may send it |
+| | `on-behalf-of:<permission>` | A plugin may send it only while acting for a user who holds the permission. The sender's runtime checks the user at submission and the command records the user; the owner parks a command that names none |
+| `timeoutPolicyRef`, `retryPolicyRef` | `event-standard` | The host's delivery deadline, attempts and backoff, as for events |
+| `concurrencyPolicyRef` | `partition-serial` | One command at a time per partition key, in order |
+| `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant |
+
+A provider names all six; a sender names `required`, `versionRange`, the timeout, the retry and the idempotency
+policy. A name the runtime does not know stops the plugin at startup. Commands share the timeout, retry and
+concurrency policies of events because they travel the same relay, consumer and inbox.
+
+### Command errors
+
+`client(...)` and `submit(...)` throw `CommandSubmitException` with a stable code. Nothing is written:
+
+| Code | When |
+|---|---|
+| `command.undeclared` | The command is not under your `commands.consumes` (from `client`) |
+| `command.invalid` | The generated type's version is outside your declared range (from `client`), or the payload does not encode |
+| `command.provider_missing` | No plugin on this host provides the command |
+| `command.access_denied` | The owner takes the command only on behalf of a user with a permission, and the current caller is not one |
+| `command.tenant_unreached` | You sent a tenant's command outside a unit of work of your plugin that reaches that tenant |
+| `command.no_active_transaction` | The current transaction is another plugin's, or read-only |
+| `command.outbox_append_failed` | Your manifest declares no `data.outbox`, or the insert failed |
+
+The owner parks a command it can never take, with a code operators see: `COMMAND_CONSUMER_UNDECLARED` (the sender
+does not declare it), `COMMAND_SCHEMA_UNSUPPORTED` (another major version), `COMMAND_PAYLOAD_INVALID` and
+`COMMAND_ACCESS_DENIED`.
 
 ## Tables: what the platform creates for you
 
@@ -432,6 +566,8 @@ its own versioned migrations, after your migrations and in its own schema histor
 | `data.outbox` | `<storageId>_outbox` |
 | `data.inbox` | `<storageId>_inbox` |
 | `commands.provides` | `<storageId>_command_idempotency` |
+
+A plugin that sends commands declares `data.outbox`; one that provides them declares `data.inbox`.
 
 Your `data.migrationLocation` holds only your business tables. At startup the runtime checks every messaging table's
 columns, keys and indexes, and refuses a plugin whose tables differ. The platform migrations are for PostgreSQL, the
@@ -504,3 +640,5 @@ messages stay until an operator acts.
   transaction commits.
 - Do own your payload records and schemas. Don't depend on another plugin's classes.
 - Don't use an event as a command. If you need someone to change their data, send them a command.
+- Do send commands with the owner's generated `CommandType` and a business key of what the command is about. Don't
+  build a `CommandRequest` with a string type: it is deprecated.

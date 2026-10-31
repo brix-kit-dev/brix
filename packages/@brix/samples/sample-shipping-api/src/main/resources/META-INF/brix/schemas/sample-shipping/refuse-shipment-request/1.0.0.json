@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-shipping/refuse-shipment-request/1.0.0",
+  "title": "Refuse the shipment of an order: the path variables of POST /api/sample-shipping/shipments/{orderId}/refuse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId"],
+  "properties": {
+    "orderId": { "type": "string", "minLength": 1, "maxLength": 32 }
+  }
+}

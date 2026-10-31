@@ -587,7 +587,16 @@ public final class PluginRuntimeDescriptor {
          * @return this builder
          */
         public Builder consumedCommand(String commandType, String versionRange, boolean required) {
-            ConsumedCommand command = new ConsumedCommand(commandType, versionRange, required);
+            return consumedCommand(new ConsumedCommand(commandType, versionRange, required));
+        }
+
+        /**
+         * Declares a command the plugin submits, with its policies.
+         *
+         * @param command the declaration
+         * @return this builder
+         */
+        public Builder consumedCommand(ConsumedCommand command) {
             if (!command.commandType().isEmpty()) {
                 consumedCommands.put(command.commandType(), command);
             }
@@ -949,9 +958,13 @@ public final class PluginRuntimeDescriptor {
      * @param retryPolicyRef retry policy reference
      * @param timeoutPolicyRef timeout policy reference
      * @param concurrencyPolicyRef concurrency policy reference
+     * @param scopePolicyRef scope policy reference
+     * @param accessPolicyRef access policy reference: who may send the command
+     * @param idempotencyPolicyRef idempotency policy reference
      */
     public record ProvidedCommand(String commandType, String handlerId, String version, String retryPolicyRef,
-            String timeoutPolicyRef, String concurrencyPolicyRef) {
+            String timeoutPolicyRef, String concurrencyPolicyRef, String scopePolicyRef, String accessPolicyRef,
+            String idempotencyPolicyRef) {
 
         /**
          * Creates the declaration, blank when not declared.
@@ -963,6 +976,17 @@ public final class PluginRuntimeDescriptor {
             retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
             timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
             concurrencyPolicyRef = concurrencyPolicyRef == null ? "" : concurrencyPolicyRef.trim();
+            scopePolicyRef = scopePolicyRef == null ? "" : scopePolicyRef.trim();
+            accessPolicyRef = accessPolicyRef == null ? "" : accessPolicyRef.trim();
+            idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
+        }
+
+        /**
+         * Creates a declaration with the delivery policies only, as descriptors before 3.3.0 did.
+         */
+        public ProvidedCommand(String commandType, String handlerId, String version, String retryPolicyRef,
+                String timeoutPolicyRef, String concurrencyPolicyRef) {
+            this(commandType, handlerId, version, retryPolicyRef, timeoutPolicyRef, concurrencyPolicyRef, "", "", "");
         }
 
         /**
@@ -979,8 +1003,12 @@ public final class PluginRuntimeDescriptor {
      * @param commandType the command type
      * @param versionRange the versions it sends
      * @param required whether the plugin cannot run without a provider
+     * @param timeoutPolicyRef timeout policy reference
+     * @param retryPolicyRef retry policy reference
+     * @param idempotencyPolicyRef idempotency policy reference
      */
-    public record ConsumedCommand(String commandType, String versionRange, boolean required) {
+    public record ConsumedCommand(String commandType, String versionRange, boolean required, String timeoutPolicyRef,
+            String retryPolicyRef, String idempotencyPolicyRef) {
 
         /**
          * Creates the declaration, blank when not declared.
@@ -988,6 +1016,16 @@ public final class PluginRuntimeDescriptor {
         public ConsumedCommand {
             commandType = commandType == null ? "" : commandType.trim();
             versionRange = versionRange == null ? "" : versionRange.trim();
+            timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
+            retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
+            idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
+        }
+
+        /**
+         * Creates a declaration without policies.
+         */
+        public ConsumedCommand(String commandType, String versionRange, boolean required) {
+            this(commandType, versionRange, required, "", "", "");
         }
     }
 

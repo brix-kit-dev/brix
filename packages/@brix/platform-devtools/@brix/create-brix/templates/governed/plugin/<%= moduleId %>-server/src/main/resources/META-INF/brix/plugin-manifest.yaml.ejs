@@ -34,6 +34,9 @@ capabilities:
 queries:
   provides: []
   consumes: []
+# Typed commands: a provided command's contract and generated types go in <%= moduleId %>-api, and its provider declares
+# data.inbox; a sender requires io.runtime.sdk.capability.CommandCapability and declares data.outbox. See the Events
+# and Commands guide in the Brix documentation.
 commands:
   provides: []
   consumes: []

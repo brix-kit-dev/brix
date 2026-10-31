@@ -18,7 +18,10 @@ import tools.jackson.databind.ObjectMapper;
  * The payload column of a canonical command message (root BRX-RS-MESSAGE-010): the typed payload with the business
  * idempotency scope and key, which the provider's runtime needs before it runs the handler (MESSAGE-014).
  *
- * <pre>{"payload": {...}, "idempotencyScope": "...", "idempotencyKey": "..."}</pre>
+ * <pre>{"payload": {...}, "idempotencyScope": "...", "idempotencyKey": "...", "actorId": "..."}</pre>
+ *
+ * <p>{@code actorId}, the user a sender acted for, is present only for an owner whose access policy is
+ * {@code on-behalf-of:<permission>} (standard-link plan L4.4); a column without it reads as no user.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -38,10 +41,28 @@ public final class CommandMessages {
      * @return the JSON
      */
     public static String encode(ObjectMapper json, Object payload, String idempotencyScope, String idempotencyKey) {
+        return encode(json, payload, idempotencyScope, idempotencyKey, null);
+    }
+
+    /**
+     * Writes a command's payload column, with the user the sender acted for.
+     *
+     * @param json the mapper
+     * @param payload the typed payload
+     * @param idempotencyScope what the key is unique within
+     * @param idempotencyKey the business key
+     * @param actorId the user the sender acted for, or {@code null}
+     * @return the JSON
+     */
+    public static String encode(ObjectMapper json, Object payload, String idempotencyScope, String idempotencyKey,
+            String actorId) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("payload", payload);
         body.put("idempotencyScope", Objects.requireNonNull(idempotencyScope, "idempotencyScope must not be null"));
         body.put("idempotencyKey", Objects.requireNonNull(idempotencyKey, "idempotencyKey must not be null"));
+        if (actorId != null && !actorId.isBlank()) {
+            body.put("actorId", actorId);
+        }
         return json.writeValueAsString(body);
     }
 
@@ -62,7 +83,10 @@ public final class CommandMessages {
             if (scope == null || scope.isBlank() || key == null || key.isBlank() || !body.has("payload")) {
                 throw new IllegalArgumentException("a command carries its payload, idempotency scope and key");
             }
-            return new Decoded(json.treeToValue(body.get("payload"), payloadType), scope, key);
+            JsonNode actor = body.get("actorId");
+            String actorId = actor == null || actor.isNull() ? null : actor.asString();
+            return new Decoded(json.treeToValue(body.get("payload"), payloadType), scope, key,
+                actorId == null || actorId.isBlank() ? null : actorId);
         } catch (JacksonException invalid) {
             throw new IllegalArgumentException("the command payload does not decode to " + payloadType.getSimpleName(),
                 invalid);
@@ -75,7 +99,8 @@ public final class CommandMessages {
      * @param payload the typed payload
      * @param idempotencyScope what the key is unique within
      * @param idempotencyKey the business key
+     * @param actorId the user the sender acted for, or {@code null}
      */
-    public record Decoded(Object payload, String idempotencyScope, String idempotencyKey) {
+    public record Decoded(Object payload, String idempotencyScope, String idempotencyKey, String actorId) {
     }
 }

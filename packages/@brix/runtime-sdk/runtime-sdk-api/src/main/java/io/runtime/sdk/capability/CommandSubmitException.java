@@ -52,7 +52,12 @@ public class CommandSubmitException extends BrixException {
         /** No plugin on this host provides the command type. */
         PROVIDER_MISSING("command.provider_missing"),
         /** The command names a tenant the submitter's unit of work does not reach. */
-        TENANT_UNREACHED("command.tenant_unreached");
+        TENANT_UNREACHED("command.tenant_unreached"),
+        /**
+         * The owner accepts the command only on behalf of a user holding a permission, and the current caller is no
+         * such user (standard-link plan L4.4).
+         */
+        ACCESS_DENIED("command.access_denied");
 
         private final String wireCode;
 

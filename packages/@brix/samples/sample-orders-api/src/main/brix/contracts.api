@@ -1,0 +1,8 @@
+accessor CancelOrder.orderId(): String required
+accessor CancelOrder.reason(): Reason required
+builder CancelOrder.Builder.orderId(String)
+builder CancelOrder.Builder.reason(Reason)
+command SampleOrdersCommands.CANCEL_ORDER = sample-orders.cancel-order major 1 CancelOrder
+constructor CancelOrder(String, Reason)
+enum CancelOrder.Reason.SHIPPING_REFUSED
+record CancelOrder schema sample-orders/cancel-order major 1

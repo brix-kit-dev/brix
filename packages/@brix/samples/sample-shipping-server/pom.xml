@@ -26,6 +26,12 @@
             <artifactId>sample-shipping-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The contract of the sample-orders command a refused shipment sends: its api artifact only (root LIFE-010) -->
+        <dependency>
+            <groupId>io.brix.samples</groupId>
+            <artifactId>sample-orders-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.brix</groupId>
             <artifactId>runtime-sdk-api</artifactId>

@@ -39,6 +39,8 @@ import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
 import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.TenantGrantTable;
+import io.runtime.orchestrator.command.CommandPolicies;
+import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.event.EventPolicies;
 import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
@@ -46,6 +48,7 @@ import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.query.PublishedQuery;
 import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.sdk.capability.EventBusCapability;
+import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
@@ -880,7 +883,7 @@ public final class PluginRuntimeManager {
 
             ownerPersistence.requireMessagingTables(plugin.id());
             PluginContext context = new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence,
-                queries);
+                queries, CommandProviders.of(this));
             plugin.provider.onStart(context);
             plugin.eventHandlers = createEventHandlers(plugin.id(), bootstrapContext.eventHandlerFactories(), context);
             // Root BRX-RS-MANIFEST-019: every other handler is created by its factory with the plugin's context.
@@ -910,7 +913,9 @@ public final class PluginRuntimeManager {
         for (String declaration : plugin.descriptor.requiredCapabilities()) {
             boolean available = declaresPersistence(declaration)
                 ? ownerPersistence.forOwner(plugin.id()).isPresent()
-                : declaresQueries(declaration) ? queries.configured() : capabilityAvailable(declaration);
+                : declaresQueries(declaration) ? queries.configured()
+                : declaresCommands(declaration) ? ownerPersistence.commandBusFor(plugin.id()).isPresent()
+                : capabilityAvailable(declaration);
             if (!available) {
                 missing.add(declaration);
             }
@@ -976,23 +981,52 @@ public final class PluginRuntimeManager {
         for (PluginRuntimeDescriptor.ProvidedCommand command : plugin.descriptor.providedCommands().values()) {
             validateCommandPolicies(plugin, command);
         }
+        for (PluginRuntimeDescriptor.ConsumedCommand command : plugin.descriptor.consumedCommands().values()) {
+            validateConsumedCommandPolicies(plugin, command);
+        }
     }
 
-    /** A provided command names the platform's policies too; its deliveries use them (Kafka design §14 K20, K22). */
+    /**
+     * A provided command names one policy of each kind, and each is the platform's (root BRX-RS-MANIFEST-025,
+     * MANIFEST-026; Kafka design §14 K20, K22; standard-link plan L4.3).
+     */
     private static void validateCommandPolicies(ManagedPlugin plugin, PluginRuntimeDescriptor.ProvidedCommand command) {
         String where = "Plugin '" + plugin.id() + "' command '" + command.commandType() + "'";
         requireEventName(where + " type", command.commandType());
         requireEventName(where + " handler id", command.handlerId());
-        if (!command.retryPolicyRef().isEmpty() && !EventPolicies.RETRY.contains(command.retryPolicyRef())) {
-            throw new PluginRuntimeException(where + " names unknown retry policy '" + command.retryPolicyRef() + "'");
+        requirePolicy(where, "retry", command.retryPolicyRef(), EventPolicies.RETRY.contains(command.retryPolicyRef()));
+        requirePolicy(where, "timeout", command.timeoutPolicyRef(),
+            EventPolicies.TIMEOUT.contains(command.timeoutPolicyRef()));
+        requirePolicy(where, "concurrency", command.concurrencyPolicyRef(),
+            EventPolicies.CONCURRENCY.contains(command.concurrencyPolicyRef()));
+        requirePolicy(where, "scope", command.scopePolicyRef(),
+            CommandPolicies.SCOPE.contains(command.scopePolicyRef()));
+        requirePolicy(where, "idempotency", command.idempotencyPolicyRef(),
+            CommandPolicies.IDEMPOTENCY.contains(command.idempotencyPolicyRef()));
+        try {
+            CommandPolicies.access(command.accessPolicyRef());
+        } catch (IllegalArgumentException unknown) {
+            throw new PluginRuntimeException(where + " names unknown access policy '" + command.accessPolicyRef() + "'");
         }
-        if (!command.timeoutPolicyRef().isEmpty() && !EventPolicies.TIMEOUT.contains(command.timeoutPolicyRef())) {
-            throw new PluginRuntimeException(where + " names unknown timeout policy '" + command.timeoutPolicyRef() + "'");
+    }
+
+    /** A consumed command names the platform's timeout, retry and idempotency policies (MANIFEST-026). */
+    private static void validateConsumedCommandPolicies(ManagedPlugin plugin,
+            PluginRuntimeDescriptor.ConsumedCommand command) {
+        String where = "Plugin '" + plugin.id() + "' consumed command '" + command.commandType() + "'";
+        requirePolicy(where, "timeout", command.timeoutPolicyRef(),
+            EventPolicies.TIMEOUT.contains(command.timeoutPolicyRef()));
+        requirePolicy(where, "retry", command.retryPolicyRef(), EventPolicies.RETRY.contains(command.retryPolicyRef()));
+        requirePolicy(where, "idempotency", command.idempotencyPolicyRef(),
+            CommandPolicies.IDEMPOTENCY.contains(command.idempotencyPolicyRef()));
+    }
+
+    private static void requirePolicy(String where, String kind, String reference, boolean known) {
+        if (reference.isEmpty()) {
+            throw new PluginRuntimeException(where + " names no " + kind + " policy");
         }
-        if (!command.concurrencyPolicyRef().isEmpty()
-                && !EventPolicies.CONCURRENCY.contains(command.concurrencyPolicyRef())) {
-            throw new PluginRuntimeException(where + " names unknown concurrency policy '"
-                + command.concurrencyPolicyRef() + "'");
+        if (!known) {
+            throw new PluginRuntimeException(where + " names unknown " + kind + " policy '" + reference + "'");
         }
     }
 
@@ -1195,6 +1229,12 @@ public final class PluginRuntimeManager {
     private static boolean declaresQueries(String declaration) {
         return QueryCapability.class.getName().equals(declaration)
             || QueryCapability.class.getSimpleName().equals(declaration);
+    }
+
+    /** Like persistence, the command capability is the owner's own: its outbox bus (standard-link plan L4.6). */
+    private static boolean declaresCommands(String declaration) {
+        return CommandCapability.class.getName().equals(declaration)
+            || CommandCapability.class.getSimpleName().equals(declaration);
     }
 
     private static boolean declaresPersistence(String declaration) {

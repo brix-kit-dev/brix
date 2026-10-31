@@ -18,6 +18,8 @@ package io.runtime.orchestrator.plugin;
 import java.util.Objects;
 import java.util.Optional;
 
+import io.runtime.orchestrator.command.CommandProviders;
+import io.runtime.orchestrator.command.PluginCommandCapability;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.orchestrator.query.QuerySideEffects;
@@ -54,6 +56,7 @@ public final class DefaultPluginContext implements PluginContext {
     private final CapabilityRegistry capabilityRegistry;
     private final OwnerPersistenceProvider ownerPersistence;
     private final QueryRuntime queries;
+    private final CommandProviders commands;
 
     /**
      * Creates a plugin context without owner persistence.
@@ -92,6 +95,26 @@ public final class DefaultPluginContext implements PluginContext {
             CapabilityRegistry capabilityRegistry,
             OwnerPersistenceProvider ownerPersistence,
             QueryRuntime queries) {
+        this(descriptor, capabilityRegistry, ownerPersistence, queries, null);
+    }
+
+    /**
+     * Creates the context of a plugin on a host whose command providers are known, so that its typed command clients
+     * check the owner's access policy and presence (standard-link plan L4.2).
+     *
+     * @param descriptor the plugin's descriptor
+     * @param capabilityRegistry the host's capabilities
+     * @param ownerPersistence the owners' persistence
+     * @param queries the host's query runtime
+     * @param commands the host's command providers, or {@code null} when not known
+     */
+    public DefaultPluginContext(
+            PluginRuntimeDescriptor descriptor,
+            CapabilityRegistry capabilityRegistry,
+            OwnerPersistenceProvider ownerPersistence,
+            QueryRuntime queries,
+            CommandProviders commands) {
+        this.commands = commands;
         this.queries = Objects.requireNonNull(queries, "queries must not be null");
         this.descriptor = Objects.requireNonNull(descriptor, "descriptor must not be null");
         this.capabilityRegistry = Objects.requireNonNull(capabilityRegistry, "capabilityRegistry must not be null");
@@ -124,10 +147,9 @@ public final class DefaultPluginContext implements PluginContext {
             }
         }
         if (capabilityType == CommandCapability.class) {
-            return QuerySideEffects.guard(capabilityType, capabilityType.cast(
-                ownerPersistence.commandBusFor(descriptor.identity().pluginId())
-                    .orElseThrow(() -> new PluginRuntimeException("Plugin '" + descriptor.identity().pluginId()
-                        + "' has no command capability: it needs data.outbox and commands.consumes"))));
+            return QuerySideEffects.guard(capabilityType, capabilityType.cast(commandCapability()
+                .orElseThrow(() -> new PluginRuntimeException("Plugin '" + descriptor.identity().pluginId()
+                    + "' has no command capability: it needs data.outbox and commands.consumes"))));
         }
         return QuerySideEffects.guard(capabilityType, capabilityRegistry.getRequired(capabilityType));
     }
@@ -155,7 +177,7 @@ public final class DefaultPluginContext implements PluginContext {
             }
         }
         if (capabilityType == CommandCapability.class) {
-            return ownerPersistence.commandBusFor(descriptor.identity().pluginId()).map(capabilityType::cast)
+            return commandCapability().map(capabilityType::cast)
                 .map(bus -> QuerySideEffects.guard(capabilityType, bus));
         }
         return capabilityRegistry.get(capabilityType).map(capability -> QuerySideEffects.guard(capabilityType, capability));
@@ -167,6 +189,13 @@ public final class DefaultPluginContext implements PluginContext {
     @Override
     public PluginIdentity pluginIdentity() {
         return descriptor.identity();
+    }
+
+    /** The plugin's typed command clients over its outbox bus (standard-link plan L4.2). */
+    private Optional<CommandCapability> commandCapability() {
+        String pluginId = descriptor.identity().pluginId();
+        return ownerPersistence.commandBusFor(pluginId).map(bus -> new PluginCommandCapability(
+            pluginId, bus, descriptor.consumedCommands(), commands));
     }
 
     private Optional<PersistenceCapability> ownerPersistence() {

@@ -52,7 +52,7 @@ final class ShowOrder implements EndpointHandler<EndpointInvocation<Object>, End
         SampleOrder order = parse(orderId).flatMap(orders::find)
             .orElseThrow(() -> new EndpointHandlingException(404, NOT_FOUND, "The tenant has no such order"));
         return EndpointResponse.ok(new OrderDetail(orderId, order.sku(), order.quantity(), order.version(),
-            shipmentOf(orderId)));
+            order.status(), shipmentOf(orderId)));
     }
 
     private String shipmentOf(String orderId) {

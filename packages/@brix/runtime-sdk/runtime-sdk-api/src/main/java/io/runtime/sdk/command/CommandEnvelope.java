@@ -33,6 +33,7 @@ import io.runtime.sdk.event.EventScope;
  * @param idempotencyScope business idempotency scope
  * @param idempotencyKey business idempotency key retained across retry and replay
  * @param payload typed command payload
+ * @param actorId the user the sender acted for, when the owner accepts the command only on behalf of a user
  * @param <C> payload type
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -52,7 +53,8 @@ public record CommandEnvelope<C>(
         String partitionKey,
         String idempotencyScope,
         String idempotencyKey,
-        C payload) {
+        C payload,
+        String actorId) {
 
     /**
      * Creates a validated command envelope.
@@ -70,11 +72,23 @@ public record CommandEnvelope<C>(
         idempotencyScope = requireText(idempotencyScope, "idempotencyScope");
         idempotencyKey = requireText(idempotencyKey, "idempotencyKey");
         payload = Objects.requireNonNull(payload, "payload must not be null");
+        actorId = actorId == null || actorId.isBlank() ? null : actorId;
         if (scope == EventScope.TENANT) {
             tenantId = requireText(tenantId, "tenantId");
         } else if (tenantId != null && !tenantId.isBlank()) {
             throw new IllegalArgumentException("tenantId must be empty for PLATFORM scoped commands");
         }
+    }
+
+    /**
+     * Creates an envelope without the user it was sent on behalf of, as runtimes before 3.3.0 did.
+     */
+    public CommandEnvelope(String commandId, String commandType, String schemaVersion, Instant submittedAt,
+            String producerPluginId, EventScope scope, String tenantId, String correlationId, String causationId,
+            String traceparent, String tracestate, String partitionKey, String idempotencyScope, String idempotencyKey,
+            C payload) {
+        this(commandId, commandType, schemaVersion, submittedAt, producerPluginId, scope, tenantId, correlationId,
+            causationId, traceparent, tracestate, partitionKey, idempotencyScope, idempotencyKey, payload, null);
     }
 
     private static String requireText(String value, String field) {

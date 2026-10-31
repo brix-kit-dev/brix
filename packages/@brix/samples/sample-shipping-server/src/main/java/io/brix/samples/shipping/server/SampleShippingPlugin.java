@@ -9,7 +9,9 @@ package io.brix.samples.shipping.server;
 import java.time.Clock;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.brix.samples.orders.api.SampleOrdersCommands;
 import io.brix.samples.shipping.core.ShipmentDesk;
+import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.IdGeneratorCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.plugin.BrixHealth;
@@ -20,9 +22,10 @@ import io.runtime.sdk.plugin.PluginContext;
 /**
  * The sample subscriber (Kafka design §14 K23). Its manifest subscribes to {@code SampleOrderPlaced} with a persistent
  * inbox, offers a read endpoint and provides the typed query {@code sample-shipping.find-shipment} (query design §4.1);
- * this class binds the three handlers under the manifest's handler ids. The plugin
- * depends on no artifact of the publisher: it reads the event as its own {@code OrderPlaced}, a view of the
- * published schema.
+ * its refuse endpoint sends sample-orders' typed command {@code sample-orders.cancel-order} (standard-link plan L4.7).
+ * This class binds the four handlers under the manifest's handler ids. The plugin reads the event as its own
+ * {@code OrderPlaced}, a view of the published schema; for the command it addresses sample-orders, it takes the
+ * generated type from sample-orders' api artifact and nothing else of it.
  *
  * @author Brix Platform Authors
  * @since 3.2.0
@@ -38,6 +41,9 @@ public final class SampleShippingPlugin implements BrixPlugin {
     /** The handler of the typed query {@code sample-shipping.find-shipment}, as the manifest names it. */
     public static final String FIND_SHIPMENT_QUERY = "sample-shipping.find-shipment.query.v1";
 
+    /** The handler of {@code POST /api/sample-shipping/shipments/{orderId}/refuse}, as the manifest names it. */
+    public static final String REFUSE_SHIPMENT = "sample-shipping.refuse-shipment.v1";
+
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
 
     @Override
@@ -45,6 +51,10 @@ public final class SampleShippingPlugin implements BrixPlugin {
         bootstrap.bindEventHandlerFactory(PREPARE_SHIPMENT, context -> new PrepareShipment(desk(context)));
         bootstrap.bindEndpointHandlerFactory(FIND_SHIPMENT, context -> new FindShipment(desk(context)));
         bootstrap.bindQueryHandlerFactory(FIND_SHIPMENT_QUERY, context -> new FindShipmentQuery(desk(context)));
+        // Refusing a shipment asks sample-orders to cancel the order with its typed command (plan L4.7).
+        bootstrap.bindEndpointHandlerFactory(REFUSE_SHIPMENT, context -> new RefuseShipment(
+            context.require(PersistenceCapability.class), desk(context),
+            context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
     }
 
     private static ShipmentDesk desk(PluginContext context) {

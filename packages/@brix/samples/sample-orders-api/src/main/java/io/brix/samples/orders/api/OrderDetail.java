@@ -14,9 +14,11 @@ package io.brix.samples.orders.api;
  * @param sku what was ordered
  * @param quantity how many
  * @param version the order's version
+ * @param status {@code PLACED}, or {@code CANCELLED} once a {@code sample-orders.cancel-order} command was applied
  * @param shipment {@code PREPARED}, {@code NOT_PREPARED}, or {@code UNAVAILABLE} when the host has no sample-shipping
  * @author Brix Platform Authors
  * @since 3.3.0
  */
-public record OrderDetail(String orderId, String sku, int quantity, long version, String shipment) {
+public record OrderDetail(String orderId, String sku, int quantity, long version, String status,
+        String shipment) {
 }

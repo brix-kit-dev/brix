@@ -100,8 +100,20 @@ queries:
       required: false
       timeoutPolicyRef: query-interactive
       retryPolicyRef: query-no-retry
+# Other plugins ask for a cancellation with this typed command; its contract and generated types are in
+# sample-orders-api (standard-link plan L4.7).
 commands:
-  provides: []
+  provides:
+    - commandType: sample-orders.cancel-order
+      request:
+        schemaRef: brix://schemas/sample-orders/cancel-order/1.0.0
+      handlerId: sample-orders.cancel-order.v1
+      scopePolicyRef: command-envelope
+      accessPolicyRef: declared-consumers
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: partition-serial
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
   consumes: []
 events:
   publishes:
@@ -120,13 +132,14 @@ tasks:
   provides: []
 internalContracts:
   provides: []
-# The platform creates sample_orders_outbox from its own versioned migrations; db/migration/sample-orders holds only
-# the plugin's business tables.
+# The platform creates sample_orders_outbox, sample_orders_inbox and sample_orders_command_idempotency from its own
+# versioned migrations; db/migration/sample-orders holds only the plugin's business tables.
 data:
   storageId: sample_orders
   schema: sample-orders
   migrationLocation: db/migration/sample-orders
   outbox: sample_orders_outbox
+  inbox: sample_orders_inbox
 permissions:
   - id: sample-orders:order:read
     name: Read sample orders

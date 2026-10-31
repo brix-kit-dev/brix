@@ -83,6 +83,25 @@ public record RuntimeInvocation(
     }
 
     /**
+     * Returns whether the call's user holds a permission: a tenant user holds what the grant table gives their role,
+     * a platform user what their token carries.
+     *
+     * @param permission the permission
+     * @return {@code true} when the user holds it; {@code false} without a user
+     */
+    public boolean holds(String permission) {
+        if (!caller.hasPrincipal()) {
+            return false;
+        }
+        boolean tenantUser = caller.principalRole()
+            .filter(role -> "actor".equals(role) || "subject".equals(role)).isPresent();
+        if (tenantUser) {
+            return access.effectivePermissions().containsKey(permission);
+        }
+        return platformPermissions.contains(permission);
+    }
+
+    /**
      * Returns the call of an HTTP endpoint handler.
      *
      * @param pluginId the module that owns the endpoint

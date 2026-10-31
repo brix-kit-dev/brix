@@ -331,5 +331,6 @@ The host properties the test sets show what a host needs for this chain:
   `>=1.0.0 <2.0.0`. They ignore the field until they need it.
 - **A cancellation.** Publish `SampleOrderCancelled` with the order's next `version`. A subscriber that receives
   both event types keeps the shipment's `order_version` and ignores anything older.
-- **Asking another plugin to act.** Send a command with `CommandCapability.submit(...)` rather than an event; see
+- **Asking another plugin to act.** Send the owner's typed command rather than an event, as `sample-shipping` does
+  when a shipment is refused: `CommandCapability.client(SampleOrdersCommands.CANCEL_ORDER)`. See
   [Commands](../guides/events-and-commands.md#commands).

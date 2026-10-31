@@ -37,6 +37,7 @@ import io.runtime.orchestrator.manifest.UIManifestLoader;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.orchestrator.registry.ModuleRegistry;
+import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
@@ -175,7 +176,8 @@ public class PluginRegistryAutoConfiguration {
         boolean queries = queryRuntime.getIfAvailable(QueryRuntime::unconfigured).configured();
         manifestLoader.verifyRequiredCapabilities((pluginId, capability) -> available.contains(capability)
             || (names(PersistenceCapability.class, capability) && persistence.forOwner(pluginId).isPresent())
-            || (names(QueryCapability.class, capability) && queries));
+            || (names(QueryCapability.class, capability) && queries)
+            || (names(CommandCapability.class, capability) && persistence.commandBusFor(pluginId).isPresent()));
         return new PluginCapabilityVerifier();
     }
 

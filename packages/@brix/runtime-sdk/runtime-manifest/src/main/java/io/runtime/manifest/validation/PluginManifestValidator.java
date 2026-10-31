@@ -294,6 +294,13 @@ public final class PluginManifestValidator {
             if (!(schemaRef instanceof String text) || !text.startsWith("brix://schemas/")) {
                 result.addError(prefix + ".request.schemaRef", "A provided command names its request schema brix://schemas/...");
             }
+            // Root BRX-RS-MANIFEST-025: a provided command names one policy of each kind; the runtime resolves them.
+            requirePresent(result, prefix + ".scopePolicyRef", ref.getScopePolicyRef());
+            requirePresent(result, prefix + ".accessPolicyRef", ref.getAccessPolicyRef());
+            requirePresent(result, prefix + ".timeoutPolicyRef", ref.getTimeoutPolicyRef());
+            requirePresent(result, prefix + ".concurrencyPolicyRef", ref.getConcurrencyPolicyRef());
+            requirePresent(result, prefix + ".retryPolicyRef", ref.getRetryPolicyRef());
+            requirePresent(result, prefix + ".idempotencyPolicyRef", ref.getIdempotencyPolicyRef());
         }
         Set<String> consumed = new HashSet<>();
         for (int i = 0; i < consumes.size(); i++) {
@@ -312,6 +319,15 @@ public final class PluginManifestValidator {
             } else {
                 result.addError(prefix + ".versionRange", "A consumed command names the versions it sends");
             }
+            if (ref.getRequired() == null) {
+                result.addError(prefix + ".required", "A consumed command says whether the plugin requires it");
+            }
+            requirePresent(result, prefix + ".timeoutPolicyRef", ref.getTimeoutPolicyRef());
+            requirePresent(result, prefix + ".retryPolicyRef", ref.getRetryPolicyRef());
+            requirePresent(result, prefix + ".idempotencyPolicyRef", ref.getIdempotencyPolicyRef());
+        }
+        if (!consumes.isEmpty() && !declares(manifest, "io.runtime.sdk.capability.CommandCapability")) {
+            result.addError("capabilities", "Command consumers must declare io.runtime.sdk.capability.CommandCapability");
         }
         List<PluginManifest.EventSubscribe> subscribes = manifest.getEvents() != null
             ? manifest.getEvents().getSubscribes() : List.of();

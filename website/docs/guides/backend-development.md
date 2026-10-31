@@ -691,8 +691,9 @@ Your code never sees Kafka, a topic name or a consumer group.
   each event into that type, and refuses a handler whose type it cannot tell. `OrderPlaced` is `sample-shipping`'s
   own record in its core artifact, not a class of the publisher.
 
-- **Ask another plugin to change its data** with a command: `CommandCapability.submit(...)` on the sending side, a
-  `CommandHandler` bound with `bindCommandHandlerFactory` on the providing side.
+- **Ask another plugin to change its data** with a command: the owner publishes its contract in its api artifact
+  and binds a `CommandHandler` with `bindCommandHandlerFactory`; the sender submits the generated type through
+  `CommandCapability.client(...)` inside its unit of work.
 
 Do not use the legacy `io.runtime.sdk.annotation.EventHandler` annotation: nothing reads it, and it will be removed.
 [Events and Commands](./events-and-commands.md) covers declarations, schemas, guarantees, failures and operations in
