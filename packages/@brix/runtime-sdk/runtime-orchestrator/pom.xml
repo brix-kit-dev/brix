@@ -82,6 +82,16 @@
         </dependency>
 
         <!--
+          The query gateway's circuit breaker per caller and query (root BRX-RS-MESSAGE-006; query
+          design D43). Same version as infra-adapter-resilience and platform-commons.
+        -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+
+        <!--
           Outbox relay meters and the management endpoint for parked messages (optional; active
           only when the Host includes actuator and Micrometer)
         -->

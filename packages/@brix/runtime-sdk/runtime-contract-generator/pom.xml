@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2026 Brix Authors
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.brix</groupId>
+        <artifactId>runtime-sdk-parent</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>runtime-contract-generator</artifactId>
+    <name>Brix Runtime Contract Generator</name>
+    <description>
+        Generates the typed query contract types of a plugin's api artifact from its query contract files and
+        JSON Schemas (root BRX-RS-A-22; query design D38). Api modules use it in a test that fails when the
+        checked-in sources no longer match the schemas, and that rewrites them on request.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Generated sources compile against the L2A contract types; the tests compile and load them. -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-sdk-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

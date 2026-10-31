@@ -206,9 +206,20 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                 .requiredCapabilities(capabilityIds(manifest.getCapabilities() != null
                     ? manifest.getCapabilities().getRequired() : List.of()))
                 .optionalCapabilities(capabilityIds(manifest.getCapabilities() != null
-                    ? manifest.getCapabilities().getOptional() : List.of()))
-                .queryHandlers(contractIds(manifest.getQueries() != null
-                    ? manifest.getQueries().getProvides() : List.of()));
+                    ? manifest.getCapabilities().getOptional() : List.of()));
+            if (manifest.getQueries() != null) {
+                for (PluginManifest.ContractRef provided : manifest.getQueries().getProvides()) {
+                    builder.providedQuery(new PluginRuntimeDescriptor.ProvidedQuery(provided.getQueryType(),
+                        schemaRef(provided.getRequest()), schemaRef(provided.getResponse()), provided.getHandlerId(),
+                        provided.getScopePolicyRef(), provided.getAccessPolicyRef(), provided.getTimeoutPolicyRef(),
+                        provided.getConcurrencyPolicyRef()));
+                }
+                for (PluginManifest.ContractRef consumed : manifest.getQueries().getConsumes()) {
+                    builder.consumedQuery(new PluginRuntimeDescriptor.ConsumedQuery(consumed.getQueryType(),
+                        consumed.getVersionRange(), !Boolean.FALSE.equals(consumed.getRequired()),
+                        consumed.getTimeoutPolicyRef(), consumed.getRetryPolicyRef()));
+                }
+            }
             if (manifest.getCommands() != null) {
                 for (PluginManifest.ContractRef provided : manifest.getCommands().getProvides()) {
                     builder.providedCommand(new PluginRuntimeDescriptor.ProvidedCommand(provided.getCommandType(),
@@ -355,25 +366,17 @@ public final class ClasspathPluginRuntimeDescriptorResolver
     }
 
     /** The version a {@code brix://schemas/.../<version>} reference ends with. */
+    private static String schemaRef(Map<String, Object> schema) {
+        Object ref = schema == null ? null : schema.get("schemaRef");
+        return ref instanceof String text ? text : "";
+    }
+
     private static String schemaVersion(Map<String, Object> schema) {
         Object ref = schema == null ? null : schema.get("schemaRef");
         if (!(ref instanceof String text) || text.lastIndexOf('/') < 0) {
             return "";
         }
         return text.substring(text.lastIndexOf('/') + 1);
-    }
-
-    private List<String> contractIds(List<PluginManifest.ContractRef> refs) {
-        if (refs == null || refs.isEmpty()) {
-            return List.of();
-        }
-        List<String> ids = new ArrayList<>();
-        for (PluginManifest.ContractRef ref : refs) {
-            if (ref != null && ref.getId() != null && !ref.getId().isBlank()) {
-                ids.add(ref.getId());
-            }
-        }
-        return ids;
     }
 
     private List<String> stringList(JsonNode node) {

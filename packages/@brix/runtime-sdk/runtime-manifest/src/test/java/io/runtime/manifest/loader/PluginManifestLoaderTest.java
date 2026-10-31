@@ -163,6 +163,45 @@ class PluginManifestLoaderTest {
     }
 
     @Test
+    void aQueryProviderIsNamedByItsPluginAndCarriesOneContractVersion() {
+        // Query design §4.1 (root BRX-RS-MANIFEST-025): the bundled schema has no version field; both schemas carry it.
+        assertThatCode(() -> loader.loadFromString(queryProviderManifest())).doesNotThrowAnyException();
+        assertThatThrownBy(() -> loader.loadFromString(queryProviderManifest()
+                .replace("queryType: sample-plugin.find-thing", "queryType: other-plugin.find-thing")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("A provided query is named <pluginId>.<name>");
+        assertThatThrownBy(() -> loader.loadFromString(queryProviderManifest()
+                .replace("sample-plugin/thing/1.0.0", "sample-plugin/thing/1.1.0")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("so they must be the same");
+    }
+
+    @Test
+    void aQueryConsumerDeclaresTheQueryCapabilityAndNotItsOwnQueries() {
+        String consumer = validManifest().replace("queries:\n  provides: []\n  consumes: []\n", """
+            queries:
+              provides: []
+              consumes:
+                - queryType: other-plugin.find-thing
+                  versionRange: ">=1.0.0 <2.0.0"
+                  required: false
+                  timeoutPolicyRef: query-interactive
+                  retryPolicyRef: query-no-retry
+            """);
+        assertThatThrownBy(() -> loader.loadFromString(consumer))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("Query consumers must declare io.runtime.sdk.capability.QueryCapability");
+        String declared = consumer.replace("capabilities:\n  required:\n",
+            "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.QueryCapability\n"
+                + "      version: \">=3.3.0 <4.0.0\"\n");
+        assertThatCode(() -> loader.loadFromString(declared)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> loader.loadFromString(declared.replace("other-plugin.find-thing",
+                "sample-plugin.find-thing")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("not through its own query");
+    }
+
+    @Test
     void aSubscriberThatKeepsNoInboxNeedsNoInboxTable() {
         // Root BRX-RS-MANIFEST-025, Kafka design §13 K3: no-durable-idempotency subscriptions keep no inbox.
         assertThatCode(() -> loader.loadFromString(subscriberManifest()
@@ -243,6 +282,23 @@ class PluginManifestLoaderTest {
               storageId: platform_tenant
               outbox: platform_tenant_outbox
               inbox: platform_tenant_inbox
+            """);
+    }
+
+    private String queryProviderManifest() {
+        return validManifest().replace("queries:\n  provides: []\n", """
+            queries:
+              provides:
+                - queryType: sample-plugin.find-thing
+                  request:
+                    schemaRef: brix://schemas/sample-plugin/find-thing-request/1.0.0
+                  response:
+                    schemaRef: brix://schemas/sample-plugin/thing/1.0.0
+                  handlerId: find-thing.v1
+                  scopePolicyRef: query-caller-tenant
+                  accessPolicyRef: declared-consumers
+                  timeoutPolicyRef: query-interactive
+                  concurrencyPolicyRef: query-standard
             """);
     }
 

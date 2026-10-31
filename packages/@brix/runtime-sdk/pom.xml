@@ -52,6 +52,7 @@
         <!-- <module>runtime-sdk</module> -->
         <module>runtime-manifest</module>
         <module>runtime-orchestrator</module>
+        <module>runtime-contract-generator</module>
     </modules>
 
     <properties>
@@ -106,6 +107,11 @@
             <dependency>
                 <groupId>io.brix</groupId>
                 <artifactId>runtime-manifest</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.brix</groupId>
+                <artifactId>runtime-contract-generator</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

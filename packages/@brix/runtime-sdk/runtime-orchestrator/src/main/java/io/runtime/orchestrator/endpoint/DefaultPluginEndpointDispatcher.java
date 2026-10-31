@@ -28,9 +28,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.runtime.orchestrator.invocation.RuntimeInvocation;
+import io.runtime.orchestrator.invocation.RuntimeInvocations;
 import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.TraceContext;
 
 /**
  * Default in-process endpoint dispatcher backed by an immutable route snapshot.
@@ -155,7 +158,19 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             firstHeader(normalizedHeaders, TRACE_HEADER),
             Instant.now().plus(endpointDeadline),
             access);
-        return invokeHandler(match.route(), invocation);
+        // Typed queries the handler makes take their caller, user, tenant and deadline from this call (root
+        // BRX-RS-MANIFEST-028). A tenant user's permissions come only from the grant table, so none are forwarded.
+        boolean tenantUser = firstHeader(normalizedHeaders, TOKEN_ROLE_HEADER)
+            .filter(role -> "actor".equals(role) || "subject".equals(role)).isPresent();
+        RuntimeInvocation call = RuntimeInvocation.forEndpoint(match.route().pluginId(), invocation,
+            tenantUser ? Set.of() : headerValues(normalizedHeaders, PERMISSION_HEADER),
+            traceContext(normalizedHeaders));
+        return RuntimeInvocations.within(call, () -> invokeHandler(match.route(), invocation));
+    }
+
+    private static Optional<TraceContext> traceContext(Map<String, List<String>> headers) {
+        Optional<String> traceparent = firstHeader(headers, "traceparent").filter(value -> !value.isBlank());
+        return traceparent.map(value -> new TraceContext(value, firstHeader(headers, "tracestate").orElse(null)));
     }
 
     /**

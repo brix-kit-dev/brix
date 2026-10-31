@@ -39,6 +39,7 @@ import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointResponse;
+import io.runtime.sdk.query.BrixQueryException;
 
 /**
  * Spring Web adapter for Runtime Shell plugin endpoints.
@@ -133,7 +134,26 @@ public class RuntimeShellEndpointController {
                 .body(Map.of(
                     "errorCode", e.errorCode(),
                     "message", e.getMessage()));
+        } catch (BrixQueryException e) {
+            return queryFailure(e);
         }
+    }
+
+    /**
+     * Maps a typed query failure the handler did not handle (query design §5.4): an unavailable provider is 503 and a
+     * late one 504, so that clients may try again; a failing provider is {@code platform.unknown}. The response
+     * carries only the stable code; the cause and the query stay in the logs (root BRX-RS-ERROR-010, ERROR-012).
+     */
+    private static ResponseEntity<Object> queryFailure(BrixQueryException failure) {
+        int status = switch (failure.code()) {
+            case PROVIDER_MISSING, REJECTED, CIRCUIT_OPEN -> 503;
+            case DEADLINE_EXCEEDED -> 504;
+            case ACCESS_DENIED -> 403;
+            case INVALID_REQUEST, SERIALIZATION_FAILED, PROVIDER_FAILED -> 500;
+        };
+        String code = failure.is(BrixQueryException.Code.PROVIDER_FAILED)
+            ? "platform.unknown" : failure.code().wireCode();
+        return ResponseEntity.status(HttpStatusCode.valueOf(status)).body(Map.of("errorCode", code, "message", code));
     }
 
     private Map<String, List<String>> trustedInvocationHeaders(Map<String, List<String>> requestHeaders) {

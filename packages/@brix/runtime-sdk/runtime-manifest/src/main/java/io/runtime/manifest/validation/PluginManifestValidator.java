@@ -17,6 +17,7 @@ package io.runtime.manifest.validation;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -46,6 +47,7 @@ public final class PluginManifestValidator {
     public static final String ACTIVE_MANIFEST_RESOURCE = "META-INF/brix/plugin-manifest.yaml";
 
     private static final Pattern PLUGIN_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9-]*$");
+    private static final Pattern QUERY_TYPE_PATTERN = Pattern.compile("^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$");
     private static final Pattern STORAGE_ID_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,30}$");
     private static final Pattern SQL_NAME_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,62}$");
     private static final Pattern ACTION_PATTERN = Pattern.compile("^[A-Z][A-Z0-9_]{0,63}$");
@@ -82,10 +84,7 @@ public final class PluginManifestValidator {
         validateRuntime(manifest.getRuntime(), result);
         validateCapabilities("capabilities.required", capabilities(manifest, true), result);
         validateCapabilities("capabilities.optional", capabilities(manifest, false), result);
-        validateContractRefs("queries.provides", manifest.getQueries() != null
-            ? manifest.getQueries().getProvides() : List.of(), result);
-        validateContractRefs("queries.consumes", manifest.getQueries() != null
-            ? manifest.getQueries().getConsumes() : List.of(), result);
+        validateQueries(manifest, result);
         validateCommands(manifest, result);
         validateEvents(manifest, result);
         validateInternalContracts(manifest.getInternalContracts(), result);
@@ -161,26 +160,107 @@ public final class PluginManifestValidator {
         }
     }
 
-    private void validateContractRefs(
-            String field,
-            List<PluginManifest.ContractRef> refs,
-            ValidationResult result) {
-        Set<String> ids = new HashSet<>();
-        for (int i = 0; i < refs.size(); i++) {
-            PluginManifest.ContractRef ref = refs.get(i);
-            String prefix = field + "[" + i + "]";
+    /**
+     * Queries are named by their type, which starts with the providing plugin's id (root BRX-RS-MANIFEST-025,
+     * MANIFEST-026). The request and response schemas carry the same version, the version of the query's contract;
+     * a plugin reads its own data through its own repositories, so it does not consume a query it provides; and a
+     * consumer declares the capability it calls queries through.
+     */
+    private void validateQueries(PluginManifest manifest, ValidationResult result) {
+        List<PluginManifest.ContractRef> provides = manifest.getQueries() != null
+            ? manifest.getQueries().getProvides() : List.of();
+        List<PluginManifest.ContractRef> consumes = manifest.getQueries() != null
+            ? manifest.getQueries().getConsumes() : List.of();
+        String pluginId = manifest.getMetadata() != null ? manifest.getMetadata().getPluginId() : null;
+        Set<String> provided = new HashSet<>();
+        Set<String> handlers = new HashSet<>();
+        for (int i = 0; i < provides.size(); i++) {
+            PluginManifest.ContractRef ref = provides.get(i);
+            String prefix = "queries.provides[" + i + "]";
             if (ref == null) {
-                result.addError(prefix, "Contract reference is required");
+                result.addError(prefix, "Query provider is required");
                 continue;
             }
-            requirePresent(result, prefix + ".id", ref.getId());
-            if (ref.getVersion() != null && !ref.getVersion().isBlank()) {
-                validateSemVer(result, prefix + ".version", ref.getVersion());
+            requirePattern(result, prefix + ".queryType", ref.getQueryType(), QUERY_TYPE_PATTERN);
+            if (pluginId != null && ref.getQueryType() != null && !ref.getQueryType().startsWith(pluginId + ".")) {
+                result.addError(prefix + ".queryType", "A provided query is named <pluginId>.<name>: "
+                    + ref.getQueryType());
             }
-            if (ref.getId() != null && !ids.add(ref.getId())) {
-                result.addError(prefix + ".id", "Duplicate contract id: " + ref.getId());
+            if (ref.getQueryType() != null && !provided.add(ref.getQueryType() + "#" + majorOf(ref.getRequest()))) {
+                result.addError(prefix + ".queryType", "Duplicate provided query type: " + ref.getQueryType());
+            }
+            requirePresent(result, prefix + ".handlerId", ref.getHandlerId());
+            if (ref.getHandlerId() != null && !handlers.add(ref.getHandlerId())) {
+                result.addError(prefix + ".handlerId", "Duplicate query handler id: " + ref.getHandlerId());
+            }
+            String request = schemaRefOf(ref.getRequest());
+            String response = schemaRefOf(ref.getResponse());
+            requireSchemaRef(result, prefix + ".request.schemaRef", request);
+            requireSchemaRef(result, prefix + ".response.schemaRef", response);
+            if (request != null && response != null && !versionOf(request).equals(versionOf(response))) {
+                result.addError(prefix + ".response.schemaRef", "The request and response schemas of a query carry "
+                    + "the version of its contract, so they must be the same: " + versionOf(request) + " and "
+                    + versionOf(response));
             }
         }
+        Set<String> consumed = new HashSet<>();
+        for (int i = 0; i < consumes.size(); i++) {
+            PluginManifest.ContractRef ref = consumes.get(i);
+            String prefix = "queries.consumes[" + i + "]";
+            if (ref == null) {
+                result.addError(prefix, "Query consumer is required");
+                continue;
+            }
+            requirePattern(result, prefix + ".queryType", ref.getQueryType(), QUERY_TYPE_PATTERN);
+            if (ref.getQueryType() != null && !consumed.add(ref.getQueryType())) {
+                result.addError(prefix + ".queryType", "Duplicate consumed query type: " + ref.getQueryType());
+            }
+            if (pluginId != null && ref.getQueryType() != null && ref.getQueryType().startsWith(pluginId + ".")) {
+                result.addError(prefix + ".queryType", "A plugin reads its own data through its own repositories, "
+                    + "not through its own query: " + ref.getQueryType());
+            }
+            if (ref.getVersionRange() != null && !ref.getVersionRange().isBlank()) {
+                validateRange(result, prefix + ".versionRange", ref.getVersionRange());
+            } else {
+                result.addError(prefix + ".versionRange", "A consumed query names the versions it reads");
+            }
+            if (ref.getRequired() == null) {
+                result.addError(prefix + ".required", "A consumed query says whether the plugin requires it");
+            }
+        }
+        if (!consumes.isEmpty() && !declares(manifest, "io.runtime.sdk.capability.QueryCapability")) {
+            result.addError("capabilities", "Query consumers must declare io.runtime.sdk.capability.QueryCapability");
+        }
+    }
+
+    private void requireSchemaRef(ValidationResult result, String field, String schemaRef) {
+        if (schemaRef == null || !SCHEMA_REF_PATTERN.matcher(schemaRef).matches()) {
+            result.addError(field, "Expected brix://schemas/<plugin>/<name>/<major.minor.patch>");
+        }
+    }
+
+    private static String schemaRefOf(Map<String, Object> schema) {
+        Object ref = schema == null ? null : schema.get("schemaRef");
+        return ref instanceof String text ? text : null;
+    }
+
+    private static String versionOf(String schemaRef) {
+        return schemaRef.substring(schemaRef.lastIndexOf('/') + 1);
+    }
+
+    private static String majorOf(Map<String, Object> schema) {
+        String ref = schemaRefOf(schema);
+        if (ref == null || !SCHEMA_REF_PATTERN.matcher(ref).matches()) {
+            return "";
+        }
+        String version = versionOf(ref);
+        return version.substring(0, version.indexOf('.'));
+    }
+
+    private boolean declares(PluginManifest manifest, String capability) {
+        String simpleName = capability.substring(capability.lastIndexOf('.') + 1);
+        return java.util.stream.Stream.concat(capabilities(manifest, true).stream(), capabilities(manifest, false).stream())
+            .anyMatch(ref -> ref != null && (capability.equals(ref.getId()) || simpleName.equals(ref.getId())));
     }
 
     /**

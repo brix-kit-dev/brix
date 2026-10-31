@@ -28,6 +28,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.internalcontract.BrixRange;
+import io.runtime.orchestrator.invocation.RuntimeInvocation;
+import io.runtime.orchestrator.invocation.RuntimeInvocations;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.TenantScopes;
@@ -317,7 +319,12 @@ public final class EventDelivery {
                     if (keepsInbox && !inbox.insertProcessed(bound.pluginId(), handlerId, message)) {
                         return false;
                     }
-                    await(handler.handle(invocation), invocation.deadline(), cancelled);
+                    // Typed queries the handler makes run as this subscriber, in the event's tenant (root
+                    // BRX-RS-MANIFEST-028).
+                    RuntimeInvocations.within(RuntimeInvocation.forEvent(bound.pluginId(), invocation), () -> {
+                        await(handler.handle(invocation), invocation.deadline(), cancelled);
+                        return null;
+                    });
                     bind.handled(TenantScopes.bound());
                     return true;
                 } finally {

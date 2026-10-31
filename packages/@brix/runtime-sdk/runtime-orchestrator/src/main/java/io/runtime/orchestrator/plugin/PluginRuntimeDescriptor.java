@@ -63,6 +63,8 @@ public final class PluginRuntimeDescriptor {
     private final Map<String, String> publicationSchemas;
     private final Map<String, ProvidedCommand> providedCommands;
     private final Map<String, ConsumedCommand> consumedCommands;
+    private final Map<String, ProvidedQuery> providedQueries;
+    private final Map<String, ConsumedQuery> consumedQueries;
     private final Map<String, ProvidedInternalContract> providedInternalContracts;
 
     private PluginRuntimeDescriptor(Builder builder) {
@@ -84,6 +86,8 @@ public final class PluginRuntimeDescriptor {
         this.publicationSchemas = Map.copyOf(builder.publicationSchemas);
         this.providedCommands = Map.copyOf(builder.providedCommands);
         this.consumedCommands = Map.copyOf(builder.consumedCommands);
+        this.providedQueries = Map.copyOf(builder.providedQueries);
+        this.consumedQueries = Map.copyOf(builder.consumedQueries);
         this.providedInternalContracts = Map.copyOf(builder.providedInternalContracts);
     }
 
@@ -286,6 +290,25 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
+     * Returns the queries the plugin provides, by query type and major version, such as
+     * {@code sample-shipping.find-shipment#1} (root BRX-RS-MANIFEST-025).
+     *
+     * @return immutable provided queries
+     */
+    public Map<String, ProvidedQuery> providedQueries() {
+        return providedQueries;
+    }
+
+    /**
+     * Returns the queries the plugin calls, by query type.
+     *
+     * @return immutable consumed queries
+     */
+    public Map<String, ConsumedQuery> consumedQueries() {
+        return consumedQueries;
+    }
+
+    /**
      * Returns internal contracts provided by this plugin artifact.
      *
      * @return immutable internal contract declarations keyed by contract id
@@ -376,6 +399,8 @@ public final class PluginRuntimeDescriptor {
         private final Map<String, String> publicationSchemas = new LinkedHashMap<>();
         private final Map<String, ProvidedCommand> providedCommands = new LinkedHashMap<>();
         private final Map<String, ConsumedCommand> consumedCommands = new LinkedHashMap<>();
+        private final Map<String, ProvidedQuery> providedQueries = new LinkedHashMap<>();
+        private final Map<String, ConsumedQuery> consumedQueries = new LinkedHashMap<>();
         private final Map<String, ProvidedInternalContract> providedInternalContracts = new LinkedHashMap<>();
         private String version = "0.0.0";
 
@@ -565,6 +590,35 @@ public final class PluginRuntimeDescriptor {
             ConsumedCommand command = new ConsumedCommand(commandType, versionRange, required);
             if (!command.commandType().isEmpty()) {
                 consumedCommands.put(command.commandType(), command);
+            }
+            return this;
+        }
+
+        /**
+         * Declares a query the plugin provides; its handler id is bound in {@code configure()}.
+         *
+         * @param query the declaration
+         * @return this builder
+         */
+        public Builder providedQuery(ProvidedQuery query) {
+            if (!query.queryType().isEmpty()) {
+                providedQueries.put(query.key(), query);
+                if (!query.handlerId().isEmpty()) {
+                    queryHandlers.add(query.handlerId());
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Declares a query the plugin calls.
+         *
+         * @param query the declaration
+         * @return this builder
+         */
+        public Builder consumedQuery(ConsumedQuery query) {
+            if (!query.queryType().isEmpty()) {
+                consumedQueries.put(query.queryType(), query);
             }
             return this;
         }
@@ -934,6 +988,104 @@ public final class PluginRuntimeDescriptor {
         public ConsumedCommand {
             commandType = commandType == null ? "" : commandType.trim();
             versionRange = versionRange == null ? "" : versionRange.trim();
+        }
+    }
+
+    /**
+     * A query the plugin provides (root BRX-RS-MANIFEST-025). Its version is the version both its schemas carry.
+     *
+     * @param queryType the query type, {@code <pluginId>.<name>}
+     * @param requestSchemaRef the request schema
+     * @param responseSchemaRef the response schema
+     * @param handlerId its handler id
+     * @param scopePolicyRef scope policy reference
+     * @param accessPolicyRef access policy reference
+     * @param timeoutPolicyRef timeout policy reference
+     * @param concurrencyPolicyRef concurrency policy reference
+     */
+    public record ProvidedQuery(String queryType, String requestSchemaRef, String responseSchemaRef, String handlerId,
+            String scopePolicyRef, String accessPolicyRef, String timeoutPolicyRef, String concurrencyPolicyRef) {
+
+        /**
+         * Creates the declaration, blank when not declared.
+         */
+        public ProvidedQuery {
+            queryType = queryType == null ? "" : queryType.trim();
+            requestSchemaRef = requestSchemaRef == null ? "" : requestSchemaRef.trim();
+            responseSchemaRef = responseSchemaRef == null ? "" : responseSchemaRef.trim();
+            handlerId = handlerId == null ? "" : handlerId.trim();
+            scopePolicyRef = scopePolicyRef == null ? "" : scopePolicyRef.trim();
+            accessPolicyRef = accessPolicyRef == null ? "" : accessPolicyRef.trim();
+            timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
+            concurrencyPolicyRef = concurrencyPolicyRef == null ? "" : concurrencyPolicyRef.trim();
+        }
+
+        /**
+         * Returns the contract version, the version of the request schema.
+         *
+         * @return {@code major.minor.patch}, or blank when the schema reference has none
+         */
+        public String version() {
+            int slash = requestSchemaRef.lastIndexOf('/');
+            return slash < 0 ? "" : requestSchemaRef.substring(slash + 1);
+        }
+
+        /**
+         * Returns the contract's major version.
+         *
+         * @return the major version, or {@code -1} when the version is malformed
+         */
+        public int major() {
+            String version = version();
+            int dot = version.indexOf('.');
+            try {
+                return Integer.parseInt(dot < 0 ? version : version.substring(0, dot));
+            } catch (NumberFormatException malformed) {
+                return -1;
+            }
+        }
+
+        /**
+         * Returns the key a host knows the query by: its type and major version.
+         *
+         * @return {@code <queryType>#<major>}
+         */
+        public String key() {
+            return keyOf(queryType, major());
+        }
+
+        /**
+         * Returns the key of a query type and major version.
+         *
+         * @param queryType the query type
+         * @param major the major version
+         * @return {@code <queryType>#<major>}
+         */
+        public static String keyOf(String queryType, int major) {
+            return queryType + "#" + major;
+        }
+    }
+
+    /**
+     * A query the plugin calls.
+     *
+     * @param queryType the query type
+     * @param versionRange the versions it reads
+     * @param required whether the plugin cannot be ready without the provider
+     * @param timeoutPolicyRef timeout policy reference
+     * @param retryPolicyRef retry policy reference
+     */
+    public record ConsumedQuery(String queryType, String versionRange, boolean required, String timeoutPolicyRef,
+            String retryPolicyRef) {
+
+        /**
+         * Creates the declaration, blank when not declared.
+         */
+        public ConsumedQuery {
+            queryType = queryType == null ? "" : queryType.trim();
+            versionRange = versionRange == null ? "" : versionRange.trim();
+            timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
+            retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
         }
     }
 

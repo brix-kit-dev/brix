@@ -15,11 +15,21 @@
  */
 package io.runtime.sdk.plugin;
 
+import java.util.concurrent.CompletionStage;
+
 /**
- * Handler contract for a manifest-declared typed query provider.
+ * Handler contract for a manifest-declared typed query provider (root BRX-RS-MANIFEST-027).
+ *
+ * <p>The runtime calls it in the provider's own read-only unit of work, with the caller's transaction suspended,
+ * and waits for the returned stage until the invocation's deadline. The handler reads only its own plugin's data
+ * and has no side effects: it publishes no event, submits no command and writes nothing (MESSAGE-002, MESSAGE-003).
+ * A query that may find nothing returns {@code Optional.empty()}, never {@code null}.</p>
+ *
+ * <p>Since 3.3.0 the method takes a {@link QueryInvocation} and returns a stage, as the frozen ABI requires; the
+ * earlier {@code R handle(Q)} was never routed to any caller.</p>
  *
  * @param <Q> query request type
- * @param <R> query response type
+ * @param <R> query result type, {@code Optional<...>} for a query that may find nothing
  * @author Runtime SDK Team
  * @since 3.0.10
  */
@@ -27,10 +37,10 @@ package io.runtime.sdk.plugin;
 public interface QueryHandler<Q, R> {
 
     /**
-     * Handles a read-only query request.
+     * Handles one call of the query.
      *
-     * @param query query request
-     * @return query response
+     * @param invocation the request with the caller, scope, access decision, trace and deadline of the call
+     * @return the result, usually already completed
      */
-    R handle(Q query);
+    CompletionStage<R> handle(QueryInvocation<Q> invocation);
 }

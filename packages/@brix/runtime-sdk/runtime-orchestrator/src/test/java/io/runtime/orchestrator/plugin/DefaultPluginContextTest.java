@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.runtime.orchestrator.query.QuerySideEffects;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.RecordingPersistence;
@@ -131,8 +132,8 @@ class DefaultPluginContextTest {
         DefaultPluginContext other = new DefaultPluginContext(PluginRuntimeDescriptor.builder("plugin-b")
             .optionalCapabilities(List.of(EventBusCapability.class.getName())).build(), registry, owners);
 
-        assertSame(outbox, publisher.require(EventBusCapability.class));
-        assertSame(host, other.find(EventBusCapability.class).orElseThrow());
+        assertSame(outbox, QuerySideEffects.unwrap(publisher.require(EventBusCapability.class)));
+        assertSame(host, QuerySideEffects.unwrap(other.find(EventBusCapability.class).orElseThrow()));
     }
 
     interface TestCapability {

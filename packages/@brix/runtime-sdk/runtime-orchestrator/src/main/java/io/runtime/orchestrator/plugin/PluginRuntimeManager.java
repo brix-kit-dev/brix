@@ -34,12 +34,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ResolvableType;
 
+import io.runtime.orchestrator.endpoint.EndpointRoute;
+import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
+import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
+import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.orchestrator.event.EventPolicies;
 import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.query.PublishedQuery;
+import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.event.EventReliability;
@@ -52,11 +60,7 @@ import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.HandlerFactory;
 import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
-import io.runtime.orchestrator.endpoint.EndpointRoute;
-import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
-import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
-import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
-import io.runtime.orchestrator.endpoint.TenantGrantTable;
+import io.runtime.sdk.plugin.QueryHandler;
 
 /**
  * L2B runtime manager for v3.0.10 backend plugins.
@@ -83,6 +87,7 @@ public final class PluginRuntimeManager {
     private final Supplier<List<InternalContractProvider>> internalProviderDiscovery;
     private final InternalContractBinder internalContracts;
     private final OwnerPersistenceProvider ownerPersistence;
+    private final QueryRuntime queries;
 
     private static final tools.jackson.databind.ObjectMapper SCHEMA_READER = new tools.jackson.databind.ObjectMapper();
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
@@ -209,6 +214,35 @@ public final class PluginRuntimeManager {
             Supplier<List<InternalContractProvider>> internalProviderDiscovery,
             InternalContractBinder internalContracts,
             OwnerPersistenceProvider ownerPersistence) {
+        this(discovery, descriptorResolver, capabilityRegistry, requiredPluginIds, endpointDispatcher, pluginInitializer,
+            internalProviderDiscovery, internalContracts, ownerPersistence, QueryRuntime.unconfigured());
+    }
+
+    /**
+     * Creates a runtime manager whose plugins may provide and call typed queries.
+     *
+     * @param discovery plugin discovery supplier
+     * @param descriptorResolver descriptor resolver
+     * @param capabilityRegistry capability registry
+     * @param requiredPluginIds composition-required plugin ids
+     * @param endpointDispatcher Runtime Shell endpoint dispatcher
+     * @param pluginInitializer Runtime-owned provider initializer
+     * @param internalProviderDiscovery internal contract provider discovery
+     * @param internalContracts internal contract binder
+     * @param ownerPersistence source of owner-scoped persistence capabilities
+     * @param queries the typed queries of this host (root BRX-RS-MESSAGE-002 to MESSAGE-009)
+     */
+    public PluginRuntimeManager(
+            Supplier<List<BrixPlugin>> discovery,
+            PluginRuntimeDescriptorResolver descriptorResolver,
+            CapabilityRegistry capabilityRegistry,
+            Collection<String> requiredPluginIds,
+            PluginEndpointDispatcher endpointDispatcher,
+            Consumer<BrixPlugin> pluginInitializer,
+            Supplier<List<InternalContractProvider>> internalProviderDiscovery,
+            InternalContractBinder internalContracts,
+            OwnerPersistenceProvider ownerPersistence,
+            QueryRuntime queries) {
         this.discovery = Objects.requireNonNull(discovery, "discovery must not be null");
         this.descriptorResolver = Objects.requireNonNull(descriptorResolver, "descriptorResolver must not be null");
         this.capabilityRegistry = Objects.requireNonNull(capabilityRegistry, "capabilityRegistry must not be null");
@@ -220,6 +254,7 @@ public final class PluginRuntimeManager {
             "internalProviderDiscovery must not be null");
         this.internalContracts = internalContracts;
         this.ownerPersistence = Objects.requireNonNull(ownerPersistence, "ownerPersistence must not be null");
+        this.queries = Objects.requireNonNull(queries, "queries must not be null");
     }
 
     /**
@@ -266,6 +301,7 @@ public final class PluginRuntimeManager {
         }
         validateEventContractsAcrossPlugins();
         validateCommandContractsAcrossPlugins();
+        validateQueryContractsAcrossPlugins();
         bindProvidedInternalContracts(internalProviderDiscovery.get());
         return states();
     }
@@ -367,6 +403,7 @@ public final class PluginRuntimeManager {
             BrixHealth health = pluginHealth(plugin);
             plugin.state = state(plugin, PluginLifecycleState.STARTED, health.isReadyStatus(), health, health.message());
         }
+        queries.publish(publishedQueries());
         entriesPublished = true;
     }
 
@@ -375,6 +412,7 @@ public final class PluginRuntimeManager {
      */
     public synchronized void stop() {
         endpointDispatcher.clear();
+        queries.close();
         entriesPublished = false;
         List<ManagedPlugin> ordered = new ArrayList<>(plugins.values());
         for (int i = ordered.size() - 1; i >= 0; i--) {
@@ -406,6 +444,10 @@ public final class PluginRuntimeManager {
         for (String requiredPluginId : requiredPluginIds) {
             ManagedPlugin plugin = plugins.get(requiredPluginId);
             if (plugin == null || !plugin.state.ready()) {
+                return false;
+            }
+            // Root BRX-RS-LIFE-002: a required query provider that is not available makes its consumer not ready.
+            if (!queries.requiredProvidersAvailable(plugin.descriptor, this::pluginReady)) {
                 return false;
             }
         }
@@ -651,6 +693,45 @@ public final class PluginRuntimeManager {
     }
 
     /**
+     * Root BRX-RS-MESSAGE-005, BOOT-004, BOOT-005, LIFE-011: every query declaration resolves, a query has one
+     * provider, a required query finds its provider, and required queries form no cycle.
+     */
+    private void validateQueryContractsAcrossPlugins() {
+        Map<String, PluginRuntimeDescriptor> resolved = new LinkedHashMap<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() == PluginLifecycleState.RESOLVED) {
+                resolved.put(plugin.id(), plugin.descriptor);
+            }
+        }
+        if (resolved.values().stream().allMatch(descriptor -> descriptor.providedQueries().isEmpty()
+                && descriptor.consumedQueries().isEmpty())) {
+            return;
+        }
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        if (loader == null) {
+            loader = PluginRuntimeManager.class.getClassLoader();
+        }
+        queries.resolve(resolved, loader).forEach((pluginId, reason) ->
+            handleStartupFailure(plugins.get(pluginId), new PluginRuntimeException(reason)));
+    }
+
+    /** The queries of the started plugins, published with the Host entry generation (root A-25). */
+    private Map<String, PublishedQuery> publishedQueries() {
+        Map<String, PublishedQuery> published = new LinkedHashMap<>();
+        for (ManagedPlugin plugin : plugins.values()) {
+            if (plugin.state.lifecycleState() == PluginLifecycleState.STARTED) {
+                published.putAll(plugin.queries);
+            }
+        }
+        return published;
+    }
+
+    private boolean pluginReady(String pluginId) {
+        ManagedPlugin plugin = plugins.get(pluginId);
+        return plugin != null && plugin.state.lifecycleState() == PluginLifecycleState.STARTED && plugin.state.ready();
+    }
+
+    /**
      * Returns the plugin that provides a command type and, once it has started, its handler.
      *
      * @param commandType the command type
@@ -798,7 +879,8 @@ public final class PluginRuntimeManager {
                 BrixHealth.unknown("Plugin wired"), "Plugin bindings wired");
 
             ownerPersistence.requireMessagingTables(plugin.id());
-            PluginContext context = new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence);
+            PluginContext context = new DefaultPluginContext(plugin.descriptor, capabilityRegistry, ownerPersistence,
+                queries);
             plugin.provider.onStart(context);
             plugin.eventHandlers = createEventHandlers(plugin.id(), bootstrapContext.eventHandlerFactories(), context);
             // Root BRX-RS-MANIFEST-019: every other handler is created by its factory with the plugin's context.
@@ -808,7 +890,9 @@ public final class PluginRuntimeManager {
             Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>(bootstrapContext.commandHandlers());
             commandHandlers.putAll(create(plugin.id(), "command", bootstrapContext.commandHandlerFactories(), context));
             plugin.commandHandlers = typedCommandHandlers(plugin.id(), commandHandlers);
-            create(plugin.id(), "query", bootstrapContext.queryHandlerFactories(), context);
+            Map<String, QueryHandler<?, ?>> queryHandlers = new LinkedHashMap<>(bootstrapContext.queryHandlers());
+            queryHandlers.putAll(create(plugin.id(), "query", bootstrapContext.queryHandlerFactories(), context));
+            plugin.queries = queries.bind(plugin.descriptor, queryHandlers);
             create(plugin.id(), "task", bootstrapContext.taskFactories(), context);
             BrixHealth health = pluginHealth(plugin);
             plugin.state = state(plugin, PluginLifecycleState.STARTED, false, health, health.message());
@@ -826,7 +910,7 @@ public final class PluginRuntimeManager {
         for (String declaration : plugin.descriptor.requiredCapabilities()) {
             boolean available = declaresPersistence(declaration)
                 ? ownerPersistence.forOwner(plugin.id()).isPresent()
-                : capabilityAvailable(declaration);
+                : declaresQueries(declaration) ? queries.configured() : capabilityAvailable(declaration);
             if (!available) {
                 missing.add(declaration);
             }
@@ -1108,6 +1192,11 @@ public final class PluginRuntimeManager {
         return Set.copyOf(types);
     }
 
+    private static boolean declaresQueries(String declaration) {
+        return QueryCapability.class.getName().equals(declaration)
+            || QueryCapability.class.getSimpleName().equals(declaration);
+    }
+
     private static boolean declaresPersistence(String declaration) {
         return PersistenceCapability.class.getName().equals(declaration)
             || PersistenceCapability.class.getSimpleName().equals(declaration);
@@ -1243,6 +1332,7 @@ public final class PluginRuntimeManager {
         private Map<String, EndpointHandler<?, ?>> endpointHandlers = Map.of();
         private Map<String, CreatedCommandHandler> commandHandlers = Map.of();
         private Map<String, CreatedEventHandler> eventHandlers = Map.of();
+        private Map<String, PublishedQuery> queries = Map.of();
         private PluginRuntimeState state;
 
         private ManagedPlugin(BrixPlugin provider, PluginRuntimeDescriptor descriptor) {

@@ -63,6 +63,8 @@ final class OwnerUnitOfWork implements UnitOfWork {
     private final TransactionTemplate readWriteTransactions;
     private final TransactionTemplate readOnlyTransactions;
     private final OwnerTenantTables tenantTables;
+    private final PlatformTransactionManager transactionManager;
+    private final Duration transactionTimeout;
 
     OwnerUnitOfWork(
             String ownerId,
@@ -77,6 +79,8 @@ final class OwnerUnitOfWork implements UnitOfWork {
         this.entityManagerFactory = Objects.requireNonNull(entityManagerFactory, "entityManagerFactory must not be null");
         this.sharedEntityManager = Objects.requireNonNull(sharedEntityManager, "sharedEntityManager must not be null");
         this.failureTranslator = Objects.requireNonNull(failureTranslator, "failureTranslator must not be null");
+        this.transactionManager = transactionManager;
+        this.transactionTimeout = transactionTimeout;
         this.readWriteTransactions = newTransactions(transactionManager, transactionTimeout, false);
         this.readOnlyTransactions = newTransactions(transactionManager, transactionTimeout, true);
     }
@@ -105,6 +109,26 @@ final class OwnerUnitOfWork implements UnitOfWork {
             return work.get();
         }
         return inReadOnlySection(current, work);
+    }
+
+    /**
+     * Runs {@code work} read-only, in a new transaction that lasts at most {@code timeout} when one is started: a
+     * query's provider stops reading when the query's deadline passes (query design §5.2). Joining this owner's open
+     * transaction keeps that transaction's timeout.
+     *
+     * @param timeout the longest the transaction may last; capped by the owner's transaction timeout
+     * @param work the work
+     * @param <T> result type
+     * @return the work's result
+     */
+    <T> T readOnlyWithin(Duration timeout, Supplier<T> work) {
+        Objects.requireNonNull(timeout, "timeout must not be null");
+        Objects.requireNonNull(work, "work must not be null");
+        if (OwnerTransactionScope.joinable(ownerId) != null) {
+            return readOnly(work);
+        }
+        Duration bounded = timeout.compareTo(transactionTimeout) < 0 ? timeout : transactionTimeout;
+        return inNewTransaction(newTransactions(transactionManager, bounded, true), true, work);
     }
 
     private <T> T inNewTransaction(TransactionTemplate transactions, boolean readOnly, Supplier<T> work) {

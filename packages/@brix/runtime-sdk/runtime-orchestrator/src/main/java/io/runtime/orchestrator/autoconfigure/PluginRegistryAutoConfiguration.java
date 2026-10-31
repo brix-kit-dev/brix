@@ -35,8 +35,10 @@ import tools.jackson.databind.ObjectMapper;
 import io.runtime.orchestrator.endpoint.PluginRegistryEndpoint;
 import io.runtime.orchestrator.manifest.UIManifestLoader;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.query.QueryRuntime;
 import io.runtime.orchestrator.registry.ModuleRegistry;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.capability.registry.CapabilityDescriptor;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 
@@ -114,17 +116,23 @@ public class PluginRegistryAutoConfiguration {
      * and a plugin's requirement is satisfied when the persistence adapter provides a
      * persistence unit for that plugin (root blueprint BRX-RS-DATA-026).</p>
      *
+     * <p>{@link QueryCapability} is per plugin too: the runtime builds it from the plugin's
+     * own query declarations, and a requirement is satisfied when the Host Profile has
+     * query settings (root BRX-RS-MESSAGE-005; query design §4.2, §4.3).</p>
+     *
      * @param manifestLoader      loader holding the validated manifest map
      * @param capabilityRegistry  optional capability registry, injected lazily so
      *                            absence does not fail bean wiring
      * @param ownerPersistence    optional owner persistence provider of the persistence adapter
+     * @param queryRuntime        optional query runtime of the Host
      * @return a marker object whose construction triggers the verification side-effect
      */
     @Bean
     public PluginCapabilityVerifier pluginCapabilityVerifier(
             UIManifestLoader manifestLoader,
             ObjectProvider<CapabilityRegistry> capabilityRegistry,
-            ObjectProvider<OwnerPersistenceProvider> ownerPersistence) {
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
+            ObjectProvider<QueryRuntime> queryRuntime) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable();
         if (registry == null) {
             log.info("No CapabilityRegistry bean found - skipping plugin required-capability verification");
@@ -164,14 +172,15 @@ public class PluginRegistryAutoConfiguration {
         log.info("Verifying plugin required-capabilities against {} registered capability identifier(s)",
             available.size());
         OwnerPersistenceProvider persistence = ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none);
+        boolean queries = queryRuntime.getIfAvailable(QueryRuntime::unconfigured).configured();
         manifestLoader.verifyRequiredCapabilities((pluginId, capability) -> available.contains(capability)
-            || (isPersistenceCapability(capability) && persistence.forOwner(pluginId).isPresent()));
+            || (names(PersistenceCapability.class, capability) && persistence.forOwner(pluginId).isPresent())
+            || (names(QueryCapability.class, capability) && queries));
         return new PluginCapabilityVerifier();
     }
 
-    private static boolean isPersistenceCapability(String capability) {
-        return PersistenceCapability.class.getName().equals(capability)
-            || PersistenceCapability.class.getSimpleName().equals(capability);
+    private static boolean names(Class<?> contract, String capability) {
+        return contract.getName().equals(capability) || contract.getSimpleName().equals(capability);
     }
 
     /**
@@ -202,7 +211,7 @@ public class PluginRegistryAutoConfiguration {
 
     /**
      * Internal marker bean — its sole purpose is to provide a Spring lifecycle hook
-     * for {@link #pluginCapabilityVerifier(UIManifestLoader, ObjectProvider, ObjectProvider)}.
+     * for {@link #pluginCapabilityVerifier(UIManifestLoader, ObjectProvider, ObjectProvider, ObjectProvider)}.
      * Consumer code should not depend on it.
      */
     public static final class PluginCapabilityVerifier {

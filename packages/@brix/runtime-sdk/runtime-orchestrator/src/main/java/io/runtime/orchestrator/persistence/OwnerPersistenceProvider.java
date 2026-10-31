@@ -84,6 +84,22 @@ public interface OwnerPersistenceProvider {
     }
 
     /**
+     * Runs a query provider's work in a read-only unit of work of the owner whose transaction lasts at most
+     * {@code timeout}: the transaction of another owner on the thread is suspended, and the owner's statements stop
+     * when the query's deadline passes (root BRX-RS-MESSAGE-008, DATA-028; query design §5.2). An owner without
+     * persistence runs the work as it is. The default applies no timeout of its own.
+     *
+     * @param ownerModuleId the providing owner
+     * @param timeout how long the query may still take; positive
+     * @param work the provider's work
+     * @param <T> result type
+     * @return the work's result
+     */
+    default <T> T readOnly(String ownerModuleId, java.time.Duration timeout, java.util.function.Supplier<T> work) {
+        return forOwner(ownerModuleId).map(owner -> owner.unitOfWork().readOnly(work)).orElseGet(work);
+    }
+
+    /**
      * Returns a provider used when no persistence adapter is assembled.
      *
      * @return a provider that never supplies a capability

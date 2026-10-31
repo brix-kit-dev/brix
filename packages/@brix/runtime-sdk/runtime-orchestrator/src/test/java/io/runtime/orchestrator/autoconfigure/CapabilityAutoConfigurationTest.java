@@ -30,6 +30,8 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -50,9 +52,16 @@ import org.springframework.context.support.GenericApplicationContext;
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
 import io.runtime.orchestrator.manifest.UIManifestLoader;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
+import io.runtime.orchestrator.query.InProcessQueryTransport;
+import io.runtime.orchestrator.query.QueryGateway;
+import io.runtime.orchestrator.query.QueryMetrics;
+import io.runtime.orchestrator.query.QueryRuntime;
+import io.runtime.orchestrator.query.QuerySettings;
+import io.runtime.orchestrator.query.QueryTracing;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.ObservabilityCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.QueryCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
@@ -93,7 +102,8 @@ class CapabilityAutoConfigurationTest {
 
         new PluginRegistryAutoConfiguration().pluginCapabilityVerifier(manifestLoader,
                 beanProvider(CapabilityRegistry.class, emptyCapabilityRegistry()),
-                beanProvider(OwnerPersistenceProvider.class, ownerPersistence));
+                beanProvider(OwnerPersistenceProvider.class, ownerPersistence),
+                noBean(QueryRuntime.class));
 
         BiPredicate<String, String> available = verifiedAvailability(manifestLoader);
         assertTrue(available.test("platform-identity", PersistenceCapability.class.getName()));
@@ -108,9 +118,40 @@ class CapabilityAutoConfigurationTest {
 
         new PluginRegistryAutoConfiguration().pluginCapabilityVerifier(manifestLoader,
                 beanProvider(CapabilityRegistry.class, emptyCapabilityRegistry()),
-                new StaticListableBeanFactory().getBeanProvider(OwnerPersistenceProvider.class));
+                noBean(OwnerPersistenceProvider.class),
+                noBean(QueryRuntime.class));
 
         assertFalse(verifiedAvailability(manifestLoader).test("platform-identity", PersistenceCapability.class.getName()));
+    }
+
+    @Test
+    void queryRequirementIsSatisfiedWhenTheHostHasQuerySettings() {
+        UIManifestLoader manifestLoader = mock(UIManifestLoader.class);
+        QueryRuntime queries = QueryRuntime.of(new QueryGateway(QuerySettings.defaults(Duration.ofSeconds(5)),
+                new InProcessQueryTransport(OwnerPersistenceProvider.none(), QueryTracing.NOOP, Clock.systemUTC()),
+                QueryTracing.NOOP, QueryMetrics.NOOP, Clock.systemUTC()));
+
+        new PluginRegistryAutoConfiguration().pluginCapabilityVerifier(manifestLoader,
+                beanProvider(CapabilityRegistry.class, emptyCapabilityRegistry()),
+                noBean(OwnerPersistenceProvider.class),
+                beanProvider(QueryRuntime.class, queries));
+
+        BiPredicate<String, String> available = verifiedAvailability(manifestLoader);
+        assertTrue(available.test("sample-orders", QueryCapability.class.getName()));
+        assertTrue(available.test("sample-orders", QueryCapability.class.getSimpleName()));
+        assertFalse(available.test("sample-orders", PersistenceCapability.class.getName()));
+    }
+
+    @Test
+    void queryRequirementIsUnmetWithoutQuerySettings() {
+        UIManifestLoader manifestLoader = mock(UIManifestLoader.class);
+
+        new PluginRegistryAutoConfiguration().pluginCapabilityVerifier(manifestLoader,
+                beanProvider(CapabilityRegistry.class, emptyCapabilityRegistry()),
+                noBean(OwnerPersistenceProvider.class),
+                beanProvider(QueryRuntime.class, QueryRuntime.unconfigured()));
+
+        assertFalse(verifiedAvailability(manifestLoader).test("sample-orders", QueryCapability.class.getName()));
     }
 
     @Test
@@ -193,6 +234,10 @@ class CapabilityAutoConfigurationTest {
 
     private static <T> ObjectProvider<T> beanProvider(Class<T> type, T bean) {
         return new StaticListableBeanFactory(Map.<String, Object>of(type.getSimpleName(), bean)).getBeanProvider(type);
+    }
+
+    private static <T> ObjectProvider<T> noBean(Class<T> type) {
+        return new StaticListableBeanFactory().getBeanProvider(type);
     }
 
     @SuppressWarnings("unchecked")

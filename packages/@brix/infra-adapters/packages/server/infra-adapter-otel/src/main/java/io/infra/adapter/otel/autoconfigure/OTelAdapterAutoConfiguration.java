@@ -18,7 +18,9 @@ package io.infra.adapter.otel.autoconfigure;
 import io.infra.adapter.otel.OTelObservabilityCapability;
 import io.infra.adapter.otel.OTelSdkBuilder;
 import io.infra.adapter.otel.tracing.OTelMessageTracing;
+import io.infra.adapter.otel.tracing.OTelQueryTracing;
 import io.opentelemetry.api.OpenTelemetry;
+import io.runtime.orchestrator.query.QueryTracing;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.ObservabilityCapability;
 import org.springframework.beans.factory.annotation.Value;
@@ -141,5 +143,18 @@ public class OTelAdapterAutoConfiguration {
     @ConditionalOnMissingBean(MessageTracing.class)
     public MessageTracing otelMessageTracing(OpenTelemetry openTelemetry) {
         return new OTelMessageTracing(openTelemetry);
+    }
+
+    /**
+     * Records the spans of typed queries: a CLIENT span for each call and a SERVER span the provider runs in
+     * (query design §5.7).
+     *
+     * @param openTelemetry OpenTelemetry instance
+     * @return the query spans
+     */
+    @Bean
+    @ConditionalOnMissingBean(QueryTracing.class)
+    public QueryTracing otelQueryTracing(OpenTelemetry openTelemetry) {
+        return new OTelQueryTracing(openTelemetry);
     }
 }

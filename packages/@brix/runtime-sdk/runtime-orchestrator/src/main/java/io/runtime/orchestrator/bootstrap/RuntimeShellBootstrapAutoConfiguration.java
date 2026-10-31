@@ -35,6 +35,13 @@ import io.runtime.orchestrator.persistence.OwnerUnitOfWorkEndpointBoundary;
 import io.runtime.orchestrator.plugin.ClasspathPluginRuntimeDescriptorResolver;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.plugin.ServiceLoaderPluginDiscovery;
+import io.runtime.orchestrator.query.InProcessQueryTransport;
+import io.runtime.orchestrator.query.QueryGateway;
+import io.runtime.orchestrator.query.QueryMetrics;
+import io.runtime.orchestrator.query.QueryProperties;
+import io.runtime.orchestrator.query.QueryRuntime;
+import io.runtime.orchestrator.query.QuerySettings;
+import io.runtime.orchestrator.query.QueryTracing;
 import io.runtime.orchestrator.operational.OperationalModuleRuntimeManager;
 import io.runtime.orchestrator.operational.ServiceLoaderOperationalModuleDiscovery;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
@@ -57,7 +64,7 @@ import io.runtime.sdk.plugin.BrixPlugin;
 @AutoConfiguration(after = CapabilityAutoConfiguration.class)
 @ConditionalOnClass(BrixPlugin.class)
 @ConditionalOnProperty(prefix = "brix.runtime-shell", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(RuntimeShellBootstrapProperties.class)
+@EnableConfigurationProperties({RuntimeShellBootstrapProperties.class, QueryProperties.class})
 public class RuntimeShellBootstrapAutoConfiguration {
 
     /**
@@ -119,7 +126,8 @@ public class RuntimeShellBootstrapAutoConfiguration {
             ObjectProvider<InternalContractBinder> internalContracts,
             ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
             AutowireCapableBeanFactory beanFactory,
-            RuntimeShellBootstrapProperties properties) {
+            RuntimeShellBootstrapProperties properties,
+            QueryRuntime queryRuntime) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable(DefaultCapabilityRegistry::new);
         return new PluginRuntimeManager(
             discovery::discover,
@@ -134,7 +142,40 @@ public class RuntimeShellBootstrapAutoConfiguration {
                     .DiscoveredInternalContractProvider::provider)
                 .toList(),
             internalContracts.getIfAvailable(),
-            ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none));
+            ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none),
+            queryRuntime);
+    }
+
+    /**
+     * Creates the typed queries of this host (root BRX-RS-MESSAGE-002 to MESSAGE-009): a gateway with the in-process
+     * transport when the Host Profile sets {@code brix.query.max-deadline}, none otherwise, in which case a plugin that
+     * provides or calls a query does not start (MESSAGE-005).
+     *
+     * @param properties {@code brix.query.*}
+     * @param ownerPersistence the owners' persistence
+     * @param tracing the query spans, recorded by an adapter when one is assembled
+     * @param metrics the query metrics, recorded when Micrometer is assembled
+     * @return the query runtime
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public QueryRuntime queryRuntime(
+            QueryProperties properties,
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
+            ObjectProvider<QueryTracing> tracing,
+            ObjectProvider<QueryMetrics> metrics) {
+        QuerySettings settings = properties.toSettings();
+        if (settings == null) {
+            return QueryRuntime.unconfigured();
+        }
+        java.time.Clock clock = java.time.Clock.systemUTC();
+        QueryTracing spans = tracing.getIfAvailable(() -> QueryTracing.NOOP);
+        return QueryRuntime.of(new QueryGateway(
+            settings,
+            new InProcessQueryTransport(ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none), spans, clock),
+            spans,
+            metrics.getIfAvailable(() -> QueryMetrics.NOOP),
+            clock));
     }
 
     /**
@@ -324,6 +365,18 @@ public class RuntimeShellBootstrapAutoConfiguration {
                 PluginEndpointDispatcher dispatcher,
                 ObjectProvider<AuthCapability> authCapabilityProvider) {
             return new RuntimeShellEndpointController(dispatcher, authCapabilityProvider);
+        }
+    }
+
+    /** Query meters, when the host has Micrometer (query design §5.7). */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
+    static class QueryMeters {
+
+        @Bean
+        @ConditionalOnMissingBean
+        QueryMetrics queryMetrics(ObjectProvider<io.micrometer.core.instrument.MeterRegistry> registry) {
+            return new io.runtime.orchestrator.query.MicrometerQueryMetrics(registry::getIfAvailable);
         }
     }
 }

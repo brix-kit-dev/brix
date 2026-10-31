@@ -29,6 +29,7 @@ import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.DataScope;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.query.BrixQueryException;
 
 class RuntimeShellEndpointControllerTest {
 
@@ -211,6 +212,38 @@ class RuntimeShellEndpointControllerTest {
 
         assertEquals(200, granted.getStatusCode().value());
         assertEquals(1, handled.get());
+    }
+
+    @Test
+    void aQueryFailureTheHandlerDidNotHandleBecomesItsStableCodeAndAStatus() {
+        // Query design §5.4: unavailable 503, late 504, denied 403, failing provider platform.unknown; never the cause.
+        Map<BrixQueryException.Code, List<Object>> expected = Map.of(
+            BrixQueryException.Code.PROVIDER_MISSING, List.of(503, "query.provider_missing"),
+            BrixQueryException.Code.CIRCUIT_OPEN, List.of(503, "query.circuit_open"),
+            BrixQueryException.Code.REJECTED, List.of(503, "query.rejected"),
+            BrixQueryException.Code.DEADLINE_EXCEEDED, List.of(504, "query.deadline_exceeded"),
+            BrixQueryException.Code.ACCESS_DENIED, List.of(403, "query.access_denied"),
+            BrixQueryException.Code.PROVIDER_FAILED, List.of(500, "platform.unknown"));
+        expected.forEach((code, response) -> {
+            DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
+            dispatcher.replaceSnapshot(List.of(new EndpointRoute(
+                "platform-admin",
+                "platform.admins.list.v1",
+                "GET",
+                "/api/platform/admins",
+                TestEndpointAccessPolicies.platform("platform:admin:read"),
+                (EndpointHandler<EndpointInvocation<Object>, Object>) invocation -> {
+                    throw new BrixQueryException(code, Map.of("query", "platform-tenant.tenant-reference"),
+                        new IllegalStateException("connection refused by db-7.internal"));
+                })));
+
+            ResponseEntity<Object> failed = new RuntimeShellEndpointController(
+                dispatcher, () -> platformAdmin(Set.of("platform:admin:read")))
+                .dispatch(null, request(Map.of()));
+
+            assertEquals(response.get(0), failed.getStatusCode().value(), code.name());
+            assertEquals(Map.of("errorCode", response.get(1), "message", response.get(1)), failed.getBody());
+        });
     }
 
     private static TestAuthCapability platformAdmin(Set<String> permissions) {

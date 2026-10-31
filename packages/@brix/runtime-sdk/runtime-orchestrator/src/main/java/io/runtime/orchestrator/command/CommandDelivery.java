@@ -28,6 +28,8 @@ import io.runtime.orchestrator.event.ConsumedSubscription;
 import io.runtime.orchestrator.event.EventDeliveryException;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.internalcontract.BrixRange;
+import io.runtime.orchestrator.invocation.RuntimeInvocation;
+import io.runtime.orchestrator.invocation.RuntimeInvocations;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.TenantScope;
@@ -240,7 +242,12 @@ public final class CommandDelivery {
                         decoded.idempotencyKey())) {
                     return "duplicate_key";
                 }
-                await(handler.handle(invocation), invocation.deadline(), cancelled);
+                // Typed queries the handler makes run as this provider, in the command's tenant (root
+                // BRX-RS-MANIFEST-028).
+                RuntimeInvocations.within(RuntimeInvocation.forCommand(ownerId, invocation), () -> {
+                    await(handler.handle(invocation), invocation.deadline(), cancelled);
+                    return null;
+                });
                 return "handled";
             };
             String outcome = TenantScopes.within(scope, () -> persistence.get().unitOfWork().required(work));

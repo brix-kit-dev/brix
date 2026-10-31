@@ -148,7 +148,8 @@ class PluginSpiContractTest {
         public void configure(PluginBootstrapContext bootstrap) {
             // Root BRX-RS-MANIFEST-011: every entry point is bound to a factory the runtime calls with a context.
             bootstrap.bindEndpointHandlerFactory("sample.endpoint", context -> request -> "ok");
-            bootstrap.bindQueryHandlerFactory("sample.query", context -> query -> "answer");
+            bootstrap.bindQueryHandlerFactory("sample.query",
+                context -> query -> CompletableFuture.completedFuture("answer"));
             bootstrap.bindCommandHandlerFactory("sample.command",
                 context -> invocation -> CompletableFuture.completedFuture(null));
             bootstrap.bindEventHandlerFactory("sample.subscription",
