@@ -47,7 +47,11 @@ public record CancelOrder(
         return new Builder();
     }
 
-    /** The values of {@code reason}. A newer minor version may add values; a switch over them needs a default. */
+    /**
+     * The values of {@code reason}. A newer minor version may add values, so a switch over them
+     * needs a default. The runtime reads a value this version does not know as null: an optional property is
+     * then empty, and a payload that requires it is invalid.
+     */
     public enum Reason {
         SHIPPING_REFUSED
     }

@@ -24,8 +24,9 @@ import java.util.stream.Stream;
  * <p>An api module calls {@link #verify(Path, String)} from a test. The test fails when a generated source is missing,
  * differs or is left over, or when the API listing in {@code src/main/brix/contracts.api} differs from what the
  * schemas give; it fails in every mode when a line of the listing would disappear, because a published minor version
- * may only be extended (root BRX-RS-CAP-019, A-20). Run it with {@code -Dbrix.contracts.write=true} to rewrite the
- * sources and the listing, then review and commit them.</p>
+ * may only be extended (root BRX-RS-CAP-019, A-20). The listing holds the content hash of every published schema
+ * version, so editing a published file fails too (standard-link plan L5.2). Run it with
+ * {@code -Dbrix.contracts.write=true} to rewrite the sources and the listing, then review and commit them.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -46,7 +47,8 @@ public final class ContractSources {
      *
      * @param module the api module's directory
      * @param javaPackage the package of its generated types
-     * @throws AssertionError when the checked-in sources or listing are stale, or the listing would lose a line
+     * @throws AssertionError when the checked-in sources or listing are stale, or the listing would lose a line, such
+     *     as the hash of a published schema version that was edited
      */
     public static void verify(Path module, String javaPackage) {
         QueryContractGenerator.Generated generated = QueryContractGenerator.generate(
@@ -57,9 +59,20 @@ public final class ContractSources {
         List<String> lost = new ArrayList<>(committed);
         lost.removeAll(generated.api());
         if (!lost.isEmpty()) {
-            throw new AssertionError("The contracts of " + module.toAbsolutePath().normalize() + " would lose API a "
-                + "published minor version must keep; a breaking change needs a new major version:\n  "
-                + String.join("\n  ", lost));
+            Path where = module.toAbsolutePath().normalize();
+            List<String> schemas = lost.stream().filter(line -> line.startsWith("schema ")).toList();
+            List<String> api = lost.stream().filter(line -> !line.startsWith("schema ")).toList();
+            List<String> reasons = new ArrayList<>();
+            if (!schemas.isEmpty()) {
+                reasons.add("Published schema versions of " + where + " changed or disappeared. A published version "
+                    + "never changes: publish the change as a new version (a patch version for documentation) and keep "
+                    + "the earlier file as it was:\n  " + String.join("\n  ", schemas));
+            }
+            if (!api.isEmpty()) {
+                reasons.add("The contracts of " + where + " would lose API a published minor version must keep; a "
+                    + "breaking change needs a new major version:\n  " + String.join("\n  ", api));
+            }
+            throw new AssertionError(String.join("\n", reasons));
         }
         Set<String> leftOver = generatedFiles(sources);
         leftOver.removeAll(generated.sources().keySet());

@@ -1,0 +1,4 @@
+event FirstOwnerInviteeSetupCompleted major 1 payload platform-identity/first-owner-invitee-setup-completed
+event IdentityAuditFactRecorded major 1 payload platform-identity/identity-audit-fact
+schema platform-identity/first-owner-invitee-setup-completed 1.0.0 sha256:0648ad77497e2efde89c5cfc87921bbf364ba33de48f3f0d78cad816d29d2864
+schema platform-identity/identity-audit-fact 1.0.0 sha256:a9baf6b4f8d99fad2b3e5a85c6c818e6771b33cbb9005560db8ba484c1937ecc

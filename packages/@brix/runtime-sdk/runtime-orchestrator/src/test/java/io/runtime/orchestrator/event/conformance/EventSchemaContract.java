@@ -42,6 +42,9 @@ import io.runtime.manifest.model.PluginManifest;
  * exactly the payload record's fields with matching JSON types and allows no other field, and a sample payload,
  * written the way the outbox writes it, validates against it. These files are the Contract Schema Registry:
  * versioned build assets, not a network service.</p>
+ * <p>Each published event also has its contract file, {@code META-INF/brix/events/<eventType>/<version>.json}, naming
+ * the same schema, so that the contract tools check the schema against its earlier minor versions and pin it in the
+ * build of the artifact that holds it (standard-link plan L5.1).</p>
  */
 public final class EventSchemaContract {
 
@@ -100,6 +103,12 @@ public final class EventSchemaContract {
             }
         });
         assertTrue(properties.propertyNames().containsAll(required), resource + " requires only fields it names");
+
+        String contract = "META-INF/brix/events/" + eventType + "/" + publish.getVersion() + ".json";
+        JsonNode declared = read(classes, contract);
+        assertEquals(eventType, declared.path("eventType").asString(), contract + " names " + eventType);
+        assertEquals(publish.getVersion(), declared.path("version").asString(), contract + " names its version");
+        assertEquals(schemaRef, declared.path("payload").asString(), contract + " names the payload schema " + schemaRef);
 
         List<com.networknt.schema.Error> errors = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
             .getSchema(schema)

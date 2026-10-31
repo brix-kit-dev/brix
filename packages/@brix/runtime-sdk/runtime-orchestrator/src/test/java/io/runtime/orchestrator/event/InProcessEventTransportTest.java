@@ -63,7 +63,16 @@ class InProcessEventTransportTest {
     private MessageTracing tracing = MessageTracing.NOOP;
 
     /** Payload the test handler declares. */
-    public record Accepted(Long tenantId, Long memberId) {
+    public record Accepted(Long tenantId, Long memberId, Role role) {
+
+        /** The values the subscriber knows. */
+        public enum Role {
+            OWNER
+        }
+
+        Accepted(Long tenantId, Long memberId) {
+            this(tenantId, memberId, null);
+        }
     }
 
     private final class AcceptedHandler implements EventHandler<Accepted> {
@@ -150,6 +159,14 @@ class InProcessEventTransportTest {
         assertEquals(InProcessEventTransport.PAYLOAD_INVALID, parked.errorCode());
         assertTrue(parked.permanent());
         assertTrue(inbox.isEmpty());
+    }
+
+    @Test
+    void anEnumValueThePublisherAddedInAMinorVersionReachesTheSubscriberAsEmpty() {
+        // Root BRX-RS-CAP-021; standard-link plan L5.3: the subscriber's own type knows fewer values.
+        transport().publish(message("{\"tenantId\":910001,\"memberId\":7,\"role\":\"AUDITOR\"}", "1.1.0", 1));
+
+        assertEquals(new Accepted(910001L, 7L, null), handled.get(0).event().payload());
     }
 
     @Test

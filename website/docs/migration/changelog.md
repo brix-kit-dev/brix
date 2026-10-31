@@ -16,6 +16,12 @@ All notable changes to Brix Framework are documented here.
 - **One event and command chain for every plugin.** Integration events and commands travel the same path: the
   publisher's outbox, the relay, Kafka (or in-process), and the subscriber's inbox. Everything is declared in
   `META-INF/brix/plugin-manifest.yaml`. See [Events and Commands](../guides/events-and-commands.md).
+- **Published contracts are pinned.** `contracts.api` holds the SHA-256 of every published schema version of a
+  query, command or event, so a published file cannot change: a change is a new version (a patch for documentation).
+  Events get contract files, `META-INF/brix/events/<eventType>/<version>.json`, which `EventSchemaContract` requires
+  next to each published schema; their payloads are checked against the contract subset and against their earlier
+  minor versions. platform-tenant's `TenantFirstOwnerAccepted` schema moves to `platform-tenant-api`, and
+  platform-identity checks its two event schemas in its own build.
 - **Typed commands.** The owner of a command publishes its contract in its api artifact
   (`META-INF/brix/commands/<commandType>/<version>.json`); the generator writes the request record and a
   `CommandType` constant. A sender declares the command under `commands.consumes` and submits the generated type
@@ -60,6 +66,10 @@ All notable changes to Brix Framework are documented here.
   and its timeout, retry and idempotency policies. A sender declares `CommandCapability` and `data.outbox`, a provider
   `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
   business key.
+- **Enums are open** (root BRX-RS-CAP-021). A minor version may add enum values at the end. When a command or event
+  arrives with a value the receiver's type does not know, the runtime reads it as null: an optional property is
+  empty, and a payload that requires it is invalid. A type list `["<type>", "null"]` is accepted for an optional
+  property.
 - **A command's business key is unique per sender and tenant.** Two senders, or two tenants, using the same key no
   longer meet at the owner.
 - **Connections are taken lazily.** A unit of work takes a pooled connection only for its first statement, and a

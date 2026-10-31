@@ -14,6 +14,8 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import io.runtime.orchestrator.event.MessagePayloads;
+
 /**
  * The payload column of a canonical command message (root BRX-RS-MESSAGE-010): the typed payload with the business
  * idempotency scope and key, which the provider's runtime needs before it runs the handler (MESSAGE-014).
@@ -85,7 +87,7 @@ public final class CommandMessages {
             }
             JsonNode actor = body.get("actorId");
             String actorId = actor == null || actor.isNull() ? null : actor.asString();
-            return new Decoded(json.treeToValue(body.get("payload"), payloadType), scope, key,
+            return new Decoded(MessagePayloads.read(json, body.get("payload"), payloadType), scope, key,
                 actorId == null || actorId.isBlank() ? null : actorId);
         } catch (JacksonException invalid) {
             throw new IllegalArgumentException("the command payload does not decode to " + payloadType.getSimpleName(),

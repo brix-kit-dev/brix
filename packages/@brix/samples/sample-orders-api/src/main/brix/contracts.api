@@ -5,4 +5,9 @@ builder CancelOrder.Builder.reason(Reason)
 command SampleOrdersCommands.CANCEL_ORDER = sample-orders.cancel-order major 1 CancelOrder
 constructor CancelOrder(String, Reason)
 enum CancelOrder.Reason.SHIPPING_REFUSED
+event SampleOrderActivity major 1 payload sample-orders/sample-order-activity
+event SampleOrderPlaced major 1 payload sample-orders/sample-order-placed
 record CancelOrder schema sample-orders/cancel-order major 1
+schema sample-orders/cancel-order 1.0.0 sha256:690b557b25f3a4409f0999dc2e39d696ab8301582cf3b2e75b6598147eb965c8
+schema sample-orders/sample-order-activity 1.0.0 sha256:704eeb3c2e2037fb54762a866752a5ef298553d01ba9fea377864d44c8cb1495
+schema sample-orders/sample-order-placed 1.0.0 sha256:f3fd9a6e6335b2a787196f76b73ef6fa041a3a7feb63eafd3808edc6a2f9665a

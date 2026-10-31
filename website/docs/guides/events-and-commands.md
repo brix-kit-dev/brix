@@ -153,8 +153,26 @@ public record SampleOrderPlacedPayload(long tenantId, String orderId, String sku
 }
 ```
 
+Next to the schema, an event contract file names the event, its version and its payload schema, so the contract
+tools check and pin the schema like those of queries and commands:
+
+```json title="sample-orders-api: META-INF/brix/events/SampleOrderPlaced/1.0.0.json"
+{
+  "eventType": "SampleOrderPlaced",
+  "version": "1.0.0",
+  "payload": "brix://schemas/sample-orders/sample-order-placed/1.0.0",
+  "description": "an order was placed; STANDARD, in the order's tenant"
+}
+```
+
+The module that holds them runs `ContractSourcesTest` (see [Queries](./queries.md#1-write-the-contract)). For an
+event it generates nothing: the payload record stays yours. It checks the schema against the contract subset (an
+array may go without `maxItems` here) and against its earlier minor versions, and lists the event and the schema's
+content hash in `contracts.api`.
+
 The runtime refuses to start a plugin whose declared schema file is missing or has another `$id`. Check that the
-payload matches the schema in your own build with `EventSchemaContract` from the `runtime-orchestrator` test jar:
+payload matches the schema, and that the event has its contract file, in your own build with `EventSchemaContract`
+from the `runtime-orchestrator` test jar:
 
 ```java title="sample-orders-server: SampleOrdersEventSchemasTest.java (excerpt)"
 EventSchemaContract.verify(SampleOrdersPlugin.class, Map.of(
@@ -162,8 +180,10 @@ EventSchemaContract.verify(SampleOrdersPlugin.class, Map.of(
     SampleOrderEvents.ACTIVITY, new SampleOrderActivityPayload(42L, "1001", "placed")));
 ```
 
-To change a contract compatibly, add an optional field in a new minor version. A breaking change is a new major
-version, and subscribers opt in by widening their `schemaRange`.
+To change a contract compatibly, add an optional field or an enum value in a new minor version, with its own
+schema and contract files; a published file never changes (see
+[Changing a contract](./queries.md#1-write-the-contract)). A breaking change is a new major version, and subscribers
+opt in by widening their `schemaRange`. A subscriber whose record does not know an enum value reads it as null.
 
 ### 3. Write the event class
 

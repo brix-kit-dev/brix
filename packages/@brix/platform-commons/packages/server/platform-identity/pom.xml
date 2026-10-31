@@ -81,5 +81,12 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
+        <!-- ContractSourcesTest checks and pins the published event schemas (standard-link plan L5.4) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-contract-generator</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

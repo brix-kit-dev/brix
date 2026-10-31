@@ -13,3 +13,5 @@ constructor Shipment(String, String, long, long)
 query SampleShippingQueries.FIND_SHIPMENT = sample-shipping.find-shipment major 1 optional FindShipmentRequest -> Shipment
 record FindShipmentRequest schema sample-shipping/find-shipment-request major 1
 record Shipment schema sample-shipping/shipment major 1
+schema sample-shipping/find-shipment-request 1.0.0 sha256:3fb52b12988eb64a571cde22e5c2de24ccb716511985211c070c3d717a5ff620
+schema sample-shipping/shipment 1.0.0 sha256:bc2c391050e556ea911508ca6c30fecacba5cb50133d1b65d77f44f5b742a8c3

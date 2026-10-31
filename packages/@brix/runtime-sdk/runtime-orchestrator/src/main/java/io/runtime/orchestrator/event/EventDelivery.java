@@ -360,7 +360,7 @@ public final class EventDelivery {
             MessageTracing.MessageSpan span, java.util.concurrent.atomic.AtomicBoolean cancelled) {
         Object payload;
         try {
-            payload = json.readValue(message.payload(), bound.payloadType());
+            payload = MessagePayloads.read(json, message.payload(), bound.payloadType());
         } catch (JacksonException | IllegalArgumentException invalid) {
             throw permanent(PAYLOAD_INVALID, message.messageType() + " payload does not decode to "
                 + bound.payloadType().getSimpleName(), invalid);

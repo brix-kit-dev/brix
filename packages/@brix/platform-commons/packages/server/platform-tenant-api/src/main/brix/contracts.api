@@ -8,6 +8,10 @@ constructor TenantReference(boolean)
 constructor TenantReferenceQuery(long, RefKind)
 enum TenantReferenceQuery.RefKind.MEMBER
 enum TenantReferenceQuery.RefKind.PRINCIPAL
+event TenantFirstOwnerAccepted major 1 payload platform-tenant/tenant-first-owner-accepted
 query PlatformTenantQueries.TENANT_REFERENCE = platform-tenant.tenant-reference major 1 optional TenantReferenceQuery -> TenantReference
 record TenantReference schema platform-tenant/tenant-reference major 1
 record TenantReferenceQuery schema platform-tenant/tenant-reference-query major 1
+schema platform-tenant/tenant-first-owner-accepted 1.0.0 sha256:636a9f319efe2e80b5e9a2f75fd2be8a4f5205040c6c609e0a39455162c8e44a
+schema platform-tenant/tenant-reference 1.0.0 sha256:197aed70121f9826528edf745fbf958f778bbf8f81c28e2d0abf8842f1eea321
+schema platform-tenant/tenant-reference-query 1.0.0 sha256:bd18f2ce5c0664a954ec029b58a49fa95a9761a1b5bd70b99fdd977970990959

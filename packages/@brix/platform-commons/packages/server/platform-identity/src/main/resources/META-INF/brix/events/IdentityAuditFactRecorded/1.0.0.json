@@ -1,0 +1,6 @@
+{
+  "eventType": "IdentityAuditFactRecorded",
+  "version": "1.0.0",
+  "payload": "brix://schemas/platform-identity/identity-audit-fact/1.0.0",
+  "description": "an identity fact for the platform audit; CRITICAL"
+}

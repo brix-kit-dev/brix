@@ -1,0 +1,6 @@
+{
+  "eventType": "FirstOwnerInviteeSetupCompleted",
+  "version": "1.0.0",
+  "payload": "brix://schemas/platform-identity/first-owner-invitee-setup-completed/1.0.0",
+  "description": "a first-owner invitee finished setting up their identity; CRITICAL, PLATFORM-scoped"
+}

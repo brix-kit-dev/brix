@@ -9,10 +9,14 @@ package io.runtime.contract.generator;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,26 +31,37 @@ import java.util.stream.Stream;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Generates the contract types of a plugin's typed queries from its query contract files and JSON Schemas (root
- * BRX-RS-A-22, MANIFEST-027, CAP-019 to CAP-021; query design D38, §5.6).
+ * Generates and checks the contracts a plugin publishes: typed queries, commands and events (root BRX-RS-A-22,
+ * MANIFEST-027, CAP-019 to CAP-021; query design D38, §5.6; standard-link plan L4.1, L5).
  *
  * <p>Input, under a module's resources:</p>
  * <ul>
  *   <li>{@code META-INF/brix/queries/<queryType>/<version>.json}: {@code queryType}, {@code version}, the
  *       {@code request} and {@code response} schema references and {@code optional}, whether the query may find
  *       nothing;</li>
+ *   <li>{@code META-INF/brix/commands/<commandType>/<version>.json}: {@code commandType}, {@code version} and the
+ *       {@code request} schema reference;</li>
+ *   <li>{@code META-INF/brix/events/<eventType>/<version>.json}: {@code eventType}, {@code version} and the
+ *       {@code payload} schema reference. Event payloads keep their hand-written records, which
+ *       {@code EventSchemaContract} compares with the schema in the publisher's build, so their schemas are checked
+ *       and locked, not generated;</li>
  *   <li>{@code META-INF/brix/schemas/<plugin>/<name>/<version>.json}: object schemas of a small subset of JSON
  *       Schema 2020-12. Published versions stay in the module, so each new minor version is checked against the ones
- *       before it. A property's {@code x-brix-classification} marks its data class (root BRX-RS-SECURITY-008) and
- *       does not change its type.</li>
+ *       before it: it may add optional properties and enum values, nothing else. A property's
+ *       {@code x-brix-classification} marks its data class (root BRX-RS-SECURITY-008) and does not change its
+ *       type.</li>
  * </ul>
  *
- * <p>Output: one immutable record per schema of a major version, validating its values on construction, with a
- * builder and a constructor for each earlier minor version, so code compiled against an earlier minor keeps running
- * on the newer one in the same host; a constants class with the {@code QueryType} of each query; and an API listing
- * whose lines a later version may add to but never remove.</p>
+ * <p>Output: one immutable record per query or command schema of a major version, validating its values on
+ * construction, with a builder and a constructor for each earlier minor version, so code compiled against an earlier
+ * minor keeps running on the newer one in the same host; a constants class with the {@code QueryType} of each query
+ * and one with the {@code CommandType} of each command; and an API listing whose lines a later version may add to but
+ * never remove. The listing pins every published schema version to the SHA-256 of its content, so a published file
+ * cannot change: a change is a new version.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -73,6 +88,8 @@ public final class QueryContractGenerator {
         "optional", "description");
     private static final Set<String> COMMAND_CONTRACT_KEYWORDS = Set.of("commandType", "version", "request",
         "description");
+    private static final Set<String> EVENT_CONTRACT_KEYWORDS = Set.of("eventType", "version", "payload", "description");
+    private static final Pattern EVENT_TYPE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,99}");
 
     private QueryContractGenerator() {
     }
@@ -109,25 +126,40 @@ public final class QueryContractGenerator {
         Map<String, Schema> schemas = loadSchemas(resources.resolve("META-INF/brix/schemas"));
         List<Contract> contracts = loadContracts(resources.resolve("META-INF/brix/queries"), schemas);
         List<CommandContract> commands = loadCommandContracts(resources.resolve("META-INF/brix/commands"), schemas);
-        String plugins = java.util.stream.Stream.concat(contracts.stream().map(Contract::plugin),
-                commands.stream().map(CommandContract::plugin))
-            .distinct().reduce((a, b) -> a + ", " + b).orElse("");
+        List<EventContract> events = loadEventContracts(resources.resolve("META-INF/brix/events"), schemas);
+        String plugins = Stream.of(contracts.stream().map(Contract::plugin), commands.stream().map(CommandContract::plugin),
+                events.stream().map(EventContract::plugin))
+            .flatMap(plugin -> plugin).distinct().reduce((a, b) -> a + ", " + b).orElse("");
         if (plugins.contains(",")) {
             throw new IllegalArgumentException("one api module holds the contracts of one plugin, not " + plugins);
         }
         Map<String, Type> types = new TreeMap<>();
         for (Contract contract : contracts) {
-            collect(contract.request(), schemas, types);
-            collect(contract.response(), schemas, types);
+            collect(contract.request(), schemas, types, true);
+            collect(contract.response(), schemas, types, true);
         }
         for (CommandContract command : commands) {
-            collect(command.request(), schemas, types);
+            collect(command.request(), schemas, types, true);
+        }
+        // Event payloads keep their hand-written records (Kafka design D24): their schemas are checked and locked, not
+        // generated. A publisher bounds its own payloads, so their arrays need no maxItems.
+        Map<String, Type> payloads = new TreeMap<>();
+        for (EventContract event : events) {
+            collect(event.payload(), schemas, payloads, false);
         }
         Map<String, String> sources = new TreeMap<>();
         Set<String> api = new TreeSet<>();
         for (Type type : types.values()) {
             sources.put(type.className(), recordSource(type, javaPackage, types));
             api.addAll(type.api(types));
+        }
+        // Root BRX-RS-CAP-019, §4.4: a published schema version never changes. Its content hash is part of the API, so
+        // editing a published file loses a line; a change is a new version, a patch for documentation.
+        Stream.concat(types.values().stream(), payloads.values().stream())
+            .flatMap(type -> type.history().stream())
+            .forEach(schema -> api.add(schema.lock()));
+        for (EventContract event : events) {
+            api.add(event.api());
         }
         if (!contracts.isEmpty()) {
             String plugin = contracts.get(0).plugin();
@@ -271,7 +303,54 @@ public final class QueryContractGenerator {
         return List.copyOf(latest.values());
     }
 
-    private static void collect(String ref, Map<String, Schema> schemas, Map<String, Type> types) {
+    /**
+     * Loads the event contracts: {@code META-INF/brix/events/<eventType>/<version>.json} names the event, its version
+     * and its payload schema (standard-link plan L5.1). The manifest's {@code events.publishes} names the same schema,
+     * which {@code EventSchemaContract} checks in the publisher's build.
+     */
+    private static List<EventContract> loadEventContracts(Path root, Map<String, Schema> schemas) {
+        List<EventContract> contracts = new ArrayList<>();
+        for (Path file : jsonFiles(root)) {
+            Path relative = root.relativize(file);
+            JsonNode node = read(file);
+            requireOnly(file, node, EVENT_CONTRACT_KEYWORDS);
+            String eventType = node.path("eventType").asText("");
+            String version = node.path("version").asText("");
+            if (relative.getNameCount() != 2 || !relative.getName(0).toString().equals(eventType)
+                    || !relative.getName(1).toString().equals(version + ".json")) {
+                throw invalid(file, "an event contract lives at <eventType>/<version>.json and names both");
+            }
+            if (!EVENT_TYPE.matcher(eventType).matches() || !VERSION.matcher(version).matches()) {
+                throw invalid(file, "eventType must be a message name, such as OrderPlaced, and version "
+                    + "major.minor.patch");
+            }
+            String payload = node.path("payload").asText("");
+            if (!schemas.containsKey(payload)) {
+                throw invalid(file, "refers to schema '" + payload + "', which this module does not contain");
+            }
+            if (!payload.endsWith("/" + version)) {
+                throw invalid(file, "its payload schema carries the contract's version " + version + ", but it refers to "
+                    + payload);
+            }
+            contracts.add(new EventContract(eventType, version, payload, node.path("description").asText("")));
+        }
+        Map<String, EventContract> latest = new TreeMap<>();
+        for (EventContract contract : contracts) {
+            latest.merge(contract.eventType() + "#" + contract.major(), contract,
+                (a, b) -> compare(a.version(), b.version()) >= 0 ? a : b);
+        }
+        for (EventContract contract : latest.values()) {
+            String newest = newestOf(schemas.get(contract.payload()), schemas).ref();
+            if (!newest.equals(contract.payload())) {
+                throw new IllegalArgumentException("event " + contract.eventType() + " " + contract.version()
+                    + " refers to " + contract.payload() + ", but the module has " + newest + "; add the event "
+                    + "contract of that version");
+            }
+        }
+        return List.copyOf(latest.values());
+    }
+
+    private static void collect(String ref, Map<String, Schema> schemas, Map<String, Type> types, boolean bounded) {
         Schema schema = schemas.get(ref);
         if (schema == null) {
             throw new IllegalArgumentException("no schema " + ref + " in this module");
@@ -288,7 +367,7 @@ public final class QueryContractGenerator {
             .toList();
         List<List<Property>> versions = new ArrayList<>();
         for (Schema version : history) {
-            versions.add(properties(version));
+            versions.add(properties(version, bounded));
         }
         checkCompatible(newest, history, versions);
         Type type = new Type(key, newest, className(newest), history, versions);
@@ -296,7 +375,7 @@ public final class QueryContractGenerator {
         for (Property property : versions.get(versions.size() - 1)) {
             Property target = property.kind() == Kind.ARRAY ? property.items() : property;
             if (target.kind() == Kind.OBJECT) {
-                collect(target.ref(), schemas, types);
+                collect(target.ref(), schemas, types, bounded);
             }
         }
     }
@@ -311,7 +390,7 @@ public final class QueryContractGenerator {
 
     // ------------------------------------------------------------------------------------------- the subset
 
-    private static List<Property> properties(Schema schema) {
+    private static List<Property> properties(Schema schema, boolean bounded) {
         JsonNode node = schema.node();
         Path where = Path.of(schema.ref());
         requireOnly(where, node, SCHEMA_KEYWORDS);
@@ -330,7 +409,8 @@ public final class QueryContractGenerator {
             if (!PROPERTY_NAME.matcher(field.getKey()).matches()) {
                 throw invalid(where, "property names are lowerCamelCase: " + field.getKey());
             }
-            properties.add(property(where, field.getKey(), field.getValue(), required.remove(field.getKey()), false));
+            properties.add(property(where, field.getKey(), field.getValue(), required.remove(field.getKey()), false,
+                bounded));
         }
         if (!required.isEmpty()) {
             throw invalid(where, "required names properties it does not define: " + required);
@@ -338,9 +418,27 @@ public final class QueryContractGenerator {
         return List.copyOf(properties);
     }
 
-    private static Property property(Path where, String name, JsonNode node, boolean required, boolean item) {
+    private static Property property(Path where, String name, JsonNode node, boolean required, boolean item,
+            boolean bounded) {
         requireOnly(where, node, PROPERTY_KEYWORDS);
-        String type = node.path("type").asText("");
+        String type;
+        boolean nullable = false;
+        JsonNode declared = node.path("type");
+        if (declared.isArray()) {
+            // ["<type>", "null"]: a property that may be null, as payloads published before 3.3.0 spell it.
+            List<String> names = new ArrayList<>();
+            declared.forEach(entry -> names.add(entry.asText("")));
+            if (names.size() != 2 || !names.contains("null") || names.get(0).equals(names.get(1))) {
+                throw invalid(where, name + ": a list of types is [\"<type>\", \"null\"]");
+            }
+            type = "null".equals(names.get(0)) ? names.get(1) : names.get(0);
+            nullable = true;
+            if (required || item) {
+                throw invalid(where, name + ": only an optional property may be null");
+            }
+        } else {
+            type = declared.asText("");
+        }
         String ref = node.path("$ref").asText("");
         Kind kind;
         if (!ref.isEmpty()) {
@@ -384,10 +482,10 @@ public final class QueryContractGenerator {
             if (item) {
                 throw invalid(where, name + ": arrays do not nest");
             }
-            if (!node.has("maxItems")) {
+            if (bounded && !node.has("maxItems")) {
                 throw invalid(where, name + ": an array declares maxItems, so a result is bounded (query design §5.6)");
             }
-            items = property(where, name, node.path("items"), true, true);
+            items = property(where, name, node.path("items"), true, true, bounded);
             if (items.kind() == Kind.ENUM) {
                 throw invalid(where, name + ": arrays of enums are not supported; use an array of strings");
             }
@@ -402,12 +500,13 @@ public final class QueryContractGenerator {
         return new Property(name, node.path("description").asText(""), kind, required, since,
             integer(node, "minLength"), integer(node, "maxLength"), node.path("pattern").asText(""),
             decimal(node, "minimum"), decimal(node, "maximum"), List.copyOf(values), integer(node, "minItems"),
-            integer(node, "maxItems"), items, ref);
+            integer(node, "maxItems"), items, ref, nullable);
     }
 
     /**
-     * Root BRX-RS-CAP-019, CAP-020: within a major version a later schema keeps every earlier property as it was,
-     * in the same order, and adds only optional properties after them, marked with the version that added them.
+     * Root BRX-RS-CAP-019 to CAP-021: within a major version a later schema keeps every earlier property as it was,
+     * in the same order, and adds only optional properties after them, marked with the version that added them, and
+     * enum values after the earlier ones.
      */
     private static void checkCompatible(Schema newest, List<Schema> history, List<List<Property>> versions) {
         for (int i = 1; i < versions.size(); i++) {
@@ -421,7 +520,7 @@ public final class QueryContractGenerator {
             for (int p = 0; p < after.size(); p++) {
                 Property property = after.get(p);
                 if (p < before.size()) {
-                    if (!before.get(p).signature().equals(property.signature())) {
+                    if (!keeps(before.get(p), property)) {
                         throw new IllegalArgumentException(newest.name() + " " + version + " changes property "
                             + property.name() + " of " + history.get(i - 1).version() + " (" + before.get(p).signature()
                             + " to " + property.signature() + "); a breaking change needs a new major version");
@@ -439,6 +538,18 @@ public final class QueryContractGenerator {
                     + property.name() + " with x-brix-since, but it was there from the first version of its major");
             }
         }
+    }
+
+    /** Whether {@code after} keeps {@code before}: unchanged, or with enum values added after the earlier ones. */
+    private static boolean keeps(Property before, Property after) {
+        if (before.signature().equals(after.signature())) {
+            return true;
+        }
+        List<String> earlier = before.enumValues();
+        List<String> later = after.enumValues();
+        return before.kind() == Kind.ENUM && later.size() > earlier.size()
+            && later.subList(0, earlier.size()).equals(earlier)
+            && before.withEnumValues(later).signature().equals(after.signature());
     }
 
     // ------------------------------------------------------------------------------------------- generation
@@ -536,7 +647,11 @@ public final class QueryContractGenerator {
         for (Property property : properties) {
             if (property.kind() == Kind.ENUM) {
                 java.blank();
-                java.line("    /** The values of {@code " + property.name() + "}. A newer minor version may add values; a switch over them needs a default. */");
+                java.line("    /**");
+                java.line("     * The values of {@code " + property.name() + "}. A newer minor version may add values, so a switch over them");
+                java.line("     * needs a default. The runtime reads a value this version does not know as null: an optional property is");
+                java.line("     * then empty, and a payload that requires it is invalid.");
+                java.line("     */");
                 java.line("    public enum " + pascal(property.name()) + " {");
                 for (int i = 0; i < property.enumValues().size(); i++) {
                     java.line("        " + property.enumValues().get(i) + (i < property.enumValues().size() - 1 ? "," : ""));
@@ -717,6 +832,11 @@ public final class QueryContractGenerator {
             return Integer.parseInt(part(4));
         }
 
+        /** The API line that pins this published version to its content (root BRX-RS-CAP-019). */
+        String lock() {
+            return "schema " + plugin() + "/" + name() + " " + version() + " sha256:" + fingerprint(node);
+        }
+
         private String part(int group) {
             Matcher matcher = SCHEMA_REF.matcher(ref);
             if (!matcher.matches()) {
@@ -773,6 +893,22 @@ public final class QueryContractGenerator {
         }
     }
 
+    private record EventContract(String eventType, String version, String payload, String description) {
+
+        String plugin() {
+            return new Schema(payload, null).plugin();
+        }
+
+        int major() {
+            return Integer.parseInt(version.substring(0, version.indexOf('.')));
+        }
+
+        String api() {
+            Schema schema = new Schema(payload, null);
+            return "event " + eventType + " major " + major() + " payload " + schema.plugin() + "/" + schema.name();
+        }
+    }
+
     private record Type(String key, Schema schema, String className, List<Schema> history,
             List<List<Property>> versions) {
 
@@ -809,14 +945,22 @@ public final class QueryContractGenerator {
 
     private record Property(String name, String description, Kind kind, boolean required, String since,
             Integer minLength, Integer maxLength, String pattern, BigDecimal minimum, BigDecimal maximum,
-            List<String> enumValues, Integer minItems, Integer maxItems, Property items, String ref) {
+            List<String> enumValues, Integer minItems, Integer maxItems, Property items, String ref,
+            boolean nullable) {
 
         /** Everything a later minor version must keep. */
         String signature() {
             String target = kind == Kind.OBJECT ? refKey(ref) : "";
-            return kind + (required ? " required" : " optional") + " len[" + minLength + "," + maxLength + "] pattern["
-                + pattern + "] range[" + minimum + "," + maximum + "] enum" + enumValues + " items[" + minItems + ","
-                + maxItems + "]" + (items == null ? "" : " of(" + items.signature() + ")") + target;
+            return kind + (required ? " required" : " optional") + (nullable ? " nullable" : "") + " len[" + minLength
+                + "," + maxLength + "] pattern[" + pattern + "] range[" + minimum + "," + maximum + "] enum"
+                + enumValues + " items[" + minItems + "," + maxItems + "]"
+                + (items == null ? "" : " of(" + items.signature() + ")") + target;
+        }
+
+        /** This property with other enum values. */
+        Property withEnumValues(List<String> values) {
+            return new Property(name, description, kind, required, since, minLength, maxLength, pattern, minimum,
+                maximum, List.copyOf(values), minItems, maxItems, items, ref, nullable);
         }
 
         boolean primitive() {
@@ -1007,6 +1151,38 @@ public final class QueryContractGenerator {
     }
 
     // ------------------------------------------------------------------------------------------------ helpers
+
+    /**
+     * Returns the SHA-256 of a schema's canonical JSON: object members sorted by name, no insignificant whitespace.
+     * Reformatting a file keeps it; any other change, documentation included, makes another hash.
+     *
+     * @param node the schema
+     * @return the hash in lower-case hex
+     */
+    static String fingerprint(JsonNode node) {
+        try {
+            byte[] canonical = JSON.writeValueAsString(canonical(node)).getBytes(StandardCharsets.UTF_8);
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical));
+        } catch (NoSuchAlgorithmException absent) {
+            throw new IllegalStateException("SHA-256 is part of every Java runtime", absent);
+        }
+    }
+
+    private static JsonNode canonical(JsonNode node) {
+        if (node.isObject()) {
+            ObjectNode sorted = JSON.createObjectNode();
+            for (String name : new TreeSet<>(node.propertyNames())) {
+                sorted.set(name, canonical(node.get(name)));
+            }
+            return sorted;
+        }
+        if (node.isArray()) {
+            ArrayNode copy = JSON.createArrayNode();
+            node.forEach(item -> copy.add(canonical(item)));
+            return copy;
+        }
+        return node;
+    }
 
     private static List<Path> jsonFiles(Path root) {
         if (!Files.isDirectory(root)) {

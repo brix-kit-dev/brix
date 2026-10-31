@@ -1,0 +1,6 @@
+{
+  "eventType": "SampleOrderActivity",
+  "version": "1.0.0",
+  "payload": "brix://schemas/sample-orders/sample-order-activity/1.0.0",
+  "description": "something happened to an order; BEST_EFFORT, in the order's tenant"
+}

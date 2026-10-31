@@ -155,13 +155,22 @@ Schemas use this subset of JSON Schema, so that every contract becomes a plain r
 | `$ref` to another `brix://schemas/...` object | that record |
 
 Any other keyword is refused, and so is an array without `maxItems`, because a result must be bounded. A property
-listed under `required` is a primitive or a non-null value. Any other property may be null.
+listed under `required` is a primitive or a non-null value. Any other property may be null; a type list
+`["string", "null"]` says the same and is accepted for an optional property.
 
-**Changing a contract.** A minor version, for example 1.1.0, may only add optional properties, each marked with
-`"x-brix-since": "1.1.0"`. Keep the earlier version's files in the module: the generator compares each version with
-the ones before it. It refuses a minor version that changes or drops a property, and it fails when a line would
-disappear from `contracts.api`. Each record keeps a constructor for every earlier minor version, so a caller compiled
-against 1.0.0 still runs against 1.1.0. Anything else is a new major version with its own types and constant.
+**Changing a contract.** A published version never changes. `contracts.api` pins each published schema version to
+the SHA-256 of its content, so editing a published file fails the test, even for a description. Publish the change
+as a new version instead, and keep the earlier files in the module: the generator compares each version with the
+ones before it.
+- A patch version, for example 1.0.1, corrects documentation and changes no property.
+- A minor version, for example 1.1.0, may add optional properties, each marked with `"x-brix-since": "1.1.0"`, and
+  add values at the end of an enum. It may not change, reorder or drop anything.
+- Anything else is a new major version, with its own types and constant.
+
+Each record keeps a constructor for every earlier minor version, so a caller compiled against 1.0.0 still runs
+against 1.1.0. Enums are open: switch over their values with a default. When a command or event arrives with a value
+that the receiver's type does not know, the runtime reads it as null. An optional property is then empty; a payload
+that requires the property is invalid and is parked.
 
 Mark each field's data class with `x-brix-classification` (root BRX-RS-SECURITY-008), as in event schemas.
 

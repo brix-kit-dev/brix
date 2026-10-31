@@ -1,0 +1,6 @@
+{
+  "eventType": "SampleOrderPlaced",
+  "version": "1.0.0",
+  "payload": "brix://schemas/sample-orders/sample-order-placed/1.0.0",
+  "description": "an order was placed; STANDARD, in the order's tenant"
+}

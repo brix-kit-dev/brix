@@ -7,6 +7,7 @@
 package io.runtime.contract.generator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -274,6 +275,132 @@ class QueryContractGeneratorTest {
         IllegalArgumentException refused = org.junit.jupiter.api.Assertions.assertThrows(
             IllegalArgumentException.class, () -> QueryContractGenerator.generate(resources, PACKAGE));
         assertTrue(refused.getMessage().contains("<commandType>/<version>.json"), refused.getMessage());
+    }
+
+    @Test
+    void anEventContractChecksAndLocksItsPayloadWithoutGeneratingIt() throws IOException {
+        // Standard-link plan L5.1: events go through the same checks; their payload records stay hand-written.
+        schema("order-shipped", "1.0.0", """
+            "title": "An order was shipped",
+            "type": "object", "additionalProperties": false, "required": ["orderId", "parcels"],
+            "properties": {
+              "orderId": {"type": "string", "maxLength": 32},
+              "parcels": {"type": "array", "items": {"type": "integer"}},
+              "carrier": {"type": ["string", "null"], "maxLength": 32}
+            }""");
+        event("OrderShipped", "order-shipped", "1.0.0");
+
+        QueryContractGenerator.Generated generated = QueryContractGenerator.generate(resources, PACKAGE);
+
+        assertFalse(generated.sources().containsKey("OrderShipped"), generated.sources().keySet().toString());
+        assertTrue(generated.api().contains("event OrderShipped major 1 payload test-shop/order-shipped"),
+            generated.api().toString());
+        assertTrue(generated.api().stream().anyMatch(line -> line.matches(
+            "schema test-shop/order-shipped 1\\.0\\.0 sha256:[0-9a-f]{64}")), generated.api().toString());
+    }
+
+    @Test
+    void anEventPayloadIsHeldToTheSubsetAndToItsEarlierMinorVersions() throws IOException {
+        schema("order-shipped", "1.0.0", """
+            "type": "object", "additionalProperties": false, "required": ["orderId"],
+            "properties": {"orderId": {"type": "string", "maxLength": 32}, "carrier": {"type": "string"}}""");
+        schema("order-shipped", "1.1.0", """
+            "type": "object", "additionalProperties": false, "required": ["orderId"],
+            "properties": {"orderId": {"type": "string", "maxLength": 32}}""");
+        event("OrderShipped", "order-shipped", "1.0.0");
+        event("OrderShipped", "order-shipped", "1.1.0");
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> QueryContractGenerator.generate(resources, PACKAGE))
+            .getMessage().contains("removes properties"));
+
+        schema("order-shipped", "1.1.0", """
+            "type": "object", "additionalProperties": false, "required": ["orderId"],
+            "properties": {"orderId": {"type": "string", "maxLength": 32},
+              "carrier": {"oneOf": [{"type": "string"}, {"type": "null"}]}}""");
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> QueryContractGenerator.generate(resources, PACKAGE))
+            .getMessage().contains("oneOf"));
+    }
+
+    @Test
+    void aMinorVersionMayAddEnumValuesAfterTheEarlierOnes() throws Exception {
+        // Root BRX-RS-CAP-021: a published enum is open; a later minor adds values, callers switch with a default.
+        schema("order", "1.2.0", order(NOTE).replace("[\"PLACED\", \"SHIPPED\"]", "[\"PLACED\", \"SHIPPED\", \"CANCELLED\"]"));
+        schema("find-order-request", "1.2.0", """
+            "type": "object", "additionalProperties": false, "required": ["orderId"],
+            "properties": {"orderId": {"type": "string", "minLength": 1, "maxLength": 32, "pattern": "[A-Z0-9-]+"}}""");
+        query("1.2.0");
+
+        QueryContractGenerator.Generated generated = QueryContractGenerator.generate(resources, PACKAGE);
+
+        assertTrue(generated.api().contains("enum Order.Status.CANCELLED"), generated.api().toString());
+        assertTrue(generated.sources().get("Order").contains("a switch over them"), generated.sources().get("Order"));
+        try (URLClassLoader loader = compile(generated)) {
+            Object[] values = loader.loadClass(PACKAGE + ".Order$Status").getEnumConstants();
+            assertEquals("[PLACED, SHIPPED, CANCELLED]", java.util.Arrays.toString(values));
+        }
+    }
+
+    @Test
+    void aMinorVersionThatReordersOrDropsEnumValuesIsRefused() throws IOException {
+        schema("order", "1.2.0", order(NOTE).replace("[\"PLACED\", \"SHIPPED\"]", "[\"SHIPPED\", \"PLACED\"]"));
+        schema("find-order-request", "1.2.0", """
+            "type": "object", "additionalProperties": false, "required": ["orderId"],
+            "properties": {"orderId": {"type": "string", "minLength": 1, "maxLength": 32, "pattern": "[A-Z0-9-]+"}}""");
+        query("1.2.0");
+
+        IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+            () -> QueryContractGenerator.generate(resources, PACKAGE));
+        assertTrue(refused.getMessage().contains("changes property status"), refused.getMessage());
+    }
+
+    @Test
+    void aTypeListWithNullIsAnOptionalProperty() throws IOException {
+        schema("order", "1.1.0", order(",\n  \"note\": {\"type\": [\"string\", \"null\"], \"maxLength\": 200, "
+            + "\"x-brix-since\": \"1.1.0\"}"));
+        assertTrue(QueryContractGenerator.generate(resources, PACKAGE).api().contains(
+            "accessor Order.note(): String optional"));
+
+        schema("order", "1.1.0", order(",\n  \"note\": {\"type\": [\"string\", \"integer\"], "
+            + "\"x-brix-since\": \"1.1.0\"}"));
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> QueryContractGenerator.generate(resources, PACKAGE))
+            .getMessage().contains("[\"<type>\", \"null\"]"));
+
+        schema("order", "1.1.0", order(NOTE));
+        schema("order", "1.0.0", order("").replace("\"quantity\": {\"type\": \"integer\"",
+            "\"quantity\": {\"type\": [\"integer\", \"null\"]"));
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> QueryContractGenerator.generate(resources, PACKAGE))
+            .getMessage().contains("only an optional property may be null"));
+    }
+
+    @Test
+    void everyPublishedSchemaVersionIsPinnedToItsContent() throws IOException {
+        // Standard-link plan L5.2: reformatting keeps the hash, any other edit of a published file fails verification.
+        System.setProperty(ContractSources.WRITE, "true");
+        try {
+            ContractSources.verify(module, PACKAGE);
+        } finally {
+            System.clearProperty(ContractSources.WRITE);
+        }
+        List<String> locks = QueryContractGenerator.generate(resources, PACKAGE).api().stream()
+            .filter(line -> line.startsWith("schema ")).toList();
+        assertEquals(List.of("test-shop/find-order-request 1.0.0", "test-shop/find-order-request 1.1.0",
+            "test-shop/order 1.0.0", "test-shop/order 1.1.0"),
+            locks.stream().map(line -> line.substring("schema ".length(), line.indexOf(" sha256:"))).toList());
+
+        Path published = resources.resolve("META-INF/brix/schemas/test-shop/order/1.0.0.json");
+        Files.writeString(published, Files.readString(published).replace("\n", "\n    ").replace("\": ", "\":"));
+        ContractSources.verify(module, PACKAGE);
+
+        Files.writeString(published, Files.readString(published).replace("An order", "An order, as placed"));
+        AssertionError changed = assertThrows(AssertionError.class, () -> ContractSources.verify(module, PACKAGE));
+        assertTrue(changed.getMessage().contains("Published schema versions"), changed.getMessage());
+        assertTrue(changed.getMessage().contains("schema test-shop/order 1.0.0 sha256:"), changed.getMessage());
+    }
+
+    private void event(String eventType, String name, String version) throws IOException {
+        Path file = resources.resolve("META-INF/brix/events/" + eventType + "/" + version + ".json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, "{\"eventType\": \"" + eventType + "\", \"version\": \"" + version
+            + "\", \"payload\": \"brix://schemas/test-shop/" + name + "/" + version + "\"}");
     }
 
     private void command(String name, String version) throws IOException {

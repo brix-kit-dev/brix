@@ -1,0 +1,6 @@
+{
+  "eventType": "TenantFirstOwnerAccepted",
+  "version": "1.0.0",
+  "payload": "brix://schemas/platform-tenant/tenant-first-owner-accepted/1.0.0",
+  "description": "a tenant's first owner accepted the invitation; CRITICAL, in that tenant"
+}
