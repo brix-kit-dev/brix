@@ -193,6 +193,11 @@ All notable changes to Brix Framework are documented here.
     lease), so its statements stop, and its waits for a pooled connection end, at the deadline;
   - a handler that returns after the deadline fails the delivery before the commit, so its writes, the inbox
     receipt and a command's business key roll back, and the message is retried.
+- **The documented ordering guarantee names its exception.** A parked message, in the publisher's outbox or at a
+  subscription, holds nothing back: the later messages of its key go on, and a replayed one arrives after them. The
+  events guide also lists the identifiers that cannot change once a plugin runs in production (`pluginId`,
+  `storageId`, event and command types, handler ids, published schema versions and task ids), with what a change
+  does and what to do instead.
 
 ---
 

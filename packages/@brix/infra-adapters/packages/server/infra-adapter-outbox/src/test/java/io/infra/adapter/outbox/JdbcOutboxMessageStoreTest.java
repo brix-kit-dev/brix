@@ -123,6 +123,22 @@ class JdbcOutboxMessageStoreTest {
     }
 
     @Test
+    void aParkedMessageHoldsNothingBackOfItsKeyAndLeavesAfterItsLaterMessagesWhenReplayed() {
+        // The exception to the order of a key that the events guide names: a parked message no longer holds the later
+        // messages of its key back, and replayed, it leaves after them.
+        insert("a", "PARKED", 6, NOW.minusSeconds(10), null, "key-1", NOW.minusSeconds(30));
+        insert("b", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));
+
+        List<CanonicalOutboxMessage> first = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+        store.markPublished("relay-a", "b", NOW.plusSeconds(1));
+        assertTrue(store.replayParked("event-a", NOW.plusSeconds(2)));
+        List<CanonicalOutboxMessage> second = store.claimDue("relay-a", NOW.plusSeconds(3), Duration.ofSeconds(30), 10);
+
+        assertEquals(List.of("b"), first.stream().map(CanonicalOutboxMessage::messageId).toList());
+        assertEquals(List.of("a"), second.stream().map(CanonicalOutboxMessage::messageId).toList());
+    }
+
+    @Test
     void dueMessagesOfOneKeyAreClaimedTogetherInTheOrderTheOutboxRecordedThem() {
         // Kafka design §14 K13: the outbox numbers its messages; the producers' clocks do not decide.
         insert("a", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(20));

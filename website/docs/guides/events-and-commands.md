@@ -62,7 +62,7 @@ flowchart LR
 | Topic | Guarantee |
 |---|---|
 | Delivery | CRITICAL and STANDARD events are delivered **at least once** after the publisher commits, and never if it rolls back. With a persistent inbox, each handler applies an event **once**. |
-| Order | A subscriber sees the events of **one event type with the same partition key** (the event's routing key) in publish order. There is no order across event types or keys. To order events of different types for one aggregate, put the aggregate's version in the payloads and compare it in the subscriber. |
+| Order | A subscriber sees the events of **one event type with the same partition key** (the event's routing key) in publish order. While an event is retried, the later events of its key wait for it. **A parked event is the exception:** parked in the publisher's outbox or at a subscription, it holds nothing back. The later events of its key go on, and a replayed one arrives after them. There is no order across event types or keys. To order events of different types for one aggregate, or to ignore a replayed event that is older than what you have, put the aggregate's version in the payloads and compare it in the subscriber. |
 | New subscriptions | A subscription starts at the moment it is first registered. It does not receive older events; a renamed `handlerId` is a new subscription. For history, an operator republishes events that are still in the outbox (see [Operating](#operating)). |
 | Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that does not finish by its deadline counts as a failed attempt, even one that did its work and returned late: its writes and the inbox receipt roll back. |
 | Outages | If the subscriber's database is down or the plugin is not started, the subscription pauses. Attempts are not used up, and the event is delivered once the cause is gone. |
@@ -556,7 +556,7 @@ deprecated and will be removed in 4.0.
 | `accessPolicyRef` | `declared-consumers` | Any plugin that declares the command under `commands.consumes` may send it |
 | | `on-behalf-of:<permission>` | A plugin may send it only while acting for a user who holds the permission. The sender's runtime checks the user at submission and the command records the user; the owner parks a command that names none |
 | `timeoutPolicyRef`, `retryPolicyRef` | `event-standard` | The host's delivery deadline, attempts and backoff, as for events |
-| `concurrencyPolicyRef` | `partition-serial` | One command at a time per partition key, in order |
+| `concurrencyPolicyRef` | `partition-serial` | One command at a time per partition key, in order. A parked command holds nothing back, as for events |
 | `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant |
 
 A provider names all six; a sender names `required`, `versionRange`, the timeout, the retry and the idempotency
@@ -605,6 +605,23 @@ Business tables follow the persistence rules:
 `SampleOrder` in `sample-orders-core` and `SampleShipment` in `sample-shipping-core` show how an entity with assigned
 ids tells Spring Data that it is new.
 
+## Identifiers you cannot change after go-live
+
+The runtime keeps messages, receipts and positions under the names below. Once a plugin has run in production,
+changing one renames nothing: it starts something new next to the old one, and what the old one held is left behind.
+Choose them once. The samples show each one:
+
+| Identifier | Sample | Kept in | What a change does | Instead |
+|---|---|---|---|---|
+| `pluginId` | `sample-shipping` | The publisher of its events and commands, its schema ids `brix://schemas/<pluginId>/...` and the consumer groups `brix.subscription.<pluginId>.<handlerId>` | Its subscriptions start again from now, and subscribers of its events must name the new publisher | Keep it |
+| `data.storageId` | `sample_shipping` | The platform's tables `<storageId>_outbox`, `_inbox`, `_command_idempotency` and `_task_run`, and their migration histories | New, empty tables. Messages still in the old outbox are never sent, and the new inbox does not know what was applied, so a message delivered again is applied again | Keep it (root BRX-RS-MESSAGE-023) |
+| Event type | `SampleOrderPlaced` | Its topic `brix.event.<type>`, the outbox rows and every subscription to it | A new topic. Messages still in the outbox or parked keep the old name, and no subscriber reads it any more | Publish a new type next to the old one, move the subscribers, then stop the old one once its outbox and parked messages are empty |
+| Command type | `sample-orders.cancel-order` | Its topic `brix.command.<type>` and the outbox rows | A new topic. Commands still in the outbox or parked keep the old name, and the provider no longer reads it | As for an event type |
+| `handlerId` of a subscription | `sample-shipping.prepare-shipment.v1` | Its consumer group, its inbox rows `(handler_id, message_id)`, its parked events and its metrics | A new subscription that starts from now: it misses what came before, and its inbox does not know what the old one applied | Change it only to start a new subscription on purpose, for example with `.v2` |
+| `handlerId` of a command provider | `sample-orders.cancel-order.v1` | Its consumer group, its inbox and its idempotency rows `(handler_id, idempotency_scope, idempotency_key)` | Commands still waiting in the topic are skipped, and one delivered again or sent again with a key already used runs again | Keep it |
+| A published schema version | `brix://schemas/sample-orders/sample-order-placed/1.0.0` | `contracts.api`, which pins the file's SHA-256 | The module's `ContractSourcesTest` fails | Publish a new minor or major version ([Changing a contract](./queries.md#1-write-the-contract)) |
+| `taskId` | `sample-orders.heartbeat` | The claims `(task_id, trigger_id)` in `<storageId>_task_run` | The claims start empty, so a trigger the old id already ran can run again | Keep it |
+
 ## Testing
 
 | Level | How |
@@ -640,7 +657,8 @@ recorded in the platform audit before it takes effect, and it is refused if the 
 | `DELETE /actuator/events/{subscription}/{eventId}?operator=…&reason=…` | Discard a parked event |
 
 POST bodies are `{"operator": "...", "reason": "..."}`. Event ids never change, so subscribers that already applied
-an event skip it through their inbox.
+an event skip it through their inbox. A replayed message arrives after the messages of its key that went on while it
+was parked.
 
 **Retention** (`brix.outbox.relay.retention.*`):
 - Published and discarded outbox rows are kept 14 days. A message can be republished during that time.

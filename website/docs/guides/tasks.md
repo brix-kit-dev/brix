@@ -51,7 +51,9 @@ The sample's trigger is short for its test. A real task is due far less often, s
 `"cron:0 30 3 * * *"`. Quote a cron expression in YAML.
 
 A task with `task-trigger` needs `data.storageId`. The platform creates `<storageId>_task_run` from its own
-migrations. A task that runs in a unit of work needs `PersistenceCapability`.
+migrations. A task that runs in a unit of work needs `PersistenceCapability`. The claims are kept under the `taskId`
+and the `storageId`, so keep both once the task runs in production; see
+[Identifiers you cannot change after go-live](./events-and-commands.md#identifiers-you-cannot-change-after-go-live).
 
 ## Writing the task
 

@@ -61,8 +61,17 @@ restarts. Nothing else is ordered:
 - not different keys;
 - not the platform as a whole.
 
-When one aggregate publishes several event types and a subscriber needs their order, the publisher puts the
-aggregate's version in each payload and the subscriber ignores anything older than what it has seen.
+**A parked message is the exception.** While a message is retried, the later messages of its key wait for it. Once
+it is parked, in the publisher's outbox or at a subscription, they go on without it, and if an operator replays it,
+it arrives after them.
+
+When one aggregate publishes several event types and a subscriber needs their order, or must not apply a replayed
+older event over a newer one, the publisher puts the aggregate's version in each payload and the subscriber ignores
+anything older than what it has seen.
+
+The names messages are kept under, such as the plugin's `storageId`, the event types and the handler ids, cannot
+change once a plugin runs in production; see
+[Identifiers you cannot change after go-live](../guides/events-and-commands.md#identifiers-you-cannot-change-after-go-live).
 
 ## Contracts and versions
 
