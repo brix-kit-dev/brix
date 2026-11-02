@@ -59,6 +59,7 @@ public final class EventSubscriptionGroup implements SmartLifecycle {
     private volatile boolean stopping;
     private volatile boolean consuming;
     private volatile boolean running;
+    private volatile String refusal;
 
     /**
      * Creates the group.
@@ -154,7 +155,7 @@ public final class EventSubscriptionGroup implements SmartLifecycle {
             .map(EventSubscriptionTransport.Consumption::handlingFor)
             .max(Duration::compareTo)
             .orElse(Duration.ZERO);
-        return new SubscriptionsState(consuming, consumptions.size(), running, longest);
+        return new SubscriptionsState(consuming, consumptions.size(), running, longest, refusal);
     }
 
     /**
@@ -164,8 +165,11 @@ public final class EventSubscriptionGroup implements SmartLifecycle {
      * @param consumers how many consumers it started
      * @param running how many of them are consuming
      * @param longestHandling how long the longest-running record has been in its handler
+     * @param refusal why the broker refuses to carry the subscriptions until an operator fixes its configuration
+     *     ({@link EventTransportRefusedException}); {@code null} while it does not
      */
-    public record SubscriptionsState(boolean consuming, int consumers, int running, Duration longestHandling) {
+    public record SubscriptionsState(boolean consuming, int consumers, int running, Duration longestHandling,
+            String refusal) {
     }
 
     private void supervise() {
@@ -196,8 +200,16 @@ public final class EventSubscriptionGroup implements SmartLifecycle {
         while (true) {
             try {
                 broker.prepare(eventTypes, subscriptions);
+                refusal = null;
                 return;
+            } catch (EventTransportRefusedException refused) {
+                // A configuration the operator fixes, not an outage: the host's health shows it until then.
+                refusal = refused.getMessage();
+                log.warn("event=event.subscriptions_waiting reason=refused event_types={} subscriptions={}",
+                    eventTypes, subscriptions.size(), refused);
+                pause(PREPARE_RETRY);
             } catch (RuntimeException failure) {
+                refusal = null;
                 log.warn("event=event.subscriptions_waiting reason=prepare_failed event_types={} subscriptions={}",
                     eventTypes, subscriptions.size(), failure);
                 pause(PREPARE_RETRY);

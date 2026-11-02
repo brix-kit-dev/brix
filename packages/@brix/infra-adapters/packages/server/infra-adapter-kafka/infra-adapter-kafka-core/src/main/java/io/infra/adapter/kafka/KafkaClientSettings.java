@@ -26,8 +26,10 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
  *
  * <p>Under the production profile the adapter refuses to start unless its clients use TLS and present a client
  * certificate, the broker's host name is verified, and topics are created with at least
- * {@value #PRODUCTION_REPLICAS} replicas of which at least {@value #PRODUCTION_MIN_INSYNC} must have each write. A
- * shared secret such as SASL/SCRAM is not a client identity for production (D35).</p>
+ * {@value #PRODUCTION_REPLICAS} replicas of which at least {@value #PRODUCTION_MIN_INSYNC} must have each write, and
+ * with at least {@value #PRODUCTION_PARTITIONS} partitions per event and command topic. A shared secret such as
+ * SASL/SCRAM is not a client identity for production (D35). Event and command topics that already exist with fewer
+ * partitions are refused when the topics are prepared ({@link KafkaEventBroker}; standard-link plan point 5).</p>
  *
  * @author Brix Platform Authors
  * @since 3.3.0
@@ -40,12 +42,20 @@ public final class KafkaClientSettings {
     /** Replicas that must have each write under the production profile, at least. */
     public static final int PRODUCTION_MIN_INSYNC = 2;
 
+    /**
+     * Partitions of each event and command topic the production profile needs at least: up to this many hosts
+     * consume one subscription side by side (standard-link plan point 5).
+     */
+    public static final int PRODUCTION_PARTITIONS = 12;
+
     private static final List<String> PASS_THROUGH_PREFIXES = List.of("ssl.", "sasl.");
 
     private final Map<String, Object> configs;
+    private final int minimumPartitions;
 
-    private KafkaClientSettings(Map<String, Object> configs) {
+    private KafkaClientSettings(Map<String, Object> configs, int minimumPartitions) {
         this.configs = Map.copyOf(configs);
+        this.minimumPartitions = minimumPartitions;
     }
 
     /**
@@ -85,7 +95,7 @@ public final class KafkaClientSettings {
         if (production) {
             requireProductionGrade(configs, events);
         }
-        return new KafkaClientSettings(configs);
+        return new KafkaClientSettings(configs, production ? PRODUCTION_PARTITIONS : 0);
     }
 
     /**
@@ -95,6 +105,16 @@ public final class KafkaClientSettings {
      */
     public Map<String, Object> configs() {
         return configs;
+    }
+
+    /**
+     * Returns the partitions an event or command topic that already exists must have at least: the production
+     * profile's floor, or 0 elsewhere.
+     *
+     * @return the required partitions
+     */
+    public int minimumPartitions() {
+        return minimumPartitions;
     }
 
     /**
@@ -138,9 +158,14 @@ public final class KafkaClientSettings {
             problems.add("brix.infra.kafka.events.min-insync-replicas must be at least " + PRODUCTION_MIN_INSYNC
                 + ", not " + events.minInsyncReplicas());
         }
+        if (events.partitions() < PRODUCTION_PARTITIONS) {
+            problems.add("brix.infra.kafka.events.partitions must be at least " + PRODUCTION_PARTITIONS + ", not "
+                + events.partitions());
+        }
         if (!problems.isEmpty()) {
             throw new IllegalStateException("The production profile refuses this Kafka configuration (root"
-                + " BRX-RS-BOOT-003, SECURITY-006; Kafka design D35): " + String.join("; ", problems));
+                + " BRX-RS-BOOT-003, SECURITY-006; Kafka design D35; standard-link plan point 5): "
+                + String.join("; ", problems));
         }
     }
 

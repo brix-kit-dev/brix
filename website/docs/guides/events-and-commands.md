@@ -672,7 +672,17 @@ messages stay until an operator acts.
 - the clients use TLS with a client certificate, set under `brix.infra.kafka.client.*` (`security.protocol: SSL`,
   `ssl.keystore.*`, `ssl.truststore.*`);
 - topics have at least 3 replicas;
-- `min.insync.replicas` is at least 2.
+- `min.insync.replicas` is at least 2;
+- event and command topics have at least 12 partitions (`brix.infra.kafka.events.partitions`). Up to that many hosts
+  consume one subscription side by side.
+
+The partitions of a topic decide which partition each key goes to, so a topic keeps the partitions it was created
+with. In production an event or command topic that already exists with fewer than 12 is refused once the broker is
+reached: the host's health is DOWN, with the refusal under `eventSubscriptions`, the subscriptions do not consume,
+and the outbox keeps the topic's messages without spending attempts. Raise the partitions only while nothing of the topic is waiting: let the subscriptions
+consume what it holds, for example with the hosts of the previous version, then run
+`kafka-topics --alter --topic <topic> --partitions 12`. The hosts go on by themselves. Outside production such a topic
+is only reported, with `event=kafka.topic_partitions_below_setting`.
 
 ## Do and don't
 

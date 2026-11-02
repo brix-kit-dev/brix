@@ -76,6 +76,8 @@ import io.runtime.orchestrator.task.TaskRunClaims;
     "brix.outbox.relay.retry-backoff-base=200ms",
     "brix.outbox.relay.retry-jitter-max=50ms",
     "brix.infra.kafka.outbox.publish-timeout-ms=10000",
+    // As many partitions per event and command topic as a production host has at least (standard-link plan point 5).
+    "brix.infra.kafka.events.partitions=12",
     // The hard cap of every typed query; a host whose plugins declare queries does not start without it (MESSAGE-005).
     "brix.query.max-deadline=5s",
     // sample-orders' heartbeat is due every two seconds, more often than a host allows by default.

@@ -83,7 +83,10 @@ All notable changes to Brix Framework are documented here.
   - Outbox, inbox and idempotency records are cleaned up after 14 and 30 days.
   - New metrics and alerts.
 - **Production Kafka.** Under the `prod`/`production` profile the host requires TLS with client certificates, three
-  replicas and two in-sync replicas.
+  replicas, two in-sync replicas and at least 12 partitions per event and command topic. An event or command topic
+  that already exists with fewer partitions is refused: nothing is sent to it or consumed from it until its
+  partitions are raised, the outbox keeps its messages without spending attempts, and the host's health is DOWN
+  meanwhile. Elsewhere such a topic is only reported.
 - **Sample plugins** (`packages/@brix/samples`): a publisher and a subscriber run end to end on PostgreSQL and Kafka.
   See the [Event-Driven Plugin Example](../examples/event-driven-plugin.md).
 - **Typed queries.** A plugin reads another plugin's data through a query that plugin publishes: the contract and its

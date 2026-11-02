@@ -194,6 +194,24 @@ class CanonicalKafkaOutboxTransportTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void aTopicWithTooFewPartitionsMakesTheMessageWaitWithoutSpendingAnAttempt() {
+        // Standard-link plan point 5: the operator raises the partitions; until then the message waits.
+        doThrow(new KafkaTopicPartitionsException("brix.event.TenantFirstOwnerAccepted has 3 partitions"))
+            .when(broker).ensureEventTopics(any());
+
+        assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
+            .isInstanceOf(OutboxTransportException.class)
+            .satisfies(failure -> {
+                OutboxTransportException ex = (OutboxTransportException) failure;
+                assertThat(ex.errorCode()).isEqualTo("KAFKA_TOPIC_PARTITIONS");
+                assertThat(ex.unavailable()).isTrue();
+                assertThat(ex.permanent()).isFalse();
+            });
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+    }
+
+    @Test
     void anEventTypeThatIsNoTopicNameIsAPermanentFailure() {
         CanonicalOutboxMessage message = new CanonicalOutboxMessage("msg-1", "evt-1", "EVENT", "Tenant Accepted", "1.0.0",
             "CRITICAL", "platform-tenant", "PLATFORM", null, "k", OffsetDateTime.parse("2026-07-28T01:00:00Z"), "corr-1",

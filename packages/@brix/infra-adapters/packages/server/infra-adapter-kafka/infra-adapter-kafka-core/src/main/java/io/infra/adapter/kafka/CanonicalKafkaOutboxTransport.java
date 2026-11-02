@@ -58,6 +58,8 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
     private static final String ERROR_PAYLOAD_INVALID = "KAFKA_PAYLOAD_INVALID";
     private static final String ERROR_TOPIC_INVALID = "KAFKA_TOPIC_INVALID";
     private static final String ERROR_TOPIC_UNAVAILABLE = "KAFKA_TOPIC_UNAVAILABLE";
+    /** A topic exists with fewer partitions than the production profile needs: the message waits for it. */
+    private static final String ERROR_TOPIC_PARTITIONS = "KAFKA_TOPIC_PARTITIONS";
     private static final String ERROR_INTERRUPTED = "KAFKA_SEND_INTERRUPTED";
     private static final String ERROR_FAILED = "KAFKA_SEND_FAILED";
     private static final String ERROR_TIMEOUT = "KAFKA_SEND_TIMEOUT";
@@ -124,6 +126,11 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
             } else {
                 broker.ensureEventTopics(Set.of(message.messageType()));
             }
+        } catch (KafkaTopicPartitionsException tooFew) {
+            // A configuration the operator fixes, not a failure of this message: it waits without spending an attempt
+            // (standard-link plan point 5).
+            throw OutboxTransportException.unavailable(ERROR_TOPIC_PARTITIONS, "Kafka topic " + topic
+                + " has too few partitions", tooFew);
         } catch (IllegalStateException unavailable) {
             throw new OutboxTransportException(ERROR_TOPIC_UNAVAILABLE, "Kafka topic " + topic + " is not available",
                 unavailable);

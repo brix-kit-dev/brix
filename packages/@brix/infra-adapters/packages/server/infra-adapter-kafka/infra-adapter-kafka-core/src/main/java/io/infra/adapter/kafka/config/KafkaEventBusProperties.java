@@ -267,7 +267,10 @@ public class KafkaEventBusProperties {
      */
     public static class EventsProperties {
 
-        /** Partitions of each event topic; the order of one partition key holds inside a partition. */
+        /**
+         * Partitions of each event and command topic; the order of one partition key holds inside a partition. At
+         * least 12 under the production profile.
+         */
         private int partitions = 3;
 
         /** Replicas of each topic. */

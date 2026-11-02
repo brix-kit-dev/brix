@@ -75,6 +75,8 @@ import io.runtime.sdk.capability.EventBusCapability;
  *   <tr><td>brix.infra.kafka.topic-prefix</td><td>Topic prefix</td><td></td></tr>
  *   <tr><td>brix.infra.kafka.client.*</td><td>TLS and client identity passed to every client:
  *       security.protocol, ssl.*, sasl.*</td><td></td></tr>
+ *   <tr><td>brix.infra.kafka.events.partitions</td><td>Partitions of each event and command topic; at least 12
+ *       under the production profile, which also refuses an existing topic with fewer</td><td>3</td></tr>
  *   <tr><td>brix.infra.kafka.events.replication-factor</td><td>Replicas of each topic; at least 3 under the
  *       production profile</td><td>1</td></tr>
  *   <tr><td>brix.infra.kafka.events.min-insync-replicas</td><td>Replicas that must have each write; at least 2 under
@@ -160,7 +162,8 @@ public class KafkaAutoConfiguration {
     /**
      * The brokers, TLS and client identity every Kafka client of the adapter starts from; under the production
      * profile ({@code prod} or {@code production}) a configuration without TLS and a client certificate, or with
-     * fewer than three replicas or two in-sync replicas per topic, stops the host (Kafka design D35, §14 K24).
+     * fewer than three replicas or two in-sync replicas per topic, or fewer than twelve partitions per event and
+     * command topic, stops the host (Kafka design D35, §14 K24; standard-link plan point 5).
      *
      * @param properties Kafka configuration properties
      * @param environment the active profiles
@@ -278,7 +281,7 @@ public class KafkaAutoConfiguration {
     public KafkaEventBroker kafkaEventBroker(
             KafkaEventBusProperties properties, KafkaEventTopics topics, KafkaClientSettings client) {
         return new KafkaEventBroker(Admin.create(client.configs()), topics, eventSettings(properties),
-            Clock.systemUTC());
+            client.minimumPartitions(), Clock.systemUTC());
     }
 
     /**

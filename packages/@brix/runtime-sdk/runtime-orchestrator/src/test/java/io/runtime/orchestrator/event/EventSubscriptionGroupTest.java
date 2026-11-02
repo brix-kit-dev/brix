@@ -8,6 +8,7 @@ package io.runtime.orchestrator.event;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -22,6 +23,8 @@ import java.util.function.BooleanSupplier;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.Status;
 
 import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
@@ -56,6 +59,8 @@ class EventSubscriptionGroupTest {
         world.pluginsStarted(true);
         pause(Duration.ofMillis(300));
         assertEquals(List.of(), broker.calls, "the broker does not answer yet");
+        assertEquals(Status.UP, new EventSubscriptionsHealthIndicator(group).health().getStatus(),
+            "waiting for the broker is not a failure (Kafka design D21)");
         broker.reachable = true;
 
         await(group::isReady);
@@ -81,6 +86,26 @@ class EventSubscriptionGroupTest {
 
         await(group::isReady);
         assertEquals(2, broker.calls.stream().filter(call -> call.startsWith("prepare")).count());
+        assertTrue(broker.calls.contains("consume " + SUBSCRIPTION));
+    }
+
+    @Test
+    void aBrokerThatRefusesItsConfigurationShowsInTheHealthUntilItIsFixed() {
+        // Standard-link plan point 5: topics with too few partitions under the production profile. Unlike an outage,
+        // the refusal makes the host's health DOWN; once the operator has fixed it, the next preparation succeeds.
+        broker.configurationRefusals.set(1);
+
+        group.start();
+
+        await(() -> group.state().refusal() != null);
+        Health refused = new EventSubscriptionsHealthIndicator(group).health();
+        assertEquals(Status.DOWN, refused.getStatus());
+        assertTrue(String.valueOf(refused.getDetails().get("refused")).contains("3 partitions"), refused.toString());
+        assertFalse(group.isReady());
+
+        await(group::isReady);
+        assertNull(group.state().refusal());
+        assertEquals(Status.UP, new EventSubscriptionsHealthIndicator(group).health().getStatus());
         assertTrue(broker.calls.contains("consume " + SUBSCRIPTION));
     }
 
@@ -117,6 +142,7 @@ class EventSubscriptionGroupTest {
 
         private final List<String> calls = new CopyOnWriteArrayList<>();
         private final AtomicInteger refusals = new AtomicInteger();
+        private final AtomicInteger configurationRefusals = new AtomicInteger();
         private volatile boolean reachable = true;
 
         @Override
@@ -129,6 +155,9 @@ class EventSubscriptionGroupTest {
             calls.add("prepare " + eventTypes + " " + subscriptions.stream().map(ConsumedSubscription::name).toList());
             if (refusals.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
                 throw new IllegalStateException("the broker refuses for now");
+            }
+            if (configurationRefusals.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
+                throw new EventTransportRefusedException("brix.event." + ConformanceWorld.EVENT + " has 3 partitions");
             }
         }
 

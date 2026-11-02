@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,11 +32,14 @@ import org.apache.kafka.clients.admin.CreateTopicsOptions;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.admin.DescribeClusterResult;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
 import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.errors.TopicAuthorizationException;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.internals.KafkaFutureImpl;
@@ -144,6 +148,55 @@ class KafkaEventBrokerTest {
         verify(admin, times(2)).createTopics(anyCollection(), any(CreateTopicsOptions.class));
     }
 
+    @Test
+    void aProductionHostRefusesAnExistingEventTopicWithTooFewPartitionsAndAsksAgainNextTime() {
+        // Standard-link plan point 5: nothing goes to or comes from it until its partitions are raised.
+        KafkaEventBroker production = new KafkaEventBroker(admin, new KafkaEventTopics(""), twelvePartitions(),
+            KafkaClientSettings.PRODUCTION_PARTITIONS, clock);
+        topicsExistWith(Map.of("brix.event.TenantFirstOwnerAccepted", 3));
+
+        assertThatThrownBy(() -> production.ensureEventTopics(Set.of("TenantFirstOwnerAccepted")))
+            .isInstanceOf(KafkaTopicPartitionsException.class)
+            .hasMessageContaining("brix.event.TenantFirstOwnerAccepted (3)")
+            .hasMessageContaining("at least 12");
+
+        topicsExistWith(Map.of("brix.event.TenantFirstOwnerAccepted", 12));
+        production.ensureEventTopics(Set.of("TenantFirstOwnerAccepted"));
+        production.ensureEventTopics(Set.of("TenantFirstOwnerAccepted"));
+
+        verify(admin, times(2)).describeTopics(anyCollection());
+    }
+
+    @Test
+    void aProductionHostChecksCommandTopicsButNotParkingTopics() {
+        KafkaEventBroker production = new KafkaEventBroker(admin, new KafkaEventTopics(""), twelvePartitions(),
+            KafkaClientSettings.PRODUCTION_PARTITIONS, clock);
+        topicsExistWith(Map.of("brix.command.orders.cancel-order", 3,
+            "brix.parked.platform-audit.identity-audit-fact-record.v1", 1));
+
+        assertThatThrownBy(() -> production.ensureCommandTopics(Set.of("orders.cancel-order")))
+            .isInstanceOf(KafkaTopicPartitionsException.class);
+        production.ensureParkingTopics(List.of(
+            new ConsumedSubscription("platform-audit", "identity-audit-fact-record.v1", "IdentityAuditFactRecorded")));
+    }
+
+    @Test
+    void elsewhereAnExistingTopicWithFewerPartitionsThanConfiguredIsOnlyReported() {
+        KafkaEventBroker shared = new KafkaEventBroker(admin, new KafkaEventTopics(""), twelvePartitions(), clock);
+        topicsExistWith(Map.of("brix.event.TenantFirstOwnerAccepted", 3));
+
+        shared.ensureEventTopics(Set.of("TenantFirstOwnerAccepted"));
+        shared.ensureEventTopics(Set.of("TenantFirstOwnerAccepted"));
+
+        verify(admin, times(1)).describeTopics(anyCollection());
+        verify(admin, never()).createTopics(anyCollection(), any(CreateTopicsOptions.class));
+    }
+
+    private static KafkaEventSettings twelvePartitions() {
+        return new KafkaEventSettings(12, (short) 1, (short) 1, Duration.ofDays(7), 10, Duration.ofMillis(500),
+            Duration.ofSeconds(5), Duration.ofSeconds(10), Duration.ofSeconds(10));
+    }
+
     private void clusterAnswers(boolean reachable) {
         DescribeClusterResult described = mock(DescribeClusterResult.class);
         KafkaFuture<Collection<Node>> nodes = reachable
@@ -154,9 +207,26 @@ class KafkaEventBrokerTest {
     }
 
     private void topicsExist(String... names) {
+        Map<String, Integer> partitions = new LinkedHashMap<>();
+        for (String name : names) {
+            partitions.put(name, 3);
+        }
+        topicsExistWith(partitions);
+    }
+
+    private void topicsExistWith(Map<String, Integer> partitionsByTopic) {
         ListTopicsResult listed = mock(ListTopicsResult.class);
-        when(listed.names()).thenReturn(KafkaFuture.completedFuture(Set.of(names)));
+        when(listed.names()).thenReturn(KafkaFuture.completedFuture(Set.copyOf(partitionsByTopic.keySet())));
         when(admin.listTopics(any(ListTopicsOptions.class))).thenReturn(listed);
+        Map<String, TopicDescription> described = new LinkedHashMap<>();
+        Node node = new Node(1, "kafka", 9092);
+        partitionsByTopic.forEach((name, count) -> described.put(name, new TopicDescription(name, false,
+            java.util.stream.IntStream.range(0, count)
+                .mapToObj(partition -> new TopicPartitionInfo(partition, node, List.of(node), List.of(node)))
+                .toList())));
+        DescribeTopicsResult result = mock(DescribeTopicsResult.class);
+        when(result.allTopicNames()).thenReturn(KafkaFuture.completedFuture(described));
+        when(admin.describeTopics(anyCollection())).thenReturn(result);
     }
 
     private static CreateTopicsResult created(Map<String, KafkaFuture<Void>> values) {

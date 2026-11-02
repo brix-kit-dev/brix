@@ -9,6 +9,7 @@ package io.infra.adapter.kafka;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -49,6 +50,10 @@ import io.runtime.orchestrator.event.ConsumedSubscription;
  * event type with the configured partitions and retention, and a compacted parking topic per subscription,
  * so a parked event stays until it is released. The broker's own automatic topic creation stays off, so a
  * misspelt topic never appears by itself.</p>
+ * <p>An event or command topic that already exists keeps its partitions: raising them moves keys to other
+ * partitions. Under the production profile one with fewer than {@link KafkaClientSettings#PRODUCTION_PARTITIONS} is
+ * refused ({@link KafkaTopicPartitionsException}) until it has more; elsewhere one with fewer than the configured
+ * partitions is only reported (standard-link plan point 5).</p>
  */
 public final class KafkaEventBroker implements AutoCloseable {
 
@@ -61,7 +66,9 @@ public final class KafkaEventBroker implements AutoCloseable {
     private final KafkaEventTopics topics;
     private final KafkaEventSettings settings;
     private final Clock clock;
+    private final int minimumPartitions;
     private final Set<String> ensured = ConcurrentHashMap.newKeySet();
+    private final Set<String> reported = ConcurrentHashMap.newKeySet();
     private Instant probedAt;
     private Boolean reachable;
 
@@ -74,9 +81,27 @@ public final class KafkaEventBroker implements AutoCloseable {
      * @param clock probe clock
      */
     public KafkaEventBroker(Admin admin, KafkaEventTopics topics, KafkaEventSettings settings, Clock clock) {
+        this(admin, topics, settings, 0, clock);
+    }
+
+    /**
+     * Creates the broker view of a host whose profile requires a number of partitions per event and command topic.
+     *
+     * @param admin the broker's admin client; closed with this view
+     * @param topics resource names
+     * @param settings partitions, replicas, retention and timeouts
+     * @param minimumPartitions the partitions an existing event or command topic must have at least; 0 for none
+     * @param clock probe clock
+     */
+    public KafkaEventBroker(Admin admin, KafkaEventTopics topics, KafkaEventSettings settings, int minimumPartitions,
+            Clock clock) {
         this.admin = Objects.requireNonNull(admin, "admin must not be null");
         this.topics = Objects.requireNonNull(topics, "topics must not be null");
         this.settings = Objects.requireNonNull(settings, "settings must not be null");
+        if (minimumPartitions < 0) {
+            throw new IllegalArgumentException("minimumPartitions must not be negative");
+        }
+        this.minimumPartitions = minimumPartitions;
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -135,7 +160,7 @@ public final class KafkaEventBroker implements AutoCloseable {
                 .configs(Map.of(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(settings.retention().toMillis()),
                     TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, String.valueOf(settings.minInsyncReplicas()))));
         }
-        ensure(wanted);
+        ensure(wanted, true);
     }
 
     /**
@@ -152,7 +177,7 @@ public final class KafkaEventBroker implements AutoCloseable {
                 .configs(Map.of(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_COMPACT,
                     TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, String.valueOf(settings.minInsyncReplicas()))));
         }
-        ensure(wanted);
+        ensure(wanted, false);
     }
 
     /**
@@ -217,7 +242,7 @@ public final class KafkaEventBroker implements AutoCloseable {
         admin.close(Duration.ofSeconds(5));
     }
 
-    private void ensure(Map<String, NewTopic> wanted) {
+    private void ensure(Map<String, NewTopic> wanted, boolean messageTopics) {
         wanted.keySet().removeIf(ensured::contains);
         if (wanted.isEmpty()) {
             return;
@@ -226,6 +251,9 @@ public final class KafkaEventBroker implements AutoCloseable {
         try {
             Set<String> existing = admin.listTopics(new ListTopicsOptions().timeoutMs((int) timeout)).names()
                 .get(timeout, TimeUnit.MILLISECONDS);
+            if (messageTopics) {
+                checkPartitions(wanted.keySet().stream().filter(existing::contains).toList(), timeout);
+            }
             List<NewTopic> missing = wanted.values().stream().filter(topic -> !existing.contains(topic.name())).toList();
             if (!missing.isEmpty()) {
                 CreateTopicsResult created = admin.createTopics(missing, new CreateTopicsOptions().timeoutMs((int) timeout));
@@ -247,6 +275,42 @@ public final class KafkaEventBroker implements AutoCloseable {
         } catch (ExecutionException | TimeoutException | KafkaException failure) {
             Throwable cause = failure instanceof ExecutionException && failure.getCause() != null ? failure.getCause() : failure;
             throw new IllegalStateException("Kafka topics " + wanted.keySet() + " could not be prepared", cause);
+        }
+    }
+
+    /**
+     * Checks the partitions of event and command topics that already exist: under the production profile one with
+     * fewer than the required partitions is refused, and anywhere one with fewer than the configured partitions is
+     * reported once.
+     */
+    private void checkPartitions(List<String> names, long timeout)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        if (names.isEmpty()) {
+            return;
+        }
+        Map<String, TopicDescription> described = admin.describeTopics(names).allTopicNames()
+            .get(timeout, TimeUnit.MILLISECONDS);
+        List<String> tooFew = new ArrayList<>();
+        for (String name : names) {
+            int partitions = described.get(name).partitions().size();
+            if (partitions < minimumPartitions) {
+                tooFew.add(name + " (" + partitions + ")");
+            } else if (partitions < settings.partitions() && reported.add(name)) {
+                log.warn("event=kafka.topic_partitions_below_setting topic={} partitions={} configured={}", name,
+                    partitions, settings.partitions());
+            }
+        }
+        if (!tooFew.isEmpty()) {
+            String message = "The production profile needs at least " + minimumPartitions + " partitions in each event"
+                + " and command topic; these have fewer: " + tooFew + ". Nothing is sent to them or consumed from them"
+                + " until they have more. Raising the partitions moves keys to other partitions, so raise them only"
+                + " while nothing of the topic is waiting: let the subscriptions consume what it holds first, for"
+                + " example with the hosts of the previous version, then raise them (kafka-topics --alter --partitions "
+                + minimumPartitions + "). The hosts go on by themselves (standard-link plan point 5).";
+            if (reported.add(String.join(",", tooFew))) {
+                log.error("event=kafka.topic_partitions_refused topics={} required={}", tooFew, minimumPartitions);
+            }
+            throw new KafkaTopicPartitionsException(message);
         }
     }
 }

@@ -13,8 +13,9 @@ import org.springframework.boot.health.contributor.HealthIndicator;
 
 /**
  * Reports the event subscriptions' consumers in the host's health (Kafka design §14 K10): DOWN when a consumer
- * the group started is no longer consuming. While the group still waits for the plugins or the broker it is UP,
- * as the relay waits then too (D21); how long the longest record has been in its handler is a detail, and an
+ * the group started is no longer consuming, or while the broker refuses to carry the subscriptions until an operator
+ * fixes its configuration (standard-link plan point 5). While the group still waits for the plugins or the broker it
+ * is UP, as the relay waits then too (D21); how long the longest record has been in its handler is a detail, and an
  * alert rule watches the matching gauge.
  *
  * @author Runtime SDK Team
@@ -36,6 +37,12 @@ public final class EventSubscriptionsHealthIndicator implements HealthIndicator 
     @Override
     public Health health() {
         EventSubscriptionGroup.SubscriptionsState state = group.state();
+        if (state.refusal() != null) {
+            return Health.down()
+                .withDetail("consuming", false)
+                .withDetail("refused", state.refusal())
+                .build();
+        }
         Health.Builder health = state.consuming() && state.running() < state.consumers()
             ? Health.down()
             : Health.up();

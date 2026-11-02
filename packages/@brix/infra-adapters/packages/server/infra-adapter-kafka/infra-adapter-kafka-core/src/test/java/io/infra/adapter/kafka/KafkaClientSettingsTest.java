@@ -16,7 +16,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * The adapter's client settings and the production profile's floor for them (Kafka design D35, §14 K24).
+ * The adapter's client settings and the production profile's floor for them (Kafka design D35, §14 K24;
+ * standard-link plan point 5).
  */
 class KafkaClientSettingsTest {
 
@@ -57,8 +58,22 @@ class KafkaClientSettingsTest {
     }
 
     @Test
-    void productionAcceptsMutualTlsWithThreeReplicasAndTwoInSync() {
+    void productionAcceptsMutualTlsWithThreeReplicasTwoInSyncAndTwelvePartitions() {
         assertThat(KafkaClientSettings.of("kafka:9093", mutualTls(), DURABLE, true).securityProtocol()).isEqualTo("SSL");
+    }
+
+    @Test
+    void productionRefusesFewerThanTwelvePartitionsPerTopic() {
+        assertThatThrownBy(() -> KafkaClientSettings.of("kafka:9093", mutualTls(), settings(3, 3, 2), true))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("brix.infra.kafka.events.partitions must be at least 12, not 3");
+    }
+
+    @Test
+    void onlyProductionHandsItsPartitionFloorToTheTopics() {
+        assertThat(KafkaClientSettings.of("kafka:9093", mutualTls(), DURABLE, true).minimumPartitions()).isEqualTo(12);
+        assertThat(KafkaClientSettings.of("kafka:9092", Map.of(), KafkaEventSettings.defaults(), false)
+            .minimumPartitions()).isZero();
     }
 
     @Test
@@ -146,7 +161,11 @@ class KafkaClientSettingsTest {
     }
 
     private static KafkaEventSettings settings(int replicas, int inSync) {
-        return new KafkaEventSettings(3, (short) replicas, (short) inSync, Duration.ofDays(7), 10,
+        return settings(KafkaClientSettings.PRODUCTION_PARTITIONS, replicas, inSync);
+    }
+
+    private static KafkaEventSettings settings(int partitions, int replicas, int inSync) {
+        return new KafkaEventSettings(partitions, (short) replicas, (short) inSync, Duration.ofDays(7), 10,
             Duration.ofMillis(500), Duration.ofSeconds(5), Duration.ofSeconds(10), Duration.ofSeconds(10));
     }
 }
