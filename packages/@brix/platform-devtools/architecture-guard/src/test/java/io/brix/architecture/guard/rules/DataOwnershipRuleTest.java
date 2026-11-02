@@ -19,7 +19,7 @@ class DataOwnershipRuleTest {
     @DisplayName("Same-owner repository access passes the Phase 4 Data Owner rule")
     void sameOwnerRepositoryAccessPasses() {
         var classes = new ClassFileImporter()
-            .importPackages("io.brix.app.booking.service");
+            .importPackages("io.brix.samples.fixturebooking.service");
 
         assertDoesNotThrow(() -> DataOwnershipRule.noCrossPluginRepositoryAccess().check(classes));
     }
@@ -29,8 +29,8 @@ class DataOwnershipRuleTest {
     void crossOwnerRepositoryAccessFails() {
         var classes = new ClassFileImporter()
             .importPackages(
-                "io.brix.app.booking.violating",
-                "io.brix.app.caseapp.repository");
+                "io.brix.samples.fixturebooking.core",
+                "io.brix.samples.fixturecase.repository");
 
         assertThrows(AssertionError.class,
             () -> DataOwnershipRule.noCrossPluginRepositoryAccess().check(classes));
@@ -40,7 +40,7 @@ class DataOwnershipRuleTest {
     @DisplayName("Raw persistence APIs in core/domain fail the Phase 4 Data Owner rule")
     void rawPersistenceApiInDomainFails() {
         var classes = new ClassFileImporter()
-            .importPackages("io.brix.app.booking.domain");
+            .importPackages("io.brix.samples.fixturebooking.domain");
 
         assertThrows(AssertionError.class,
             () -> DataOwnershipRule.noRawPersistenceApiInCoreOrDomain().check(classes));

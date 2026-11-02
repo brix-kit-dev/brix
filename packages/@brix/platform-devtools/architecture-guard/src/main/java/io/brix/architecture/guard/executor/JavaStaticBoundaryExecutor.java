@@ -7,6 +7,7 @@ package io.brix.architecture.guard.executor;
 
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import io.brix.architecture.guard.ArchitectureLayers;
 import io.brix.architecture.guard.rules.AdapterIsolationRule;
 import io.brix.architecture.guard.rules.ConfigViaCapabilityRule;
 import io.brix.architecture.guard.rules.CoreSpringBoundaryRule;
@@ -204,7 +205,7 @@ public final class JavaStaticBoundaryExecutor {
     private static com.tngtech.archunit.lang.ArchRule noPluginImplementationDependency() {
         return noClasses()
             .should().dependOnClassesThat()
-            .resideInAnyPackage("io.brix.app..", "io.brix.enterprise.solutions..")
+            .resideInAnyPackage(ArchitectureLayers.PLUGIN_ROOTS)
             .because("A-9/A-21 forbid direct dependencies on plugin implementation internals")
             .allowEmptyShould(true);
     }

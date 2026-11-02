@@ -8,6 +8,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import io.brix.architecture.guard.ArchitectureLayers;
+
 /**
  * Architecture Guard Configuration.
  *
@@ -41,13 +43,13 @@ public final class ArchitectureGuardConfig {
     /**
      * Pattern to identify plugin packages.
      *
-     * <p>Default: {@code io.brix.app.<plugin-name>} or {@code io.brix.app.<plugin-name>}</p>
+     * <p>Default: {@link ArchitectureLayers#PLUGIN_PACKAGE_REGEX}, the plugin roots {@code io.brix.app.<plugin>},
+     * {@code io.brix.enterprise.app.<plugin>} and {@code io.brix.samples.<plugin>}.</p>
      *
      * <p>Can be overridden via system property: {@code brix.architecture.plugin-pattern}</p>
      */
     public static final Pattern PLUGIN_PACKAGE_PATTERN = Pattern.compile(
-            System.getProperty("brix.architecture.plugin-pattern",
-                    "^(io\\.brix\\.app\\.[a-z]+|io\\.brix\\.enterprise\\.app\\.[a-z]+)"));
+            System.getProperty("brix.architecture.plugin-pattern", ArchitectureLayers.PLUGIN_PACKAGE_REGEX));
 
     // ==================== Allowed Dependencies (Whitelist) ====================
 
@@ -93,7 +95,6 @@ public final class ArchitectureGuardConfig {
         Set<String> forbidden = new HashSet<>();
 
         // Infrastructure adapters
-        forbidden.add("io.brix.infra.adapter..");
         forbidden.add("io.infra.adapter..");
 
         // Direct middleware clients

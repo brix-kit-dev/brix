@@ -154,6 +154,29 @@ All notable changes to Brix Framework are documented here.
 - `HttpCapability`: it takes any URL. Declare the service under `externalServices` and call it through
   `ExternalHttpCapability`.
 
+### 🗑️ Removed
+
+- Architecture Guard rules that refused packages no module has, `io.runtime.sdk.impl`, `io.runtime.sdk.internal`
+  and `io.runtime.sdk.api`: `OnlyRuntimeSdkApiRule.noRuntimeSdkImpl()` and `noRuntimeSdkInternal()`,
+  `NoCyclicDependencyRule.sdkApiNotDependOnImpl()` and `SdkProfile.apiNotDependOnImpl`. The runtime's
+  implementation, `io.runtime.orchestrator`, stays refused. `OnlyRuntimeSdkApiRule.rule()` is now
+  `noRuntimeOrchestrator()`.
+
+### 🐛 Fixed
+
+- **The Architecture Guard checks the plugins and platform modules that exist.** Several rules named package roots
+  that no code uses, or only one of the plugin roots, and passed without checking anything:
+  - The commons profile looked for `io.brix.commons`; platform-commons is `io.brix.platform`. It now checks that
+    root, and a module that runs it without a class under the root fails instead of passing.
+  - The plugin rules knew only `io.brix.app`, where `create-brix phase7 plugin` puts a plugin. They now also cover
+    `io.brix.enterprise.app` and `io.brix.samples`, from one definition, `ArchitectureLayers.PLUGIN_ROOTS`.
+  - The rule against using another plugin never fired: besides the roots, `noClasses()` inverted the violations
+    its own condition reported. A plugin may use another plugin's `api` package and nothing else of it.
+  - The sample plugins run the plugin profile.
+  - Six platform classes already use Redis directly. They are listed in
+    `META-INF/brix/guard/platform-redis-clients.txt` of their modules under exemption EX-2026-004, and the lists
+    only shrink.
+
 ---
 
 ## [3.0.0] - 2024-01-15

@@ -8,6 +8,9 @@ package io.brix.architecture.guard.profiles;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
+
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
@@ -21,14 +24,15 @@ import io.brix.architecture.guard.ArchitectureLayers;
  */
 public final class OperationalProfile {
 
-    private static final String[] FORBIDDEN_IMPLEMENTATION_PACKAGES = {
-        "io.brix.app..",
-        "io.brix.enterprise..",
-        ArchitectureLayers.INFRA_ADAPTER_ROOT,
-        "org.springframework.context..",
-        "org.springframework.beans.factory..",
-        "org.springframework.web.bind.annotation.."
-    };
+    private static final String[] FORBIDDEN_IMPLEMENTATION_PACKAGES = Stream.concat(
+            Arrays.stream(ArchitectureLayers.PLUGIN_ROOTS),
+            Stream.of(
+                "io.brix.enterprise..",
+                ArchitectureLayers.INFRA_ADAPTER_ROOT,
+                "org.springframework.context..",
+                "org.springframework.beans.factory..",
+                "org.springframework.web.bind.annotation.."))
+        .toArray(String[]::new);
 
     private OperationalProfile() {
     }

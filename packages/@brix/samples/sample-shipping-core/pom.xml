@@ -39,5 +39,17 @@
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-jpa</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- The architecture guard's plugin rules run on this module (standard-link plan §11 point 1) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>${brix.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

@@ -59,19 +59,7 @@ public class SdkProfile {
     // ==================== SDK API Stability Rules ====================
 
     /**
-     * runtime-sdk-api must not depend on runtime-sdk implementation.
-     */
-    @ArchTest
-    static final ArchRule apiNotDependOnImpl = noClasses()
-            .that().resideInAPackage("io.runtime.sdk..")
-            .and().resideOutsideOfPackage("io.runtime.sdk.impl..")
-            .should().dependOnClassesThat()
-            .resideInAPackage("io.runtime.sdk.impl..")
-            .because("Red Line 11: runtime-sdk-api must not depend on implementation classes")
-            .allowEmptyShould(true);
-
-    /**
-     * runtime-sdk must not depend on runtime-orchestrator.
+     * runtime-sdk must not depend on runtime-orchestrator, the SDK's implementation (L2B).
      */
     @ArchTest
     static final ArchRule sdkNotDependOnOrchestrator = noClasses()
@@ -99,7 +87,7 @@ public class SdkProfile {
     static final ArchRule sdkNotDependOnPlugins = noClasses()
             .that().resideInAPackage("io.runtime.sdk..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("io.brix.app..", "brix.plugin..")
+            .resideInAnyPackage(ArchitectureLayers.PLUGIN_ROOTS)
             .because("Red Line 11: runtime-sdk must not depend on plugin/business code")
             .allowEmptyShould(true);
 

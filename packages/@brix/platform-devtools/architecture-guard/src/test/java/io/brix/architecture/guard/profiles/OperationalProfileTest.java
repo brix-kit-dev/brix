@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import io.brix.test.operational.AdapterEscapingOperationalComponent;
 import io.brix.test.operational.CompliantOperationalComponent;
 import io.brix.test.operational.EnterpriseEscapingOperationalComponent;
+import io.brix.test.operational.PluginEscapingOperationalComponent;
 
 class OperationalProfileTest {
 
@@ -52,5 +53,15 @@ class OperationalProfileTest {
         assertThrows(
             AssertionError.class,
             () -> OperationalProfile.operationalImplementationBoundary.check(classes));
+    }
+
+    @Test
+    void rejectsSamplePluginImplementationEscapeHatch() {
+        var classes = new ClassFileImporter().importClasses(PluginEscapingOperationalComponent.class);
+
+        AssertionError error = assertThrows(
+            AssertionError.class,
+            () -> OperationalProfile.operationalImplementationBoundary.check(classes));
+        assertTrue(error.getMessage().contains("io.brix.samples.fixturebeta.core.BetaStock"), error.getMessage());
     }
 }

@@ -1,6 +1,7 @@
 package io.brix.architecture.guard.rules;
 
 import com.tngtech.archunit.lang.ArchRule;
+import io.brix.architecture.guard.ArchitectureLayers;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -16,11 +17,6 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * @since 3.2.0
  */
 public final class NoPlatformTenantRelationshipAccessRule {
-
-    private static final String[] PLUGIN_PACKAGES = {
-            "io.brix.app..",
-            "io.brix.enterprise.app.."
-    };
 
     private static final String[] PLATFORM_TENANT_INTERNAL_PACKAGES = {
             "io.brix.platform.tenant.entity..",
@@ -40,7 +36,7 @@ public final class NoPlatformTenantRelationshipAccessRule {
      */
     public static ArchRule rule() {
         return noClasses()
-                .that().resideInAnyPackage(PLUGIN_PACKAGES)
+                .that().resideInAnyPackage(ArchitectureLayers.PLUGIN_ROOTS)
                 .should().dependOnClassesThat()
                 .resideInAnyPackage(PLATFORM_TENANT_INTERNAL_PACKAGES)
                 .because("v3.1.3 T-23/T-24: plugins must not directly access "

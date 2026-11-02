@@ -417,13 +417,20 @@ class ArchitectureTest {
 | Configuration and output | `System.out`, `System.err`, `printStackTrace()`, `System.getenv()`, `System.getProperty()` | All classes |
 | Exceptions | Throwing a generic `Throwable`, `Exception` or `RuntimeException` | All classes |
 | Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs, the outbox and relay implementation | `..core..` |
-| Runtime | The runtime's implementation: `io.runtime.orchestrator`, `io.runtime.sdk.impl`, `io.runtime.sdk.internal` | `..core..` |
+| Runtime | The runtime's implementation, `io.runtime.orchestrator` | `..core..` |
 | Security | JWT (`io.jsonwebtoken`), Auth0, Spring Security crypto, the Spring OAuth2 client | `..core..` |
 | Layers | `..core..` depending on `..server..` or `..adapter..`; `@RestController` or `@Controller` in `..core..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
-| Data ownership | Another data owner's repository; the platform tenant module's entities, repositories, mappers and validation | `io.brix` plugin packages |
+| Other plugins | Another plugin's classes outside its `api` package | Plugin packages |
+| Data ownership | Another data owner's repository; the platform tenant module's entities, repositories, mappers and validation | Plugin packages |
 
 Capabilities live in `io.runtime.sdk.*`, the packages of `runtime-sdk-api`: use them instead. The guard has other
 profiles for other modules: `adapterProfile()`, `sdkProfile()`, `commonsProfile()` and `operationalProfile()`.
+
+Plugin packages are those under the guard's plugin roots: `io.brix.app.<plugin>`, where `create-brix phase7 plugin`
+puts a plugin, `io.brix.enterprise.app.<plugin>` and `io.brix.samples.<plugin>`. A plugin may use another plugin's
+`api` package, its published contract, and nothing else of it. A plugin in a package of its own, such as
+`com.example.todo`, gets every other rule in the table, but the guard cannot tell it from other plugins: the
+"Other plugins" and "Data ownership" rows do not apply to it.
 
 ## Integration Tests
 

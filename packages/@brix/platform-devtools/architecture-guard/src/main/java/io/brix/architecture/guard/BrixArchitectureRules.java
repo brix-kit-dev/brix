@@ -34,7 +34,7 @@ import io.brix.architecture.guard.executor.JavaStaticBoundaryExecutor;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * @AnalyzeClasses(packages = "io.brix.app.booking")
+ * @AnalyzeClasses(packages = "io.brix.samples.orders")
  * class ArchitectureTest {
  *     @ArchTest
  *     static final ArchTests rules = BrixArchitectureRules.pluginProfile();

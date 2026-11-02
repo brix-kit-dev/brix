@@ -5,18 +5,9 @@ package io.brix.architecture.guard.rules;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UncheckedIOException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.Set;
-import java.util.TreeSet;
 
 import com.tngtech.archunit.base.DescribedPredicate;
-import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.lang.ArchRule;
 
@@ -26,9 +17,10 @@ import com.tngtech.archunit.lang.ArchRule;
  * to its own outbox in its unit of work.
  *
  * <p>The classes that called it when this rule came in are listed, one fully qualified class name per line, in
- * {@value #KNOWN_CALLERS} resources on the test class path of the module that checks them. A listed class and its
- * nested classes may keep calling it. The lists only shrink: the plugin migration removes a class from its list when it
- * migrates the class, and the last migrated plugin empties them before the method is removed.</p>
+ * {@value #KNOWN_CALLERS} resources on the test class path of the module that checks them (see
+ * {@link KnownViolations}). A listed class and its nested classes may keep calling it. The lists only shrink: the
+ * plugin migration removes a class from its list when it migrates the class, and the last migrated plugin empties them
+ * before the method is removed.</p>
  */
 public final class NoLegacyEventBusRule {
 
@@ -45,10 +37,8 @@ public final class NoLegacyEventBusRule {
      * @return the rule
      */
     public static ArchRule rule() {
-        Set<String> known = knownCallers(classLoader());
         return noClasses()
-                .that(DescribedPredicate.<JavaClass>describe(
-                        "are not listed in " + KNOWN_CALLERS, type -> !listed(type.getName(), known)))
+                .that(KnownViolations.notListedIn(KNOWN_CALLERS))
                 .should().callMethodWhere(DescribedPredicate.<JavaMethodCall>describe(
                         "the target is RuntimeContext.getEventBus()",
                         call -> "getEventBus".equals(call.getTarget().getName())
@@ -66,33 +56,6 @@ public final class NoLegacyEventBusRule {
      * @return the listed class names
      */
     static Set<String> knownCallers(ClassLoader loader) {
-        Set<String> known = new TreeSet<>();
-        try {
-            for (URL resource : Collections.list(loader.getResources(KNOWN_CALLERS))) {
-                try (BufferedReader lines = new BufferedReader(
-                        new InputStreamReader(resource.openStream(), StandardCharsets.UTF_8))) {
-                    lines.lines()
-                            .map(String::trim)
-                            .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-                            .forEach(known::add);
-                }
-            }
-        } catch (IOException failure) {
-            throw new UncheckedIOException("cannot read " + KNOWN_CALLERS, failure);
-        }
-        return known;
-    }
-
-    private static boolean listed(String className, Set<String> known) {
-        if (known.contains(className)) {
-            return true;
-        }
-        int nested = className.indexOf('$');
-        return nested > 0 && known.contains(className.substring(0, nested));
-    }
-
-    private static ClassLoader classLoader() {
-        ClassLoader context = Thread.currentThread().getContextClassLoader();
-        return context != null ? context : NoLegacyEventBusRule.class.getClassLoader();
+        return KnownViolations.read(KNOWN_CALLERS, loader);
     }
 }

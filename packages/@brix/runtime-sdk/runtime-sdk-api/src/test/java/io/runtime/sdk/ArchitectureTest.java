@@ -52,7 +52,6 @@ public class ArchitectureTest {
      *
      * <p>Contains the following rules:
      * <ul>
-     *   <li>apiNotDependOnImpl - API must not depend on implementation packages</li>
      *   <li>sdkNotDependOnOrchestrator - SDK must not depend on orchestrator layer</li>
      *   <li>sdkNotDependOnAdapters - SDK must not depend on adapters</li>
      *   <li>sdkNotDependOnPlugins - SDK must not depend on plugins</li>

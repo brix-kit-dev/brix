@@ -9,6 +9,7 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import io.brix.architecture.guard.ArchitectureLayers;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
@@ -39,21 +40,6 @@ public final class DataOwnershipRule {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    // ==================== Plugin Entity Packages ====================
-
-    // Each plugin's entity package
-    private static final String[] PLUGIN_ENTITY_PACKAGES = {
-        "io.brix.app.booking..entity..",
-        "io.brix.app.user..entity..",
-        "io.brix.app.contract..entity..",
-        "io.brix.app.case..entity..",
-        "io.brix.app.medical..entity..",
-        "io.brix.app.notification..entity..",
-        "io.brix.app.carousel..entity..",
-        "io.brix.app.compliance..entity..",
-        "io.brix.app.identity..entity.."
-    };
-
     // ==================== Rules ====================
 
     /**
@@ -62,7 +48,7 @@ public final class DataOwnershipRule {
      * <p>Each plugin must own its data exclusively. Cross-plugin data access
      * must go through Integration Events or Capability interfaces.</p>
      *
-     * @param pluginPackage The package of the plugin being tested (e.g., "io.brix.app.booking..")
+     * @param pluginPackage The package of the plugin being tested (e.g., "io.brix.samples.orders..")
      * @param forbiddenEntityPackages Other plugins' entity packages
      * @return ArchUnit rule instance
      */
@@ -122,8 +108,8 @@ public final class DataOwnershipRule {
      * @ArchTest
      * static final ArchRule bookingCannotAccessUserRepo = 
      *     DataOwnershipRule.noAccessToOtherPluginRepositories(
-     *         "io.brix.app.booking..", 
-     *         "io.brix.app.user..repository.."
+     *         "io.brix.samples.orders..",
+     *         "io.brix.samples.shipping..repository.."
      *     );
      * }</pre>
      *
@@ -193,15 +179,18 @@ public final class DataOwnershipRule {
         };
     }
 
+    /**
+     * Returns the Data Owner of a package: its plugin ({@link ArchitectureLayers#pluginOf(String)}) or its
+     * platform-commons module ({@code io.brix.platform.<module>}), or an empty string for anything else.
+     */
     private static String ownerPrefix(String packageName) {
+        String plugin = ArchitectureLayers.pluginOf(packageName);
+        if (plugin != null) {
+            return plugin;
+        }
         String[] segments = packageName.split("\\.");
-        for (int index = 0; index < segments.length - 2; index++) {
-            if ("app".equals(segments[index])) {
-                return join(segments, 0, Math.min(index + 2, segments.length));
-            }
-            if ("platform".equals(segments[index]) && index + 1 < segments.length) {
-                return join(segments, 0, Math.min(index + 2, segments.length));
-            }
+        if (segments.length >= 4 && packageName.startsWith("io.brix.platform.")) {
+            return join(segments, 0, 4);
         }
         return "";
     }

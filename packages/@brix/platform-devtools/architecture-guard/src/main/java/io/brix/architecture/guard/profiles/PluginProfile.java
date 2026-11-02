@@ -56,7 +56,7 @@ import io.brix.architecture.guard.rules.SecurityBoundaryRule;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * @AnalyzeClasses(packages = "io.brix.app.booking")
+ * @AnalyzeClasses(packages = "io.brix.samples.orders")
  * class ArchitectureTest {
  *     @ArchTest
  *     static final ArchTests rules = BrixArchitectureRules.pluginProfile();
@@ -173,15 +173,7 @@ public class PluginProfile {
 
     // ==================== Rule 10: Core modules only depend on runtime-sdk-api ====================
 
-    /** No dependency on runtime-sdk implementation classes */
-    @ArchTest
-    static final ArchRule noRuntimeSdkImpl = OnlyRuntimeSdkApiRule.noRuntimeSdkImpl();
-
-    /** No dependency on runtime-sdk internal classes */
-    @ArchTest
-    static final ArchRule noRuntimeSdkInternal = OnlyRuntimeSdkApiRule.noRuntimeSdkInternal();
-
-    /** No dependency on runtime-orchestrator (Layer 2.5) */
+    /** No dependency on runtime-orchestrator, the Runtime implementation (L2B) */
     @ArchTest
     static final ArchRule noRuntimeOrchestrator = OnlyRuntimeSdkApiRule.noRuntimeOrchestrator();
 
@@ -208,10 +200,6 @@ public class PluginProfile {
     /** Domain layer must be pure */
     @ArchTest
     static final ArchRule domainNotDependOnInfrastructure = NoCyclicDependencyRule.domainNotDependOnInfrastructure();
-
-    /** SDK API must not depend on implementation */
-    @ArchTest
-    static final ArchRule sdkApiNotDependOnImpl = NoCyclicDependencyRule.sdkApiNotDependOnImpl();
 
     // ==================== Rule 13: Security Boundary (Red Line 12) ====================
 

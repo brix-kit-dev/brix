@@ -1,0 +1,6 @@
+# Classes of this module that used Redis directly before CommonsProfile applied to io.brix.platform (standard-link
+# plan §11 point 1). CommonsProfile.noRedisDependency lets them through under exemption EX-2026-004
+# (docs/architecture-exemptions.json in brix-enterprise). The list only shrinks: remove a class once it reaches Redis
+# through a capability.
+io.brix.platform.observability.health.HealthCheckAutoConfiguration
+io.brix.platform.observability.health.RedisHealthIndicator

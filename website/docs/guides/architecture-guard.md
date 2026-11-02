@@ -206,7 +206,7 @@ Adapters implement contracts, they don't add business logic.
 ```java
 @ArchTest
 static final ArchRule adaptersOnlyImplementContracts = classes()
-    .that().resideInAPackage("io.brix.infra.adapter..")
+    .that().resideInAPackage("io.infra.adapter..")
     .should().implement(Capability.class)
     .orShould().beAnnotatedWith(Configuration.class);
 ```

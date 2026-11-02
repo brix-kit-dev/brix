@@ -90,6 +90,35 @@ class JavaStaticBoundaryExecutorTest {
     }
 
     @Test
+    void everyKindThatForbidsPluginsRejectsAPluginImport() {
+        JavaClasses classes = new ClassFileImporter().importPackages(
+            "io.brix.phase2fixtures.violating.plugin");
+
+        Map<ModuleKind, String> pluginRequirements = Map.of(
+            ModuleKind.ADAPTER, "A-9:adapter-no-plugin-dependency",
+            ModuleKind.RUNTIME_CAPABILITY, "A-21:runtime-capability-no-plugin",
+            ModuleKind.PLATFORM_CAPABILITY, "A-21:platform-capability-no-plugin",
+            ModuleKind.PLATFORM_OPERATIONAL, "A-26:operational-no-plugin");
+
+        pluginRequirements.forEach((moduleKind, requirementId) -> assertTrue(
+            executor.execute(moduleKind, classes).stream().anyMatch(result ->
+                result.requirementId().equals(requirementId)
+                    && result.diagnosticCode().equals(JavaStaticBoundaryExecutor.RULE_VIOLATION)
+                    && result.targetCardinality() > 0),
+            moduleKind + " must reject a plugin import through " + requirementId));
+    }
+
+    @Test
+    void pluginCoreCannotUseAnotherPluginsImplementation() {
+        JavaClasses classes = new ClassFileImporter().importPackages("io.brix.samples.fixturealpha.core");
+
+        assertTrue(executor.execute(ModuleKind.PLUGIN_CORE, classes).stream().anyMatch(result ->
+            result.requirementId().equals("A-21:plugin-core-no-plugin-internals")
+                && result.diagnosticCode().equals(JavaStaticBoundaryExecutor.RULE_VIOLATION)
+                && result.targetCardinality() > 0));
+    }
+
+    @Test
     void emptyBytecodeTargetFailsEveryStaticRequirement() {
         JavaClasses classes = new ClassFileImporter().importPath(emptyDirectory);
 

@@ -1,0 +1,2 @@
+# Classes of this module's tests that CommonsProfile.noRedisDependency lets through.
+io.brix.platform.fixture.redis.ListedRedisClient

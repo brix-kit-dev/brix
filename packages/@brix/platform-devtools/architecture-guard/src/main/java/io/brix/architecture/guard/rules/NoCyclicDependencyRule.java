@@ -3,7 +3,10 @@
  */
 package io.brix.architecture.guard.rules;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.library.dependencies.SliceAssignment;
+import com.tngtech.archunit.library.dependencies.SliceIdentifier;
 import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 
 import io.brix.architecture.guard.ArchitectureLayers;
@@ -20,8 +23,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * Red Line 11: No Circular Dependency
  * ✗ Prohibited: Plugin A depends on Plugin B while Plugin B depends on Plugin A
  * ✗ Prohibited: Core layer depends on Server/Adapter layer
- * ✗ Prohibited: runtime-sdk-api depends on any specific implementation modules
  * </blockquote>
+ *
+ * <p>runtime-sdk-api's independence from implementation layers is checked by {@code SdkProfile}.</p>
  *
  * <h2>Source</h2>
  * Clean Architecture / SOLID Dependency Inversion Principle
@@ -40,13 +44,25 @@ public final class NoCyclicDependencyRule {
     /**
      * No cycles between plugin modules.
      *
-     * <p>Plugin A cannot depend on Plugin B if Plugin B depends on Plugin A.</p>
+     * <p>Plugin A cannot depend on Plugin B if Plugin B depends on Plugin A. One slice per plugin, as
+     * {@link ArchitectureLayers#pluginOf(String)} finds it; classes outside the plugin roots belong to no slice.</p>
      *
      * @return ArchUnit rule instance
      */
     public static ArchRule noCyclesBetweenPlugins() {
         return SlicesRuleDefinition.slices()
-                .matching("io.brix.app.(*)..")
+                .assignedFrom(new SliceAssignment() {
+                    @Override
+                    public SliceIdentifier getIdentifierOf(JavaClass javaClass) {
+                        String plugin = ArchitectureLayers.pluginOf(javaClass.getPackageName());
+                        return plugin == null ? SliceIdentifier.ignore() : SliceIdentifier.of(plugin);
+                    }
+
+                    @Override
+                    public String getDescription() {
+                        return "plugins under " + String.join(", ", ArchitectureLayers.PLUGIN_ROOTS);
+                    }
+                })
                 .should().beFreeOfCycles()
                 .because("Red Line 11: Plugins must not have circular dependencies. " +
                         "Use Integration Events for bi-directional communication.");
@@ -114,30 +130,6 @@ public final class NoCyclicDependencyRule {
                         "org.springframework.data.."
                 )
                 .because("Red Line 11: Domain layer must be pure and not depend on infrastructure.")
-                .allowEmptyShould(true);
-    }
-
-    // ==================== SDK API Rules ====================
-
-    /**
-     * SDK API must not depend on implementation.
-     *
-     * <p>runtime-sdk-api is the stable contract layer and must not
-     * depend on any implementation details.</p>
-     *
-     * @return ArchUnit rule instance
-     */
-    public static ArchRule sdkApiNotDependOnImpl() {
-        return noClasses()
-                .that().resideInAPackage("io.runtime.sdk.api..")
-                .should().dependOnClassesThat()
-                .resideInAnyPackage(
-                        "io.runtime.sdk.impl..",
-                        "io.runtime.orchestrator..",
-                        ArchitectureLayers.INFRA_ADAPTER_ROOT
-                )
-                .because("Red Line 11: runtime-sdk-api must not depend on implementation layers. " +
-                        "It is the stable contract at the top of the dependency chain.")
                 .allowEmptyShould(true);
     }
 
