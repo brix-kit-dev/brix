@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -29,12 +31,14 @@ import tools.jackson.databind.ObjectMapper;
 import io.runtime.orchestrator.event.conformance.RecordingMessageTracing;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxTransportException;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.RecordingPersistence;
 import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
 import io.runtime.orchestrator.tracing.MessageTracing;
+import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
@@ -61,6 +65,9 @@ class InProcessEventTransportTest {
     private String idempotencyPolicy = PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX;
     private boolean ownsPersistence = true;
     private MessageTracing tracing = MessageTracing.NOOP;
+    private Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+    private Runnable whileHandling = () -> { };
+    private final List<Duration> timeouts = new ArrayList<>();
 
     /** Payload the test handler declares. */
     public record Accepted(Long tenantId, Long memberId, Role role) {
@@ -82,6 +89,7 @@ class InProcessEventTransportTest {
             if (failure != null) {
                 throw failure;
             }
+            whileHandling.run();
             handled.add(invocation);
             return CompletableFuture.completedFuture(null);
         }
@@ -194,6 +202,35 @@ class InProcessEventTransportTest {
     }
 
     @Test
+    void theSubscribersUnitOfWorkLastsNoLongerThanTheTimeLeftBeforeItsDeadline() {
+        // Standard-link plan point 3 (root BRX-RS-DATA-011): its statements stop, and its waits for a connection end,
+        // at the delivery's deadline.
+        transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1));
+
+        assertEquals(List.of(Duration.ofSeconds(15)), timeouts);
+        assertEquals(1, handled.size());
+    }
+
+    @Test
+    void aHandlerThatRunsPastItsDeadlineFailsBeforeItsUnitOfWorkCommits() {
+        // Standard-link plan point 3: a synchronous handler did its work before it returned, past its deadline. The
+        // delivery fails inside the unit of work, so the inbox record and the handler's writes roll back.
+        MutableClock moving = new MutableClock(NOW);
+        clock = moving;
+        whileHandling = () -> moving.advance(Duration.ofSeconds(16));
+
+        OutboxTransportException retry = assertThrows(OutboxTransportException.class,
+            () -> transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1)));
+
+        assertEquals(InProcessEventTransport.HANDLER_FAILED, retry.errorCode());
+        assertFalse(retry.permanent());
+        assertTrue(retry.getCause().getMessage().contains("finished after its deadline"),
+            retry.getCause().getMessage());
+        assertTrue(handled.get(0).cancellation().isCancelled(), "the handler is told the runtime stopped waiting");
+        assertEquals(List.of("required"), persistence.modes(), "it failed inside its unit of work");
+    }
+
+    @Test
     void aSubscriptionWithoutAnInboxHandlesEachDeliveryInItsOwnersUnitOfWork() {
         idempotencyPolicy = PluginRuntimeDescriptor.EventSubscription.NO_DURABLE_IDEMPOTENCY;
         InProcessEventTransport transport = transport();
@@ -292,10 +329,22 @@ class InProcessEventTransportTest {
             }
         };
         EventInboxStore store = (owner, handlerId, message) -> inbox.add(owner + "|" + handlerId + "|" + message.eventId());
-        return new InProcessEventTransport(new EventDelivery(subscribers,
-            owner -> SUBSCRIBER.equals(owner) && ownsPersistence ? Optional.of(persistence) : Optional.empty(), store,
-            new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(15), EventDeliveryScopes.ENVELOPE,
-            tracing));
+        OwnerPersistenceProvider owners = new OwnerPersistenceProvider() {
+            @Override
+            public Optional<PersistenceCapability> forOwner(String ownerModuleId) {
+                return SUBSCRIBER.equals(ownerModuleId) && ownsPersistence
+                    ? Optional.of(persistence)
+                    : Optional.empty();
+            }
+
+            @Override
+            public <T> T readWrite(String ownerModuleId, Duration timeout, Supplier<T> work) {
+                timeouts.add(timeout);
+                return forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
+            }
+        };
+        return new InProcessEventTransport(new EventDelivery(subscribers, owners, store, new ObjectMapper(), clock,
+            Duration.ofSeconds(15), EventDeliveryScopes.ENVELOPE, tracing));
     }
 
     private static CanonicalOutboxMessage traced(String eventId) {
@@ -312,5 +361,34 @@ class InProcessEventTransportTest {
         return new CanonicalOutboxMessage("event-1", "event-1", "EVENT", EVENT, schemaVersion, reliability, PUBLISHER,
             "TENANT", 910001L, "910001", OffsetDateTime.parse("2026-10-28T08:59:00Z"), "correlation-1", null, null, null,
             payload, attempt);
+    }
+
+    /** A clock the test moves forward, as time passes while a synchronous handler runs. */
+    private static final class MutableClock extends Clock {
+
+        private Instant now;
+
+        MutableClock(Instant now) {
+            this.now = now;
+        }
+
+        void advance(Duration duration) {
+            now = now.plus(duration);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
     }
 }

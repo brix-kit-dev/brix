@@ -141,13 +141,29 @@ final class SampleInfrastructure {
     }
 
     static void await(String what, BooleanSupplier condition) throws InterruptedException {
-        long deadline = System.nanoTime() + WAIT.toNanos();
+        await(what, WAIT, condition);
+    }
+
+    static void await(String what, Duration within, BooleanSupplier condition) throws InterruptedException {
+        long deadline = System.nanoTime() + within.toNanos();
         while (!condition.getAsBoolean()) {
             if (System.nanoTime() > deadline) {
                 fail("timed out waiting until " + what);
             }
             Thread.sleep(100);
         }
+    }
+
+    /**
+     * Opens a connection of its own to this run's schema, outside the host's pool, as another application's
+     * transaction does.
+     */
+    Connection connection() throws SQLException {
+        Connection connection = connect();
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("SET search_path TO " + schema);
+        }
+        return connection;
     }
 
     private static Connection connect() throws SQLException {

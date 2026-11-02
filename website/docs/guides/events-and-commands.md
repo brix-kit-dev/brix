@@ -64,7 +64,7 @@ flowchart LR
 | Delivery | CRITICAL and STANDARD events are delivered **at least once** after the publisher commits, and never if it rolls back. With a persistent inbox, each handler applies an event **once**. |
 | Order | A subscriber sees the events of **one event type with the same partition key** (the event's routing key) in publish order. There is no order across event types or keys. To order events of different types for one aggregate, put the aggregate's version in the payloads and compare it in the subscriber. |
 | New subscriptions | A subscription starts at the moment it is first registered. It does not receive older events; a renamed `handlerId` is a new subscription. For history, an operator republishes events that are still in the outbox (see [Operating](#operating)). |
-| Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that runs past its deadline is cancelled and counts as a failed attempt. |
+| Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that does not finish by its deadline counts as a failed attempt, even one that did its work and returned late: its writes and the inbox receipt roll back. |
 | Outages | If the subscriber's database is down or the plugin is not started, the subscription pauses. Attempts are not used up, and the event is delivered once the cause is gone. |
 | Tenancy | A TENANT event is handled in its own tenant; a PLATFORM event in none. The runtime binds the producer and the tenant from the publishing unit of work. An event cannot claim another publisher or tenant. |
 | Contracts | Each event type has one publisher. Its payload has a versioned JSON schema, and subscribers name the schema range they accept. |
@@ -370,6 +370,9 @@ private static ShipmentDesk desk(PluginContext context) {
   `ShipmentDesk` joins it, so the shipment and the inbox receipt commit together. Do the work synchronously and
   return a completed stage.
 - To fail, throw. Your writes and the inbox receipt roll back, and the event is retried.
+- Finish within the deadline: half the host's relay lease (`brix.outbox.relay.lease-duration`, 30 s by default),
+  so 15 s. Your unit of work ends with it. A statement still running is stopped, and a handler that returns later
+  rolls back like one that throws.
 - `invocation.event()` also carries the event id, type, schema version, tenant, partition key and trace.
 - `invocation.deliveryAttempt()` tells you how many attempts there have been.
 
@@ -467,7 +470,8 @@ final class CancelOrderHandler implements CommandHandler<CancelOrder> {
 
 - The runtime runs the handler in your unit of work, bound to the command's tenant (none for a platform command),
   after it has recorded the inbox receipt and the business key. Your writes commit with them.
-- To fail, throw. Everything rolls back, and the command is retried and then parked like an event.
+- To fail, throw. Everything rolls back, and the command is retried and then parked like an event. A handler that
+  does not finish by the deadline rolls back too, as for events.
 - `invocation.command()` carries the command id, type, schema version, sender (`producerPluginId`), tenant, business
   key and trace, and the user the sender acted for when the access policy needs one.
 - A command has no reply. If someone needs the outcome, publish it as your own event.

@@ -186,6 +186,13 @@ All notable changes to Brix Framework are documented here.
   - Six platform classes already use Redis directly. They are listed in
     `META-INF/brix/guard/platform-redis-clients.txt` of their modules under exemption EX-2026-004, and the lists
     only shrink.
+- **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
+  deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
+  returned, as handlers do, ran past the deadline and still committed. Now:
+  - the handler's unit of work lasts no longer than the time left before the delivery's deadline (half the relay
+    lease), so its statements stop, and its waits for a pooled connection end, at the deadline;
+  - a handler that returns after the deadline fails the delivery before the commit, so its writes, the inbox
+    receipt and a command's business key roll back, and the message is retried.
 
 ---
 

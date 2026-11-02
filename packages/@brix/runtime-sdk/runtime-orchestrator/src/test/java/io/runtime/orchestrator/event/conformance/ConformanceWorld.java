@@ -167,6 +167,9 @@ public final class ConformanceWorld {
     private volatile Error nextError;
     private volatile boolean hanging;
     private final AtomicInteger hangsLeft = new AtomicInteger();
+    private final AtomicInteger overrunsLeft = new AtomicInteger();
+    private final AtomicInteger commandCalls = new AtomicInteger();
+    private volatile Duration deadline = Duration.ofSeconds(5);
     private volatile boolean databaseDown;
     private volatile String commandAccessPolicy = CommandPolicies.ACCESS_DECLARED_CONSUMERS;
 
@@ -271,11 +274,12 @@ public final class ConformanceWorld {
      * @return the core
      */
     public EventDelivery newDelivery() {
-        return newDelivery(Duration.ofSeconds(5));
+        return newDelivery(deadline);
     }
 
     /**
-     * Returns a new delivery core whose handlers have the given deadline.
+     * Returns a new delivery core whose event and command handlers have the given deadline, as a host gives both half
+     * its relay lease.
      *
      * @param deadline how long a handler may take
      * @return the core
@@ -299,7 +303,7 @@ public final class ConformanceWorld {
                     current.commandKeys.add(taken);
                     return true;
                 },
-                new ObjectMapper(), Clock.systemUTC(), Duration.ofSeconds(5), tracing));
+                new ObjectMapper(), Clock.systemUTC(), deadline, tracing));
     }
 
     /**
@@ -464,6 +468,29 @@ public final class ConformanceWorld {
         hangsLeft.set(count);
     }
 
+    /**
+     * Gives the handlers of the delivery cores built from now on this deadline instead of five seconds, as a host
+     * with a shorter relay lease does.
+     *
+     * @param deadline how long a handler may take
+     */
+    public void handlerDeadline(Duration deadline) {
+        this.deadline = deadline;
+    }
+
+    /**
+     * Makes the event and command handlers do their work and return only after their deadline on their next calls,
+     * as a synchronous handler that runs past it does (standard-link plan point 3).
+     */
+    public void overrunNext(int count) {
+        overrunsLeft.set(count);
+    }
+
+    /** How often the command handler was called, including the attempts whose work rolled back. */
+    public int commandCalls() {
+        return commandCalls.get();
+    }
+
     /** Makes the subscriber's database unreachable, or reachable again: its units of work cannot begin. */
     public void subscriberDatabaseDown(boolean down) {
         this.databaseDown = down;
@@ -564,11 +591,13 @@ public final class ConformanceWorld {
 
         @Override
         public CompletionStage<Void> handle(CommandInvocation<Reserve> invocation) {
+            commandCalls.incrementAndGet();
             Transaction current = transaction.get();
             if (current == null) {
                 throw new IllegalStateException("a command runs in its provider's unit of work");
             }
             current.commands.add(invocation.command().commandId());
+            overrunIfAsked();
             return CompletableFuture.completedFuture(null);
         }
     }
@@ -633,7 +662,19 @@ public final class ConformanceWorld {
             } else {
                 current.handled.add(event);
             }
+            overrunIfAsked();
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Keeps a handler that has done its work from returning until its deadline has passed, when asked to. */
+    private void overrunIfAsked() {
+        if (overrunsLeft.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
+            try {
+                Thread.sleep(deadline.toMillis() + 200);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

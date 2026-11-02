@@ -440,6 +440,40 @@ public abstract class EventTransportConformance {
     }
 
     @Test
+    void aHandlerThatRunsPastItsDeadlineRollsBackAndIsTriedAgain() {
+        // Standard-link plan point 3 (root BRX-RS-DATA-011, DATA-028): a synchronous handler that did its work and
+        // returned after its deadline does not commit. Its write and its inbox record roll back, and the event takes
+        // effect once, on a later attempt.
+        world.handlerDeadline(Duration.ofMillis(300));
+        world.overrunNext(1);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        harness.start();
+
+        await("event-1 is handled", () -> world.handledIds().contains("event-1"));
+        settle();
+        assertEquals(List.of("event-1"), world.handledIds());
+        assertTrue(world.handled().get(0).attempt() >= 2, "committed on a later attempt");
+        assertEquals(2, world.calls(), "the late attempt ran, and its work was undone");
+        assertEquals(List.of(), harness.parked());
+    }
+
+    @Test
+    void aCommandHandlerThatRunsPastItsDeadlineRollsBackAndIsTriedAgain() {
+        // Standard-link plan point 3: the late attempt's inbox record, business key and write roll back together, so
+        // the command runs again and takes effect once.
+        world.handlerDeadline(Duration.ofMillis(300));
+        world.overrunNext(1);
+        world.submit("command-1", "order-7");
+        harness.start();
+
+        await("command-1 is handled", () -> world.handledCommands().contains("command-1"));
+        settle();
+        assertEquals(List.of("command-1"), world.handledCommands());
+        assertEquals(2, world.commandCalls(), "the late attempt ran, and its work was undone");
+        assertEquals(List.of(), harness.parked());
+    }
+
+    @Test
     void twoRelaysOnOneOutboxDeliverEachEventOnceInItsKeyOrder() {
         // Kafka design §14 K12: hosts share an outbox. A relay claims a key's later messages only together with its
         // earlier ones, so two relays never send one event at once and each key keeps its order.

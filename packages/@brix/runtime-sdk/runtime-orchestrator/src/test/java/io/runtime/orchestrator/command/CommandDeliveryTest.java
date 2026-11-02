@@ -18,6 +18,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -36,6 +37,7 @@ import tools.jackson.databind.ObjectMapper;
 import io.runtime.orchestrator.event.ConsumedSubscription;
 import io.runtime.orchestrator.event.EventDeliveryException;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
+import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.tracing.MessageTracing;
@@ -60,12 +62,14 @@ class CommandDeliveryTest {
     static final class ReserveHandler implements CommandHandler<Reserve> {
         final List<CommandInvocation<Reserve>> handled = new ArrayList<>();
         RuntimeException failure;
+        Runnable whileHandling = () -> { };
 
         @Override
         public CompletionStage<Void> handle(CommandInvocation<Reserve> invocation) {
             if (failure != null) {
                 throw failure;
             }
+            whileHandling.run();
             handled.add(invocation);
             return CompletableFuture.completedFuture(null);
         }
@@ -74,6 +78,9 @@ class CommandDeliveryTest {
     private final ReserveHandler handler = new ReserveHandler();
     private final Set<String> inbox = new HashSet<>();
     private final Set<String> keys = new HashSet<>();
+    private final MutableClock clock = new MutableClock(NOW);
+    private final List<Duration> timeouts = new ArrayList<>();
+    private final List<String> unitsOfWork = new ArrayList<>();
     private boolean started = true;
     private String providerVersion = "1.2.0";
     private String accessPolicy = "declared-consumers";
@@ -82,7 +89,12 @@ class CommandDeliveryTest {
     @BeforeEach
     void setUp() {
         UnitOfWork unitOfWork = mock(UnitOfWork.class);
-        when(unitOfWork.required(any())).thenAnswer(call -> ((Supplier<?>) call.getArgument(0)).get());
+        when(unitOfWork.required(any())).thenAnswer(call -> {
+            unitsOfWork.add("began");
+            Object result = ((Supplier<?>) call.getArgument(0)).get();
+            unitsOfWork.add("committed");
+            return result;
+        });
         PersistenceCapability persistence = mock(PersistenceCapability.class);
         when(persistence.unitOfWork()).thenReturn(unitOfWork);
         CommandProviders providers = new CommandProviders() {
@@ -109,10 +121,22 @@ class CommandDeliveryTest {
                     : Optional.empty();
             }
         };
-        delivery = new CommandDelivery(providers, owner -> "app-stock".equals(owner) ? Optional.of(persistence)
-            : Optional.empty(), (owner, handlerId, message) -> inbox.add(owner + "/" + handlerId + "/" + message.messageId()),
+        OwnerPersistenceProvider owners = new OwnerPersistenceProvider() {
+            @Override
+            public Optional<PersistenceCapability> forOwner(String ownerModuleId) {
+                return "app-stock".equals(ownerModuleId) ? Optional.of(persistence) : Optional.empty();
+            }
+
+            @Override
+            public <T> T readWrite(String ownerModuleId, Duration timeout, Supplier<T> work) {
+                timeouts.add(timeout);
+                return forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
+            }
+        };
+        delivery = new CommandDelivery(providers, owners,
+            (owner, handlerId, message) -> inbox.add(owner + "/" + handlerId + "/" + message.messageId()),
             (owner, handlerId, message, scope, key) -> keys.add(owner + "/" + handlerId + "/" + scope + "/" + key),
-            JSON, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(15), MessageTracing.NOOP);
+            JSON, clock, Duration.ofSeconds(15), MessageTracing.NOOP);
     }
 
     private PluginRuntimeManager.CommandProvider provider() {
@@ -187,6 +211,34 @@ class CommandDeliveryTest {
     }
 
     @Test
+    void theProvidersUnitOfWorkLastsNoLongerThanTheTimeLeftBeforeItsDeadline() {
+        // Standard-link plan point 3 (root BRX-RS-DATA-011): its statements stop, and its waits for a connection end,
+        // at the delivery's deadline.
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+
+        assertEquals(List.of(Duration.ofSeconds(15)), timeouts);
+        assertEquals(List.of("began", "committed"), unitsOfWork);
+    }
+
+    @Test
+    void aHandlerThatRunsPastItsDeadlineFailsBeforeItsUnitOfWorkCommits() {
+        // Standard-link plan point 3: a synchronous handler did its work before it returned, past its deadline. The
+        // delivery fails inside the unit of work, so the inbox and idempotency records and its writes roll back.
+        handler.whileHandling = () -> clock.advance(Duration.ofSeconds(16));
+
+        EventDeliveryException failed = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertEquals(CommandDelivery.HANDLER_FAILED, failed.errorCode());
+        assertFalse(failed.permanent());
+        assertTrue(failed.getCause().getMessage().contains("finished after its deadline"),
+            failed.getCause().getMessage());
+        assertTrue(handler.handled.get(0).cancellation().isCancelled(),
+            "the handler is told the runtime stopped waiting");
+        assertEquals(List.of("began"), unitsOfWork, "its unit of work did not commit");
+    }
+
+    @Test
     void aBrokerConsumesEachProvidedCommandAsASubscriptionOfItsOwn() {
         assertEquals(List.of(new ConsumedSubscription("app-stock", "reserve-stock.v1", "ReserveStock",
             ConsumedSubscription.COMMAND)), delivery.provisions());
@@ -256,5 +308,34 @@ class CommandDeliveryTest {
         return new CanonicalOutboxMessage(commandId, commandId, "COMMAND", "ReserveStock", version, "STANDARD", producer,
             tenantId == null ? "PLATFORM" : "TENANT", tenantId, key, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
             commandId, null, null, null, CommandMessages.encode(JSON, new Reserve("sku-1", 2), "order", key, actorId), 1);
+    }
+
+    /** A clock the test moves forward, as time passes while a synchronous handler runs. */
+    private static final class MutableClock extends Clock {
+
+        private Instant now;
+
+        MutableClock(Instant now) {
+            this.now = now;
+        }
+
+        void advance(Duration duration) {
+            now = now.plus(duration);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
     }
 }

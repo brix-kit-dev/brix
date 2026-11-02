@@ -88,7 +88,7 @@ aggregate's version in each payload and the subscriber ignores anything older th
 
 | Situation | What happens |
 |---|---|
-| The handler throws or runs past its deadline | Its writes and the inbox receipt roll back. The message is retried with exponential backoff and jitter. |
+| The handler throws, or does not finish by its deadline | Its writes and the inbox receipt roll back. Its statements stop at the deadline, and a handler that returns after it does not commit. The message is retried with exponential backoff and jitter. |
 | Retries run out, or a permanent error (undecodable payload, unsupported schema) | The message is **parked**. Later messages of the subscription go on. |
 | The subscriber's database is down, the subscriber is not started, or the broker is unreachable | Delivery pauses without using up attempts, and resumes when the cause is gone. |
 

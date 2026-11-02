@@ -100,13 +100,13 @@ public interface OwnerPersistenceProvider {
     }
 
     /**
-     * Runs an endpoint handler's work in a read-write unit of work of the owner whose transaction lasts at most
-     * {@code timeout}, the time left before the endpoint's deadline (root BRX-RS-DATA-011, DATA-028; standard-link plan
-     * L7.5): the owner's statements stop, and waits for a pooled connection end, when the deadline passes. Joining
-     * the owner's open transaction keeps that transaction's timeout. An owner without persistence runs the work as it
-     * is. The default applies no timeout of its own.
+     * Runs an entry's work in a read-write unit of work of the owner whose transaction lasts at most {@code timeout},
+     * the time left before the entry's deadline (root BRX-RS-DATA-011, DATA-028): an endpoint handler's (standard-link
+     * plan L7.5), or an event or command delivery's (point 3). The owner's statements stop, and waits for a pooled
+     * connection end, when the deadline passes. Joining the owner's open transaction keeps that transaction's timeout.
+     * An owner without persistence runs the work as it is. The default applies no timeout of its own.
      *
-     * @param ownerModuleId the owner of the endpoint
+     * @param ownerModuleId the owner of the endpoint, the subscriber or the command provider
      * @param timeout how long the call may still take; positive
      * @param work the handler's work
      * @param <T> result type

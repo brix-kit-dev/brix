@@ -135,8 +135,9 @@ final class OwnerUnitOfWork implements UnitOfWork {
 
     /**
      * Runs {@code work} read-write, in a new transaction that lasts at most {@code timeout} when one is started: an
-     * endpoint handler's statements stop, and its waits for a pooled connection end, at the endpoint's deadline
-     * (standard-link plan L7.5). Joining this owner's open transaction keeps that transaction's timeout.
+     * endpoint handler's, or an event or command handler's, statements stop, and its waits for a pooled connection
+     * end, at its deadline (standard-link plan L7.5, point 3). Joining this owner's open transaction keeps that
+     * transaction's timeout.
      * @param timeout the longest the transaction may last; capped by the owner's transaction timeout
      * @param work the work
      * @param <T> result type

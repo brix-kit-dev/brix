@@ -16,8 +16,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -27,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.event.ConsumedSubscription;
+import io.runtime.orchestrator.event.DeliveryDeadline;
 import io.runtime.orchestrator.event.EventDeliveryException;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.internalcontract.BrixRange;
@@ -56,8 +55,9 @@ import io.runtime.sdk.plugin.TraceContext;
  * schema version of the provider's major. In the provider's unit of work, bound to the command's tenant, the
  * runtime writes the provider's inbox record {@code (handlerId, commandId)} and its business idempotency record
  * {@code (handlerId, idempotencyScope, idempotencyKey)} before the handler runs: a redelivered command, or a second
- * command with a key already taken, commits without running the handler again (MESSAGE-014). Failures carry the
- * stable codes below, permanent ones parked at once.</p>
+ * command with a key already taken, commits without running the handler again (MESSAGE-014). The unit of work lasts no
+ * longer than the time left before the delivery's deadline, and a handler that finishes after the deadline rolls it
+ * back ({@link DeliveryDeadline}). Failures carry the stable codes below, permanent ones parked at once.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -261,12 +261,13 @@ public final class CommandDelivery {
                 // Typed queries the handler makes run as this provider, in the command's tenant (root
                 // BRX-RS-MANIFEST-028).
                 RuntimeInvocations.within(RuntimeInvocation.forCommand(ownerId, invocation), () -> {
-                    await(handler.handle(invocation), invocation.deadline(), cancelled);
+                    DeliveryDeadline.await(handler.handle(invocation), clock, invocation.deadline(), cancelled);
                     return null;
                 });
                 return "handled";
             };
-            String outcome = TenantScopes.within(scope, () -> persistence.get().unitOfWork().required(work));
+            String outcome = TenantScopes.within(scope,
+                () -> DeliveryDeadline.inUnitOfWork(owners, ownerId, clock, invocation.deadline(), work));
             log.info("event=command.delivered type={} command_id={} handler={} owner={} outcome={} attempt={}",
                 message.messageType(), message.messageId(), handlerId, ownerId, outcome, invocation.deliveryAttempt());
         } catch (RuntimeException failure) {
@@ -333,32 +334,6 @@ public final class CommandDelivery {
         trace[0] |= 1;
         span[0] |= 1;
         return "00-" + hex.formatHex(trace) + "-" + hex.formatHex(span) + "-01";
-    }
-
-    /**
-     * Waits for the handler until the invocation's deadline (root BRX-RS-RESILIENCE-001; Kafka design §14 K10). A
-     * handler still running then is told through its cancellation signal, and the delivery fails, so its unit of
-     * work rolls back and the attempt counts.
-     */
-    private void await(CompletionStage<Void> handled, Instant deadline, java.util.concurrent.atomic.AtomicBoolean cancelled) {
-        java.util.concurrent.CompletableFuture<Void> future = handled.toCompletableFuture();
-        long wait = Math.max(0L, Duration.between(clock.instant(), deadline).toMillis());
-        try {
-            future.get(wait, java.util.concurrent.TimeUnit.MILLISECONDS);
-        } catch (java.util.concurrent.TimeoutException late) {
-            cancelled.set(true);
-            future.cancel(true);
-            throw new IllegalStateException("the handler did not finish by its deadline " + deadline, late);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            cancelled.set(true);
-            throw new IllegalStateException("the delivery was interrupted", interrupted);
-        } catch (java.util.concurrent.ExecutionException failure) {
-            if (failure.getCause() instanceof RuntimeException cause) {
-                throw cause;
-            }
-            throw new CompletionException(failure.getCause());
-        }
     }
 
     private static EventDeliveryException permanent(String code, String message, Throwable cause) {

@@ -22,7 +22,9 @@ import io.runtime.sdk.plugin.EventInvocation;
  * {@code sample_shipping_inbox} in the same transaction: the shipment and the receipt commit together, and a
  * redelivered event never reaches the handler again. When the handler fails, both roll back and the runtime retries;
  * after the last attempt it parks the event for an operator. The handler therefore does its work synchronously and
- * returns a completed stage. The payload type is the class's type argument, from which the runtime decodes it.</p>
+ * returns a completed stage. It has until the delivery's deadline, half the host's relay lease: the unit of work ends
+ * then, and a handler held up past it rolls back like one that fails. The payload type is the class's type argument,
+ * from which the runtime decodes it.</p>
  *
  * @author Brix Platform Authors
  * @since 3.2.0
