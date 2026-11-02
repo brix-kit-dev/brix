@@ -13,6 +13,8 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 
+import io.brix.architecture.guard.rules.NoRoleNameAuthorizationRule;
+
 /**
  * Phase 5 architecture guard for the platform super-admin v2.0 red lines.
  */
@@ -28,6 +30,16 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 )
     @SuppressWarnings("unused")
 class PlatformAdminPhase5ArchitectureTest {
+
+    /**
+     * Platform admin, identity, tenant and auth code authorize on permissions, never on role names (super-admin
+     * 4.0.1).
+     */
+    @ArchTest
+    static final ArchRule noRoleAnnotations = NoRoleNameAuthorizationRule.noRoleAnnotations();
+
+    @ArchTest
+    static final ArchRule noRoleNameChecks = NoRoleNameAuthorizationRule.noRoleNameChecks();
 
     @ArchTest
     static final ArchRule identityStatusUsesDedicatedEnum = classes()

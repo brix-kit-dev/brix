@@ -20,6 +20,7 @@ import com.tngtech.archunit.lang.ArchRule;
 
 import io.brix.architecture.guard.ArchitectureLayers;
 import io.brix.architecture.guard.rules.KnownViolations;
+import io.brix.architecture.guard.rules.NoRoleNameAuthorizationRule;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS;
@@ -105,6 +106,21 @@ public class CommonsProfile {
             .should().dependOnClassesThat()
             .resideInAPackage("io.runtime.orchestrator..")
             .because("platform-commons must not depend on orchestrator");
+
+    // ==================== Authorization ====================
+
+    /**
+     * Platform code authorizes on permissions: no {@code @RequireRole}.
+     */
+    @ArchTest
+    static final ArchRule noRoleAnnotations = NoRoleNameAuthorizationRule.noRoleAnnotations();
+
+    /**
+     * Platform code authorizes on permissions: no {@code hasRole}/{@code hasAnyRole} calls outside their
+     * implementations.
+     */
+    @ArchTest
+    static final ArchRule noRoleNameChecks = NoRoleNameAuthorizationRule.noRoleNameChecks();
 
     // ==================== Code Quality Rules ====================
 

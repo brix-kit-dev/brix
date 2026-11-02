@@ -10,6 +10,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS;
 
@@ -52,19 +53,24 @@ public final class ConfigViaCapabilityRule {
      */
     public static ArchRule rule() {
         return NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS
-                .because("Direct standard stream access (System.out/err/in) is forbidden. \" +\n                        \"Use ConfigCapability for config and Logger for output");
+                .because("Direct standard stream access (System.out/err/in) is forbidden. "
+                        + "Use ConfigCapability for config and Logger for output");
     }
 
     /**
      * No direct System.getenv() or System.getProperty() calls.
      *
      * <p>Business code should not read environment variables or system properties directly.
-     * Use ConfigCapability / ConfigStoreCapability instead.</p>
+     * Use ConfigCapability / ConfigStoreCapability instead: the Config capability gives declared, typed configuration
+     * and does not expose direct reads of the environment or files (root 3.3.0 §4, Capability boundaries).</p>
+     *
+     * <p>The condition reports each call as a violation, so the rule is {@code classes().should(...)}: under
+     * {@code noClasses()} ArchUnit inverts a condition's events, and the calls it reports would pass.</p>
      *
      * @return ArchUnit rule instance
      */
     public static ArchRule noSystemEnvAccess() {
-        return noClasses()
+        return classes()
                 .should(new ArchCondition<JavaClass>("not call System.getenv() or System.getProperty() directly") {
                     @Override
                     public void check(JavaClass javaClass, ConditionEvents events) {
@@ -81,7 +87,8 @@ public final class ConfigViaCapabilityRule {
                         }
                     }
                 })
-                .because("Direct System.getenv() / System.getProperty() calls are forbidden. \" +\n                        \"Use ConfigCapability for unified config management");
+                .because("Direct System.getenv() / System.getProperty() calls are forbidden. "
+                        + "Use ConfigCapability for unified config management");
     }
 
     /**

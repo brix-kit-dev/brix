@@ -93,6 +93,10 @@ All notable changes to Brix Framework are documented here.
   platform-tenant publishes `TenantReferenceQuery` in the new `platform-tenant-api` artifact. See
   [Queries](../guides/queries.md).
 
+- **Platform code authorizes on permissions, not role names.** `NoRoleNameAuthorizationRule` refuses
+  `@RequireRole` and calls to `hasRole` or `hasAnyRole` outside the classes that implement them. The commons profile
+  and platform-admin's architecture test run it (super-admin 4.0.1 permission model).
+
 ### 🔄 Changed
 
 - **Handlers are bound through factories.** Plugins bind endpoint, query, command, event and task handlers with
@@ -156,6 +160,9 @@ All notable changes to Brix Framework are documented here.
 
 ### 🗑️ Removed
 
+- `NoStringRoleLiteralRule`: it never checked anything. `noClasses()` inverted its condition, and it looked for
+  literals in a source location, which is only a file name and line. In bytecode a role literal cannot be told from
+  a `RoleCode` constant anyway. `NoRoleNameAuthorizationRule` takes its place.
 - Architecture Guard rules that refused packages no module has, `io.runtime.sdk.impl`, `io.runtime.sdk.internal`
   and `io.runtime.sdk.api`: `OnlyRuntimeSdkApiRule.noRuntimeSdkImpl()` and `noRuntimeSdkInternal()`,
   `NoCyclicDependencyRule.sdkApiNotDependOnImpl()` and `SdkProfile.apiNotDependOnImpl`. The runtime's
@@ -173,6 +180,9 @@ All notable changes to Brix Framework are documented here.
   - The rule against using another plugin never fired: besides the roots, `noClasses()` inverted the violations
     its own condition reported. A plugin may use another plugin's `api` package and nothing else of it.
   - The sample plugins run the plugin profile.
+  - `ConfigViaCapabilityRule.noSystemEnvAccess` never fired: `noClasses()` inverted the calls its condition
+    reported. It now refuses `System.getenv()` and `System.getProperty()` in every plugin and host that runs the
+    plugin or host profile.
   - Six platform classes already use Redis directly. They are listed in
     `META-INF/brix/guard/platform-redis-clients.txt` of their modules under exemption EX-2026-004, and the lists
     only shrink.

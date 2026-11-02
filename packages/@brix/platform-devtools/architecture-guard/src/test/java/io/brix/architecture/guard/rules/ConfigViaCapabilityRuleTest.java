@@ -24,6 +24,12 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.brix.samples.fixturealpha.core.AlphaPrice;
+import io.brix.samples.fixturealpha.core.AlphaReadsEnvironment;
+import io.brix.samples.fixturealpha.core.AlphaReadsSystemProperty;
 
 /**
  * ConfigViaCapabilityRule Test Cases
@@ -92,15 +98,11 @@ class ConfigViaCapabilityRuleTest {
         }
 
         @Test
-        @DisplayName("Guard library should pass System.getenv checks")
-        void guardLibraryShouldPassSystemEnvCheck() {
-            ArchRule rule = ConfigViaCapabilityRule.noSystemEnvAccess();
-            
-            assertDoesNotThrow(() -> {
-                JavaClasses classes = new ClassFileImporter()
-                        .importPackages("io.brix.architecture.guard");
-                rule.check(classes);
-            }, "Guard library should not call System.getenv()");
+        @DisplayName("A plugin class that reads neither the environment nor system properties passes")
+        void pluginWithoutDirectConfigReadsPasses() {
+            JavaClasses classes = new ClassFileImporter().importClasses(AlphaPrice.class);
+
+            assertDoesNotThrow(() -> ConfigViaCapabilityRule.noSystemEnvAccess().check(classes));
         }
 
         @Test
@@ -113,6 +115,35 @@ class ConfigViaCapabilityRuleTest {
                         .importPackages("io.brix.architecture.guard");
                 rule.check(classes);
             }, "Guard library should not use @Value annotation");
+        }
+    }
+
+    // ============================================================================
+    // Negative tests: Violating code should be detected
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Negative: Violating Code")
+    class ViolatingCodeTests {
+
+        @Test
+        @DisplayName("A plugin class that calls System.getenv() fails")
+        void environmentReadFails() {
+            JavaClasses classes = new ClassFileImporter().importClasses(AlphaReadsEnvironment.class);
+
+            AssertionError error = assertThrows(AssertionError.class,
+                () -> ConfigViaCapabilityRule.noSystemEnvAccess().check(classes));
+            assertTrue(error.getMessage().contains("calls System.getenv()"), error.getMessage());
+        }
+
+        @Test
+        @DisplayName("A plugin class that calls System.getProperty() fails")
+        void systemPropertyReadFails() {
+            JavaClasses classes = new ClassFileImporter().importClasses(AlphaReadsSystemProperty.class);
+
+            AssertionError error = assertThrows(AssertionError.class,
+                () -> ConfigViaCapabilityRule.noSystemEnvAccess().check(classes));
+            assertTrue(error.getMessage().contains("calls System.getProperty()"), error.getMessage());
         }
     }
 }
