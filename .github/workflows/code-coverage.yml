@@ -4,7 +4,8 @@
 # Enforces minimum 80% line coverage and 70% branch coverage on all PRs.
 # Uses JaCoCo for Java (Maven) and Vitest for TypeScript (pnpm).
 #
-# Trigger: Pull requests to main/develop branches
+# Trigger: Pull requests to main/develop branches. The Java job, with its PostgreSQL service, also runs on pushes to
+# main/develop, where most changes land without a pull request (standard-link plan L2.4, point 0), and by hand.
 # ============================================================================
 
 name: Code Coverage
@@ -19,6 +20,13 @@ on:
       - '**/pom.xml'
       - '**/package.json'
       - '**/vitest.config.*'
+  push:
+    branches: [main, develop]
+    paths:
+      - '**.java'
+      - '**/pom.xml'
+      - '.github/workflows/code-coverage.yml'
+  workflow_dispatch:
 
 concurrency:
   group: coverage-${{ github.ref }}
@@ -84,6 +92,7 @@ jobs:
   # ========== TypeScript Coverage (Vitest) ==========
   ts-coverage:
     name: TypeScript Coverage (Vitest ≥ 80%)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
