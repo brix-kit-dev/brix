@@ -850,6 +850,8 @@ class ArchitectureTest {
 ```
 
 The guard's rule classes, such as `AdapterIsolationRule`, are final: use `BrixArchitectureRules`, do not extend them.
+The rules about other plugins and data owners only recognise plugins in the guard's plugin packages, such as the
+scaffold's `io.brix.app.todo`; with this tutorial's `com.example.todo` the plugin gets the other rules.
 [Architecture Tests](../guides/plugin-development.md#42-architecture-tests) in the Plugin Development Guide shows
 how to add rules of your own.
 

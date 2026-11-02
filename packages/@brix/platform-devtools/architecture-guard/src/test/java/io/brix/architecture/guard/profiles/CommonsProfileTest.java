@@ -25,8 +25,10 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.brix.platform.fixture.CompliantPlatformService;
 import io.brix.platform.fixture.PlatformUsesAdapter;
 import io.brix.platform.fixture.PlatformUsesHost;
+import io.brix.platform.fixture.PlatformUsesKafka;
 import io.brix.platform.fixture.PlatformUsesOrchestrator;
 import io.brix.platform.fixture.PlatformUsesPlugin;
+import io.brix.platform.fixture.PlatformUsesRabbit;
 import io.brix.platform.fixture.redis.ListedRedisClient;
 import io.brix.platform.fixture.redis.UnlistedRedisClient;
 import io.brix.samples.fixturebeta.core.BetaStock;
@@ -65,6 +67,19 @@ class CommonsProfileTest {
     void orchestratorDependencyFails() {
         assertRejects(CommonsProfile.commonsNotDependOnOrchestrator, PlatformUsesOrchestrator.class,
             io.runtime.orchestrator.bootstrap.RuntimeShellFatalAction.class);
+    }
+
+    @Test
+    @DisplayName("A platform class that uses the Kafka client fails")
+    void kafkaDependencyFails() {
+        assertRejects(CommonsProfile.noKafkaDependency, PlatformUsesKafka.class,
+            org.apache.kafka.clients.producer.KafkaProducer.class);
+    }
+
+    @Test
+    @DisplayName("A platform class that uses the RabbitMQ client fails")
+    void rabbitDependencyFails() {
+        assertRejects(CommonsProfile.noRabbitDependency, PlatformUsesRabbit.class, com.rabbitmq.client.Channel.class);
     }
 
     @Test

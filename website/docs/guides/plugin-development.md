@@ -836,6 +836,10 @@ class ArchitectureTest {
   API; Spring application events. In `..core..` packages it also refuses broker templates and SDKs, JWT and crypto
   libraries, and the runtime's implementation packages, its outbox among them.
   [Testing](./testing.md#standard-architecture-rules) lists the rules.
+- Two rules need to know which plugin a class belongs to: a plugin may use another plugin only through its `api`
+  package, and never another data owner's repository. The guard finds plugins under `io.brix.app.<plugin>`, where
+  `create-brix phase7 plugin` puts them, `io.brix.enterprise.app.<plugin>` and `io.brix.samples.<plugin>`. A plugin in
+  a package of its own, such as `com.example.reservation`, gets every other rule but not these two.
 - Capabilities live in `io.runtime.sdk.*`, the packages of `runtime-sdk-api`.
 
 `mvn test` runs the rules with the module's other tests. A class that breaks a rule fails the build, with the rule's
