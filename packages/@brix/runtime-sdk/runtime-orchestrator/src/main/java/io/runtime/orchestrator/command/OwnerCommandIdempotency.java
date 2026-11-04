@@ -26,28 +26,31 @@ import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 public interface OwnerCommandIdempotency {
 
     /**
-     * Records the key in the provider's current transaction.
+     * Takes the key for a command in the provider's current transaction, with the fingerprint of its payload
+     * (standard-link plan point 8). A command whose key another transaction is taking waits for that transaction to
+     * end, as long as its own unit of work lasts, rather than failing.
      *
      * @param ownerId the providing plugin
      * @param handlerId the handler
      * @param message the command
      * @param idempotencyScope what the key is unique within
      * @param idempotencyKey the business key
+     * @param fingerprint the fingerprint of the command's payload
      * @return {@code false} when an earlier command already took the key, and the handler must not run again
      */
     boolean reserve(String ownerId, String handlerId, CanonicalOutboxMessage message, String idempotencyScope,
-            String idempotencyKey);
+            String idempotencyKey, String fingerprint);
 
     /**
-     * Returns the command that holds a key (standard-link plan point 7).
+     * Returns the command that holds a key, with the fingerprint of its payload (standard-link plan points 7, 8).
      *
      * @param ownerId the providing plugin
      * @param handlerId the handler
      * @param idempotencyScope what the key is unique within
      * @param idempotencyKey the business key
-     * @return the holder's command id; empty when no command holds the key, or the store does not tell
+     * @return the holder; empty when no command holds the key, or the store does not tell
      */
-    default Optional<String> holder(String ownerId, String handlerId, String idempotencyScope,
+    default Optional<Holder> holder(String ownerId, String handlerId, String idempotencyScope,
             String idempotencyKey) {
         return Optional.empty();
     }
@@ -98,5 +101,14 @@ public interface OwnerCommandIdempotency {
      */
     default int purge(String table, OffsetDateTime createdBefore, int limit) {
         return 0;
+    }
+
+    /**
+     * The command that holds a key.
+     *
+     * @param commandId the command
+     * @param fingerprint the fingerprint of its payload; {@code null} for a key taken before fingerprints were kept
+     */
+    record Holder(String commandId, String fingerprint) {
     }
 }

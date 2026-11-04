@@ -28,8 +28,8 @@ import java.util.Set;
  */
 public final class CanonicalMessagingTables {
 
-    /** Version of the platform schema these rules describe. */
-    public static final int VERSION = 1;
+    /** Version of the platform schema these rules describe: 2 adds the command key's request fingerprint. */
+    public static final int VERSION = 2;
 
     /**
      * Classpath directory of the PostgreSQL migrations, one subdirectory per {@link Kind}, with
@@ -61,7 +61,7 @@ public final class CanonicalMessagingTables {
 
     private static final List<String> IDEMPOTENCY_COLUMNS = List.of(
         "handler_id", "idempotency_scope", "idempotency_key", "command_id", "command_type", "schema_version",
-        "tenant_id", "status", "created_at");
+        "tenant_id", "status", "request_fingerprint", "created_at");
 
     private static final List<String> OUTCOME_COLUMNS = List.of(
         "handler_id", "command_id", "idempotency_scope", "idempotency_key", "outcome", "error_code",

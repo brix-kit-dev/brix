@@ -158,6 +158,7 @@ public final class ConformanceWorld {
     private final List<String> handledCommands = new CopyOnWriteArrayList<>();
     private final Set<String> commandKeys = ConcurrentHashMap.newKeySet();
     private final Map<String, CommandRecord> keyHolders = new ConcurrentHashMap<>();
+    private final Map<String, String> keyFingerprints = new ConcurrentHashMap<>();
     private final Map<String, CommandRecord> commandOutcomes = new ConcurrentHashMap<>();
     private final OwnerCommandIdempotency commandRecords = new CommandRecords();
     private final ThreadLocal<Transaction> transaction = new ThreadLocal<>();
@@ -323,11 +324,26 @@ public final class ConformanceWorld {
      * @return the outbox message
      */
     public CanonicalOutboxMessage submit(String commandId, String idempotencyKey, Long tenantId, String actorId) {
+        return submit(commandId, idempotencyKey, tenantId, actorId, "sku-" + idempotencyKey);
+    }
+
+    /**
+     * Commits a command whose content is the given stock unit, under a key that another command may have taken
+     * already (standard-link plan point 8).
+     *
+     * @param commandId command id
+     * @param idempotencyKey business key, also its partition key
+     * @param tenantId the command's tenant, or {@code null} for a platform command
+     * @param actorId the user the publisher acted for, or {@code null}
+     * @param sku the content
+     * @return the outbox message
+     */
+    public CanonicalOutboxMessage submit(String commandId, String idempotencyKey, Long tenantId, String actorId,
+            String sku) {
         CanonicalOutboxMessage message = new CanonicalOutboxMessage(commandId, commandId, "COMMAND", COMMAND, "1.0.0",
             "STANDARD", PUBLISHER, tenantId == null ? "PLATFORM" : "TENANT", tenantId, idempotencyKey,
             OffsetDateTime.now(ZoneOffset.UTC), "correlation-" + commandId, null, TRACEPARENT, "conformance=1",
-            CommandMessages.encode(new ObjectMapper(), new Reserve("sku-" + idempotencyKey), COMMAND, idempotencyKey,
-                actorId), 0);
+            CommandMessages.encode(new ObjectMapper(), new Reserve(sku), COMMAND, idempotencyKey, actorId), 0);
         outbox.append(message);
         return message;
     }
@@ -645,6 +661,7 @@ public final class ConformanceWorld {
         handled.addAll(current.handled);
         commandKeys.addAll(current.commandKeys);
         keyHolders.putAll(current.held);
+        keyFingerprints.putAll(current.fingerprints);
         current.outcomes.forEach(commandOutcomes::putIfAbsent);
         handledCommands.addAll(current.commands);
     }
@@ -658,7 +675,7 @@ public final class ConformanceWorld {
 
         @Override
         public boolean reserve(String owner, String handlerId, CanonicalOutboxMessage message, String scope,
-                String key) {
+                String key, String fingerprint) {
             Transaction current = inUnitOfWork("the idempotency record");
             String taken = owner + "|" + handlerId + "|" + scope + "|" + key;
             if (commandKeys.contains(taken) || current.commandKeys.contains(taken)) {
@@ -667,16 +684,18 @@ public final class ConformanceWorld {
             current.commandKeys.add(taken);
             current.held.put(taken, new CommandRecord(message.messageId(), CommandStatus.State.SUCCEEDED, scope, key,
                 message.tenantId(), null, null, OffsetDateTime.now(ZoneOffset.UTC)));
+            current.fingerprints.put(taken, fingerprint);
             return true;
         }
 
         @Override
-        public Optional<String> holder(String owner, String handlerId, String scope, String key) {
+        public Optional<Holder> holder(String owner, String handlerId, String scope, String key) {
             String taken = owner + "|" + handlerId + "|" + scope + "|" + key;
             Transaction current = transaction.get();
-            CommandRecord holding = current != null && current.held.containsKey(taken) ? current.held.get(taken)
-                : keyHolders.get(taken);
-            return Optional.ofNullable(holding).map(CommandRecord::commandId);
+            boolean own = current != null && current.held.containsKey(taken);
+            CommandRecord holding = own ? current.held.get(taken) : keyHolders.get(taken);
+            String fingerprint = own ? current.fingerprints.get(taken) : keyFingerprints.get(taken);
+            return Optional.ofNullable(holding).map(record -> new Holder(record.commandId(), fingerprint));
         }
 
         @Override
@@ -771,6 +790,7 @@ public final class ConformanceWorld {
         private final List<Handled> handled = new ArrayList<>();
         private final List<String> commandKeys = new ArrayList<>();
         private final Map<String, CommandRecord> held = new java.util.LinkedHashMap<>();
+        private final Map<String, String> fingerprints = new java.util.LinkedHashMap<>();
         private final Map<String, CommandRecord> outcomes = new java.util.LinkedHashMap<>();
         private final List<String> commands = new ArrayList<>();
     }

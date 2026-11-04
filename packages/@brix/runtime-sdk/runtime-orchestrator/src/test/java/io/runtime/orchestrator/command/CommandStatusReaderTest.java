@@ -76,7 +76,7 @@ class CommandStatusReaderTest {
     private final OwnerCommandIdempotency store = new OwnerCommandIdempotency() {
         @Override
         public boolean reserve(String ownerId, String handlerId, CanonicalOutboxMessage message, String scope,
-                String key) {
+                String key, String fingerprint) {
             throw new UnsupportedOperationException("statuses only read");
         }
 

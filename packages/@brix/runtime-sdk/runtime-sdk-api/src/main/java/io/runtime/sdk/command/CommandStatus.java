@@ -30,6 +30,12 @@ import io.runtime.sdk.annotation.Since;
 @Since("3.3.0")
 public record CommandStatus(String commandId, State state, String errorCode, String originalCommandId, Instant at) {
 
+    /**
+     * The error code of a {@link State#CONFLICT}: an earlier command holds the idempotency key with other content
+     * (standard-link plan point 8). Its category is {@code CONFLICT}: send the new content with a key of its own.
+     */
+    public static final String IDEMPOTENCY_CONFLICT = "command.idempotency_conflict";
+
     /** Where a command stands. */
     public enum State {
         /** The command is durable and waits for its owner, or is on its way to it. */

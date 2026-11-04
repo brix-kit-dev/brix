@@ -247,6 +247,27 @@ class SamplePluginsEndToEndTest {
             + " WHERE outcome = 'DUPLICATE' AND holder_command_id = ?", String.class, commandId));
         JsonNode neverSent = JSON.readTree(get("/api/sample-shipping/cancellations/never-sent").body());
         assertEquals("UNKNOWN", neverSent.get("status").asString(), neverSent.toString());
+
+        // Standard-link plan point 8: refusing again with another reason reuses the order's key with other content.
+        // sample-orders takes that command as a conflict, without running it, and the order keeps its first reason.
+        HttpResponse<String> damaged = post("/api/sample-shipping/shipments/" + orderId + "/refuse",
+            Map.of("reason", "DAMAGED"));
+        assertEquals(202, damaged.statusCode(), damaged.body());
+        String thirdId = JSON.readTree(damaged.body()).get("commandId").asString();
+        await("sample-orders took the third command", () -> count(jdbc, "SELECT COUNT(*) FROM sample_orders_inbox"
+            + " WHERE handler_id = ? AND message_id = ?", "sample-orders.cancel-order.v1", thirdId) == 1);
+        JsonNode conflict = JSON.readTree(get("/api/sample-shipping/cancellations/" + thirdId).body());
+        assertEquals("CONFLICT", conflict.get("status").asString(), conflict.toString());
+        assertEquals("command.idempotency_conflict", conflict.get("errorCode").asString(), conflict.toString());
+        assertEquals(commandId, conflict.get("originalCommandId").asString(), conflict.toString());
+        assertEquals("SHIPPING_REFUSED", jdbc.queryForObject("SELECT cancel_reason FROM sample_orders_order"
+            + " WHERE id = ?", String.class, Long.parseLong(orderId)));
+        assertEquals(2L, jdbc.queryForObject("SELECT version FROM sample_orders_order WHERE id = ?", Long.class,
+            Long.parseLong(orderId)));
+        assertEquals("1.1.0", jdbc.queryForObject("SELECT schema_version FROM sample_shipping_outbox"
+            + " WHERE message_id = ?", String.class, thirdId), "sent with the contract's new minor version");
+        assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_command_idempotency"
+            + " WHERE request_fingerprint ~ '^[0-9a-f]{64}$'"), "the key keeps the first command's fingerprint");
         assertEquals(2L, jdbc.queryForObject("SELECT version FROM sample_orders_order WHERE id = ?", Long.class,
             Long.parseLong(orderId)));
         HttpResponse<String> noShipment = post("/api/sample-shipping/shipments/1/refuse", Map.of());

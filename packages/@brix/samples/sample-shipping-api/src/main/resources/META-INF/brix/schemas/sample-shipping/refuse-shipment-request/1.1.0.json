@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-shipping/refuse-shipment-request/1.1.0",
+  "title": "Refuse the shipment of an order: the path variables and the body of POST /api/sample-shipping/shipments/{orderId}/refuse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId"],
+  "properties": {
+    "orderId": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "reason": {
+      "type": ["string", "null"],
+      "enum": ["REFUSED", "DAMAGED", null],
+      "description": "why the shipment is refused: REFUSED (the default) or DAMAGED",
+      "x-brix-since": "1.1.0"
+    }
+  }
+}

@@ -234,6 +234,28 @@ public abstract class EventTransportConformance {
     }
 
     @Test
+    void aKeyReusedWithOtherContentIsAConflictItsSenderReadsAndNothingRunsTwice() {
+        // Standard-link plan point 8 (root BRX-RS-MESSAGE-014): the same key with other content is no duplicate. It
+        // is recorded as a conflict, neither retried nor parked; the same content again is a duplicate.
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null, "sku-1");
+        world.submit("command-2", "order-7", ConformanceWorld.TENANT, null, "sku-2");
+        world.submit("command-3", "order-7", ConformanceWorld.TENANT, null, "sku-1");
+
+        harness.start();
+
+        await("command-3 is acknowledged", () -> world.inboxed("command-3"));
+        settle();
+        assertEquals(List.of("command-1"), world.handledCommands());
+        assertEquals(1, world.commandCalls(), "the handler ran once");
+        CommandStatus conflict = status("command-2");
+        assertEquals(CommandStatus.State.CONFLICT, conflict.state());
+        assertEquals(CommandStatus.IDEMPOTENCY_CONFLICT, conflict.errorCode());
+        assertEquals("command-1", conflict.originalCommandId());
+        assertEquals(CommandStatus.State.DUPLICATE, status("command-3").state());
+        assertTrue(harness.parked().isEmpty(), "a conflict is not parked");
+    }
+
+    @Test
     void aParkedCommandReadsParkedUntilAnOperatorDiscardsIt() {
         // Standard-link plan point 7: the in-process transport parks in the sender's outbox, a broker at the provider;
         // the sender reads the same either way.

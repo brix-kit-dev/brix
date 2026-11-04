@@ -49,34 +49,33 @@ final class JdbcOwnerCommandIdempotency implements OwnerCommandIdempotency {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
+    /**
+     * Takes the key with the command's fingerprint (standard-link plan point 8, design D69). On PostgreSQL, the
+     * reference DCP of the messaging tables, {@code ON CONFLICT DO NOTHING} waits for a transaction that is inserting
+     * the same key: when it commits, nothing is inserted; when it rolls back, this insert goes through. Either way this
+     * transaction goes on, so a concurrent command with the same key no longer fails its delivery and spends an
+     * attempt. The wait ends with the owner's unit of work, whose statements stop at the delivery's deadline.
+     */
     @Override
     public boolean reserve(String ownerId, String handlerId, CanonicalOutboxMessage message, String idempotencyScope,
-            String idempotencyKey) {
+            String idempotencyKey, String fingerprint) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("The command idempotency of " + ownerId
                 + " is written only inside the owner's transaction");
         }
-        String table = owners.storageIdOf(ownerId)
-            .map(CanonicalMessagingTables::commandIdempotencyOf)
-            .orElseThrow(() -> new IllegalStateException(ownerId + " declares no data.storageId for its commands"));
-        Integer existing = jdbc.queryForObject("SELECT COUNT(*) FROM " + table
-                + " WHERE handler_id = ? AND idempotency_scope = ? AND idempotency_key = ?",
-            Integer.class, handlerId, idempotencyScope, idempotencyKey);
-        if (existing != null && existing > 0) {
-            return false;
-        }
-        jdbc.update("INSERT INTO " + table + " (handler_id, idempotency_scope, idempotency_key, command_id, command_type,"
-                + " schema_version, tenant_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACCEPTED', ?)",
+        return jdbc.update("INSERT INTO " + keysOf(ownerId) + " (handler_id, idempotency_scope, idempotency_key,"
+                + " command_id, command_type, schema_version, tenant_id, status, request_fingerprint, created_at)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, 'ACCEPTED', ?, ?) ON CONFLICT DO NOTHING",
             handlerId, idempotencyScope, idempotencyKey, message.messageId(), message.messageType(),
-            message.schemaVersion(), message.tenantId(), Timestamp.from(clock.instant()));
-        return true;
+            message.schemaVersion(), message.tenantId(), fingerprint, Timestamp.from(clock.instant())) > 0;
     }
 
     @Override
-    public Optional<String> holder(String ownerId, String handlerId, String idempotencyScope, String idempotencyKey) {
-        List<String> holders = jdbc.queryForList("SELECT command_id FROM " + keysOf(ownerId)
+    public Optional<Holder> holder(String ownerId, String handlerId, String idempotencyScope, String idempotencyKey) {
+        List<Holder> holders = jdbc.query("SELECT command_id, request_fingerprint FROM " + keysOf(ownerId)
                 + " WHERE handler_id = ? AND idempotency_scope = ? AND idempotency_key = ?",
-            String.class, handlerId, idempotencyScope, idempotencyKey);
+            (row, number) -> new Holder(row.getString(1), row.getString(2)),
+            handlerId, idempotencyScope, idempotencyKey);
         return holders.stream().findFirst();
     }
 

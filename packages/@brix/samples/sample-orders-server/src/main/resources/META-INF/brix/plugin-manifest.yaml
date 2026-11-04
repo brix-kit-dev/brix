@@ -108,7 +108,7 @@ commands:
   provides:
     - commandType: sample-orders.cancel-order
       request:
-        schemaRef: brix://schemas/sample-orders/cancel-order/1.0.0
+        schemaRef: brix://schemas/sample-orders/cancel-order/1.1.0
       handlerId: sample-orders.cancel-order.v1
       scopePolicyRef: command-envelope
       accessPolicyRef: declared-consumers

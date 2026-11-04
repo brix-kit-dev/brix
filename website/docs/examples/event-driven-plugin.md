@@ -333,5 +333,6 @@ The host properties the test sets show what a host needs for this chain:
   both event types keeps the shipment's `order_version` and ignores anything older.
 - **Asking another plugin to act.** Send the owner's typed command rather than an event, as `sample-shipping` does
   when a shipment is refused: `CommandCapability.client(SampleOrdersCommands.CANCEL_ORDER)`. It answers with the
-  command id, and `GET /api/sample-shipping/cancellations/{commandId}` reads where that command stands. See
+  command id, and `GET /api/sample-shipping/cancellations/{commandId}` reads where that command stands. A refusal may
+  name a reason, `REFUSED` or `DAMAGED`; refusing the same order again with the other one reads as `CONFLICT`. See
   [Commands](../guides/events-and-commands.md#commands).

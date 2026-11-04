@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-orders/cancel-order/1.1.0",
+  "title": "Cancel an order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId", "reason"],
+  "properties": {
+    "orderId": { "type": "string", "minLength": 1, "maxLength": 32, "x-brix-classification": "internal-identifier" },
+    "reason": {
+      "type": "string",
+      "enum": ["SHIPPING_REFUSED", "DAMAGED"],
+      "description": "why the sender asks for the cancellation",
+      "x-brix-classification": "operational"
+    }
+  }
+}

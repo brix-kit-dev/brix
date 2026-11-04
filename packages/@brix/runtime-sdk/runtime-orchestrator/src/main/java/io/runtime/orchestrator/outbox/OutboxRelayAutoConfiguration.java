@@ -26,7 +26,9 @@ import io.runtime.orchestrator.event.EventSubscriptionMetricsFactory;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.event.EventsEndpoint;
 import io.runtime.orchestrator.command.CommandDelivery;
+import io.runtime.orchestrator.command.CommandMetrics;
 import io.runtime.orchestrator.command.CommandProviders;
+import io.runtime.orchestrator.command.MicrometerCommandMetrics;
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.InProcessEventTransport;
@@ -84,7 +86,8 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<ObjectMapper> json,
             ObjectProvider<EventDeliveryScopes> scopes,
             ObjectProvider<MessageTracing> tracing,
-            ObjectProvider<OwnerCommandIdempotency> commandIdempotency) {
+            ObjectProvider<OwnerCommandIdempotency> commandIdempotency,
+            ObjectProvider<CommandMetrics> commandMetrics) {
         return new EventDeliveryProvider(() -> {
             EventDelivery delivery = delivery(properties, plugins, owners, inbox, json, scopes, tracing);
             OwnerCommandIdempotency idempotency = commandIdempotency.getIfAvailable();
@@ -93,7 +96,8 @@ public class OutboxRelayAutoConfiguration {
                 delivery.deliveringCommandsWith(new CommandDelivery(CommandProviders.of(plugins.getObject()),
                     owners.getObject(), inbox.getObject(), idempotency, json.getIfAvailable(ObjectMapper::new),
                     Clock.systemUTC(), properties.getLeaseDuration().dividedBy(2),
-                    tracing.getIfAvailable(() -> MessageTracing.NOOP)));
+                    tracing.getIfAvailable(() -> MessageTracing.NOOP),
+                    commandMetrics.getIfAvailable(() -> CommandMetrics.NOOP)));
             }
             return delivery;
         });
@@ -209,6 +213,12 @@ public class OutboxRelayAutoConfiguration {
         @ConditionalOnMissingBean
         MessageRetentionMetrics messageRetentionMetrics(ObjectProvider<MeterRegistry> registry) {
             return new MicrometerMessageRetentionMetrics(registry::getIfAvailable);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        CommandMetrics commandMetrics(ObjectProvider<MeterRegistry> registry) {
+            return new MicrometerCommandMetrics(registry::getIfAvailable);
         }
     }
 

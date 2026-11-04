@@ -79,6 +79,13 @@ All notable changes to Brix Framework are documented here.
   records each command that took no key in the new `<storageId>_command_outcome` table, and an operator's discard of a
   command the provider parked on Kafka is recorded there before the command is let go. See
   [Reading a command's status](../guides/events-and-commands.md#reading-a-commands-status).
+- **A key reused with other content is a conflict.** The provider keeps a fingerprint of the payload with each key
+  (`request_fingerprint`, a second migration of `<storageId>_command_idempotency`). A later command with the same key
+  and another fingerprint does not run and is not retried or parked: its sender reads `CONFLICT` with
+  `command.idempotency_conflict`, and `brix_command_idempotency_conflicts_total` counts it. The same content written
+  another way is still a duplicate. Two commands with the same key at once no longer fail one delivery: the second
+  waits for the first's transaction, then is a duplicate or a conflict. The sample's `sample-orders.cancel-order` 1.1.0
+  adds the reason `DAMAGED`, and a refusal can name it.
 - **BEST_EFFORT from the same bus.** `publishIntegration` sends a BEST_EFFORT event directly after the unit of work
   commits.
 - **Messaging tables from the platform.** The platform creates `<storageId>_outbox`, `<storageId>_inbox`,

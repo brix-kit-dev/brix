@@ -70,13 +70,17 @@ class CanonicalMessagingTablesTest {
     }
 
     @Test
-    void eachTablesMigrationCreatesEveryColumnTheSchemaRequires() throws IOException {
+    void eachTablesMigrationsCreateEveryColumnTheSchemaRequires() throws IOException {
+        // A column comes with the table (V1) or is added by a later migration of the same table, such as the command
+        // key's request fingerprint (V2, standard-link plan point 8).
         List<String> missing = new ArrayList<>();
         for (CanonicalMessagingTables.Kind kind : CanonicalMessagingTables.Kind.values()) {
             String migration = migration(kind);
             assertTrue(migration.contains("CREATE TABLE " + kind.tableOf("{{storageId}}") + " ("), kind.toString());
+            String migrations = migrations(kind);
             for (String column : kind.columns()) {
-                if (!migration.matches("(?s).*\\n    " + column + " +[A-Z].*")) {
+                if (!migrations.matches("(?s).*\\n    " + column + " +[A-Z].*")
+                        && !migrations.contains(" ADD COLUMN " + column + " ")) {
                     missing.add(kind + "." + column);
                 }
             }
@@ -93,6 +97,36 @@ class CanonicalMessagingTablesTest {
         assertEquals("shop_command_idempotency", CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY.tableOf("shop"));
         assertEquals("shop_command_outcome", CanonicalMessagingTables.Kind.COMMAND_OUTCOME.tableOf("shop"));
         assertEquals(CanonicalMessagingTables.outboxOf("shop"), CanonicalMessagingTables.Kind.OUTBOX.tableOf("shop"));
+    }
+
+    @Test
+    void theCommandKeyGetsItsFingerprintInItsSecondMigration() throws IOException {
+        assertTrue(migrations(CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY).contains(
+            "ALTER TABLE {{storageId}}_command_idempotency ADD COLUMN request_fingerprint VARCHAR(64);"));
+        assertEquals(2, CanonicalMessagingTables.VERSION);
+    }
+
+    /** Every migration of a table, in version order. */
+    private String migrations(CanonicalMessagingTables.Kind kind) throws IOException {
+        java.net.URL directory = getClass().getClassLoader().getResource(kind.migrations());
+        assertTrue(directory != null, kind.migrations());
+        StringBuilder all = new StringBuilder();
+        try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(
+                java.nio.file.Path.of(java.net.URI.create(directory.toString())))) {
+            List<java.nio.file.Path> ordered = files
+                .filter(path -> path.getFileName().toString().matches("V\\d+__.*\\.sql"))
+                .sorted(java.util.Comparator.comparingInt(CanonicalMessagingTablesTest::version))
+                .toList();
+            for (java.nio.file.Path file : ordered) {
+                all.append(java.nio.file.Files.readString(file)).append('\n');
+            }
+        }
+        return all.toString();
+    }
+
+    private static int version(java.nio.file.Path migration) {
+        String name = migration.getFileName().toString();
+        return Integer.parseInt(name.substring(1, name.indexOf("__")));
     }
 
     private String migration(CanonicalMessagingTables.Kind kind) throws IOException {

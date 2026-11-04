@@ -383,7 +383,7 @@ act on. A command has exactly one provider, its owner. It travels the same outbo
 event, and the owner applies it once:
 - the owner's inbox drops a redelivered command id;
 - the owner's idempotency table drops a second command with the same business key from the same sender in the same
-  tenant, and records it as a duplicate of the first.
+  tenant. With the same content it is a duplicate of the first; with other content it is a conflict. Neither runs.
 
 The sender [reads each command's status](#reading-a-commands-status) by its id.
 
@@ -429,7 +429,8 @@ The request schema goes under `META-INF/brix/schemas/<plugin>/<name>/<version>.j
 The generator that writes query types writes command types too, and the same `ContractSourcesTest` keeps them in
 step (see [Queries](./queries.md#1-write-the-contract)). For this contract it writes the record `CancelOrder` with
 its enum `Reason`, and `SampleOrdersCommands.CANCEL_ORDER`, a `CommandType<CancelOrder>`. The schema subset and the
-rules for a new version are the same as for queries.
+rules for a new version are the same as for queries. The sample has since published 1.1.0, which adds `DAMAGED` at
+the end of `reason`'s enum; the 1.0.0 files stay, and the types follow the newest minor version.
 
 **2. Declare it**, with one policy of each kind (see [Command policies](#command-policies)) and the inbox commands
 arrive through:
@@ -439,7 +440,7 @@ commands:
   provides:
     - commandType: sample-orders.cancel-order
       request:
-        schemaRef: brix://schemas/sample-orders/cancel-order/1.0.0
+        schemaRef: brix://schemas/sample-orders/cancel-order/1.1.0
       handlerId: sample-orders.cancel-order.v1
       scopePolicyRef: command-envelope
       accessPolicyRef: declared-consumers
@@ -526,8 +527,10 @@ String orderId = request.body().orderId();
 if (shipments.find(tenantId, orderId).isEmpty()) {
     throw new SampleShippingException(SampleShippingException.Code.SHIPMENT_NOT_FOUND);
 }
+CancelOrder.Reason reason = "DAMAGED".equals(request.body().reason()) ? CancelOrder.Reason.DAMAGED
+    : CancelOrder.Reason.SHIPPING_REFUSED;
 CommandSubmission cancellation = cancellations.submit(
-    CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
+    CancelOrder.builder().orderId(orderId).reason(reason).build(), orderId);
 // The manifest declares response.status 202: the cancellation is queued, not done.
 return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellation.commandId()));
 ```
@@ -540,6 +543,10 @@ return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellati
 - The second argument is the business key, here the order id. The owner applies one command per key from your plugin
   in a tenant, so use the id of what the command is about. A third argument sets a partition key when the order of
   commands should follow something else; by default it is the business key.
+- Sending the key again with the same content is a harmless duplicate. Sending it with other content is a conflict:
+  the owner does not run it, and you read `CONFLICT`. In the sample, refusing an order a second time with the other
+  reason does that. Send new content with a key of its own.
+- Do not put personal data or secrets in a key: the owner keeps it as it is.
 - The runtime fills in the rest: the tenant of the current call (outside any call, the command is a platform
   command), your plugin as the sender, and the version of the generated type. You cannot name another tenant or
   sender.
@@ -572,12 +579,18 @@ return CompletableFuture.completedFuture(new Cancellation(status.commandId(), st
 | `QUEUED` | The command is durable and waits for the owner, or is on its way to it |
 | `SUCCEEDED` | The owner's handler finished and its transaction committed. The command holds its business key |
 | `DUPLICATE` | An earlier command with the same business key took effect, so this one did not run. `originalCommandId()` names the earlier one |
+| `CONFLICT` | An earlier command holds the business key with other content, so this one did not run. `errorCode()` is `command.idempotency_conflict` (`CommandStatus.IDEMPOTENCY_CONFLICT`) and `originalCommandId()` names the earlier one |
 | `PARKED` | The command could not be delivered or handled and waits for an operator. `errorCode()` says why |
 | `DISCARDED` | An operator discarded the parked command. It never runs |
 | `UNKNOWN` | Nothing is known to you: another plugin's command, another tenant's, one past retention, or none at all |
 
-`REJECTED` (the owner turned the command down) and `CONFLICT` (an earlier command holds the key with other content)
-are part of the type, but this release does not produce them yet.
+`REJECTED` (the owner turned the command down) is part of the type, but this release does not produce it yet.
+
+The owner tells content apart by a fingerprint of the payload: the SHA-256 of its canonical JSON, with members sorted,
+null members left out and numbers written exactly. The same content written another way, such as members in another
+order, `1.0` for `1`, or a field left out instead of sent as null, is the same content. The version and the user the
+command was sent for do not count. A key taken before fingerprints were kept reads every later command as a
+duplicate.
 
 - Only the plugin that sent a command reads its status, and only in the tenant of the call it was sent in. Anything
   else reads as `UNKNOWN`, so a plugin learns nothing about other plugins' commands.
@@ -596,7 +609,7 @@ are part of the type, but this release does not produce them yet.
 | | `on-behalf-of:<permission>` | A plugin may send it only while acting for a user who holds the permission. The sender's runtime checks the user at submission and the command records the user; the owner parks a command that names none |
 | `timeoutPolicyRef`, `retryPolicyRef` | `event-standard` | The host's delivery deadline, attempts and backoff, as for events |
 | `concurrencyPolicyRef` | `partition-serial` | One command at a time per partition key, in order. A parked command holds nothing back, as for events |
-| `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant |
+| `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant: a duplicate with the same content, a conflict with other content |
 
 A provider names all six; a sender names `required`, `versionRange`, the timeout, the retry and the idempotency
 policy. A name the runtime does not know stops the plugin at startup. Commands share the timeout, retry and
@@ -678,6 +691,7 @@ Choose them once. The samples show each one:
 |---|---|
 | Outbox | `brix_outbox_messages{outbox,status}`, `brix_outbox_oldest_pending_age_seconds`, `brix_outbox_relay_waiting` |
 | Subscriptions | `brix_event_subscription_parked`, `_lag`, `_stalled_age_seconds`, `_handling_age_seconds`, `_consumer_running` |
+| Commands | `brix_command_idempotency_conflicts_total{owner,handler}`: commands that reused a key with other content, a mistake of their sender |
 | Cleaning | `brix_messaging_retention_deleted_total`, `_failures_total`, `_last_pass_seconds` |
 
 Subscription readiness is part of the host's health.

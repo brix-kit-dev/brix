@@ -12,10 +12,12 @@ import java.util.Objects;
 import java.util.Optional;
 
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.event.MessagePayloads;
+import io.runtime.orchestrator.idempotency.RequestFingerprint;
 import io.runtime.sdk.plugin.IdempotencyContext;
 
 /**
@@ -76,7 +78,7 @@ public final class CommandMessages {
      * @param json the mapper
      * @param column the JSON
      * @param payloadType the type the handler declares
-     * @return the payload and its idempotency scope and key
+     * @return the payload, its idempotency scope and key, and its fingerprint
      * @throws IllegalArgumentException when the column is not a command of that type
      */
     public static Decoded decode(ObjectMapper json, String column, Class<?> payloadType) {
@@ -89,8 +91,10 @@ public final class CommandMessages {
             }
             JsonNode actor = body.get("actorId");
             String actorId = actor == null || actor.isNull() ? null : actor.asString();
+            // The fingerprint reads decimals with every digit (standard-link plan point 8).
+            JsonNode exact = json.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).readTree(column);
             return new Decoded(MessagePayloads.read(json, body.get("payload"), payloadType), scope, key,
-                actorId == null || actorId.isBlank() ? null : actorId);
+                actorId == null || actorId.isBlank() ? null : actorId, RequestFingerprint.of(exact.get("payload")));
         } catch (JacksonException invalid) {
             throw new IllegalArgumentException("the command payload does not decode to " + payloadType.getSimpleName(),
                 invalid);
@@ -124,7 +128,10 @@ public final class CommandMessages {
      * @param idempotencyScope what the key is unique within
      * @param idempotencyKey the business key
      * @param actorId the user the sender acted for, or {@code null}
+     * @param fingerprint the fingerprint of the payload alone: not of the key, the user or the envelope
+     *     (standard-link plan point 8)
      */
-    public record Decoded(Object payload, String idempotencyScope, String idempotencyKey, String actorId) {
+    public record Decoded(Object payload, String idempotencyScope, String idempotencyKey, String actorId,
+            String fingerprint) {
     }
 }

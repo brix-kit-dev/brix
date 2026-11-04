@@ -58,10 +58,10 @@ import io.runtime.sdk.plugin.TraceContext;
  * runtime writes the provider's inbox record {@code (handlerId, commandId)} and its business idempotency record
  * {@code (handlerId, idempotencyScope, idempotencyKey)} before the handler runs: a redelivered command, or a second
  * command with a key already taken, commits without running the handler again (MESSAGE-014). The second is recorded
- * as a duplicate of the command holding the key, which its sender reads (standard-link plan point 7). The unit of
- * work lasts no longer than the time left before the delivery's deadline, and a handler that finishes after the
- * deadline rolls it back ({@link DeliveryDeadline}). Failures carry the stable codes below, permanent ones parked at
- * once.</p>
+ * for its sender (standard-link plan points 7, 8): as a duplicate of the command holding the key when its payload has
+ * the holder's fingerprint, otherwise as a conflict, which is neither retried nor parked. The unit of work lasts no
+ * longer than the time left before the delivery's deadline, and a handler that finishes after the deadline rolls it
+ * back ({@link DeliveryDeadline}). Failures carry the stable codes below, permanent ones parked at once.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -92,6 +92,9 @@ public final class CommandDelivery {
 
     private static final Logger log = LoggerFactory.getLogger(CommandDelivery.class);
 
+    /** The outcome of a command that reused a key with other content (standard-link plan point 8). */
+    private static final String IDEMPOTENCY_CONFLICT = "idempotency_conflict";
+
     private final CommandProviders providers;
     private final OwnerPersistenceProvider owners;
     private final EventInboxStore inbox;
@@ -100,6 +103,7 @@ public final class CommandDelivery {
     private final Clock clock;
     private final Duration deadline;
     private final MessageTracing tracing;
+    private final CommandMetrics metrics;
     private volatile boolean stopped;
 
     /**
@@ -123,6 +127,32 @@ public final class CommandDelivery {
             Clock clock,
             Duration deadline,
             MessageTracing tracing) {
+        this(providers, owners, inbox, idempotency, json, clock, deadline, tracing, CommandMetrics.NOOP);
+    }
+
+    /**
+     * Creates the command delivery core with its meters (standard-link plan point 8).
+     *
+     * @param providers who provides and who submits each command type
+     * @param owners each provider's owner persistence
+     * @param inbox the owners' persistent inboxes
+     * @param idempotency the owners' business idempotency records
+     * @param json decodes payloads
+     * @param clock delivery clock
+     * @param deadline how long a handler may take
+     * @param tracing the spans of the deliveries
+     * @param metrics counts the conflicts of reused keys
+     */
+    public CommandDelivery(
+            CommandProviders providers,
+            OwnerPersistenceProvider owners,
+            EventInboxStore inbox,
+            OwnerCommandIdempotency idempotency,
+            ObjectMapper json,
+            Clock clock,
+            Duration deadline,
+            MessageTracing tracing,
+            CommandMetrics metrics) {
         this.providers = Objects.requireNonNull(providers, "providers must not be null");
         this.owners = Objects.requireNonNull(owners, "owners must not be null");
         this.inbox = Objects.requireNonNull(inbox, "inbox must not be null");
@@ -131,6 +161,7 @@ public final class CommandDelivery {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.deadline = Objects.requireNonNull(deadline, "deadline must not be null");
         this.tracing = Objects.requireNonNull(tracing, "tracing must not be null");
+        this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
     /** Tells handlers still running, through their cancellation signal, that the runtime no longer waits for them. */
@@ -259,13 +290,9 @@ public final class CommandDelivery {
                 // A key is unique for its sender and tenant: other senders or tenants never take it (plan D54).
                 String ownerScope = CommandPolicies.ownerScope(message.producerPluginId(), message.tenantId(),
                     decoded.idempotencyScope());
-                if (!idempotency.reserve(ownerId, handlerId, message, ownerScope, decoded.idempotencyKey())) {
-                    // Standard-link plan point 7: the sender reads it as a duplicate of the command holding the key.
-                    idempotency.recordOutcome(ownerId, handlerId, new CommandRecord(message.messageId(),
-                        CommandStatus.State.DUPLICATE, ownerScope, decoded.idempotencyKey(), message.tenantId(), null,
-                        idempotency.holder(ownerId, handlerId, ownerScope, decoded.idempotencyKey()).orElse(null),
-                        OffsetDateTime.now(clock)));
-                    return "duplicate_key";
+                if (!idempotency.reserve(ownerId, handlerId, message, ownerScope, decoded.idempotencyKey(),
+                        decoded.fingerprint())) {
+                    return taken(ownerId, handlerId, message, ownerScope, decoded);
                 }
                 // Typed queries the handler makes run as this provider, in the command's tenant (root
                 // BRX-RS-MANIFEST-028).
@@ -279,12 +306,36 @@ public final class CommandDelivery {
                 () -> DeliveryDeadline.inUnitOfWork(owners, ownerId, clock, invocation.deadline(), work));
             log.info("event=command.delivered type={} command_id={} handler={} owner={} outcome={} attempt={}",
                 message.messageType(), message.messageId(), handlerId, ownerId, outcome, invocation.deliveryAttempt());
+            if (IDEMPOTENCY_CONFLICT.equals(outcome)) {
+                // A sender's mistake, recorded for it to read: not retried, not parked (standard-link plan point 8).
+                metrics.conflict(ownerId, handlerId);
+                log.warn("event=command.idempotency_conflict type={} command_id={} handler={} owner={}",
+                    message.messageType(), message.messageId(), handlerId, ownerId);
+            }
         } catch (RuntimeException failure) {
             log.warn("event=command.delivery_failed type={} command_id={} handler={} owner={} attempt={}",
                 message.messageType(), message.messageId(), handlerId, ownerId, invocation.deliveryAttempt(), failure);
             throw new EventDeliveryException(HANDLER_FAILED, handlerId + " failed to handle " + message.messageId(),
                 failure, false);
         }
+    }
+
+    /**
+     * Records a command whose key an earlier command holds, in the provider's unit of work (standard-link plan points
+     * 7, 8): a duplicate when its payload has the holder's fingerprint, or the holder's is not known; otherwise a
+     * conflict.
+     */
+    private String taken(String ownerId, String handlerId, CanonicalOutboxMessage message, String ownerScope,
+            CommandMessages.Decoded decoded) {
+        Optional<OwnerCommandIdempotency.Holder> holder = idempotency.holder(ownerId, handlerId, ownerScope,
+            decoded.idempotencyKey());
+        String held = holder.map(OwnerCommandIdempotency.Holder::fingerprint).orElse(null);
+        boolean conflict = held != null && !held.equals(decoded.fingerprint());
+        idempotency.recordOutcome(ownerId, handlerId, new CommandRecord(message.messageId(),
+            conflict ? CommandStatus.State.CONFLICT : CommandStatus.State.DUPLICATE, ownerScope,
+            decoded.idempotencyKey(), message.tenantId(), conflict ? CommandStatus.IDEMPOTENCY_CONFLICT : null,
+            holder.map(OwnerCommandIdempotency.Holder::commandId).orElse(null), OffsetDateTime.now(clock)));
+        return conflict ? IDEMPOTENCY_CONFLICT : "duplicate_key";
     }
 
     /**

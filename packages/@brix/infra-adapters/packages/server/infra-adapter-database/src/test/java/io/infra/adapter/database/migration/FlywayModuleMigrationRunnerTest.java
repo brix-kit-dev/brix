@@ -95,7 +95,8 @@ class FlywayModuleMigrationRunnerTest {
             List<FlywayModuleMigrationRunner.ModuleMigrationResult> second =
                 new FlywayModuleMigrationRunner(dataSource, properties).getResults();
 
-            assertEquals(List.of("fresh-owner:outbox 1", "fresh-owner:inbox 1", "fresh-owner:command-idempotency 1",
+            // The command key table has two migrations: V2 adds the request fingerprint (standard-link plan point 8).
+            assertEquals(List.of("fresh-owner:outbox 1", "fresh-owner:inbox 1", "fresh-owner:command-idempotency 2",
                     "fresh-owner:command-outcome 1", "owned-owner:outbox 0", "owned-owner:inbox 1"),
                 first.stream()
                     .filter(result -> result.getModule().contains("-owner:"))
@@ -107,6 +108,9 @@ class FlywayModuleMigrationRunnerTest {
                 + " ORDER BY column_name", String.class, fresh + "_outbox"));
             assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM " + fresh + "_command_idempotency",
                 Integer.class));
+            assertEquals(List.of("request_fingerprint"), jdbc.queryForList("SELECT column_name FROM"
+                + " information_schema.columns WHERE table_name = ? AND column_name = 'request_fingerprint'",
+                String.class, fresh + "_command_idempotency"));
             assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM " + fresh + "_command_outcome",
                 Integer.class), "standard-link plan point 7: a provider of commands gets its outcome table");
             assertEquals("owner row", jdbc.queryForObject("SELECT note FROM " + owned + "_outbox", String.class),

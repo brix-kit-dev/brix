@@ -81,8 +81,9 @@ class CommandDeliveryTest {
     private final ReserveHandler handler = new ReserveHandler();
     private final Set<String> inbox = new HashSet<>();
     private final Set<String> keys = new HashSet<>();
-    private final Map<String, String> holders = new HashMap<>();
+    private final Map<String, OwnerCommandIdempotency.Holder> holders = new HashMap<>();
     private final List<CommandRecord> outcomes = new ArrayList<>();
+    private final List<String> conflicts = new ArrayList<>();
     private final MutableClock clock = new MutableClock(NOW);
     private final List<Duration> timeouts = new ArrayList<>();
     private final List<String> unitsOfWork = new ArrayList<>();
@@ -143,13 +144,15 @@ class CommandDeliveryTest {
             new OwnerCommandIdempotency() {
                 @Override
                 public boolean reserve(String owner, String handlerId, CanonicalOutboxMessage message, String scope,
-                        String key) {
-                    holders.putIfAbsent(owner + "/" + handlerId + "/" + scope + "/" + key, message.messageId());
+                        String key, String fingerprint) {
+                    holders.putIfAbsent(owner + "/" + handlerId + "/" + scope + "/" + key,
+                        new OwnerCommandIdempotency.Holder(message.messageId(), fingerprint));
                     return keys.add(owner + "/" + handlerId + "/" + scope + "/" + key);
                 }
 
                 @Override
-                public Optional<String> holder(String owner, String handlerId, String scope, String key) {
+                public Optional<OwnerCommandIdempotency.Holder> holder(String owner, String handlerId, String scope,
+                        String key) {
                     return Optional.ofNullable(holders.get(owner + "/" + handlerId + "/" + scope + "/" + key));
                 }
 
@@ -160,7 +163,8 @@ class CommandDeliveryTest {
                     outcomes.add(outcome);
                 }
             },
-            JSON, clock, Duration.ofSeconds(15), MessageTracing.NOOP);
+            JSON, clock, Duration.ofSeconds(15), MessageTracing.NOOP,
+            (owner, handlerId) -> conflicts.add(owner + "/" + handlerId));
     }
 
     private PluginRuntimeManager.CommandProvider provider() {
@@ -194,6 +198,50 @@ class CommandDeliveryTest {
         // Standard-link plan point 7: its sender reads it as a duplicate of the command holding the key.
         assertEquals(List.of(new CommandRecord("c-2", CommandStatus.State.DUPLICATE, "app-orders|platform|order",
             "order-7", null, null, "c-1", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))), outcomes);
+    }
+
+    @Test
+    void aSecondCommandWithTheKeyAndOtherContentIsAConflictItsHandlerNeverSees() {
+        // Standard-link plan point 8: the same key with another payload is not a duplicate. It is recorded for its
+        // sender, counted, and acknowledged, so it is neither retried nor parked.
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+        delivery.deliver(command("c-2", "order-7", "app-orders", "1.0.0", null, null, new Reserve("sku-1", 3)));
+
+        assertEquals(1, handler.handled.size());
+        assertEquals(List.of(new CommandRecord("c-2", CommandStatus.State.CONFLICT, "app-orders|platform|order",
+            "order-7", null, CommandStatus.IDEMPOTENCY_CONFLICT, "c-1", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))),
+            outcomes);
+        assertEquals(List.of("app-stock/reserve-stock.v1"), conflicts);
+        assertTrue(inbox.contains("app-stock/reserve-stock.v1/c-2"), "acknowledged: never delivered again");
+    }
+
+    @Test
+    void theSameContentWrittenAnotherWayIsADuplicate() {
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+        String reordered = "{\"idempotencyKey\": \"order-7\", \"payload\": {\"quantity\": 2, \"sku\": \"sku-1\"},"
+            + " \"idempotencyScope\": \"order\"}";
+        CanonicalOutboxMessage first = command("c-2", "order-7", "app-orders", "1.0.0");
+        delivery.deliver(new CanonicalOutboxMessage(first.messageId(), first.eventId(), first.messageKind(),
+            first.messageType(), first.schemaVersion(), first.reliability(), first.producerPluginId(), first.scope(),
+            first.tenantId(), first.partitionKey(), first.occurredAt(), first.correlationId(), first.causationId(),
+            first.traceparent(), first.tracestate(), reordered, first.attemptCount()));
+
+        assertEquals(CommandStatus.State.DUPLICATE, outcomes.get(0).state());
+        assertTrue(conflicts.isEmpty());
+    }
+
+    @Test
+    void aKeyTakenBeforeFingerprintsWereKeptMakesEveryLaterCommandADuplicate() {
+        String taken = "app-stock/reserve-stock.v1/app-orders|platform|order/order-7";
+        keys.add(taken);
+        holders.put(taken, new OwnerCommandIdempotency.Holder("c-0", null));
+
+        delivery.deliver(command("c-2", "order-7", "app-orders", "1.0.0", null, null, new Reserve("sku-9", 9)));
+
+        assertEquals(CommandStatus.State.DUPLICATE, outcomes.get(0).state());
+        assertEquals("c-0", outcomes.get(0).holderCommandId());
+        assertTrue(conflicts.isEmpty());
+        assertTrue(handler.handled.isEmpty());
     }
 
     @Test
@@ -357,9 +405,14 @@ class CommandDeliveryTest {
 
     private static CanonicalOutboxMessage command(String commandId, String key, String producer, String version,
             Long tenantId, String actorId) {
+        return command(commandId, key, producer, version, tenantId, actorId, new Reserve("sku-1", 2));
+    }
+
+    private static CanonicalOutboxMessage command(String commandId, String key, String producer, String version,
+            Long tenantId, String actorId, Reserve payload) {
         return new CanonicalOutboxMessage(commandId, commandId, "COMMAND", "ReserveStock", version, "STANDARD", producer,
             tenantId == null ? "PLATFORM" : "TENANT", tenantId, key, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
-            commandId, null, null, null, CommandMessages.encode(JSON, new Reserve("sku-1", 2), "order", key, actorId), 1);
+            commandId, null, null, null, CommandMessages.encode(JSON, payload, "order", key, actorId), 1);
     }
 
     /** A clock the test moves forward, as time passes while a synchronous handler runs. */

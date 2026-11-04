@@ -52,7 +52,8 @@ duplicate finds the receipt and is skipped, so each handler applies each event o
 A command is deduplicated twice:
 - by its command id, in the provider's inbox;
 - by the sender's business idempotency key, in the provider's idempotency table. A second command with a key already
-  taken is recorded as a duplicate of the first, and its sender reads it so
+  taken is recorded as a duplicate of the first when its content is the same, and as a conflict when it is not; it
+  does not run either way, and its sender reads which
   ([Reading a command's status](../guides/events-and-commands.md#reading-a-commands-status)).
 
 ## Ordering

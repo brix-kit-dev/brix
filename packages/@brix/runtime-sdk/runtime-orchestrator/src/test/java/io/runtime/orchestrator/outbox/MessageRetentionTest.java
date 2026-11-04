@@ -156,7 +156,7 @@ class MessageRetentionTest {
         OwnerCommandIdempotency commands = new OwnerCommandIdempotency() {
             @Override
             public boolean reserve(String ownerId, String handlerId, CanonicalOutboxMessage message, String scope,
-                    String key) {
+                    String key, String fingerprint) {
                 throw new UnsupportedOperationException();
             }
 

@@ -28,6 +28,10 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  * BRX-RS-DATA-028). The command is written to sample-shipping's outbox in that unit of work and reaches sample-orders
  * after the commit. Its business key is the order id, so refusing the same order again cancels it once. The handler
  * names neither the tenant nor the sender.</p>
+ *
+ * <p>The refusal may say why: {@code REFUSED} (the default) or {@code DAMAGED}. Refusing an order again with the
+ * other reason reuses the key with other content, and sample-orders takes that command as a conflict, which the
+ * cancellation's status shows (standard-link plan point 8).</p>
  */
 final class RefuseShipment implements TypedEndpointHandler<RefuseShipmentRequest, RefusedShipment> {
 
@@ -46,8 +50,10 @@ final class RefuseShipment implements TypedEndpointHandler<RefuseShipmentRequest
         if (shipments.find(tenantId, orderId).isEmpty()) {
             throw new SampleShippingException(SampleShippingException.Code.SHIPMENT_NOT_FOUND);
         }
+        CancelOrder.Reason reason = "DAMAGED".equals(request.body().reason()) ? CancelOrder.Reason.DAMAGED
+            : CancelOrder.Reason.SHIPPING_REFUSED;
         CommandSubmission cancellation = cancellations.submit(
-            CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
+            CancelOrder.builder().orderId(orderId).reason(reason).build(), orderId);
         return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellation.commandId()));
     }
 }
