@@ -10,10 +10,14 @@ import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
@@ -32,6 +36,8 @@ import tools.jackson.databind.ObjectMapper;
 import io.runtime.manifest.model.PluginManifest;
 import io.runtime.orchestrator.command.CommandMessages;
 import io.runtime.orchestrator.command.CommandSender;
+import io.runtime.orchestrator.command.SentCommand;
+import io.runtime.orchestrator.command.SentCommands;
 import io.runtime.sdk.capability.CommandCapability;
 import io.runtime.sdk.capability.CommandReceipt;
 import io.runtime.sdk.capability.CommandSubmission;
@@ -50,10 +56,13 @@ import io.runtime.sdk.command.CommandRequest;
  * envelope: a new command id, this Owner as the producer, the tenant only when the unit of work reaches it, and the
  * schema version the Owner's manifest sends (the lower bound of its {@code versionRange}).</p>
  *
+ * <p>The Owner's typed clients read their commands' status from here too, until the provider has a record of them
+ * (standard-link plan point 7).</p>
+ *
  * @author Brix Platform Authors
  * @since 3.3.0
  */
-final class OwnerCommandBus implements CommandCapability, CommandSender {
+final class OwnerCommandBus implements CommandCapability, CommandSender, SentCommands {
 
     private static final Pattern LOWER_BOUND = Pattern.compile(">=\\s*(\\d+\\.\\d+\\.\\d+)");
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -104,6 +113,33 @@ final class OwnerCommandBus implements CommandCapability, CommandSender {
             throw refused(CommandSubmitException.Code.UNDECLARED_COMMAND, request);
         }
         return write(request, Objects.requireNonNull(schemaVersion, "schemaVersion must not be null"), actorId);
+    }
+
+    /**
+     * Finds a command in this Owner's outbox (standard-link plan point 7). Its time is when it was queued, published,
+     * or parked or discarded, by its status.
+     */
+    @Override
+    public Optional<SentCommand> sent(String commandId) {
+        if (outbox == null || commandId == null || commandId.isBlank()) {
+            return Optional.empty();
+        }
+        List<SentCommand> rows = jdbc.query("SELECT message_type, status, tenant_id, last_error_code, created_at,"
+                + " available_at, published_at FROM " + outbox + " WHERE message_id = ? AND message_kind = 'COMMAND'",
+            (row, number) -> {
+                String status = row.getString(2);
+                long tenantId = row.getLong(3);
+                Long tenant = row.wasNull() ? null : tenantId;
+                Timestamp at = switch (status) {
+                    case "PUBLISHED" -> row.getTimestamp(7);
+                    case "PARKED", "DISCARDED" -> row.getTimestamp(6);
+                    default -> row.getTimestamp(5);
+                };
+                return new SentCommand(commandId, row.getString(1), status, tenant, row.getString(4),
+                    at == null ? null : OffsetDateTime.ofInstant(at.toInstant(), ZoneOffset.UTC));
+            },
+            commandId);
+        return rows.stream().findFirst();
     }
 
     private CommandSubmission write(CommandRequest<?> request, String schemaVersion, String actorId) {

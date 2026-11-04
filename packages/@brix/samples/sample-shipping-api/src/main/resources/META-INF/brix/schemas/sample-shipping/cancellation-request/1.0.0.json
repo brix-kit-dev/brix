@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-shipping/cancellation-request/1.0.0",
+  "title": "Read a cancellation: the path variables of GET /api/sample-shipping/cancellations/{commandId}",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["commandId"],
+  "properties": {
+    "commandId": { "type": "string", "minLength": 1, "maxLength": 64 }
+  }
+}

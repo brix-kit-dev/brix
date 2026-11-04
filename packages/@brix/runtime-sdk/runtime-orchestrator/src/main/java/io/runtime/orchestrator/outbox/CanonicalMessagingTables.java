@@ -63,6 +63,10 @@ public final class CanonicalMessagingTables {
         "handler_id", "idempotency_scope", "idempotency_key", "command_id", "command_type", "schema_version",
         "tenant_id", "status", "created_at");
 
+    private static final List<String> OUTCOME_COLUMNS = List.of(
+        "handler_id", "command_id", "idempotency_scope", "idempotency_key", "outcome", "error_code",
+        "holder_command_id", "tenant_id", "created_at");
+
     private static final List<String> TASK_RUN_COLUMNS = List.of(
         "task_id", "trigger_id", "scheduled_at", "claimed_by", "claimed_at", "status", "attempts", "error_code",
         "finished_at");
@@ -79,6 +83,12 @@ public final class CanonicalMessagingTables {
         COMMAND_IDEMPOTENCY("command-idempotency", IDEMPOTENCY_COLUMNS,
             List.of("handler_id", "idempotency_scope", "idempotency_key"),
             List.of(List.of("handler_id", "command_id"), List.of("created_at"))),
+        /**
+         * {@code {storageId}_command_outcome}: what became of the Owner's commands that did not take their key
+         * (standard-link plan point 7).
+         */
+        COMMAND_OUTCOME("command-outcome", OUTCOME_COLUMNS, List.of("handler_id", "command_id"),
+            List.of(List.of("created_at"))),
         /** {@code {storageId}_task_run}: the claimed runs of the Owner's tasks (standard-link plan L6.4). */
         TASK_RUN("task-run", TASK_RUN_COLUMNS, List.of("task_id", "trigger_id"), List.of(List.of("finished_at")));
 
@@ -97,7 +107,8 @@ public final class CanonicalMessagingTables {
         /**
          * Returns the name of this table's migrations, as their directory and history tables use it.
          *
-         * @return {@code outbox}, {@code inbox}, {@code command-idempotency} or {@code task-run}
+         * @return {@code outbox}, {@code inbox}, {@code command-idempotency}, {@code command-outcome} or
+         *     {@code task-run}
          */
         public String part() {
             return part;
@@ -214,6 +225,16 @@ public final class CanonicalMessagingTables {
      */
     public static String commandIdempotencyOf(String storageId) {
         return requireStorageId(storageId) + "_command_idempotency";
+    }
+
+    /**
+     * Returns the canonical command outcome table of a storage id (standard-link plan point 7).
+     *
+     * @param storageId the manifest's {@code data.storageId}
+     * @return {@code {storageId}_command_outcome}
+     */
+    public static String commandOutcomeOf(String storageId) {
+        return requireStorageId(storageId) + "_command_outcome";
     }
 
     /**

@@ -405,8 +405,12 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
         owners.inboxOf(ownerModuleId)
             .ifPresent(inbox -> requireCanonical(ownerModuleId, CanonicalMessagingTables.Kind.INBOX, inbox));
         if (owners.providesCommands(ownerModuleId)) {
-            owners.storageIdOf(ownerModuleId).ifPresent(storageId -> requireCanonical(ownerModuleId,
-                CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY, CanonicalMessagingTables.commandIdempotencyOf(storageId)));
+            owners.storageIdOf(ownerModuleId).ifPresent(storageId -> {
+                requireCanonical(ownerModuleId, CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY,
+                    CanonicalMessagingTables.commandIdempotencyOf(storageId));
+                requireCanonical(ownerModuleId, CanonicalMessagingTables.Kind.COMMAND_OUTCOME,
+                    CanonicalMessagingTables.commandOutcomeOf(storageId));
+            });
         }
         if (owners.providesTasks(ownerModuleId)) {
             owners.storageIdOf(ownerModuleId).ifPresent(storageId -> requireCanonical(ownerModuleId,

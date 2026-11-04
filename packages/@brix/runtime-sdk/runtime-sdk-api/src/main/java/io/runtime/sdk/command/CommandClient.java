@@ -46,4 +46,22 @@ public interface CommandClient<C> {
      * @throws io.runtime.sdk.capability.CommandSubmitException when the command cannot be queued
      */
     CommandSubmission submit(C command, String idempotencyKey, String partitionKey);
+
+    /**
+     * Reads where a command this plugin submitted stands (root BRX-RS-MESSAGE-013; standard-link plan point 7): still
+     * queued, done, a duplicate of an earlier command with the same key, parked, and so on.
+     *
+     * <p>Only the sender reads the status, and only in the tenant it submitted the command in: another plugin's
+     * command, another tenant's, and one whose records are past their retention all read as
+     * {@link CommandStatus.State#UNKNOWN}. Reading it has no side effects, so a query handler may read it too.</p>
+     *
+     * @param commandId the id the submission returned
+     * @return the status
+     * @throws UnsupportedOperationException when the client is not the Runtime's
+     * @since 3.3.0
+     */
+    default CommandStatus status(String commandId) {
+        throw new UnsupportedOperationException(
+            getClass().getName() + " cannot read command status; the Runtime's command clients can");
+    }
 }

@@ -31,6 +31,7 @@ import io.runtime.sdk.capability.CommandReceipt;
 import io.runtime.sdk.capability.CommandSubmission;
 import io.runtime.sdk.capability.CommandSubmitException;
 import io.runtime.sdk.command.CommandRequest;
+import io.runtime.sdk.command.CommandStatus;
 import io.runtime.sdk.command.CommandType;
 import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.CallerIdentity;
@@ -51,6 +52,11 @@ class PluginCommandCapabilityTest {
     private final RecordingBus bus = new RecordingBus();
     private String accessPolicy = "declared-consumers";
     private boolean providerPresent = true;
+    private final List<List<Object>> statusReads = new ArrayList<>();
+    private final CommandStatuses statuses = (senderId, commandType, tenantId, commandId, sent) -> {
+        statusReads.add(java.util.Arrays.asList(senderId, commandType, tenantId, commandId, sent));
+        return new CommandStatus(commandId, CommandStatus.State.SUCCEEDED, null, null, Instant.EPOCH);
+    };
 
     private final CommandProviders providers = new CommandProviders() {
         @Override
@@ -78,6 +84,11 @@ class PluginCommandCapabilityTest {
         public Optional<PluginRuntimeDescriptor.ConsumedCommand> consumed(String pluginId, String commandType) {
             return Optional.empty();
         }
+
+        @Override
+        public CommandStatuses statuses() {
+            return statuses;
+        }
     };
 
     @Test
@@ -100,6 +111,39 @@ class PluginCommandCapabilityTest {
         capability(providers).client(CANCEL).submit(new Cancel("o-7"), "o-7");
 
         assertNull(bus.sent.get(0).request().tenantId());
+    }
+
+    @Test
+    void aClientReadsTheStatusAsThisPluginInTheCallersTenantWithItsOwnOutbox() {
+        // Standard-link plan point 7: the sender, its tenant and its outbox are the runtime's, never the plugin's.
+        CommandStatus status = RuntimeInvocations.within(call(InvocationScope.tenant("42"), null, Set.of()),
+            () -> capability(providers).client(CANCEL).status("c-9"));
+
+        assertEquals(CommandStatus.State.SUCCEEDED, status.state());
+        assertEquals(List.of(java.util.Arrays.asList("sample-shipping", "sample-orders.cancel-order", 42L, "c-9", bus)),
+            statusReads);
+    }
+
+    @Test
+    void outsideAnyCallTheStatusIsReadOutsideATenant() {
+        capability(providers).client(CANCEL).status("c-9");
+
+        assertNull(statusReads.get(0).get(2));
+    }
+
+    @Test
+    void aCallerInATenantThatIsNoNumberReadsEveryCommandAsUnknown() {
+        CommandStatus status = RuntimeInvocations.within(call(InvocationScope.tenant("acme"), null, Set.of()),
+            () -> capability(providers).client(CANCEL).status("c-9"));
+
+        assertEquals(CommandStatus.unknown("c-9"), status);
+        assertTrue(statusReads.isEmpty());
+    }
+
+    @Test
+    void withoutTheHostsProvidersEveryCommandIsUnknown() {
+        assertEquals(CommandStatus.unknown("c-9"), capability(null).client(CANCEL).status("c-9"));
+        assertThrows(IllegalArgumentException.class, () -> capability(providers).client(CANCEL).status(" "));
     }
 
     @Test
@@ -221,7 +265,7 @@ class PluginCommandCapabilityTest {
     }
 
     /** An outbox bus that records what it is given. */
-    private static final class RecordingBus implements CommandCapability, CommandSender {
+    private static final class RecordingBus implements CommandCapability, CommandSender, SentCommands {
 
         final List<Sent> sent = new ArrayList<>();
         final List<CommandRequest<?>> submitted = new ArrayList<>();
@@ -237,6 +281,11 @@ class PluginCommandCapabilityTest {
         public CommandSubmission send(CommandRequest<?> request, String schemaVersion, String actorId) {
             sent.add(new Sent(request, schemaVersion, actorId));
             return submission();
+        }
+
+        @Override
+        public Optional<SentCommand> sent(String commandId) {
+            return Optional.empty();
         }
 
         private static CommandSubmission submission() {

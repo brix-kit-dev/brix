@@ -73,10 +73,17 @@ All notable changes to Brix Framework are documented here.
   and the version. The owner applies a command once per business key of the sender and tenant. An access policy can
   require a user holding a permission (`on-behalf-of:<permission>`). See
   [Commands](../guides/events-and-commands.md#commands).
+- **Command status.** A sender reads where each command it sent stands with `CommandClient.status(commandId)`:
+  `QUEUED`, `SUCCEEDED`, `DUPLICATE` (an earlier command with the same key took effect; the status names it),
+  `PARKED`, `DISCARDED` or `UNKNOWN`. Only the sender reads it, in the tenant it sent the command in. The provider
+  records each command that took no key in the new `<storageId>_command_outcome` table, and an operator's discard of a
+  command the provider parked on Kafka is recorded there before the command is let go. See
+  [Reading a command's status](../guides/events-and-commands.md#reading-a-commands-status).
 - **BEST_EFFORT from the same bus.** `publishIntegration` sends a BEST_EFFORT event directly after the unit of work
   commits.
-- **Messaging tables from the platform.** The platform creates `<storageId>_outbox`, `<storageId>_inbox` and
-  `<storageId>_command_idempotency` from its own versioned migrations. Plugins write no messaging DDL.
+- **Messaging tables from the platform.** The platform creates `<storageId>_outbox`, `<storageId>_inbox`,
+  `<storageId>_command_idempotency` and `<storageId>_command_outcome` from its own versioned migrations. Plugins
+  write no messaging DDL.
 - **Operations.**
   - Parked messages can be replayed, discarded (also a whole subscription's) or republished within retention. Each
     action is recorded in the platform audit with an operator and a reason.
@@ -174,6 +181,10 @@ All notable changes to Brix Framework are documented here.
 
 ### 🐛 Fixed
 
+- **What `CommandCapability` promises.** Its documentation said a command is delivered exactly once per idempotency
+  key, and that the provider reports the outcome through its own events. Brix promises at-least-once delivery
+  (root BRX-RS-MESSAGE-020); the provider applies a command at most once per key of the sender and tenant, and the
+  sender reads the outcome with `CommandClient.status(commandId)`.
 - **The Architecture Guard checks the plugins and platform modules that exist.** Several rules named package roots
   that no code uses, or only one of the plugin roots, and passed without checking anything:
   - The commons profile looked for `io.brix.commons`; platform-commons is `io.brix.platform`. It now checks that

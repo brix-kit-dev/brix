@@ -8,13 +8,16 @@ package io.runtime.orchestrator.command;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 
 /**
  * The providers' business idempotency records (root BRX-RS-MESSAGE-014): one per
  * {@code (handlerId, idempotencyScope, idempotencyKey)} in the provider's {@code {storageId}_command_idempotency}
- * table, written in the transaction that runs the handler.
+ * table, written in the transaction that runs the handler. A command that takes no key, such as a duplicate, has
+ * its outcome in the provider's {@code {storageId}_command_outcome} table instead (standard-link plan point 7); its
+ * sender reads both by command id.
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -36,9 +39,49 @@ public interface OwnerCommandIdempotency {
             String idempotencyKey);
 
     /**
-     * Returns the idempotency tables the retention cleans (Kafka design D34, §14 K16).
+     * Returns the command that holds a key (standard-link plan point 7).
      *
-     * @return the providers' command idempotency tables
+     * @param ownerId the providing plugin
+     * @param handlerId the handler
+     * @param idempotencyScope what the key is unique within
+     * @param idempotencyKey the business key
+     * @return the holder's command id; empty when no command holds the key, or the store does not tell
+     */
+    default Optional<String> holder(String ownerId, String handlerId, String idempotencyScope,
+            String idempotencyKey) {
+        return Optional.empty();
+    }
+
+    /**
+     * Records, in the provider's current transaction, what became of a command that took no key: a duplicate, a
+     * conflict, a rejection or a discard (standard-link plan point 7). A store that keeps no outcomes records
+     * nothing.
+     *
+     * @param ownerId the providing plugin
+     * @param handlerId the handler
+     * @param outcome the outcome; its state is not {@code SUCCEEDED}, which the key record tells
+     */
+    default void recordOutcome(String ownerId, String handlerId, CommandRecord outcome) {
+    }
+
+    /**
+     * Finds what a provider recorded about a command: the key it holds, read as {@code SUCCEEDED}, or its outcome
+     * (standard-link plan point 7).
+     *
+     * @param ownerId the providing plugin
+     * @param handlerId the handler
+     * @param commandId the command
+     * @return the record; empty when there is none, or the store does not tell
+     */
+    default Optional<CommandRecord> find(String ownerId, String handlerId, String commandId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the tables the retention cleans (Kafka design D34, §14 K16): the providers' command idempotency and
+     * command outcome tables.
+     *
+     * @return the tables
      */
     default List<String> tables() {
         return List.of();

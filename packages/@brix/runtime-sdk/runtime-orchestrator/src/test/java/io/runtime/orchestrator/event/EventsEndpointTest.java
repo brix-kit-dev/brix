@@ -27,12 +27,15 @@ import io.runtime.orchestrator.event.conformance.RecordingMessageAudit;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.MessageOperationAudit;
 import io.runtime.orchestrator.outbox.MessageOperationAudit.MessageOperation;
+import io.runtime.sdk.command.CommandStatus;
 
 class EventsEndpointTest {
 
     private static final ConsumedSubscription SUBSCRIPTION =
         new ConsumedSubscription(ConformanceWorld.SUBSCRIBER, ConformanceWorld.HANDLER, ConformanceWorld.EVENT);
     private static final String NAME = SUBSCRIPTION.name();
+    private static final ConsumedSubscription COMMANDS = new ConsumedSubscription(ConformanceWorld.SUBSCRIBER,
+        ConformanceWorld.COMMAND_HANDLER, ConformanceWorld.COMMAND, ConsumedSubscription.COMMAND);
 
     private final ConformanceWorld world = new ConformanceWorld();
     private final ParkingBroker broker = new ParkingBroker();
@@ -120,6 +123,42 @@ class EventsEndpointTest {
         assertEquals(List.of(), world.handledIds());
         assertEquals(List.of(MessageOperation.of(MessageOperationAudit.DISCARDED, "event-1", NAME, "ops-alice", null,
             "superseded by event-2")), audit.recorded());
+    }
+
+    @Test
+    void aDiscardedCommandIsRecordedForItsSenderBeforeItIsReleased() {
+        // Standard-link plan point 7: on a broker transport the provider parks commands, so the discard says so.
+        broker.park(world.submit("command-1", "order-7", ConformanceWorld.TENANT, null));
+
+        WebEndpointResponse<EventsEndpoint.Outcome> discard = endpoint.discard(COMMANDS.name(), "command-1",
+            "ops-alice", "the order was cancelled by hand", SecurityContext.NONE);
+
+        assertEquals(200, discard.getStatus());
+        assertTrue(broker.parked.isEmpty());
+        CommandStatus status = world.commandStatus(ConformanceWorld.PUBLISHER, ConformanceWorld.TENANT, "command-1",
+            broker);
+        assertEquals(CommandStatus.State.DISCARDED, status.state());
+        assertEquals("code", status.errorCode(), "why the provider had parked it");
+        assertEquals(List.of(), world.handledCommands());
+    }
+
+    @Test
+    void aCommandDiscardTheProviderCannotRecordLeavesItParked() {
+        broker.park(world.submit("command-1", "order-7", ConformanceWorld.TENANT, null));
+        world.subscriberDatabaseDown(true);
+
+        WebEndpointResponse<EventsEndpoint.Outcome> discard = endpoint.discard(COMMANDS.name(), "command-1",
+            "ops-alice", "the order was cancelled by hand", SecurityContext.NONE);
+
+        assertEquals(409, discard.getStatus());
+        assertEquals(EventsEndpoint.DISCARD_UNRECORDED, discard.getBody().errorCode());
+        assertTrue(broker.parked.containsKey("command-1"));
+        assertEquals(List.of(MessageOperationAudit.DISCARDED, MessageOperationAudit.DISCARDED),
+            audit.recorded().stream().map(MessageOperation::action).toList());
+        assertEquals(EventsEndpoint.DISCARD_UNRECORDED, audit.recorded().get(1).errorCode());
+        world.subscriberDatabaseDown(false);
+        assertEquals(CommandStatus.State.PARKED, world.commandStatus(ConformanceWorld.PUBLISHER,
+            ConformanceWorld.TENANT, "command-1", broker).state());
     }
 
     @Test
@@ -227,9 +266,19 @@ class EventsEndpointTest {
 
         @Override
         public Optional<ParkedEvent> parkedEvent(ConsumedSubscription subscription, String eventId) {
-            return parked.containsKey(eventId) && subscription.equals(SUBSCRIPTION)
-                ? Optional.of(new ParkedEvent(NAME, eventId, null, "code", 1, OffsetDateTime.now(), "test"))
+            return parked.containsKey(eventId) && subscription.equals(subscriptionOf(eventId))
+                ? Optional.of(new ParkedEvent(subscription.name(), eventId, null, "code", 1, OffsetDateTime.now(),
+                    "test"))
                 : Optional.empty();
+        }
+
+        /** Commands park on the provider's command subscription, events and other records on the one subscription. */
+        private static ConsumedSubscription subscriptionOf(CanonicalOutboxMessage message) {
+            return message != null && "COMMAND".equals(message.messageKind()) ? COMMANDS : SUBSCRIPTION;
+        }
+
+        private ConsumedSubscription subscriptionOf(String eventId) {
+            return subscriptionOf(parked.get(eventId));
         }
 
         @Override

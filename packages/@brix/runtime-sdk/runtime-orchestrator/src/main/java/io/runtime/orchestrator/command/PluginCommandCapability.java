@@ -19,6 +19,7 @@ import io.runtime.sdk.capability.CommandSubmission;
 import io.runtime.sdk.capability.CommandSubmitException;
 import io.runtime.sdk.command.CommandClient;
 import io.runtime.sdk.command.CommandRequest;
+import io.runtime.sdk.command.CommandStatus;
 import io.runtime.sdk.command.CommandType;
 import io.runtime.sdk.query.BrixQueryException;
 
@@ -33,6 +34,9 @@ import io.runtime.sdk.query.BrixQueryException;
  * ({@code command.access_denied}), and the user is recorded with the command. When no plugin on this host provides
  * the command, the submission is refused as {@code command.provider_missing} instead of waiting in the outbox for an
  * owner that is not there.</p>
+ *
+ * <p>A client reads the status of the commands this plugin submitted, in the tenant of the current call (standard-link
+ * plan point 7): from the owner's records, the commands the owner parked, and this plugin's own outbox.</p>
  */
 public final class PluginCommandCapability implements CommandCapability {
 
@@ -74,7 +78,40 @@ public final class PluginCommandCapability implements CommandCapability {
         if (!declared.versionRange().isEmpty() && !BrixRange.contains(type.version(), declared.versionRange())) {
             throw refused(CommandSubmitException.Code.INVALID_COMMAND, type, "version-outside-declared-range");
         }
-        return (command, idempotencyKey, partitionKey) -> submit(type, command, idempotencyKey, partitionKey);
+        return new Client<>(type);
+    }
+
+    /** A typed client of one command type: it submits through the plugin's outbox bus and reads its statuses. */
+    private final class Client<C> implements CommandClient<C> {
+
+        private final CommandType<C> type;
+
+        private Client(CommandType<C> type) {
+            this.type = type;
+        }
+
+        @Override
+        public CommandSubmission submit(C command, String idempotencyKey, String partitionKey) {
+            return PluginCommandCapability.this.submit(type, command, idempotencyKey, partitionKey);
+        }
+
+        @Override
+        public CommandStatus status(String commandId) {
+            if (commandId == null || commandId.isBlank()) {
+                throw new IllegalArgumentException("commandId must not be blank");
+            }
+            String tenant = RuntimeInvocations.current().flatMap(call -> call.scope().tenantId()).orElse(null);
+            Long tenantId;
+            try {
+                tenantId = tenant == null ? null : Long.valueOf(tenant);
+            } catch (NumberFormatException notATenantOfCommands) {
+                // A command's tenant is a number, or it could not have been submitted.
+                return CommandStatus.unknown(commandId);
+            }
+            CommandStatuses statuses = providers == null ? CommandStatuses.NONE : providers.statuses();
+            SentCommands sent = bus instanceof SentCommands own ? own : SentCommands.NONE;
+            return statuses.status(pluginId, type.commandType(), tenantId, commandId, sent);
+        }
     }
 
     private <C> CommandSubmission submit(CommandType<C> type, C command, String idempotencyKey, String partitionKey) {

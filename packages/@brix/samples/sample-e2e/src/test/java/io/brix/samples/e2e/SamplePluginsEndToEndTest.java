@@ -132,12 +132,15 @@ class SamplePluginsEndToEndTest {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 
         // The platform made the messaging tables from its own migrations; the plugins' migrations hold none.
-        // sample-orders takes commands (an inbox and a business key table), sample-shipping sends them (an outbox).
-        // Its task's triggers are claimed in a task-run table.
-        assertEquals(List.of("brix_msg_history_sample_orders_idempotency", "brix_msg_history_sample_orders_inbox",
+        // sample-orders takes commands (an inbox, a business key table, and an outcome table for commands that took
+        // no key: standard-link plan point 7), sample-shipping sends them (an outbox). Its task's triggers are claimed
+        // in a task-run table.
+        assertEquals(List.of("brix_msg_history_sample_orders_command_outcome",
+                "brix_msg_history_sample_orders_idempotency", "brix_msg_history_sample_orders_inbox",
                 "brix_msg_history_sample_orders_outbox", "brix_msg_history_sample_orders_task_run",
                 "brix_msg_history_sample_shipping_inbox", "brix_msg_history_sample_shipping_outbox",
-                "sample_orders_command_idempotency", "sample_orders_inbox", "sample_orders_order", "sample_orders_outbox",
+                "sample_orders_command_idempotency", "sample_orders_command_outcome", "sample_orders_inbox",
+                "sample_orders_order", "sample_orders_outbox",
                 "sample_orders_task_run", "sample_shipping_inbox", "sample_shipping_outbox", "sample_shipping_shipment"),
             jdbc.queryForList("SELECT table_name FROM information_schema.tables WHERE table_schema = ?"
                 + " AND table_name LIKE 'sample%' OR table_schema = ? AND table_name LIKE 'brix_msg%'"
@@ -216,6 +219,11 @@ class SamplePluginsEndToEndTest {
         assertEquals(List.of(commandId), jdbc.queryForList("SELECT command_id FROM sample_orders_command_idempotency"
             + " WHERE idempotency_scope = ? AND idempotency_key = ?", String.class,
             "sample-shipping|" + SampleHost.TENANT + "|sample-orders.cancel-order", orderId));
+        // Standard-link plan point 7: the refusal only said queued; sample-shipping reads by the command id that
+        // sample-orders ran it.
+        HttpResponse<String> cancellation = get("/api/sample-shipping/cancellations/" + commandId);
+        assertEquals(200, cancellation.statusCode(), cancellation.body());
+        assertEquals("SUCCEEDED", JSON.readTree(cancellation.body()).get("status").asString(), cancellation.body());
         HttpResponse<String> cancelled = get("/api/sample-orders/orders/" + orderId);
         JsonNode cancelledView = JSON.readTree(cancelled.body());
         assertEquals("CANCELLED", cancelledView.get("status").asString(), cancelled.body());
@@ -230,6 +238,15 @@ class SamplePluginsEndToEndTest {
             secondId) == 1);
         assertEquals(List.of(commandId), jdbc.queryForList("SELECT command_id FROM sample_orders_command_idempotency",
             String.class));
+        // The second command reads as a duplicate of the first, which holds the order's key; a command id
+        // sample-shipping never sent tells nothing.
+        JsonNode duplicate = JSON.readTree(get("/api/sample-shipping/cancellations/" + secondId).body());
+        assertEquals("DUPLICATE", duplicate.get("status").asString(), duplicate.toString());
+        assertEquals(commandId, duplicate.get("originalCommandId").asString(), duplicate.toString());
+        assertEquals(List.of(secondId), jdbc.queryForList("SELECT command_id FROM sample_orders_command_outcome"
+            + " WHERE outcome = 'DUPLICATE' AND holder_command_id = ?", String.class, commandId));
+        JsonNode neverSent = JSON.readTree(get("/api/sample-shipping/cancellations/never-sent").body());
+        assertEquals("UNKNOWN", neverSent.get("status").asString(), neverSent.toString());
         assertEquals(2L, jdbc.queryForObject("SELECT version FROM sample_orders_order WHERE id = ?", Long.class,
             Long.parseLong(orderId)));
         HttpResponse<String> noShipment = post("/api/sample-shipping/shipments/1/refuse", Map.of());

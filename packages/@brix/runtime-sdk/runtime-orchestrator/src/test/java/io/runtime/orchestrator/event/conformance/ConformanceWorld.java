@@ -32,6 +32,11 @@ import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.CommandMessages;
 import io.runtime.orchestrator.command.CommandPolicies;
 import io.runtime.orchestrator.command.CommandDelivery;
+import io.runtime.orchestrator.command.CommandRecord;
+import io.runtime.orchestrator.command.CommandStatusReader;
+import io.runtime.orchestrator.command.OwnerCommandIdempotency;
+import io.runtime.orchestrator.event.EventSubscriptionTransport;
+import io.runtime.sdk.command.CommandStatus;
 import io.runtime.orchestrator.event.EventDelivery;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.event.EventSubscribers;
@@ -152,6 +157,9 @@ public final class ConformanceWorld {
     private final List<Handled> handled = new CopyOnWriteArrayList<>();
     private final List<String> handledCommands = new CopyOnWriteArrayList<>();
     private final Set<String> commandKeys = ConcurrentHashMap.newKeySet();
+    private final Map<String, CommandRecord> keyHolders = new ConcurrentHashMap<>();
+    private final Map<String, CommandRecord> commandOutcomes = new ConcurrentHashMap<>();
+    private final OwnerCommandIdempotency commandRecords = new CommandRecords();
     private final ThreadLocal<Transaction> transaction = new ThreadLocal<>();
     private final AtomicInteger failuresLeft = new AtomicInteger();
     private final Map<String, AtomicInteger> failuresOfEvent = new ConcurrentHashMap<>();
@@ -291,19 +299,7 @@ public final class ConformanceWorld {
             new PolicyEventDeliveryScopes(() -> identities, () -> policyAudit), tracing)
             .deliveringCommandsWith(new CommandDelivery(commandProviders(),
                 owner -> SUBSCRIBER.equals(owner) ? Optional.of(persistence) : Optional.empty(), inboxStore,
-                (owner, handlerId, message, scope, key) -> {
-                    Transaction current = transaction.get();
-                    if (current == null) {
-                        throw new IllegalStateException("the idempotency record is written in the provider's unit of work");
-                    }
-                    String taken = owner + "|" + handlerId + "|" + scope + "|" + key;
-                    if (commandKeys.contains(taken) || current.commandKeys.contains(taken)) {
-                        return false;
-                    }
-                    current.commandKeys.add(taken);
-                    return true;
-                },
-                new ObjectMapper(), Clock.systemUTC(), deadline, tracing));
+                commandRecords, new ObjectMapper(), Clock.systemUTC(), deadline, tracing));
     }
 
     /**
@@ -330,10 +326,26 @@ public final class ConformanceWorld {
         CanonicalOutboxMessage message = new CanonicalOutboxMessage(commandId, commandId, "COMMAND", COMMAND, "1.0.0",
             "STANDARD", PUBLISHER, tenantId == null ? "PLATFORM" : "TENANT", tenantId, idempotencyKey,
             OffsetDateTime.now(ZoneOffset.UTC), "correlation-" + commandId, null, TRACEPARENT, "conformance=1",
-            CommandMessages.encode(new ObjectMapper(), new Reserve("sku-" + idempotencyKey), "order", idempotencyKey,
+            CommandMessages.encode(new ObjectMapper(), new Reserve("sku-" + idempotencyKey), COMMAND, idempotencyKey,
                 actorId), 0);
         outbox.append(message);
         return message;
+    }
+
+    /**
+     * Reads a command's status as a sender's typed client does (standard-link plan point 7): the provider's records,
+     * the commands the transport parked at the provider, and the publisher's outbox, which only the publisher reads.
+     *
+     * @param sender the plugin that asks
+     * @param tenantId the tenant of the call that asks, or {@code null}
+     * @param commandId the command id
+     * @param broker the broker transport under test, or {@code null} for the in-process transport
+     * @return the status
+     */
+    public CommandStatus commandStatus(String sender, Long tenantId, String commandId,
+            EventSubscriptionTransport broker) {
+        return new CommandStatusReader(commandProviders(), () -> commandRecords, () -> broker).status(sender, COMMAND,
+            tenantId, commandId, PUBLISHER.equals(sender) ? outbox::sentCommand : id -> Optional.empty());
     }
 
     /**
@@ -632,7 +644,64 @@ public final class ConformanceWorld {
         }
         handled.addAll(current.handled);
         commandKeys.addAll(current.commandKeys);
+        keyHolders.putAll(current.held);
+        current.outcomes.forEach(commandOutcomes::putIfAbsent);
         handledCommands.addAll(current.commands);
+    }
+
+    /**
+     * The provider's command records, written in its unit of work with the inbox and committed with it: the key each
+     * handled command holds, and the outcome of each command that took none (root BRX-RS-MESSAGE-014; standard-link
+     * plan point 7).
+     */
+    private final class CommandRecords implements OwnerCommandIdempotency {
+
+        @Override
+        public boolean reserve(String owner, String handlerId, CanonicalOutboxMessage message, String scope,
+                String key) {
+            Transaction current = inUnitOfWork("the idempotency record");
+            String taken = owner + "|" + handlerId + "|" + scope + "|" + key;
+            if (commandKeys.contains(taken) || current.commandKeys.contains(taken)) {
+                return false;
+            }
+            current.commandKeys.add(taken);
+            current.held.put(taken, new CommandRecord(message.messageId(), CommandStatus.State.SUCCEEDED, scope, key,
+                message.tenantId(), null, null, OffsetDateTime.now(ZoneOffset.UTC)));
+            return true;
+        }
+
+        @Override
+        public Optional<String> holder(String owner, String handlerId, String scope, String key) {
+            String taken = owner + "|" + handlerId + "|" + scope + "|" + key;
+            Transaction current = transaction.get();
+            CommandRecord holding = current != null && current.held.containsKey(taken) ? current.held.get(taken)
+                : keyHolders.get(taken);
+            return Optional.ofNullable(holding).map(CommandRecord::commandId);
+        }
+
+        @Override
+        public void recordOutcome(String owner, String handlerId, CommandRecord outcome) {
+            inUnitOfWork("a command outcome").outcomes.putIfAbsent(owner + "|" + handlerId + "|" + outcome.commandId(),
+                outcome);
+        }
+
+        @Override
+        public Optional<CommandRecord> find(String owner, String handlerId, String commandId) {
+            String prefix = owner + "|" + handlerId + "|";
+            return keyHolders.entrySet().stream()
+                .filter(held -> held.getKey().startsWith(prefix) && held.getValue().commandId().equals(commandId))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .or(() -> Optional.ofNullable(commandOutcomes.get(prefix + commandId)));
+        }
+
+        private Transaction inUnitOfWork(String what) {
+            Transaction current = transaction.get();
+            if (current == null) {
+                throw new IllegalStateException(what + " is written in the provider's unit of work");
+            }
+            return current;
+        }
     }
 
     private final class Projection implements EventHandler<MemberAccepted> {
@@ -701,6 +770,8 @@ public final class ConformanceWorld {
         private final List<String> inbox = new ArrayList<>();
         private final List<Handled> handled = new ArrayList<>();
         private final List<String> commandKeys = new ArrayList<>();
+        private final Map<String, CommandRecord> held = new java.util.LinkedHashMap<>();
+        private final Map<String, CommandRecord> outcomes = new java.util.LinkedHashMap<>();
         private final List<String> commands = new ArrayList<>();
     }
 }

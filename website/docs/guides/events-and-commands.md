@@ -383,7 +383,9 @@ act on. A command has exactly one provider, its owner. It travels the same outbo
 event, and the owner applies it once:
 - the owner's inbox drops a redelivered command id;
 - the owner's idempotency table drops a second command with the same business key from the same sender in the same
-  tenant.
+  tenant, and records it as a duplicate of the first.
+
+The sender [reads each command's status](#reading-a-commands-status) by its id.
 
 The samples show both sides. When a member refuses a shipment, `sample-shipping` sends `sample-orders.cancel-order`,
 and `sample-orders` cancels the order.
@@ -548,6 +550,43 @@ return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellati
 `CommandCapability.submit(CommandRequest)`, which takes the command type as a string and a tenant you name, is
 deprecated and will be removed in 4.0.
 
+### Reading a command's status
+
+The receipt only says that the command is queued. To learn what the owner did with it, read its status with the same
+client, by the id the submission returned. `sample-shipping` answers a refusal with the command id and reads it back
+at `GET /api/sample-shipping/cancellations/{commandId}`:
+
+```java
+bootstrap.bindEndpointHandlerFactory("sample-shipping.find-cancellation.v1", context -> new FindCancellation(
+    context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
+```
+
+```java title="FindCancellation.handle"
+CommandStatus status = cancellations.status(request.body().commandId());
+return CompletableFuture.completedFuture(new Cancellation(status.commandId(), status.state().name(),
+    status.errorCode(), status.originalCommandId()));
+```
+
+| `state()` | Meaning |
+|---|---|
+| `QUEUED` | The command is durable and waits for the owner, or is on its way to it |
+| `SUCCEEDED` | The owner's handler finished and its transaction committed. The command holds its business key |
+| `DUPLICATE` | An earlier command with the same business key took effect, so this one did not run. `originalCommandId()` names the earlier one |
+| `PARKED` | The command could not be delivered or handled and waits for an operator. `errorCode()` says why |
+| `DISCARDED` | An operator discarded the parked command. It never runs |
+| `UNKNOWN` | Nothing is known to you: another plugin's command, another tenant's, one past retention, or none at all |
+
+`REJECTED` (the owner turned the command down) and `CONFLICT` (an earlier command holds the key with other content)
+are part of the type, but this release does not produce them yet.
+
+- Only the plugin that sent a command reads its status, and only in the tenant of the call it was sent in. Anything
+  else reads as `UNKNOWN`, so a plugin learns nothing about other plugins' commands.
+- The owner's records are kept 30 days, like its inbox. After that the status is `UNKNOWN`.
+- Reading a status has no side effects, so a `GET` endpoint or a query handler may read it. Take the client in the
+  handler factory, as for sending.
+- Nothing is pushed to you. Read the status when you need it, or subscribe to an event the owner publishes when the
+  change you wait for has happened.
+
 ### Command policies
 
 | Policy | Value | Effect |
@@ -590,7 +629,7 @@ its own versioned migrations, after your migrations and in its own schema histor
 |---|---|
 | `data.outbox` | `<storageId>_outbox` |
 | `data.inbox` | `<storageId>_inbox` |
-| `commands.provides` | `<storageId>_command_idempotency` |
+| `commands.provides` | `<storageId>_command_idempotency` and `<storageId>_command_outcome` |
 
 A plugin that sends commands declares `data.outbox`; one that provides them declares `data.inbox`.
 
@@ -614,11 +653,11 @@ Choose them once. The samples show each one:
 | Identifier | Sample | Kept in | What a change does | Instead |
 |---|---|---|---|---|
 | `pluginId` | `sample-shipping` | The publisher of its events and commands, its schema ids `brix://schemas/<pluginId>/...` and the consumer groups `brix.subscription.<pluginId>.<handlerId>` | Its subscriptions start again from now, and subscribers of its events must name the new publisher | Keep it |
-| `data.storageId` | `sample_shipping` | The platform's tables `<storageId>_outbox`, `_inbox`, `_command_idempotency` and `_task_run`, and their migration histories | New, empty tables. Messages still in the old outbox are never sent, and the new inbox does not know what was applied, so a message delivered again is applied again | Keep it (root BRX-RS-MESSAGE-023) |
+| `data.storageId` | `sample_shipping` | The platform's tables `<storageId>_outbox`, `_inbox`, `_command_idempotency`, `_command_outcome` and `_task_run`, and their migration histories | New, empty tables. Messages still in the old outbox are never sent, and the new inbox does not know what was applied, so a message delivered again is applied again | Keep it (root BRX-RS-MESSAGE-023) |
 | Event type | `SampleOrderPlaced` | Its topic `brix.event.<type>`, the outbox rows and every subscription to it | A new topic. Messages still in the outbox or parked keep the old name, and no subscriber reads it any more | Publish a new type next to the old one, move the subscribers, then stop the old one once its outbox and parked messages are empty |
 | Command type | `sample-orders.cancel-order` | Its topic `brix.command.<type>` and the outbox rows | A new topic. Commands still in the outbox or parked keep the old name, and the provider no longer reads it | As for an event type |
 | `handlerId` of a subscription | `sample-shipping.prepare-shipment.v1` | Its consumer group, its inbox rows `(handler_id, message_id)`, its parked events and its metrics | A new subscription that starts from now: it misses what came before, and its inbox does not know what the old one applied | Change it only to start a new subscription on purpose, for example with `.v2` |
-| `handlerId` of a command provider | `sample-orders.cancel-order.v1` | Its consumer group, its inbox and its idempotency rows `(handler_id, idempotency_scope, idempotency_key)` | Commands still waiting in the topic are skipped, and one delivered again or sent again with a key already used runs again | Keep it |
+| `handlerId` of a command provider | `sample-orders.cancel-order.v1` | Its consumer group, its inbox, its idempotency rows `(handler_id, idempotency_scope, idempotency_key)` and its outcome rows `(handler_id, command_id)` | Commands still waiting in the topic are skipped, and one delivered again or sent again with a key already used runs again | Keep it |
 | A published schema version | `brix://schemas/sample-orders/sample-order-placed/1.0.0` | `contracts.api`, which pins the file's SHA-256 | The module's `ContractSourcesTest` fails | Publish a new minor or major version ([Changing a contract](./queries.md#1-write-the-contract)) |
 | `taskId` | `sample-orders.heartbeat` | The claims `(task_id, trigger_id)` in `<storageId>_task_run` | The claims start empty, so a trigger the old id already ran can run again | Keep it |
 
@@ -654,7 +693,7 @@ recorded in the platform audit before it takes effect, and it is refused if the 
 | `POST /actuator/outbox/{eventId}/republish` | Send a published message again while the outbox keeps it |
 | `POST /actuator/events/{subscription}/{eventId}` | Deliver one parked event to its subscription again |
 | `POST /actuator/events/{subscription}` | Replay the subscription's parked events, earliest first, stopping at the first failure |
-| `DELETE /actuator/events/{subscription}/{eventId}?operator=…&reason=…` | Discard a parked event |
+| `DELETE /actuator/events/{subscription}/{eventId}?operator=…&reason=…` | Discard a parked event. A discarded command is first recorded for its sender, who then reads it as `DISCARDED`; if that cannot be recorded, the command stays parked |
 
 POST bodies are `{"operator": "...", "reason": "..."}`. Event ids never change, so subscribers that already applied
 an event skip it through their inbox. A replayed message arrives after the messages of its key that went on while it
@@ -662,7 +701,7 @@ was parked.
 
 **Retention** (`brix.outbox.relay.retention.*`):
 - Published and discarded outbox rows are kept 14 days. A message can be republished during that time.
-- Inbox and command idempotency records are kept 30 days.
+- Inbox, command idempotency and command outcome records are kept 30 days.
 - Kafka topics keep 7 days.
 
 The host refuses to start if the inbox retention is shorter than the outbox retention plus the broker's. Parked

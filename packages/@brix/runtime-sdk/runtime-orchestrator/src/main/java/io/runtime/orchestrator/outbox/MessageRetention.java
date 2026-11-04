@@ -27,8 +27,9 @@ import io.runtime.orchestrator.event.EventInboxStore;
 
 /**
  * Deletes what the messaging tables no longer need, a batch at a time (root BRX-RS-MESSAGE-026; Kafka design D34,
- * §14 K16): published and discarded outbox messages after the outbox retention, inbox and command idempotency records
- * after the inbox retention. Parked messages stay until an operator replays or discards them.
+ * §14 K16): published and discarded outbox messages after the outbox retention; inbox, command idempotency and command
+ * outcome records (standard-link plan point 7) after the inbox retention. Parked messages stay until an operator
+ * replays or discards them.
  *
  * <p>An inbox must recognise a message for as long as it can still arrive: an operator can republish it while its
  * outbox keeps it, and the broker then keeps it for the broker's retention. The Host therefore refuses to start when

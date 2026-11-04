@@ -51,7 +51,9 @@ duplicate finds the receipt and is skipped, so each handler applies each event o
 
 A command is deduplicated twice:
 - by its command id, in the provider's inbox;
-- by the sender's business idempotency key, in the provider's idempotency table.
+- by the sender's business idempotency key, in the provider's idempotency table. A second command with a key already
+  taken is recorded as a duplicate of the first, and its sender reads it so
+  ([Reading a command's status](../guides/events-and-commands.md#reading-a-commands-status)).
 
 ## Ordering
 
@@ -116,7 +118,7 @@ republishing messages that are still in the outbox. By default:
 | Data | Kept for |
 |---|---|
 | Published and discarded outbox messages | 14 days |
-| Inbox and command idempotency records | 30 days |
+| Inbox, command idempotency and command outcome records | 30 days |
 | The broker's topics | 7 days |
 
 The host refuses to start if the inbox retention is shorter than the outbox retention plus the broker's. Parked

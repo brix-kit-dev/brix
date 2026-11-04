@@ -27,11 +27,15 @@ import org.springframework.context.annotation.Configuration;
 
 import io.runtime.orchestrator.autoconfigure.CapabilityAutoConfiguration;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
+import io.runtime.orchestrator.command.CommandProviders;
+import io.runtime.orchestrator.command.CommandStatusReader;
+import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.EndpointMetrics;
 import io.runtime.orchestrator.endpoint.EndpointTracing;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
+import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.external.ExternalHttpGateway;
 import io.runtime.orchestrator.external.ExternalHttpMetrics;
 import io.runtime.orchestrator.external.ExternalHttpProperties;
@@ -139,6 +143,9 @@ public class RuntimeShellBootstrapAutoConfiguration {
      * @param properties bootstrap properties
      * @param queryRuntime the typed queries of this host
      * @param tasks {@code brix.tasks.*}, whose limits a plugin's tasks are checked against at startup
+     * @param externalHttp the host's external calls
+     * @param commandIdempotency the providers' command records, which command statuses are read from
+     * @param subscriptions the broker transport, whose parked commands command statuses count
      * @return plugin runtime manager
      */
     @Bean
@@ -154,9 +161,11 @@ public class RuntimeShellBootstrapAutoConfiguration {
             RuntimeShellBootstrapProperties properties,
             QueryRuntime queryRuntime,
             ObjectProvider<TaskProperties> tasks,
-            ExternalHttpRuntime externalHttp) {
+            ExternalHttpRuntime externalHttp,
+            ObjectProvider<OwnerCommandIdempotency> commandIdempotency,
+            ObjectProvider<EventSubscriptionTransport> subscriptions) {
         CapabilityRegistry registry = capabilityRegistry.getIfAvailable(DefaultCapabilityRegistry::new);
-        return new PluginRuntimeManager(
+        PluginRuntimeManager manager = new PluginRuntimeManager(
             discovery::discover,
             descriptorResolver,
             registry,
@@ -173,6 +182,11 @@ public class RuntimeShellBootstrapAutoConfiguration {
             queryRuntime,
             tasks.getIfAvailable(TaskProperties::new).limits(),
             externalHttp);
+        // Standard-link plan point 7: a sender reads its commands' statuses from the providers' records, the parked
+        // commands of the broker and its own outbox; the adapters are looked up when a status is read.
+        manager.readCommandStatusesWith(new CommandStatusReader(CommandProviders.of(manager),
+            commandIdempotency::getIfAvailable, subscriptions::getIfAvailable));
+        return manager;
     }
 
     /**

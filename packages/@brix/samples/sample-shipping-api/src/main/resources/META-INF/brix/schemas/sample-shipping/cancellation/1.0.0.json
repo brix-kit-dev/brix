@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-shipping/cancellation/1.0.0",
+  "title": "Where a cancellation sample-shipping asked for stands: the status of its sample-orders.cancel-order command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["commandId", "status"],
+  "properties": {
+    "commandId": { "type": "string", "maxLength": 64, "x-brix-classification": "internal-identifier" },
+    "status": {
+      "enum": ["QUEUED", "SUCCEEDED", "REJECTED", "DUPLICATE", "CONFLICT", "PARKED", "DISCARDED", "UNKNOWN"],
+      "description": "UNKNOWN for a command of another tenant, one sample-shipping did not send, or one past its retention",
+      "x-brix-classification": "operational"
+    },
+    "errorCode": {
+      "type": ["string", "null"],
+      "maxLength": 128,
+      "description": "why a rejected, conflicting or parked command did not run",
+      "x-brix-classification": "operational"
+    },
+    "originalCommandId": {
+      "type": ["string", "null"],
+      "maxLength": 64,
+      "description": "for a duplicate or a conflict, the earlier command that holds the order's key",
+      "x-brix-classification": "internal-identifier"
+    }
+  }
+}

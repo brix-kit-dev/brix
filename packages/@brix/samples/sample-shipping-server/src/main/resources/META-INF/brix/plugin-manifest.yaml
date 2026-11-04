@@ -81,6 +81,31 @@ endpoints:
       # A repeated refusal is harmless: the command's business key is the order id, so sample-orders cancels once.
       idempotency:
         mode: not-applicable
+    # Where a refusal's cancellation stands, by the command id it answered with (standard-link plan point 7).
+    - endpointId: sample-shipping.find-cancellation.v1
+      transport: http
+      method: GET
+      path: /api/sample-shipping/cancellations/{commandId}
+      request:
+        schemaRef: brix://schemas/sample-shipping/cancellation-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-shipping/cancellation/1.0.0
+      handlerId: sample-shipping.find-cancellation.v1
+      authentication:
+        mode: required
+        policyRef: tenant-actor
+      authorization:
+        permissions:
+          - sample-shipping:shipment:read
+        decision: all
+        resourcePolicyRef: sample-shipping-shipment-read
+      tenantContext:
+        mode: required
+        source: runtime
+      timeout:
+        policyRef: interactive-read
+      idempotency:
+        mode: not-applicable
 capabilities:
   required:
     - id: io.runtime.sdk.capability.PersistenceCapability

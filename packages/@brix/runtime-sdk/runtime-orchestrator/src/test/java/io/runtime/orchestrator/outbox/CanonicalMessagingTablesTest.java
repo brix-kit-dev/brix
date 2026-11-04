@@ -27,6 +27,7 @@ class CanonicalMessagingTablesTest {
         assertEquals("app_orders_outbox", CanonicalMessagingTables.outboxOf("app_orders"));
         assertEquals("app_orders_inbox", CanonicalMessagingTables.inboxOf("app_orders"));
         assertEquals("app_orders_command_idempotency", CanonicalMessagingTables.commandIdempotencyOf("app_orders"));
+        assertEquals("app_orders_command_outcome", CanonicalMessagingTables.commandOutcomeOf("app_orders"));
         assertThrows(IllegalArgumentException.class, () -> CanonicalMessagingTables.outboxOf("app-orders"));
     }
 
@@ -90,6 +91,7 @@ class CanonicalMessagingTablesTest {
         assertEquals("shop_outbox", CanonicalMessagingTables.Kind.OUTBOX.tableOf("shop"));
         assertEquals("shop_inbox", CanonicalMessagingTables.Kind.INBOX.tableOf("shop"));
         assertEquals("shop_command_idempotency", CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY.tableOf("shop"));
+        assertEquals("shop_command_outcome", CanonicalMessagingTables.Kind.COMMAND_OUTCOME.tableOf("shop"));
         assertEquals(CanonicalMessagingTables.outboxOf("shop"), CanonicalMessagingTables.Kind.OUTBOX.tableOf("shop"));
     }
 

@@ -9,6 +9,7 @@ package io.runtime.orchestrator.command;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -39,6 +40,7 @@ import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.command.CommandEnvelope;
+import io.runtime.sdk.command.CommandStatus;
 import io.runtime.sdk.event.EventScope;
 import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.CommandHandler;
@@ -55,9 +57,11 @@ import io.runtime.sdk.plugin.TraceContext;
  * schema version of the provider's major. In the provider's unit of work, bound to the command's tenant, the
  * runtime writes the provider's inbox record {@code (handlerId, commandId)} and its business idempotency record
  * {@code (handlerId, idempotencyScope, idempotencyKey)} before the handler runs: a redelivered command, or a second
- * command with a key already taken, commits without running the handler again (MESSAGE-014). The unit of work lasts no
- * longer than the time left before the delivery's deadline, and a handler that finishes after the deadline rolls it
- * back ({@link DeliveryDeadline}). Failures carry the stable codes below, permanent ones parked at once.</p>
+ * command with a key already taken, commits without running the handler again (MESSAGE-014). The second is recorded
+ * as a duplicate of the command holding the key, which its sender reads (standard-link plan point 7). The unit of
+ * work lasts no longer than the time left before the delivery's deadline, and a handler that finishes after the
+ * deadline rolls it back ({@link DeliveryDeadline}). Failures carry the stable codes below, permanent ones parked at
+ * once.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -256,6 +260,11 @@ public final class CommandDelivery {
                 String ownerScope = CommandPolicies.ownerScope(message.producerPluginId(), message.tenantId(),
                     decoded.idempotencyScope());
                 if (!idempotency.reserve(ownerId, handlerId, message, ownerScope, decoded.idempotencyKey())) {
+                    // Standard-link plan point 7: the sender reads it as a duplicate of the command holding the key.
+                    idempotency.recordOutcome(ownerId, handlerId, new CommandRecord(message.messageId(),
+                        CommandStatus.State.DUPLICATE, ownerScope, decoded.idempotencyKey(), message.tenantId(), null,
+                        idempotency.holder(ownerId, handlerId, ownerScope, decoded.idempotencyKey()).orElse(null),
+                        OffsetDateTime.now(clock)));
                     return "duplicate_key";
                 }
                 // Typed queries the handler makes run as this provider, in the command's tenant (root
@@ -276,6 +285,36 @@ public final class CommandDelivery {
             throw new EventDeliveryException(HANDLER_FAILED, handlerId + " failed to handle " + message.messageId(),
                 failure, false);
         }
+    }
+
+    /**
+     * Records that an operator discarded a command the provider's consumer had parked, so that its sender reads it as
+     * discarded (standard-link plan point 7). The record is written in the provider's own unit of work, in the
+     * command's tenant. A command whose payload names no idempotency key cannot be matched to its sender's scope, so
+     * nothing is recorded for it.
+     *
+     * @param pluginId the providing plugin
+     * @param handlerId the provider's handler id
+     * @param message the parked command
+     * @param errorCode why it was parked
+     * @throws RuntimeException when the provider cannot record it now
+     */
+    public void discarded(String pluginId, String handlerId, CanonicalOutboxMessage message, String errorCode) {
+        Optional<IdempotencyContext> key = CommandMessages.idempotency(json, message.payload());
+        if (key.isEmpty()) {
+            log.warn("event=command.discard_unrecorded type={} command_id={} handler={} owner={}",
+                message.messageType(), message.messageId(), handlerId, pluginId);
+            return;
+        }
+        CommandRecord discarded = new CommandRecord(message.messageId(), CommandStatus.State.DISCARDED,
+            CommandPolicies.ownerScope(message.producerPluginId(), message.tenantId(), key.get().scope()),
+            key.get().key(), message.tenantId(), errorCode, null, OffsetDateTime.now(clock));
+        TenantScope scope = message.tenantId() == null ? TenantScope.none() : TenantScope.tenant(message.tenantId());
+        // The work returns the record, never null: a provider's default unit of work treats null as not run.
+        TenantScopes.within(scope, () -> owners.readWrite(pluginId, deadline, () -> {
+            idempotency.recordOutcome(pluginId, handlerId, discarded);
+            return discarded;
+        }));
     }
 
     private CommandInvocation<Object> invocation(CanonicalOutboxMessage message, CommandMessages.Decoded decoded,

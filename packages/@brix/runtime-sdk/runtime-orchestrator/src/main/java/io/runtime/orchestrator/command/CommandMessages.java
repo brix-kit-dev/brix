@@ -9,12 +9,14 @@ package io.runtime.orchestrator.command;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.event.MessagePayloads;
+import io.runtime.sdk.plugin.IdempotencyContext;
 
 /**
  * The payload column of a canonical command message (root BRX-RS-MESSAGE-010): the typed payload with the business
@@ -92,6 +94,26 @@ public final class CommandMessages {
         } catch (JacksonException invalid) {
             throw new IllegalArgumentException("the command payload does not decode to " + payloadType.getSimpleName(),
                 invalid);
+        }
+    }
+
+    /**
+     * Reads only the idempotency scope and key of a command's payload column, whatever its payload type, as for a
+     * command whose payload did not decode (standard-link plan point 7).
+     *
+     * @param json the mapper
+     * @param column the JSON
+     * @return the scope and key; empty when the column names none
+     */
+    public static Optional<IdempotencyContext> idempotency(ObjectMapper json, String column) {
+        try {
+            JsonNode body = json.readTree(column);
+            String scope = body.path("idempotencyScope").asString();
+            String key = body.path("idempotencyKey").asString();
+            return scope == null || scope.isBlank() || key == null || key.isBlank() ? Optional.empty()
+                : Optional.of(new IdempotencyContext(scope, key));
+        } catch (JacksonException invalid) {
+            return Optional.empty();
         }
     }
 

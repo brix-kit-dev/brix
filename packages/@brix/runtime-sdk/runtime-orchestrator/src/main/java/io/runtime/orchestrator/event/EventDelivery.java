@@ -168,6 +168,23 @@ public final class EventDelivery {
     }
 
     /**
+     * Records that an operator discarded a command a provider's consumer had parked, so that its sender reads it as
+     * discarded (standard-link plan point 7). A core that serves no commands records nothing.
+     *
+     * @param pluginId the providing plugin
+     * @param handlerId the provider's handler id
+     * @param message the parked command
+     * @param errorCode why it was parked
+     * @throws RuntimeException when the provider cannot record it now
+     */
+    public void discardedCommand(String pluginId, String handlerId, CanonicalOutboxMessage message, String errorCode) {
+        CommandDelivery commandDelivery = commands;
+        if (commandDelivery != null) {
+            commandDelivery.discarded(pluginId, handlerId, message, errorCode);
+        }
+    }
+
+    /**
      * Returns one consumed subscription per provided command, empty when this core serves no commands.
      *
      * @return the command subscriptions

@@ -62,7 +62,9 @@ class FlywayModuleMigrationRunnerTest {
                     "shop_outbox brix_msg_history_shop_outbox classpath:META-INF/brix/messaging/postgresql/outbox",
                     "shop_inbox brix_msg_history_shop_inbox classpath:META-INF/brix/messaging/postgresql/inbox",
                     "shop_command_idempotency brix_msg_history_shop_idempotency"
-                        + " classpath:META-INF/brix/messaging/postgresql/command-idempotency"),
+                        + " classpath:META-INF/brix/messaging/postgresql/command-idempotency",
+                    "shop_command_outcome brix_msg_history_shop_command_outcome"
+                        + " classpath:META-INF/brix/messaging/postgresql/command-outcome"),
                 FlywayModuleMigrationRunner.messagingMigrations(manifests).stream()
                     .map(migration -> migration.table() + " " + migration.history() + " " + migration.location())
                     .toList());
@@ -94,7 +96,7 @@ class FlywayModuleMigrationRunnerTest {
                 new FlywayModuleMigrationRunner(dataSource, properties).getResults();
 
             assertEquals(List.of("fresh-owner:outbox 1", "fresh-owner:inbox 1", "fresh-owner:command-idempotency 1",
-                    "owned-owner:outbox 0", "owned-owner:inbox 1"),
+                    "fresh-owner:command-outcome 1", "owned-owner:outbox 0", "owned-owner:inbox 1"),
                 first.stream()
                     .filter(result -> result.getModule().contains("-owner:"))
                     .map(result -> result.getModule() + " " + result.getMigrationsApplied())
@@ -105,6 +107,8 @@ class FlywayModuleMigrationRunnerTest {
                 + " ORDER BY column_name", String.class, fresh + "_outbox"));
             assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM " + fresh + "_command_idempotency",
                 Integer.class));
+            assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM " + fresh + "_command_outcome",
+                Integer.class), "standard-link plan point 7: a provider of commands gets its outcome table");
             assertEquals("owner row", jdbc.queryForObject("SELECT note FROM " + owned + "_outbox", String.class),
                 "an Owner's own table is adopted, not recreated");
             assertEquals("BASELINE", jdbc.queryForObject("SELECT type FROM brix_msg_history_" + owned + "_outbox"
@@ -112,10 +116,10 @@ class FlywayModuleMigrationRunnerTest {
         } finally {
             Thread.currentThread().setContextClassLoader(previous);
             for (String storage : List.of(fresh, owned)) {
-                for (String table : List.of("_outbox", "_inbox", "_command_idempotency")) {
+                for (String table : List.of("_outbox", "_inbox", "_command_idempotency", "_command_outcome")) {
                     jdbc.execute("DROP TABLE IF EXISTS " + storage + table);
                 }
-                for (String history : List.of("outbox", "inbox", "idempotency")) {
+                for (String history : List.of("outbox", "inbox", "idempotency", "command_outcome")) {
                     jdbc.execute("DROP TABLE IF EXISTS brix_msg_history_" + storage + "_" + history);
                 }
             }

@@ -47,8 +47,10 @@ import io.runtime.orchestrator.outbox.MessageOperationAudit.MessageOperation;
  * reason and the subscription, and is refused (503) when it cannot be recorded; a replay that then fails is recorded
  * again with its error code. The event id stays the same, so a subscriber that had already committed the event skips it
  * through its inbox (root BRX-RS-MESSAGE-028). The endpoint answers 404 when the subscription does not exist or has not
- * parked the event, and 409 when the subscriber could not take it again. It is served on the management port, which
- * the host does not publish; a host allows the actions with {@code management.endpoint.events.access=unrestricted}.</p>
+ * parked the event, and 409 when the subscriber could not take it again. A discarded command is first recorded for
+ * its sender, who then reads it as discarded (standard-link plan point 7); when that fails the answer is 409 and the
+ * command stays parked. It is served on the management port, which the host does not publish; a host allows the
+ * actions with {@code management.endpoint.events.access=unrestricted}.</p>
  */
 @WebEndpoint(id = "events", defaultAccess = Access.READ_ONLY)
 public final class EventsEndpoint {
@@ -67,6 +69,8 @@ public final class EventsEndpoint {
     static final String BAD_REQUEST = "MESSAGE_OPERATION_INVALID";
     /** The operator or the reason is missing. */
     static final int STATUS_BAD_REQUEST = 400;
+    /** The provider could not record a discarded command for its sender (standard-link plan point 7). */
+    static final String DISCARD_UNRECORDED = "COMMAND_DISCARD_UNRECORDED";
 
     private static final Logger log = LoggerFactory.getLogger(EventsEndpoint.class);
 
@@ -184,7 +188,9 @@ public final class EventsEndpoint {
             return invalid(subscription, eventId);
         }
         Optional<Target> target = target(subscription);
-        if (target.isEmpty() || target.get().broker().parkedEvent(target.get().subscription(), eventId).isEmpty()) {
+        Optional<ParkedEvent> parked = target.flatMap(found ->
+            found.broker().parkedEvent(found.subscription(), eventId));
+        if (parked.isEmpty()) {
             return notFound(subscription, eventId);
         }
         Optional<MessageOperation> operation = recorded(MessageOperationAudit.DISCARDED, subscription, eventId,
@@ -192,10 +198,33 @@ public final class EventsEndpoint {
         if (operation.isEmpty()) {
             return refused(subscription, eventId);
         }
+        if (target.get().subscription().command() && !discardedCommand(target.get(), eventId, parked.get())) {
+            return failed(operation.get(), DISCARD_UNRECORDED);
+        }
         target.get().broker().release(target.get().subscription(), eventId);
         log.info("event=event.discarded subscription={} event_id={} operator={}", subscription, eventId,
             operation.get().operator());
         return new WebEndpointResponse<>(new Outcome(subscription, eventId, true, null), WebEndpointResponse.STATUS_OK);
+    }
+
+    /**
+     * Records a discarded command for its sender before the broker lets it go (standard-link plan point 7); false when
+     * the provider could not record it, and the command stays parked.
+     */
+    private boolean discardedCommand(Target target, String commandId, ParkedEvent parked) {
+        Optional<CanonicalOutboxMessage> command = target.broker().parkedMessage(target.subscription(), commandId);
+        if (command.isEmpty()) {
+            return true;
+        }
+        try {
+            target.delivery().discardedCommand(target.subscription().pluginId(), target.subscription().handlerId(),
+                command.get(), parked.errorCode());
+            return true;
+        } catch (RuntimeException failure) {
+            log.warn("event=event.discard_unrecorded subscription={} event_id={} code={}", target.subscription().name(),
+                commandId, DISCARD_UNRECORDED, failure);
+            return false;
+        }
     }
 
     /** The event subscriptions and the consumers of the provided commands (Kafka design §14 K22). */

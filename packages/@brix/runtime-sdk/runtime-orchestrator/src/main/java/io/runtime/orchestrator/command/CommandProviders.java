@@ -52,6 +52,15 @@ public interface CommandProviders {
     Optional<PluginRuntimeDescriptor.ConsumedCommand> consumed(String pluginId, String commandType);
 
     /**
+     * Returns how the host reads its plugins' command statuses (standard-link plan point 7).
+     *
+     * @return the statuses; {@link CommandStatuses#NONE} when the host cannot tell
+     */
+    default CommandStatuses statuses() {
+        return CommandStatuses.NONE;
+    }
+
+    /**
      * Reads the providers from the plugin runtime.
      *
      * @param runtime the plugin runtime
@@ -77,6 +86,11 @@ public interface CommandProviders {
             @Override
             public Optional<PluginRuntimeDescriptor.ConsumedCommand> consumed(String pluginId, String commandType) {
                 return runtime.consumedCommand(pluginId, commandType);
+            }
+
+            @Override
+            public CommandStatuses statuses() {
+                return runtime.commandStatuses();
             }
         };
     }

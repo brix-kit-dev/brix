@@ -17,11 +17,13 @@ import io.runtime.sdk.command.CommandType;
  * rolls back with it; outside one the runtime writes it in a transaction of its own. The plugin names the
  * command type it declares under {@code commands.consumes}, the payload and the business idempotency key;
  * the runtime builds the envelope (command id, producer, tenant, correlation, trace) and delivers the command
- * to the one plugin that provides it, exactly once per idempotency key.</p>
+ * to the one plugin that provides it, which applies it at most once per idempotency key of this sender and
+ * tenant.</p>
  *
  * <p>The returned {@link CommandSubmission#durableReceipt()} completes when the command is durably queued:
  * after the surrounding unit of work commits, or exceptionally when it rolls back. It says nothing about the
- * provider accepting or completing the command; the provider reports that through its own events.</p>
+ * provider accepting or completing the command; {@link io.runtime.sdk.command.CommandClient#status(String)} says
+ * how the provider handled it.</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10

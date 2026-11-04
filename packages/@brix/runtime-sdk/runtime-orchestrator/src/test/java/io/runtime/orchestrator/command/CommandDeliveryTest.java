@@ -21,8 +21,10 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -43,6 +45,7 @@ import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.UnitOfWork;
+import io.runtime.sdk.command.CommandStatus;
 import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.CommandInvocation;
 import io.runtime.sdk.plugin.IdempotencyContext;
@@ -78,6 +81,8 @@ class CommandDeliveryTest {
     private final ReserveHandler handler = new ReserveHandler();
     private final Set<String> inbox = new HashSet<>();
     private final Set<String> keys = new HashSet<>();
+    private final Map<String, String> holders = new HashMap<>();
+    private final List<CommandRecord> outcomes = new ArrayList<>();
     private final MutableClock clock = new MutableClock(NOW);
     private final List<Duration> timeouts = new ArrayList<>();
     private final List<String> unitsOfWork = new ArrayList<>();
@@ -135,7 +140,26 @@ class CommandDeliveryTest {
         };
         delivery = new CommandDelivery(providers, owners,
             (owner, handlerId, message) -> inbox.add(owner + "/" + handlerId + "/" + message.messageId()),
-            (owner, handlerId, message, scope, key) -> keys.add(owner + "/" + handlerId + "/" + scope + "/" + key),
+            new OwnerCommandIdempotency() {
+                @Override
+                public boolean reserve(String owner, String handlerId, CanonicalOutboxMessage message, String scope,
+                        String key) {
+                    holders.putIfAbsent(owner + "/" + handlerId + "/" + scope + "/" + key, message.messageId());
+                    return keys.add(owner + "/" + handlerId + "/" + scope + "/" + key);
+                }
+
+                @Override
+                public Optional<String> holder(String owner, String handlerId, String scope, String key) {
+                    return Optional.ofNullable(holders.get(owner + "/" + handlerId + "/" + scope + "/" + key));
+                }
+
+                @Override
+                public void recordOutcome(String owner, String handlerId, CommandRecord outcome) {
+                    assertEquals("began", unitsOfWork.get(unitsOfWork.size() - 1),
+                        "an outcome is written in the provider's unit of work");
+                    outcomes.add(outcome);
+                }
+            },
             JSON, clock, Duration.ofSeconds(15), MessageTracing.NOOP);
     }
 
@@ -167,6 +191,34 @@ class CommandDeliveryTest {
 
         assertEquals(1, handler.handled.size());
         assertTrue(inbox.contains("app-stock/reserve-stock.v1/c-2"), "the second command is still acknowledged");
+        // Standard-link plan point 7: its sender reads it as a duplicate of the command holding the key.
+        assertEquals(List.of(new CommandRecord("c-2", CommandStatus.State.DUPLICATE, "app-orders|platform|order",
+            "order-7", null, null, "c-1", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))), outcomes);
+    }
+
+    @Test
+    void aCommandAnOperatorDiscardedIsRecordedForItsSenderInTheProvidersUnitOfWork() {
+        // Standard-link plan point 7: a command the provider parked on a broker, then an operator discarded.
+        delivery.discarded("app-stock", "reserve-stock.v1", command("c-3", "order-9", "app-orders", "1.0.0", 42L,
+            null), "COMMAND_HANDLER_FAILED");
+
+        assertEquals(List.of(new CommandRecord("c-3", CommandStatus.State.DISCARDED, "app-orders|42|order", "order-9",
+            42L, "COMMAND_HANDLER_FAILED", null, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))), outcomes);
+        assertEquals(List.of("began", "committed"), unitsOfWork);
+        assertEquals(List.of(Duration.ofSeconds(15)), timeouts);
+        assertTrue(handler.handled.isEmpty());
+    }
+
+    @Test
+    void aDiscardedCommandWithoutAKeyIsNotRecorded() {
+        CanonicalOutboxMessage keyless = new CanonicalOutboxMessage("c-4", "c-4", "COMMAND", "ReserveStock", "1.0.0",
+            "STANDARD", "app-orders", "PLATFORM", null, "c-4", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC), "c-4",
+            null, null, null, "not json", 1);
+
+        delivery.discarded("app-stock", "reserve-stock.v1", keyless, CommandDelivery.PAYLOAD_INVALID);
+
+        assertTrue(outcomes.isEmpty());
+        assertTrue(unitsOfWork.isEmpty());
     }
 
     @Test

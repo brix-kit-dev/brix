@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import io.runtime.orchestrator.command.SentCommand;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxBacklogSnapshot;
 import io.runtime.orchestrator.outbox.OutboxMessageState;
@@ -198,6 +199,21 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
      */
     public synchronized int attempts(String eventId) {
         return rows.stream().filter(row -> row.message.eventId().equals(eventId)).mapToInt(row -> row.attempts).sum();
+    }
+
+    /**
+     * Finds a command in the outbox, as the sender's bus does for its status (standard-link plan point 7).
+     *
+     * @param commandId the command id
+     * @return its row, or empty when the outbox holds no such command
+     */
+    public synchronized Optional<SentCommand> sentCommand(String commandId) {
+        return rows.stream()
+            .filter(row -> "COMMAND".equals(row.message.messageKind()) && row.message.messageId().equals(commandId))
+            .findFirst()
+            .map(row -> new SentCommand(commandId, row.message.messageType(), row.status.name(),
+                row.message.tenantId(), row.errorCode,
+                row.status == Status.PUBLISHED ? row.publishedAt : row.message.occurredAt()));
     }
 
     /** Whether an earlier row of the same partition key waits for its retry or is in flight. */

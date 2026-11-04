@@ -37,6 +37,7 @@ import tools.jackson.databind.json.JsonMapper;
 import io.runtime.orchestrator.event.EventDelivery;
 import io.runtime.orchestrator.event.EventSubscriptionGroup;
 import io.runtime.orchestrator.event.EventSubscriptionMetricsFactory;
+import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.event.EventsEndpoint;
 import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.event.conformance.EventTransportConformance;
@@ -259,6 +260,11 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
         @Override
         public ConformanceWorld world() {
             return world;
+        }
+
+        @Override
+        public EventSubscriptionTransport subscriptions() {
+            return subscriptions;
         }
 
         @Override

@@ -618,8 +618,8 @@ CREATE TABLE sample_orders_order (
 CREATE INDEX idx_sample_orders_order_tenant ON sample_orders_order (tenant_id, placed_at);
 ```
 
-- Create only your business tables. The platform creates `<storageId>_outbox`, `<storageId>_inbox` and
-  `<storageId>_command_idempotency` itself; see
+- Create only your business tables. The platform creates `<storageId>_outbox`, `<storageId>_inbox`,
+  `<storageId>_command_idempotency` and `<storageId>_command_outcome` itself; see
   [what the platform creates](./events-and-commands.md#tables-what-the-platform-creates-for-you).
 - Never change a migration that has run in a shared environment. Add a new version. Make breaking changes in steps
   (expand, migrate, contract).

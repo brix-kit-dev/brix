@@ -25,11 +25,13 @@ import org.springframework.boot.actuate.endpoint.SecurityContext;
 
 import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.event.EventDelivery;
+import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxEndpoint;
 import io.runtime.orchestrator.persistence.PolicyUseRecord;
 import io.runtime.orchestrator.persistence.TenantAccessPolicy;
 import io.runtime.orchestrator.persistence.TenantScope;
+import io.runtime.sdk.command.CommandStatus;
 
 /**
  * What every event transport must do, from the publisher's committed outbox row to the subscriber's
@@ -88,6 +90,14 @@ public abstract class EventTransportConformance {
 
         /** The world the harness delivers. */
         ConformanceWorld world();
+
+        /**
+         * The broker transport whose parked commands a command's status counts, or {@code null} when the transport
+         * parks in the publisher's outbox, as the in-process one does (standard-link plan point 7).
+         */
+        default EventSubscriptionTransport subscriptions() {
+            return null;
+        }
 
         /**
          * Sends copies of one message through the transport at the same moment, as two relays that both claimed it
@@ -198,6 +208,56 @@ public abstract class EventTransportConformance {
         settle();
         assertEquals(List.of(new Parked("command-1", CommandDelivery.ACCESS_DENIED)), harness.parked());
         assertEquals(List.of("command-2"), world.handledCommands());
+    }
+
+    @Test
+    void aSenderReadsItsCommandQueuedThenSucceededAndASecondWithTheKeyAsADuplicateOfIt() {
+        // Standard-link plan point 7 (root BRX-RS-MESSAGE-013, MESSAGE-014): the receipt only says queued; the status
+        // says what the owner did, and only to the sender in its tenant.
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null);
+        world.submit("command-2", "order-7", ConformanceWorld.TENANT, null);
+        assertEquals(CommandStatus.State.QUEUED, status("command-1").state());
+
+        harness.start();
+
+        await("command-1 is handled", () -> world.handledCommands().contains("command-1"));
+        await("command-2 is acknowledged", () -> world.inboxed("command-2"));
+        assertEquals(CommandStatus.State.SUCCEEDED, status("command-1").state());
+        CommandStatus duplicate = status("command-2");
+        assertEquals(CommandStatus.State.DUPLICATE, duplicate.state());
+        assertEquals("command-1", duplicate.originalCommandId());
+        assertEquals(CommandStatus.unknown("command-1"), world.commandStatus("another-sender", ConformanceWorld.TENANT,
+            "command-1", harness.subscriptions()), "another plugin's command");
+        assertEquals(CommandStatus.unknown("command-1"), world.commandStatus(ConformanceWorld.PUBLISHER,
+            ConformanceWorld.FANOUT_TENANTS.get(1), "command-1", harness.subscriptions()), "another tenant's command");
+        assertEquals(CommandStatus.unknown("command-3"), status("command-3"));
+    }
+
+    @Test
+    void aParkedCommandReadsParkedUntilAnOperatorDiscardsIt() {
+        // Standard-link plan point 7: the in-process transport parks in the sender's outbox, a broker at the provider;
+        // the sender reads the same either way.
+        world.commandsOnlyOnBehalfOf("stock:reserve");
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null);
+
+        harness.start();
+
+        await("command-1 is parked", () -> !harness.parked().isEmpty());
+        CommandStatus parked = status("command-1");
+        assertEquals(CommandStatus.State.PARKED, parked.state());
+        assertEquals(CommandDelivery.ACCESS_DENIED, parked.errorCode());
+
+        assertTrue(harness.discard("command-1"));
+
+        await("command-1 is discarded", () -> status("command-1").state() == CommandStatus.State.DISCARDED);
+        assertEquals(CommandDelivery.ACCESS_DENIED, status("command-1").errorCode(), "why it had been parked");
+        assertTrue(world.handledCommands().isEmpty());
+    }
+
+    /** The publisher's view of one of its commands in its usual tenant. */
+    private CommandStatus status(String commandId) {
+        return world.commandStatus(ConformanceWorld.PUBLISHER, ConformanceWorld.TENANT, commandId,
+            harness.subscriptions());
     }
 
     @Test

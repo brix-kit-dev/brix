@@ -90,6 +90,10 @@ CommandClient<CancelOrder> cancellations = context.require(CommandCapability.cla
 CommandSubmission submission = cancellations.submit(
     CancelOrder.builder().orderId(orderId).reason(CancelOrder.Reason.SHIPPING_REFUSED).build(), orderId);
 // submission.durableReceipt() completes once the command is durably queued (QUEUED), not when it is handled.
+
+// Later, by its id: whether the provider ran it, took it as a duplicate, or parked it. Only this plugin, in this
+// tenant, reads it; anything else is UNKNOWN.
+CommandStatus status = cancellations.status(submission.commandId());
 ```
 
 See [Commands](../guides/events-and-commands.md#commands).

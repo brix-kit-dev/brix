@@ -42,6 +42,7 @@ import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.orchestrator.command.CommandPolicies;
 import io.runtime.orchestrator.command.CommandProviders;
+import io.runtime.orchestrator.command.CommandStatuses;
 import io.runtime.orchestrator.event.EventPolicies;
 import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
@@ -101,6 +102,7 @@ public final class PluginRuntimeManager {
     private final QueryRuntime queries;
     private final TaskPolicies.Limits taskLimits;
     private final ExternalHttpRuntime external;
+    private volatile CommandStatuses commandStatuses = CommandStatuses.NONE;
 
     private static final tools.jackson.databind.ObjectMapper SCHEMA_READER = new tools.jackson.databind.ObjectMapper();
     private final Map<String, ManagedPlugin> plugins = new LinkedHashMap<>();
@@ -824,6 +826,25 @@ public final class PluginRuntimeManager {
             .filter(provider -> provider.command().commandType().equals(commandType))
             .toList();
         return found.size() == 1 ? Optional.of(found.get(0)) : Optional.empty();
+    }
+
+    /**
+     * Reads the statuses of the plugins' commands with this reader from now on (standard-link plan point 7). The host
+     * gives it when it creates the runtime; until then every command reads as unknown.
+     *
+     * @param statuses the reader
+     */
+    public void readCommandStatusesWith(CommandStatuses statuses) {
+        this.commandStatuses = Objects.requireNonNull(statuses, "statuses must not be null");
+    }
+
+    /**
+     * Returns how the plugins' command statuses are read (standard-link plan point 7).
+     *
+     * @return the reader; {@link CommandStatuses#NONE} until the host gives one
+     */
+    public CommandStatuses commandStatuses() {
+        return commandStatuses;
     }
 
     /**

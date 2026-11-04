@@ -44,6 +44,12 @@ public final class SampleShippingPlugin implements BrixPlugin {
     /** The handler of {@code POST /api/sample-shipping/shipments/{orderId}/refuse}, as the manifest names it. */
     public static final String REFUSE_SHIPMENT = "sample-shipping.refuse-shipment.v1";
 
+    /**
+     * The handler of {@code GET /api/sample-shipping/cancellations/{commandId}}, as the manifest names it
+     * (standard-link plan point 7).
+     */
+    public static final String FIND_CANCELLATION = "sample-shipping.find-cancellation.v1";
+
     private final AtomicReference<BrixHealth> health = new AtomicReference<>(BrixHealth.down("not started"));
 
     @Override
@@ -53,6 +59,9 @@ public final class SampleShippingPlugin implements BrixPlugin {
         bootstrap.bindQueryHandlerFactory(FIND_SHIPMENT_QUERY, context -> new FindShipmentQuery(desk(context)));
         // Refusing a shipment asks sample-orders to cancel the order with its typed command (plan L4.7).
         bootstrap.bindEndpointHandlerFactory(REFUSE_SHIPMENT, context -> new RefuseShipment(desk(context),
+            context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
+        // The refusal answers with the command id; this reads where that command stands (plan point 7).
+        bootstrap.bindEndpointHandlerFactory(FIND_CANCELLATION, context -> new FindCancellation(
             context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
     }
 

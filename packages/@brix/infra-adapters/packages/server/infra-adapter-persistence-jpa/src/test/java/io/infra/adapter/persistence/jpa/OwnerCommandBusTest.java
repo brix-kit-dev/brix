@@ -12,8 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 
@@ -29,6 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.manifest.model.PluginManifest;
+import io.runtime.orchestrator.command.SentCommand;
 import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.sdk.capability.CommandReceipt;
 import io.runtime.sdk.capability.CommandSubmission;
@@ -122,6 +125,29 @@ class OwnerCommandBusTest {
 
         assertEquals(CommandReceipt.Status.QUEUED, submitted.durableReceipt().toCompletableFuture().join().status());
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM " + outbox, Integer.class));
+    }
+
+    @Test
+    void aSentCommandIsFoundInTheOwnersOutboxWithItsTenantAndTheTimeOfItsStatus() {
+        // Standard-link plan point 7: the sender's status starts from its own outbox.
+        CommandSubmission[] submitted = new CommandSubmission[1];
+        inUnitOfWork(TenantScope.tenant(910001L), status -> submitted[0] = bus.submit(
+            CommandRequest.of("ReserveStock", new Reserve("sku-1"), "order", "order-7").forTenant("910001")));
+        String commandId = submitted[0].commandId();
+        OffsetDateTime queued = NOW.atOffset(ZoneOffset.UTC);
+
+        assertEquals(Optional.of(new SentCommand(commandId, "ReserveStock", "PENDING", 910001L, null, queued)),
+            bus.sent(commandId));
+
+        OffsetDateTime parked = queued.plusMinutes(3);
+        jdbc.update("UPDATE " + outbox + " SET status = 'PARKED', last_error_code = 'COMMAND_HANDLER_FAILED',"
+            + " available_at = ? WHERE message_id = ?", parked, commandId);
+        assertEquals(Optional.of(new SentCommand(commandId, "ReserveStock", "PARKED", 910001L, "COMMAND_HANDLER_FAILED",
+            parked)), bus.sent(commandId));
+
+        jdbc.update("UPDATE " + outbox + " SET message_kind = 'EVENT' WHERE message_id = ?", commandId);
+        assertEquals(Optional.empty(), bus.sent(commandId), "an event is no command");
+        assertEquals(Optional.empty(), bus.sent("command-never-sent"));
     }
 
     @Test
