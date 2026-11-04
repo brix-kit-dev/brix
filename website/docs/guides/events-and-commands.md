@@ -654,6 +654,7 @@ its own versioned migrations, after your migrations and in its own schema histor
 | `data.outbox` | `<storageId>_outbox` |
 | `data.inbox` | `<storageId>_inbox` |
 | `commands.provides` | `<storageId>_command_idempotency` and `<storageId>_command_outcome` |
+| An endpoint with `idempotency.mode: required` | `<storageId>_endpoint_idempotency` ([Repeating a call](./endpoints.md#repeating-a-call)) |
 
 A plugin that sends commands declares `data.outbox`; one that provides them declares `data.inbox`.
 
@@ -681,11 +682,12 @@ Choose them once. The samples show each one:
 | Identifier | Sample | Kept in | What a change does | Instead |
 |---|---|---|---|---|
 | `pluginId` | `sample-shipping` | The publisher of its events and commands, its schema ids `brix://schemas/<pluginId>/...` and the consumer groups `brix.subscription.<pluginId>.<handlerId>` | Its subscriptions start again from now, and subscribers of its events must name the new publisher | Keep it |
-| `data.storageId` | `sample_shipping` | The platform's tables `<storageId>_outbox`, `_inbox`, `_command_idempotency`, `_command_outcome` and `_task_run`, and their migration histories | New, empty tables. Messages still in the old outbox are never sent, and the new inbox does not know what was applied, so a message delivered again is applied again | Keep it (root BRX-RS-MESSAGE-023) |
+| `data.storageId` | `sample_shipping` | The platform's tables `<storageId>_outbox`, `_inbox`, `_command_idempotency`, `_command_outcome`, `_endpoint_idempotency` and `_task_run`, and their migration histories | New, empty tables. Messages still in the old outbox are never sent, and the new inbox does not know what was applied, so a message delivered again is applied again | Keep it (root BRX-RS-MESSAGE-023) |
 | Event type | `SampleOrderPlaced` | Its topic `brix.event.<type>`, the outbox rows and every subscription to it | A new topic. Messages still in the outbox or parked keep the old name, and no subscriber reads it any more | Publish a new type next to the old one, move the subscribers, then stop the old one once its outbox and parked messages are empty |
 | Command type | `sample-orders.cancel-order` | Its topic `brix.command.<type>` and the outbox rows | A new topic. Commands still in the outbox or parked keep the old name, and the provider no longer reads it | As for an event type |
 | `handlerId` of a subscription | `sample-shipping.prepare-shipment.v1` | Its consumer group, its inbox rows `(handler_id, message_id)`, its parked events and its metrics | A new subscription that starts from now: it misses what came before, and its inbox does not know what the old one applied | Change it only to start a new subscription on purpose, for example with `.v2` |
 | `handlerId` of a command provider | `sample-orders.cancel-order.v1` | Its consumer group, its inbox, its idempotency rows `(handler_id, idempotency_scope, idempotency_key)` and its outcome rows `(handler_id, command_id)` | Commands still waiting in the topic are skipped, and one delivered again or sent again with a key already used runs again | Keep it |
+| `handlerId` of an endpoint that replays its results | `sample-orders.place.v1` | Its rows in `<storageId>_endpoint_idempotency` | Keys taken under the old id are not found, so a repeated call runs again | Keep it |
 | A published schema version | `brix://schemas/sample-orders/sample-order-placed/1.0.0` | `contracts.api`, which pins the file's SHA-256 | The module's `ContractSourcesTest` fails | Publish a new minor or major version ([Changing a contract](./queries.md#1-write-the-contract)) |
 | `taskId` | `sample-orders.heartbeat` | The claims `(task_id, trigger_id)` in `<storageId>_task_run` | The claims start empty, so a trigger the old id already ran can run again | Keep it |
 
@@ -731,6 +733,8 @@ was parked.
 **Retention** (`brix.outbox.relay.retention.*`):
 - Published and discarded outbox rows are kept 14 days. A message can be republished during that time.
 - Inbox, command idempotency and command outcome records are kept 30 days.
+- Endpoint answers are removed once their own retention has passed ([Repeating a call](./endpoints.md#repeating-a-call)).
+  The same cleaning does it, so a host that replays results keeps the relay and its retention on.
 - Kafka topics keep 7 days.
 
 The host refuses to start if the inbox retention is shorter than the outbox retention plus the broker's. Parked

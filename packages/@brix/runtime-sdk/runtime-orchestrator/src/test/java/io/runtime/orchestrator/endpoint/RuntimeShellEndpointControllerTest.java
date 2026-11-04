@@ -70,6 +70,22 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
+    void aReplayedAnswerGoesOutWithItsStatusAndTheMarker() {
+        // Standard-link plan point 10a.
+        CapturingDispatcher dispatcher = new CapturingDispatcher();
+        dispatcher.answer = new EndpointReplay.Replayed(201, Map.of("id", "t-1"));
+        RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
+            dispatcher,
+            () -> new TestAuthCapability("1001", null));
+
+        ResponseEntity<Object> response = controller.dispatch(null, request(Map.of()));
+
+        assertEquals(201, response.getStatusCode().value());
+        assertEquals("true", response.getHeaders().getFirst("Idempotent-Replayed"));
+        assertEquals(Map.of("id", "t-1"), response.getBody());
+    }
+
+    @Test
     void dispatchRemovesClientActorHeaderWhenNoVerifiedPrincipalExists() {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
@@ -362,6 +378,7 @@ class RuntimeShellEndpointControllerTest {
     private static final class CapturingDispatcher implements PluginEndpointDispatcher {
 
         private Map<String, List<String>> headers = Map.of();
+        private Object answer = Map.of("ok", true);
 
         @Override
         public void replaceSnapshot(Collection<EndpointRoute> routes) {
@@ -375,7 +392,7 @@ class RuntimeShellEndpointControllerTest {
                 Map<String, List<String>> queryParameters,
                 Map<String, List<String>> headers) {
             this.headers = headers;
-            return Map.of("ok", true);
+            return answer;
         }
 
         @Override

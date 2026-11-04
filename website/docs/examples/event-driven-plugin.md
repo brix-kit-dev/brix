@@ -23,7 +23,9 @@ The code lives in `packages/@brix/samples/`. For the rules behind each step, see
 
 ## Scenario
 
-1. A tenant member calls `POST /api/sample-orders/orders` with `{"sku": "sku-1", "quantity": 2}`.
+1. A tenant member calls `POST /api/sample-orders/orders` with `{"sku": "sku-1", "quantity": 2}` and an
+   `Idempotency-Key`. Repeating the call gets the same order back
+   ([Repeating a call](../guides/endpoints.md#repeating-a-call)).
 2. `sample-orders` stores the order and publishes two events:
    - `SampleOrderPlaced` (STANDARD). It is written to the plugin's outbox in the same transaction, so it exists if
      and only if the order does.
@@ -129,7 +131,7 @@ endpoints:
       timeout:
         policyRef: endpoint-default
       idempotency:
-        mode: not-applicable
+        mode: required
 events:
   publishes:
     - eventType: SampleOrderPlaced

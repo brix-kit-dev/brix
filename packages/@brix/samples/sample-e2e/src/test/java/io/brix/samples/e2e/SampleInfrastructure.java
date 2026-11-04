@@ -95,12 +95,26 @@ final class SampleInfrastructure {
     }
 
     static HttpResponse<String> post(int port, String path, Map<String, Object> body) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        return HTTP.send(request(port, path, body).build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Sends a request with a key, as a client of an endpoint that replays its results does. */
+    static HttpResponse<String> post(int port, String path, Map<String, Object> body, String idempotencyKey)
+            throws Exception {
+        return HTTP.send(request(port, path, body).header("Idempotency-Key", idempotencyKey).build(),
+            HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Places an order under a key of its own: sample-orders' endpoint requires one (standard-link plan point 10a). */
+    static HttpResponse<String> place(int port, Map<String, Object> order) throws Exception {
+        return post(port, "/api/sample-orders/orders", order, UUID.randomUUID().toString());
+    }
+
+    private static HttpRequest.Builder request(int port, String path, Map<String, Object> body) {
+        return HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
             .header("Content-Type", "application/json")
             .timeout(Duration.ofSeconds(30))
-            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)))
-            .build();
-        return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
     }
 
     static HttpResponse<String> get(int port, String path) throws Exception {

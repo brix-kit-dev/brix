@@ -95,7 +95,7 @@ class SampleOrdersWithoutShippingEndToEndTest {
     void anOrderIsShownWithItsShipmentUnavailableWhenNoPluginProvidesTheQuery() throws Exception {
         runtime.start().readyFuture().toCompletableFuture().get(WAIT.toSeconds(), TimeUnit.SECONDS);
 
-        HttpResponse<String> placed = SampleInfrastructure.post(port, "/api/sample-orders/orders",
+        HttpResponse<String> placed = SampleInfrastructure.place(port,
             Map.of("sku", "sku-1", "quantity", 2));
         assertEquals(201, placed.statusCode(), placed.body());
         String orderId = JSON.readTree(placed.body()).get("orderId").asString();

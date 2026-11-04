@@ -31,6 +31,9 @@ final class ExpiredRecords {
     /** Primary key of a command outcome table (standard-link plan point 7). */
     static final List<String> OUTCOME_KEY = List.of("handler_id", "command_id");
 
+    /** Primary key of an endpoint idempotency table (standard-link plan point 10a). */
+    static final List<String> ENDPOINT_KEY = List.of("entry_id", "idempotency_scope", "idempotency_key");
+
     /** Primary key of a task-run table. */
     static final List<String> TASK_RUN_KEY = List.of("task_id", "trigger_id");
 

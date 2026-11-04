@@ -72,6 +72,21 @@ class FlywayModuleMigrationRunnerTest {
     }
 
     @Test
+    void anOwnerWhoseEndpointHasItsResultsReplayedGetsTheEndpointKeyTable() throws IOException {
+        // Standard-link plan point 10a: no other owner has this table.
+        try (URLClassLoader manifests = new URLClassLoader(new URL[] {
+                replayingManifest("tickets", "tickets", "required"),
+                replayingManifest("reports", "reports", "not-applicable")}, null)) {
+
+            assertEquals(List.of("tickets_endpoint_idempotency brix_msg_history_tickets_endpoint_keys"
+                    + " classpath:META-INF/brix/messaging/postgresql/endpoint-idempotency"),
+                FlywayModuleMigrationRunner.messagingMigrations(manifests).stream()
+                    .map(migration -> migration.table() + " " + migration.history() + " " + migration.location())
+                    .toList());
+        }
+    }
+
+    @Test
     void onPostgresqlThePlatformCreatesTheMessagingTablesOnceAndAdoptsTheOwnersOwn() throws Exception {
         String url = System.getenv("BRIX_P0_POSTGRES_URL");
         assumeTrue(url != null && !url.isBlank(), "needs a throwaway PostgreSQL");
@@ -151,6 +166,59 @@ class FlywayModuleMigrationRunnerTest {
     }
 
     /** A manifest whose Owner publishes and subscribes, and with {@code provides} also handles a command. */
+    private URL replayingManifest(String pluginId, String storageId, String idempotency) throws IOException {
+        Path root = roots.resolve(pluginId + "-replaying");
+        Path manifest = root.resolve("META-INF/brix/plugin-manifest.yaml");
+        Files.createDirectories(manifest.getParent());
+        Files.writeString(manifest, """
+            apiVersion: brix.io/v1
+            kind: Plugin
+            metadata:
+              pluginId: %1$s
+              name: %1$s
+              version: 3.3.0
+              vendor: Brix
+              license: Apache-2.0
+            runtime:
+              compiledAgainst: 3.3.0
+              supportedRange: ">=3.3.0 <4.0.0"
+            modules:
+              - groupId: io.brix
+                artifactId: %1$s-server
+                version: 3.3.0
+                moduleKind: plugin-server
+            endpoints:
+              provides:
+                - endpointId: %1$s.create.v1
+                  transport: http
+                  method: POST
+                  path: /api/%1$s/things
+                  request:
+                    schemaRef: brix://schemas/%1$s/create-request/1.0.0
+                  response:
+                    schemaRef: brix://schemas/%1$s/created/1.0.0
+                  handlerId: %1$s.create.v1
+                  authentication:
+                    mode: required
+                  authorization:
+                    permissions: [%1$s:thing:create]
+                  tenantContext:
+                    mode: required
+                  timeout:
+                    policyRef: endpoint-default
+                  idempotency:
+                    mode: %3$s
+            capabilities:
+              required:
+                - id: io.runtime.sdk.capability.PersistenceCapability
+                  version: ">=3.2.0 <4.0.0"
+              optional: []
+            data:
+              storageId: %2$s
+            """.formatted(pluginId, storageId, idempotency));
+        return root.toUri().toURL();
+    }
+
     private URL messagingManifest(String pluginId, String storageId, boolean provides) throws IOException {
         Path root = roots.resolve(pluginId + "-messaging");
         Path manifest = root.resolve("META-INF/brix/plugin-manifest.yaml");

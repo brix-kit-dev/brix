@@ -47,6 +47,7 @@ import tools.jackson.databind.ObjectMapper;
 import io.infra.adapter.persistence.jpa.OwnerDirectory.OwnerDeclaration;
 import io.runtime.manifest.loader.PluginManifestLoader;
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
+import io.runtime.orchestrator.endpoint.OwnerEndpointIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.outbox.CanonicalMessagingTables;
@@ -416,6 +417,11 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
             owners.storageIdOf(ownerModuleId).ifPresent(storageId -> requireCanonical(ownerModuleId,
                 CanonicalMessagingTables.Kind.TASK_RUN, CanonicalMessagingTables.taskRunOf(storageId)));
         }
+        if (owners.replaysEndpointResults(ownerModuleId)) {
+            owners.storageIdOf(ownerModuleId).ifPresent(storageId -> requireCanonical(ownerModuleId,
+                CanonicalMessagingTables.Kind.ENDPOINT_IDEMPOTENCY,
+                CanonicalMessagingTables.endpointIdempotencyOf(storageId)));
+        }
     }
 
     @Override
@@ -435,6 +441,15 @@ public final class OwnerPersistenceUnits implements OwnerPersistenceProvider, Au
      */
     public OwnerCommandIdempotency commandIdempotency() {
         return new JdbcOwnerCommandIdempotency(owners, dataSource, Clock.systemUTC());
+    }
+
+    /**
+     * Returns the answers of the owners' endpoints whose results the runtime replays (standard-link plan point 10a).
+     *
+     * @return the owners' endpoint idempotency tables
+     */
+    public OwnerEndpointIdempotency endpointIdempotency() {
+        return new JdbcOwnerEndpointIdempotency(owners, dataSource, Clock.systemUTC());
     }
 
     /**

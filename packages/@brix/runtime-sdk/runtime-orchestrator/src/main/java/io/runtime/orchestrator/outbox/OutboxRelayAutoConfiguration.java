@@ -30,6 +30,7 @@ import io.runtime.orchestrator.command.CommandMetrics;
 import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.MicrometerCommandMetrics;
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
+import io.runtime.orchestrator.endpoint.OwnerEndpointIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.event.InProcessEventTransport;
 import io.runtime.orchestrator.event.TransportBestEffortSender;
@@ -243,11 +244,12 @@ public class OutboxRelayAutoConfiguration {
             ObjectProvider<OutboxStoreRegistry> outboxes,
             ObjectProvider<EventInboxStore> inboxes,
             ObjectProvider<OwnerCommandIdempotency> idempotency,
+            ObjectProvider<OwnerEndpointIdempotency> answers,
             ObjectProvider<EventSubscriptionTransport> broker,
             ObjectProvider<MessageRetentionMetrics> metrics) {
         EventSubscriptionTransport transport = broker.getIfAvailable();
         return new MessageRetention(outboxes::getIfAvailable, inboxes::getIfAvailable, idempotency::getIfAvailable,
-            properties.getRetention(), transport == null ? Duration.ZERO : transport.retention(),
+            answers::getIfAvailable, properties.getRetention(), transport == null ? Duration.ZERO : transport.retention(),
             metrics.getIfAvailable(() -> MessageRetentionMetrics.NOOP), Clock.systemUTC());
     }
 

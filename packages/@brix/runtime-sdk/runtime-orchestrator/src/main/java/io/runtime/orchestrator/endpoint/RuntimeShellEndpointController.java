@@ -130,6 +130,10 @@ public class RuntimeShellEndpointController {
             if (result instanceof EndpointResponse response) {
                 return ResponseEntity.status(HttpStatusCode.valueOf(response.status())).body(response.body());
             }
+            if (result instanceof EndpointReplay.Replayed replayed) {
+                return ResponseEntity.status(HttpStatusCode.valueOf(replayed.status()))
+                    .header(EndpointReplay.REPLAYED_HEADER, "true").body(replayed.body());
+            }
             return ResponseEntity.ok(result);
         } catch (EndpointDispatchException e) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, e.getMessage(), e);

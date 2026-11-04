@@ -54,9 +54,10 @@ endpoints:
         source: runtime
       timeout:
         policyRef: endpoint-default
-      # A retried request places another order; a client that needs exactly-once sends a business key of its own.
+      # The caller names a key in the Idempotency-Key header. A repeated call gets the first answer again and places no
+      # second order (root BRX-RS-MANIFEST-018; standard-link plan point 10a).
       idempotency:
-        mode: not-applicable
+        mode: required
     - endpointId: sample-orders.show.v1
       transport: http
       method: GET

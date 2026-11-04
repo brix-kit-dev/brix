@@ -33,6 +33,7 @@ import io.runtime.orchestrator.command.OwnerCommandIdempotency;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.EndpointMetrics;
 import io.runtime.orchestrator.endpoint.EndpointTracing;
+import io.runtime.orchestrator.endpoint.OwnerEndpointIdempotency;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
@@ -123,13 +124,15 @@ public class RuntimeShellBootstrapAutoConfiguration {
             ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
             ObjectProvider<tools.jackson.databind.ObjectMapper> json,
             ObjectProvider<EndpointTracing> tracing,
-            ObjectProvider<EndpointMetrics> metrics) {
+            ObjectProvider<EndpointMetrics> metrics,
+            ObjectProvider<OwnerEndpointIdempotency> idempotency) {
         return new DefaultPluginEndpointDispatcher(
             properties.endpointLimits(),
             new OwnerUnitOfWorkEndpointBoundary(ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none)),
             json.getIfAvailable(() -> tools.jackson.databind.json.JsonMapper.builder().build()),
             tracing.getIfAvailable(() -> EndpointTracing.NOOP),
-            metrics.getIfAvailable(() -> EndpointMetrics.NOOP));
+            metrics.getIfAvailable(() -> EndpointMetrics.NOOP),
+            idempotency::getIfAvailable);
     }
 
     /**

@@ -23,13 +23,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
+import io.runtime.orchestrator.endpoint.OwnerEndpointIdempotency;
 import io.runtime.orchestrator.event.EventInboxStore;
 
 /**
  * Deletes what the messaging tables no longer need, a batch at a time (root BRX-RS-MESSAGE-026; Kafka design D34,
  * §14 K16): published and discarded outbox messages after the outbox retention; inbox, command idempotency and command
- * outcome records (standard-link plan point 7) after the inbox retention. Parked messages stay until an operator
- * replays or discards them.
+ * outcome records (standard-link plan point 7) after the inbox retention; the answers kept for endpoints when they
+ * expire (point 10a). Parked messages stay until an operator replays or discards them.
  *
  * <p>An inbox must recognise a message for as long as it can still arrive: an operator can republish it while its
  * outbox keeps it, and the broker then keeps it for the broker's retention. The Host therefore refuses to start when
@@ -53,6 +54,7 @@ public final class MessageRetention implements SmartLifecycle {
     private final Supplier<OutboxStoreRegistry> outboxes;
     private final Supplier<EventInboxStore> inboxes;
     private final Supplier<OwnerCommandIdempotency> idempotency;
+    private final Supplier<OwnerEndpointIdempotency> answers;
     private final OutboxRelayProperties.Retention settings;
     private final MessageRetentionMetrics metrics;
     private final Clock clock;
@@ -79,9 +81,36 @@ public final class MessageRetention implements SmartLifecycle {
             Duration brokerRetention,
             MessageRetentionMetrics metrics,
             Clock clock) {
+        this(outboxes, inboxes, idempotency, () -> null, settings, brokerRetention, metrics, clock);
+    }
+
+    /**
+     * Creates the cleaning, with the answers kept for endpoints (standard-link plan point 10a), and checks the
+     * retentions.
+     *
+     * @param outboxes supplies the owner outboxes; may supply {@code null}
+     * @param inboxes supplies the owner inboxes; may supply {@code null}
+     * @param idempotency supplies the providers' idempotency records; may supply {@code null}
+     * @param answers supplies the owners' kept answers, cleaned when they expire; may supply {@code null}
+     * @param settings the retentions and the pace
+     * @param brokerRetention how long the broker keeps a published message
+     * @param metrics where passes are reported
+     * @param clock cleaning clock
+     * @throws IllegalStateException when the inbox retention is shorter than the outbox's plus the broker's
+     */
+    public MessageRetention(
+            Supplier<OutboxStoreRegistry> outboxes,
+            Supplier<EventInboxStore> inboxes,
+            Supplier<OwnerCommandIdempotency> idempotency,
+            Supplier<OwnerEndpointIdempotency> answers,
+            OutboxRelayProperties.Retention settings,
+            Duration brokerRetention,
+            MessageRetentionMetrics metrics,
+            Clock clock) {
         this.outboxes = Objects.requireNonNull(outboxes, "outboxes must not be null");
         this.inboxes = Objects.requireNonNull(inboxes, "inboxes must not be null");
         this.idempotency = Objects.requireNonNull(idempotency, "idempotency must not be null");
+        this.answers = Objects.requireNonNull(answers, "answers must not be null");
         this.settings = Objects.requireNonNull(settings, "settings must not be null");
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -136,6 +165,12 @@ public final class MessageRetention implements SmartLifecycle {
         if (commands != null) {
             for (String table : tables(commands::tables, "command idempotency")) {
                 drain(table, limit -> commands.purge(table, inboxCutoff, limit), deleted);
+            }
+        }
+        OwnerEndpointIdempotency endpoints = answers.get();
+        if (endpoints != null) {
+            for (String table : tables(endpoints::tables, "endpoint idempotency")) {
+                drain(table, limit -> endpoints.purge(table, now, limit), deleted);
             }
         }
         metrics.passed(clock.instant());

@@ -164,6 +164,16 @@ final class OwnerDirectory {
     }
 
     /**
+     * Returns whether an endpoint of the owner has its results replayed (standard-link plan point 10a).
+     */
+    boolean replaysEndpointResults(String ownerId) {
+        return manifestOf(ownerId)
+            .map(manifest -> manifest.endpointDeclarations().stream()
+                .anyMatch(route -> route != null && route.replaysResults()))
+            .orElse(false);
+    }
+
+    /**
      * Returns whether the owner's manifest provides a task.
      */
     boolean providesTasks(String ownerId) {

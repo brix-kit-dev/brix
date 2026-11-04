@@ -21,6 +21,9 @@ import java.util.Set;
  * </ul>
  * <p>Each endpoint runs at most {@link Limits#concurrency()} calls at once, 64 unless the host sets another; one more
  * is answered 503 {@code endpoint.rejected} at once. Quotas per tenant or per caller belong to the entry gateway.</p>
+ * <p>An endpoint whose results the runtime replays may name how long they are kept in
+ * {@code idempotency.retentionPolicyRef}: {@value #RETENTION_DEFAULT}, the default and for now the only name (standard-link
+ * plan point 10a, idempotency design D73). A name the runtime does not know stops the module at startup.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -35,6 +38,11 @@ public final class EndpointPolicies {
 
     /** A write a person waits for. */
     public static final String TIMEOUT_INTERACTIVE_WRITE = "interactive-write";
+
+    /** Keeps an endpoint's result for a day. */
+    public static final String RETENTION_DEFAULT = "idempotency-24h";
+
+    private static final Duration RETENTION = Duration.ofHours(24);
 
     private static final Set<String> TIMEOUTS =
         Set.of(TIMEOUT_DEFAULT, TIMEOUT_INTERACTIVE_READ, TIMEOUT_INTERACTIVE_WRITE);
@@ -56,6 +64,22 @@ public final class EndpointPolicies {
                 + TIMEOUT_DEFAULT + ", " + TIMEOUT_INTERACTIVE_READ + " and " + TIMEOUT_INTERACTIVE_WRITE);
         }
         return policy;
+    }
+
+    /**
+     * Returns how long a declared retention policy keeps an endpoint's results.
+     *
+     * @param policyRef the declared {@code idempotency.retentionPolicyRef}, blank for {@value #RETENTION_DEFAULT}
+     * @return how long
+     * @throws IllegalArgumentException when the runtime does not know it
+     */
+    public static Duration retention(String policyRef) {
+        String policy = policyRef == null || policyRef.isBlank() ? RETENTION_DEFAULT : policyRef.trim();
+        if (!RETENTION_DEFAULT.equals(policy)) {
+            throw new IllegalArgumentException("unknown endpoint retention policy '" + policy + "'; the runtime knows "
+                + RETENTION_DEFAULT);
+        }
+        return RETENTION;
     }
 
     /**

@@ -82,6 +82,38 @@ class MessageRetentionTest {
     }
 
     @Test
+    void theAnswersKeptForEndpointsGoWhenTheyExpire() {
+        // Standard-link plan point 10a: an endpoint's rows carry their own expiry, so the cutoff is now.
+        Expiring answers = new Expiring(3);
+        MessageRetention retention = new MessageRetention(() -> null, () -> null, () -> null,
+            () -> new io.runtime.orchestrator.endpoint.OwnerEndpointIdempotency() {
+                @Override
+                public Reservation reserve(String ownerId, Key key, String fingerprint, Long tenantId, String traceId,
+                        Duration kept) {
+                    throw new AssertionError("the cleaning takes no key");
+                }
+
+                @Override
+                public void complete(String ownerId, Key key, int status, String body) {
+                    throw new AssertionError("the cleaning keeps no answer");
+                }
+
+                @Override
+                public List<String> tables() {
+                    return List.of("shop_endpoint_idempotency");
+                }
+
+                @Override
+                public int purge(String table, OffsetDateTime expiredBefore, int limit) {
+                    return answers.delete(expiredBefore, limit);
+                }
+            }, settings, Duration.ofDays(7), metrics, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertEquals(Map.of("shop_endpoint_idempotency", 3), retention.purgeOnce());
+        assertEquals(List.of(AT), answers.cutoffs.stream().distinct().toList());
+    }
+
+    @Test
     void aTableThatCannotBeCleanedIsReportedAndTheOthersAreCleaned() {
         Expiring outbox = new Expiring(1);
         outbox.failing = true;

@@ -82,6 +82,35 @@ class ClasspathPluginRuntimeDescriptorResolverTest {
         assertTrue(failure.getCause().getMessage().contains("unknown endpoint timeout policy"));
     }
 
+    @Test
+    void readsHowAnEndpointsResultsAreReplayedAndRefusesARetentionTheRuntimeDoesNotKnow() throws Exception {
+        // Root BRX-RS-MANIFEST-018; standard-link plan point 10a, idempotency design D73.
+        Method contract = ClasspathPluginRuntimeDescriptorResolver.class.getDeclaredMethod(
+            "contract", String.class, io.runtime.manifest.model.PluginManifest.Route.class);
+        contract.setAccessible(true);
+        io.runtime.manifest.model.PluginManifest.Route route = new io.runtime.manifest.model.PluginManifest.Route();
+        route.setEndpointId("plugin-x.create.v1");
+        route.setHandlerId("plugin-x.create-handler.v1");
+        io.runtime.orchestrator.endpoint.EndpointContract.Replay replay =
+            new io.runtime.orchestrator.endpoint.EndpointContract.Replay("plugin-x.create-handler.v1",
+                java.time.Duration.ofHours(24));
+
+        route.setIdempotency(java.util.Map.of("mode", "not-applicable"));
+        assertEquals(null, ((io.runtime.orchestrator.endpoint.EndpointContract) contract.invoke(null, "plugin-x", route))
+            .replay());
+        route.setIdempotency(java.util.Map.of("mode", "required"));
+        assertEquals(replay, ((io.runtime.orchestrator.endpoint.EndpointContract) contract.invoke(null, "plugin-x", route))
+            .replay());
+        route.setIdempotency(java.util.Map.of("mode", "required", "retentionPolicyRef", "idempotency-24h"));
+        assertEquals(replay, ((io.runtime.orchestrator.endpoint.EndpointContract) contract.invoke(null, "plugin-x", route))
+            .replay());
+        route.setIdempotency(java.util.Map.of("mode", "required", "retentionPolicyRef", "idempotency-forever"));
+        InvocationTargetException failure = org.junit.jupiter.api.Assertions.assertThrows(
+            InvocationTargetException.class, () -> contract.invoke(null, "plugin-x", route));
+        assertTrue(failure.getCause() instanceof PluginRuntimeException, String.valueOf(failure.getCause()));
+        assertTrue(failure.getCause().getMessage().contains("unknown endpoint retention policy"));
+    }
+
     private static URL url(String value) {
         try {
             return new URL(null, value, new URLStreamHandler() {

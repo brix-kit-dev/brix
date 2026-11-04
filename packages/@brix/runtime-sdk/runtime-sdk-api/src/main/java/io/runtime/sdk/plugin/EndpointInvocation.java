@@ -47,6 +47,8 @@ import java.util.Set;
  *        (since 3.2.0)
  * @param cancellation set when the deadline passes or the caller goes away; long work checks it (root
  *        BRX-RS-MANIFEST-022; since 3.3.0)
+ * @param idempotency the key of this call, on an endpoint whose results the runtime replays (root BRX-RS-MANIFEST-022;
+ *        standard-link plan point 10a; since 3.3.0)
  * @param <I> request body type
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -65,7 +67,8 @@ public record EndpointInvocation<I>(
         Optional<String> traceId,
         Instant deadline,
         AccessDecision access,
-        CancellationSignal cancellation) {
+        CancellationSignal cancellation,
+        Optional<IdempotencyContext> idempotency) {
 
     /**
      * Creates an immutable endpoint invocation.
@@ -84,6 +87,29 @@ public record EndpointInvocation<I>(
         deadline = Objects.requireNonNull(deadline, "deadline must not be null");
         access = access != null ? access : AccessDecision.none();
         cancellation = cancellation != null ? cancellation : CancellationSignal.none();
+        idempotency = idempotency != null ? idempotency : Optional.empty();
+    }
+
+    /**
+     * Creates an invocation of an endpoint whose results the runtime does not replay.
+     */
+    public EndpointInvocation(
+            I body,
+            Map<String, String> pathVariables,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Optional<String> tenantId,
+            Optional<String> actorId,
+            Optional<String> identityEmail,
+            Optional<String> tokenRole,
+            Optional<String> tokenType,
+            Set<String> allowedActions,
+            Optional<String> traceId,
+            Instant deadline,
+            AccessDecision access,
+            CancellationSignal cancellation) {
+        this(body, pathVariables, queryParameters, headers, tenantId, actorId, identityEmail, tokenRole, tokenType,
+            allowedActions, traceId, deadline, access, cancellation, Optional.empty());
     }
 
     /**
@@ -116,7 +142,7 @@ public record EndpointInvocation<I>(
      */
     public <B> EndpointInvocation<B> withBody(B typed) {
         return new EndpointInvocation<>(typed, pathVariables, queryParameters, headers, tenantId, actorId,
-            identityEmail, tokenRole, tokenType, allowedActions, traceId, deadline, access, cancellation);
+            identityEmail, tokenRole, tokenType, allowedActions, traceId, deadline, access, cancellation, idempotency);
     }
 
     /**

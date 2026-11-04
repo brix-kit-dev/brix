@@ -82,8 +82,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.bootstrap.create-first-admin.v1
@@ -103,8 +103,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.auth.setup.validate.v1
@@ -143,8 +143,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.auth.setup.complete.v1
@@ -164,8 +164,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.auth.login.v1
@@ -292,8 +292,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.tenants.first-owner-invitations.create.v1
@@ -316,8 +316,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.tenants.first-owner-invitations.current.v1
@@ -362,8 +362,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.tenants.first-owner-invitations.revoke.v1
@@ -386,8 +386,8 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
+      # handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     - endpointId: platform.audit-logs.list.v1

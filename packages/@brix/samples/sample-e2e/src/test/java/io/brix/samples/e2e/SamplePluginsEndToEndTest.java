@@ -15,7 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.http.HttpResponse;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -60,8 +63,9 @@ import io.runtime.orchestrator.task.TaskRunClaims;
  * sample-shipping prepares one shipment in the order's tenant, records the event in its inbox and shows the shipment
  * over HTTP. When the member refuses the shipment, sample-shipping sends sample-orders' typed command
  * {@code sample-orders.cancel-order} through its own outbox and Kafka, and sample-orders cancels the order once
- * however often it is asked (standard-link plan L4.7); an order it does not have, it rejects (point 9).
- * sample-orders' heartbeat task runs once per trigger across hosts (L6.7).
+ * however often it is asked (standard-link plan L4.7); an order it does not have, it rejects (point 9). A client that
+ * repeats a call with its key gets the first answer again (point 10a). sample-orders' heartbeat task runs once per
+ * trigger across hosts (L6.7).
  *
  * <p>The host is the auto-configurations and the properties below; the plugins bring only their manifests, their
  * code and their business tables. Each run gets its own PostgreSQL schema and topic prefix, so nothing is shared.</p>
@@ -142,19 +146,22 @@ class SamplePluginsEndToEndTest {
         // The platform made the messaging tables from its own migrations; the plugins' migrations hold none.
         // sample-orders takes commands (an inbox, a business key table, and an outcome table for commands that took
         // no key: standard-link plan point 7), sample-shipping sends them (an outbox). Its task's triggers are claimed
-        // in a task-run table.
+        // in a task-run table, and the answers of its endpoint that replays them are kept in a table of their own
+        // (point 10a).
         assertEquals(List.of("brix_msg_history_sample_orders_command_outcome",
+                "brix_msg_history_sample_orders_endpoint_keys",
                 "brix_msg_history_sample_orders_idempotency", "brix_msg_history_sample_orders_inbox",
                 "brix_msg_history_sample_orders_outbox", "brix_msg_history_sample_orders_task_run",
                 "brix_msg_history_sample_shipping_inbox", "brix_msg_history_sample_shipping_outbox",
-                "sample_orders_command_idempotency", "sample_orders_command_outcome", "sample_orders_inbox",
-                "sample_orders_order", "sample_orders_outbox",
+                "sample_orders_command_idempotency", "sample_orders_command_outcome",
+                "sample_orders_endpoint_idempotency", "sample_orders_inbox", "sample_orders_order",
+                "sample_orders_outbox",
                 "sample_orders_task_run", "sample_shipping_inbox", "sample_shipping_outbox", "sample_shipping_shipment"),
             jdbc.queryForList("SELECT table_name FROM information_schema.tables WHERE table_schema = ?"
                 + " AND table_name LIKE 'sample%' OR table_schema = ? AND table_name LIKE 'brix_msg%'"
                 + " ORDER BY table_name", String.class, SCHEMA, SCHEMA));
 
-        HttpResponse<String> placed = post("/api/sample-orders/orders", Map.of("sku", "sku-1", "quantity", 2));
+        HttpResponse<String> placed = SampleInfrastructure.place(port, Map.of("sku", "sku-1", "quantity", 2));
         assertEquals(201, placed.statusCode(), placed.body());
         String orderId = JSON.readTree(placed.body()).get("orderId").asString();
 
@@ -332,6 +339,64 @@ class SamplePluginsEndToEndTest {
         assertEquals(retriesBefore, commandMeter(MicrometerEventSubscriptionMetrics.RETRIES), "not retried");
         assertEquals(parkedBefore, commandMeter(MicrometerEventSubscriptionMetrics.PARKED), "not parked");
 
+        // Standard-link plan point 10a: a client that lost the answer asks again with its key. It gets the same order
+        // back, marked as replayed, and sample-orders places nothing twice.
+        String orders = "/api/sample-orders/orders";
+        Map<String, Object> order = Map.of("sku", "sku-5", "quantity", 3);
+        int ordersBefore = count(jdbc, "SELECT COUNT(*) FROM sample_orders_order");
+        HttpResponse<String> first = post(orders, order, "client-key-1");
+        assertEquals(201, first.statusCode(), first.body());
+        assertTrue(first.headers().firstValue("Idempotent-Replayed").isEmpty(), first.headers().toString());
+        HttpResponse<String> repeated = post(orders, order, "client-key-1");
+        assertEquals(201, repeated.statusCode(), repeated.body());
+        assertEquals("true", repeated.headers().firstValue("Idempotent-Replayed").orElse(null));
+        assertEquals(JSON.readTree(first.body()), JSON.readTree(repeated.body()));
+        assertEquals(ordersBefore + 1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_order"));
+        Map<String, Object> kept = jdbc.queryForMap("SELECT entry_id, idempotency_scope, result_status, tenant_id"
+            + " FROM sample_orders_endpoint_idempotency WHERE idempotency_key = 'client-key-1'");
+        assertEquals("sample-orders/sample-orders.place.v1", kept.get("entry_id"));
+        assertEquals(201, kept.get("result_status"));
+        assertEquals(SampleHost.TENANT, ((Number) kept.get("tenant_id")).longValue());
+        assertTrue(kept.get("idempotency_scope").toString().startsWith(SampleHost.TENANT + "|"), kept.toString());
+
+        // Other content under the key, and no key at all, never reach the handler.
+        HttpResponse<String> otherContent = post(orders, Map.of("sku", "sku-6", "quantity", 3), "client-key-1");
+        assertEquals(422, otherContent.statusCode(), otherContent.body());
+        assertEquals("endpoint.idempotency_conflict", JSON.readTree(otherContent.body()).get("errorCode").asString());
+        HttpResponse<String> noKey = post(orders, order);
+        assertEquals(400, noKey.statusCode(), noKey.body());
+        assertEquals("endpoint.idempotency_key_required", JSON.readTree(noKey.body()).get("errorCode").asString());
+        assertEquals(ordersBefore + 1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_order"));
+
+        // A second call while the first has not finished is refused at once. The first waits here for the order table,
+        // holding the key in its unit of work; once it can write, it finishes and keeps its answer.
+        try (Connection holder = INFRASTRUCTURE.connection()) {
+            holder.setAutoCommit(false);
+            try (Statement statement = holder.createStatement()) {
+                statement.execute("LOCK TABLE sample_orders_order IN ACCESS EXCLUSIVE MODE");
+            }
+            CompletableFuture<HttpResponse<String>> running = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return post(orders, order, "client-key-2");
+                } catch (Exception failed) {
+                    throw new IllegalStateException(failed);
+                }
+            });
+            await("the first call took its key", () -> count(jdbc,
+                "SELECT COUNT(*) FROM pg_locks WHERE locktype = 'advisory' AND granted") == 1);
+            long started = System.nanoTime();
+            HttpResponse<String> whileRunning = post(orders, order, "client-key-2");
+            assertEquals(409, whileRunning.statusCode(), whileRunning.body());
+            assertEquals("endpoint.idempotency_in_progress",
+                JSON.readTree(whileRunning.body()).get("errorCode").asString());
+            assertTrue(Duration.ofNanos(System.nanoTime() - started).toSeconds() < 5, "it did not wait for the first");
+            holder.rollback();
+            assertEquals(201, running.get(30, TimeUnit.SECONDS).statusCode());
+        }
+        assertEquals("true", post(orders, order, "client-key-2").headers().firstValue("Idempotent-Replayed")
+            .orElse(null));
+        assertEquals(ordersBefore + 2, count(jdbc, "SELECT COUNT(*) FROM sample_orders_order"));
+
         // sample-orders' heartbeat runs once per trigger across hosts (standard-link plan L6.7): this host's scheduler
         // and another one on the same database, as a second host's would be, claim each trigger in
         // sample_orders_task_run, and only the one whose claim commits first runs it.
@@ -377,6 +442,10 @@ class SamplePluginsEndToEndTest {
 
     private HttpResponse<String> post(String path, Map<String, Object> body) throws Exception {
         return SampleInfrastructure.post(port, path, body);
+    }
+
+    private HttpResponse<String> post(String path, Map<String, Object> body, String idempotencyKey) throws Exception {
+        return SampleInfrastructure.post(port, path, body, idempotencyKey);
     }
 
     private HttpResponse<String> get(String path) throws Exception {

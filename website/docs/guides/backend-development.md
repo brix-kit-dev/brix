@@ -374,9 +374,10 @@ endpoints:
         source: runtime
       timeout:
         policyRef: endpoint-default
-      # A retried request places another order; a client that needs exactly-once sends a business key of its own.
+      # The caller names a key in the Idempotency-Key header. A repeated call gets the first answer again and places no
+      # second order.
       idempotency:
-        mode: not-applicable
+        mode: required
 ```
 
 | Field | Meaning |
@@ -389,7 +390,7 @@ endpoints:
 | `authentication` | `mode: required` with a `policyRef`: `tenant-actor` for tenant staff, `tenant-subject` for a tenant's end users, `platform-token` for platform administrators |
 | `authorization` | The permission IDs the caller needs (declared under `permissions`) and how they combine (`all` or `any`) |
 | `tenantContext` | `required`, `optional` or `forbidden`. With `required`, the runtime takes the tenant from the verified token. |
-| `timeout`, `idempotency` | The deadline policy, and `idempotency.mode: not-applicable`: the runtime does not replay results yet |
+| `timeout`, `idempotency` | The deadline policy, and `idempotency.mode`: `required` when the runtime replays the endpoint's results ([Repeating a call](./endpoints.md#repeating-a-call)), otherwise `not-applicable` |
 
 The runtime refuses the request before your handler runs when:
 - the caller is not signed in (401);
@@ -619,7 +620,7 @@ CREATE INDEX idx_sample_orders_order_tenant ON sample_orders_order (tenant_id, p
 ```
 
 - Create only your business tables. The platform creates `<storageId>_outbox`, `<storageId>_inbox`,
-  `<storageId>_command_idempotency` and `<storageId>_command_outcome` itself; see
+  `<storageId>_command_idempotency`, `<storageId>_command_outcome` and `<storageId>_endpoint_idempotency` itself; see
   [what the platform creates](./events-and-commands.md#tables-what-the-platform-creates-for-you).
 - Never change a migration that has run in a shared environment. Add a new version. Make breaking changes in steps
   (expand, migrate, contract).

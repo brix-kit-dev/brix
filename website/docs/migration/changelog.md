@@ -91,11 +91,20 @@ All notable changes to Brix Framework are documented here.
   code in a short transaction of its own. The sender reads `REJECTED` with the code. The command is not retried or
   parked, and it takes no key, so a later command with the key runs. Any other failure is retried and then parked, as
   before. `sample-orders` rejects the cancellation of an order it does not have with `sample-orders.order_not_found`.
+- **Repeating a call.** An endpoint that declares `idempotency.mode: required` replays its results (root
+  BRX-RS-MANIFEST-018). The caller names a key in the `Idempotency-Key` header. The first call keeps its status and
+  body with its writes, in the new `<storageId>_endpoint_idempotency`; a later call with the same content gets them
+  again with `Idempotent-Replayed: true`, and the handler does not run. A call that fails keeps nothing. Without a key
+  the call is answered 400 `endpoint.idempotency_key_required`, with other content 422
+  `endpoint.idempotency_conflict`, and while the first has not finished 409 `endpoint.idempotency_in_progress`.
+  `EndpointInvocation.idempotency()` gives the handler its key, and `brix.endpoint.calls` has the outcome `replayed`.
+  `sample-orders`' `POST /api/sample-orders/orders` now requires a key. See
+  [Repeating a call](../guides/endpoints.md#repeating-a-call).
 - **BEST_EFFORT from the same bus.** `publishIntegration` sends a BEST_EFFORT event directly after the unit of work
   commits.
 - **Messaging tables from the platform.** The platform creates `<storageId>_outbox`, `<storageId>_inbox`,
-  `<storageId>_command_idempotency` and `<storageId>_command_outcome` from its own versioned migrations. Plugins
-  write no messaging DDL.
+  `<storageId>_command_idempotency`, `<storageId>_command_outcome` and `<storageId>_endpoint_idempotency` from its own
+  versioned migrations. Plugins write no messaging DDL.
 - **Operations.**
   - Parked messages can be replayed, discarded (also a whole subscription's) or republished within retention. Each
     action is recorded in the platform audit with an operator and a reason.
@@ -147,8 +156,9 @@ All notable changes to Brix Framework are documented here.
   `x-trace-id`.** `EndpointInvocation.traceId()` is the runtime's trace id, never the caller's `x-trace-id`. A
   `setup-token` or `bootstrap-setup` entry still sees `Authorization`: its handler hands the token to the token's data
   owner, which verifies and spends it.
-- **Endpoint idempotency `required` and `optional` stop the plugin** (root BRX-RS-MANIFEST-018). They need the
-  runtime to replay results, which it does not do yet. The nine platform endpoints that declared `required`, eight in
+- **Endpoint idempotency `optional` stops the plugin, and `required` has rules** (root BRX-RS-MANIFEST-018). `required`
+  needs a typed write endpoint of an authenticated caller, with its schemas, in a plugin with persistence. An
+  operational endpoint cannot declare it yet. The nine platform endpoints that declared `required`, eight in
   platform-admin and one in platform-tenant, now declare `not-applicable`: the runtime never acted on the
   declaration, and their handlers are idempotent by their business keys.
 - **`ManagedTask.execute(TaskInvocation)`** (root BRX-RS-MANIFEST-027). The run receives its trigger, deadline,

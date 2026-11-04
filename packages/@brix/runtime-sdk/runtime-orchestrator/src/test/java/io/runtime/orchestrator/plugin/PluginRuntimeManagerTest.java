@@ -842,6 +842,35 @@ class PluginRuntimeManagerTest {
     }
 
     @Test
+    void anEndpointWhoseAnswerHoldsACredentialCannotHaveItsResultsReplayed() {
+        // Standard-link plan point 10a, idempotency design §4.6, D74: the runtime would keep the answer.
+        TypedPlugin credential = new TypedPlugin();
+        PluginRuntimeManager refused = manager(List.of(credential), Map.of(credential, replayedDescriptor(
+            "brix://schemas/test-endpoints/session/1.0.0")), new DefaultCapabilityRegistry(), List.of("plugin-t"));
+
+        PluginRuntimeException failure = assertThrows(PluginRuntimeException.class, refused::start);
+        assertTrue(failure.getMessage().contains("session/1.0.0/properties/token"), failure.getMessage());
+    }
+
+    @Test
+    void anEndpointWhoseResultsAreReplayedHasATypedHandler() {
+        // Standard-link plan point 10a, design D74: the fingerprint and the answer come from the typed request and response.
+        RecordingPlugin plugin = new RecordingPlugin();
+        plugin.endpointId = "tenant.create";
+        PluginRuntimeManager refused = manager(List.of(plugin), Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
+            .endpoint("tenant.create", "POST", "/api/v1/tenants",
+                TestEndpointAccessPolicies.authenticated("tenant:admin:write"),
+                new io.runtime.orchestrator.endpoint.EndpointContract("", "", 201, null,
+                    new io.runtime.orchestrator.endpoint.EndpointContract.Replay("tenant.create",
+                        java.time.Duration.ofHours(24))))
+            .permission("tenant:admin:write", List.of())
+            .build()), new DefaultCapabilityRegistry(), List.of("plugin-a"));
+
+        PluginRuntimeException failure = assertThrows(PluginRuntimeException.class, refused::start);
+        assertTrue(failure.getMessage().contains("TypedEndpointHandler"), failure.getMessage());
+    }
+
+    @Test
     void aPluginRouteUnderTheOperationalNamespaceStopsTheHost() {
         // Root BRX-RS-LAYER-017, MANIFEST-023; standard-link plan L7.4.
         TypedPlugin plugin = new TypedPlugin();
@@ -954,6 +983,18 @@ class PluginRuntimeManagerTest {
                 io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies.anonymous("plugin-t-public"),
                 new io.runtime.orchestrator.endpoint.EndpointContract(requestSchemaRef,
                     "brix://schemas/test-endpoints/thing/1.0.0", 201))
+            .build();
+    }
+
+    private static PluginRuntimeDescriptor replayedDescriptor(String responseSchemaRef) {
+        return PluginRuntimeDescriptor.builder("plugin-t")
+            .endpoint("plugin-t.create.v1", "POST", "/api/test/things",
+                io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies.authenticated("plugin-t:thing:create"),
+                new io.runtime.orchestrator.endpoint.EndpointContract(
+                    "brix://schemas/test-endpoints/create-thing-request/1.0.0", responseSchemaRef, 201, null,
+                    new io.runtime.orchestrator.endpoint.EndpointContract.Replay("plugin-t.create.v1",
+                        java.time.Duration.ofHours(24))))
+            .permission("plugin-t:thing:create", List.of())
             .build();
     }
 

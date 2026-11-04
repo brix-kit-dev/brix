@@ -17,6 +17,7 @@ package io.runtime.manifest.validation;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -48,6 +49,7 @@ public final class PluginManifestValidator {
 
     /** The statuses a successful endpoint can declare (standard-link plan L7.3). */
     private static final Set<Object> ENDPOINT_STATUSES = Set.of(200, 201, 202, 204);
+    private static final Set<String> REPLAYED_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
 
     /** The units of work a task can declare (root BRX-RS-DATA-028). */
     private static final Set<String> TASK_TRANSACTIONS = Set.of("required", "read-only", "none");
@@ -501,15 +503,46 @@ public final class PluginManifestValidator {
             if (status != null && !ENDPOINT_STATUSES.contains(status)) {
                 result.addError(prefix + ".response.status", "A successful endpoint answers 200, 201, 202 or 204");
             }
-            // Root BRX-RS-MANIFEST-018: required and optional idempotency need the runtime's replay, which this
-            // release does not have (standard-link plan D47).
+            // Root BRX-RS-MANIFEST-018: the runtime replays the results of a required endpoint (standard-link plan
+            // point 10a); it does not provide optional (idempotency design D72).
             Object idempotency = route.getIdempotency() == null ? null : route.getIdempotency().get("mode");
-            if ("required".equals(idempotency) || "optional".equals(idempotency)) {
-                result.addError(prefix + ".idempotency.mode", "Endpoint idempotency " + idempotency + " needs the "
-                    + "runtime's result replay, which this release does not provide; declare not-applicable and keep "
-                    + "the handler idempotent by its business key");
+            if ("optional".equals(idempotency)) {
+                result.addError(prefix + ".idempotency.mode", "Endpoint idempotency optional is not provided; declare "
+                    + "required, or not-applicable and keep the handler idempotent by its business key");
+            }
+            if (route.replaysResults()) {
+                validateReplay(manifest, route, prefix + ".idempotency.mode", result);
             }
         }
+    }
+
+    /** Idempotency design D74: what the runtime needs to replay an endpoint's results. */
+    private void validateReplay(PluginManifest manifest, PluginManifest.Route route, String path,
+            ValidationResult result) {
+        String method = route.getMethod() == null ? "" : route.getMethod().toUpperCase(Locale.ROOT);
+        if (!REPLAYED_METHODS.contains(method)) {
+            result.addError(path, "Only POST, PUT, PATCH and DELETE endpoints have results to replay");
+        }
+        boolean noBody = route.getResponse() != null && Integer.valueOf(204).equals(route.getResponse().get("status"));
+        if (!hasSchemaRef(route.getRequest()) || !noBody && !hasSchemaRef(route.getResponse())) {
+            result.addError(path, "An endpoint whose results are replayed declares its request and response schemas");
+        }
+        Object authentication = route.getAuthentication() == null ? null : route.getAuthentication().get("mode");
+        if (!"required".equals(authentication)) {
+            result.addError(path, "An endpoint whose results are replayed needs authentication.mode required: its "
+                + "keys belong to the caller");
+        }
+        if (manifest.getData() == null || !hasText(manifest.getData().getStorageId())) {
+            result.addError("data.storageId", "Endpoints whose results are replayed need data.storageId");
+        }
+        if (!requires(manifest, "io.runtime.sdk.capability.PersistenceCapability")) {
+            result.addError("capabilities.required",
+                "Endpoints whose results are replayed must require PersistenceCapability");
+        }
+    }
+
+    private boolean hasSchemaRef(Map<String, Object> contract) {
+        return contract != null && contract.get("schemaRef") instanceof String schemaRef && hasText(schemaRef);
     }
 
     /** Root BRX-RS-ERROR-014; standard-link plan L8.2: each service names its directory entry and its policies. */

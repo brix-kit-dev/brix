@@ -346,15 +346,55 @@ class PluginManifestLoaderTest {
     }
 
     @Test
-    void anEndpointCannotClaimIdempotencyTheRuntimeDoesNotReplay() {
-        // Root BRX-RS-MANIFEST-018; standard-link plan D47: replay comes later, so required and optional stop the plugin.
-        for (String mode : java.util.List.of("required", "optional")) {
-            assertThatThrownBy(() -> loader.loadFromString(templateEndpointManifest()
-                    .replace("mode: not-applicable", "mode: " + mode)))
-                .as(mode)
-                .isInstanceOf(ManifestValidationException.class)
-                .hasMessageContaining("result replay");
-        }
+    void anEndpointCannotDeclareOptionalIdempotency() {
+        // Root BRX-RS-MANIFEST-018; idempotency design D72: the runtime provides required only.
+        assertThatThrownBy(() -> loader.loadFromString(replayedEndpointManifest()
+                .replace("idempotency:\n        mode: required", "idempotency:\n        mode: optional")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("optional is not provided");
+    }
+
+    @Test
+    void anEndpointWhoseResultsAreReplayedIsATypedWriteOfAVerifiedCallerAndHasAnOwner() {
+        // Root BRX-RS-MANIFEST-018; standard-link plan point 10a, idempotency design D74.
+        assertThatCode(() -> loader.loadFromString(replayedEndpointManifest())).doesNotThrowAnyException();
+        assertThatThrownBy(() -> loader.loadFromString(replayedEndpointManifest().replace("method: POST", "method: GET")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("Only POST, PUT, PATCH and DELETE");
+        assertThatThrownBy(() -> loader.loadFromString(replayedEndpointManifest().replace(
+                "      response:\n        schemaRef: brix://schemas/app-booking/template-status-response/1.0.0\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("request and response schemas");
+        assertThatThrownBy(() -> loader.loadFromString(replayedEndpointManifest().replace(
+                "authentication:\n        mode: required\n", "authentication:\n        mode: anonymous\n")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("authentication.mode required");
+        assertThatThrownBy(() -> loader.loadFromString(replayedEndpointManifest().replace(
+                "data:\n  storageId: app_booking\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("data.storageId");
+        assertThatThrownBy(() -> loader.loadFromString(replayedEndpointManifest().replace(
+                "    - id: io.runtime.sdk.capability.PersistenceCapability\n      version: \">=3.2.0 <4.0.0\"\n", "")))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("must require PersistenceCapability");
+    }
+
+    @Test
+    void anEndpointWithoutABodyToKeepNeedsNoResponseSchema() {
+        // A 204 has no answer but its status, which the runtime replays all the same.
+        assertThatCode(() -> loader.loadFromString(replayedEndpointManifest().replace(
+                "      response:\n        schemaRef: brix://schemas/app-booking/template-status-response/1.0.0\n",
+                "      response:\n        status: 204\n")))
+            .doesNotThrowAnyException();
+    }
+
+    private String replayedEndpointManifest() {
+        return templateEndpointManifest()
+            .replace("method: GET", "method: POST")
+            .replace("mode: not-applicable", "mode: required")
+            .replace("capabilities:\n  required:\n", "capabilities:\n  required:\n"
+                + "    - id: io.runtime.sdk.capability.PersistenceCapability\n      version: \">=3.2.0 <4.0.0\"\n")
+            + "data:\n  storageId: app_booking\n";
     }
 
     private String validManifest() {

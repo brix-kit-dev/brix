@@ -28,8 +28,11 @@ import java.util.Set;
  */
 public final class CanonicalMessagingTables {
 
-    /** Version of the platform schema these rules describe: 2 adds the command key's request fingerprint. */
-    public static final int VERSION = 2;
+    /**
+     * Version of the platform schema these rules describe: 2 adds the command key's request fingerprint, 3 the endpoint
+     * idempotency table.
+     */
+    public static final int VERSION = 3;
 
     /**
      * Classpath directory of the PostgreSQL migrations, one subdirectory per {@link Kind}, with
@@ -67,6 +70,10 @@ public final class CanonicalMessagingTables {
         "handler_id", "command_id", "idempotency_scope", "idempotency_key", "outcome", "error_code",
         "holder_command_id", "tenant_id", "created_at");
 
+    private static final List<String> ENDPOINT_IDEMPOTENCY_COLUMNS = List.of(
+        "entry_id", "idempotency_scope", "idempotency_key", "request_fingerprint", "result_status", "result_body",
+        "tenant_id", "trace_id", "created_at", "expires_at");
+
     private static final List<String> TASK_RUN_COLUMNS = List.of(
         "task_id", "trigger_id", "scheduled_at", "claimed_by", "claimed_at", "status", "attempts", "error_code",
         "finished_at");
@@ -90,7 +97,13 @@ public final class CanonicalMessagingTables {
         COMMAND_OUTCOME("command-outcome", OUTCOME_COLUMNS, List.of("handler_id", "command_id"),
             List.of(List.of("created_at"))),
         /** {@code {storageId}_task_run}: the claimed runs of the Owner's tasks (standard-link plan L6.4). */
-        TASK_RUN("task-run", TASK_RUN_COLUMNS, List.of("task_id", "trigger_id"), List.of(List.of("finished_at")));
+        TASK_RUN("task-run", TASK_RUN_COLUMNS, List.of("task_id", "trigger_id"), List.of(List.of("finished_at"))),
+        /**
+         * {@code {storageId}_endpoint_idempotency}: the answers of the Owner's endpoints that replay them (standard-link
+         * plan point 10a).
+         */
+        ENDPOINT_IDEMPOTENCY("endpoint-idempotency", ENDPOINT_IDEMPOTENCY_COLUMNS,
+            List.of("entry_id", "idempotency_scope", "idempotency_key"), List.of(List.of("expires_at")));
 
         private final String part;
         private final List<String> columns;
@@ -107,8 +120,8 @@ public final class CanonicalMessagingTables {
         /**
          * Returns the name of this table's migrations, as their directory and history tables use it.
          *
-         * @return {@code outbox}, {@code inbox}, {@code command-idempotency}, {@code command-outcome} or
-         *     {@code task-run}
+         * @return {@code outbox}, {@code inbox}, {@code command-idempotency}, {@code command-outcome},
+         *     {@code task-run} or {@code endpoint-idempotency}
          */
         public String part() {
             return part;
@@ -235,6 +248,16 @@ public final class CanonicalMessagingTables {
      */
     public static String commandOutcomeOf(String storageId) {
         return requireStorageId(storageId) + "_command_outcome";
+    }
+
+    /**
+     * Returns the canonical endpoint idempotency table of a storage id (standard-link plan point 10a).
+     *
+     * @param storageId the manifest's {@code data.storageId}
+     * @return {@code {storageId}_endpoint_idempotency}
+     */
+    public static String endpointIdempotencyOf(String storageId) {
+        return requireStorageId(storageId) + "_endpoint_idempotency";
     }
 
     /**

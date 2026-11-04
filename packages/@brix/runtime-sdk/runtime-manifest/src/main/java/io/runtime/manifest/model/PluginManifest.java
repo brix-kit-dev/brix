@@ -475,6 +475,16 @@ public class PluginManifest {
             return idempotency;
         }
 
+        /**
+         * Returns whether the runtime replays this endpoint's results: {@code idempotency.mode: required} (root
+         * BRX-RS-MANIFEST-018; standard-link plan point 10a).
+         *
+         * @return whether it does
+         */
+        public boolean replaysResults() {
+            return idempotency != null && "required".equals(idempotency.get("mode"));
+        }
+
         public void setIdempotency(Map<String, Object> idempotency) {
             this.idempotency = idempotency;
         }

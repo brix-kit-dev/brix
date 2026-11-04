@@ -65,6 +65,15 @@ final class TypedEndpoints {
     }
 
     /**
+     * The request of a typed handler.
+     *
+     * @param value what the handler gets, its {@code B}
+     * @param tree the request the schema checked, which a replayed endpoint's fingerprint is taken from
+     */
+    record Input(Object value, JsonNode tree) {
+    }
+
+    /**
      * Builds and checks the request of a typed handler.
      *
      * @param route the route
@@ -73,10 +82,10 @@ final class TypedEndpoints {
      * @param body the request body, or {@code null}
      * @param query the query parameters
      * @param pathVariables the path variables
-     * @return the request as the handler's {@code B}
+     * @return the request
      * @throws EndpointRequestInvalidException when it breaks the request schema or does not read as {@code B}
      */
-    Object input(EndpointRoute route, TypedEndpointHandler<?, ?> handler, String method, Object body,
+    Input input(EndpointRoute route, TypedEndpointHandler<?, ?> handler, String method, Object body,
             Map<String, List<String>> query, Map<String, String> pathVariables) {
         Optional<EndpointSchemas.Compiled> schema = schemas.schema(route.contract().requestSchemaRef());
         ObjectNode request = json.createObjectNode();
@@ -102,12 +111,12 @@ final class TypedEndpoints {
         }
         Type type = inputs.computeIfAbsent(handler.getClass(), TypedEndpoints::inputType);
         if (type == JsonNode.class || type == ObjectNode.class || type == Object.class) {
-            return request;
+            return new Input(request, request);
         }
         try {
-            return json.readerFor(json.constructType(type))
+            return new Input(json.readerFor(json.constructType(type))
                 .with(EnumFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL)
-                .readValue(request);
+                .readValue(request), request);
         } catch (JacksonException | IllegalArgumentException unreadable) {
             throw invalid("$", "type");
         }

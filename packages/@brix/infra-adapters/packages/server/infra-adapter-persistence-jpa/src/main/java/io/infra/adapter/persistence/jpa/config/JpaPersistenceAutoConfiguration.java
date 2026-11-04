@@ -49,6 +49,7 @@ import io.infra.adapter.persistence.jpa.ConnectionPoolBudget;
 import io.infra.adapter.persistence.jpa.OwnerPersistenceUnits;
 import io.runtime.orchestrator.event.EventInboxStore;
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
+import io.runtime.orchestrator.endpoint.OwnerEndpointIdempotency;
 import io.runtime.orchestrator.event.BestEffortEventSender;
 import io.runtime.orchestrator.outbox.MessageOperationAudit;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
@@ -126,6 +127,19 @@ public class JpaPersistenceAutoConfiguration {
     @ConditionalOnMissingBean
     public OwnerCommandIdempotency ownerCommandIdempotency(OwnerPersistenceUnits ownerPersistenceUnits) {
         return ownerPersistenceUnits.commandIdempotency();
+    }
+
+    /**
+     * The answers the runtime replays for endpoints that declare {@code idempotency.mode: required} (standard-link
+     * plan point 10a).
+     *
+     * @param ownerPersistenceUnits the owners' persistence
+     * @return the owners' endpoint idempotency tables
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public OwnerEndpointIdempotency ownerEndpointIdempotency(OwnerPersistenceUnits ownerPersistenceUnits) {
+        return ownerPersistenceUnits.endpointIdempotency();
     }
 
     /**

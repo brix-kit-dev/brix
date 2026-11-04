@@ -28,6 +28,10 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  * The order's rules, its unit of work and its events are {@link OrderPlacement}'s; one it refuses is
  * {@code sample-orders.order_invalid}.</p>
  *
+ * <p>The manifest declares {@code idempotency.mode: required}, so the caller names a key in the {@code Idempotency-Key}
+ * header. The runtime keeps the answer with the order, and a repeated call gets it again without reaching this handler
+ * (standard-link plan point 10a).</p>
+ *
  * @author Brix Platform Authors
  * @since 3.2.0
  */

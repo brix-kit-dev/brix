@@ -24,10 +24,12 @@ For each request, in this order (root BRX-RS-MANIFEST-022):
 4. Checks the caller, the tenant context and the permissions the manifest names.
 5. Takes one of the endpoint's permits, or answers 503 at once when all are taken ([Deadlines and
    limits](#deadlines-and-limits)).
-6. Opens your plugin's unit of work: read-only for `GET` and `HEAD`, read-write otherwise, bound to the verified tenant.
+6. On an endpoint that [replays its results](#repeating-a-call), checks the call's key.
+7. Opens your plugin's unit of work: read-only for `GET` and `HEAD`, read-write otherwise, bound to the verified tenant.
    Its transaction ends at the call's deadline.
-7. Calls your handler and waits for its answer, no longer than the deadline.
-8. Checks the answer against the response schema, commits, and answers with the status the manifest declares.
+8. On such an endpoint, takes the key. A repeated call gets the first answer here, and your handler does not run.
+9. Calls your handler and waits for its answer, no longer than the deadline.
+10. Checks the answer against the response schema, commits, and answers with the status the manifest declares.
 
 ## Declaring an endpoint
 
@@ -58,16 +60,16 @@ endpoints:
       timeout:
         policyRef: endpoint-default
       idempotency:
-        mode: not-applicable
+        mode: required
 ```
 
 - `response.status` is what a success answers with: `200` (the default), `201`, `202` or `204`.
 - Put the request and response schemas in your api artifact, under `META-INF/brix/schemas/`. For a `GET` the request
   schema describes the query parameters and path variables.
 - A typed handler's schemas must be on the plugin's class path; the plugin does not start otherwise.
-- `idempotency.mode` is `not-applicable` in this release. `required` and `optional` need the runtime to replay
-  results, which it does not do yet, so they stop the plugin. Make a write endpoint idempotent by its business key,
-  or let it create a new resource each time, as placing an order does.
+- `idempotency.mode` is `required` for a write the caller may repeat safely ([Repeating a call](#repeating-a-call)),
+  or `not-applicable`. A write that is `not-applicable` is idempotent by its business key, or creates a new resource
+  each time. `optional` stops the plugin.
 
 ## Routes
 
@@ -93,6 +95,49 @@ Two prefixes are not yours:
 - `/api/platform/**` belongs to the platform's operational modules; a plugin endpoint there stops the host.
 - `/oauth2/**`, `/.well-known/**`, `/auth/**` and `/bff/**` belong to the identity protocol surface; no endpoint may take
   them.
+
+## Repeating a call
+
+A client that gets no answer cannot tell whether its request took effect. On an endpoint that declares
+`idempotency.mode: required`, it sends the request again and the runtime makes that safe (root BRX-RS-MANIFEST-018).
+`sample-orders` does this for placing an order:
+
+```http
+POST /api/sample-orders/orders
+Idempotency-Key: 6f1c2a3e-order-1
+```
+
+- The first call takes the key in your unit of work, runs your handler, and keeps the status and the body with your
+  writes. All of it commits together.
+- A later call with the same key and the same content gets that answer again, with the header
+  `Idempotent-Replayed: true`. Your handler does not run. The content is compared by a fingerprint of the request:
+  members in another order, or a field left out instead of sent as null, are the same content.
+- A call that fails keeps nothing, because everything rolls back. It can be tried again with the same key, and your
+  handler runs again.
+- A key belongs to the endpoint, the tenant and the caller. Other callers can use the same key and never meet.
+- The runtime keeps a key for at least 24 hours, and until the cleaning has removed it a later call still finds it.
+  `retentionPolicyRef` names how long: `idempotency-24h` is the default and the only name for now. Another name stops
+  the plugin at startup.
+
+| Code | Status | When |
+|---|---|---|
+| `endpoint.idempotency_key_required` | 400 | The call has no `Idempotency-Key`, or the key is not 1 to 128 visible ASCII characters |
+| `endpoint.idempotency_in_progress` | 409 | Another call with the key has not finished. The runtime does not wait for it. Try again shortly. |
+| `endpoint.idempotency_conflict` | 422 | An earlier call used the key with other content. Send new content with a new key. |
+
+Your handler reads its key from `request.idempotency()`, for example to name the same key to another system.
+
+The plugin does not start unless the endpoint meets these rules:
+- It is a `POST`, `PUT`, `PATCH` or `DELETE` with a typed handler, and declares its request and response schemas. A `204`
+  needs no response schema.
+- The caller is authenticated (`authentication.mode: required`). An anonymous caller has no key of its own.
+- The plugin declares `data.storageId` and requires `PersistenceCapability`. The platform creates
+  `<storageId>_endpoint_idempotency` from its own migrations.
+- The response holds no field classified `secret` or `credential`, directly or through a `$ref`. The runtime would keep
+  it.
+
+The runtime keeps at most 64 KiB of an answer. A larger one fails the call with `platform.unknown` and rolls it back,
+so nothing takes effect without an answer to replay. It logs `event=endpoint.idempotency_answer_too_large`.
 
 ## Deadlines and limits
 
@@ -187,6 +232,7 @@ The runtime's own answers:
 | `endpoint.invalid_request` | 400 | The request breaks its schema. The body lists `violations`, each a `path` and a `rule`, never a value. |
 | `endpoint.rejected` | 503 | The endpoint already runs as many calls as the host allows |
 | `endpoint.deadline_exceeded` | 504 | The handler did not answer before the deadline; its unit of work rolls back |
+| `endpoint.idempotency_key_required`, `endpoint.idempotency_in_progress`, `endpoint.idempotency_conflict` | 400, 409, 422 | See [Repeating a call](#repeating-a-call) |
 | `platform.unknown` | 500 | Anything else, such as a response that breaks its schema or an unexpected exception. The cause is only in the log. |
 
 ## Traces
@@ -213,7 +259,7 @@ A setting longer than the endpoint deadline stops the host.
 
 | Meter | What |
 |---|---|
-| `brix.endpoint.calls` | Calls and how long the runtime took to answer, by `module`, `endpoint` and `outcome`: `ok`, `invalid`, `denied`, `not_found`, `conflict`, `rejected`, `unavailable`, `deadline_exceeded` or `failed` |
+| `brix.endpoint.calls` | Calls and how long the runtime took to answer, by `module`, `endpoint` and `outcome`: `ok`, `replayed`, `invalid`, `denied`, `not_found`, `conflict`, `rejected`, `unavailable`, `deadline_exceeded` or `failed` |
 | `brix.endpoint.in_flight` | Calls whose handler is running, by `module` and `endpoint` |
 
 ## Lists

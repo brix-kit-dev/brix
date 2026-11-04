@@ -41,8 +41,8 @@ endpoints:
         sourcePolicyRef: first-owner-invitation-resolution
       timeout:
         policyRef: interactive-write
-      # The runtime has no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan D47): the handler is
-      # idempotent by its business key.
+      # Result replay comes to this endpoint with standard-link plan point 10b (root BRX-RS-MANIFEST-018); until then
+      # the handler is idempotent by its business key.
       idempotency:
         mode: not-applicable
     # The calling staff member's context and effective permissions for the BFF session

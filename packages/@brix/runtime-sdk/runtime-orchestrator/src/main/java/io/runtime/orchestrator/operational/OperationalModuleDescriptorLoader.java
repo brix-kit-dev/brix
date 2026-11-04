@@ -130,13 +130,14 @@ public final class OperationalModuleDescriptorLoader {
     }
 
     private OperationalModuleDescriptor.EndpointDeclaration endpoint(JsonNode node) {
-        // Root BRX-RS-MANIFEST-018: required and optional idempotency need the runtime's result replay, which this
-        // release does not provide (standard-link plan D47).
+        // Root BRX-RS-MANIFEST-018: required and optional idempotency need the runtime's result replay. It has that for
+        // plugin endpoints; an operational endpoint's comes with standard-link plan point 10b.
         String idempotency = node.path("idempotency").path("mode").asString("");
         if ("required".equals(idempotency) || "optional".equals(idempotency)) {
             throw new OperationalRuntimeException("operational.descriptor.invalid", "Platform operational endpoint '"
                 + text(node, "endpointId") + "' declares idempotency " + idempotency + ", which needs the runtime's "
-                + "result replay; declare not-applicable and keep the handler idempotent by its business key");
+                + "result replay; operational endpoints do not have it yet, so declare not-applicable and keep the "
+                + "handler idempotent by its business key");
         }
         try {
             return new OperationalModuleDescriptor.EndpointDeclaration(

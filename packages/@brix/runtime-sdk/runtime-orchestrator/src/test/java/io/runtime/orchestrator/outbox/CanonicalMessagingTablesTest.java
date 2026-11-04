@@ -28,6 +28,7 @@ class CanonicalMessagingTablesTest {
         assertEquals("app_orders_inbox", CanonicalMessagingTables.inboxOf("app_orders"));
         assertEquals("app_orders_command_idempotency", CanonicalMessagingTables.commandIdempotencyOf("app_orders"));
         assertEquals("app_orders_command_outcome", CanonicalMessagingTables.commandOutcomeOf("app_orders"));
+        assertEquals("app_orders_endpoint_idempotency", CanonicalMessagingTables.endpointIdempotencyOf("app_orders"));
         assertThrows(IllegalArgumentException.class, () -> CanonicalMessagingTables.outboxOf("app-orders"));
     }
 
@@ -103,7 +104,16 @@ class CanonicalMessagingTablesTest {
     void theCommandKeyGetsItsFingerprintInItsSecondMigration() throws IOException {
         assertTrue(migrations(CanonicalMessagingTables.Kind.COMMAND_IDEMPOTENCY).contains(
             "ALTER TABLE {{storageId}}_command_idempotency ADD COLUMN request_fingerprint VARCHAR(64);"));
-        assertEquals(2, CanonicalMessagingTables.VERSION);
+    }
+
+    @Test
+    void theEndpointKeyTableCameWithTheThirdVersion() throws IOException {
+        // Standard-link plan point 10a: its primary key is what a call is deduplicated by, and its expiry what the
+        // cleaning reads.
+        String migrations = migrations(CanonicalMessagingTables.Kind.ENDPOINT_IDEMPOTENCY);
+        assertTrue(migrations.contains("PRIMARY KEY (entry_id, idempotency_scope, idempotency_key)"), migrations);
+        assertTrue(migrations.contains("ON {{storageId}}_endpoint_idempotency (expires_at)"), migrations);
+        assertEquals(3, CanonicalMessagingTables.VERSION);
     }
 
     /** Every migration of a table, in version order. */

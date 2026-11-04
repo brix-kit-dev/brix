@@ -39,6 +39,7 @@ import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
 import io.runtime.orchestrator.external.ExternalHttpRuntime;
 import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.ReplayableAnswers;
 import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.orchestrator.command.CommandPolicies;
 import io.runtime.orchestrator.command.CommandProviders;
@@ -1133,12 +1134,29 @@ public final class PluginRuntimeManager {
         plugin.endpointHandlers.forEach((endpointId, handler) -> {
             PluginRuntimeDescriptor.EndpointDeclaration declaration =
                 plugin.descriptor.endpointDeclarations().get(endpointId);
-            if (!(handler instanceof TypedEndpointHandler<?, ?>) || declaration == null) {
+            if (declaration == null) {
+                return;
+            }
+            boolean replayed = declaration.contract().replay() != null;
+            if (!(handler instanceof TypedEndpointHandler<?, ?>)) {
+                if (replayed) {
+                    throw new PluginRuntimeException("Plugin '" + plugin.id() + "' endpoint '" + endpointId
+                        + "' has its results replayed, so its handler must be a TypedEndpointHandler");
+                }
                 return;
             }
             requireSchema(plugin, endpointId, "request", declaration.contract().requestSchemaRef(), classes);
             if (declaration.contract().status() != 204) {
                 requireSchema(plugin, endpointId, "response", declaration.contract().responseSchemaRef(), classes);
+                if (replayed) {
+                    // Idempotency design §4.6, D74: the runtime keeps the answer, so it must not hold a secret.
+                    ReplayableAnswers.fieldNotKept(declaration.contract().responseSchemaRef(), classes)
+                        .ifPresent(field -> {
+                            throw new PluginRuntimeException("Plugin '" + plugin.id() + "' endpoint '" + endpointId
+                                + "' has its results replayed, and its response declares a secret or credential at "
+                                + field + "; the runtime does not keep those");
+                        });
+                }
             }
         });
     }

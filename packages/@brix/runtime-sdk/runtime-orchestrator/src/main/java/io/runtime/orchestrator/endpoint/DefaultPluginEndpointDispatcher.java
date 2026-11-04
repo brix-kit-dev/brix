@@ -29,8 +29,10 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import org.slf4j.MDC;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -40,6 +42,7 @@ import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 import io.runtime.sdk.plugin.EndpointResponse;
+import io.runtime.sdk.plugin.IdempotencyContext;
 import io.runtime.sdk.plugin.TraceContext;
 import io.runtime.sdk.plugin.TypedEndpointHandler;
 
@@ -57,6 +60,9 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  * deadline of its endpoint's timeout policy and waits for none of the endpoint's limited permits
  * ({@link EndpointPolicies}). A handler sees no credentials and no trace headers, except the token of a
  * {@code setup-token} or {@code bootstrap-setup} entry, which it hands to the token's data owner to verify and spend.</p>
+ *
+ * <p>Standard-link plan point 10a: an endpoint that declares {@code idempotency.mode: required} keeps its answer with
+ * its business write, and a repeated call gets it again without running the handler ({@link EndpointReplay}).</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -85,6 +91,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     private final EndpointPolicies.Limits limits;
     private final EndpointInvocationBoundary invocationBoundary;
     private final TypedEndpoints typed;
+    private final EndpointReplay replays;
     private final EndpointTracing tracing;
     private final EndpointMetrics metrics;
 
@@ -132,11 +139,29 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
      */
     public DefaultPluginEndpointDispatcher(EndpointPolicies.Limits limits, EndpointInvocationBoundary invocationBoundary,
             ObjectMapper json, EndpointTracing tracing, EndpointMetrics metrics) {
+        this(limits, invocationBoundary, json, tracing, metrics, () -> null);
+    }
+
+    /**
+     * Creates a dispatcher that also replays the results of endpoints that declare {@code idempotency.mode: required}
+     * (root BRX-RS-MANIFEST-018; standard-link plan point 10a).
+     *
+     * @param limits the host's deadlines and per-endpoint concurrency
+     * @param invocationBoundary runtime policy applied around every handler invocation
+     * @param json the host's mapper, which also writes the responses
+     * @param tracing starts each call's server span
+     * @param metrics records each call
+     * @param idempotency supplies the owners' kept answers; may supply {@code null} on a host without them
+     */
+    public DefaultPluginEndpointDispatcher(EndpointPolicies.Limits limits, EndpointInvocationBoundary invocationBoundary,
+            ObjectMapper json, EndpointTracing tracing, EndpointMetrics metrics,
+            Supplier<OwnerEndpointIdempotency> idempotency) {
         this.limits = Objects.requireNonNull(limits, "limits must not be null");
         this.invocationBoundary = Objects.requireNonNull(invocationBoundary, "invocationBoundary must not be null");
         ClassLoader classes = Thread.currentThread().getContextClassLoader();
         this.typed = new TypedEndpoints(Objects.requireNonNull(json, "json must not be null"),
             classes != null ? classes : DefaultPluginEndpointDispatcher.class.getClassLoader());
+        this.replays = new EndpointReplay(idempotency, json);
         this.tracing = Objects.requireNonNull(tracing, "tracing must not be null");
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
@@ -157,6 +182,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         Objects.requireNonNull(routes, "routes must not be null");
         Objects.requireNonNull(grants, "grants must not be null");
         List<EndpointRoute> normalized = List.copyOf(routes);
+        normalized.stream().filter(route -> route.contract().replay() != null).forEach(replays::requireStore);
         EndpointRouteValidator.validate(normalized.stream()
             .map(route -> new EndpointRouteDeclaration(
                 route.pluginId(),
@@ -220,11 +246,16 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         MDC.put(MDC_TRACE_ID, traceId);
         int status = 500;
         String code = EndpointFailures.UNKNOWN;
+        boolean replayed = false;
         try {
             traceIds.accept(traceId);
             Object result = dispatch(current, match, normalizedMethod, body,
                 queryParameters != null ? queryParameters : Map.of(), normalizedHeaders, deadline, trace, traceId);
             status = result instanceof EndpointResponse response ? response.status() : 200;
+            if (result instanceof EndpointReplay.Replayed again) {
+                status = again.status();
+                replayed = true;
+            }
             code = null;
             return result;
         } catch (RuntimeException failure) {
@@ -239,7 +270,8 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
                 span.close();
                 restore(MDC_TRACEPARENT, outerTraceparent);
                 restore(MDC_TRACE_ID, outerTraceId);
-                metrics.finished(route.pluginId(), route.endpointId(), EndpointFailures.outcome(status, code),
+                metrics.finished(route.pluginId(), route.endpointId(),
+                    replayed ? EndpointReplay.REPLAYED : EndpointFailures.outcome(status, code),
                     Duration.ofNanos(System.nanoTime() - started));
             }
         }
@@ -260,8 +292,12 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         // Root BRX-RS-MANIFEST-022: a typed request is normalized and checked against its schema before the
         // authentication, tenant and permission checks.
         Object request = body;
+        JsonNode requestTree = null;
         if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
-            request = typed.input(route, handler, method, body, queryParameters, match.pathVariables());
+            TypedEndpoints.Input input = typed.input(route, handler, method, body, queryParameters,
+                match.pathVariables());
+            request = input.value();
+            requestTree = input.tree();
         }
 
         AccessDecision access = EndpointAccessGuard.enforce(route, new EndpointAccessGuard.Caller(
@@ -285,6 +321,11 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         }
         metrics.inFlight(route.pluginId(), route.endpointId(), 1);
         try {
+            // Root BRX-RS-MANIFEST-022: the idempotency admission comes last before the handler. A call whose key it
+            // refuses never reaches the unit of work.
+            EndpointReplay.Call replay = route.contract().replay() == null ? null : replays.admit(route,
+                firstHeader(headers, EndpointReplay.KEY_HEADER), requestTree, firstHeader(headers, TENANT_HEADER),
+                firstHeader(headers, ACTOR_HEADER), traceId);
             AtomicBoolean cancelled = new AtomicBoolean();
             EndpointInvocation<Object> invocation = new EndpointInvocation<>(
                 request,
@@ -300,14 +341,16 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
                 Optional.of(traceId),
                 deadline,
                 access,
-                cancelled::get);
+                cancelled::get,
+                replay == null ? Optional.empty()
+                    : Optional.of(new IdempotencyContext(replay.key().scope(), replay.key().key())));
             // Typed queries the handler makes take their caller, user, tenant and deadline from this call (root
             // BRX-RS-MANIFEST-028). A tenant user's permissions come only from the grant table, so none are forwarded.
             boolean tenantUser = firstHeader(headers, TOKEN_ROLE_HEADER)
                 .filter(role -> "actor".equals(role) || "subject".equals(role)).isPresent();
             RuntimeInvocation call = RuntimeInvocation.forEndpoint(route.pluginId(), invocation,
                 tenantUser ? Set.of() : headerValues(headers, PERMISSION_HEADER), Optional.of(trace));
-            return RuntimeInvocations.within(call, () -> invokeHandler(route, invocation, cancelled));
+            return RuntimeInvocations.within(call, () -> invokeHandler(route, invocation, cancelled, replay));
         } finally {
             permits.release();
             metrics.inFlight(route.pluginId(), route.endpointId(), -1);
@@ -315,12 +358,16 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     }
 
     @SuppressWarnings("unchecked")
-    private Object invokeHandler(EndpointRoute route, EndpointInvocation<Object> invocation, AtomicBoolean cancelled) {
+    private Object invokeHandler(EndpointRoute route, EndpointInvocation<Object> invocation, AtomicBoolean cancelled,
+            EndpointReplay.Call replay) {
         if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
             // Root BRX-RS-DATA-028: the unit of work commits once the stage has completed and the response checks.
             TypedEndpointHandler<Object, Object> typedHandler = (TypedEndpointHandler<Object, Object>) handler;
-            return invocationBoundary.invoke(route, invocation, () -> typed.output(route, TypedEndpoints.await(route,
-                typedHandler.handle(invocation), invocation.deadline(), () -> cancelled.set(true))));
+            Supplier<Object> call = () -> typed.output(route, TypedEndpoints.await(route, typedHandler.handle(invocation),
+                invocation.deadline(), () -> cancelled.set(true)));
+            // Standard-link plan point 10a: the key and the answer commit with the handler's writes.
+            return invocationBoundary.invoke(route, invocation,
+                replay == null ? call : () -> replays.run(replay, call));
         }
         try {
             EndpointHandler<EndpointInvocation<Object>, Object> handler =

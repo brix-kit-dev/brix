@@ -213,6 +213,10 @@ public class FlywayModuleMigrationRunner {
                 if (manifest.getTasks() != null && !manifest.getTasks().getProvides().isEmpty()) {
                     kinds.add(CanonicalMessagingTables.Kind.TASK_RUN);
                 }
+                if (manifest.endpointDeclarations().stream()
+                        .anyMatch(route -> route != null && route.replaysResults())) {
+                    kinds.add(CanonicalMessagingTables.Kind.ENDPOINT_IDEMPOTENCY);
+                }
                 for (CanonicalMessagingTables.Kind kind : kinds) {
                     MessagingMigration migration = new MessagingMigration(pluginId, data.getStorageId(), kind);
                     declared.put(pluginId + "|" + kind.ordinal(), migration);
@@ -251,6 +255,8 @@ public class FlywayModuleMigrationRunner {
                 case COMMAND_IDEMPOTENCY -> "idempotency";
                 case COMMAND_OUTCOME -> "command_outcome";
                 case TASK_RUN -> "task_run";
+                // Short enough for PostgreSQL's 63 characters with the longest storage id.
+                case ENDPOINT_IDEMPOTENCY -> "endpoint_keys";
             };
             return "brix_msg_history_" + storageId + "_" + suffix;
         }

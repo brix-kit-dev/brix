@@ -126,7 +126,7 @@ class SampleDeliveryDeadlineEndToEndTest {
             try (Statement statement = other.createStatement()) {
                 statement.execute("LOCK TABLE sample_shipping_shipment IN SHARE MODE");
             }
-            HttpResponse<String> placed = post("/api/sample-orders/orders", Map.of("sku", "sku-1", "quantity", 2));
+            HttpResponse<String> placed = SampleInfrastructure.place(port, Map.of("sku", "sku-1", "quantity", 2));
             assertEquals(201, placed.statusCode(), placed.body());
             orderId = JSON.readTree(placed.body()).get("orderId").asString();
 
@@ -150,7 +150,7 @@ class SampleDeliveryDeadlineEndToEndTest {
     @Test
     void aCommandProviderHeldUpPastItsDeadlineRollsBackAndCancelsTheOrderOnceTheLockIsGone() throws Exception {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        HttpResponse<String> placed = post("/api/sample-orders/orders", Map.of("sku", "sku-2", "quantity", 1));
+        HttpResponse<String> placed = SampleInfrastructure.place(port, Map.of("sku", "sku-2", "quantity", 1));
         assertEquals(201, placed.statusCode(), placed.body());
         String orderId = JSON.readTree(placed.body()).get("orderId").asString();
         await("sample-shipping prepared the shipment", () -> count(jdbc,

@@ -26,8 +26,8 @@ public interface EndpointMetrics {
      *
      * @param pluginId the module that owns the endpoint
      * @param endpointId the endpoint
-     * @param outcome {@code ok}, {@code invalid}, {@code denied}, {@code not_found}, {@code conflict},
-     *     {@code rejected}, {@code unavailable}, {@code deadline_exceeded} or {@code failed}
+     * @param outcome {@code ok}, {@code replayed}, {@code invalid}, {@code denied}, {@code not_found},
+     *     {@code conflict}, {@code rejected}, {@code unavailable}, {@code deadline_exceeded} or {@code failed}
      * @param took how long the runtime took to answer, from finding the route
      */
     default void finished(String pluginId, String endpointId, String outcome, Duration took) {

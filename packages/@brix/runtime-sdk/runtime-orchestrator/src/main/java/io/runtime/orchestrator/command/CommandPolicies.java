@@ -6,14 +6,11 @@
  */
 package io.runtime.orchestrator.command;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 import java.util.Objects;
 import java.util.Set;
 
 import io.runtime.orchestrator.event.EventPolicies;
+import io.runtime.orchestrator.idempotency.IdempotencyScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 
 /**
@@ -49,8 +46,6 @@ public final class CommandPolicies {
 
     /** The idempotency policies. */
     public static final Set<String> IDEMPOTENCY = Set.of(PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX);
-
-    private static final int SCOPE_COLUMN = 128;
 
     private CommandPolicies() {
     }
@@ -124,15 +119,7 @@ public final class CommandPolicies {
      * @return the scope to deduplicate by
      */
     public static String ownerScope(String producerPluginId, Long tenantId, String senderScope) {
-        String combined = producerPluginId + "|" + (tenantId == null ? "platform" : tenantId) + "|" + senderScope;
-        if (combined.length() <= SCOPE_COLUMN) {
-            return combined;
-        }
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(combined.getBytes(StandardCharsets.UTF_8));
-            return "sha256:" + Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-        } catch (NoSuchAlgorithmException absent) {
-            throw new IllegalStateException("SHA-256 is part of every Java runtime", absent);
-        }
+        return IdempotencyScopes.bounded(
+            producerPluginId + "|" + (tenantId == null ? "platform" : tenantId) + "|" + senderScope);
     }
 }

@@ -312,11 +312,21 @@ public final class ClasspathPluginRuntimeDescriptorResolver
         try {
             return new io.runtime.orchestrator.endpoint.EndpointContract(schemaRef(route.getRequest()),
                 schemaRef(route.getResponse()), status(route.getResponse()),
-                timeout instanceof String policy ? policy : null);
+                timeout instanceof String policy ? policy : null, replay(route));
         } catch (IllegalArgumentException e) {
             throw new PluginRuntimeException("Plugin '" + pluginId + "' endpoint '" + route.getEndpointId()
                 + "' declares an invalid contract: " + e.getMessage(), e);
         }
+    }
+
+    /** Root BRX-RS-MANIFEST-018; standard-link plan point 10a: how the runtime replays the endpoint's results. */
+    private static io.runtime.orchestrator.endpoint.EndpointContract.Replay replay(PluginManifest.Route route) {
+        if (!route.replaysResults()) {
+            return null;
+        }
+        Object retention = route.getIdempotency().get("retentionPolicyRef");
+        return new io.runtime.orchestrator.endpoint.EndpointContract.Replay(route.getHandlerId(),
+            io.runtime.orchestrator.endpoint.EndpointPolicies.retention(retention instanceof String policy ? policy : null));
     }
 
     /** Root BRX-RS-MANIFEST-026; standard-link plan L8.2: a policy the runtime does not know stops the plugin. */
