@@ -13,8 +13,9 @@ import io.runtime.sdk.error.ErrorCategory;
 import io.runtime.sdk.error.ErrorCode;
 
 /**
- * An expected failure of a sample-orders endpoint (root BRX-RS-MANIFEST-022; standard-link plan L7.3). Each code names
- * its category; the runtime answers with the category's status.
+ * An expected failure of a sample-orders endpoint (root BRX-RS-MANIFEST-022; standard-link plan L7.3), or the
+ * rejection of a command it is asked to apply (standard-link plan point 9). Each code names its category: an endpoint
+ * answers with the category's status, and a command is rejected with the code.
  */
 final class SampleOrdersException extends BrixException {
 

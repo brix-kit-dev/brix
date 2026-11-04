@@ -28,7 +28,8 @@ public interface OwnerCommandIdempotency {
     /**
      * Takes the key for a command in the provider's current transaction, with the fingerprint of its payload
      * (standard-link plan point 8). A command whose key another transaction is taking waits for that transaction to
-     * end, as long as its own unit of work lasts, rather than failing.
+     * end, as long as its own unit of work lasts, rather than failing. The key is held once the transaction commits:
+     * a command whose handler fails or rejects it rolls back and leaves the key free (plan point 9).
      *
      * @param ownerId the providing plugin
      * @param handlerId the handler

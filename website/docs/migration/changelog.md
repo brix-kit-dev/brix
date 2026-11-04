@@ -86,6 +86,11 @@ All notable changes to Brix Framework are documented here.
   another way is still a duplicate. Two commands with the same key at once no longer fail one delivery: the second
   waits for the first's transaction, then is a duplicate or a conflict. The sample's `sample-orders.cancel-order` 1.1.0
   adds the reason `DAMAGED`, and a refusal can name it.
+- **A command handler can reject a command.** It throws a `BrixException` whose code's category is `INVALID`,
+  `DENIED`, `NOT_FOUND` or `CONFLICT`. Its unit of work rolls back, and the provider records the rejection with the
+  code in a short transaction of its own. The sender reads `REJECTED` with the code. The command is not retried or
+  parked, and it takes no key, so a later command with the key runs. Any other failure is retried and then parked, as
+  before. `sample-orders` rejects the cancellation of an order it does not have with `sample-orders.order_not_found`.
 - **BEST_EFFORT from the same bus.** `publishIntegration` sends a BEST_EFFORT event directly after the unit of work
   commits.
 - **Messaging tables from the platform.** The platform creates `<storageId>_outbox`, `<storageId>_inbox`,

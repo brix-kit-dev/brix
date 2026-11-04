@@ -11,6 +11,7 @@ import static io.brix.samples.e2e.SampleInfrastructure.WAIT;
 import static io.brix.samples.e2e.SampleInfrastructure.await;
 import static io.brix.samples.e2e.SampleInfrastructure.count;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.http.HttpResponse;
@@ -18,6 +19,7 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -41,6 +45,7 @@ import tools.jackson.databind.JsonNode;
 
 import io.brix.samples.orders.server.Heartbeat;
 import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
+import io.runtime.orchestrator.event.MicrometerEventSubscriptionMetrics;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.task.RuntimeTaskScheduler;
@@ -55,8 +60,8 @@ import io.runtime.orchestrator.task.TaskRunClaims;
  * sample-shipping prepares one shipment in the order's tenant, records the event in its inbox and shows the shipment
  * over HTTP. When the member refuses the shipment, sample-shipping sends sample-orders' typed command
  * {@code sample-orders.cancel-order} through its own outbox and Kafka, and sample-orders cancels the order once
- * however often it is asked (standard-link plan L4.7). sample-orders' heartbeat task runs once per trigger across
- * hosts (L6.7).
+ * however often it is asked (standard-link plan L4.7); an order it does not have, it rejects (point 9).
+ * sample-orders' heartbeat task runs once per trigger across hosts (L6.7).
  *
  * <p>The host is the auto-configurations and the properties below; the plugins bring only their manifests, their
  * code and their business tables. Each run gets its own PostgreSQL schema and topic prefix, so nothing is shared.</p>
@@ -110,6 +115,9 @@ class SamplePluginsEndToEndTest {
 
     @Autowired
     private RuntimeTaskScheduler scheduler;
+
+    @Autowired
+    private MeterRegistry meters;
 
     @BeforeAll
     static void startInfrastructure() throws SQLException {
@@ -292,6 +300,38 @@ class SamplePluginsEndToEndTest {
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_order"));
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_shipping_shipment"));
 
+        // Standard-link plan point 9: sample-orders rejects the cancellation of an order it does not have. The test
+        // gives sample-shipping a shipment of order 2, which sample-orders never had. The command rolls back and is
+        // recorded as REJECTED with sample-orders' code, neither retried nor parked; it takes no key, so refusing the
+        // order again runs the handler again.
+        jdbc.update("INSERT INTO sample_shipping_shipment (id, tenant_id, order_id, sku, quantity, order_version,"
+            + " prepared_at) VALUES (2, ?, '2', 'sku-3', 1, 1, now())", SampleHost.TENANT);
+        double retriesBefore = commandMeter(MicrometerEventSubscriptionMetrics.RETRIES);
+        double parkedBefore = commandMeter(MicrometerEventSubscriptionMetrics.PARKED);
+        List<String> rejectedIds = new ArrayList<>();
+        for (int sent = 0; sent < 2; sent++) {
+            HttpResponse<String> unknownOrder = post("/api/sample-shipping/shipments/2/refuse", Map.of());
+            assertEquals(202, unknownOrder.statusCode(), unknownOrder.body());
+            String rejectedId = JSON.readTree(unknownOrder.body()).get("commandId").asString();
+            rejectedIds.add(rejectedId);
+            await("sample-orders rejected the command", () -> count(jdbc, "SELECT COUNT(*) FROM"
+                + " sample_orders_command_outcome WHERE command_id = ? AND outcome = 'REJECTED'", rejectedId) == 1);
+            JsonNode rejected = JSON.readTree(get("/api/sample-shipping/cancellations/" + rejectedId).body());
+            assertEquals("REJECTED", rejected.get("status").asString(), rejected.toString());
+            assertEquals("sample-orders.order_not_found", rejected.get("errorCode").asString(), rejected.toString());
+            assertFalse(rejected.hasNonNull("originalCommandId"), rejected.toString());
+        }
+        assertEquals(Set.copyOf(rejectedIds), Set.copyOf(jdbc.queryForList("SELECT command_id FROM"
+            + " sample_orders_command_outcome WHERE outcome = 'REJECTED' AND error_code = ?", String.class,
+            "sample-orders.order_not_found")), "the handler ran for each command, and rejected each");
+        assertEquals(2, count(jdbc, "SELECT COUNT(*) FROM sample_orders_inbox WHERE handler_id = ? AND message_id IN"
+            + " (?, ?) AND status = 'PROCESSED'", "sample-orders.cancel-order.v1", rejectedIds.get(0),
+            rejectedIds.get(1)), "the inbox recorded both, so a redelivery does not run them again");
+        assertEquals(0, count(jdbc, "SELECT COUNT(*) FROM sample_orders_command_idempotency"
+            + " WHERE idempotency_key = '2'"), "a rejected command holds no key");
+        assertEquals(retriesBefore, commandMeter(MicrometerEventSubscriptionMetrics.RETRIES), "not retried");
+        assertEquals(parkedBefore, commandMeter(MicrometerEventSubscriptionMetrics.PARKED), "not parked");
+
         // sample-orders' heartbeat runs once per trigger across hosts (standard-link plan L6.7): this host's scheduler
         // and another one on the same database, as a second host's would be, claim each trigger in
         // sample_orders_task_run, and only the one whose claim commits first runs it.
@@ -341,5 +381,12 @@ class SamplePluginsEndToEndTest {
 
     private HttpResponse<String> get(String path) throws Exception {
         return SampleInfrastructure.get(port, path);
+    }
+
+    /** A counter of the deliveries of sample-orders' command, across its subscriptions. */
+    private double commandMeter(String name) {
+        return meters.find(name).tag("type", "sample-orders.cancel-order").counters().stream()
+            .mapToDouble(Counter::count)
+            .sum();
     }
 }

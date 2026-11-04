@@ -54,7 +54,8 @@ A command is deduplicated twice:
 - by the sender's business idempotency key, in the provider's idempotency table. A second command with a key already
   taken is recorded as a duplicate of the first when its content is the same, and as a conflict when it is not; it
   does not run either way, and its sender reads which
-  ([Reading a command's status](../guides/events-and-commands.md#reading-a-commands-status)).
+  ([Reading a command's status](../guides/events-and-commands.md#reading-a-commands-status)). A command the owner
+  rejects takes no key, so a later command with it runs.
 
 ## Ordering
 
@@ -100,7 +101,8 @@ change once a plugin runs in production; see
 
 | Situation | What happens |
 |---|---|
-| The handler throws, or does not finish by its deadline | Its writes and the inbox receipt roll back. Its statements stop at the deadline, and a handler that returns after it does not commit. The message is retried with exponential backoff and jitter. |
+| A command's handler rejects it with a `BrixException` of category `INVALID`, `DENIED`, `NOT_FOUND` or `CONFLICT` | Its writes and the inbox receipt roll back. The owner then records the command and the rejection with its code, in a transaction of its own. The command is not retried or parked, and its sender reads `REJECTED`. |
+| The handler fails in any other way, or does not finish by its deadline | Its writes and the inbox receipt roll back. Its statements stop at the deadline, and a handler that returns after it does not commit. The message is retried with exponential backoff and jitter. |
 | Retries run out, or a permanent error (undecodable payload, unsupported schema) | The message is **parked**. Later messages of the subscription go on. |
 | The subscriber's database is down, the subscriber is not started, or the broker is unreachable | Delivery pauses without using up attempts, and resumes when the cause is gone. |
 

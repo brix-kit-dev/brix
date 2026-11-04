@@ -64,7 +64,7 @@ flowchart LR
 | Delivery | CRITICAL and STANDARD events are delivered **at least once** after the publisher commits, and never if it rolls back. With a persistent inbox, each handler applies an event **once**. |
 | Order | A subscriber sees the events of **one event type with the same partition key** (the event's routing key) in publish order. While an event is retried, the later events of its key wait for it. **A parked event is the exception:** parked in the publisher's outbox or at a subscription, it holds nothing back. The later events of its key go on, and a replayed one arrives after them. There is no order across event types or keys. To order events of different types for one aggregate, or to ignore a replayed event that is older than what you have, put the aggregate's version in the payloads and compare it in the subscriber. |
 | New subscriptions | A subscription starts at the moment it is first registered. It does not receive older events; a renamed `handlerId` is a new subscription. For history, an operator republishes events that are still in the outbox (see [Operating](#operating)). |
-| Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that does not finish by its deadline counts as a failed attempt, even one that did its work and returned late: its writes and the inbox receipt roll back. |
+| Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that does not finish by its deadline counts as a failed attempt, even one that did its work and returned late: its writes and the inbox receipt roll back. A command's handler can instead reject the command, which ends it without a retry (see [Providing a command](#providing-a-command)). |
 | Outages | If the subscriber's database is down or the plugin is not started, the subscription pauses. Attempts are not used up, and the event is delivered once the cause is gone. |
 | Tenancy | A TENANT event is handled in its own tenant; a PLATFORM event in none. The runtime binds the producer and the tenant from the publishing unit of work. An event cannot claim another publisher or tenant. |
 | Contracts | Each event type has one publisher. Its payload has a versioned JSON schema, and subscribers name the schema range they accept. |
@@ -382,8 +382,9 @@ Use a command when you need another plugin to change **its** data. Do not use an
 act on. A command has exactly one provider, its owner. It travels the same outbox, broker and inbox chain as an
 event, and the owner applies it once:
 - the owner's inbox drops a redelivered command id;
-- the owner's idempotency table drops a second command with the same business key from the same sender in the same
-  tenant. With the same content it is a duplicate of the first; with other content it is a conflict. Neither runs.
+- the owner's idempotency table drops a command whose business key an earlier command from the same sender in the
+  same tenant took. With the same content it is a duplicate of that command; with other content it is a conflict.
+  Neither runs. A command the owner rejects takes no key.
 
 The sender [reads each command's status](#reading-a-commands-status) by its id.
 
@@ -465,7 +466,9 @@ final class CancelOrderHandler implements CommandHandler<CancelOrder> {
     @Override
     public CompletionStage<Void> handle(CommandInvocation<CancelOrder> invocation) {
         CancelOrder command = invocation.command().payload();
-        orders.cancel(Long.parseLong(command.orderId()), command.reason().name());
+        parse(command.orderId())
+            .flatMap(orderId -> orders.cancel(orderId, command.reason().name()))
+            .orElseThrow(() -> new SampleOrdersException(SampleOrdersException.Code.ORDER_NOT_FOUND));
         return CompletableFuture.completedFuture(null);
     }
 }
@@ -473,8 +476,16 @@ final class CancelOrderHandler implements CommandHandler<CancelOrder> {
 
 - The runtime runs the handler in your unit of work, bound to the command's tenant (none for a platform command),
   after it has recorded the inbox receipt and the business key. Your writes commit with them.
-- To fail, throw. Everything rolls back, and the command is retried and then parked like an event. A handler that
-  does not finish by the deadline rolls back too, as for events.
+- To reject a command, throw a `BrixException` whose code's category is `INVALID`, `DENIED`, `NOT_FOUND` or
+  `CONFLICT`. The sample does that with `sample-orders.order_not_found` (`NOT_FOUND`) for an order it does not have.
+  - Your writes roll back. The runtime then records the rejection with your code, in a short transaction of its own.
+  - The sender reads `REJECTED` with the code. The command is not retried or parked.
+  - It takes no business key, so a later command with the same key runs.
+  - Reject only when trying again cannot help: a rejection is final for that command.
+- Any other failure rolls back too, and the command is retried and then parked like an event. That covers an
+  exception without a code and a code of another category (`UNAVAILABLE`, `DEADLINE_EXCEEDED`, `INTERNAL`). A
+  handler that does not finish by the deadline rolls back too, as for events. A stage that completes exceptionally
+  counts as a throw.
 - `invocation.command()` carries the command id, type, schema version, sender (`producerPluginId`), tenant, business
   key and trace, and the user the sender acted for when the access policy needs one.
 - A command has no reply. If someone needs the outcome, publish it as your own event.
@@ -546,6 +557,7 @@ return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellati
 - Sending the key again with the same content is a harmless duplicate. Sending it with other content is a conflict:
   the owner does not run it, and you read `CONFLICT`. In the sample, refusing an order a second time with the other
   reason does that. Send new content with a key of its own.
+- A command the owner rejected holds no key: a later command with the same key runs.
 - Do not put personal data or secrets in a key: the owner keeps it as it is.
 - The runtime fills in the rest: the tenant of the current call (outside any call, the command is a platform
   command), your plugin as the sender, and the version of the generated type. You cannot name another tenant or
@@ -578,13 +590,12 @@ return CompletableFuture.completedFuture(new Cancellation(status.commandId(), st
 |---|---|
 | `QUEUED` | The command is durable and waits for the owner, or is on its way to it |
 | `SUCCEEDED` | The owner's handler finished and its transaction committed. The command holds its business key |
+| `REJECTED` | The owner's handler turned the command down, so nothing changed. `errorCode()` is the handler's code, and the business key stays free |
 | `DUPLICATE` | An earlier command with the same business key took effect, so this one did not run. `originalCommandId()` names the earlier one |
 | `CONFLICT` | An earlier command holds the business key with other content, so this one did not run. `errorCode()` is `command.idempotency_conflict` (`CommandStatus.IDEMPOTENCY_CONFLICT`) and `originalCommandId()` names the earlier one |
 | `PARKED` | The command could not be delivered or handled and waits for an operator. `errorCode()` says why |
 | `DISCARDED` | An operator discarded the parked command. It never runs |
 | `UNKNOWN` | Nothing is known to you: another plugin's command, another tenant's, one past retention, or none at all |
-
-`REJECTED` (the owner turned the command down) is part of the type, but this release does not produce it yet.
 
 The owner tells content apart by a fingerprint of the payload: the SHA-256 of its canonical JSON, with members sorted,
 null members left out and numbers written exactly. The same content written another way, such as members in another
@@ -609,7 +620,7 @@ duplicate.
 | | `on-behalf-of:<permission>` | A plugin may send it only while acting for a user who holds the permission. The sender's runtime checks the user at submission and the command records the user; the owner parks a command that names none |
 | `timeoutPolicyRef`, `retryPolicyRef` | `event-standard` | The host's delivery deadline, attempts and backoff, as for events |
 | `concurrencyPolicyRef` | `partition-serial` | One command at a time per partition key, in order. A parked command holds nothing back, as for events |
-| `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant: a duplicate with the same content, a conflict with other content |
+| `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant: a duplicate with the same content, a conflict with other content. A rejected command takes no key |
 
 A provider names all six; a sender names `required`, `versionRange`, the timeout, the retry and the idempotency
 policy. A name the runtime does not know stops the plugin at startup. Commands share the timeout, retry and
@@ -645,6 +656,10 @@ its own versioned migrations, after your migrations and in its own schema histor
 | `commands.provides` | `<storageId>_command_idempotency` and `<storageId>_command_outcome` |
 
 A plugin that sends commands declares `data.outbox`; one that provides them declares `data.inbox`.
+
+A row of `<storageId>_command_idempotency`, whose `status` is always `ACCEPTED`, is a command that succeeded and holds
+its key. What became of a command that took no key (a duplicate, a conflict or a rejection) is in
+`<storageId>_command_outcome`.
 
 Your `data.migrationLocation` holds only your business tables. At startup the runtime checks every messaging table's
 columns, keys and indexes, and refuses a plugin whose tables differ. The platform migrations are for PostgreSQL, the
@@ -691,7 +706,7 @@ Choose them once. The samples show each one:
 |---|---|
 | Outbox | `brix_outbox_messages{outbox,status}`, `brix_outbox_oldest_pending_age_seconds`, `brix_outbox_relay_waiting` |
 | Subscriptions | `brix_event_subscription_parked`, `_lag`, `_stalled_age_seconds`, `_handling_age_seconds`, `_consumer_running` |
-| Commands | `brix_command_idempotency_conflicts_total{owner,handler}`: commands that reused a key with other content, a mistake of their sender |
+| Commands | `brix_command_idempotency_conflicts_total{owner,handler}`: commands that reused a key with other content, a mistake of their sender. A rejection is the owner's answer, not a fault: it is logged as `event=command.rejected` with its code and not counted |
 | Cleaning | `brix_messaging_retention_deleted_total`, `_failures_total`, `_last_pass_seconds` |
 
 Subscription readiness is part of the host's health.

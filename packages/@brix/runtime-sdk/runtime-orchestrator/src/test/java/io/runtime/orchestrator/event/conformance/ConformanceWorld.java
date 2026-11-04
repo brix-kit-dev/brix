@@ -56,6 +56,9 @@ import io.runtime.sdk.capability.FirstOwnerInviteeIdentitySetupCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
 import io.runtime.sdk.capability.UnitOfWork;
+import io.runtime.sdk.error.BrixException;
+import io.runtime.sdk.error.ErrorCategory;
+import io.runtime.sdk.error.ErrorCode;
 import io.runtime.sdk.event.identity.FirstOwnerInviteeSetupCompletedEvent;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
@@ -80,6 +83,8 @@ public final class ConformanceWorld {
     /** The command the publisher submits and the subscriber provides (Kafka design §14 K22). */
     public static final String COMMAND = "ReserveStock";
     public static final String COMMAND_HANDLER = "reserve-stock.v1";
+    /** The code of every stable failure the command handler is made to throw (standard-link plan point 9). */
+    public static final String STOCK_REFUSED = "conformance.stock_refused";
 
     /**
      * A PLATFORM fact the subscriber takes under the registered cross-tenant policy
@@ -178,6 +183,8 @@ public final class ConformanceWorld {
     private final AtomicInteger hangsLeft = new AtomicInteger();
     private final AtomicInteger overrunsLeft = new AtomicInteger();
     private final AtomicInteger commandCalls = new AtomicInteger();
+    private final AtomicInteger commandFailuresLeft = new AtomicInteger();
+    private volatile ErrorCategory commandFailure;
     private volatile Duration deadline = Duration.ofSeconds(5);
     private volatile boolean databaseDown;
     private volatile String commandAccessPolicy = CommandPolicies.ACCESS_DECLARED_CONSUMERS;
@@ -514,6 +521,18 @@ public final class ConformanceWorld {
         overrunsLeft.set(count);
     }
 
+    /**
+     * Makes the command handler fail on its next calls, after it has done its work: with a stable failure of the
+     * category, or with {@code null}, with an exception of no code (standard-link plan point 9).
+     *
+     * @param category the failure's category, or {@code null}
+     * @param count how many calls fail
+     */
+    public void failNextCommands(ErrorCategory category, int count) {
+        commandFailure = category;
+        commandFailuresLeft.set(count);
+    }
+
     /** How often the command handler was called, including the attempts whose work rolled back. */
     public int commandCalls() {
         return commandCalls.get();
@@ -626,7 +645,32 @@ public final class ConformanceWorld {
             }
             current.commands.add(invocation.command().commandId());
             overrunIfAsked();
+            if (commandFailuresLeft.getAndUpdate(left -> Math.max(0, left - 1)) > 0) {
+                ErrorCategory category = commandFailure;
+                throw category == null ? new IllegalStateException("the stock service is failing")
+                    : new StockException(category);
+            }
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** A stable failure of the command handler: a refusal of a business category, or one of any other. */
+    private static final class StockException extends BrixException {
+
+        private static final long serialVersionUID = 1L;
+
+        StockException(ErrorCategory category) {
+            super(new ErrorCode() {
+                @Override
+                public String wireCode() {
+                    return STOCK_REFUSED;
+                }
+
+                @Override
+                public ErrorCategory category() {
+                    return category;
+                }
+            }, Map.of(), null);
         }
     }
 

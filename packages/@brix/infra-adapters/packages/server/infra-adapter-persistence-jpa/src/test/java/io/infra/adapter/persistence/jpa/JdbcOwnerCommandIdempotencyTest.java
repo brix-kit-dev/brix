@@ -131,6 +131,18 @@ class JdbcOwnerCommandIdempotencyTest {
     }
 
     @Test
+    void aRejectedCommandReadsAsRejectedWithItsCodeAndHoldsNoKey() {
+        // Standard-link plan point 9: the runtime records the rejection once the handler's transaction rolled back.
+        CommandRecord rejected = new CommandRecord("command-5", CommandStatus.State.REJECTED, "shipping|910001|cancel",
+            "o-5", 910001L, "sample-orders.order_not_found", null, NOW);
+
+        transactions.executeWithoutResult(status -> records.recordOutcome(OWNER, HANDLER, rejected));
+
+        assertEquals(Optional.of(rejected), records.find(OWNER, HANDLER, "command-5"));
+        assertEquals(Optional.empty(), records.holder(OWNER, HANDLER, "shipping|910001|cancel", "o-5"));
+    }
+
+    @Test
     void anOutcomeIsWrittenOnlyInTheProvidersTransactionAndNeverAsSucceeded() {
         CommandRecord rejected = new CommandRecord("command-4", CommandStatus.State.REJECTED, "shipping|platform|cancel",
             "o-9", null, "sample-orders.order_not_found", null, NOW);

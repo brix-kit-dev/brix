@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.EnumSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -18,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -41,6 +43,8 @@ import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.command.CommandEnvelope;
 import io.runtime.sdk.command.CommandStatus;
+import io.runtime.sdk.error.BrixException;
+import io.runtime.sdk.error.ErrorCategory;
 import io.runtime.sdk.event.EventScope;
 import io.runtime.sdk.plugin.AccessDecision;
 import io.runtime.sdk.plugin.CommandHandler;
@@ -61,7 +65,14 @@ import io.runtime.sdk.plugin.TraceContext;
  * for its sender (standard-link plan points 7, 8): as a duplicate of the command holding the key when its payload has
  * the holder's fingerprint, otherwise as a conflict, which is neither retried nor parked. The unit of work lasts no
  * longer than the time left before the delivery's deadline, and a handler that finishes after the deadline rolls it
- * back ({@link DeliveryDeadline}). Failures carry the stable codes below, permanent ones parked at once.</p>
+ * back ({@link DeliveryDeadline}).</p>
+ *
+ * <p>A handler that throws a {@link BrixException} of a business category ({@code INVALID}, {@code DENIED},
+ * {@code NOT_FOUND}, {@code CONFLICT}) rejects the command (standard-link plan point 9; idempotency design D65): its
+ * unit of work rolls back, and a second one, begun after the first ended and bounded by the same deadline, records
+ * the inbox record and the rejection with the code. A rejected command holds no key, so a later command with the key
+ * runs; it is neither retried nor parked. Other failures carry the stable codes below, permanent ones parked at
+ * once.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0
@@ -82,7 +93,7 @@ public final class CommandDelivery {
     public static final String PROVIDER_NOT_READY = "COMMAND_PROVIDER_NOT_READY";
     /** The command reached a consumer of another provider, for example one an upgrade removed. */
     public static final String SUBSCRIPTION_UNKNOWN = "COMMAND_SUBSCRIPTION_UNKNOWN";
-    /** The handler failed. */
+    /** The handler failed, other than by rejecting the command, or its rejection could not be recorded. */
     public static final String HANDLER_FAILED = "COMMAND_HANDLER_FAILED";
     /**
      * The owner accepts the command only on behalf of a user, and it carries none (standard-link plan L4.4). The
@@ -94,6 +105,11 @@ public final class CommandDelivery {
 
     /** The outcome of a command that reused a key with other content (standard-link plan point 8). */
     private static final String IDEMPOTENCY_CONFLICT = "idempotency_conflict";
+    /** The outcome of a command its handler rejected (standard-link plan point 9). */
+    private static final String REJECTED = "rejected";
+    /** The categories of a handler's failure that reject its command; any other is tried again (design D65). */
+    private static final Set<ErrorCategory> REJECTIONS = EnumSet.of(ErrorCategory.INVALID, ErrorCategory.DENIED,
+        ErrorCategory.NOT_FOUND, ErrorCategory.CONFLICT);
 
     private final CommandProviders providers;
     private final OwnerPersistenceProvider owners;
@@ -282,28 +298,49 @@ public final class CommandDelivery {
         @SuppressWarnings("unchecked")
         CommandHandler<Object> handler = (CommandHandler<Object>) provider.handler();
         TenantScope scope = message.tenantId() == null ? TenantScope.none() : TenantScope.tenant(message.tenantId());
+        // A key is unique for its sender and tenant: other senders or tenants never take it (plan D54).
+        String ownerScope = CommandPolicies.ownerScope(message.producerPluginId(), message.tenantId(),
+            decoded.idempotencyScope());
+        // What the handler threw to reject the command; the runtime's own steps never reject (standard-link plan
+        // point 9).
+        AtomicReference<BrixException> rejection = new AtomicReference<>();
         try {
             Supplier<String> work = () -> {
                 if (!inbox.insertProcessed(ownerId, handlerId, message)) {
                     return "duplicate";
                 }
-                // A key is unique for its sender and tenant: other senders or tenants never take it (plan D54).
-                String ownerScope = CommandPolicies.ownerScope(message.producerPluginId(), message.tenantId(),
-                    decoded.idempotencyScope());
                 if (!idempotency.reserve(ownerId, handlerId, message, ownerScope, decoded.idempotencyKey(),
                         decoded.fingerprint())) {
                     return taken(ownerId, handlerId, message, ownerScope, decoded);
                 }
                 // Typed queries the handler makes run as this provider, in the command's tenant (root
                 // BRX-RS-MANIFEST-028).
-                RuntimeInvocations.within(RuntimeInvocation.forCommand(ownerId, invocation), () -> {
-                    DeliveryDeadline.await(handler.handle(invocation), clock, invocation.deadline(), cancelled);
-                    return null;
-                });
+                try {
+                    RuntimeInvocations.within(RuntimeInvocation.forCommand(ownerId, invocation), () -> {
+                        DeliveryDeadline.await(handler.handle(invocation), clock, invocation.deadline(), cancelled);
+                        return null;
+                    });
+                } catch (BrixException failure) {
+                    if (rejects(failure)) {
+                        rejection.set(failure);
+                    }
+                    throw failure;
+                }
                 return "handled";
             };
-            String outcome = TenantScopes.within(scope,
-                () -> DeliveryDeadline.inUnitOfWork(owners, ownerId, clock, invocation.deadline(), work));
+            String outcome;
+            try {
+                outcome = TenantScopes.within(scope,
+                    () -> DeliveryDeadline.inUnitOfWork(owners, ownerId, clock, invocation.deadline(), work));
+            } catch (BrixException failure) {
+                if (failure != rejection.get()) {
+                    throw failure;
+                }
+                // The handler's work rolled back with its inbox record and key. The rejection is recorded in a unit
+                // of work begun after that one ended, not nested in it (root BRX-RS-DATA-029; design §4.4).
+                outcome = TenantScopes.within(scope, () -> DeliveryDeadline.inUnitOfWork(owners, ownerId, clock,
+                    invocation.deadline(), () -> rejected(ownerId, handlerId, message, ownerScope, decoded, failure)));
+            }
             log.info("event=command.delivered type={} command_id={} handler={} owner={} outcome={} attempt={}",
                 message.messageType(), message.messageId(), handlerId, ownerId, outcome, invocation.deliveryAttempt());
             if (IDEMPOTENCY_CONFLICT.equals(outcome)) {
@@ -311,6 +348,11 @@ public final class CommandDelivery {
                 metrics.conflict(ownerId, handlerId);
                 log.warn("event=command.idempotency_conflict type={} command_id={} handler={} owner={}",
                     message.messageType(), message.messageId(), handlerId, ownerId);
+            } else if (REJECTED.equals(outcome)) {
+                // The owner's answer, recorded for the sender to read: not retried, not parked (plan point 9).
+                log.info("event=command.rejected type={} command_id={} handler={} owner={} error_code={}",
+                    message.messageType(), message.messageId(), handlerId, ownerId,
+                    rejection.get().errorCode().wireCode());
             }
         } catch (RuntimeException failure) {
             log.warn("event=command.delivery_failed type={} command_id={} handler={} owner={} attempt={}",
@@ -336,6 +378,31 @@ public final class CommandDelivery {
             decoded.idempotencyKey(), message.tenantId(), conflict ? CommandStatus.IDEMPOTENCY_CONFLICT : null,
             holder.map(OwnerCommandIdempotency.Holder::commandId).orElse(null), OffsetDateTime.now(clock)));
         return conflict ? IDEMPOTENCY_CONFLICT : "duplicate_key";
+    }
+
+    /**
+     * Records a command its handler rejected, in a unit of work of its own (standard-link plan point 9; idempotency
+     * design §4.4): the inbox record, so that a redelivery does not run it again, and the outcome with the handler's
+     * code. It takes no key. A redelivery that recorded the command first leaves nothing to write.
+     */
+    private String rejected(String ownerId, String handlerId, CanonicalOutboxMessage message, String ownerScope,
+            CommandMessages.Decoded decoded, BrixException rejection) {
+        if (!inbox.insertProcessed(ownerId, handlerId, message)) {
+            return "duplicate";
+        }
+        idempotency.recordOutcome(ownerId, handlerId, new CommandRecord(message.messageId(),
+            CommandStatus.State.REJECTED, ownerScope, decoded.idempotencyKey(), message.tenantId(),
+            rejection.errorCode().wireCode(), null, OffsetDateTime.now(clock)));
+        return REJECTED;
+    }
+
+    /**
+     * Tells whether a handler's failure rejects its command: a stable code of a business category (design D65).
+     * Without a code there is nothing to record, so the failure is tried again like any other.
+     */
+    private static boolean rejects(BrixException failure) {
+        String code = failure.errorCode().wireCode();
+        return code != null && !code.isBlank() && REJECTIONS.contains(failure.errorCode().category());
     }
 
     /**

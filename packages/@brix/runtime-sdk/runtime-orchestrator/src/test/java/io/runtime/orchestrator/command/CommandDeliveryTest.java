@@ -33,6 +33,8 @@ import java.util.function.Supplier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -46,13 +48,17 @@ import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.UnitOfWork;
 import io.runtime.sdk.command.CommandStatus;
+import io.runtime.sdk.error.BrixException;
+import io.runtime.sdk.error.ErrorCategory;
+import io.runtime.sdk.error.ErrorCode;
 import io.runtime.sdk.plugin.CommandHandler;
 import io.runtime.sdk.plugin.CommandInvocation;
 import io.runtime.sdk.plugin.IdempotencyContext;
 
 /**
  * Kafka design §14 K22 (root BRX-RS-MESSAGE-010 to MESSAGE-016): a command reaches its one provider, once per command
- * id and once per business key, from a submitter that declares it.
+ * id and once per business key, from a submitter that declares it; a business failure of its handler rejects it
+ * (standard-link plan point 9).
  */
 class CommandDeliveryTest {
 
@@ -65,16 +71,46 @@ class CommandDeliveryTest {
     static final class ReserveHandler implements CommandHandler<Reserve> {
         final List<CommandInvocation<Reserve>> handled = new ArrayList<>();
         RuntimeException failure;
+        boolean failsItsStage;
         Runnable whileHandling = () -> { };
+        int calls;
 
         @Override
         public CompletionStage<Void> handle(CommandInvocation<Reserve> invocation) {
+            calls++;
+            whileHandling.run();
             if (failure != null) {
+                if (failsItsStage) {
+                    return CompletableFuture.failedFuture(failure);
+                }
                 throw failure;
             }
-            whileHandling.run();
             handled.add(invocation);
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** A stable failure of the stock handler (standard-link plan point 9). */
+    static final class StockException extends BrixException {
+
+        private static final long serialVersionUID = 1L;
+
+        StockException(ErrorCategory category) {
+            this("stock.out_of_stock", category);
+        }
+
+        StockException(String code, ErrorCategory category) {
+            super(new ErrorCode() {
+                @Override
+                public String wireCode() {
+                    return code;
+                }
+
+                @Override
+                public ErrorCategory category() {
+                    return category;
+                }
+            }, Map.of(), null);
         }
     }
 
@@ -87,6 +123,7 @@ class CommandDeliveryTest {
     private final MutableClock clock = new MutableClock(NOW);
     private final List<Duration> timeouts = new ArrayList<>();
     private final List<String> unitsOfWork = new ArrayList<>();
+    private RuntimeException reserveFailure;
     private boolean started = true;
     private String providerVersion = "1.2.0";
     private String accessPolicy = "declared-consumers";
@@ -97,9 +134,23 @@ class CommandDeliveryTest {
         UnitOfWork unitOfWork = mock(UnitOfWork.class);
         when(unitOfWork.required(any())).thenAnswer(call -> {
             unitsOfWork.add("began");
-            Object result = ((Supplier<?>) call.getArgument(0)).get();
-            unitsOfWork.add("committed");
-            return result;
+            Set<String> inboxBefore = Set.copyOf(inbox);
+            Set<String> keysBefore = Set.copyOf(keys);
+            Set<String> holdersBefore = Set.copyOf(holders.keySet());
+            int outcomesBefore = outcomes.size();
+            try {
+                Object result = ((Supplier<?>) call.getArgument(0)).get();
+                unitsOfWork.add("committed");
+                return result;
+            } catch (RuntimeException failure) {
+                // What the unit of work wrote goes with it.
+                inbox.retainAll(inboxBefore);
+                keys.retainAll(keysBefore);
+                holders.keySet().retainAll(holdersBefore);
+                outcomes.subList(outcomesBefore, outcomes.size()).clear();
+                unitsOfWork.add("rolled back");
+                throw failure;
+            }
         });
         PersistenceCapability persistence = mock(PersistenceCapability.class);
         when(persistence.unitOfWork()).thenReturn(unitOfWork);
@@ -145,6 +196,9 @@ class CommandDeliveryTest {
                 @Override
                 public boolean reserve(String owner, String handlerId, CanonicalOutboxMessage message, String scope,
                         String key, String fingerprint) {
+                    if (reserveFailure != null) {
+                        throw reserveFailure;
+                    }
                     holders.putIfAbsent(owner + "/" + handlerId + "/" + scope + "/" + key,
                         new OwnerCommandIdempotency.Holder(message.messageId(), fingerprint));
                     return keys.add(owner + "/" + handlerId + "/" + scope + "/" + key);
@@ -310,6 +364,111 @@ class CommandDeliveryTest {
         assertFalse(failed.permanent());
     }
 
+    @ParameterizedTest
+    @EnumSource(value = ErrorCategory.class, names = {"INVALID", "DENIED", "NOT_FOUND", "CONFLICT"})
+    void aHandlerThatRejectsTheCommandRollsBackAndTheRejectionIsRecordedInAUnitOfWorkOfItsOwn(ErrorCategory category) {
+        // Standard-link plan point 9 (idempotency design §4.4, D65): the delivery commits the record, so the command is
+        // neither retried nor parked; the key the first unit of work took rolled back with it.
+        handler.failure = new StockException(category);
+
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0", 42L, null));
+
+        assertEquals(List.of("began", "rolled back", "began", "committed"), unitsOfWork);
+        assertEquals(List.of(Duration.ofSeconds(15), Duration.ofSeconds(15)), timeouts,
+            "each lasts no longer than the time left before the deadline");
+        assertEquals(List.of(new CommandRecord("c-1", CommandStatus.State.REJECTED, "app-orders|42|order", "order-7",
+            42L, "stock.out_of_stock", null, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))), outcomes);
+        assertEquals(Set.of("app-stock/reserve-stock.v1/c-1"), inbox);
+        assertTrue(keys.isEmpty(), "a rejected command holds no key");
+    }
+
+    @Test
+    void aRejectedCommandDeliveredAgainDoesNotRunAndTheNextCommandWithItsKeyDoes() {
+        handler.failure = new StockException(ErrorCategory.NOT_FOUND);
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+
+        assertEquals(1, handler.calls, "the inbox recorded the rejected command");
+        assertEquals(1, outcomes.size());
+
+        handler.failure = null;
+        delivery.deliver(command("c-2", "order-7", "app-orders", "1.0.0"));
+
+        assertEquals(List.of("c-2"), handler.handled.stream().map(invocation -> invocation.command().commandId())
+            .toList(), "the key was free");
+        assertEquals(Set.of("app-stock/reserve-stock.v1/app-orders|platform|order/order-7"), keys);
+    }
+
+    @Test
+    void aStageTheHandlerFailsWithARejectionRejectsTheCommand() {
+        handler.failure = new StockException(ErrorCategory.INVALID);
+        handler.failsItsStage = true;
+
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+
+        assertEquals(CommandStatus.State.REJECTED, outcomes.get(0).state());
+        assertEquals("stock.out_of_stock", outcomes.get(0).errorCode());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ErrorCategory.class, names = {"UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL"})
+    void aStableFailureOfAnotherCategoryIsRetried(ErrorCategory category) {
+        handler.failure = new StockException(category);
+
+        EventDeliveryException failed = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertEquals(CommandDelivery.HANDLER_FAILED, failed.errorCode());
+        assertFalse(failed.permanent());
+        assertEquals(List.of("began", "rolled back"), unitsOfWork);
+        assertTrue(outcomes.isEmpty());
+        assertTrue(inbox.isEmpty());
+    }
+
+    @Test
+    void aBusinessFailureWithoutACodeIsRetried() {
+        // A rejection is recorded with its code; without one there is nothing to tell the sender.
+        handler.failure = new StockException(" ", ErrorCategory.NOT_FOUND);
+
+        EventDeliveryException failed = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertFalse(failed.permanent());
+        assertTrue(outcomes.isEmpty());
+    }
+
+    @Test
+    void onlyTheHandlerRejectsACommand() {
+        // A failure while the runtime takes the key is tried again, whatever its category.
+        reserveFailure = new StockException(ErrorCategory.CONFLICT);
+
+        EventDeliveryException failed = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertEquals(CommandDelivery.HANDLER_FAILED, failed.errorCode());
+        assertFalse(failed.permanent());
+        assertEquals(0, handler.calls);
+        assertTrue(outcomes.isEmpty());
+    }
+
+    @Test
+    void aRejectionThatComesAfterTheDeadlineIsNotRecordedAndTheCommandIsTriedAgain() {
+        // Standard-link plan point 3: nothing of a delivery commits after its deadline, a rejection's record neither.
+        // The command is delivered again, and the handler decides again.
+        handler.whileHandling = () -> clock.advance(Duration.ofSeconds(16));
+        handler.failure = new StockException(ErrorCategory.NOT_FOUND);
+
+        EventDeliveryException failed = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertEquals(CommandDelivery.HANDLER_FAILED, failed.errorCode());
+        assertFalse(failed.permanent());
+        assertEquals(List.of("began", "rolled back"), unitsOfWork, "no unit of work began for the record");
+        assertTrue(outcomes.isEmpty());
+        assertTrue(inbox.isEmpty());
+    }
+
     @Test
     void theProvidersUnitOfWorkLastsNoLongerThanTheTimeLeftBeforeItsDeadline() {
         // Standard-link plan point 3 (root BRX-RS-DATA-011): its statements stop, and its waits for a connection end,
@@ -335,7 +494,7 @@ class CommandDeliveryTest {
             failed.getCause().getMessage());
         assertTrue(handler.handled.get(0).cancellation().isCancelled(),
             "the handler is told the runtime stopped waiting");
-        assertEquals(List.of("began"), unitsOfWork, "its unit of work did not commit");
+        assertEquals(List.of("began", "rolled back"), unitsOfWork, "its unit of work did not commit");
     }
 
     @Test

@@ -8,6 +8,7 @@ package io.runtime.orchestrator.event.conformance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -21,6 +22,9 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.springframework.boot.actuate.endpoint.SecurityContext;
 
 import io.runtime.orchestrator.command.CommandDelivery;
@@ -32,6 +36,7 @@ import io.runtime.orchestrator.persistence.PolicyUseRecord;
 import io.runtime.orchestrator.persistence.TenantAccessPolicy;
 import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.sdk.command.CommandStatus;
+import io.runtime.sdk.error.ErrorCategory;
 
 /**
  * What every event transport must do, from the publisher's committed outbox row to the subscriber's
@@ -253,6 +258,47 @@ public abstract class EventTransportConformance {
         assertEquals("command-1", conflict.originalCommandId());
         assertEquals(CommandStatus.State.DUPLICATE, status("command-3").state());
         assertTrue(harness.parked().isEmpty(), "a conflict is not parked");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ErrorCategory.class, names = {"INVALID", "DENIED", "NOT_FOUND", "CONFLICT"})
+    void aCommandItsHandlerRejectsIsNeitherRetriedNorParkedAndLeavesItsKeyFree(ErrorCategory category) {
+        // Standard-link plan point 9 (idempotency design D65): a failure of a business category ends the command. Its
+        // work rolls back, its sender reads REJECTED with the handler's code, and the next command with the key runs.
+        world.failNextCommands(category, 1);
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null);
+        world.submit("command-2", "order-7", ConformanceWorld.TENANT, null);
+
+        harness.start();
+
+        await("command-2 is handled", () -> world.handledCommands().contains("command-2"));
+        settle();
+        CommandStatus rejected = status("command-1");
+        assertEquals(CommandStatus.State.REJECTED, rejected.state());
+        assertEquals(ConformanceWorld.STOCK_REFUSED, rejected.errorCode());
+        assertNull(rejected.originalCommandId());
+        assertEquals(List.of("command-2"), world.handledCommands(), "the rejected command's work rolled back");
+        assertEquals(2, world.commandCalls(), "each command ran once: the rejection was not retried");
+        assertTrue(world.inboxed("command-1"), "a redelivery of the rejected command does not run it again");
+        assertEquals(CommandStatus.State.SUCCEEDED, status("command-2").state(), "the rejection took no key");
+        assertTrue(harness.parked().isEmpty(), "a rejection is not parked");
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @EnumSource(value = ErrorCategory.class, names = {"UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL"})
+    void aCommandHandlerFailureOfAnyOtherKindIsRetried(ErrorCategory category) {
+        // Standard-link plan point 9: any other failure, with a code of another category or with none, is temporary.
+        world.failNextCommands(category, 1);
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null);
+
+        harness.start();
+
+        await("command-1 is handled", () -> world.handledCommands().contains("command-1"));
+        settle();
+        assertEquals(CommandStatus.State.SUCCEEDED, status("command-1").state());
+        assertEquals(2, world.commandCalls(), "tried again after the failure");
+        assertTrue(harness.parked().isEmpty());
     }
 
     @Test

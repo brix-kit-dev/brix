@@ -34,6 +34,10 @@ import io.runtime.sdk.command.CommandStatus;
  * that took no key to its {@code {storageId}_command_outcome} table (standard-link plan point 7). The sender's
  * status reads both by command id.
  *
+ * <p>A key row, whose {@code status} the runtime always writes as {@code ACCEPTED}, is a command whose handler
+ * succeeded and whose transaction committed: it holds the key. A command its handler rejected holds none; its transaction rolled back,
+ * and its outcome row says {@code REJECTED} (standard-link plan point 9).</p>
+ *
  * @author Brix Platform Authors
  * @since 3.3.0
  */
