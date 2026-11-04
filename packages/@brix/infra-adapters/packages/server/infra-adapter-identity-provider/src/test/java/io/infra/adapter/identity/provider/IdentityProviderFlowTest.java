@@ -633,6 +633,9 @@ class IdentityProviderFlowTest {
         assertThat(api.acceptances).hasSize(1);
         Map<String, Object> acceptance = api.acceptances.get(0);
         assertThat(acceptance).containsEntry("invitationToken", TestCapabilities.INVITATION_TOKEN);
+        // Standard-link plan point 10b-1: an invitation always has the same key, and the key is not its token.
+        assertThat(acceptance).containsEntry("idempotencyKey",
+                io.infra.adapter.identity.provider.support.Secrets.sha256(TestCapabilities.INVITATION_TOKEN));
         @SuppressWarnings("unchecked")
         Map<String, Object> claims = (Map<String, Object>) acceptance.get("claims");
         assertThat(claims).containsEntry("aud", "brix-identity")
@@ -807,9 +810,11 @@ class IdentityProviderFlowTest {
         @PostMapping("/api/tenant/first-owner-invitations/accept")
         org.springframework.http.ResponseEntity<Map<String, Object>> acceptFirstOwner(
                 @RequestHeader(value = "Authorization", required = false) String authorization,
+                @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                 @org.springframework.web.bind.annotation.RequestBody Map<String, Object> body) {
             Map<String, Object> claims = claims(authorization);
-            acceptances.add(Map.of("claims", claims, "invitationToken", String.valueOf(body.get("invitationToken"))));
+            acceptances.add(Map.of("claims", claims, "invitationToken", String.valueOf(body.get("invitationToken")),
+                    "idempotencyKey", String.valueOf(idempotencyKey)));
             boolean identityToken = "brix-identity".equals(claims.get("aud"))
                     && claims.get("allowed_actions") instanceof java.util.List<?> actions
                     && actions.contains("first_owner_accept");

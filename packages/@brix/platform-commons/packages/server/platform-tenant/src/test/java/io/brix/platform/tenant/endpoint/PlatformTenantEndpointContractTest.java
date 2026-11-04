@@ -7,36 +7,57 @@ package io.brix.platform.tenant.endpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 
 import io.brix.platform.tenant.internal.FirstOwnerAcceptanceResult;
 import io.brix.platform.tenant.internal.TenantAdministration;
+import io.runtime.manifest.loader.PluginManifestLoader;
+import io.runtime.manifest.model.PluginManifest;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
 import io.runtime.orchestrator.endpoint.EndpointContract;
 import io.runtime.orchestrator.endpoint.EndpointRequestInvalidException;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
+import io.runtime.orchestrator.endpoint.ReplayableAnswers;
 import io.runtime.orchestrator.endpoint.TenantGrantTable;
 import io.runtime.sdk.plugin.EndpointResponse;
 
 /**
  * platform-tenant's two endpoints through the dispatcher's typed path: their requests and answers fit the schemas
- * the manifest names (root BRX-RS-MANIFEST-022; standard-link plan L7.9).
+ * the manifest names (root BRX-RS-MANIFEST-022; standard-link plan L7.9), and the acceptance replays its answer
+ * (point 10b-1).
  */
 class PlatformTenantEndpointContractTest {
 
     private static final String SCHEMAS = "brix://schemas/platform-tenant/";
     private static final String TENANT_PROFILE_READ = "tenant:profile:read";
+
+    @Test
+    void theAcceptanceReplaysItsAnswerWhichTheRuntimeMayKeep() throws IOException {
+        // BRX-TENANT-ENTRY-005; standard-link plan point 10b-1.
+        ClassLoader classes = getClass().getClassLoader();
+        try (InputStream manifest = classes.getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
+            PluginManifest.Route acceptance = new PluginManifestLoader().load(manifest).endpointDeclarations().stream()
+                .filter(route -> "platform-tenant.first-owner.accept.v1".equals(route.getEndpointId()))
+                .findFirst().orElseThrow();
+            assertTrue(acceptance.replaysResults());
+        }
+        assertEquals(Optional.empty(), ReplayableAnswers.fieldNotKept(SCHEMAS + "first-owner-acceptance/1.0.0", classes));
+    }
 
     @Test
     void theSessionTakesNoParametersAndItsAnswerFitsItsSchema() {

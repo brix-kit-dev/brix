@@ -30,12 +30,18 @@ import tools.jackson.databind.json.JsonMapper;
  * used once here and never reaches the browser (identity-auth {@code BRX-IA-SESSION-003}, root
  * S-20).</p>
  *
+ * <p>The entry replays its answer ({@code BRX-TENANT-ENTRY-005}; standard-link plan point 10b-1), so
+ * the key is the same each time an invitation is accepted: the hash of its token, which the
+ * runtime may keep where the token itself must not go (identity-auth {@code BRX-IA-ONBOARD-003}).</p>
+ *
  * @since 3.2.0
  */
 public final class DispatcherInvitationAcceptance implements InvitationAcceptance {
 
     private static final Logger log = LoggerFactory.getLogger(DispatcherInvitationAcceptance.class);
     private static final JsonMapper JSON = JsonMapper.builder().build();
+    /** The runtime's answer while another call with the key has not finished. */
+    private static final String ACCEPTANCE_RUNNING = "endpoint.idempotency_in_progress";
 
     private final JwtIssuerCapability issuer;
     private final Supplier<String> internalBaseUrl;
@@ -61,7 +67,7 @@ public final class DispatcherInvitationAcceptance implements InvitationAcceptanc
                     .uri(internalBaseUrl.get() + path)
                     .headers(headers -> {
                         headers.setBearerAuth(identityToken);
-                        headers.set("Idempotency-Key", Secrets.randomToken(16));
+                        headers.set("Idempotency-Key", Secrets.sha256(invitationToken));
                     })
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -82,6 +88,10 @@ public final class DispatcherInvitationAcceptance implements InvitationAcceptanc
 
     /** The page's stable reason for the tenant Owner's answer. */
     static String reason(int status, String code) {
+        if (ACCEPTANCE_RUNNING.equals(code)) {
+            // The same acceptance is running: the invitation is fine, and its outcome is not known yet.
+            return "unavailable";
+        }
         if (code != null && code.contains("QUOTA")) {
             return "invitation_quota";
         }

@@ -41,10 +41,10 @@ endpoints:
         sourcePolicyRef: first-owner-invitation-resolution
       timeout:
         policyRef: interactive-write
-      # Result replay comes to this endpoint with standard-link plan point 10b (root BRX-RS-MANIFEST-018); until then
-      # the handler is idempotent by its business key.
+      # BRX-TENANT-ENTRY-005: the caller names a key, and the runtime replays the answer of an acceptance that went
+      # through (root BRX-RS-MANIFEST-018; standard-link plan point 10b-1).
       idempotency:
-        mode: not-applicable
+        mode: required
     # The calling staff member's context and effective permissions for the BFF session
     # (multi-tenant 5.1 BRX-TENANT-AUTHZ-009); every staff role holds tenant:profile:read.
     - endpointId: platform-tenant.session.v1
