@@ -61,5 +61,4 @@ This documentation covers **Brix Framework v3.x** based on the v3.0.7 Runtime Sh
 ## Getting Help
 
 - **GitHub Issues**: [Ask questions](https://github.com/brix-kit-dev/brix/issues)
-- **Discord**: [Join our community](https://discord.gg/brix-framework)
-- **Bug Reports**: [File an issue](https://github.com/brix-framework/brix/issues/new?template=bug_report.md)
+- **Bug Reports**: [File an issue](https://github.com/brix-kit-dev/brix/issues/new?template=bug_report.md)

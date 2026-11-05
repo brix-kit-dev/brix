@@ -37,8 +37,8 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brix-framework/infra-adapters",
-    "directory": "packages/infra-adapter-mf-web"
+    "url": "https://github.com/brix-kit-dev/brix",
+    "directory": "packages/@brix/infra-adapters/packages/web/infra-adapter-mf-web"
   },
   "dependencies": {},
   "peerDependencies": {

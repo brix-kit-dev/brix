@@ -31,7 +31,7 @@
  * - EventSubscriptionOptions: Extended subscription options
  * - EventPublishOptions: Event publish options
  *
- * @see {@link https://github.com/brix-framework/runtime-sdk | @brix-sdk/runtime-sdk-api-web}
+ * @see {@link https://github.com/brix-kit-dev/brix/tree/main/packages/@brix/runtime-sdk/runtime-sdk-api-web | @brix-sdk/runtime-sdk-api-web}
  */
 
 // ============================================================

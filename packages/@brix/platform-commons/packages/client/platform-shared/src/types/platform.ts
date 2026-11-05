@@ -30,7 +30,7 @@
 
 /**
  * Re-export PluginMetadata from the authoritative source.
- * @see {@link https://github.com/brix-framework/runtime-sdk | @brix-sdk/runtime-sdk-api-web}
+ * @see {@link https://github.com/brix-kit-dev/brix/tree/main/packages/@brix/runtime-sdk/runtime-sdk-api-web | @brix-sdk/runtime-sdk-api-web}
  */
 export { type PluginMetadata } from '@brix-sdk/runtime-sdk-api-web';
 

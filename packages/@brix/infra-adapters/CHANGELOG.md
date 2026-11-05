@@ -27,7 +27,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Implements Layer 2C of Runtime Shell Architecture
 - Conditional assembly pattern for replaceable implementations
 - Infrastructure isolation from plugin code
-
----
-
-[1.0.0]: https://github.com/brix-framework/brix/releases/tag/v1.0.0

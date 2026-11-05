@@ -26,7 +26,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Three-layer capability model: Contracts (2A), Shared Runtime (2B), Implementations (2C)
 - Ultra-thin Host design principle
 - Plugin isolation through capability contracts
-
----
-
-[1.0.0]: https://github.com/brix-framework/brix/releases/tag/v1.0.0

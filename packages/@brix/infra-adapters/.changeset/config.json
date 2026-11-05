@@ -3,7 +3,7 @@
   "changelog": [
     "@changesets/changelog-github",
     {
-      "repo": "brix-framework/infra-adapters"
+      "repo": "brix-kit-dev/brix"
     }
   ],
   "commit": false,

@@ -10,7 +10,7 @@
   "out": "docs/api",
   "readme": "README.md",
   "navigationLinks": {
-    "GitHub": "https://github.com/brix-framework/brix",
+    "GitHub": "https://github.com/brix-kit-dev/brix",
     "npm": "https://www.npmjs.com/org/brix"
   },
   "includeVersion": true,

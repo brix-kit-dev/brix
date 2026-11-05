@@ -41,7 +41,7 @@ License: Apache 2.0
         Brix Runtime Shell Framework - Open Source Core.
         Provides capability contracts, infrastructure adapters, and platform commons.
     </description>
-    <url>https://github.com/brix-framework/brix</url>
+    <url>https://github.com/brix-kit-dev/brix</url>
 
     <licenses>
         <license>
@@ -60,9 +60,9 @@ License: Apache 2.0
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/brix-framework/brix.git</connection>
-        <developerConnection>scm:git:git@github.com:brix-framework/brix.git</developerConnection>
-        <url>https://github.com/brix-framework/brix</url>
+        <connection>scm:git:https://github.com/brix-kit-dev/brix.git</connection>
+        <developerConnection>scm:git:git@github.com:brix-kit-dev/brix.git</developerConnection>
+        <url>https://github.com/brix-kit-dev/brix</url>
     </scm>
 
     <!--

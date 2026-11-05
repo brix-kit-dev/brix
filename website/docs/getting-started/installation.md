@@ -111,7 +111,7 @@ For development with actual infrastructure:
 
 ```bash
 # Clone the brix repository
-git clone https://github.com/brix-framework/brix.git
+git clone https://github.com/brix-kit-dev/brix.git
 cd brix
 
 # Start local infrastructure
@@ -156,7 +156,7 @@ Add Brix Maven repository if packages aren't on Maven Central yet:
 <repositories>
   <repository>
     <id>brix-releases</id>
-    <url>https://maven.pkg.github.com/brix-framework/brix</url>
+    <url>https://maven.pkg.github.com/brix-kit-dev/brix</url>
   </repository>
 </repositories>
 ```

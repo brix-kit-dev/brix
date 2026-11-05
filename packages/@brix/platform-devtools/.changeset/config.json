@@ -3,7 +3,7 @@
   "changelog": [
     "@changesets/changelog-github",
     {
-      "repo": "brix-framework/platform-devtools"
+      "repo": "brix-kit-dev/brix"
     }
   ],
   "commit": false,

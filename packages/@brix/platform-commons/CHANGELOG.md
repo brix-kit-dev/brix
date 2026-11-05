@@ -28,7 +28,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Implements Layer 2C of Runtime Shell Architecture
 - Platform-level shared capabilities for Host assembly
 - Business-neutral, reusable platform code
-
----
-
-[1.0.0]: https://github.com/brix-framework/brix/releases/tag/v1.0.0

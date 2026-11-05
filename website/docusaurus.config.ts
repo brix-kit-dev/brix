@@ -21,7 +21,7 @@ const config: Config = {
   baseUrl: '/',
 
   // GitHub Pages deployment configuration
-  organizationName: 'brix-framework',
+  organizationName: 'brix-kit-dev',
   projectName: 'brix',
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
@@ -47,7 +47,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/brix-framework/brix/tree/main/website/',
+          editUrl: 'https://github.com/brix-kit-dev/brix/tree/main/website/',
           showLastUpdateAuthor: true,
           showLastUpdateTime: true,
           // Version management for future releases
@@ -60,7 +60,7 @@ const config: Config = {
         },
         blog: {
           showReadingTime: true,
-          editUrl: 'https://github.com/brix-framework/brix/tree/main/website/',
+          editUrl: 'https://github.com/brix-kit-dev/brix/tree/main/website/',
           blogSidebarTitle: 'All posts',
           blogSidebarCount: 'ALL',
         },
@@ -111,13 +111,8 @@ const config: Config = {
           dropdownActiveClassDisabled: true,
         },
         {
-          href: 'https://github.com/brix-framework/brix',
+          href: 'https://github.com/brix-kit-dev/brix',
           label: 'GitHub',
-          position: 'right',
-        },
-        {
-          href: 'https://discord.gg/brix-framework',
-          label: 'Discord',
           position: 'right',
         },
       ],
@@ -138,16 +133,14 @@ const config: Config = {
         {
           title: 'Community',
           items: [
-            {label: 'Discord', href: 'https://discord.gg/brix-framework'},
             {label: 'GitHub Issues', href: 'https://github.com/brix-kit-dev/brix/issues'},
-            {label: 'Twitter', href: 'https://twitter.com/brix_framework'},
           ],
         },
         {
           title: 'More',
           items: [
             {label: 'Blog', to: '/blog'},
-            {label: 'GitHub', href: 'https://github.com/brix-framework/brix'},
+            {label: 'GitHub', href: 'https://github.com/brix-kit-dev/brix'},
             {label: 'npm Registry', href: 'https://www.npmjs.com/org/brix'},
             {label: 'Maven Central', href: 'https://search.maven.org/search?q=g:io.brix'},
           ],
@@ -155,9 +148,9 @@ const config: Config = {
         {
           title: 'Legal',
           items: [
-            {label: 'License', href: 'https://github.com/brix-framework/brix/blob/main/LICENSE'},
-            {label: 'Code of Conduct', href: 'https://github.com/brix-framework/brix/blob/main/CODE_OF_CONDUCT.md'},
-            {label: 'Security Policy', href: 'https://github.com/brix-framework/brix/blob/main/SECURITY.md'},
+            {label: 'License', href: 'https://github.com/brix-kit-dev/brix/blob/main/LICENSE'},
+            {label: 'Code of Conduct', href: 'https://github.com/brix-kit-dev/brix/blob/main/CODE_OF_CONDUCT.md'},
+            {label: 'Security Policy', href: 'https://github.com/brix-kit-dev/brix/blob/main/SECURITY.md'},
           ],
         },
       ],

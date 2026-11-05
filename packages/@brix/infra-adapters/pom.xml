@@ -47,7 +47,7 @@
         License: Apache 2.0
     </description>
 
-    <url>https://github.com/brix-framework/infra-adapters</url>
+    <url>https://github.com/brix-kit-dev/brix</url>
 
     <licenses>
         <license>
@@ -57,9 +57,9 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git://github.com/brix-framework/infra-adapters.git</connection>
-        <developerConnection>scm:git:ssh://github.com:brix-framework/infra-adapters.git</developerConnection>
-        <url>https://github.com/brix-framework/infra-adapters</url>
+        <connection>scm:git:https://github.com/brix-kit-dev/brix.git</connection>
+        <developerConnection>scm:git:git@github.com:brix-kit-dev/brix.git</developerConnection>
+        <url>https://github.com/brix-kit-dev/brix</url>
     </scm>
 
     <properties>
