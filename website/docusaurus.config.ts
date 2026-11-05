@@ -139,7 +139,7 @@ const config: Config = {
           title: 'Community',
           items: [
             {label: 'Discord', href: 'https://discord.gg/brix-framework'},
-            {label: 'GitHub Discussions', href: 'https://github.com/brix-framework/brix/discussions'},
+            {label: 'GitHub Issues', href: 'https://github.com/brix-kit-dev/brix/issues'},
             {label: 'Twitter', href: 'https://twitter.com/brix_framework'},
           ],
         },

@@ -266,7 +266,7 @@ mvn test -Dtest=**/ArchitectureTest
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/brix-kit-dev/brix/discussions)
+- Open an [issue](https://github.com/brix-kit-dev/brix/issues/new)
 - Check [existing issues](https://github.com/brix-kit-dev/brix/issues)
 
 ---

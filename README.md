@@ -19,9 +19,9 @@
 
 <p align="center">
   <a href="https://github.com/brix-kit-dev/brix">Documentation</a> |
-  <a href="https://github.com/brix-kit-dev/brix/getting-started">Getting Started</a> |
+  <a href="website/docs/getting-started/introduction.md">Getting Started</a> |
   <a href="#quick-start">Quick Start</a> |
-  <a href="https://github.com/brix-kit-dev/brix/discussions">Community</a>
+  <a href="https://github.com/brix-kit-dev/brix/issues">Community</a>
 </p>
 
 ---
@@ -151,13 +151,13 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 - [Report a Bug](https://github.com/brix-kit-dev/brix/issues/new?template=bug_report.md)
 - [Request a Feature](https://github.com/brix-kit-dev/brix/issues/new?template=feature_request.md)
-- [Discussions](https://github.com/brix-kit-dev/brix/discussions)
+- [Browse open issues](https://github.com/brix-kit-dev/brix/issues)
 
 ## Community
 
 Join our community to get help, share ideas, and contribute:
 
-- **[Discussions](https://github.com/brix-kit-dev/brix/discussions)** - Ask questions and share ideas
+- **[Issues](https://github.com/brix-kit-dev/brix/issues)** - Ask questions and share ideas
 - **[brix.kit.dev@gmail.com](mailto:brix.kit.dev@gmail.com)** - Contact & report security vulnerabilities
 
 ## Further Reading
