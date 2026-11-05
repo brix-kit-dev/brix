@@ -1,11 +1,6 @@
 schemaVersion: 1
 baseline:
   lockPath: ../brix-enterprise/docs/architecture-baselines.lock.yaml
-phase:
-  id: phase-5
-  name: frontend-runtime-host-boundary
-  status: partial
-  consumerBlockingResultChanged: false
 
 legacyTerms:
   - term: v3.0.7
@@ -31,6 +26,12 @@ legacyTerms:
     evidence: phase0-clean-baseline-scan
 
 clauseGroups:
+  - id: AUTH
+    owner: architecture
+    tool: metadata-schema
+    test: future-authority-contract
+    status: partial
+    evidence: BRX-RS-AUTH
   - id: PRINCIPLE
     owner: architecture
     tool: registry
@@ -38,29 +39,35 @@ clauseGroups:
     status: missing-blocking
     evidence: root-blueprint-principles
   - id: LAYER
-    owner: runtime
+    owner: architecture
     tool: java-archunit
     test: ArchitectureGovernanceRegistryCompletenessTest
     status: missing-blocking
-    evidence: BRX-RS-LAYER-001..018
+    evidence: BRX-RS-LAYER
   - id: CAP
     owner: runtime
     tool: runtime-startup-validator
     test: future-runtime-contract
     status: missing-blocking
-    evidence: BRX-RS-CAP-001..025
+    evidence: BRX-RS-CAP
+  - id: ERROR
+    owner: runtime
+    tool: exception-abi-test
+    test: future-error-contract
+    status: partial
+    evidence: BRX-RS-ERROR
   - id: BOOT
     owner: runtime
     tool: runtime-startup-validator
     test: future-host-bootstrap-contract
     status: missing-blocking
-    evidence: BRX-RS-BOOT-001..012
+    evidence: BRX-RS-BOOT
   - id: MANIFEST
     owner: runtime
     tool: schema-and-runtime-validator
     test: future-manifest-contract
     status: missing-blocking
-    evidence: BRX-RS-MANIFEST-001..030
+    evidence: BRX-RS-MANIFEST
   - id: LIFE
     owner: runtime
     tool: runtime-lifecycle-contract
@@ -73,24 +80,36 @@ clauseGroups:
     test: future-message-contract
     status: missing-blocking
     evidence: BRX-RS-MESSAGE
+  - id: DATA
+    owner: data-architecture
+    tool: ownership-registry
+    test: future-data-contract
+    status: partial
+    evidence: BRX-RS-DATA
   - id: HOST
     owner: runtime
     tool: host-profile-validator
     test: future-host-profile-contract
     status: missing-blocking
-    evidence: BRX-RS-HOST-001..022
+    evidence: BRX-RS-HOST
   - id: UI
     owner: frontend
     tool: eslint-and-bundle-validator
     test: future-frontend-runtime-contract
-    status: missing-blocking
-    evidence: BRX-RS-UI-001..016
+    status: partial
+    evidence: BRX-RS-UI
   - id: SECURITY
     owner: security
     tool: security-integration
     test: future-security-contract
     status: missing-blocking
     evidence: BRX-RS-SECURITY
+  - id: OTEL
+    owner: sre
+    tool: adapter-contract-test
+    test: future-otel-contract
+    status: partial
+    evidence: BRX-RS-OTEL
   - id: RESILIENCE
     owner: sre
     tool: chaos-contract
@@ -98,17 +117,17 @@ clauseGroups:
     status: missing-blocking
     evidence: BRX-RS-RESILIENCE
   - id: SUPPLY
-    owner: release
+    owner: supply-chain-security
     tool: supply-chain-gate
     test: future-supply-chain-contract
     status: missing-blocking
-    evidence: BRX-RS-SUPPLY-001
+    evidence: BRX-RS-SUPPLY
   - id: GOVERNANCE
     owner: architecture
     tool: registry
     test: ArchitectureGovernanceRegistryCompletenessTest
     status: missing-blocking
-    evidence: BRX-RS-GOVERNANCE-021..023
+    evidence: BRX-RS-GOVERNANCE
 
 requirements:
   - id: A-1
@@ -267,6 +286,12 @@ requirements:
     test: future-a26-contract
     status: missing-blocking
     evidence: root-blueprint-redline-a26
+  - id: A-27
+    owner: data-architecture
+    tool: dcp-conformance-matrix
+    test: future-a27-contract
+    status: missing-blocking
+    evidence: root-blueprint-redline-a27
   - id: S-1
     owner: security
     tool: security-map
@@ -333,6 +358,18 @@ requirements:
     test: future-s11-contract
     status: missing-blocking
     evidence: root-blueprint-security-s11
+  - id: S-19
+    owner: security
+    tool: security-integration
+    test: future-s19-contract
+    status: missing-blocking
+    evidence: root-blueprint-security-s19
+  - id: S-20
+    owner: security
+    tool: security-integration
+    test: IdentityProviderFlowTest
+    status: partial
+    evidence: root-blueprint-security-s20
   - id: FE-1
     owner: frontend
     tool: eslint-and-runtime-host
@@ -405,6 +442,12 @@ requirements:
     test: frontend-layer-boundary.test.js
     status: partial
     evidence: frontend-blueprint-redline-fe12
+  - id: FE-13
+    owner: frontend
+    tool: bundle-scan-and-browser-e2e
+    test: TenantConsoleHomePage.test.tsx
+    status: partial
+    evidence: frontend-blueprint-redline-fe13
   - id: SA-1
     owner: platform-admin
     tool: operational-module-contract
@@ -477,6 +520,12 @@ requirements:
     test: future-sa12-contract
     status: missing-blocking
     evidence: super-admin-blueprint-sa12
+  - id: SA-13
+    owner: platform-admin
+    tool: operational-module-contract
+    test: future-sa13-contract
+    status: missing-blocking
+    evidence: super-admin-blueprint-sa13
   - id: T-1
     owner: tenant
     tool: tenant-contract
@@ -645,6 +694,60 @@ requirements:
     test: future-t28-contract
     status: missing-blocking
     evidence: multi-tenant-blueprint-t28
+  - id: T-29
+    owner: tenant
+    tool: tenant-contract
+    test: TenantGrantTableTest
+    status: partial
+    evidence: multi-tenant-blueprint-t29
+  - id: T-30
+    owner: tenant
+    tool: tenant-contract
+    test: JwtIssuerCapabilityImplTest
+    status: partial
+    evidence: multi-tenant-blueprint-t30
+  - id: IA-1
+    owner: identity
+    tool: identity-auth-contract
+    test: IdentityProviderFlowTest
+    status: partial
+    evidence: identity-auth-blueprint-ia1
+  - id: IA-2
+    owner: identity
+    tool: identity-auth-contract
+    test: TenantConsoleHomePage.test.tsx
+    status: partial
+    evidence: identity-auth-blueprint-ia2
+  - id: IA-3
+    owner: identity
+    tool: identity-auth-contract
+    test: future-ia3-contract
+    status: missing-blocking
+    evidence: identity-auth-blueprint-ia3
+  - id: IA-4
+    owner: identity
+    tool: identity-auth-contract
+    test: future-ia4-contract
+    status: missing-blocking
+    evidence: identity-auth-blueprint-ia4
+  - id: IA-5
+    owner: identity
+    tool: identity-auth-contract
+    test: IdentityProviderFlowTest
+    status: partial
+    evidence: identity-auth-blueprint-ia5
+  - id: IA-6
+    owner: identity
+    tool: identity-auth-contract
+    test: JwtIssuerCapabilityImplTest
+    status: partial
+    evidence: identity-auth-blueprint-ia6
+  - id: IA-7
+    owner: identity
+    tool: identity-auth-contract
+    test: IdentityProviderFlowTest
+    status: partial
+    evidence: identity-auth-blueprint-ia7
 
 ruleInventory:
   - id: java-brix-architecture-rules

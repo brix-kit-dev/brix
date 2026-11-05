@@ -1,7 +1,6 @@
 schemaVersion: 1
 requiredSections:
   - baseline
-  - phase
   - legacyTerms
   - clauseGroups
   - requirements

@@ -47,6 +47,9 @@ class ArchitectureGovernanceRegistryCompletenessTest {
         "pass", "passing", "enforced-passing", "accepted", "ga");
     private static final String LOCK_POINTER =
         "  lockPath: ../brix-enterprise/docs/architecture-baselines.lock.yaml";
+    private static final Set<String> ACTIVE_CLAUSE_GROUPS = Set.of(
+        "AUTH", "PRINCIPLE", "LAYER", "CAP", "ERROR", "BOOT", "MANIFEST", "LIFE", "MESSAGE",
+        "DATA", "HOST", "UI", "SECURITY", "OTEL", "RESILIENCE", "SUPPLY", "GOVERNANCE");
 
     @Test
     void registryCoversActiveRequirementFamiliesAndKeepsGapsBlocking() throws IOException {
@@ -56,12 +59,15 @@ class ArchitectureGovernanceRegistryCompletenessTest {
         validateSection(registry, "requirements", REQUIRED_REQUIREMENT_FIELDS);
         validateSection(registry, "ruleInventory", REQUIRED_RULE_FIELDS);
 
+        assertEquals(ACTIVE_CLAUSE_GROUPS, idsInSection(registry, "clauseGroups"));
+
         Set<String> requirementIds = idsInSection(registry, "requirements");
-        assertExpectedRange(requirementIds, "A", 1, 26);
-        assertExpectedRange(requirementIds, "S", 1, 11);
-        assertExpectedRange(requirementIds, "FE", 1, 12);
-        assertExpectedRange(requirementIds, "SA", 1, 12);
-        assertExpectedRange(requirementIds, "T", 1, 28);
+        assertExpectedRange(requirementIds, "A", 1, 27);
+        assertExpectedSecurityRedLines(requirementIds);
+        assertExpectedRange(requirementIds, "FE", 1, 13);
+        assertExpectedRange(requirementIds, "SA", 1, 13);
+        assertExpectedRange(requirementIds, "T", 1, 30);
+        assertExpectedRange(requirementIds, "IA", 1, 7);
 
         validateBaselineOnlyPointsAtTheLock(registry);
         assertNoForbiddenPhase0Status(entriesInSection(registry, "requirements"));
@@ -284,6 +290,17 @@ class ArchitectureGovernanceRegistryCompletenessTest {
         assertEquals(end - start + 1, actualIds.stream()
             .filter(id -> id.startsWith(prefix + "-"))
             .count(), "registry must not duplicate or over-expand " + prefix + " range");
+    }
+
+    /** S-12 to S-18 meant something else in a retired blueprint and are never assigned (root §11.2). */
+    private static void assertExpectedSecurityRedLines(Set<String> actualIds) {
+        Set<String> expected = new LinkedHashSet<>(List.of("S-19", "S-20"));
+        for (int index = 1; index <= 11; index++) {
+            expected.add("S-" + index);
+        }
+        Set<String> actual = new LinkedHashSet<>(actualIds);
+        actual.removeIf(id -> !id.startsWith("S-"));
+        assertEquals(expected, actual, "registry must hold exactly the assigned S red lines");
     }
 
     private static void assertNoForbiddenPhase0Status(List<Map<String, String>> entries) {
