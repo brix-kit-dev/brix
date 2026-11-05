@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
+import { createIdempotencyKeys } from '../internal/idempotency-keys';
 import { useRepositories } from './useRepositories';
 import type {
   CreateFirstOwnerInvitationRequest,
@@ -33,6 +34,8 @@ export function useFirstOwnerInvitation(): UseFirstOwnerInvitationResult {
   const [error, setError] = useState<Error | null>(null);
   const [current, setCurrent] = useState<FirstOwnerInvitationDto | null>(null);
   const inFlightRef = useRef(false);
+  // A retry of the same invitation keeps its key for as long as the dialog lives.
+  const createKeys = useRef(createIdempotencyKeys());
 
   const run = useCallback(
     async <T,>(operation: () => Promise<T>): Promise<T> => {
@@ -59,7 +62,12 @@ export function useFirstOwnerInvitation(): UseFirstOwnerInvitationResult {
   const create = useCallback(
     (tenantId: string, req: CreateFirstOwnerInvitationRequest) =>
       run(async () => {
-        const invitation = await tenant.createFirstOwnerInvitation(tenantId, req);
+        const invitation = await tenant.createFirstOwnerInvitation(
+          tenantId,
+          req,
+          createKeys.current.keyFor({ tenantId, req }),
+        );
+        createKeys.current.done();
         setCurrent(invitation);
         return invitation;
       }),

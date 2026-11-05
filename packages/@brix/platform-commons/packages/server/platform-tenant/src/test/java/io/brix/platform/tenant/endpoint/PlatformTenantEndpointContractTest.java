@@ -48,16 +48,22 @@ class PlatformTenantEndpointContractTest {
 
     @Test
     void theContractNamesTheWritesWhoseResultsTheRuntimeMayKeep() throws IOException {
-        // Idempotency design D79; standard-link plan point 10b-3. Each is a method of the contract, and its result holds
-        // no secret or credential: the tenant's id, code, name and status.
+        // Idempotency design D79; standard-link plan points 10b-3, 10b-4. Each is a method of the contract, and its result
+        // holds no secret or credential: no token and no link.
         try (InputStream manifest = getClass().getClassLoader().getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
             List<String> writes = new PluginManifestLoader().load(manifest).getInternalContracts().getProvides().get(0)
                 .getReplayableWrites();
-            assertEquals(List.of("createPendingTenant"), writes);
+            assertEquals(List.of("createPendingTenant", "createFirstOwnerInvitation"), writes);
         }
-        assertEquals(List.of("id", "code", "name", "status"), java.util.Arrays.stream(
-                io.brix.platform.tenant.internal.TenantAdministrationTenant.class.getRecordComponents())
-            .map(java.lang.reflect.RecordComponent::getName).toList());
+        assertEquals(List.of("id", "code", "name", "status"), components(
+            io.brix.platform.tenant.internal.TenantAdministrationTenant.class));
+        assertEquals(List.of("id", "tenantId", "inviteeEmail", "status", "expiresAt"), components(
+            io.brix.platform.tenant.internal.FirstOwnerInvitationView.class));
+    }
+
+    private static List<String> components(Class<?> result) {
+        return java.util.Arrays.stream(result.getRecordComponents())
+            .map(java.lang.reflect.RecordComponent::getName).toList();
     }
 
     @Test

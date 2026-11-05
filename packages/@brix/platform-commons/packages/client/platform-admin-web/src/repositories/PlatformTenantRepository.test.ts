@@ -38,6 +38,37 @@ describe('createPlatformTenantRepository tenant creation', () => {
 });
 
 describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
+  it('names its key in the Idempotency-Key header when it creates an invitation', async () => {
+    const http = createHttpCapabilityMock();
+    vi.mocked(http.request).mockResolvedValueOnce({
+      data: {
+        invitationId: '8841',
+        tenantId: '42',
+        inviteeEmail: 'owner@example.invalid',
+        status: 'PENDING',
+        expiresAt: '2026-07-28T11:00:00Z',
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+    });
+
+    const repository = createPlatformTenantRepository(http);
+    const invitation = await repository.createFirstOwnerInvitation(
+      '42',
+      { inviteeEmail: 'owner@example.invalid' },
+      'key-1',
+    );
+
+    expect(http.request).toHaveBeenCalledWith({
+      url: '/platform/tenants/42/first-owner-invitations',
+      method: 'POST',
+      data: { inviteeEmail: 'owner@example.invalid' },
+      headers: { 'Idempotency-Key': 'key-1' },
+    });
+    expect(invitation.invitationId).toBe('8841');
+  });
+
   it('loads the current FIRST_OWNER invitation status through HttpCapability only', async () => {
     const http = createHttpCapabilityMock();
     vi.mocked(http.get).mockResolvedValueOnce({
@@ -75,27 +106,38 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
 
   it('creates a FIRST_OWNER invitation through HttpCapability only', async () => {
     const http = createHttpCapabilityMock();
-    vi.mocked(http.post).mockResolvedValueOnce({
-      invitationId: '8842',
-      tenantId: '42',
-      inviteeEmail: 'owner@example.invalid',
-      status: 'PENDING',
-      expiresAt: '2026-07-28T12:00:00Z',
+    vi.mocked(http.request).mockResolvedValueOnce({
+      data: {
+        invitationId: '8842',
+        tenantId: '42',
+        inviteeEmail: 'owner@example.invalid',
+        status: 'PENDING',
+        expiresAt: '2026-07-28T12:00:00Z',
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
     });
 
     const repository = createPlatformTenantRepository(http);
-    const invitation = await repository.createFirstOwnerInvitation('42', {
-      inviteeEmail: 'owner@example.invalid',
-      locale: 'en-US',
-    });
-
-    expect(http.post).toHaveBeenCalledWith(
-      '/platform/tenants/42/first-owner-invitations',
+    const invitation = await repository.createFirstOwnerInvitation(
+      '42',
       {
         inviteeEmail: 'owner@example.invalid',
         locale: 'en-US',
       },
+      'key-2',
     );
+
+    expect(http.request).toHaveBeenCalledWith({
+      url: '/platform/tenants/42/first-owner-invitations',
+      method: 'POST',
+      data: {
+        inviteeEmail: 'owner@example.invalid',
+        locale: 'en-US',
+      },
+      headers: { 'Idempotency-Key': 'key-2' },
+    });
     expect(invitation).toEqual({
       invitationId: '8842',
       tenantId: '42',

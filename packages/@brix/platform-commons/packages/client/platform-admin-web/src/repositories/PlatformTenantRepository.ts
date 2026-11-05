@@ -32,9 +32,11 @@ export interface PlatformTenantRepository {
     id: string,
     req: UpdateTenantStatusRequest,
   ): Promise<PlatformTenantDto>;
+  /** The key tells a retry from a new invitation: the backend gives a repeated call the first answer. */
   createFirstOwnerInvitation(
     tenantId: string,
     req: CreateFirstOwnerInvitationRequest,
+    idempotencyKey: string,
   ): Promise<FirstOwnerInvitationDto>;
   currentFirstOwnerInvitation(
     tenantId: string,
@@ -76,13 +78,15 @@ export function createPlatformTenantRepository(
       );
       return normalizeTenantDto(response as BackendPlatformTenantDto);
     },
-    async createFirstOwnerInvitation(tenantId, req) {
-      const response = await http.post<unknown>(
-        PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATIONS(tenantId),
-        req,
-      );
+    async createFirstOwnerInvitation(tenantId, req, idempotencyKey) {
+      const response = await http.request<unknown>({
+        url: PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATIONS(tenantId),
+        method: 'POST',
+        data: req,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
       return normalizeFirstOwnerInvitationDto(
-        response as BackendFirstOwnerInvitationDto,
+        response.data as BackendFirstOwnerInvitationDto,
       );
     },
     async currentFirstOwnerInvitation(tenantId) {

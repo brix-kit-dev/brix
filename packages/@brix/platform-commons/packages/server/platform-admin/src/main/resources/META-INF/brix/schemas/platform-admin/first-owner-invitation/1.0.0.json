@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-admin/first-owner-invitation/1.0.0",
+  "title": "A first owner's invitation, without its token or link",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["invitationId", "tenantId", "inviteeEmail", "status"],
+  "properties": {
+    "invitationId": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "inviteeEmail": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "minLength": 1 },
+    "expiresAt": { "type": ["string", "null"] }
+  }
+}

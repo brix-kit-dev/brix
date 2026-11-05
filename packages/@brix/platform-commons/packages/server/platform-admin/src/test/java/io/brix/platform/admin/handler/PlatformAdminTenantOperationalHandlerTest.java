@@ -53,11 +53,15 @@ import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptorLoader;
 import io.runtime.orchestrator.operational.OperationalModuleIdentity;
 import io.runtime.orchestrator.operational.RuntimeOperationalView;
+import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointInvocation;
 import io.runtime.sdk.plugin.EndpointResponse;
 
 class PlatformAdminTenantOperationalHandlerTest {
+
+    private static final String CREATE = "platform.tenants.create.v1";
+    private static final String INVITE = "platform.tenants.first-owner-invitations.create.v1";
 
     private final TenantAdministration tenantAdministration = org.mockito.Mockito.mock(TenantAdministration.class);
     private final PlatformAuditAdministration audit = org.mockito.Mockito.mock(PlatformAuditAdministration.class);
@@ -121,33 +125,86 @@ class PlatformAdminTenantOperationalHandlerTest {
     @Test
     void theTenantCreationIsReplayedThroughTheTenantOwner() {
         // Super-admin §6: required. The record goes with the one write through the tenant owner's contract.
-        EndpointContract contract = createEndpoint().contract();
+        EndpointContract contract = endpoint(CREATE).contract();
 
         assertEquals("brix.internal.tenant.administration", contract.replay().writeContract());
         assertEquals(Optional.empty(), TypedEndpointRules.problem(new CreatePlatformTenantHandler(context),
             contract, getClass().getClassLoader()));
     }
 
+    @Test
+    void aFirstOwnerInvitationIsAnsweredAsItsSchemaSays() {
+        // Standard-link plan point 10b-4: the real descriptor and schemas, through the dispatcher.
+        when(tenantAdministration.createFirstOwnerInvitation(any())).thenReturn(new FirstOwnerInvitationView(
+            7L, 42L, "owner@example.invalid", "PENDING", OffsetDateTime.parse("2026-07-28T12:00:00Z")));
+
+        EndpointResponse answer = (EndpointResponse) invite(Map.of("inviteeEmail", "owner@example.invalid"));
+
+        assertEquals(200, answer.status());
+        JsonNode body = (JsonNode) answer.body();
+        assertEquals("7", body.get("invitationId").asString());
+        assertEquals("42", body.get("tenantId").asString());
+        assertEquals("PENDING", body.get("status").asString());
+    }
+
+    @ParameterizedTest
+    @MethodSource("invitationsTheSchemaRefuses")
+    void anInvitationTheSchemaRefusesNeverReachesTheOwner(Map<String, Object> request) {
+        assertThrows(EndpointRequestInvalidException.class, () -> invite(request));
+
+        verify(tenantAdministration, never()).createFirstOwnerInvitation(any());
+    }
+
+    static Stream<Map<String, Object>> invitationsTheSchemaRefuses() {
+        return Stream.of(
+            Map.of(),
+            Map.of("inviteeEmail", ""),
+            Map.of("inviteeEmail", "not-an-address"),
+            Map.of("inviteeEmail", "owner@example.invalid", "locale", 7),
+            // The caller does not choose where the invitation's link leads.
+            Map.of("inviteeEmail", "owner@example.invalid", "inviteBaseUrl", "https://evil.example.invalid/invite"));
+    }
+
+    @Test
+    void theInvitationIsReplayedThroughTheTenantOwner() {
+        EndpointContract contract = endpoint(INVITE).contract();
+
+        assertEquals("brix.internal.tenant.administration", contract.replay().writeContract());
+        assertEquals(Optional.empty(), TypedEndpointRules.problem(new CreateFirstOwnerInvitationHandler(context),
+            contract, getClass().getClassLoader()));
+    }
+
     private Object create(Map<String, Object> request) {
-        OperationalModuleDescriptor.EndpointDeclaration endpoint = createEndpoint();
+        return call(CREATE, new CreatePlatformTenantHandler(context), "/api/platform/tenants", request,
+            "platform:tenant:create");
+    }
+
+    private Object invite(Map<String, Object> request) {
+        return call(INVITE, new CreateFirstOwnerInvitationHandler(context),
+            "/api/platform/tenants/42/first-owner-invitations", request, "platform:tenant:first-owner-invite");
+    }
+
+    private Object call(String endpointId, EndpointHandler<?, ?> handler, String path, Map<String, Object> request,
+            String permission) {
+        OperationalModuleDescriptor.EndpointDeclaration endpoint = endpoint(endpointId);
         EndpointContract contract = endpoint.contract();
         DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
         dispatcher.replaceSnapshot(List.of(new EndpointRoute("platform-admin", endpoint.endpointId(), "POST",
-            endpoint.path(), endpoint.accessPolicy(), new CreatePlatformTenantHandler(context),
+            endpoint.path(), endpoint.accessPolicy(), handler,
             new EndpointContract(contract.requestSchemaRef(), contract.responseSchemaRef(), contract.status(),
                 contract.timeoutPolicyRef()))));
-        return dispatcher.invoke("POST", endpoint.path(), request, Map.of(), Map.of(
+        return dispatcher.invoke("POST", path, request, Map.of(), Map.of(
             "x-actor-id", List.of("1001"),
             "x-auth-token-role", List.of("platform-admin"),
             "x-auth-token-type", List.of("access"),
             "x-auth-token-scope", List.of("PLATFORM"),
-            "x-auth-permission", List.of("platform:tenant:create")));
+            "x-auth-permission", List.of(permission)));
     }
 
-    private OperationalModuleDescriptor.EndpointDeclaration createEndpoint() {
+    private OperationalModuleDescriptor.EndpointDeclaration endpoint(String endpointId) {
         return new OperationalModuleDescriptorLoader()
             .load(getClass().getClassLoader().getResource(OperationalModuleDescriptorLoader.DESCRIPTOR_RESOURCE))
-            .endpoints().get("platform.tenants.create.v1");
+            .endpoints().get(endpointId);
     }
 
     @Test
@@ -176,7 +233,7 @@ class PlatformAdminTenantOperationalHandlerTest {
                 "en-US"),
             Map.of("tenantId", "42"),
             Optional.of("1001"),
-            Optional.empty()));
+            Optional.empty())).toCompletableFuture().join();
 
         assertEquals(7L, response.invitationId());
         assertEquals("owner@example.invalid", response.inviteeEmail());
@@ -185,29 +242,6 @@ class PlatformAdminTenantOperationalHandlerTest {
         verify(tenantAdministration).createFirstOwnerInvitation(command.capture());
         assertEquals(42L, command.getValue().tenantId());
         assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
-        assertEquals("en-US", command.getValue().locale());
-    }
-
-    @Test
-    void createFirstOwnerInvitationIgnoresCallerSuppliedInviteBaseUrl() {
-        OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-28T12:00:00Z");
-        when(tenantAdministration.createFirstOwnerInvitation(any())).thenReturn(
-            new FirstOwnerInvitationView(7L, 42L, "owner@example.invalid", "PENDING", expiresAt));
-        CreateFirstOwnerInvitationHandler handler = new CreateFirstOwnerInvitationHandler(context);
-
-        handler.handle(rawCreateFirstOwnerInvocation(
-            Map.of(
-                "inviteeEmail", "owner@example.invalid",
-                "inviteBaseUrl", "https://evil.example.invalid/invite",
-                "locale", "en-US"),
-            Map.of("tenantId", "42"),
-            Optional.of("1001"),
-            Optional.empty()));
-
-        ArgumentCaptor<CreateFirstOwnerInvitationCommand> command =
-            ArgumentCaptor.forClass(CreateFirstOwnerInvitationCommand.class);
-        verify(tenantAdministration).createFirstOwnerInvitation(command.capture());
-        assertEquals("owner@example.invalid", command.getValue().inviteeEmail());
         assertEquals("en-US", command.getValue().locale());
     }
 
@@ -491,21 +525,6 @@ class PlatformAdminTenantOperationalHandlerTest {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static EndpointInvocation<CreateFirstOwnerInvitationRequest> rawCreateFirstOwnerInvocation(
-            Object body,
-            Map<String, String> pathVariables,
-            Optional<String> actorId,
-            Optional<String> tenantId) {
-        return new EndpointInvocation(
-            body,
-            pathVariables,
-            Map.of(),
-            Map.of(),
-            tenantId,
-            actorId,
-            Optional.of("trace-1"),
-            Instant.now().plusSeconds(30));
-    }
 
     private record TestOperationalContext(TenantAdministration tenantAdministration, PlatformAuditAdministration audit)
             implements OperationalContext {

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-admin/create-first-owner-invitation-request/1.0.0",
+  "title": "Invite a tenant's first owner",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId", "inviteeEmail"],
+  "properties": {
+    "tenantId": { "type": "integer", "minimum": 1 },
+    "inviteeEmail": { "type": "string", "minLength": 3, "maxLength": 320, "pattern": "^[^\\s@]+@[^\\s@]+$" },
+    "locale": { "type": ["string", "null"], "maxLength": 35 }
+  }
+}

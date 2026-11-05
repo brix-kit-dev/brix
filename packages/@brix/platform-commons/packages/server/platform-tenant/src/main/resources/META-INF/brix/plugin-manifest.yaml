@@ -145,6 +145,7 @@ internalContracts:
       # method's result in this plugin's table, with the write. None holds a secret or credential (idempotency design D79).
       replayableWrites:
         - createPendingTenant
+        - createFirstOwnerInvitation
 data:
   storageId: platform_tenant
   schema: platform-tenant

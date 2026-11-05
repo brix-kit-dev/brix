@@ -6,24 +6,28 @@
  */
 package io.brix.platform.admin.handler;
 
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import io.brix.platform.tenant.internal.CreateFirstOwnerInvitationCommand;
 import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.runtime.orchestrator.operational.OperationalContext;
-import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * Operational handler that requests a FIRST_OWNER invitation from tenant Owner.
+ *
+ * <p>The caller names a key, and the runtime keeps the record with the owner's write: a repeated call gets the first
+ * answer, and no second invitation or e-mail goes out (root BRX-RS-MANIFEST-018; idempotency design §5.6).</p>
  *
  * @author Brix Platform Team
  * @since 3.2.0
  */
 public final class CreateFirstOwnerInvitationHandler
-        implements EndpointHandler<EndpointInvocation<CreateFirstOwnerInvitationRequest>, FirstOwnerInvitationDto> {
+        implements TypedEndpointHandler<CreateFirstOwnerInvitationRequest, FirstOwnerInvitationDto> {
 
     private final TenantAdministration tenantAdministration;
     private final PlatformOperationAudit audit;
@@ -34,11 +38,13 @@ public final class CreateFirstOwnerInvitationHandler
     }
 
     @Override
-    public FirstOwnerInvitationDto handle(EndpointInvocation<CreateFirstOwnerInvitationRequest> invocation) {
+    public CompletionStage<FirstOwnerInvitationDto> handle(
+            EndpointInvocation<CreateFirstOwnerInvitationRequest> invocation) {
         Long actorId = PlatformOperationalInvocationSupport.requirePlatformActorId(invocation);
         Long tenantId = PlatformOperationalInvocationSupport.requirePathLong(invocation, "tenantId");
-        CreateFirstOwnerInvitationRequest request = request(invocation.body());
-        return audit.run(invocation, actorId, PlatformAuditActions.FIRST_OWNER_INVITATION_CREATED,
+        CreateFirstOwnerInvitationRequest request = invocation.body();
+        return CompletableFuture.completedFuture(audit.run(invocation, actorId,
+            PlatformAuditActions.FIRST_OWNER_INVITATION_CREATED,
             new PlatformOperationAudit.Target("INVITATION", null, tenantId),
             sent -> new PlatformOperationAudit.Target("INVITATION", sent.invitationId(), tenantId),
             () -> {
@@ -52,26 +58,6 @@ public final class CreateFirstOwnerInvitationHandler
                 } catch (TenantAdministrationException ex) {
                     throw PlatformEndpointErrors.tenantAdministration(ex);
                 }
-            });
-    }
-
-    private static CreateFirstOwnerInvitationRequest request(Object body) {
-        if (body instanceof CreateFirstOwnerInvitationRequest typed) {
-            return typed;
-        }
-        if (body instanceof Map<?, ?> map) {
-            return new CreateFirstOwnerInvitationRequest(
-                requiredString(map, "inviteeEmail"),
-                PlatformOperationalInvocationSupport.optionalString(body, "locale"));
-        }
-        throw new IllegalArgumentException("first owner invitation request body is required");
-    }
-
-    private static String requiredString(Map<?, ?> map, String field) {
-        Object value = map.get(field);
-        if (value == null || String.valueOf(value).isBlank()) {
-            throw new IllegalArgumentException(field + " is required");
-        }
-        return String.valueOf(value);
+            }));
     }
 }
