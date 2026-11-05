@@ -17,7 +17,6 @@ package io.brix.devtools.governance;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +45,8 @@ class ArchitectureGovernanceRegistryCompletenessTest {
         "id", "kind", "wired", "scope", "targetCount", "test", "status", "evidence");
     private static final Set<String> FORBIDDEN_PHASE0_STATUSES = Set.of(
         "pass", "passing", "enforced-passing", "accepted", "ga");
+    private static final String LOCK_POINTER =
+        "  lockPath: ../brix-enterprise/docs/architecture-baselines.lock.yaml";
 
     @Test
     void registryCoversActiveRequirementFamiliesAndKeepsGapsBlocking() throws IOException {
@@ -62,8 +63,7 @@ class ArchitectureGovernanceRegistryCompletenessTest {
         assertExpectedRange(requirementIds, "SA", 1, 12);
         assertExpectedRange(requirementIds, "T", 1, 28);
 
-        assertFalse(registry.contains("runtime-shell: 3.0.11\n  active"),
-            "Runtime Shell 3.0.11 must remain non-guiding in Phase 0");
+        validateBaselineOnlyPointsAtTheLock(registry);
         assertNoForbiddenPhase0Status(entriesInSection(registry, "requirements"));
         assertNoForbiddenPhase0Status(entriesInSection(registry, "ruleInventory"));
     }
@@ -136,12 +136,82 @@ class ArchitectureGovernanceRegistryCompletenessTest {
     }
 
     @Test
+    void completenessCheckRejectsACopyOfTheActiveVersions() {
+        String invalidRegistry = """
+            baseline:
+              lockPath: ../brix-enterprise/docs/architecture-baselines.lock.yaml
+              active:
+                runtime-shell: 3.3.0
+            phase:
+              id: phase-5
+            """;
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+            () -> validateBaselineOnlyPointsAtTheLock(invalidRegistry));
+
+        assertTrue(error.getMessage().contains("active"));
+    }
+
+    @Test
+    void completenessCheckRejectsABaselineThatDoesNotPointAtTheLock() {
+        String invalidRegistry = """
+            baseline:
+              lockPath: somewhere-else.yaml
+            phase:
+              id: phase-5
+            """;
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+            () -> validateBaselineOnlyPointsAtTheLock(invalidRegistry));
+
+        assertTrue(error.getMessage().contains("somewhere-else"));
+    }
+
+    @Test
+    void completenessCheckRejectsAVersionedBlueprintFile() {
+        String invalidRegistry = """
+            baseline:
+              lockPath: ../brix-enterprise/docs/architecture-baselines.lock.yaml
+            clauseGroups:
+              - id: PRINCIPLE
+                evidence: docs/v3.3.0-root.md
+            """;
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+            () -> validateBaselineOnlyPointsAtTheLock(invalidRegistry));
+
+        assertTrue(error.getMessage().contains("blueprint file"));
+    }
+
+    @Test
     void productionRegistryPassesCompletenessCheck() {
         assertDoesNotThrow(() -> {
             String registry = Files.readString(REGISTRY);
             validateSection(registry, "requirements", REQUIRED_REQUIREMENT_FIELDS);
             validateSection(registry, "ruleInventory", REQUIRED_RULE_FIELDS);
+            validateBaselineOnlyPointsAtTheLock(registry);
         });
+    }
+
+    /** The lock owns the versions in force, so a copy here goes stale at the next release. */
+    private static void validateBaselineOnlyPointsAtTheLock(String yaml) {
+        List<String> baseline = new ArrayList<>();
+        boolean inSection = false;
+        for (String line : yaml.split("\\R")) {
+            if (line.equals("baseline:")) {
+                inSection = true;
+            } else if (inSection && line.startsWith(" ")) {
+                baseline.add(line);
+            } else if (inSection) {
+                break;
+            }
+        }
+        if (!baseline.equals(List.of(LOCK_POINTER))) {
+            throw new IllegalStateException("Registry baseline must hold only the lock path: " + baseline);
+        }
+        if (yaml.contains("docs/v")) {
+            throw new IllegalStateException("Registry must not name a versioned blueprint file");
+        }
     }
 
     private static void validateSection(String yaml, String section, List<String> requiredFields) {

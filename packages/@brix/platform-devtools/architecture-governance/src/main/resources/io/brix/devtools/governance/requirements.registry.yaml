@@ -1,13 +1,6 @@
 schemaVersion: 1
 baseline:
   lockPath: ../brix-enterprise/docs/architecture-baselines.lock.yaml
-  active:
-    runtime-shell: 3.0.10
-    frontend: 1.1
-    super-admin: 3.0
-    multi-tenant: 4.0
-  nonGuiding:
-    runtime-shell: 3.0.11
 phase:
   id: phase-5
   name: frontend-runtime-host-boundary
@@ -43,7 +36,7 @@ clauseGroups:
     tool: registry
     test: ArchitectureGovernanceRegistryCompletenessTest
     status: missing-blocking
-    evidence: docs/v3.0.10-运行壳架构设计蓝图.md
+    evidence: root-blueprint-principles
   - id: LAYER
     owner: runtime
     tool: java-archunit
