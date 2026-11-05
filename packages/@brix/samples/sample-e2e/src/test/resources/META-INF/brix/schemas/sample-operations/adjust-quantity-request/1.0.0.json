@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-operations/adjust-quantity-request/1.0.0",
+  "title": "Adjust the quantity of an order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId", "orderId", "delta"],
+  "properties": {
+    "tenantId": { "type": "integer", "minimum": 1 },
+    "orderId": { "type": "integer", "minimum": 1 },
+    "delta": { "type": "integer" }
+  }
+}

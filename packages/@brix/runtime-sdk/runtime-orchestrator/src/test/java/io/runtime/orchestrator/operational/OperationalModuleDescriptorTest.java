@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.endpoint.EndpointContract;
 
 class OperationalModuleDescriptorTest {
 
@@ -115,6 +116,11 @@ class OperationalModuleDescriptorTest {
 
     private static OperationalModuleDescriptor load(Path directory, String accessSections, String idempotency,
             String timeout) throws Exception {
+        return load(directory, accessSections, idempotency, timeout, "");
+    }
+
+    private static OperationalModuleDescriptor load(Path directory, String accessSections, String idempotency,
+            String timeout, String responseStatus) throws Exception {
         Path descriptor = directory.resolve("platform-operational.yaml");
         Files.writeString(descriptor, """
             apiVersion: brix.io/platform-operational/v1
@@ -141,6 +147,7 @@ class OperationalModuleDescriptorTest {
                     schemaRef: brix://schemas/empty/1.0.0
                   response:
                     schemaRef: brix://schemas/runtime/status/1.0.0
+            """ + responseStatus + """
                   handlerId: runtime.status
             """ + accessSections.stripTrailing().indent(4) + """
                   tenantContext:
@@ -175,6 +182,35 @@ class OperationalModuleDescriptorTest {
         OperationalModuleDescriptor descriptor = load(directory, ANONYMOUS_STATUS, "not-applicable", "interactive-read");
 
         assertEquals("interactive-read", descriptor.endpoints().get("runtime.status.v1").timeoutPolicyRef());
+    }
+
+    @Test
+    void loaderReadsTheEndpointsSchemasAndStatus(@TempDir Path directory) throws Exception {
+        // Idempotency design D78: the schemas and the status count as a plugin's do.
+        OperationalModuleDescriptor descriptor = load(directory, ANONYMOUS_STATUS, "not-applicable", "interactive-read",
+            "        status: 201\n");
+
+        EndpointContract contract = descriptor.endpoints().get("runtime.status.v1").contract();
+        assertEquals("brix://schemas/empty/1.0.0", contract.requestSchemaRef());
+        assertEquals("brix://schemas/runtime/status/1.0.0", contract.responseSchemaRef());
+        assertEquals(201, contract.status());
+        assertEquals("interactive-read", contract.timeoutPolicyRef());
+    }
+
+    @Test
+    void anEndpointThatNamesNoStatusAnswers200(@TempDir Path directory) throws Exception {
+        OperationalModuleDescriptor descriptor = load(directory, ANONYMOUS_STATUS, "not-applicable", "interactive-read");
+
+        assertEquals(200, descriptor.endpoints().get("runtime.status.v1").contract().status());
+    }
+
+    @Test
+    void loaderRejectsAStatusThatIsNotASuccess(@TempDir Path directory) throws Exception {
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class, () -> load(directory,
+            ANONYMOUS_STATUS, "not-applicable", "interactive-read", "        status: 500\n"));
+
+        assertEquals("operational.descriptor.invalid", failure.diagnosticCode());
+        assertTrue(failure.getMessage().contains("status"), failure.getMessage());
     }
 
     @Test

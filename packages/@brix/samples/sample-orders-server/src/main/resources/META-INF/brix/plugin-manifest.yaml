@@ -147,8 +147,15 @@ tasks:
       idempotencyPolicyRef: task-trigger
       # It touches no data, so it runs without a unit of work (root BRX-RS-DATA-028).
       transaction: none
+# What a platform operational module may ask of sample-orders (root BRX-RS-HOST-021). The runtime runs each call in this
+# plugin's unit of work (root BRX-RS-HOST-020).
 internalContracts:
-  provides: []
+  provides:
+    - contractId: brix.internal.sample-orders.administration
+      contractType: io.brix.samples.orders.internal.SampleOrderAdministration
+      contractVersion: 1.0.0
+      providerId: sample-orders.internal.administration
+      owner: sample-orders
 # The platform creates sample_orders_outbox, sample_orders_inbox and sample_orders_command_idempotency from its own
 # versioned migrations; db/migration/sample-orders holds only the plugin's business tables.
 data:

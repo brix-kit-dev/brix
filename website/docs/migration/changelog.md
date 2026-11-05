@@ -28,6 +28,8 @@ All notable changes to Brix Framework are documented here.
   - Lists use `page`, `size` (at most 100) and `sort` and answer `Page` (`io.runtime.sdk.page`).
   - The samples' endpoints, and platform-tenant's FIRST_OWNER acceptance and tenant session, use the new shape.
     See [Endpoints](../guides/endpoints.md).
+  - A platform operational module's endpoints can use it too: `platform-operational.yaml` takes `response.status`, and
+    a typed handler is held to its schemas and status. A handler of the old shape works as before.
 - **Calls to external services** (root BRX-RS-ERROR-014, A-11). A plugin declares each service under
   `externalServices` (`id`, `baseUrlRef` and its timeout, retry and concurrency policies) and calls it through
   `ExternalHttpCapability.service(id)` with a path within the service.

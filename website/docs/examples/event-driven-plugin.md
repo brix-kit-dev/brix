@@ -339,3 +339,9 @@ The host properties the test sets show what a host needs for this chain:
   name a reason, `REFUSED` or `DAMAGED`; refusing the same order again with the other one reads as `CONFLICT`.
   `sample-orders` rejects the cancellation of an order it does not have: that one reads as `REJECTED` with
   `sample-orders.order_not_found`. See [Commands](../guides/events-and-commands.md#commands).
+- **An operator's change.** A platform operator reaches a plugin's data only through the plugin's internal contract.
+  `sample-orders` provides `brix.internal.sample-orders.administration`, and `sample-e2e` has a module for its tests,
+  `sample-operations`, that calls it from
+  `POST /api/platform/sample-orders/{tenantId}/orders/{orderId}/quantity-adjustments`. The runtime holds its typed
+  handler to the schemas and status of `platform-operational.yaml`, and runs the write in `sample-orders`' own unit of
+  work, in the tenant the command names.

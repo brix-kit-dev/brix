@@ -39,8 +39,8 @@ import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
 import io.runtime.orchestrator.external.ExternalHttpRuntime;
 import io.runtime.orchestrator.endpoint.EndpointRouteValidator;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
-import io.runtime.orchestrator.endpoint.ReplayableAnswers;
 import io.runtime.orchestrator.endpoint.TenantGrantTable;
+import io.runtime.orchestrator.endpoint.TypedEndpointRules;
 import io.runtime.orchestrator.command.CommandPolicies;
 import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.CommandStatuses;
@@ -73,7 +73,6 @@ import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.sdk.plugin.QueryHandler;
 import io.runtime.sdk.plugin.TaskInvocation;
-import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * L2B runtime manager for v3.0.10 backend plugins.
@@ -1137,37 +1136,10 @@ public final class PluginRuntimeManager {
             if (declaration == null) {
                 return;
             }
-            boolean replayed = declaration.contract().replay() != null;
-            if (!(handler instanceof TypedEndpointHandler<?, ?>)) {
-                if (replayed) {
-                    throw new PluginRuntimeException("Plugin '" + plugin.id() + "' endpoint '" + endpointId
-                        + "' has its results replayed, so its handler must be a TypedEndpointHandler");
-                }
-                return;
-            }
-            requireSchema(plugin, endpointId, "request", declaration.contract().requestSchemaRef(), classes);
-            if (declaration.contract().status() != 204) {
-                requireSchema(plugin, endpointId, "response", declaration.contract().responseSchemaRef(), classes);
-                if (replayed) {
-                    // Idempotency design §4.6, D74: the runtime keeps the answer, so it must not hold a secret.
-                    ReplayableAnswers.fieldNotKept(declaration.contract().responseSchemaRef(), classes)
-                        .ifPresent(field -> {
-                            throw new PluginRuntimeException("Plugin '" + plugin.id() + "' endpoint '" + endpointId
-                                + "' has its results replayed, and its response declares a secret or credential at "
-                                + field + "; the runtime does not keep those");
-                        });
-                }
-            }
+            TypedEndpointRules.problem(handler, declaration.contract(), classes).ifPresent(problem -> {
+                throw new PluginRuntimeException("Plugin '" + plugin.id() + "' endpoint '" + endpointId + "' " + problem);
+            });
         });
-    }
-
-    private static void requireSchema(ManagedPlugin plugin, String endpointId, String kind, String schemaRef,
-            ClassLoader classes) {
-        String resource = EventPolicies.schemaResource(schemaRef);
-        if (resource == null || classes.getResource(resource) == null) {
-            throw new PluginRuntimeException("Plugin '" + plugin.id() + "' endpoint '" + endpointId
-                + "' has a typed handler, so its " + kind + " schema '" + schemaRef + "' must be on its class path");
-        }
     }
 
     /** Every declared task has its factory, and every factory its declaration (root BRX-RS-MANIFEST-026). */

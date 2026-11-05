@@ -105,6 +105,12 @@ final class SampleInfrastructure {
             HttpResponse.BodyHandlers.ofString());
     }
 
+    /** Sends a request as a platform operator. */
+    static HttpResponse<String> postAsOperator(int port, String path, Map<String, Object> body) throws Exception {
+        return HTTP.send(request(port, path, body).header(SampleHost.OPERATOR_HEADER, "9001").build(),
+            HttpResponse.BodyHandlers.ofString());
+    }
+
     /** Places an order under a key of its own: sample-orders' endpoint requires one (standard-link plan point 10a). */
     static HttpResponse<String> place(int port, Map<String, Object> order) throws Exception {
         return post(port, "/api/sample-orders/orders", order, UUID.randomUUID().toString());

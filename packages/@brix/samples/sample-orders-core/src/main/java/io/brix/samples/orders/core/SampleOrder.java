@@ -108,6 +108,24 @@ public class SampleOrder implements Persistable<Long> {
         return true;
     }
 
+    /**
+     * Changes how many items the order has, and its version goes up. A change that would leave it with none, or with
+     * more than {@code max}, is not made.
+     *
+     * @param delta how many items to add, or to take away when negative
+     * @param max the most items it may have
+     * @return {@code true} when the order changed
+     */
+    public boolean adjustQuantity(int delta, int max) {
+        long adjusted = (long) quantity + delta;
+        if (adjusted < 1 || adjusted > max) {
+            return false;
+        }
+        quantity = (int) adjusted;
+        version++;
+        return true;
+    }
+
     @PostPersist
     @PostLoad
     void stored() {

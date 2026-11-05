@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
+import io.runtime.orchestrator.endpoint.TypedEndpointRules;
 import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.orchestrator.task.TaskPolicies;
@@ -342,6 +343,12 @@ public final class OperationalModuleRuntimeManager {
         List<EndpointRoute> routes = new ArrayList<>();
         for (OperationalModuleDescriptor.EndpointDeclaration declaration
                 : module.descriptor.endpoints().values()) {
+            // Root BRX-RS-HOST-014; idempotency design D78: the rules of a plugin's endpoint.
+            TypedEndpointRules.problem(handlers.get(declaration.handlerId()), declaration.contract(),
+                module.provider.getClass().getClassLoader()).ifPresent(problem -> {
+                    throw failure("operational.endpoint.invalid", "Operational module '" + module.id() + "' endpoint '"
+                        + declaration.endpointId() + "' " + problem);
+                });
             routes.add(new EndpointRoute(
                 module.id(),
                 declaration.endpointId(),
@@ -349,7 +356,7 @@ public final class OperationalModuleRuntimeManager {
                 declaration.path(),
                 declaration.accessPolicy(),
                 handlers.get(declaration.handlerId()),
-                io.runtime.orchestrator.endpoint.EndpointContract.timeout(declaration.timeoutPolicyRef())));
+                declaration.contract()));
         }
         module.routes = List.copyOf(routes);
         for (OperationalModuleDescriptor.TaskDeclaration declaration : module.descriptor.tasksByHandlerId().values()) {

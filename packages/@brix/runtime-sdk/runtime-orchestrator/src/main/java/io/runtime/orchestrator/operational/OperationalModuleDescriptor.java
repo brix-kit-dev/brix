@@ -14,6 +14,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.endpoint.EndpointContract;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 
 /**
@@ -166,8 +167,8 @@ public record OperationalModuleDescriptor(
      * @param path normalized absolute path
      * @param handlerId code factory identifier
      * @param accessPolicy declared endpoint access policy
-     * @param timeoutPolicyRef declared deadline policy of {@link io.runtime.orchestrator.endpoint.EndpointPolicies},
-     *     blank for the host's endpoint deadline
+     * @param contract its schemas, success status and deadline policy, under the rules of a plugin's endpoint (root
+     *     BRX-RS-HOST-014; idempotency design D78)
      */
     public record EndpointDeclaration(
             String endpointId,
@@ -175,7 +176,7 @@ public record OperationalModuleDescriptor(
             String path,
             String handlerId,
             EndpointAccessPolicy accessPolicy,
-            String timeoutPolicyRef) {
+            EndpointContract contract) {
 
         /**
          * Validates declaration fields.
@@ -186,7 +187,7 @@ public record OperationalModuleDescriptor(
             path = requireText(path, "path");
             handlerId = requireText(handlerId, "handlerId");
             accessPolicy = Objects.requireNonNull(accessPolicy, "accessPolicy must not be null");
-            timeoutPolicyRef = io.runtime.orchestrator.endpoint.EndpointPolicies.timeout(timeoutPolicyRef);
+            contract = Objects.requireNonNull(contract, "contract must not be null");
             if (!path.startsWith("/api/platform/")) {
                 throw new IllegalArgumentException("Operational endpoint must use /api/platform/**: " + path);
             }
@@ -203,7 +204,7 @@ public record OperationalModuleDescriptor(
         }
 
         /**
-         * Creates a declaration with the host's endpoint deadline.
+         * Creates a declaration without schemas, answering 200 within the host's endpoint deadline.
          *
          * @param endpointId stable endpoint identifier
          * @param method HTTP method
@@ -213,7 +214,16 @@ public record OperationalModuleDescriptor(
          */
         public EndpointDeclaration(String endpointId, String method, String path, String handlerId,
                 EndpointAccessPolicy accessPolicy) {
-            this(endpointId, method, path, handlerId, accessPolicy, null);
+            this(endpointId, method, path, handlerId, accessPolicy, EndpointContract.none());
+        }
+
+        /**
+         * Returns the declared deadline policy.
+         *
+         * @return the policy of {@link io.runtime.orchestrator.endpoint.EndpointPolicies}
+         */
+        public String timeoutPolicyRef() {
+            return contract.timeoutPolicyRef();
         }
     }
 

@@ -1,0 +1,50 @@
+# The sample's operational module, only in these tests: the platform's own is platform-admin. An operator's endpoint goes
+# through the same Dispatcher as a plugin's and reaches sample-orders only through its internal contract (root
+# BRX-RS-HOST-014, HOST-019, HOST-020).
+apiVersion: brix.io/platform-operational/v1
+kind: PlatformOperationalModule
+moduleKind: platform-operational
+metadata:
+  id: sample-operations
+  version: 3.2.0
+  owner: sample-e2e
+runtime:
+  supportedRange: ">=3.2.0 <4.0.0"
+internalContracts:
+  provides: []
+  requires:
+    - contractId: brix.internal.sample-orders.administration
+      contractType: io.brix.samples.orders.internal.SampleOrderAdministration
+      versionRange: ">=1.0.0 <2.0.0"
+      required: true
+      privilegeAllowlistRef: sample-operations.order-administration
+privileges:
+  allowlist:
+    - sample-operations.order-administration
+endpoints:
+  provides:
+    - endpointId: sample-operations.adjust-quantity.v1
+      transport: http
+      method: POST
+      path: /api/platform/sample-orders/{tenantId}/orders/{orderId}/quantity-adjustments
+      request:
+        schemaRef: brix://schemas/sample-operations/adjust-quantity-request/1.0.0
+      response:
+        schemaRef: brix://schemas/sample-operations/adjusted-order/1.0.0
+        status: 201
+      handlerId: sample-operations.adjust-quantity.v1
+      authentication:
+        mode: required
+        policyRef: platform-token
+      authorization:
+        permissions:
+          - sample-operations:order:adjust
+        decision: all
+      tenantContext:
+        mode: forbidden
+      timeout:
+        policyRef: interactive-write
+      idempotency:
+        mode: not-applicable
+tasks:
+  provides: []

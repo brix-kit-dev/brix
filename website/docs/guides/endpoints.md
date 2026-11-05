@@ -297,3 +297,8 @@ The schema's `enum` lists the sort orders your query supports, so a caller canno
 response. It runs synchronously, so the runtime cannot stop waiting for it; its transaction still ends at the
 deadline. In 4.0 `EndpointHandler` takes the shape of `TypedEndpointHandler`, which then becomes its deprecated
 alias. A handler written against `TypedEndpointHandler` does not change.
+
+A platform operational module's endpoints follow the same rules. Its `platform-operational.yaml` declares
+`request.schemaRef`, `response.schemaRef` and `response.status` as a plugin manifest does. A `TypedEndpointHandler` is
+held to them, and the module does not start without its schemas on the class path. A handler of the old shape ignores
+them.

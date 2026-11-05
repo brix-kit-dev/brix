@@ -24,6 +24,7 @@ import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
+import io.runtime.orchestrator.endpoint.EndpointContract;
 
 /**
  * Strict loader for the unique platform operational descriptor.
@@ -149,7 +150,13 @@ public final class OperationalModuleDescriptorLoader {
                     section(node, "authentication"),
                     section(node, "authorization"),
                     section(node, "tenantContext")),
-                node.path("timeout").path("policyRef").asString(""));
+                // Idempotency design D78: the schemas and the status count as a plugin's do. A handler of the old shape
+                // ignores them, and a typed one is held to them.
+                new EndpointContract(
+                    node.path("request").path("schemaRef").asString(""),
+                    node.path("response").path("schemaRef").asString(""),
+                    node.path("response").path("status").asInt(200),
+                    node.path("timeout").path("policyRef").asString("")));
         } catch (IllegalArgumentException e) {
             throw new OperationalRuntimeException(
                 "operational.descriptor.invalid",

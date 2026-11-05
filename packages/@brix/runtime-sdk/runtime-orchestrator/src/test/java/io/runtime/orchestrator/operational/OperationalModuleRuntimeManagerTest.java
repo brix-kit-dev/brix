@@ -12,18 +12,21 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 
 import io.runtime.orchestrator.bootstrap.HostRuntimeOperationalView;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
+import io.runtime.orchestrator.endpoint.EndpointContract;
 import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.ManagedTask;
 import io.runtime.sdk.plugin.PluginLifecycleState;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 class OperationalModuleRuntimeManagerTest {
 
@@ -137,6 +140,115 @@ class OperationalModuleRuntimeManagerTest {
 
         manager.startPrepared();
         assertTrue(factoryInvoked.get());
+    }
+
+    @Test
+    void aTypedHandlerStartsWithItsSchemasAndPublishesItsContract() {
+        // Root BRX-RS-HOST-014; idempotency design D78: the dispatcher checks requests and responses against them.
+        EndpointContract contract = new EndpointContract("brix://schemas/test-endpoints/create-thing-request/1.0.0",
+            "brix://schemas/test-endpoints/thing/1.0.0", 201);
+        OperationalModuleRuntimeManager manager = moduleWith(contract, request -> CompletableFuture.completedFuture("ok"));
+
+        manager.prepare();
+        manager.startPrepared();
+
+        assertEquals(contract, manager.preparedRoutes().get(0).contract());
+    }
+
+    @Test
+    void aTypedHandlerDoesNotStartWithoutItsRequestSchema() {
+        OperationalRuntimeException failure = startFails(new EndpointContract(
+            "brix://schemas/test-endpoints/no-such-request/1.0.0", "brix://schemas/test-endpoints/thing/1.0.0", 201));
+
+        assertEquals("operational.endpoint.invalid", failure.diagnosticCode());
+        assertTrue(failure.getMessage().contains("endpoint 'runtime.status.v1' has a typed handler, so its request schema "
+            + "'brix://schemas/test-endpoints/no-such-request/1.0.0' must be on its class path"), failure.getMessage());
+    }
+
+    @Test
+    void aTypedHandlerDoesNotStartWithoutItsResponseSchema() {
+        OperationalRuntimeException failure = startFails(new EndpointContract(
+            "brix://schemas/test-endpoints/create-thing-request/1.0.0", "brix://schemas/test-endpoints/no-such-answer/1.0.0",
+            201));
+
+        assertTrue(failure.getMessage().contains("response schema"), failure.getMessage());
+    }
+
+    @Test
+    void aTypedHandlerThatAnswersNoBodyNeedsNoResponseSchema() {
+        EndpointContract contract = new EndpointContract("brix://schemas/test-endpoints/create-thing-request/1.0.0", "",
+            204);
+        OperationalModuleRuntimeManager manager = moduleWith(contract, request -> CompletableFuture.completedFuture(null));
+
+        manager.prepare();
+        manager.startPrepared();
+
+        assertEquals(204, manager.preparedRoutes().get(0).contract().status());
+    }
+
+    @Test
+    void aHandlerOfTheOldShapeStartsWithSchemasThatDoNotExistYet() {
+        // Idempotency design D78: endpoints change one at a time; until then their descriptors name schemas nobody reads.
+        OperationalModuleRuntimeManager manager = moduleWith(new EndpointContract(
+            "brix://schemas/test-endpoints/no-such-request/1.0.0", "brix://schemas/test-endpoints/no-such-answer/1.0.0", 200),
+            (EndpointHandler<Object, Object>) request -> "ok");
+
+        manager.prepare();
+        manager.startPrepared();
+
+        assertEquals(1, manager.preparedRoutes().size());
+    }
+
+    private OperationalRuntimeException startFails(EndpointContract contract) {
+        OperationalModuleRuntimeManager manager = moduleWith(contract, request -> CompletableFuture.completedFuture("ok"));
+        manager.prepare();
+        return assertThrows(OperationalRuntimeException.class, manager::startPrepared);
+    }
+
+    private OperationalModuleRuntimeManager moduleWith(EndpointContract contract, TypedEndpointHandler<Object, Object> handler) {
+        return moduleWith(contract, (EndpointHandler<?, ?>) handler);
+    }
+
+    private OperationalModuleRuntimeManager moduleWith(EndpointContract contract, EndpointHandler<?, ?> handler) {
+        var endpoint = new OperationalModuleDescriptor.EndpointDeclaration(
+            "runtime.status.v1",
+            "POST",
+            "/api/platform/runtime/status",
+            "runtime.status",
+            TestEndpointAccessPolicies.platform("platform:runtime:read"),
+            contract);
+        var descriptor = new OperationalModuleDescriptor(
+            new OperationalModuleIdentity("typed-test", "3.2.0", "runtime-tests"),
+            ">=3.2.0 <4.0.0",
+            List.of(),
+            List.of(),
+            java.util.Set.of(),
+            java.util.Map.of(endpoint.endpointId(), endpoint),
+            java.util.Map.of());
+        PlatformOperationalModule provider = new PlatformOperationalModule() {
+            @Override
+            public void configure(OperationalBootstrapContext bootstrap) {
+                bootstrap.bindEndpointHandlerFactory("runtime.status", context -> handler);
+            }
+
+            @Override
+            public void onStart(OperationalContext context) {
+            }
+
+            @Override
+            public void onStop() {
+            }
+
+            @Override
+            public io.runtime.sdk.plugin.BrixHealth health() {
+                return io.runtime.sdk.plugin.BrixHealth.up();
+            }
+        };
+        var discovered = new ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule(
+            provider,
+            descriptor,
+            provider.getClass().getProtectionDomain().getCodeSource().getLocation());
+        return manager(() -> List.of(discovered), List.of("typed-test"));
     }
 
     @Test

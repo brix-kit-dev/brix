@@ -110,6 +110,15 @@
         "privilegeAllowlistRef": { "type": "string", "minLength": 1 }
       }
     },
+    "endpointResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaRef"],
+      "properties": {
+        "schemaRef": { "type": "string", "minLength": 1 },
+        "status": { "enum": [200, 201, 202, 204] }
+      }
+    },
     "schemaRef": {
       "type": "object",
       "additionalProperties": false,
@@ -126,7 +135,7 @@
         "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
         "path": { "type": "string", "pattern": "^/api/platform(?:/.*)?$" },
         "request": { "$ref": "#/$defs/schemaRef" },
-        "response": { "$ref": "#/$defs/schemaRef" },
+        "response": { "$ref": "#/$defs/endpointResponse" },
         "handlerId": { "type": "string", "minLength": 1 },
         "authentication": { "$ref": "#/$defs/policy" },
         "authorization": { "$ref": "#/$defs/policy" },

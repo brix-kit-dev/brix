@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-operations/adjusted-order/1.0.0",
+  "title": "An order after an operator's change",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["orderId", "quantity", "version"],
+  "properties": {
+    "orderId": { "type": "string", "minLength": 1 },
+    "quantity": { "type": "integer", "minimum": 1 },
+    "version": { "type": "integer", "minimum": 1 }
+  }
+}
