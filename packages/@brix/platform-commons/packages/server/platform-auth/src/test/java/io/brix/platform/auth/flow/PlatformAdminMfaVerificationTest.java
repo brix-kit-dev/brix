@@ -115,7 +115,7 @@ class PlatformAdminMfaVerificationTest {
     @Test
     void aChallengeForAnotherRoleIsRefused() throws Exception {
         AuthenticatedUser otherRole = challenge();
-        otherRole.setPlatformRole("PLATFORM_AUDITOR");
+        otherRole.setPlatformRole("ANOTHER_ROLE");
         when(jwtValidator.validate("challenge")).thenReturn(otherRole);
         when(identities.findIdentityById(1L)).thenReturn(Optional.of(activeIdentity()));
         when(identities.findActivePlatformAdmin(1L)).thenReturn(Optional.of(admin(true)));

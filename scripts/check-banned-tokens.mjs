@@ -109,6 +109,9 @@ function scanLegacyRoleLiterals(relativePath, line, lineNumber) {
   legacyRoleLiteralPattern.lastIndex = 0;
   let match;
   while ((match = legacyRoleLiteralPattern.exec(line)) !== null) {
+    if (isAuditTargetType(match[2], line)) {
+      continue;
+    }
     findings.push({
       file: relativePath,
       line: lineNumber,
@@ -135,10 +138,12 @@ function isLegacyRoleLiteralAllowed(relativePath, line) {
   if (line.includes('TENANT_ACTOR') && line.includes('TENANT_SUBJECT')) {
     return true;
   }
-  if (line.includes('resourceType("PLATFORM_ADMIN")')) {
-    return true;
-  }
   return false;
+}
+
+// PLATFORM_ADMIN is also a platform audit target type (super-admin blueprint), which is no role.
+function isAuditTargetType(token, line) {
+  return token === 'PLATFORM_ADMIN' && /\btargetTypes?\b/.test(line);
 }
 
 function shouldScan(fileName) {

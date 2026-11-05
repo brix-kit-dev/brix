@@ -181,8 +181,8 @@ class PlatformBootstrapAdministrationServiceTest {
         order.verify(setupTokenRepository).save(any(SetupToken.class));
         verify(notification).send(any());
         assertEquals(List.of(PlatformAuditActions.BOOTSTRAP_ADMIN_CREATED, PlatformAuditActions.SETUP_TOKEN_ISSUED), audit.actions());
-        assertEquals(List.of("PLATFORM_ADMIN", "SETUP_TOKEN"),
-                audit.facts().stream().map(fact -> fact.targetType()).toList());
+        List<String> targetTypes = audit.facts().stream().map(fact -> fact.targetType()).toList();
+        assertEquals(List.of("PLATFORM_ADMIN", "SETUP_TOKEN"), targetTypes);
         assertEquals(true, audit.facts().stream()
                 .allMatch(fact -> IdentityAuditFacts.REASON_BOOTSTRAP.equals(fact.reasonCode())));
     }
