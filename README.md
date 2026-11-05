@@ -20,7 +20,7 @@
 <p align="center">
   <a href="https://github.com/brix-kit-dev/brix">Documentation</a> |
   <a href="https://github.com/brix-kit-dev/brix/getting-started">Getting Started</a> |
-  <a href="#-quick-start">Quick Start</a> |
+  <a href="#quick-start">Quick Start</a> |
   <a href="https://github.com/brix-kit-dev/brix/discussions">Community</a>
 </p>
 
@@ -136,7 +136,7 @@ pnpm build
 mvn clean install
 ```
 
-## ?? Documentation
+## Documentation
 
 | Document | Description |
 |----------|-------------|
@@ -145,31 +145,31 @@ mvn clean install
 | [Capability Contract](website/docs/concepts/capability-contract.md) | How plugins reach the platform through capabilities |
 | [Architecture Guard](website/docs/guides/architecture-guard.md) | 13 red-line rules and ArchUnit tests |
 
-## ?? Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-- ?? [Report a Bug](https://github.com/brix-kit-dev/brix/issues/new?template=bug_report.md)
-- ?? [Request a Feature](https://github.com/brix-kit-dev/brix/issues/new?template=feature_request.md)
-- ?? [Discussions](https://github.com/brix-kit-dev/brix/discussions)
+- [Report a Bug](https://github.com/brix-kit-dev/brix/issues/new?template=bug_report.md)
+- [Request a Feature](https://github.com/brix-kit-dev/brix/issues/new?template=feature_request.md)
+- [Discussions](https://github.com/brix-kit-dev/brix/discussions)
 
-## ?? Community
+## Community
 
 Join our community to get help, share ideas, and contribute:
 
-- ?? **[Discussions](https://github.com/brix-kit-dev/brix/discussions)** - Ask questions and share ideas
-- ?? **[brix.kit.dev@gmail.com](mailto:brix.kit.dev@gmail.com)** - Contact & report security vulnerabilities
+- **[Discussions](https://github.com/brix-kit-dev/brix/discussions)** - Ask questions and share ideas
+- **[brix.kit.dev@gmail.com](mailto:brix.kit.dev@gmail.com)** - Contact & report security vulnerabilities
 
-## ?? Further Reading
+## Further Reading
 
 - [Security Policy](SECURITY.md) - How to report vulnerabilities
 - [Code of Conduct](CODE_OF_CONDUCT.md) - Community guidelines
 - [Changelog](packages/@brix/runtime-sdk/CHANGELOG.md) - Version history
 
-## ?? License
+## License
 
 [Apache License 2.0](LICENSE) - see the LICENSE file for details.
 
 ---
 
-<p align="center">Made with ?? by the Brix Community</p>
+<p align="center">Made by the Brix Community</p>
