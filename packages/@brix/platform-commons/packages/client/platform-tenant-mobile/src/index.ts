@@ -16,9 +16,6 @@
  * - Task #32: platform-tenant-mobile module (Token Secure Storage + tenant switching + branding)
  * - Task #33: PushNotificationService (push token association + auto-switch on notification tap)
  *
- * @see v1.2-多租户基础功能完整设计方案.md — Phase 5
- * @see v3.0.9-runtime-shell-architecture-blueprint.md — Section 14: Multi-tenant Architecture
- *
  * @example
  * ```tsx
  * // 1. Wrap your app with MobileTenantProvider

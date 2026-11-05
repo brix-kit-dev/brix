@@ -4,7 +4,7 @@
 
 ## Overview
 
-This package provides shared ESLint rules that enforce the architectural red lines defined in the v3.0.8 Runtime Shell Architecture Blueprint. It ensures business modules follow proper separation of concerns and use the Capability abstraction layer.
+This package provides shared ESLint rules that enforce the architectural red lines defined in the Runtime Shell architecture blueprint. It ensures business modules follow proper separation of concerns and use the Capability abstraction layer.
 
 ## Features
 

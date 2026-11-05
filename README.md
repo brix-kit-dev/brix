@@ -140,10 +140,10 @@ mvn clean install
 
 | Document | Description |
 |----------|-------------|
-| [Architecture Blueprint](docs/architecture-blueprint.md) | Complete v1.0.0 Runtime Shell design |
-| [Plugin Development Guide](docs/plugin-development.md) | Step-by-step plugin creation tutorial |
-| [Capability Reference](docs/capability-contracts.md) | All available capability interfaces |
-| [Architecture Guard](packages/@brix-sdk/platform-devtools/architecture-guard/README.md) | 13 red-line rules and ArchUnit tests |
+| [Runtime Shell](website/docs/concepts/runtime-shell.md) | What the Runtime Shell is and how its layers fit |
+| [Plugin Development Guide](website/docs/guides/plugin-development.md) | Step-by-step plugin creation tutorial |
+| [Capability Contract](website/docs/concepts/capability-contract.md) | How plugins reach the platform through capabilities |
+| [Architecture Guard](website/docs/guides/architecture-guard.md) | 13 red-line rules and ArchUnit tests |
 
 ## ?? Contributing
 
@@ -164,7 +164,7 @@ Join our community to get help, share ideas, and contribute:
 
 - [Security Policy](SECURITY.md) - How to report vulnerabilities
 - [Code of Conduct](CODE_OF_CONDUCT.md) - Community guidelines
-- [Changelog](packages/@brix-sdk/runtime-sdk/CHANGELOG.md) - Version history
+- [Changelog](packages/@brix/runtime-sdk/CHANGELOG.md) - Version history
 
 ## ?? License
 

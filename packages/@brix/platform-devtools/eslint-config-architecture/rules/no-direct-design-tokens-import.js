@@ -38,7 +38,7 @@
  * ```
  *
  * @see UI设计令牌改造方�?v2.0.md �?Phase 7, Rule 7.2
- * @see v3.0.9 Runtime Shell Architecture Blueprint �?§2.1 Three-layer Design Token Architecture
+ * @see Runtime Shell root blueprint - A-18 (BrixUI)
  *
  * @type {import('eslint').Rule.RuleModule}
  */

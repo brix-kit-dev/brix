@@ -17,7 +17,6 @@
 # manifest baseline only. The concrete tenant-only Host/profile gate is owned by
 # brix-enterprise because app-tenant is not part of this repository.
 #
-# @see docs-dev/前端稳定性改造计划-v1.0.md §5 (Phase 3 — 防回归底座)
 # @see docs/runtime-shell/v3.0.10-phase-0-baseline.md
 # ============================================================================
 

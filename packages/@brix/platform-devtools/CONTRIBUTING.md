@@ -42,7 +42,7 @@ Platform DevTools provides development-time tooling only:
 
 | Rule | Description |
 |------|-------------|
-| Tooling must reflect the current blueprint | rules and generators must match the v3.0.7 Runtime Shell design |
+| Tooling must reflect the current blueprint | rules and generators must match the Runtime Shell design |
 | Generated code must preserve layer boundaries | no scaffolding output may introduce cross-layer coupling |
 | Public tooling docs stay in English | public-facing guidance and comments should be English |
 | Guard rules need executable proof | architecture rules should include representative validation cases |

@@ -34,7 +34,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * @author Brix Architecture Team
  * @since 3.1.0
- * @see <a href="docs/v3.0-architecture-blueprint.md">Architecture Constraint 2</a>
+ * @see <a href="website/docs/guides/architecture-guard.md">Architecture Guard</a>
  */
 public final class OnlyRuntimeSdkApiRule {
 

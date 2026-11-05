@@ -474,7 +474,7 @@ export interface DesignTokens {
    * 2. Document the reason in the component's JSDoc
    * 3. Submit the use case for RFC review to extend BrixUI if appropriate
    *
-   * @see Blueprint Constraint 9 â€?BrixUI Unified Governance Principle
+   * @see Runtime Shell root blueprint - A-18 (BrixUI)
    */
   readonly zIndex: {
     /** App bar / top navigation â€?1100. Used by the Shell header component. */

@@ -1,7 +1,7 @@
 /**
  * @brix/eslint-config-architecture
  *
- * Shared ESLint architectural guard rules for the ACTIVE v3.0.10 Runtime Shell
+ * Shared ESLint architectural guard rules for the ACTIVE Runtime Shell
  * and frontend-1.1 architecture baselines.
  *
  * [Covered Red Lines]
@@ -54,8 +54,8 @@
  *
  * @version 3.2.0
  * @author Brix Architecture Team
- * @see v3.0.10 Runtime Shell Architecture Blueprint - §9 UI and A-7/A-18/A-19
- * @see frontend-1.1 Architecture Blueprint - §2.1, §2.3, §5.1
+ * @see Runtime Shell root blueprint - §9 UI Runtime and A-7/A-18/A-19
+ * @see Frontend blueprint - §2.1, §2.3, §5.1
  */
 
 // ============================================================================
@@ -198,7 +198,7 @@ const BASE_RESTRICTED_GLOBALS = [
  * - Escape hatch components must be wrapped in dedicated files and declared in plugin-manifest
  * - Use eslint-disable with RFC approval reference for legitimate escape hatch usage
  * 
- * @see v3.0.8 Runtime Shell Architecture Blueprint - Constraint 9: BrixUI Unified Governance
+ * @see Runtime Shell root blueprint - A-18 (BrixUI)
  */
 const BRIX_UI_RESTRICTED_PATTERNS = [
   // MUI (Material-UI) - All packages
@@ -446,7 +446,7 @@ const baseRules = [
    * For components not covered by UIAdapter (rich text editors, maps, charts), use eslint-disable
    * with RFC approval reference and wrap in dedicated files declared in plugin-manifest.
    * 
-   * @see v3.0.8 Runtime Shell Architecture Blueprint - Constraint 9
+   * @see Runtime Shell root blueprint - A-18 (BrixUI)
    * @see BrixUI Component Extension & Governance Refactoring Plan v1.0 - Phase 5: ESLint Governance
    */
   {
@@ -497,7 +497,7 @@ const baseRules = [
    * Use eslint-disable with architectural review approval reference.
    *
    * @see UI设计令牌改造方�?v2.0.md �?Phase 7
-   * @see v3.0.9 Runtime Shell Architecture Blueprint �?Constraint 9
+   * @see Runtime Shell root blueprint - A-18 (BrixUI)
    */
   {
     name: 'brix/architecture-guard/enterprise-solutions-design-tokens',

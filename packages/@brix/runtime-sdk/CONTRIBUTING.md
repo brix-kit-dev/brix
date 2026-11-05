@@ -134,7 +134,7 @@ All public APIs must include JSDoc/TSDoc comments:
  * Plugin layers obtain instances through dependency injection; direct instantiation is prohibited.
  * 
  * @since 3.0.0
- * @see v3.0-runtime-shell-architecture-blueprint.md §7.1
+ * @see website/docs/concepts/capability-contract.md
  */
 export interface HttpCapability {
   /**

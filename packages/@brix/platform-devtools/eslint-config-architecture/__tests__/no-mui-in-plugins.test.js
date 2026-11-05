@@ -13,7 +13,6 @@
  * - Non-MUI imports
  *
  * @see rules/no-mui-in-plugins.js
- * @see UI设计令牌改造方案-v2.0.md — Phase 7, Rule 7.3
  */
 import { describe, it } from 'vitest';
 const { RuleTester } = require('eslint');

@@ -42,7 +42,7 @@ platform-devtools/
 |------|-------------|
 | Runtime modules must not depend on devtools at runtime | DevTools remain build-time and authoring-time only |
 | Generated code must follow the Runtime Shell architecture | Scaffolding must preserve layer boundaries and contract-first design |
-| Architecture rules must reflect the blueprint | Governance logic must stay aligned with the v3.0.7 Runtime Shell design |
+| Architecture rules must reflect the blueprint | Governance logic must stay aligned with the Runtime Shell design |
 
 ## Development
 

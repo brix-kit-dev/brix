@@ -31,7 +31,7 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We expect all 
 
 1. Check [existing issues](https://github.com/brix-kit-dev/brix/issues) to avoid duplicates
 2. For major changes, open an issue first to discuss the approach
-3. Read the [Architecture Blueprint](docs/architecture-blueprint.md) to understand the design
+3. Read the [Runtime Shell overview](website/docs/concepts/runtime-shell.md) to understand the design
 
 ## Development Setup
 

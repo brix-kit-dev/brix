@@ -51,8 +51,7 @@
  * const color = tokens.colors.brand.primary;
  * ```
  *
- * @see UI设计令牌改造方案-v2.0.md — Phase 7, Rule 7.3
- * @see v3.0.9 Runtime Shell Architecture Blueprint — Constraint 9
+ * @see Runtime Shell root blueprint - A-18 (BrixUI)
  *
  * @type {import('eslint').Rule.RuleModule}
  */

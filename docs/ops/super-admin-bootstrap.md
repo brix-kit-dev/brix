@@ -4,8 +4,7 @@ Audience: platform operators and SRE on-call.
 
 Companions:
 
-- `docs/v2.0-平台超管功能最小实现-设计蓝图.md`
-- `docs/v3.0.9-运行壳架构设计蓝图.md`
+- The super-admin and runtime-shell blueprints in force, listed in `docs/README.md` of brix-enterprise
 
 This runbook covers the v2.0 platform super-admin operating flows:
 

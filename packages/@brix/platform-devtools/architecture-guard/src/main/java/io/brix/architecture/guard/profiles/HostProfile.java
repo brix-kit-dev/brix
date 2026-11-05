@@ -56,7 +56,7 @@ import io.brix.architecture.guard.rules.NoMiddlewareClientsRule;
  * </ul>
  *
  * <h2>Architecture Blueprint Reference</h2>
- * <p>See v3.0 Runtime Shell Architecture Design Blueprint Section 9.1 "Host Layer Responsibility Boundaries"</p>
+ * <p>See the Runtime Shell root blueprint, §8 "Host, Profile and Composition".</p>
  *
  * @author Brix Architecture Team
  * @since 3.1.0

@@ -33,8 +33,7 @@
  * - `export const CASE_STATUS_COLORS = { ... }` — business domain knowledge
  * - Objects with only one platform-level property (low confidence match)
  *
- * @see UI设计令牌改造方案-v2.0.md — Phase 7, Rule 7.1
- * @see v3.0.9 Runtime Shell Architecture Blueprint — Constraint 9
+ * @see Runtime Shell root blueprint - A-18 (BrixUI)
  *
  * @type {import('eslint').Rule.RuleModule}
  */

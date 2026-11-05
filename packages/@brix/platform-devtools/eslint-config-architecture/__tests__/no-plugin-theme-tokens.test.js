@@ -9,7 +9,6 @@
  * - PARTNER_TYPE_COLORS, CASE_STATUS_COLORS, etc.
  *
  * @see rules/no-plugin-theme-tokens.js
- * @see UI设计令牌改造方案-v2.0.md — Phase 7, Rule 7.1
  */
 import { describe, it } from 'vitest';
 const { RuleTester } = require('eslint');

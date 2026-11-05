@@ -101,7 +101,7 @@
         【D-14 修复】移除 spring-kafka 幽灵依赖
         源代码中无任何 Kafka 类引用，该依赖为无效声明。
         若后续需要 Kafka 健康检查，应由 infra-adapter-kafka 适配器层提供，
-        而非在 platform-observability 中直接依赖（参考蓝图 §9 架构红线）。
+        而非在 platform-observability 中直接依赖（参考根蓝图 §11.1 架构红线）。
         -->
         
         <!-- Validation -->

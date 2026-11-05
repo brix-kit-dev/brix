@@ -90,7 +90,7 @@ function AppSidebar() {
 
 ## Architecture
 
-This adapter follows the v3.0.4 Runtime Shell Architecture:
+This adapter follows the Runtime Shell architecture:
 
 ```
 Host Layer (Configuration)
