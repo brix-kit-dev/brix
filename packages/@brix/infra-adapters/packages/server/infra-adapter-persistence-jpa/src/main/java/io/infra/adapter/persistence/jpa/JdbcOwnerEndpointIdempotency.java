@@ -71,11 +71,33 @@ final class JdbcOwnerEndpointIdempotency implements OwnerEndpointIdempotency {
         if (taken > 0) {
             return Reservation.TAKEN;
         }
-        return Reservation.held(jdbc.queryForObject("SELECT request_fingerprint, result_status,"
-                + " CAST(result_body AS TEXT), trace_id FROM " + table
+        return Reservation.held(held(table, key).orElseThrow(() -> new IllegalStateException(
+            "The key of " + key.entryId() + " went while its lock was held")));
+    }
+
+    @Override
+    public Optional<Held> find(String ownerId, Key key) {
+        return held(tableOf(ownerId), key);
+    }
+
+    private Optional<Held> held(String table, Key key) {
+        return jdbc.query("SELECT request_fingerprint, result_status, CAST(result_body AS TEXT), trace_id,"
+                + " CAST(write_result AS TEXT) FROM " + table
                 + " WHERE entry_id = ? AND idempotency_scope = ? AND idempotency_key = ?",
-            (row, number) -> new Held(row.getString(1), row.getInt(2), row.getString(3), row.getString(4)),
-            key.entryId(), key.scope(), key.key()));
+            (row, number) -> new Held(row.getString(1), row.getObject(2, Integer.class), row.getString(3),
+                row.getString(4), row.getString(5)),
+            key.entryId(), key.scope(), key.key()).stream().findFirst();
+    }
+
+    @Override
+    public void keepWriteResult(String ownerId, Key key, String result) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("The result of a write of " + ownerId
+                + " is kept only inside the owner's transaction");
+        }
+        jdbc.update("UPDATE " + tableOf(ownerId) + " SET write_result = CAST(? AS JSONB)"
+                + " WHERE entry_id = ? AND idempotency_scope = ? AND idempotency_key = ?",
+            result, key.entryId(), key.scope(), key.key());
     }
 
     @Override

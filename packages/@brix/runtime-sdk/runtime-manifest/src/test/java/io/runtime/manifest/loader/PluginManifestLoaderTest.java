@@ -388,6 +388,36 @@ class PluginManifestLoaderTest {
             .doesNotThrowAnyException();
     }
 
+    @Test
+    void anOwnerOfReplayableWritesHasTheirTable() {
+        // Idempotency design D79: the owner's manifest decides, whoever calls the contract.
+        String owner = validManifest() + REPLAYABLE_WRITE;
+        assertThatThrownBy(() -> loader.loadFromString(owner))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("An owner of replayable writes needs data.storageId")
+            .hasMessageContaining("must require PersistenceCapability");
+    }
+
+    @Test
+    void aManifestSaysWhetherItsOwnerKeepsEndpointResults() {
+        String notReplayed = replayedEndpointManifest().replace("idempotency:\n        mode: required",
+            "idempotency:\n        mode: not-applicable");
+        assertThat(loader.loadFromString(replayedEndpointManifest()).keepsEndpointResults()).isTrue();
+        assertThat(loader.loadFromString(notReplayed).keepsEndpointResults()).isFalse();
+        assertThat(loader.loadFromString(notReplayed + REPLAYABLE_WRITE).keepsEndpointResults()).isTrue();
+    }
+
+    private static final String REPLAYABLE_WRITE = """
+        internalContracts:
+          provides:
+            - contractId: app-booking.administration
+              contractType: io.example.BookingAdministration
+              contractVersion: 1.0.0
+              providerId: app-booking.internal
+              owner: app-booking
+              replayableWrites: [cancel]
+        """;
+
     private String replayedEndpointManifest() {
         return templateEndpointManifest()
             .replace("method: GET", "method: POST")

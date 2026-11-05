@@ -6,6 +6,7 @@
  */
 package io.runtime.orchestrator.internalcontract;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -13,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
+import io.runtime.orchestrator.endpoint.ContractWrites;
 import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
 import io.runtime.orchestrator.operational.OperationalRuntimeException;
 import io.runtime.orchestrator.persistence.OwnerBoundaryProxies;
@@ -38,6 +40,7 @@ public final class InternalContractBinder {
     private final CapabilityRegistry ownerCapabilities;
     private final ClassLoader classLoader;
     private final OwnerPersistenceProvider ownerPersistence;
+    private final ContractWrites writes;
     private final Map<String, PendingBinding> pendingBindings = new LinkedHashMap<>();
     private boolean activated;
 
@@ -72,10 +75,43 @@ public final class InternalContractBinder {
             CapabilityRegistry ownerCapabilities,
             ClassLoader classLoader,
             OwnerPersistenceProvider ownerPersistence) {
+        this(registry, ownerCapabilities, classLoader, ownerPersistence, null);
+    }
+
+    /**
+     * Creates an internal contract binder whose contracts keep the results of their replayable writes (idempotency design
+     * §5.6, D79).
+     *
+     * @param registry existing L2B capability registry implementation
+     * @param ownerCapabilities source of owner-scoped capabilities
+     * @param classLoader contract type class loader
+     * @param ownerPersistence source of owner-scoped persistence capabilities
+     * @param writes keeps those results, or {@code null} on a host that has no replay
+     */
+    public InternalContractBinder(
+            DefaultCapabilityRegistry registry,
+            CapabilityRegistry ownerCapabilities,
+            ClassLoader classLoader,
+            OwnerPersistenceProvider ownerPersistence,
+            ContractWrites writes) {
         this.registry = Objects.requireNonNull(registry, "registry must not be null");
         this.ownerCapabilities = Objects.requireNonNull(ownerCapabilities, "ownerCapabilities must not be null");
         this.classLoader = classLoader != null ? classLoader : InternalContractBinder.class.getClassLoader();
         this.ownerPersistence = Objects.requireNonNull(ownerPersistence, "ownerPersistence must not be null");
+        this.writes = writes;
+    }
+
+    /**
+     * Returns who keeps the results of a contract's writes for an operational endpoint's replay.
+     *
+     * @param contractId the contract
+     * @return its owner, empty when the contract declares no replayable write
+     */
+    public Optional<String> replayableWritesOwner(String contractId) {
+        PendingBinding pending = pendingBindings.get(contractId);
+        return pending == null || pending.declaration.replayableWrites().isEmpty()
+            ? Optional.empty()
+            : Optional.of(pending.ownerIdentity.moduleId());
     }
 
     /**
@@ -104,7 +140,8 @@ public final class InternalContractBinder {
                 declaration.contractType(),
                 declaration.contractVersion(),
                 declaration.providerId(),
-                declaration.owner()));
+                declaration.owner(),
+                Set.of()));
         }
         bindDeclarations(
             descriptor.identity().moduleId(),
@@ -145,7 +182,8 @@ public final class InternalContractBinder {
                 declaration.contractType(),
                 declaration.contractVersion(),
                 declaration.providerId(),
-                declaration.owner()));
+                declaration.owner(),
+                declaration.replayableWrites()));
         }
         bindDeclarations(
             descriptor.identity().pluginId(),
@@ -225,7 +263,11 @@ public final class InternalContractBinder {
         }
         Optional<PersistenceCapability> persistence = ownerPersistence.forOwner(ownerIdentity.moduleId());
         if (persistence.isPresent()) {
-            instance = OwnerBoundaryProxies.wrap(binding.contractType, instance, persistence.get().unitOfWork());
+            instance = wrap(binding, instance, persistence.get(), ownerIdentity, declaration);
+        } else if (!declaration.replayableWrites().isEmpty()) {
+            throw new OperationalRuntimeException(
+                "internal_contract.owner_persistence_missing",
+                "Owner of replayable writes has no persistence unit: " + ownerIdentity.moduleId());
         }
         try {
             registry.registerInternalContract(
@@ -239,6 +281,33 @@ public final class InternalContractBinder {
                 "internal_contract.provider_duplicate",
                 "Duplicate internal contract provider: " + declaration.contractId(),
                 e);
+        }
+    }
+
+    /** Root BRX-RS-HOST-020: each call runs in the owner's unit of work, and a replayable write keeps its result there. */
+    @SuppressWarnings("unchecked")
+    private <C> C wrap(Binding<?> binding, Object instance, PersistenceCapability persistence,
+            RuntimeModuleIdentity ownerIdentity, InternalContractDeclaration declaration) {
+        Class<C> type = (Class<C>) binding.contractType;
+        if (declaration.replayableWrites().isEmpty() || writes == null) {
+            return OwnerBoundaryProxies.wrap(type, (C) instance, persistence.unitOfWork());
+        }
+        return OwnerBoundaryProxies.wrap(type, (C) instance, persistence.unitOfWork(), ownerIdentity.moduleId(),
+            declaration.replayableWrites(), writes);
+    }
+
+    /** Idempotency design D79: a replayable write names one method of the contract, so its result has one type. */
+    private static void requireReplayableWrites(InternalContractDeclaration declaration, Class<?> contractType) {
+        for (String write : declaration.replayableWrites()) {
+            long methods = Arrays.stream(contractType.getMethods())
+                .filter(method -> method.getName().equals(write))
+                .count();
+            if (methods != 1) {
+                throw new OperationalRuntimeException(
+                    "internal_contract.replayable_write_invalid",
+                    "Internal contract " + declaration.contractId() + " declares the replayable write '" + write
+                        + "', which is not exactly one of its methods");
+            }
         }
     }
 
@@ -286,6 +355,7 @@ public final class InternalContractBinder {
                     "internal_contract.type_mismatch",
                     "Internal contract type mismatch for " + declaration.contractId());
             }
+            requireReplayableWrites(declaration, declaredType);
             PendingBinding pending = new PendingBinding(declaration, binding, context, ownerIdentity);
             if (pendingBindings.putIfAbsent(declaration.contractId(), pending) != null) {
                 throw new OperationalRuntimeException(
@@ -366,7 +436,8 @@ public final class InternalContractBinder {
             String contractType,
             String contractVersion,
             String providerId,
-            String owner) {
+            String owner,
+            Set<String> replayableWrites) {
     }
 
     private record PendingBinding(

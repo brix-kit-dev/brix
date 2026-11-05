@@ -30,6 +30,7 @@ import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.CommandStatusReader;
 import io.runtime.orchestrator.command.OwnerCommandIdempotency;
+import io.runtime.orchestrator.endpoint.ContractWrites;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.EndpointMetrics;
 import io.runtime.orchestrator.endpoint.EndpointTracing;
@@ -294,13 +295,18 @@ public class RuntimeShellBootstrapAutoConfiguration {
      * and operational consumers.
      *
      * @param capabilityRegistry capability registry with the internal namespace implementation
+     * @param ownerPersistence source of owner-scoped persistence
+     * @param idempotency the owners' records of endpoint results
+     * @param json writes and reads the results of replayable writes
      * @return internal contract binder
      */
     @Bean
     @ConditionalOnMissingBean
     public InternalContractBinder internalContractBinder(
             CapabilityRegistry capabilityRegistry,
-            ObjectProvider<OwnerPersistenceProvider> ownerPersistence) {
+            ObjectProvider<OwnerPersistenceProvider> ownerPersistence,
+            ObjectProvider<OwnerEndpointIdempotency> idempotency,
+            ObjectProvider<tools.jackson.databind.ObjectMapper> json) {
         if (!(capabilityRegistry instanceof DefaultCapabilityRegistry defaultRegistry)) {
             throw new IllegalStateException(
                 "Operational Runtime requires the L2B DefaultCapabilityRegistry internal namespace");
@@ -309,7 +315,9 @@ public class RuntimeShellBootstrapAutoConfiguration {
             defaultRegistry,
             capabilityRegistry,
             Thread.currentThread().getContextClassLoader(),
-            ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none));
+            ownerPersistence.getIfAvailable(OwnerPersistenceProvider::none),
+            new ContractWrites(idempotency::getIfAvailable,
+                json.getIfAvailable(() -> tools.jackson.databind.json.JsonMapper.builder().build())));
     }
 
     /**

@@ -156,6 +156,10 @@ internalContracts:
       contractVersion: 1.0.0
       providerId: sample-orders.internal.administration
       owner: sample-orders
+      # An operational endpoint that writes through this method has its results replayed: the runtime keeps the method's
+      # result in this plugin's table, with the write (idempotency design D79). It holds no secret or credential.
+      replayableWrites:
+        - adjustQuantity
 # The platform creates sample_orders_outbox, sample_orders_inbox and sample_orders_command_idempotency from its own
 # versioned migrations; db/migration/sample-orders holds only the plugin's business tables.
 data:

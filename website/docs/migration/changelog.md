@@ -100,7 +100,9 @@ All notable changes to Brix Framework are documented here.
   the call is answered 400 `endpoint.idempotency_key_required`, with other content 422
   `endpoint.idempotency_conflict`, and while the first has not finished 409 `endpoint.idempotency_in_progress`.
   `EndpointInvocation.idempotency()` gives the handler its key, and `brix.endpoint.calls` has the outcome `replayed`.
-  `sample-orders`' `POST /api/sample-orders/orders` now requires a key. See
+  `sample-orders`' `POST /api/sample-orders/orders` now requires a key. A platform operational endpoint replays too:
+  it names the internal contract it writes through, the owner keeps the contract's result with its write, and a call
+  that stopped after the owner committed goes on from there. See
   [Repeating a call](../guides/endpoints.md#repeating-a-call).
 - **BEST_EFFORT from the same bus.** `publishIntegration` sends a BEST_EFFORT event directly after the unit of work
   commits.
@@ -160,9 +162,9 @@ All notable changes to Brix Framework are documented here.
   owner, which verifies and spends it.
 - **Endpoint idempotency `optional` stops the plugin, and `required` has rules** (root BRX-RS-MANIFEST-018). `required`
   needs a typed write endpoint of an authenticated caller, with its schemas, in a plugin with persistence. An
-  operational endpoint cannot declare it yet. The eight platform-admin endpoints that declared `required` now declare
-  `not-applicable`: the runtime never acted on the declaration, and their handlers are idempotent by their business
-  keys. platform-tenant's FIRST_OWNER acceptance replays its answer, under the hash of the invitation token.
+  operational endpoint also names its write contract, and its owner declares `replayableWrites`. The eight
+  platform-admin endpoints that declared `required` now declare `not-applicable` until each one is typed: the runtime
+  never acted on the declaration, and their handlers are idempotent by their business keys. platform-tenant's FIRST_OWNER acceptance replays its answer, under the hash of the invitation token.
 - **`ManagedTask.execute(TaskInvocation)`** (root BRX-RS-MANIFEST-027). The run receives its trigger, deadline,
   cancellation and attempt. `ManagedTask` is no longer a functional interface: implement `execute` in a class. A
   compiled task that implements `run()` still runs, and a task that implements neither method is refused at startup.

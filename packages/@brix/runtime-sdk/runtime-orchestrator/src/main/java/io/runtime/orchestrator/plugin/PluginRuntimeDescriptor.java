@@ -794,13 +794,35 @@ public final class PluginRuntimeDescriptor {
                 String contractVersion,
                 String providerId,
                 String owner) {
+            return providedInternalContract(contractId, contractType, contractVersion, providerId, owner, Set.of());
+        }
+
+        /**
+         * Adds a provided internal contract.
+         *
+         * @param contractId stable contract identifier
+         * @param contractType contract interface name
+         * @param contractVersion exact contract version
+         * @param providerId provider identifier
+         * @param owner owning plugin
+         * @param replayableWrites the write methods whose results the runtime may keep
+         * @return this builder
+         */
+        public Builder providedInternalContract(
+                String contractId,
+                String contractType,
+                String contractVersion,
+                String providerId,
+                String owner,
+                Collection<String> replayableWrites) {
             if (contractId != null && !contractId.isBlank()) {
                 providedInternalContracts.put(contractId, new ProvidedInternalContract(
                     contractId,
                     contractType,
                     contractVersion,
                     providerId,
-                    owner));
+                    owner,
+                    Set.copyOf(replayableWrites)));
             }
             return this;
         }
@@ -1273,13 +1295,15 @@ public final class PluginRuntimeDescriptor {
      * @param contractVersion semantic contract version
      * @param providerId stable provider id
      * @param owner owning plugin id
+     * @param replayableWrites the write methods whose results the runtime may keep for an operational endpoint's replay
      */
     public record ProvidedInternalContract(
             String contractId,
             String contractType,
             String contractVersion,
             String providerId,
-            String owner) {
+            String owner,
+            Set<String> replayableWrites) {
 
         /**
          * Creates an internal contract declaration.
@@ -1290,6 +1314,7 @@ public final class PluginRuntimeDescriptor {
             contractVersion = requireText(contractVersion, "contractVersion");
             providerId = requireText(providerId, "providerId");
             owner = requireText(owner, "owner");
+            replayableWrites = replayableWrites == null ? Set.of() : Set.copyOf(replayableWrites);
         }
     }
 }

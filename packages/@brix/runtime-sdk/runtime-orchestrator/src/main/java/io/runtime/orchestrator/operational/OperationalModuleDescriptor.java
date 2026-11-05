@@ -39,6 +39,9 @@ public record OperationalModuleDescriptor(
         Map<String, EndpointDeclaration> endpoints,
         Map<String, TaskDeclaration> tasks) {
 
+    /** The methods of an endpoint with results to replay (idempotency design D74). */
+    private static final Set<String> REPLAYED_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
+
     /**
      * Defensively copies descriptor collections.
      */
@@ -58,6 +61,14 @@ public record OperationalModuleDescriptor(
             if (!privilegeAllowlist.contains(requirement.privilegeAllowlistRef())) {
                 throw new IllegalArgumentException("Required contract '" + requirement.contractId()
                     + "' references an unapproved privilege '" + requirement.privilegeAllowlistRef() + "'");
+            }
+        }
+        for (EndpointDeclaration endpoint : endpoints.values()) {
+            EndpointContract.Replay replay = endpoint.contract().replay();
+            if (replay != null && requiredContracts.stream().noneMatch(requirement -> requirement.required()
+                    && requirement.contractId().equals(replay.writeContract()))) {
+                throw new IllegalArgumentException("Endpoint '" + endpoint.endpointId() + "' writes through '"
+                    + replay.writeContract() + "', which is not an internal contract the module requires");
             }
         }
     }
@@ -200,6 +211,27 @@ public record OperationalModuleDescriptor(
             if (accessPolicy.requiresVerifiedPrincipal() && accessPolicy.permissions().isEmpty()) {
                 throw new IllegalArgumentException("Authenticated operational endpoint '" + endpointId
                     + "' must declare authorization.permissions");
+            }
+            if (contract.replay() != null) {
+                requireReplayable(endpointId, method, accessPolicy, contract);
+            }
+        }
+
+        /** Idempotency design D74: what the runtime needs to replay an endpoint's results. */
+        private static void requireReplayable(String endpointId, String method, EndpointAccessPolicy accessPolicy,
+                EndpointContract contract) {
+            if (!REPLAYED_METHODS.contains(method)) {
+                throw new IllegalArgumentException("Endpoint '" + endpointId
+                    + "': only POST, PUT, PATCH and DELETE endpoints have results to replay");
+            }
+            if (contract.requestSchemaRef().isEmpty() || contract.status() != 204 && contract.responseSchemaRef().isEmpty()) {
+                throw new IllegalArgumentException("Endpoint '" + endpointId
+                    + "': an endpoint whose results are replayed declares its request and response schemas");
+            }
+            if (accessPolicy.authentication() != EndpointAccessPolicy.AuthenticationMode.REQUIRED) {
+                throw new IllegalArgumentException("Endpoint '" + endpointId
+                    + "': an endpoint whose results are replayed needs authentication.mode required: its keys belong to "
+                    + "the caller");
             }
         }
 

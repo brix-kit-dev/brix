@@ -20,7 +20,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Objects;
+import java.util.Set;
 
+import io.runtime.orchestrator.endpoint.ContractWrites;
 import io.runtime.sdk.capability.TenantTarget;
 import io.runtime.sdk.capability.UnitOfWork;
 
@@ -52,6 +54,25 @@ public final class OwnerBoundaryProxies {
      * @return a proxy implementing only {@code contractType}
      */
     public static <C> C wrap(Class<C> contractType, C target, UnitOfWork unitOfWork) {
+        return wrap(contractType, target, unitOfWork, null, Set.of(), null);
+    }
+
+    /**
+     * Wraps {@code target} like {@link #wrap(Class, Object, UnitOfWork)}. A call of one of {@code replayableWrites}, in
+     * an operational endpoint's call that replays its results, takes the key and keeps its result in that unit of work
+     * (idempotency design §5.6, D81).
+     *
+     * @param contractType interface exposed to other modules
+     * @param target owner-side implementation
+     * @param unitOfWork unit of work of the owner that implements {@code target}
+     * @param ownerId the owner
+     * @param replayableWrites the methods whose results may be kept
+     * @param writes keeps them
+     * @param <C> contract type
+     * @return a proxy implementing only {@code contractType}
+     */
+    public static <C> C wrap(Class<C> contractType, C target, UnitOfWork unitOfWork, String ownerId,
+            Set<String> replayableWrites, ContractWrites writes) {
         Objects.requireNonNull(contractType, "contractType must not be null");
         Objects.requireNonNull(target, "target must not be null");
         Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
@@ -65,7 +86,7 @@ public final class OwnerBoundaryProxies {
         Object proxy = Proxy.newProxyInstance(
             contractType.getClassLoader(),
             new Class<?>[] {contractType},
-            new OwnerBoundaryHandler(target, unitOfWork));
+            new OwnerBoundaryHandler(target, unitOfWork, ownerId, replayableWrites, writes));
         return contractType.cast(proxy);
     }
 
@@ -73,10 +94,17 @@ public final class OwnerBoundaryProxies {
 
         private final Object target;
         private final UnitOfWork unitOfWork;
+        private final String ownerId;
+        private final Set<String> replayableWrites;
+        private final ContractWrites writes;
 
-        private OwnerBoundaryHandler(Object target, UnitOfWork unitOfWork) {
+        private OwnerBoundaryHandler(Object target, UnitOfWork unitOfWork, String ownerId, Set<String> replayableWrites,
+                ContractWrites writes) {
             this.target = target;
             this.unitOfWork = unitOfWork;
+            this.ownerId = ownerId;
+            this.replayableWrites = replayableWrites;
+            this.writes = writes;
         }
 
         @Override
@@ -85,7 +113,9 @@ public final class OwnerBoundaryProxies {
                 return invokeObjectMethod(proxy, method, args);
             }
             try {
-                return TenantScopes.within(scopeOf(args), () -> unitOfWork.required(() -> invokeTarget(method, args)));
+                return TenantScopes.within(scopeOf(args), () -> unitOfWork.required(() -> replayableWrites.contains(method.getName())
+                    ? writes.write(ownerId, method, () -> invokeTarget(method, args))
+                    : invokeTarget(method, args)));
             } catch (CheckedTargetFailure failure) {
                 throw failure.getCause();
             }

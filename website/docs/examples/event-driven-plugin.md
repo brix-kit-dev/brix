@@ -344,4 +344,6 @@ The host properties the test sets show what a host needs for this chain:
   `sample-operations`, that calls it from
   `POST /api/platform/sample-orders/{tenantId}/orders/{orderId}/quantity-adjustments`. The runtime holds its typed
   handler to the schemas and status of `platform-operational.yaml`, and runs the write in `sample-orders`' own unit of
-  work, in the tenant the command names.
+  work, in the tenant the command names. It declares `idempotency.mode: required`, so a repeated call changes the order
+  once, and a call that stopped after `sample-orders` committed goes on from there. See
+  [Operational endpoints](../guides/endpoints.md#operational-endpoints).

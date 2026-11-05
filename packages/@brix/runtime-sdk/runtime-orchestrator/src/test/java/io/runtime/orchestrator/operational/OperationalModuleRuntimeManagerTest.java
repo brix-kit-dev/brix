@@ -11,7 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -22,6 +24,7 @@ import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
 import io.runtime.orchestrator.endpoint.EndpointContract;
 import io.runtime.orchestrator.endpoint.TestEndpointAccessPolicies;
 import io.runtime.orchestrator.internalcontract.InternalContractBinder;
+import io.runtime.orchestrator.persistence.RecordingPersistence;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.ManagedTask;
@@ -197,6 +200,109 @@ class OperationalModuleRuntimeManagerTest {
         manager.startPrepared();
 
         assertEquals(1, manager.preparedRoutes().size());
+    }
+
+    @Test
+    void anEndpointThatReplaysItsResultsWritesToTheOwnerOfItsContract() {
+        // Idempotency design D79: the record goes to the table of the owner that declares the writes.
+        OperationalModuleRuntimeManager manager = replayingModule(Set.of("run"), typed());
+
+        manager.prepare();
+        manager.startPrepared();
+
+        EndpointContract.Replay replay = manager.preparedRoutes().get(0).contract().replay();
+        assertEquals("test.write", replay.writeContract());
+        assertEquals("owner-plugin", replay.writeOwner());
+    }
+
+    @Test
+    void anEndpointCannotReplayThroughAContractThatKeepsNoResults() {
+        OperationalModuleRuntimeManager manager = replayingModule(Set.of(), typed());
+
+        manager.prepare();
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class, manager::startPrepared);
+
+        assertEquals("operational.endpoint.invalid", failure.diagnosticCode());
+        assertTrue(failure.getMessage().contains("declares no replayableWrites"), failure.getMessage());
+    }
+
+    @Test
+    void anEndpointThatReplaysItsResultsHasATypedHandler() {
+        OperationalModuleRuntimeManager manager = replayingModule(Set.of("run"),
+            (EndpointHandler<Object, Object>) request -> "ok");
+
+        manager.prepare();
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class, manager::startPrepared);
+
+        assertTrue(failure.getMessage().contains("must be a TypedEndpointHandler"), failure.getMessage());
+    }
+
+    private static TypedEndpointHandler<Object, Object> typed() {
+        return request -> CompletableFuture.completedFuture("ok");
+    }
+
+    /** A module whose endpoint writes through a contract of a plugin, which declares {@code replayableWrites}. */
+    private OperationalModuleRuntimeManager replayingModule(Set<String> replayableWrites, EndpointHandler<?, ?> handler) {
+        var endpoint = new OperationalModuleDescriptor.EndpointDeclaration(
+            "runtime.status.v1",
+            "POST",
+            "/api/platform/runtime/status",
+            "runtime.status",
+            TestEndpointAccessPolicies.platform("platform:runtime:read"),
+            new EndpointContract("brix://schemas/test-endpoints/create-thing-request/1.0.0",
+                "brix://schemas/test-endpoints/thing/1.0.0", 201, null,
+                new EndpointContract.Replay("runtime.status", Duration.ofHours(24), "test.write", null)));
+        var descriptor = new OperationalModuleDescriptor(
+            new OperationalModuleIdentity("replaying-test", "3.2.0", "runtime-tests"),
+            ">=3.2.0 <4.0.0",
+            List.of(),
+            List.of(new OperationalModuleDescriptor.RequiredInternalContract(
+                "test.write", Runnable.class.getName(), ">=1.0.0 <2.0.0", true, "test.write")),
+            Set.of("test.write"),
+            java.util.Map.of(endpoint.endpointId(), endpoint),
+            java.util.Map.of());
+        PlatformOperationalModule provider = new PlatformOperationalModule() {
+            @Override
+            public void configure(OperationalBootstrapContext bootstrap) {
+                bootstrap.bindEndpointHandlerFactory("runtime.status", context -> handler);
+            }
+
+            @Override
+            public void onStart(OperationalContext context) {
+            }
+
+            @Override
+            public void onStop() {
+            }
+
+            @Override
+            public io.runtime.sdk.plugin.BrixHealth health() {
+                return io.runtime.sdk.plugin.BrixHealth.up();
+            }
+        };
+        var discovered = new ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule(
+            provider,
+            descriptor,
+            provider.getClass().getProtectionDomain().getCodeSource().getLocation());
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        InternalContractBinder contracts = new InternalContractBinder(registry, registry, getClass().getClassLoader(),
+            owner -> "owner-plugin".equals(owner) ? java.util.Optional.of(new RecordingPersistence())
+                : java.util.Optional.empty());
+        contracts.bindPlugin(
+            io.runtime.orchestrator.plugin.PluginRuntimeDescriptor.builder("owner-plugin")
+                .version("3.2.0")
+                .providedInternalContract("test.write", Runnable.class.getName(), "1.0.0", "test.provider", "owner-plugin",
+                    replayableWrites)
+                .build(),
+            bootstrap -> bootstrap.bind("test.write", Runnable.class, context -> () -> { }),
+            Set.of());
+        return new OperationalModuleRuntimeManager(
+            () -> List.of(discovered),
+            List::of,
+            contracts,
+            new HostRuntimeOperationalView(List.of("replaying-test")),
+            List.of("replaying-test"),
+            "3.2.0");
     }
 
     private OperationalRuntimeException startFails(EndpointContract contract) {

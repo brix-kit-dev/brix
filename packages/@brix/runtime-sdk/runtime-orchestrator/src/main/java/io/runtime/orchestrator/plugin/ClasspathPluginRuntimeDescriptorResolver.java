@@ -276,7 +276,8 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         contract.getContractType(),
                         contract.getContractVersion(),
                         contract.getProviderId(),
-                        contract.getOwner());
+                        contract.getOwner(),
+                        contract.getReplayableWrites());
                 }
             }
             for (PluginManifest.Route route : manifest.endpointDeclarations()) {

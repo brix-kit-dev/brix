@@ -45,10 +45,16 @@ public record EndpointContract(String requestSchemaRef, String responseSchemaRef
      * How the runtime replays the results of an endpoint that declares {@code idempotency.mode: required} (root
      * BRX-RS-MANIFEST-018; standard-link plan point 10a).
      *
+     * <p>A plugin's endpoint keeps its answer in its own unit of work. An operational endpoint has none, so it names the
+     * one internal contract it writes through, and the record goes with that write (root BRX-RS-HOST-020; idempotency
+     * design §5.6, D79).</p>
+     *
      * @param handlerId the manifest's {@code handlerId}, which names the entry in the owner's table
      * @param retention how long a result is kept
+     * @param writeContract the operational endpoint's write contract, or {@code null} for a plugin's endpoint
+     * @param writeOwner the module that provides that contract and keeps the record, known once the contracts are bound
      */
-    public record Replay(String handlerId, Duration retention) {
+    public record Replay(String handlerId, Duration retention, String writeContract, String writeOwner) {
 
         /**
          * Checks the replay.
@@ -59,6 +65,36 @@ public record EndpointContract(String requestSchemaRef, String responseSchemaRef
             }
             Objects.requireNonNull(retention, "retention must not be null");
         }
+
+        /**
+         * Creates the replay of a plugin's endpoint.
+         *
+         * @param handlerId the manifest's {@code handlerId}, which names the entry in the owner's table
+         * @param retention how long a result is kept
+         */
+        public Replay(String handlerId, Duration retention) {
+            this(handlerId, retention, null, null);
+        }
+
+        /**
+         * Returns whether the record goes with a write through an internal contract.
+         *
+         * @return {@code true} for an operational endpoint
+         */
+        public boolean throughContract() {
+            return writeContract != null;
+        }
+    }
+
+    /**
+     * Returns this contract once its write contract's owner is known.
+     *
+     * @param owner the module that provides the write contract
+     * @return the contract
+     */
+    public EndpointContract writingTo(String owner) {
+        return new EndpointContract(requestSchemaRef, responseSchemaRef, status, timeoutPolicyRef,
+            new Replay(replay.handlerId(), replay.retention(), replay.writeContract(), owner));
     }
 
     /**

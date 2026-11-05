@@ -654,7 +654,7 @@ its own versioned migrations, after your migrations and in its own schema histor
 | `data.outbox` | `<storageId>_outbox` |
 | `data.inbox` | `<storageId>_inbox` |
 | `commands.provides` | `<storageId>_command_idempotency` and `<storageId>_command_outcome` |
-| An endpoint with `idempotency.mode: required` | `<storageId>_endpoint_idempotency` ([Repeating a call](./endpoints.md#repeating-a-call)) |
+| An endpoint with `idempotency.mode: required`, or an internal contract with `replayableWrites` | `<storageId>_endpoint_idempotency` ([Repeating a call](./endpoints.md#repeating-a-call)) |
 
 A plugin that sends commands declares `data.outbox`; one that provides them declares `data.inbox`.
 

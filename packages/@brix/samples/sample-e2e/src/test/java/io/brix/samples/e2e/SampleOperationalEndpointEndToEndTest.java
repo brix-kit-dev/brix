@@ -9,16 +9,24 @@ package io.brix.samples.e2e;
 import static io.brix.samples.e2e.SampleInfrastructure.JSON;
 import static io.brix.samples.e2e.SampleInfrastructure.WAIT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.http.HttpResponse;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Duration;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.sql.DataSource;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,9 +40,11 @@ import io.runtime.orchestrator.bootstrap.RuntimeShellBootstrap;
 import tools.jackson.databind.JsonNode;
 
 /**
- * A platform operator's typed endpoint, end to end on PostgreSQL (idempotency design D78; root BRX-RS-HOST-014,
- * HOST-019, HOST-020): the runtime holds it to its schemas and its declared status as it does a plugin's endpoint, and
- * the write happens in sample-orders' own unit of work, in the tenant the command names.
+ * A platform operator's typed endpoint, end to end on PostgreSQL (idempotency design §5.6, D78 to D85; root
+ * BRX-RS-HOST-014, HOST-019, HOST-020, MANIFEST-018): the runtime holds it to its schemas and its declared status as it
+ * does a plugin's endpoint, and the write happens in sample-orders' own unit of work, in the tenant the command names.
+ * The key goes with that write, so a repeated call changes nothing, and a call that stopped after the owner committed
+ * goes on from there.
  */
 @SpringBootTest(classes = SampleHost.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
     "spring.jpa.open-in-view=false",
@@ -60,6 +70,8 @@ import tools.jackson.databind.JsonNode;
 class SampleOperationalEndpointEndToEndTest {
 
     private static final SampleInfrastructure INFRASTRUCTURE = new SampleInfrastructure();
+    private static final AtomicBoolean STARTED = new AtomicBoolean();
+    private static final String ENTRY = "sample-operations/sample-operations.adjust-quantity.v1";
 
     @LocalServerPort
     private int port;
@@ -85,16 +97,22 @@ class SampleOperationalEndpointEndToEndTest {
         INFRASTRUCTURE.register(registry);
     }
 
+    @BeforeEach
+    void ready() throws Exception {
+        // The cases share the host, which starts once.
+        if (STARTED.compareAndSet(false, true)) {
+            runtime.start().readyFuture().toCompletableFuture().get(WAIT.toSeconds(), TimeUnit.SECONDS);
+        }
+        SampleOperationsModule.FAIL_AFTER_THE_WRITE.set(false);
+    }
+
     @Test
     void anOperatorChangesAnOrderThroughTheOwnersContract() throws Exception {
-        runtime.start().readyFuture().toCompletableFuture().get(WAIT.toSeconds(), TimeUnit.SECONDS);
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        HttpResponse<String> placed = SampleInfrastructure.place(port, Map.of("sku", "sku-1", "quantity", 3));
-        assertEquals(201, placed.statusCode(), placed.body());
-        String orderId = JSON.readTree(placed.body()).get("orderId").asString();
+        String orderId = placedOrder();
 
         // The declared status, and a response the runtime checked against its schema.
-        HttpResponse<String> adjusted = adjust(SampleHost.TENANT, orderId, Map.of("delta", 2));
+        HttpResponse<String> adjusted = adjust(SampleHost.TENANT, orderId, Map.of("delta", 2), key());
         assertEquals(201, adjusted.statusCode(), adjusted.body());
         JsonNode answer = JSON.readTree(adjusted.body());
         assertEquals(orderId, answer.get("orderId").asString());
@@ -103,39 +121,174 @@ class SampleOperationalEndpointEndToEndTest {
         assertEquals(5, quantity(jdbc, orderId));
 
         // A request the schema refuses never reaches the handler.
-        HttpResponse<String> invalid = adjust(SampleHost.TENANT, orderId, Map.of("delta", "two"));
+        HttpResponse<String> invalid = adjust(SampleHost.TENANT, orderId, Map.of("delta", "two"), key());
         assertEquals(400, invalid.statusCode(), invalid.body());
         assertEquals("endpoint.invalid_request", JSON.readTree(invalid.body()).get("errorCode").asString());
-        HttpResponse<String> nothing = adjust(SampleHost.TENANT, orderId, Map.of());
+        HttpResponse<String> nothing = adjust(SampleHost.TENANT, orderId, Map.of(), key());
         assertEquals(400, nothing.statusCode(), nothing.body());
 
         // The owner's refusal rolls its unit of work back, and its code reaches the operator.
-        HttpResponse<String> tooMany = adjust(SampleHost.TENANT, orderId, Map.of("delta", 5000));
+        HttpResponse<String> tooMany = adjust(SampleHost.TENANT, orderId, Map.of("delta", 5000), key());
         assertEquals(409, tooMany.statusCode(), tooMany.body());
         assertEquals("SAMPLE_ORDER_QUANTITY_INVALID", JSON.readTree(tooMany.body()).get("errorCode").asString());
 
         // The unit of work is bound to the tenant the command names: another tenant does not see the order.
-        HttpResponse<String> elsewhere = adjust(SampleHost.TENANT + 1, orderId, Map.of("delta", 1));
+        HttpResponse<String> elsewhere = adjust(SampleHost.TENANT + 1, orderId, Map.of("delta", 1), key());
         assertEquals(404, elsewhere.statusCode(), elsewhere.body());
         assertEquals("SAMPLE_ORDER_NOT_FOUND", JSON.readTree(elsewhere.body()).get("errorCode").asString());
 
         // A member's token is not a platform token.
-        HttpResponse<String> member = SampleInfrastructure.post(port, path(SampleHost.TENANT, orderId), Map.of("delta", 1));
+        HttpResponse<String> member = SampleInfrastructure.post(port, path(SampleHost.TENANT, orderId), Map.of("delta", 1),
+            key());
         assertEquals(403, member.statusCode(), member.body());
 
         assertEquals(5, quantity(jdbc, orderId));
     }
 
-    private HttpResponse<String> adjust(long tenantId, String orderId, Map<String, Object> body) throws Exception {
-        return SampleInfrastructure.postAsOperator(port, path(tenantId, orderId), body);
+    @Test
+    void aRepeatedChangeIsMadeOnce() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        String orderId = placedOrder();
+        String key = key();
+        HttpResponse<String> first = adjust(SampleHost.TENANT, orderId, Map.of("delta", 2), key);
+        assertEquals(201, first.statusCode(), first.body());
+        int handled = SampleOperationsModule.HANDLED.get();
+
+        // The first answer again, before the handler: the owner writes nothing.
+        HttpResponse<String> again = adjust(SampleHost.TENANT, orderId, Map.of("delta", 2), key);
+        assertEquals(201, again.statusCode(), again.body());
+        assertEquals("true", again.headers().firstValue("Idempotent-Replayed").orElse(null));
+        assertEquals(JSON.readTree(first.body()), JSON.readTree(again.body()));
+        assertEquals(handled, SampleOperationsModule.HANDLED.get());
+        assertEquals(5, quantity(jdbc, orderId));
+
+        // Other content under the key, and no key at all, are refused before the handler.
+        HttpResponse<String> other = adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
+        assertEquals(422, other.statusCode(), other.body());
+        assertEquals("endpoint.idempotency_conflict", JSON.readTree(other.body()).get("errorCode").asString());
+        HttpResponse<String> none = SampleInfrastructure.postAsOperator(port, path(SampleHost.TENANT, orderId),
+            Map.of("delta", 1));
+        assertEquals(400, none.statusCode(), none.body());
+        assertEquals("endpoint.idempotency_key_required", JSON.readTree(none.body()).get("errorCode").asString());
+        assertEquals(handled, SampleOperationsModule.HANDLED.get());
+        assertEquals(5, quantity(jdbc, orderId));
+
+        // The owner's table holds the record: the contract's result and the endpoint's answer, under the operator's scope.
+        assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_endpoint_idempotency WHERE entry_id = ?"
+            + " AND idempotency_key = ? AND result_status = 201 AND idempotency_scope = 'platform|9001'"
+            + " AND write_result ->> 'quantity' = '5' AND result_body ->> 'orderId' = ?", ENTRY, key, orderId));
+    }
+
+    @Test
+    void aChangeThatStoppedAfterTheOwnerCommittedGoesOnFromThere() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        String orderId = placedOrder();
+        String key = key();
+        SampleOperationsModule.FAIL_AFTER_THE_WRITE.set(true);
+
+        // The owner committed, then the handler failed: the change stands, with its result and no answer.
+        HttpResponse<String> stopped = adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
+        assertEquals(503, stopped.statusCode(), stopped.body());
+        assertEquals(4, quantity(jdbc, orderId));
+        assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_endpoint_idempotency WHERE idempotency_key = ?"
+            + " AND result_status IS NULL AND write_result ->> 'quantity' = '4'", key));
+
+        // Other content is still a conflict, before the handler.
+        HttpResponse<String> other = adjust(SampleHost.TENANT, orderId, Map.of("delta", 2), key);
+        assertEquals(422, other.statusCode(), other.body());
+
+        // The handler runs again and the contract gives its result again; the owner writes nothing.
+        SampleOperationsModule.FAIL_AFTER_THE_WRITE.set(false);
+        int handled = SampleOperationsModule.HANDLED.get();
+        HttpResponse<String> resumed = adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
+        assertEquals(201, resumed.statusCode(), resumed.body());
+        assertEquals("true", resumed.headers().firstValue("Idempotent-Replayed").orElse(null));
+        assertEquals(4, JSON.readTree(resumed.body()).get("quantity").asInt());
+        assertEquals(handled + 1, SampleOperationsModule.HANDLED.get());
+        assertEquals(4, quantity(jdbc, orderId));
+
+        // From now on the answer comes before the handler.
+        HttpResponse<String> again = adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
+        assertEquals("true", again.headers().firstValue("Idempotent-Replayed").orElse(null));
+        assertEquals(JSON.readTree(resumed.body()), JSON.readTree(again.body()));
+        assertEquals(handled + 1, SampleOperationsModule.HANDLED.get());
+    }
+
+    @Test
+    void aChangeTheOwnerRefusesLeavesItsKeyFree() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        String orderId = placedOrder();
+        String key = key();
+
+        HttpResponse<String> refused = adjust(SampleHost.TENANT, orderId, Map.of("delta", 5000), key);
+        assertEquals(409, refused.statusCode(), refused.body());
+        assertEquals(0, count(jdbc, "SELECT COUNT(*) FROM sample_orders_endpoint_idempotency WHERE idempotency_key = ?", key));
+
+        // Nothing holds the key, so other content under it is a new call.
+        HttpResponse<String> changed = adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
+        assertEquals(201, changed.statusCode(), changed.body());
+        assertEquals(4, quantity(jdbc, orderId));
+    }
+
+    @Test
+    void aSecondCallWhileTheFirstRunsIsToldAtOnce() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        String orderId = placedOrder();
+        String key = key();
+        try (Connection holder = INFRASTRUCTURE.connection()) {
+            holder.setAutoCommit(false);
+            try (Statement statement = holder.createStatement()) {
+                statement.execute("LOCK TABLE sample_orders_order IN ACCESS EXCLUSIVE MODE");
+            }
+            // The first call waits for the order table in the owner's transaction, holding the key.
+            CompletableFuture<HttpResponse<String>> running = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
+                } catch (Exception failed) {
+                    throw new IllegalStateException(failed);
+                }
+            });
+            SampleInfrastructure.await("the first call took its key", () -> count(jdbc,
+                "SELECT COUNT(*) FROM pg_locks WHERE locktype = 'advisory' AND granted") == 1);
+            long started = System.nanoTime();
+            HttpResponse<String> whileRunning = adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
+            assertEquals(409, whileRunning.statusCode(), whileRunning.body());
+            assertEquals("endpoint.idempotency_in_progress", JSON.readTree(whileRunning.body()).get("errorCode").asString());
+            assertTrue(Duration.ofNanos(System.nanoTime() - started).toSeconds() < 5, "it did not wait for the first");
+            holder.rollback();
+            assertEquals(201, running.get(30, TimeUnit.SECONDS).statusCode());
+        }
+        assertEquals(4, quantity(jdbc, orderId));
+        assertEquals("true", adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key).headers()
+            .firstValue("Idempotent-Replayed").orElse(null));
+        assertEquals(4, quantity(jdbc, orderId));
+    }
+
+    /** Places an order of three items as the member, and returns its id. */
+    private String placedOrder() throws Exception {
+        HttpResponse<String> placed = SampleInfrastructure.place(port, Map.of("sku", "sku-1", "quantity", 3));
+        assertEquals(201, placed.statusCode(), placed.body());
+        return JSON.readTree(placed.body()).get("orderId").asString();
+    }
+
+    private HttpResponse<String> adjust(long tenantId, String orderId, Map<String, Object> body, String key)
+            throws Exception {
+        return SampleInfrastructure.postAsOperator(port, path(tenantId, orderId), body, key);
+    }
+
+    private static String key() {
+        return UUID.randomUUID().toString();
     }
 
     private static String path(long tenantId, String orderId) {
         return "/api/platform/sample-orders/" + tenantId + "/orders/" + orderId + "/quantity-adjustments";
     }
 
+    private static int count(JdbcTemplate jdbc, String sql, Object... arguments) {
+        return SampleInfrastructure.count(jdbc, sql, arguments);
+    }
+
     private static int quantity(JdbcTemplate jdbc, String orderId) {
-        return SampleInfrastructure.count(jdbc, "SELECT quantity FROM sample_orders_order WHERE id = ?",
-            Long.valueOf(orderId));
+        return count(jdbc, "SELECT quantity FROM sample_orders_order WHERE id = ?", Long.valueOf(orderId));
     }
 }

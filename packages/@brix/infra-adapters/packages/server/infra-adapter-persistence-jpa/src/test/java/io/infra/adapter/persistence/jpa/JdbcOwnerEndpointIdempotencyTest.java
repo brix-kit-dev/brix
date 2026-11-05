@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -74,7 +75,8 @@ class JdbcOwnerEndpointIdempotencyTest {
             System.getenv("BRIX_P0_POSTGRES_PASSWORD"));
         jdbc = new JdbcTemplate(postgres);
         storage = "p10e" + Long.toHexString(System.nanoTime() & 0xffffffL);
-        jdbc.execute(platformMigration().replace("{{storageId}}", storage));
+        jdbc.execute(platformMigration("V1__canonical_endpoint_idempotency.sql").replace("{{storageId}}", storage));
+        jdbc.execute(platformMigration("V2__endpoint_write_result.sql").replace("{{storageId}}", storage));
         transactions = new TransactionTemplate(new DataSourceTransactionManager(postgres));
         manifests = new URLClassLoader(new URL[] {ownerManifest(storage)}, null);
         records = new JdbcOwnerEndpointIdempotency(new OwnerDirectory(manifests, new PluginManifestLoader()), postgres,
@@ -122,6 +124,83 @@ class JdbcOwnerEndpointIdempotencyTest {
 
         assertEquals(204, second.held().status());
         assertNull(second.held().body());
+    }
+
+    @Test
+    void aWriteResultIsFoundBeforeItsAnswerAndStaysAfterIt() {
+        // Idempotency design D80, D81: the two steps of an operational endpoint's call.
+        Key key = key("k-1");
+        transactions.executeWithoutResult(status -> {
+            assertEquals(Reservation.TAKEN, records.reserve(OWNER, key, "fp-1", null, "trace-1", DAY));
+            records.keepWriteResult(OWNER, key, "{\"id\": 7}");
+        });
+
+        OwnerEndpointIdempotency.Held stopped = records.find(OWNER, key).orElseThrow();
+
+        assertEquals("fp-1", stopped.fingerprint());
+        assertEquals(null, stopped.status());
+        assertEquals(false, stopped.answered());
+        assertEquals("{\"id\": 7}", stopped.writeResult());
+        assertEquals(null, stopped.body());
+
+        // A short transaction of its own, after the owner's.
+        records.complete(OWNER, key, 201, "{\"orderId\": \"7\"}");
+
+        OwnerEndpointIdempotency.Held finished = records.find(OWNER, key).orElseThrow();
+        assertEquals(201, finished.status());
+        assertEquals(true, finished.answered());
+        assertEquals("{\"orderId\": \"7\"}", finished.body());
+        assertEquals("{\"id\": 7}", finished.writeResult());
+    }
+
+    @Test
+    void theOwnersTransactionFindsTheWriteResultOfTheCallThatHoldsTheKey() {
+        Key key = key("k-1");
+        transactions.executeWithoutResult(status -> {
+            records.reserve(OWNER, key, "fp-1", null, "trace-1", DAY);
+            records.keepWriteResult(OWNER, key, "{\"id\": 7}");
+        });
+
+        Reservation second = transactions.execute(status -> records.reserve(OWNER, key, "fp-1", null, "trace-2", DAY));
+
+        assertEquals(Reservation.State.HELD, second.state());
+        assertEquals("{\"id\": 7}", second.held().writeResult());
+    }
+
+    @Test
+    void aWriteWithoutAResultStillHoldsItsKey() {
+        Key key = key("k-1");
+        transactions.executeWithoutResult(status -> {
+            records.reserve(OWNER, key, "fp-1", null, "trace-1", DAY);
+            records.keepWriteResult(OWNER, key, null);
+        });
+
+        assertEquals(null, records.find(OWNER, key).orElseThrow().writeResult());
+    }
+
+    @Test
+    void aFreeKeyIsFoundToBeFree() {
+        assertEquals(Optional.empty(), records.find(OWNER, key("k-1")));
+    }
+
+    @Test
+    void aKeyInAnOpenTransactionIsNotYetFound() {
+        // The check before the handler sees committed calls only; two calls that both miss it meet in reserve.
+        Key key = key("k-1");
+        transactions.executeWithoutResult(status -> {
+            records.reserve(OWNER, key, "fp-1", null, "trace-1", DAY);
+            try {
+                assertEquals(Optional.empty(), hosts.submit(() -> records.find(OWNER, key)).get(5, TimeUnit.SECONDS));
+            } catch (InterruptedException | java.util.concurrent.ExecutionException
+                    | java.util.concurrent.TimeoutException failed) {
+                throw new AssertionError(failed);
+            }
+        });
+    }
+
+    @Test
+    void aWriteResultIsKeptOnlyInsideTheOwnersTransaction() {
+        assertThrows(IllegalStateException.class, () -> records.keepWriteResult(OWNER, key("k-1"), "{}"));
     }
 
     @Test
@@ -225,8 +304,8 @@ class JdbcOwnerEndpointIdempotencyTest {
         return new Key(ENTRY, "42|u-1", key);
     }
 
-    private static String platformMigration() throws IOException {
-        String path = "META-INF/brix/messaging/postgresql/endpoint-idempotency/V1__canonical_endpoint_idempotency.sql";
+    private static String platformMigration(String file) throws IOException {
+        String path = "META-INF/brix/messaging/postgresql/endpoint-idempotency/" + file;
         try (InputStream input = OwnerEndpointIdempotency.class.getClassLoader().getResourceAsStream(path)) {
             assertTrue(input != null, path);
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);

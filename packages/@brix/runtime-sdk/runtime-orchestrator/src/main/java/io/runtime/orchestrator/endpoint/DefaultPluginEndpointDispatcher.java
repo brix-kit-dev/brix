@@ -365,6 +365,11 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             TypedEndpointHandler<Object, Object> typedHandler = (TypedEndpointHandler<Object, Object>) handler;
             Supplier<Object> call = () -> typed.output(route, TypedEndpoints.await(route, typedHandler.handle(invocation),
                 invocation.deadline(), () -> cancelled.set(true)));
+            if (replay != null && route.contract().replay().throughContract()) {
+                // Idempotency design §5.6: the handler runs in no unit of work, and its one write takes the key.
+                return replays.throughContract(replay, invocationBoundary, invocation.deadline(),
+                    () -> invocationBoundary.invoke(route, invocation, call));
+            }
             // Standard-link plan point 10a: the key and the answer commit with the handler's writes.
             return invocationBoundary.invoke(route, invocation,
                 replay == null ? call : () -> replays.run(replay, call));

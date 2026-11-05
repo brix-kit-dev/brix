@@ -373,14 +373,24 @@ class EndpointReplayTest {
             if (held != null) {
                 return Reservation.held(held);
             }
-            open.put(key, new Held(fingerprint, 0, null, traceId));
+            open.put(key, new Held(fingerprint, null, null, traceId, null));
             return Reservation.TAKEN;
         }
 
         @Override
         public void complete(String owner, Key key, int status, String body) {
             Held taken = open.get(key);
-            open.put(key, new Held(taken.fingerprint(), status, body, taken.traceId()));
+            open.put(key, new Held(taken.fingerprint(), status, body, taken.traceId(), null));
+        }
+
+        @Override
+        public void keepWriteResult(String owner, Key key, String result) {
+            throw new AssertionError("a plugin's endpoint keeps its answer, not a contract's result");
+        }
+
+        @Override
+        public Optional<Held> find(String owner, Key key) {
+            throw new AssertionError("a plugin's endpoint takes its key in its unit of work");
         }
     }
 }

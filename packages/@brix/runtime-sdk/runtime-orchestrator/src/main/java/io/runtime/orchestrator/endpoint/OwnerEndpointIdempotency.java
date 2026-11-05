@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * The answers the runtime replays for endpoints that declare {@code idempotency.mode: required} (root
@@ -37,14 +38,34 @@ public interface OwnerEndpointIdempotency {
     Reservation reserve(String ownerId, Key key, String fingerprint, Long tenantId, String traceId, Duration retention);
 
     /**
-     * Keeps the answer of the call that took a key, in the same transaction.
+     * Keeps the answer of the call that took a key: in the same transaction for a plugin's endpoint, and in a short one
+     * of its own for an operational endpoint, whose handler runs in no transaction.
      *
-     * @param ownerId the module that owns the endpoint
+     * @param ownerId the module that holds the key
      * @param key the key
      * @param status the status of the answer
      * @param body the answer's body as JSON, or {@code null} when it has none
      */
     void complete(String ownerId, Key key, int status, String body);
+
+    /**
+     * Keeps the result of the write of an operational endpoint's call, in the transaction that took the key (idempotency
+     * design D80).
+     *
+     * @param ownerId the module that holds the key
+     * @param key the key
+     * @param result the write's result as JSON, or {@code null} when it has none
+     */
+    void keepWriteResult(String ownerId, Key key, String result);
+
+    /**
+     * Reads who holds a key, before a call runs its handler (root BRX-RS-MANIFEST-022; idempotency design D81).
+     *
+     * @param ownerId the module that holds the key
+     * @param key the key
+     * @return the call that holds it, if a call does
+     */
+    Optional<Held> find(String ownerId, Key key);
 
     /**
      * Returns the tables the retention cleans.
@@ -124,10 +145,21 @@ public interface OwnerEndpointIdempotency {
      * The call that holds a key.
      *
      * @param fingerprint the fingerprint of its request
-     * @param status the status of its answer
+     * @param status the status of its answer, or {@code null} while the answer is not kept
      * @param body its answer's body as JSON, or {@code null} when it had none
      * @param traceId its trace, or {@code null}
+     * @param writeResult the result of its write through an internal contract as JSON, or {@code null}
      */
-    record Held(String fingerprint, int status, String body, String traceId) {
+    record Held(String fingerprint, Integer status, String body, String traceId, String writeResult) {
+
+        /**
+         * Returns whether the call's answer is kept. An operational endpoint's call that stopped after its owner committed
+         * holds its key without one.
+         *
+         * @return {@code true} when the answer can be given again
+         */
+        public boolean answered() {
+            return status != null;
+        }
     }
 }

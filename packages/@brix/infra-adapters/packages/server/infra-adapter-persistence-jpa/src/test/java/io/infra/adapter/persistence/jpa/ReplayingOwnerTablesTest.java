@@ -51,6 +51,30 @@ class ReplayingOwnerTablesTest {
     }
 
     @Test
+    void anOwnerOfReplayableWritesAndNoTableIsRefused() throws IOException {
+        // Idempotency design D79: an operational endpoint's record goes to the owner of its write.
+        URL owner = manifest("not-applicable");
+        Path manifest = roots.resolve("not-applicable/META-INF/brix/plugin-manifest.yaml");
+        Files.writeString(manifest, Files.readString(manifest) + """
+            internalContracts:
+              provides:
+                - contractId: tickets.administration
+                  contractType: io.example.TicketAdministration
+                  contractVersion: 1.0.0
+                  providerId: tickets.internal
+                  owner: tickets-owner
+                  replayableWrites: [close]
+            """);
+        try (URLClassLoader manifests = new URLClassLoader(new URL[] {owner}, null)) {
+            PersistenceCapabilityException refused = assertThrows(PersistenceCapabilityException.class,
+                () -> units(manifests).requireMessagingTables("tickets-owner"));
+
+            assertTrue(refused.getCause().getMessage().contains("tickets_endpoint_idempotency does not exist"),
+                refused.getCause().getMessage());
+        }
+    }
+
+    @Test
     void anOwnerThatDoesNotReplayNeedsNoTable() throws IOException {
         try (URLClassLoader manifests = new URLClassLoader(new URL[] {manifest("not-applicable")}, null)) {
             assertDoesNotThrow(() -> units(manifests).requireMessagingTables("tickets-owner"));

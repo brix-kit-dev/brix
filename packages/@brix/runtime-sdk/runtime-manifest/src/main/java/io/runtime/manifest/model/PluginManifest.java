@@ -109,6 +109,18 @@ public class PluginManifest {
         this.endpoints = endpoints;
     }
 
+    /**
+     * Returns whether the runtime keeps endpoint results in this owner's table: for an endpoint of its own, or for an
+     * operational endpoint that writes through one of its internal contracts (standard-link plan points 10a, 10b-2b).
+     *
+     * @return {@code true} when the owner needs its endpoint idempotency table
+     */
+    public boolean keepsEndpointResults() {
+        boolean replays = endpointDeclarations().stream().anyMatch(route -> route != null && route.replaysResults());
+        return replays || internalContracts != null && internalContracts.getProvides().stream()
+            .anyMatch(contract -> contract != null && !contract.getReplayableWrites().isEmpty());
+    }
+
     public List<Route> endpointDeclarations() {
         if (endpoints != null && !endpoints.getProvides().isEmpty()) {
             return endpoints.getProvides();
@@ -1288,6 +1300,21 @@ public class PluginManifest {
         private String contractVersion;
         private String providerId;
         private String owner;
+        private List<String> replayableWrites = new ArrayList<>();
+
+        /**
+         * Returns the contract's write methods whose results the runtime may keep for an operational endpoint's replay:
+         * the owner answers for them holding no secret or credential (idempotency design D79).
+         *
+         * @return the method names
+         */
+        public List<String> getReplayableWrites() {
+            return replayableWrites;
+        }
+
+        public void setReplayableWrites(List<String> replayableWrites) {
+            this.replayableWrites = replayableWrites == null ? new ArrayList<>() : new ArrayList<>(replayableWrites);
+        }
 
         public String getContractId() {
             return contractId;

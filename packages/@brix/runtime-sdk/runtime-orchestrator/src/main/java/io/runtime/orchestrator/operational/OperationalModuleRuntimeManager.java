@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.runtime.orchestrator.endpoint.EndpointContract;
 import io.runtime.orchestrator.endpoint.EndpointRoute;
 import io.runtime.orchestrator.endpoint.EndpointRouteDeclaration;
 import io.runtime.orchestrator.endpoint.TypedEndpointRules;
@@ -343,8 +344,9 @@ public final class OperationalModuleRuntimeManager {
         List<EndpointRoute> routes = new ArrayList<>();
         for (OperationalModuleDescriptor.EndpointDeclaration declaration
                 : module.descriptor.endpoints().values()) {
+            EndpointContract contract = contractOf(module, declaration);
             // Root BRX-RS-HOST-014; idempotency design D78: the rules of a plugin's endpoint.
-            TypedEndpointRules.problem(handlers.get(declaration.handlerId()), declaration.contract(),
+            TypedEndpointRules.problem(handlers.get(declaration.handlerId()), contract,
                 module.provider.getClass().getClassLoader()).ifPresent(problem -> {
                     throw failure("operational.endpoint.invalid", "Operational module '" + module.id() + "' endpoint '"
                         + declaration.endpointId() + "' " + problem);
@@ -356,7 +358,7 @@ public final class OperationalModuleRuntimeManager {
                 declaration.path(),
                 declaration.accessPolicy(),
                 handlers.get(declaration.handlerId()),
-                declaration.contract()));
+                contract));
         }
         module.routes = List.copyOf(routes);
         for (OperationalModuleDescriptor.TaskDeclaration declaration : module.descriptor.tasksByHandlerId().values()) {
@@ -609,6 +611,19 @@ public final class OperationalModuleRuntimeManager {
             throw new IllegalArgumentException(name + " must not be blank");
         }
         return value.trim();
+    }
+
+    /** Idempotency design D79: the owner of the write contract keeps the record, if it allows for that. */
+    private EndpointContract contractOf(ManagedModule module, OperationalModuleDescriptor.EndpointDeclaration declaration) {
+        EndpointContract contract = declaration.contract();
+        if (contract.replay() == null) {
+            return contract;
+        }
+        String writeContract = contract.replay().writeContract();
+        return contract.writingTo(internalContracts.replayableWritesOwner(writeContract).orElseThrow(() -> failure(
+            "operational.endpoint.invalid", "Operational module '" + module.id() + "' endpoint '"
+                + declaration.endpointId() + "' writes through '" + writeContract + "', whose provider declares no "
+                + "replayableWrites")));
     }
 
     private static OperationalRuntimeException failure(String code, String message) {

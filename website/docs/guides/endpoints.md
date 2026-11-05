@@ -139,6 +139,47 @@ The plugin does not start unless the endpoint meets these rules:
 The runtime keeps at most 64 KiB of an answer. A larger one fails the call with `platform.unknown` and rolls it back,
 so nothing takes effect without an answer to replay. It logs `event=endpoint.idempotency_answer_too_large`.
 
+### Operational endpoints
+
+A platform operational module owns no data, so its handler runs in no unit of work. The record goes with its one write
+through an owner's internal contract (root BRX-RS-HOST-020), and both sides declare it:
+
+```yaml
+# platform-operational.yaml
+idempotency:
+  mode: required
+  writeContract: brix.internal.sample-orders.administration
+```
+
+```yaml
+# the owner's plugin-manifest.yaml
+internalContracts:
+  provides:
+    - contractId: brix.internal.sample-orders.administration
+      # contractType, contractVersion, providerId, owner
+      replayableWrites:
+        - adjustQuantity
+```
+
+`replayableWrites` names the contract's methods whose results the runtime may keep, so they must hold no secret or
+credential. Each name must be exactly one method of the contract. The owner declares `data.storageId`, requires
+`PersistenceCapability`, and gets `<storageId>_endpoint_idempotency`. The endpoint meets the rules above, and the
+contract must be one its module requires.
+
+- The write takes the key in the owner's unit of work and keeps the contract's result with the owner's writes. A write
+  the owner refuses rolls back and leaves no key.
+- Once the handler has answered, the runtime keeps the answer in a short transaction of the owner.
+- A later call with the same key and content gets that answer before the handler, as on a plugin's endpoint.
+- A call can stop after the owner committed: the platform audit fails, the deadline passes, or the host dies. It has no
+  answer yet, so a later call runs the handler again. The contract returns the kept result, the owner writes nothing,
+  and the rest of the handler finishes. The answer carries `Idempotent-Replayed: true`, and the runtime logs
+  `event=endpoint.idempotency_resumed`.
+- If the answer cannot be kept, it still goes back. The runtime logs `event=endpoint.idempotency_answer_not_kept`, and
+  a later call goes on as above. An answer over 64 KiB is treated the same way, with
+  `event=endpoint.idempotency_answer_too_large`. A contract's result over 64 KiB fails the call and rolls it back.
+- A handler makes one such write per call. A second one fails the call with `platform.unknown`. A handler that answers
+  without reaching its write logs `event=endpoint.idempotency_key_unused`, and nothing is kept.
+
 ## Deadlines and limits
 
 `timeout.policyRef` names the call's deadline (root BRX-RS-MANIFEST-018, RESILIENCE-001):

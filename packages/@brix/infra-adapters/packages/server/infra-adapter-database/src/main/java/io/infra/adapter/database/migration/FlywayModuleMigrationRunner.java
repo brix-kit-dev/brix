@@ -213,8 +213,7 @@ public class FlywayModuleMigrationRunner {
                 if (manifest.getTasks() != null && !manifest.getTasks().getProvides().isEmpty()) {
                     kinds.add(CanonicalMessagingTables.Kind.TASK_RUN);
                 }
-                if (manifest.endpointDeclarations().stream()
-                        .anyMatch(route -> route != null && route.replaysResults())) {
+                if (manifest.keepsEndpointResults()) {
                     kinds.add(CanonicalMessagingTables.Kind.ENDPOINT_IDEMPOTENCY);
                 }
                 for (CanonicalMessagingTables.Kind kind : kinds) {

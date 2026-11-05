@@ -113,7 +113,14 @@ class CanonicalMessagingTablesTest {
         String migrations = migrations(CanonicalMessagingTables.Kind.ENDPOINT_IDEMPOTENCY);
         assertTrue(migrations.contains("PRIMARY KEY (entry_id, idempotency_scope, idempotency_key)"), migrations);
         assertTrue(migrations.contains("ON {{storageId}}_endpoint_idempotency (expires_at)"), migrations);
-        assertEquals(3, CanonicalMessagingTables.VERSION);
+    }
+
+    @Test
+    void theResultOfAnOperationalWriteCameWithTheFourthVersion() throws IOException {
+        // Idempotency design D80: the answer goes on using its own columns.
+        assertTrue(migrations(CanonicalMessagingTables.Kind.ENDPOINT_IDEMPOTENCY).contains(
+            "ALTER TABLE {{storageId}}_endpoint_idempotency ADD COLUMN write_result JSONB;"));
+        assertEquals(4, CanonicalMessagingTables.VERSION);
     }
 
     /** Every migration of a table, in version order. */

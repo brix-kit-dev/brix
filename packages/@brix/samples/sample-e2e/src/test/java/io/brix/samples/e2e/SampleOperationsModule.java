@@ -8,6 +8,8 @@ package io.brix.samples.e2e;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.brix.samples.orders.internal.AdjustOrderQuantity;
 import io.brix.samples.orders.internal.AdjustedOrder;
@@ -26,6 +28,12 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  * through its internal contract, in sample-orders' own unit of work (root BRX-RS-HOST-019, HOST-020).
  */
 public final class SampleOperationsModule implements PlatformOperationalModule {
+
+    /** How often the handler ran: a replay does not run it. */
+    static final AtomicInteger HANDLED = new AtomicInteger();
+
+    /** Makes the handler fail after the owner committed, as platform-admin's audit can. */
+    static final AtomicBoolean FAIL_AFTER_THE_WRITE = new AtomicBoolean();
 
     private static final String ADJUST_QUANTITY = "sample-operations.adjust-quantity.v1";
 
@@ -70,14 +78,20 @@ public final class SampleOperationsModule implements PlatformOperationalModule {
 
         @Override
         public CompletionStage<AdjustedOrder> handle(EndpointInvocation<AdjustQuantityRequest> invocation) {
+            HANDLED.incrementAndGet();
             AdjustQuantityRequest request = invocation.body();
+            AdjustedOrder adjusted;
             try {
-                return CompletableFuture.completedFuture(orders.adjustQuantity(
-                    new AdjustOrderQuantity(request.tenantId(), request.orderId(), request.delta())));
+                adjusted = orders.adjustQuantity(
+                    new AdjustOrderQuantity(request.tenantId(), request.orderId(), request.delta()));
             } catch (SampleOrderAdministrationException refused) {
                 int status = SampleOrderAdministrationException.ORDER_NOT_FOUND.equals(refused.code()) ? 404 : 409;
                 throw new EndpointHandlingException(status, refused.code(), refused.getMessage());
             }
+            if (FAIL_AFTER_THE_WRITE.get()) {
+                throw new EndpointHandlingException(503, "SAMPLE_AUDIT_WRITE_FAILED", "the change could not be recorded");
+            }
+            return CompletableFuture.completedFuture(adjusted);
         }
     }
 }

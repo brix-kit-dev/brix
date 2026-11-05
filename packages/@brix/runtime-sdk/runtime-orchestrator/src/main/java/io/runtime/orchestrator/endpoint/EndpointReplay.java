@@ -7,6 +7,7 @@
 package io.runtime.orchestrator.endpoint;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -147,6 +148,70 @@ final class EndpointReplay {
         };
     }
 
+    /**
+     * Runs a call whose record goes with its write through an internal contract (idempotency design §5.6, D81). Its
+     * handler runs in no unit of work: the write takes the key in the owner's, and the answer is kept afterwards.
+     *
+     * @param call the admitted call
+     * @param boundary gives the runtime short transactions of the owner
+     * @param deadline the call's deadline
+     * @param handler runs the handler and checks its response
+     * @return the handler's response, or the {@link Replayed} answer
+     */
+    Object throughContract(Call call, EndpointInvocationBoundary boundary, Instant deadline, Supplier<Object> handler) {
+        OwnerEndpointIdempotency store = records.get();
+        String ownerId = call.route().contract().replay().writeOwner();
+        Optional<OwnerEndpointIdempotency.Held> held = boundary.inOwner(call.route(), ownerId, deadline,
+            () -> store.find(ownerId, call.key()));
+        // Root BRX-RS-MANIFEST-022: a conflict and a replay come before the handler. A call that stopped after the owner
+        // committed has no answer yet, so its handler runs again, and the contract gives its result again.
+        if (held.isPresent() && (held.get().answered() || !held.get().fingerprint().equals(call.fingerprint()))) {
+            return replay(call, held.get());
+        }
+        ContractWrites.Write write = new ContractWrites.Write(call);
+        EndpointResponse answer = (EndpointResponse) ContractWrites.within(write, handler);
+        if (!write.reached()) {
+            log.error("event=endpoint.idempotency_key_unused plugin={} endpoint={} trace_id={}",
+                call.route().pluginId(), call.route().endpointId(), call.traceId());
+            return answer;
+        }
+        keepAnswer(call, boundary, deadline, store, answer);
+        if (!write.repeated()) {
+            return answer;
+        }
+        log.info("event=endpoint.idempotency_resumed plugin={} endpoint={} trace_id={}", call.route().pluginId(),
+            call.route().endpointId(), call.traceId());
+        return new Replayed(answer.status(), answer.body());
+    }
+
+    /**
+     * Design D82: the owner has committed, so the answer goes back whatever happens here. Without a kept answer, the next
+     * call with the key takes the way of a call that stopped.
+     */
+    private void keepAnswer(Call call, EndpointInvocationBoundary boundary, Instant deadline,
+            OwnerEndpointIdempotency store, EndpointResponse answer) {
+        String ownerId = call.route().contract().replay().writeOwner();
+        String body = answer.body() == null ? null : json.writeValueAsString(answer.body());
+        if (tooLarge(body)) {
+            log.error("event=endpoint.idempotency_answer_too_large plugin={} endpoint={} limit={}",
+                call.route().pluginId(), call.route().endpointId(), MAX_BODY_BYTES);
+            return;
+        }
+        try {
+            boundary.inOwner(call.route(), ownerId, deadline, () -> {
+                store.complete(ownerId, call.key(), answer.status(), body);
+                return Boolean.TRUE;
+            });
+        } catch (RuntimeException notKept) {
+            log.warn("event=endpoint.idempotency_answer_not_kept plugin={} endpoint={} trace_id={}",
+                call.route().pluginId(), call.route().endpointId(), call.traceId(), notKept);
+        }
+    }
+
+    private static boolean tooLarge(String body) {
+        return body != null && body.getBytes(StandardCharsets.UTF_8).length > MAX_BODY_BYTES;
+    }
+
     private Replayed replay(Call call, OwnerEndpointIdempotency.Held held) {
         if (!held.fingerprint().equals(call.fingerprint())) {
             throw refused(call, 422, CONFLICT);
@@ -158,7 +223,7 @@ final class EndpointReplay {
 
     private void keep(Call call, OwnerEndpointIdempotency store, EndpointResponse answer) {
         String body = answer.body() == null ? null : json.writeValueAsString(answer.body());
-        if (body != null && body.getBytes(StandardCharsets.UTF_8).length > MAX_BODY_BYTES) {
+        if (tooLarge(body)) {
             // Design D76: a defect of the endpoint. Its business write rolls back, so nothing happened without an answer
             // to replay.
             log.error("event=endpoint.idempotency_answer_too_large plugin={} endpoint={} limit={}",
@@ -169,7 +234,7 @@ final class EndpointReplay {
         store.complete(call.route().pluginId(), call.key(), answer.status(), body);
     }
 
-    private static EndpointHandlingException refused(Call call, int status, String code) {
+    static EndpointHandlingException refused(Call call, int status, String code) {
         log.warn("event=endpoint.idempotency_refused plugin={} endpoint={} code={} trace_id={}",
             call.route().pluginId(), call.route().endpointId(), code, call.traceId());
         return new EndpointHandlingException(status, code, code);

@@ -25,6 +25,7 @@ import com.networknt.schema.SpecificationVersion;
 
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
 import io.runtime.orchestrator.endpoint.EndpointContract;
+import io.runtime.orchestrator.endpoint.EndpointPolicies;
 
 /**
  * Strict loader for the unique platform operational descriptor.
@@ -131,15 +132,6 @@ public final class OperationalModuleDescriptorLoader {
     }
 
     private OperationalModuleDescriptor.EndpointDeclaration endpoint(JsonNode node) {
-        // Root BRX-RS-MANIFEST-018: required and optional idempotency need the runtime's result replay. It has that for
-        // plugin endpoints; an operational endpoint's comes with standard-link plan point 10b.
-        String idempotency = node.path("idempotency").path("mode").asString("");
-        if ("required".equals(idempotency) || "optional".equals(idempotency)) {
-            throw new OperationalRuntimeException("operational.descriptor.invalid", "Platform operational endpoint '"
-                + text(node, "endpointId") + "' declares idempotency " + idempotency + ", which needs the runtime's "
-                + "result replay; operational endpoints do not have it yet, so declare not-applicable and keep the "
-                + "handler idempotent by its business key");
-        }
         try {
             return new OperationalModuleDescriptor.EndpointDeclaration(
                 text(node, "endpointId"),
@@ -156,13 +148,37 @@ public final class OperationalModuleDescriptorLoader {
                     node.path("request").path("schemaRef").asString(""),
                     node.path("response").path("schemaRef").asString(""),
                     node.path("response").path("status").asInt(200),
-                    node.path("timeout").path("policyRef").asString("")));
+                    node.path("timeout").path("policyRef").asString(""),
+                    replay(node)));
         } catch (IllegalArgumentException e) {
             throw new OperationalRuntimeException(
                 "operational.descriptor.invalid",
                 "Invalid platform operational endpoint '" + text(node, "endpointId") + "': " + e.getMessage(),
                 e);
         }
+    }
+
+    /**
+     * Root BRX-RS-MANIFEST-018; idempotency design D72, D79: optional is not provided, and a required endpoint names the
+     * one internal contract it writes through, whose owner keeps the record.
+     */
+    private static EndpointContract.Replay replay(JsonNode endpoint) {
+        JsonNode idempotency = endpoint.path("idempotency");
+        String mode = idempotency.path("mode").asString("");
+        if ("optional".equals(mode)) {
+            throw new IllegalArgumentException("idempotency optional is not provided; declare required, or not-applicable "
+                + "and keep the handler idempotent by its business key");
+        }
+        if (!"required".equals(mode)) {
+            return null;
+        }
+        String writeContract = idempotency.path("writeContract").asString("");
+        if (writeContract.isBlank()) {
+            throw new IllegalArgumentException("idempotency required needs idempotency.writeContract: the record goes "
+                + "with the endpoint's one write through an internal contract");
+        }
+        return new EndpointContract.Replay(text(endpoint, "handlerId"),
+            EndpointPolicies.retention(idempotency.path("retentionPolicyRef").asString("")), writeContract.trim(), null);
     }
 
     @SuppressWarnings("unchecked")

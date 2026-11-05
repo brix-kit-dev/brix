@@ -170,6 +170,88 @@ class InternalContractBinderTest {
             ((OperationalRuntimeException) failure.getCause()).diagnosticCode());
     }
 
+    @Test
+    void theOwnerOfReplayableWritesIsKnownOnceTheyAreBound() {
+        // Idempotency design D79: an operational endpoint's record goes to this owner's table.
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        InternalContractBinder binder = new InternalContractBinder(
+            registry, registry, getClass().getClassLoader(), ownerPersistence(new RecordingPersistence()));
+
+        binder.bindPlugin(pluginDescriptor(Set.of("run")), provider(), Set.of());
+
+        assertEquals(Optional.of("owner-plugin"), binder.replayableWritesOwner("test.contract"));
+    }
+
+    @Test
+    void aContractWithoutReplayableWritesKeepsNoResults() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        InternalContractBinder binder = new InternalContractBinder(
+            registry, registry, getClass().getClassLoader(), ownerPersistence(new RecordingPersistence()));
+
+        binder.bindPlugin(pluginDescriptor(), provider(), Set.of());
+
+        assertEquals(Optional.empty(), binder.replayableWritesOwner("test.contract"));
+        assertEquals(Optional.empty(), binder.replayableWritesOwner("no.such.contract"));
+    }
+
+    @Test
+    void aReplayableWriteIsAMethodOfTheContract() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        InternalContractBinder binder = new InternalContractBinder(
+            registry, registry, getClass().getClassLoader(), ownerPersistence(new RecordingPersistence()));
+
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class,
+            () -> binder.bindPlugin(pluginDescriptor(Set.of("walk")), provider(), Set.of()));
+
+        assertEquals("internal_contract.replayable_write_invalid", failure.diagnosticCode());
+    }
+
+    @Test
+    void aReplayableWriteIsNotAnOverloadedMethod() {
+        // Its result is read back as the method's type, so the name has to mean one method.
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        InternalContractBinder binder = new InternalContractBinder(
+            registry, registry, getClass().getClassLoader(), ownerPersistence(new RecordingPersistence()));
+        PluginRuntimeDescriptor descriptor = PluginRuntimeDescriptor.builder("owner-plugin")
+            .version("3.2.0")
+            .providedInternalContract("test.contract", Overloaded.class.getName(), "1.0.0", "test.provider", "owner-plugin",
+                Set.of("save"))
+            .build();
+        Overloaded contract = new Overloaded() {
+            @Override
+            public void save(String name) {
+            }
+
+            @Override
+            public void save(int number) {
+            }
+        };
+
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class,
+            () -> binder.bindPlugin(descriptor, bootstrap -> bootstrap.bind("test.contract", Overloaded.class,
+                context -> contract), Set.of()));
+
+        assertEquals("internal_contract.replayable_write_invalid", failure.diagnosticCode());
+    }
+
+    @Test
+    void anOwnerOfReplayableWritesHasItsPersistence() {
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        InternalContractBinder binder = new InternalContractBinder(registry, registry, getClass().getClassLoader());
+        binder.bindPlugin(pluginDescriptor(Set.of("run")), provider(), Set.of());
+
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class, binder::activateAndFreeze);
+
+        assertEquals("internal_contract.owner_persistence_missing", failure.diagnosticCode());
+    }
+
+    /** A contract whose method has two shapes. */
+    public interface Overloaded {
+        void save(String name);
+
+        void save(int number);
+    }
+
     private static OwnerPersistenceProvider ownerPersistence(RecordingPersistence persistence) {
         return owner -> "owner-plugin".equals(owner) ? Optional.of(persistence) : Optional.empty();
     }
@@ -186,6 +268,10 @@ class InternalContractBinderTest {
     }
 
     private PluginRuntimeDescriptor pluginDescriptor() {
+        return pluginDescriptor(Set.of());
+    }
+
+    private PluginRuntimeDescriptor pluginDescriptor(Set<String> replayableWrites) {
         return PluginRuntimeDescriptor.builder("owner-plugin")
             .version("3.2.0")
             .providedInternalContract(
@@ -193,7 +279,8 @@ class InternalContractBinderTest {
                 Runnable.class.getName(),
                 "1.1.0",
                 "test.provider",
-                "owner-plugin")
+                "owner-plugin",
+                replayableWrites)
             .build();
     }
 

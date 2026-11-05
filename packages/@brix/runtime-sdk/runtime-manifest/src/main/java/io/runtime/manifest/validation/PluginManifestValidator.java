@@ -97,6 +97,7 @@ public final class PluginManifestValidator {
         validateTasks(manifest, result);
         validateEvents(manifest, result);
         validateInternalContracts(manifest.getInternalContracts(), result);
+        validateReplayableWrites(manifest, result);
         validateRoutes(manifest, result);
         validateExternalServices(manifest, result);
         validateData(manifest.getData(), result);
@@ -638,6 +639,20 @@ public final class PluginManifestValidator {
             if (isSecret(entry.getSensitivity()) && entry.getDefaultValue() != null) {
                 result.addError(prefix + ".defaultValue", "Secret config entries must not declare defaults");
             }
+        }
+    }
+
+    /** Idempotency design D79: the owner keeps the results of its replayable writes in its own table. */
+    private void validateReplayableWrites(PluginManifest manifest, ValidationResult result) {
+        if (manifest.getInternalContracts() == null || manifest.getInternalContracts().getProvides().stream()
+                .noneMatch(contract -> contract != null && !contract.getReplayableWrites().isEmpty())) {
+            return;
+        }
+        if (manifest.getData() == null || !hasText(manifest.getData().getStorageId())) {
+            result.addError("data.storageId", "An owner of replayable writes needs data.storageId");
+        }
+        if (!requires(manifest, "io.runtime.sdk.capability.PersistenceCapability")) {
+            result.addError("capabilities.required", "An owner of replayable writes must require PersistenceCapability");
         }
     }
 

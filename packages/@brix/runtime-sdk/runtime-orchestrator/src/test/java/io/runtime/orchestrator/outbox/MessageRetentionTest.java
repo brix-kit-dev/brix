@@ -99,6 +99,16 @@ class MessageRetentionTest {
                 }
 
                 @Override
+                public void keepWriteResult(String ownerId, Key key, String result) {
+                    throw new AssertionError("the cleaning keeps no result");
+                }
+
+                @Override
+                public java.util.Optional<Held> find(String ownerId, Key key) {
+                    throw new AssertionError("the cleaning reads no key");
+                }
+
+                @Override
                 public List<String> tables() {
                     return List.of("shop_endpoint_idempotency");
                 }

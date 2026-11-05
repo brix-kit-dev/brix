@@ -15,6 +15,7 @@
  */
 package io.runtime.orchestrator.endpoint;
 
+import java.time.Instant;
 import java.util.function.Supplier;
 
 import io.runtime.sdk.plugin.EndpointInvocation;
@@ -51,6 +52,21 @@ public interface EndpointInvocationBoundary {
      */
     default Object invoke(EndpointRoute route, EndpointInvocation<?> invocation, Supplier<Object> handlerCall) {
         return invoke(route, handlerCall);
+    }
+
+    /**
+     * Runs the runtime's own work on an owner's records, outside any handler, in a short transaction of that owner that
+     * ends no later than {@code deadline} (idempotency design D81).
+     *
+     * @param route the route the work belongs to
+     * @param ownerId the owner
+     * @param deadline when the answer is no longer wanted
+     * @param work the work
+     * @param <T> result type
+     * @return the work's result
+     */
+    default <T> T inOwner(EndpointRoute route, String ownerId, Instant deadline, Supplier<T> work) {
+        return work.get();
     }
 
     /**

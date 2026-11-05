@@ -164,13 +164,11 @@ final class OwnerDirectory {
     }
 
     /**
-     * Returns whether an endpoint of the owner has its results replayed (standard-link plan point 10a).
+     * Returns whether the owner keeps endpoint results: an endpoint of its own, or an operational endpoint that writes
+     * through one of its internal contracts (standard-link plan points 10a, 10b-2b).
      */
     boolean replaysEndpointResults(String ownerId) {
-        return manifestOf(ownerId)
-            .map(manifest -> manifest.endpointDeclarations().stream()
-                .anyMatch(route -> route != null && route.replaysResults()))
-            .orElse(false);
+        return manifestOf(ownerId).map(PluginManifest::keepsEndpointResults).orElse(false);
     }
 
     /**

@@ -44,7 +44,10 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
+      # The caller names a key. The runtime keeps the record with the one write through this contract, in sample-orders'
+      # table (root BRX-RS-MANIFEST-018, HOST-020; idempotency design D79).
       idempotency:
-        mode: not-applicable
+        mode: required
+        writeContract: brix.internal.sample-orders.administration
 tasks:
   provides: []

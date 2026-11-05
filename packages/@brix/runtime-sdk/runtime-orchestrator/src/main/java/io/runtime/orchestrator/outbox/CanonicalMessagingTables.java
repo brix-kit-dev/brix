@@ -30,9 +30,9 @@ public final class CanonicalMessagingTables {
 
     /**
      * Version of the platform schema these rules describe: 2 adds the command key's request fingerprint, 3 the endpoint
-     * idempotency table.
+     * idempotency table, 4 its column for the result of an operational endpoint's write.
      */
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
 
     /**
      * Classpath directory of the PostgreSQL migrations, one subdirectory per {@link Kind}, with
@@ -72,7 +72,7 @@ public final class CanonicalMessagingTables {
 
     private static final List<String> ENDPOINT_IDEMPOTENCY_COLUMNS = List.of(
         "entry_id", "idempotency_scope", "idempotency_key", "request_fingerprint", "result_status", "result_body",
-        "tenant_id", "trace_id", "created_at", "expires_at");
+        "write_result", "tenant_id", "trace_id", "created_at", "expires_at");
 
     private static final List<String> TASK_RUN_COLUMNS = List.of(
         "task_id", "trigger_id", "scheduled_at", "claimed_by", "claimed_at", "status", "attempts", "error_code",

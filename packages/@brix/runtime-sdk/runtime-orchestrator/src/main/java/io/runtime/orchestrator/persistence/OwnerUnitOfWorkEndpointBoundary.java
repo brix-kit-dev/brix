@@ -87,6 +87,15 @@ public final class OwnerUnitOfWorkEndpointBoundary implements EndpointInvocation
             : ownerPersistence.readWrite(route.pluginId(), left, handlerCall));
     }
 
+    @Override
+    public <T> T inOwner(EndpointRoute route, String ownerId, Instant deadline, Supplier<T> work) {
+        Duration left = Duration.between(Instant.now(), deadline);
+        if (left.isZero() || left.isNegative()) {
+            throw new EndpointDeadlineExceededException(route.endpointId());
+        }
+        return TenantScopes.within(TenantScope.none(), () -> ownerPersistence.readWrite(ownerId, left, work));
+    }
+
     /**
      * Chooses the tenant scope of an endpoint call.
      *

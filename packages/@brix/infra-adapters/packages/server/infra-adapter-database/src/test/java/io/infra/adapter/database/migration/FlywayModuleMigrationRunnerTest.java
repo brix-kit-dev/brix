@@ -72,6 +72,30 @@ class FlywayModuleMigrationRunnerTest {
     }
 
     @Test
+    void anOwnerOfReplayableWritesGetsTheEndpointKeyTable() throws IOException {
+        // Idempotency design D79: an operational endpoint's record goes to the owner of its write.
+        URL owner = replayingManifest("tickets", "tickets", "not-applicable");
+        Path manifest = roots.resolve("tickets-replaying/META-INF/brix/plugin-manifest.yaml");
+        Files.writeString(manifest, Files.readString(manifest) + """
+            internalContracts:
+              provides:
+                - contractId: tickets.administration
+                  contractType: io.example.TicketAdministration
+                  contractVersion: 1.0.0
+                  providerId: tickets.internal
+                  owner: tickets
+                  replayableWrites: [close]
+            """);
+        try (URLClassLoader manifests = new URLClassLoader(new URL[] {owner}, null)) {
+
+            assertEquals(List.of("tickets_endpoint_idempotency"),
+                FlywayModuleMigrationRunner.messagingMigrations(manifests).stream()
+                    .map(migration -> migration.table())
+                    .toList());
+        }
+    }
+
+    @Test
     void anOwnerWhoseEndpointHasItsResultsReplayedGetsTheEndpointKeyTable() throws IOException {
         // Standard-link plan point 10a: no other owner has this table.
         try (URLClassLoader manifests = new URLClassLoader(new URL[] {
