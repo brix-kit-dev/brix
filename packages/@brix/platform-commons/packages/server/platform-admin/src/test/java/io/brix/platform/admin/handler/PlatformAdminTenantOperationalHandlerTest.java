@@ -11,17 +11,25 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+
+import tools.jackson.databind.JsonNode;
 
 import io.brix.platform.admin.dto.CreatePlatformTenantRequest;
 import io.brix.platform.audit.api.PlatformAuditActions;
@@ -35,11 +43,19 @@ import io.brix.platform.tenant.internal.RevokeFirstOwnerInvitationCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationException;
 import io.brix.platform.tenant.internal.TenantAdministrationTenant;
+import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.EndpointContract;
+import io.runtime.orchestrator.endpoint.EndpointRequestInvalidException;
+import io.runtime.orchestrator.endpoint.EndpointRoute;
+import io.runtime.orchestrator.endpoint.TypedEndpointRules;
 import io.runtime.orchestrator.operational.OperationalContext;
+import io.runtime.orchestrator.operational.OperationalModuleDescriptor;
+import io.runtime.orchestrator.operational.OperationalModuleDescriptorLoader;
 import io.runtime.orchestrator.operational.OperationalModuleIdentity;
 import io.runtime.orchestrator.operational.RuntimeOperationalView;
 import io.runtime.sdk.plugin.EndpointHandlingException;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.EndpointResponse;
 
 class PlatformAdminTenantOperationalHandlerTest {
 
@@ -57,7 +73,7 @@ class PlatformAdminTenantOperationalHandlerTest {
             new CreatePlatformTenantRequest("acme", "Acme"),
             Map.of(),
             Optional.of("1001"),
-            Optional.empty()));
+            Optional.empty())).toCompletableFuture().join();
 
         assertEquals(42L, response.tenantId());
         assertEquals("PENDING_ACTIVATION", response.status());
@@ -66,6 +82,72 @@ class PlatformAdminTenantOperationalHandlerTest {
         verify(tenantAdministration).createPendingTenant(command.capture());
         assertEquals("acme", command.getValue().code());
         assertEquals(1001L, command.getValue().platformAdminIdentityId());
+    }
+
+    @Test
+    void aNewTenantIsAnsweredAsItsSchemaSays() {
+        // The real descriptor and schemas, through the dispatcher (idempotency design D78; standard-link plan point 10b-3).
+        when(tenantAdministration.createPendingTenant(any())).thenReturn(
+            new TenantAdministrationTenant(42L, "acme", "Acme", "PENDING_ACTIVATION"));
+
+        EndpointResponse answer = (EndpointResponse) create(Map.of("code", "acme", "name", "Acme"));
+
+        assertEquals(200, answer.status());
+        JsonNode body = (JsonNode) answer.body();
+        assertEquals("42", body.get("tenantId").asString());
+        assertEquals("acme", body.get("code").asString());
+        assertEquals("PENDING_ACTIVATION", body.get("status").asString());
+    }
+
+    @ParameterizedTest
+    @MethodSource("requestsTheSchemaRefuses")
+    void aRequestTheSchemaRefusesNeverReachesTheOwner(Map<String, Object> request) {
+        assertThrows(EndpointRequestInvalidException.class, () -> create(request));
+
+        verify(tenantAdministration, never()).createPendingTenant(any());
+    }
+
+    static Stream<Map<String, Object>> requestsTheSchemaRefuses() {
+        return Stream.of(
+            Map.of("code", "acme"),
+            Map.of("name", "Acme"),
+            Map.of("code", "a", "name", "Acme"),
+            Map.of("code", "Acme", "name", "Acme"),
+            Map.of("code", "acme_1", "name", "Acme"),
+            Map.of("code", "acme", "name", "   "),
+            Map.of("code", "acme", "name", "Acme", "ownerIdentityId", 7));
+    }
+
+    @Test
+    void theTenantCreationIsReplayedThroughTheTenantOwner() {
+        // Super-admin §6: required. The record goes with the one write through the tenant owner's contract.
+        EndpointContract contract = createEndpoint().contract();
+
+        assertEquals("brix.internal.tenant.administration", contract.replay().writeContract());
+        assertEquals(Optional.empty(), TypedEndpointRules.problem(new CreatePlatformTenantHandler(context),
+            contract, getClass().getClassLoader()));
+    }
+
+    private Object create(Map<String, Object> request) {
+        OperationalModuleDescriptor.EndpointDeclaration endpoint = createEndpoint();
+        EndpointContract contract = endpoint.contract();
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
+        dispatcher.replaceSnapshot(List.of(new EndpointRoute("platform-admin", endpoint.endpointId(), "POST",
+            endpoint.path(), endpoint.accessPolicy(), new CreatePlatformTenantHandler(context),
+            new EndpointContract(contract.requestSchemaRef(), contract.responseSchemaRef(), contract.status(),
+                contract.timeoutPolicyRef()))));
+        return dispatcher.invoke("POST", endpoint.path(), request, Map.of(), Map.of(
+            "x-actor-id", List.of("1001"),
+            "x-auth-token-role", List.of("platform-admin"),
+            "x-auth-token-type", List.of("access"),
+            "x-auth-token-scope", List.of("PLATFORM"),
+            "x-auth-permission", List.of("platform:tenant:create")));
+    }
+
+    private OperationalModuleDescriptor.EndpointDeclaration createEndpoint() {
+        return new OperationalModuleDescriptorLoader()
+            .load(getClass().getClassLoader().getResource(OperationalModuleDescriptorLoader.DESCRIPTOR_RESOURCE))
+            .endpoints().get("platform.tenants.create.v1");
     }
 
     @Test

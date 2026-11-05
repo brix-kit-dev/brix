@@ -26,7 +26,8 @@ import type {
 
 export interface PlatformTenantRepository {
   list(query?: TenantQuery): Promise<Page<PlatformTenantDto>>;
-  create(req: CreatePlatformTenantRequest): Promise<PlatformTenantDto>;
+  /** The key tells a retry from a new tenant: the backend gives a repeated call the first answer. */
+  create(req: CreatePlatformTenantRequest, idempotencyKey: string): Promise<PlatformTenantDto>;
   updateStatus(
     id: string,
     req: UpdateTenantStatusRequest,
@@ -59,9 +60,14 @@ export function createPlatformTenantRepository(
       );
       return normalizeTenantPage(response, query);
     },
-    async create(req) {
-      const response = await http.post<unknown>(PLATFORM_ADMIN_API.TENANTS, req);
-      return normalizeTenantDto(response as BackendPlatformTenantDto);
+    async create(req, idempotencyKey) {
+      const response = await http.request<unknown>({
+        url: PLATFORM_ADMIN_API.TENANTS,
+        method: 'POST',
+        data: req,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+      return normalizeTenantDto(response.data as BackendPlatformTenantDto);
     },
     async updateStatus(id, req) {
       const response = await http.patch<unknown>(

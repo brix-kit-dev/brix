@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Creating a tenant sends an `Idempotency-Key`. A retry of the same form keeps its key, so the backend gives the first
+  answer again and nothing is created twice. `PlatformTenantRepository.create` takes the key as its second argument.
+
 ## [3.2.0] — 2026-05
 
 ### Added — Platform Super-Admin Web v2.0

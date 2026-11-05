@@ -13,6 +13,30 @@ function createHttpCapabilityMock(): HttpCapability {
   };
 }
 
+describe('createPlatformTenantRepository tenant creation', () => {
+  it('names its key in the Idempotency-Key header', async () => {
+    const http = createHttpCapabilityMock();
+    vi.mocked(http.request).mockResolvedValueOnce({
+      data: { tenantId: '42', code: 'acme', name: 'Acme', status: 'PENDING_ACTIVATION' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+    });
+
+    const repository = createPlatformTenantRepository(http);
+    const tenant = await repository.create({ code: 'acme', name: 'Acme' }, 'key-1');
+
+    expect(http.request).toHaveBeenCalledWith({
+      url: '/platform/tenants',
+      method: 'POST',
+      data: { code: 'acme', name: 'Acme' },
+      headers: { 'Idempotency-Key': 'key-1' },
+    });
+    expect(tenant.id).toBe('42');
+    expect(tenant.status).toBe('PENDING_ACTIVATION');
+  });
+});
+
 describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
   it('loads the current FIRST_OWNER invitation status through HttpCapability only', async () => {
     const http = createHttpCapabilityMock();

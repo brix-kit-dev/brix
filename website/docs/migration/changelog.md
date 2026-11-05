@@ -162,9 +162,10 @@ All notable changes to Brix Framework are documented here.
   owner, which verifies and spends it.
 - **Endpoint idempotency `optional` stops the plugin, and `required` has rules** (root BRX-RS-MANIFEST-018). `required`
   needs a typed write endpoint of an authenticated caller, with its schemas, in a plugin with persistence. An
-  operational endpoint also names its write contract, and its owner declares `replayableWrites`. The eight
-  platform-admin endpoints that declared `required` now declare `not-applicable` until each one is typed: the runtime
-  never acted on the declaration, and their handlers are idempotent by their business keys. platform-tenant's FIRST_OWNER acceptance replays its answer, under the hash of the invitation token.
+  operational endpoint also names its write contract, and its owner declares `replayableWrites`. Seven platform-admin
+  endpoints that declared `required` now declare `not-applicable` until each one is typed: the runtime never acted on
+  the declaration, and their handlers are idempotent by their business keys. `POST /api/platform/tenants` is typed and
+  replays its answer: a caller must send an `Idempotency-Key`, and the platform console does. platform-tenant's FIRST_OWNER acceptance replays its answer, under the hash of the invitation token.
 - **`ManagedTask.execute(TaskInvocation)`** (root BRX-RS-MANIFEST-027). The run receives its trigger, deadline,
   cancellation and attempt. `ManagedTask` is no longer a functional interface: implement `execute` in a class. A
   compiled task that implements `run()` still runs, and a task that implements neither method is refused at startup.

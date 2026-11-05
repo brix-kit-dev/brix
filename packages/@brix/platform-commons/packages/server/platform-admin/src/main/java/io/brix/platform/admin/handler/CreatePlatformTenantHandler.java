@@ -6,7 +6,8 @@
  */
 package io.brix.platform.admin.handler;
 
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import io.brix.platform.admin.dto.CreatePlatformTenantRequest;
 import io.brix.platform.admin.dto.PlatformTenantDto;
@@ -15,8 +16,8 @@ import io.brix.platform.tenant.internal.CreatePendingTenantCommand;
 import io.brix.platform.tenant.internal.TenantAdministration;
 import io.brix.platform.tenant.internal.TenantAdministrationTenant;
 import io.runtime.orchestrator.operational.OperationalContext;
-import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * Operational handler for creating a pending tenant.
@@ -26,11 +27,17 @@ import io.runtime.sdk.plugin.EndpointInvocation;
  * only the typed result exposed by that contract. The creation is then written
  * to the platform audit (multi-tenant T-3).</p>
  *
+ * <p>The caller names a key, and the runtime keeps the record with the owner's
+ * write: a repeated call gets the first answer before this handler runs. A call
+ * that stopped after the owner committed runs it again, the contract gives its
+ * result again, and the audit record is written then (root BRX-RS-MANIFEST-018;
+ * idempotency design §5.6).</p>
+ *
  * @author Brix Platform Team
  * @since 3.2.0
  */
 public final class CreatePlatformTenantHandler
-        implements EndpointHandler<EndpointInvocation<CreatePlatformTenantRequest>, PlatformTenantDto> {
+        implements TypedEndpointHandler<CreatePlatformTenantRequest, PlatformTenantDto> {
 
     private final TenantAdministration tenantAdministration;
     private final PlatformOperationAudit audit;
@@ -41,35 +48,15 @@ public final class CreatePlatformTenantHandler
     }
 
     @Override
-    public PlatformTenantDto handle(EndpointInvocation<CreatePlatformTenantRequest> invocation) {
+    public CompletionStage<PlatformTenantDto> handle(EndpointInvocation<CreatePlatformTenantRequest> invocation) {
         Long actorId = PlatformOperationalInvocationSupport.requirePlatformActorId(invocation);
-        CreatePlatformTenantRequest request = request(invocation.body());
+        CreatePlatformTenantRequest request = invocation.body();
         TenantAdministrationTenant tenant = audit.run(invocation, actorId, PlatformAuditActions.TENANT_CREATED,
             new PlatformOperationAudit.Target("TENANT", null, null),
             created -> new PlatformOperationAudit.Target("TENANT", created.id(), created.id()),
             () -> tenantAdministration.createPendingTenant(
                 new CreatePendingTenantCommand(request.code(), request.name(), actorId)));
-        return toDto(tenant);
-    }
-
-    private static CreatePlatformTenantRequest request(Object body) {
-        if (body instanceof CreatePlatformTenantRequest typed) {
-            return typed;
-        }
-        if (body instanceof Map<?, ?> map) {
-            return new CreatePlatformTenantRequest(
-                requiredString(map, "code"),
-                requiredString(map, "name"));
-        }
-        throw new IllegalArgumentException("create tenant request body is required");
-    }
-
-    private static String requiredString(Map<?, ?> map, String field) {
-        Object value = map.get(field);
-        if (value == null || String.valueOf(value).isBlank()) {
-            throw new IllegalArgumentException(field + " is required");
-        }
-        return String.valueOf(value);
+        return CompletableFuture.completedFuture(toDto(tenant));
     }
 
     private static PlatformTenantDto toDto(TenantAdministrationTenant tenant) {

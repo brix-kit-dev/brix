@@ -47,6 +47,20 @@ class PlatformTenantEndpointContractTest {
     private static final String TENANT_PROFILE_READ = "tenant:profile:read";
 
     @Test
+    void theContractNamesTheWritesWhoseResultsTheRuntimeMayKeep() throws IOException {
+        // Idempotency design D79; standard-link plan point 10b-3. Each is a method of the contract, and its result holds
+        // no secret or credential: the tenant's id, code, name and status.
+        try (InputStream manifest = getClass().getClassLoader().getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
+            List<String> writes = new PluginManifestLoader().load(manifest).getInternalContracts().getProvides().get(0)
+                .getReplayableWrites();
+            assertEquals(List.of("createPendingTenant"), writes);
+        }
+        assertEquals(List.of("id", "code", "name", "status"), java.util.Arrays.stream(
+                io.brix.platform.tenant.internal.TenantAdministrationTenant.class.getRecordComponents())
+            .map(java.lang.reflect.RecordComponent::getName).toList());
+    }
+
+    @Test
     void theAcceptanceReplaysItsAnswerWhichTheRuntimeMayKeep() throws IOException {
         // BRX-TENANT-ENTRY-005; standard-link plan point 10b-1.
         ClassLoader classes = getClass().getClassLoader();

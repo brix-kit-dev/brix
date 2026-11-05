@@ -141,6 +141,10 @@ internalContracts:
       contractVersion: 1.1.0
       providerId: platform-tenant.internal.tenant-administration
       owner: platform-tenant
+      # The operational endpoints that write through these methods have their results replayed: the runtime keeps each
+      # method's result in this plugin's table, with the write. None holds a secret or credential (idempotency design D79).
+      replayableWrites:
+        - createPendingTenant
 data:
   storageId: platform_tenant
   schema: platform-tenant

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-admin/platform-tenant/1.0.0",
+  "title": "A tenant, as the platform console sees it",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId", "code", "name", "status"],
+  "properties": {
+    "tenantId": { "type": "string", "minLength": 1 },
+    "code": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": ["string", "null"] },
+    "updatedAt": { "type": ["string", "null"] },
+    "quotaUsed": { "type": ["integer", "null"] },
+    "quotaLimit": { "type": ["integer", "null"] },
+    "licenseStatus": { "type": ["string", "null"] },
+    "defaultLocale": { "type": ["string", "null"] },
+    "defaultTimezone": { "type": ["string", "null"] },
+    "defaultTheme": { "type": ["string", "null"] }
+  }
+}
