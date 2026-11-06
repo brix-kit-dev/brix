@@ -6,9 +6,10 @@ All notable changes to this package are documented here.
 
 ### Changed
 
-- Creating a tenant or a FIRST_OWNER invitation sends an `Idempotency-Key`. A retry of the same form keeps its key, so
-  once the backend has committed it gives the first answer again and nothing is created or sent twice.
-  `PlatformTenantRepository.create` and `createFirstOwnerInvitation` take the key as their last argument.
+- Creating a tenant, and creating or resending a FIRST_OWNER invitation, sends an `Idempotency-Key`. A retry of the same
+  form keeps its key, so once the backend has committed it gives the first answer again and nothing is created or sent
+  twice. Resending after a resend went out takes a new key: that is another e-mail. `PlatformTenantRepository.create`,
+  `createFirstOwnerInvitation` and `resendFirstOwnerInvitation` take the key as their last argument.
 
 ## [3.2.0] — 2026-05
 

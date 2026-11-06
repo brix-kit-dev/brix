@@ -9,7 +9,10 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFirstOwnerInvitation } from './useFirstOwnerInvitation';
 
-const repository = vi.hoisted(() => ({ createFirstOwnerInvitation: vi.fn() }));
+const repository = vi.hoisted(() => ({
+  createFirstOwnerInvitation: vi.fn(),
+  resendFirstOwnerInvitation: vi.fn(),
+}));
 
 vi.mock('./useRepositories', () => ({
   useRepositories: () => ({ tenant: repository }),
@@ -20,6 +23,7 @@ const OWNER = { inviteeEmail: 'owner@example.invalid' };
 describe('useFirstOwnerInvitation', () => {
   beforeEach(() => {
     repository.createFirstOwnerInvitation.mockReset();
+    repository.resendFirstOwnerInvitation.mockReset();
   });
 
   it('retries the same invitation under the same key, so no second e-mail goes out', async () => {
@@ -70,5 +74,77 @@ describe('useFirstOwnerInvitation', () => {
 
     const [first, second] = repository.createFirstOwnerInvitation.mock.calls;
     expect(second[2]).not.toBe(first[2]);
+  });
+
+  it('retries a resend under the same key, so no further e-mail goes out', async () => {
+    repository.resendFirstOwnerInvitation
+      .mockRejectedValueOnce(new Error('no answer'))
+      .mockResolvedValueOnce({ invitationId: '8' });
+    const { result } = renderHook(() => useFirstOwnerInvitation());
+
+    await act(async () => {
+      await result.current.resend('42', { locale: 'en-US' }).catch(() => undefined);
+    });
+    await act(async () => {
+      await result.current.resend('42', { locale: 'en-US' });
+    });
+
+    const [first, second] = repository.resendFirstOwnerInvitation.mock.calls;
+    expect(first[2]).toEqual(expect.any(String));
+    expect(second[2]).toBe(first[2]);
+  });
+
+  it('gives another locale, or another tenant, a resend key of its own', async () => {
+    repository.resendFirstOwnerInvitation.mockRejectedValue(new Error('no answer'));
+    const { result } = renderHook(() => useFirstOwnerInvitation());
+
+    await act(async () => {
+      await result.current.resend('42', { locale: 'en-US' }).catch(() => undefined);
+    });
+    await act(async () => {
+      await result.current.resend('42', { locale: 'zh-CN' }).catch(() => undefined);
+    });
+    await act(async () => {
+      await result.current.resend('43', { locale: 'zh-CN' }).catch(() => undefined);
+    });
+
+    const keys = repository.resendFirstOwnerInvitation.mock.calls.map((call) => call[2]);
+    expect(new Set(keys).size).toBe(3);
+  });
+
+  it('resends again under a new key once a resend went out: the operator means another e-mail', async () => {
+    repository.resendFirstOwnerInvitation.mockResolvedValue({ invitationId: '8' });
+    const { result } = renderHook(() => useFirstOwnerInvitation());
+
+    await act(async () => {
+      await result.current.resend('42', { locale: 'en-US' });
+    });
+    await act(async () => {
+      await result.current.resend('42', { locale: 'en-US' });
+    });
+
+    const [first, second] = repository.resendFirstOwnerInvitation.mock.calls;
+    expect(second[2]).not.toBe(first[2]);
+  });
+
+  it('keeps the key of a failed creation while a resend fails, and the other way round', async () => {
+    repository.createFirstOwnerInvitation.mockRejectedValue(new Error('no answer'));
+    repository.resendFirstOwnerInvitation.mockRejectedValue(new Error('no answer'));
+    const { result } = renderHook(() => useFirstOwnerInvitation());
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await act(async () => {
+        await result.current.create('42', OWNER).catch(() => undefined);
+      });
+      await act(async () => {
+        await result.current.resend('42', { locale: 'en-US' }).catch(() => undefined);
+      });
+    }
+
+    const creations = repository.createFirstOwnerInvitation.mock.calls.map((call) => call[2]);
+    const resends = repository.resendFirstOwnerInvitation.mock.calls.map((call) => call[2]);
+    expect(creations[1]).toBe(creations[0]);
+    expect(resends[1]).toBe(resends[0]);
+    expect(resends[0]).not.toBe(creations[0]);
   });
 });

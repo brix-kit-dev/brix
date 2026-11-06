@@ -146,6 +146,7 @@ internalContracts:
       replayableWrites:
         - createPendingTenant
         - createFirstOwnerInvitation
+        - resendFirstOwnerInvitation
 data:
   storageId: platform_tenant
   schema: platform-tenant

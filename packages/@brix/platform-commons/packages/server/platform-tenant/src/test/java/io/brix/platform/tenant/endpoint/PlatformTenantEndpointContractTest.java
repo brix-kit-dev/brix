@@ -48,12 +48,12 @@ class PlatformTenantEndpointContractTest {
 
     @Test
     void theContractNamesTheWritesWhoseResultsTheRuntimeMayKeep() throws IOException {
-        // Idempotency design D79; standard-link plan points 10b-3, 10b-4. Each is a method of the contract, and its result
+        // Idempotency design D79; standard-link plan points 10b-3 to 10b-5. Each is a method of the contract, and its result
         // holds no secret or credential: no token and no link.
         try (InputStream manifest = getClass().getClassLoader().getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
             List<String> writes = new PluginManifestLoader().load(manifest).getInternalContracts().getProvides().get(0)
                 .getReplayableWrites();
-            assertEquals(List.of("createPendingTenant", "createFirstOwnerInvitation"), writes);
+            assertEquals(List.of("createPendingTenant", "createFirstOwnerInvitation", "resendFirstOwnerInvitation"), writes);
         }
         assertEquals(List.of("id", "code", "name", "status"), components(
             io.brix.platform.tenant.internal.TenantAdministrationTenant.class));

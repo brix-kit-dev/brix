@@ -44,6 +44,7 @@ export interface PlatformTenantRepository {
   resendFirstOwnerInvitation(
     tenantId: string,
     req: ResendFirstOwnerInvitationRequest,
+    idempotencyKey: string,
   ): Promise<FirstOwnerInvitationDto>;
   revokeFirstOwnerInvitation(
     tenantId: string,
@@ -99,13 +100,15 @@ export function createPlatformTenantRepository(
           )
         : null;
     },
-    async resendFirstOwnerInvitation(tenantId, req) {
-      const response = await http.post<unknown>(
-        PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATIONS_RESEND(tenantId),
-        req,
-      );
+    async resendFirstOwnerInvitation(tenantId, req, idempotencyKey) {
+      const response = await http.request<unknown>({
+        url: PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATIONS_RESEND(tenantId),
+        method: 'POST',
+        data: req,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
       return normalizeFirstOwnerInvitationDto(
-        response as BackendFirstOwnerInvitationDto,
+        response.data as BackendFirstOwnerInvitationDto,
       );
     },
     async revokeFirstOwnerInvitation(tenantId, invitationId) {

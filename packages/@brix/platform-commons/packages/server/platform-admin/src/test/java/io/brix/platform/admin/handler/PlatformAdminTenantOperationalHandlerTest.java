@@ -62,6 +62,7 @@ class PlatformAdminTenantOperationalHandlerTest {
 
     private static final String CREATE = "platform.tenants.create.v1";
     private static final String INVITE = "platform.tenants.first-owner-invitations.create.v1";
+    private static final String RESEND = "platform.tenants.first-owner-invitations.resend.v1";
 
     private final TenantAdministration tenantAdministration = org.mockito.Mockito.mock(TenantAdministration.class);
     private final PlatformAuditAdministration audit = org.mockito.Mockito.mock(PlatformAuditAdministration.class);
@@ -174,6 +175,68 @@ class PlatformAdminTenantOperationalHandlerTest {
             contract, getClass().getClassLoader()));
     }
 
+    @Test
+    void aResentInvitationIsAnsweredAsItsSchemaSays() {
+        // Standard-link plan point 10b-5: the real descriptor and schemas, through the dispatcher.
+        when(tenantAdministration.resendFirstOwnerInvitation(any())).thenReturn(new FirstOwnerInvitationView(
+            8L, 42L, "owner@example.invalid", "PENDING", OffsetDateTime.parse("2026-07-28T12:00:00Z")));
+
+        EndpointResponse answer = (EndpointResponse) resend(Map.of("locale", "en-US"));
+
+        assertEquals(200, answer.status());
+        JsonNode body = (JsonNode) answer.body();
+        assertEquals("8", body.get("invitationId").asString());
+        assertEquals("42", body.get("tenantId").asString());
+        assertEquals("PENDING", body.get("status").asString());
+        ArgumentCaptor<ResendFirstOwnerInvitationCommand> command =
+            ArgumentCaptor.forClass(ResendFirstOwnerInvitationCommand.class);
+        verify(tenantAdministration).resendFirstOwnerInvitation(command.capture());
+        assertEquals(42L, command.getValue().tenantId());
+        assertEquals("en-US", command.getValue().locale());
+    }
+
+    @Test
+    void aResendNeedsNoBody() {
+        // The handler took a call without a body before it was typed, and the path alone still makes a whole request.
+        when(tenantAdministration.resendFirstOwnerInvitation(any())).thenReturn(new FirstOwnerInvitationView(
+            8L, 42L, "owner@example.invalid", "PENDING", OffsetDateTime.parse("2026-07-28T12:00:00Z")));
+
+        EndpointResponse answer = (EndpointResponse) resend(null);
+
+        assertEquals(200, answer.status());
+        ArgumentCaptor<ResendFirstOwnerInvitationCommand> command =
+            ArgumentCaptor.forClass(ResendFirstOwnerInvitationCommand.class);
+        verify(tenantAdministration).resendFirstOwnerInvitation(command.capture());
+        assertEquals(42L, command.getValue().tenantId());
+        assertNull(command.getValue().locale());
+    }
+
+    @ParameterizedTest
+    @MethodSource("resendsTheSchemaRefuses")
+    void aResendTheSchemaRefusesNeverReachesTheOwner(Map<String, Object> request) {
+        assertThrows(EndpointRequestInvalidException.class, () -> resend(request));
+
+        verify(tenantAdministration, never()).resendFirstOwnerInvitation(any());
+    }
+
+    static Stream<Map<String, Object>> resendsTheSchemaRefuses() {
+        return Stream.of(
+            Map.of("locale", 7),
+            Map.of("locale", "x".repeat(36)),
+            // The owner resends to the invitee it holds: the caller chooses neither the invitee nor the link.
+            Map.of("inviteeEmail", "other@example.invalid"),
+            Map.of("inviteBaseUrl", "https://evil.example.invalid/invite"));
+    }
+
+    @Test
+    void theResendIsReplayedThroughTheTenantOwner() {
+        EndpointContract contract = endpoint(RESEND).contract();
+
+        assertEquals("brix.internal.tenant.administration", contract.replay().writeContract());
+        assertEquals(Optional.empty(), TypedEndpointRules.problem(new ResendFirstOwnerInvitationHandler(context),
+            contract, getClass().getClassLoader()));
+    }
+
     private Object create(Map<String, Object> request) {
         return call(CREATE, new CreatePlatformTenantHandler(context), "/api/platform/tenants", request,
             "platform:tenant:create");
@@ -182,6 +245,11 @@ class PlatformAdminTenantOperationalHandlerTest {
     private Object invite(Map<String, Object> request) {
         return call(INVITE, new CreateFirstOwnerInvitationHandler(context),
             "/api/platform/tenants/42/first-owner-invitations", request, "platform:tenant:first-owner-invite");
+    }
+
+    private Object resend(Map<String, Object> request) {
+        return call(RESEND, new ResendFirstOwnerInvitationHandler(context),
+            "/api/platform/tenants/42/first-owner-invitations/resend", request, "platform:tenant:first-owner-invite");
     }
 
     private Object call(String endpointId, EndpointHandler<?, ?> handler, String path, Map<String, Object> request,

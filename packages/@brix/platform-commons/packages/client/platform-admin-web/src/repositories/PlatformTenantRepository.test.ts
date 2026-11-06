@@ -149,23 +149,38 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
 
   it('resends and revokes without exposing invitation token material', async () => {
     const http = createHttpCapabilityMock();
-    vi.mocked(http.post).mockResolvedValueOnce({
-      id: '8843',
-      tenantId: '42',
-      inviteeEmail: 'owner@example.invalid',
-      status: 'PENDING',
-      expiresAt: '2026-07-28T13:00:00Z',
-      token: 'must-not-render',
-      inviteUrl: 'https://console.example.invalid/?token=must-not-render',
+    vi.mocked(http.request).mockResolvedValueOnce({
+      data: {
+        id: '8843',
+        tenantId: '42',
+        inviteeEmail: 'owner@example.invalid',
+        status: 'PENDING',
+        expiresAt: '2026-07-28T13:00:00Z',
+        token: 'must-not-render',
+        inviteUrl: 'https://console.example.invalid/?token=must-not-render',
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
     });
     vi.mocked(http.delete).mockResolvedValueOnce(undefined);
 
     const repository = createPlatformTenantRepository(http);
-    const invitation = await repository.resendFirstOwnerInvitation('42', {
-      locale: 'en-US',
-    });
+    const invitation = await repository.resendFirstOwnerInvitation(
+      '42',
+      {
+        locale: 'en-US',
+      },
+      'key-3',
+    );
     await repository.revokeFirstOwnerInvitation('42', invitation.invitationId);
 
+    expect(http.request).toHaveBeenCalledWith({
+      url: '/platform/tenants/42/first-owner-invitations/resend',
+      method: 'POST',
+      data: { locale: 'en-US' },
+      headers: { 'Idempotency-Key': 'key-3' },
+    });
     expect(invitation).toEqual({
       invitationId: '8843',
       tenantId: '42',

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-admin/resend-first-owner-invitation-request/1.0.0",
+  "title": "Resend a tenant's first owner invitation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId"],
+  "properties": {
+    "tenantId": { "type": "integer", "minimum": 1 },
+    "locale": { "type": ["string", "null"], "maxLength": 35 }
+  }
+}

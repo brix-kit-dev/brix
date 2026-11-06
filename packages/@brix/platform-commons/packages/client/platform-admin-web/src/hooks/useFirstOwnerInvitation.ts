@@ -36,6 +36,8 @@ export function useFirstOwnerInvitation(): UseFirstOwnerInvitationResult {
   const inFlightRef = useRef(false);
   // A retry of the same invitation keeps its key for as long as the dialog lives.
   const createKeys = useRef(createIdempotencyKeys());
+  // So does a retry of a resend; once one went out, resending again means another e-mail, and takes another key.
+  const resendKeys = useRef(createIdempotencyKeys());
 
   const run = useCallback(
     async <T,>(operation: () => Promise<T>): Promise<T> => {
@@ -87,7 +89,12 @@ export function useFirstOwnerInvitation(): UseFirstOwnerInvitationResult {
   const resend = useCallback(
     (tenantId: string, req: ResendFirstOwnerInvitationRequest) =>
       run(async () => {
-        const invitation = await tenant.resendFirstOwnerInvitation(tenantId, req);
+        const invitation = await tenant.resendFirstOwnerInvitation(
+          tenantId,
+          req,
+          resendKeys.current.keyFor({ tenantId, req }),
+        );
+        resendKeys.current.done();
         setCurrent(invitation);
         return invitation;
       }),

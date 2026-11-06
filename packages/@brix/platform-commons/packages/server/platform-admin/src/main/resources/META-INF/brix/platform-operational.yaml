@@ -364,10 +364,11 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
-      # handler is idempotent by its business key.
+      # Super-admin §6: the caller names a key for each resend it means. The record goes with the one write through this
+      # contract, in the tenant owner's table (root BRX-RS-MANIFEST-018, HOST-020; standard-link plan point 10b-5).
       idempotency:
-        mode: not-applicable
+        mode: required
+        writeContract: brix.internal.tenant.administration
     - endpointId: platform.tenants.first-owner-invitations.revoke.v1
       transport: http
       method: DELETE
