@@ -19,6 +19,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.sql.DataSource;
 
@@ -110,6 +111,72 @@ class JdbcOutboxMessageStoreTest {
         insert("c", "PENDING", 0, NOW.minusSeconds(1), null, "key-2", NOW.minusSeconds(10));
 
         List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10);
+
+        assertEquals(List.of("c"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+    }
+
+    @Test
+    void whatHasBeenDueLongestIsClaimedFirst() {
+        // Standard-link plan §10.28, D87: a message that waited goes behind the messages already due. Otherwise the oldest
+        // message of a type the broker partly refuses would take every try.
+        insert("a", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(30));
+        insert("b", "PENDING", 0, NOW.minusSeconds(20), null, "key-2", NOW.minusSeconds(20));
+
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 1);
+
+        assertEquals(List.of("b"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+    }
+
+    @Test
+    void aBacklogOfAKeyDueBeforeItsEarlierMessageDoesNotFillTheBatch() {
+        // Those messages cannot leave before the earlier one, so as candidates they would take the batch from it for good.
+        insert("a", "PENDING", 0, NOW.minusSeconds(1), null, "key-1", NOW.minusSeconds(30));
+        insert("b", "PENDING", 0, NOW.minusSeconds(40), null, "key-1", NOW.minusSeconds(29));
+        insert("c", "PENDING", 0, NOW.minusSeconds(40), null, "key-1", NOW.minusSeconds(28));
+        insert("d", "PENDING", 0, NOW.minusSeconds(40), null, "key-1", NOW.minusSeconds(27));
+        insert("e", "PENDING", 0, NOW.minusSeconds(20), null, "key-2", NOW.minusSeconds(26));
+
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 2);
+
+        assertEquals(List.of("e", "a"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+        store.markPublished("relay-a", "a", NOW.plusSeconds(1));
+        assertEquals(List.of("b", "c"), store.claimDue("relay-b", NOW.plusSeconds(2), Duration.ofSeconds(30), 2).stream()
+            .map(CanonicalOutboxMessage::messageId).toList());
+    }
+
+    @Test
+    void aTypeLeftOutIsNotClaimedAndTakesNoPlaceInTheBatch() {
+        // Standard-link plan §10.28, D87: a backlog of a type the transport refuses does not hold the others back.
+        insertTyped("a", "Refused", "key-1", NOW.minusSeconds(30));
+        insertTyped("b", "AlsoRefused", "key-2", NOW.minusSeconds(20));
+        insertTyped("c", "Taken", "key-3", NOW.minusSeconds(10));
+
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 1,
+            Set.of("Refused", "AlsoRefused"));
+
+        assertEquals(List.of("c"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
+        assertEquals("PENDING", queryString("status", "a"));
+        assertEquals("0", queryString("attempt_count", "a"));
+    }
+
+    @Test
+    void aMessageLeftOutKeepsTheLaterMessagesOfItsKeyBehindIt() {
+        // Root BRX-RS-MESSAGE-027, whatever the later message's type is.
+        insertTyped("a", "Refused", "key-1", NOW.minusSeconds(30));
+        insertTyped("b", "Taken", "key-1", NOW.minusSeconds(20));
+
+        assertEquals(List.of(), store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 10, Set.of("Refused")));
+        assertEquals("PENDING", queryString("status", "b"));
+        assertEquals("0", queryString("attempt_count", "b"));
+    }
+
+    @Test
+    void aMessageBehindALeftOutOneTakesNoPlaceInTheBatchEither() {
+        insertTyped("a", "Refused", "key-1", NOW.minusSeconds(30));
+        insertTyped("b", "Taken", "key-1", NOW.minusSeconds(20));
+        insertTyped("c", "Taken", "key-2", NOW.minusSeconds(10));
+
+        List<CanonicalOutboxMessage> claimed = store.claimDue("relay-a", NOW, Duration.ofSeconds(30), 1, Set.of("Refused"));
 
         assertEquals(List.of("c"), claimed.stream().map(CanonicalOutboxMessage::messageId).toList());
     }
@@ -231,11 +298,15 @@ class JdbcOutboxMessageStoreTest {
         assertEquals(null, queryString("claim_owner", "a"));
         assertEquals(List.of(), store.claimDue("relay-a", NOW.plusSeconds(1), Duration.ofSeconds(30), 10),
             "neither is due before the wait is over: b stays behind a");
-        assertEquals(List.of("a", "b"), store.claimDue("relay-b", NOW.plusSeconds(6), Duration.ofSeconds(30), 10)
-            .stream().map(CanonicalOutboxMessage::messageId).toList());
+        assertEquals(List.of("a"), store.claimDue("relay-b", NOW.plusSeconds(6), Duration.ofSeconds(30), 10)
+            .stream().map(CanonicalOutboxMessage::messageId).toList(),
+            "b has been due longer than a, so it goes once a has left and not with it");
         assertThrows(IllegalStateException.class,
             () -> store.releaseWaiting("relay-a", "a", NOW.plusSeconds(10), "OWNER_UNAVAILABLE"),
             "only the relay that holds the claim hands it back");
+        store.markPublished("relay-b", "a", NOW.plusSeconds(6));
+        assertEquals(List.of("b"), store.claimDue("relay-b", NOW.plusSeconds(7), Duration.ofSeconds(30), 10)
+            .stream().map(CanonicalOutboxMessage::messageId).toList());
     }
 
     @Test
@@ -419,18 +490,36 @@ class JdbcOutboxMessageStoreTest {
             OffsetDateTime claimUntil,
             String partitionKey,
             OffsetDateTime occurredAt) {
+        insert(id, status, attemptCount, availableAt, claimUntil, partitionKey, occurredAt, "TenantFirstOwnerAccepted");
+    }
+
+    private void insertTyped(String id, String type, String partitionKey, OffsetDateTime occurredAt) {
+        insert(id, "PENDING", 0, NOW.minusSeconds(1), null, partitionKey, occurredAt, type);
+    }
+
+    private void insert(
+            String id,
+            String status,
+            int attemptCount,
+            OffsetDateTime availableAt,
+            OffsetDateTime claimUntil,
+            String partitionKey,
+            OffsetDateTime occurredAt,
+            String type) {
         jdbcTemplate.update("""
             INSERT INTO %s (
                 message_id, event_id, message_kind, message_type, event_type, schema_version,
                 reliability, producer_plugin_id, scope, tenant_id, partition_key,
                 occurred_at, correlation_id, payload, status, available_at,
                 attempt_count, claim_until, created_at
-            ) VALUES (?, ?, 'EVENT', 'TenantFirstOwnerAccepted', 'TenantFirstOwnerAccepted', '1.0.0',
+            ) VALUES (?, ?, 'EVENT', ?, ?, '1.0.0',
                 'CRITICAL', 'platform-tenant', 'TENANT', 100, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?)
             """.formatted(table),
             id,
             "event-" + id,
+            type,
+            type,
             partitionKey,
             timestamp(occurredAt),
             "corr-" + id,

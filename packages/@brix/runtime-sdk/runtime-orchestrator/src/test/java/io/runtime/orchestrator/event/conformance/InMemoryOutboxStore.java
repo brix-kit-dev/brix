@@ -9,8 +9,10 @@ package io.runtime.orchestrator.event.conformance;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import io.runtime.orchestrator.command.SentCommand;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
@@ -20,10 +22,10 @@ import io.runtime.orchestrator.outbox.OutboxMessageStore;
 import io.runtime.orchestrator.outbox.ParkedOutboxMessage;
 
 /**
- * An owner outbox in memory, with the claim, lease, retry and park rules of the JDBC store: rows are claimed
- * in the order they occurred, a row waits behind an earlier row of its partition key that waits for its retry or
- * is in flight, a claim counts an attempt, an expired lease makes the row claimable again, and only the claimant
- * may finish it.
+ * An owner outbox in memory, with the claim, lease, retry and park rules of the JDBC store: what has been due longest
+ * is claimed first, a row waits behind an earlier row of its partition key that waits for its retry, is in flight or
+ * came due later, a claim counts an attempt, an expired lease makes the row claimable again, and only the claimant may
+ * finish it.
  */
 public final class InMemoryOutboxStore implements OutboxMessageStore {
 
@@ -39,15 +41,22 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
     @Override
     public synchronized List<CanonicalOutboxMessage> claimDue(
             String relayOwner, OffsetDateTime now, Duration leaseDuration, int batchSize) {
+        return claimDue(relayOwner, now, leaseDuration, batchSize, Set.of());
+    }
+
+    @Override
+    public synchronized List<CanonicalOutboxMessage> claimDue(
+            String relayOwner, OffsetDateTime now, Duration leaseDuration, int batchSize, Set<String> leftOutTypes) {
         // As the JDBC store: the candidates come from the rows as they are before this claim.
         List<Row> candidates = new ArrayList<>();
-        for (Row row : rows) {
+        for (Row row : rows.stream().sorted(Comparator.comparing((Row row) -> row.availableAt)).toList()) {
             if (candidates.size() == batchSize) {
                 break;
             }
             boolean due = row.status == Status.PENDING && !row.availableAt.isAfter(now);
             boolean expired = row.status == Status.IN_FLIGHT && row.claimUntil.isBefore(now);
-            if ((due || expired) && !waitsBehind(row, now)) {
+            if ((due || expired) && !leftOutTypes.contains(row.message.messageType())
+                    && !waitsBehind(row, now, leftOutTypes)) {
                 candidates.add(row);
             }
         }
@@ -217,7 +226,7 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
     }
 
     /** Whether an earlier row of the same partition key waits for its retry or is in flight. */
-    private boolean waitsBehind(Row row, OffsetDateTime now) {
+    private boolean waitsBehind(Row row, OffsetDateTime now, Set<String> leftOutTypes) {
         for (Row earlier : rows) {
             if (earlier == row) {
                 return false;
@@ -225,7 +234,10 @@ public final class InMemoryOutboxStore implements OutboxMessageStore {
             boolean sameKey = earlier.message.partitionKey().equals(row.message.partitionKey());
             boolean waiting = earlier.status == Status.PENDING && earlier.availableAt.isAfter(now);
             boolean inFlight = earlier.status == Status.IN_FLIGHT && !earlier.claimUntil.isBefore(now);
-            if (sameKey && (waiting || inFlight)) {
+            boolean open = earlier.status == Status.PENDING || earlier.status == Status.IN_FLIGHT;
+            boolean dueLater = open && earlier.availableAt.isAfter(row.availableAt);
+            boolean leftOut = open && leftOutTypes.contains(earlier.message.messageType());
+            if (sameKey && (waiting || inFlight || dueLater || leftOut)) {
                 return true;
             }
         }

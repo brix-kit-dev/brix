@@ -36,6 +36,9 @@ public interface OutboxRelayMetrics {
     }
 
     /** Whether the relay waits because its transport cannot deliver now, so it claims nothing. */
+    default void recordWait(String messageType, String errorCode) {
+    }
+
     default void recordWaiting(boolean waiting) {
     }
 }

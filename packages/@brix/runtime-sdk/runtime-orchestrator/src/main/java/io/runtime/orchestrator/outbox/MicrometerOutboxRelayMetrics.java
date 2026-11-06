@@ -31,6 +31,8 @@ public final class MicrometerOutboxRelayMetrics implements OutboxRelayMetrics {
     public static final String PUBLISHED = "brix.outbox.published";
     /** Deliveries that failed and wait for a retry. */
     public static final String RETRIES = "brix.outbox.retries";
+    /** Deliveries the receiving side could not take now: they wait without spending an attempt. */
+    public static final String WAITS = "brix.outbox.waits";
     /** Messages the relay parked. */
     public static final String PARKED = "brix.outbox.parked";
     /** 1 while the relay waits because its transport cannot deliver, such as a broker that cannot be reached. */
@@ -106,6 +108,11 @@ public final class MicrometerOutboxRelayMetrics implements OutboxRelayMetrics {
     @Override
     public void recordRetry(String messageType, String errorCode) {
         counter(RETRIES, "Outbox deliveries that failed and wait for a retry", messageType, errorCode).increment();
+    }
+
+    @Override
+    public void recordWait(String messageType, String errorCode) {
+        counter(WAITS, "Outbox deliveries the receiving side could not take now", messageType, errorCode).increment();
     }
 
     @Override

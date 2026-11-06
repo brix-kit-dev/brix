@@ -9,8 +9,10 @@ package io.runtime.orchestrator.outbox;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -34,6 +36,12 @@ import io.runtime.orchestrator.tracing.MessageTracing;
  * When the transport stops answering in the middle of a pass, or the relay is being stopped, the rest
  * of the pass goes back untried and spends no attempt (Kafka design D21).</p>
  *
+ * <p>A message the receiving side cannot take now through no fault of its own waits without spending an attempt. When
+ * the transport says so of its whole type, such as for a topic the broker refuses, the relay claims no message of that
+ * type until the wait ends: the type costs one try per wait, and its backlog neither fills the batches nor holds back
+ * the other types. The store hands out what has been due longest, so the message that waited goes behind the others
+ * and the next try falls on another key (standard-link plan §10.28, D87).</p>
+ *
  * @author Runtime SDK Team
  * @since 3.0.10
  */
@@ -55,6 +63,7 @@ public final class OutboxRelay implements AutoCloseable {
     private final OutboxRelayMetrics metrics;
     private final MessageTracing tracing;
     private final AtomicBoolean accepting = new AtomicBoolean(true);
+    private final Map<String, OffsetDateTime> waitingTypes = new HashMap<>();
     private boolean waiting;
 
     /**
@@ -168,12 +177,14 @@ public final class OutboxRelay implements AutoCloseable {
             waiting = false;
             log.info("event=outbox.relay_resumed pending={}", backlog.pendingCount());
         }
+        waitingTypes.values().removeIf(until -> !until.isAfter(now));
         String claim = relayOwner + ":" + UUID.randomUUID();
         List<CanonicalOutboxMessage> messages = store.claimDue(
             claim,
             now,
             policy.leaseDuration(),
-            policy.batchSize());
+            policy.batchSize(),
+            Set.copyOf(waitingTypes.keySet()));
         metrics.recordClaimed(messages.size());
         int published = 0;
         int retried = 0;
@@ -182,7 +193,10 @@ public final class OutboxRelay implements AutoCloseable {
         Set<String> heldBack = new HashSet<>();
         boolean stopped = false;
         for (CanonicalOutboxMessage message : messages) {
-            if (stopped || heldBack.contains(message.partitionKey())) {
+            if (stopped || heldBack.contains(message.partitionKey())
+                    || waitingTypes.containsKey(message.messageType())) {
+                // A later message of its key may be of another type: it stays behind this one.
+                heldBack.add(message.partitionKey());
                 handBack(claim, message);
                 continue;
             }
@@ -209,12 +223,19 @@ public final class OutboxRelay implements AutoCloseable {
             }
             try {
                 if (failure != null && failure.unavailable()) {
-                    // The subscriber cannot take it now (not started, database down): it waits without spending
-                    // an attempt, as the transport's own outages do (Kafka design §14 K11, D21); its key waits too.
-                    store.releaseWaiting(claim, message.messageId(), nextWaitAt(), failure.errorCode());
+                    // The receiving side cannot take it now (a subscriber not started or its database down, brokers
+                    // that refuse writes): it waits without spending an attempt, as the transport's own outages do
+                    // (Kafka design §14 K11, D21); its key waits too, and its type if the transport says so.
+                    OffsetDateTime tryAgainAt = nextWaitAt();
+                    if (failure.wholeType()) {
+                        waitingTypes.put(message.messageType(), tryAgainAt);
+                    }
+                    store.releaseWaiting(claim, message.messageId(), tryAgainAt, failure.errorCode());
+                    metrics.recordWait(message.messageType(), failure.errorCode());
                     heldBack.add(message.partitionKey());
                     log.info("event=outbox.delivery_waiting type={} message_id={} code={}", message.messageType(),
                         message.messageId(), failure.errorCode());
+                    stopped = transportLost(messages.size() - published - parked);
                 } else if (failure == null) {
                     store.markPublished(claim, message.messageId(), now());
                     metrics.recordPublished(message.messageType());
@@ -230,15 +251,7 @@ public final class OutboxRelay implements AutoCloseable {
                     metrics.recordRetry(message.messageType(), failure.errorCode());
                     heldBack.add(message.partitionKey());
                     retried++;
-                    if (!transport.ready()) {
-                        // The transport went away during the pass: this message spent its attempt (a send
-                        // timeout counts, D21), the others go back untried and the relay waits.
-                        stopped = true;
-                        waiting = true;
-                        metrics.recordWaiting(true);
-                        log.info("event=outbox.relay_waiting pending={} reason=transport_lost_during_pass",
-                            messages.size() - published - parked);
-                    }
+                    stopped = transportLost(messages.size() - published - parked);
                 }
             } catch (RuntimeException lost) {
                 // The claim was lost (the lease expired and another pass took the row): its new claimant decides.
@@ -260,6 +273,17 @@ public final class OutboxRelay implements AutoCloseable {
     @Override
     public void close() {
         drain();
+    }
+
+    /** Whether the transport went away during the pass: the rest of it then goes back untried and the relay waits. */
+    private boolean transportLost(int left) {
+        if (transport.ready()) {
+            return false;
+        }
+        waiting = true;
+        metrics.recordWaiting(true);
+        log.info("event=outbox.relay_waiting pending={} reason=transport_lost_during_pass", left);
+        return true;
     }
 
     /** Sends the message in its PRODUCER span, with the span's trace context (root BRX-RS-OTEL-002). */

@@ -17,13 +17,18 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.InvalidRecordException;
+import org.apache.kafka.common.errors.AuthenticationException;
+import org.apache.kafka.common.errors.AuthorizationException;
+import org.apache.kafka.common.errors.CorruptRecordException;
 import org.apache.kafka.common.errors.InvalidTopicException;
+import org.apache.kafka.common.errors.OutOfOrderSequenceException;
 import org.apache.kafka.common.errors.RecordBatchTooLargeException;
 import org.apache.kafka.common.errors.RecordTooLargeException;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
@@ -42,13 +47,20 @@ import io.runtime.orchestrator.outbox.OutboxTransportException;
  * partition key. It does not own Outbox state, does not decide reliability, and does
  * not rewrite message or event identity.</p>
  * <p>It is ready while the broker answers, so the relay claims nothing while Kafka cannot be reached and
- * waiting spends no attempts (D21); a send that times out still counts as an attempt, and makes the
- * broker probe again before the relay's next readiness check. A record Kafka can never take (too large,
- * an invalid topic or record) fails permanently, so the relay parks it at once instead of holding its key
- * back for every retry. The producer gives up on a record within the publish timeout
- * ({@code delivery.timeout.ms}), and the transport waits a little longer than that, so a send reported as
- * failed is not still under way. The broker does not create topics by itself, so the transport makes sure
- * an event type's topic exists before its first send.</p>
+ * waiting spends no attempts (D21). A failure says why Kafka did not take the record, and the relay acts on that
+ * (standard-link plan §10.28):</p>
+ * <ul>
+ *   <li>a record Kafka can never take (too large, an invalid topic or record) fails permanently, so the relay parks
+ *       it at once instead of holding its key back for every retry;</li>
+ *   <li>brokers that cannot take writes now (too few replicas, no leader, a send that timed out, a topic that cannot
+ *       be prepared) or that refuse this client (an ACL, its identity) are no fault of the message: it waits without
+ *       spending an attempt, its type waits with it, and a broker fault makes the broker probe again before the
+ *       relay's next readiness check;</li>
+ *   <li>any other failure spends an attempt.</li>
+ * </ul>
+ * <p>The producer gives up on a record within the publish timeout ({@code delivery.timeout.ms}), and the transport
+ * waits a little longer than that, so a send reported as failed is not still under way. The broker does not create
+ * topics by itself, so the transport makes sure an event type's topic exists before its first send.</p>
  *
  * @author Brix Platform Authors
  * @since 3.0.10
@@ -64,6 +76,10 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
     private static final String ERROR_FAILED = "KAFKA_SEND_FAILED";
     private static final String ERROR_TIMEOUT = "KAFKA_SEND_TIMEOUT";
     private static final String ERROR_REJECTED = "KAFKA_RECORD_REJECTED";
+    /** The brokers cannot take writes now, such as too few replicas or no leader. */
+    private static final String ERROR_BROKER_UNAVAILABLE = "KAFKA_BROKER_UNAVAILABLE";
+    /** The brokers refuse this client: an ACL or its identity. */
+    private static final String ERROR_ACCESS_DENIED = "KAFKA_ACCESS_DENIED";
     private static final String ERROR_KIND_UNSUPPORTED = "KAFKA_KIND_UNSUPPORTED";
 
     /** How much longer than the producer's own delivery timeout the transport waits for its verdict. */
@@ -129,11 +145,16 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
         } catch (KafkaTopicPartitionsException tooFew) {
             // A configuration the operator fixes, not a failure of this message: it waits without spending an attempt
             // (standard-link plan point 5).
-            throw OutboxTransportException.unavailable(ERROR_TOPIC_PARTITIONS, "Kafka topic " + topic
+            throw OutboxTransportException.typeUnavailable(ERROR_TOPIC_PARTITIONS, "Kafka topic " + topic
                 + " has too few partitions", tooFew);
         } catch (IllegalStateException unavailable) {
-            throw new OutboxTransportException(ERROR_TOPIC_UNAVAILABLE, "Kafka topic " + topic + " is not available",
-                unavailable);
+            if (kafkaCause(unavailable) instanceof InvalidTopicException invalid) {
+                // Such as a name that collides with another topic's: no wait can help.
+                throw new OutboxTransportException(ERROR_TOPIC_INVALID, invalid.getMessage(), invalid, true);
+            }
+            broker.suspect();
+            throw OutboxTransportException.typeUnavailable(ERROR_TOPIC_UNAVAILABLE, "Kafka topic " + topic
+                + " is not available", unavailable);
         }
         ProducerRecord<String, String> record = new ProducerRecord<>(
             topic,
@@ -141,26 +162,58 @@ public final class CanonicalKafkaOutboxTransport implements OutboxTransport {
             message.partitionKey(),
             writeEnvelope(message),
             headers(message));
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(record);
         try {
+            CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(record);
             future.get(publishTimeout.plus(VERDICT_MARGIN).toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new OutboxTransportException(ERROR_INTERRUPTED, "Kafka outbox publish interrupted", ex);
-        } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause();
-            if (neverAccepted(cause)) {
-                throw new OutboxTransportException(ERROR_REJECTED, "Kafka cannot take this record: "
-                    + cause.getClass().getSimpleName(), cause, true);
-            }
-            if (cause instanceof RetriableException) {
-                broker.suspect();
-            }
-            throw new OutboxTransportException(ERROR_FAILED, "Kafka outbox publish failed", cause);
+        } catch (ExecutionException | KafkaException | org.apache.kafka.common.KafkaException ex) {
+            // What the producer finds before it queues the record, such as a record too large, KafkaTemplate throws.
+            throw refusal(ex);
         } catch (TimeoutException ex) {
             broker.suspect();
-            throw new OutboxTransportException(ERROR_TIMEOUT, "Kafka outbox publish timed out", ex);
+            throw OutboxTransportException.typeUnavailable(ERROR_TIMEOUT, "Kafka outbox publish timed out", ex);
         }
+    }
+
+    /** Says why Kafka did not take the record. */
+    private OutboxTransportException refusal(Throwable failure) {
+        Throwable cause = kafkaCause(failure);
+        String name = cause.getClass().getSimpleName();
+        if (neverAccepted(cause)) {
+            return new OutboxTransportException(ERROR_REJECTED, "Kafka cannot take this record: " + name, cause, true);
+        }
+        if (cause instanceof AuthorizationException || cause instanceof AuthenticationException) {
+            return OutboxTransportException.typeUnavailable(ERROR_ACCESS_DENIED, "Kafka refuses this client: " + name, cause);
+        }
+        if (brokerFault(cause)) {
+            broker.suspect();
+            return OutboxTransportException.typeUnavailable(
+                cause instanceof org.apache.kafka.common.errors.TimeoutException ? ERROR_TIMEOUT : ERROR_BROKER_UNAVAILABLE,
+                "Kafka cannot take writes now: " + name, cause);
+        }
+        return new OutboxTransportException(ERROR_FAILED, "Kafka outbox publish failed", cause);
+    }
+
+    /** KafkaTemplate wraps what the producer reports, so Kafka's own failure lies at the end of the causes. */
+    private static Throwable kafkaCause(Throwable failure) {
+        Throwable found = failure;
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof org.apache.kafka.common.KafkaException) {
+                found = cause;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Whether the brokers cannot take writes now, which says nothing about the record. After a lost replica the broker
+     * may not know the producer's sequence any more: KafkaTemplate then replaces the producer, and the next send goes.
+     */
+    private static boolean brokerFault(Throwable cause) {
+        return cause instanceof RetriableException && !(cause instanceof CorruptRecordException)
+            || cause instanceof OutOfOrderSequenceException;
     }
 
     private static boolean neverAccepted(Throwable cause) {

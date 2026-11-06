@@ -50,8 +50,8 @@ flowchart LR
 
 1. The publisher writes its business change and the event in one local transaction. The event lands in the
    publisher's outbox, so the two commit or roll back together.
-2. After the commit, the relay sends the event to the broker. If the broker cannot be reached, the relay waits and
-   the event stays in the outbox. Waiting does not count as a failed attempt.
+2. After the commit, the relay sends the event to the broker. If the broker cannot be reached, or cannot take the
+   event for now, the relay waits and the event stays in the outbox. Waiting does not count as a failed attempt.
 3. Each subscription has its own consumer. The runtime opens the subscriber's unit of work in the event's tenant,
    records `(handlerId, eventId)` in the subscriber's inbox, and calls the handler. The receipt and the handler's
    writes commit together.
@@ -65,7 +65,7 @@ flowchart LR
 | Order | A subscriber sees the events of **one event type with the same partition key** (the event's routing key) in publish order. While an event is retried, the later events of its key wait for it. **A parked event is the exception:** parked in the publisher's outbox or at a subscription, it holds nothing back. The later events of its key go on, and a replayed one arrives after them. There is no order across event types or keys. To order events of different types for one aggregate, or to ignore a replayed event that is older than what you have, put the aggregate's version in the payloads and compare it in the subscriber. |
 | New subscriptions | A subscription starts at the moment it is first registered. It does not receive older events; a renamed `handlerId` is a new subscription. For history, an operator republishes events that are still in the outbox (see [Operating](#operating)). |
 | Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that does not finish by its deadline counts as a failed attempt, even one that did its work and returned late: its writes and the inbox receipt roll back. A command's handler can instead reject the command, which ends it without a retry (see [Providing a command](#providing-a-command)). |
-| Outages | If the subscriber's database is down or the plugin is not started, the subscription pauses. Attempts are not used up, and the event is delivered once the cause is gone. |
+| Outages | If the subscriber's database is down or the plugin is not started, the subscription pauses. If the brokers refuse writes (too few replicas, no leader, an ACL), the events of that type wait in the outbox and the other types go on. Attempts are not used up, and the event is delivered once the cause is gone. |
 | Tenancy | A TENANT event is handled in its own tenant; a PLATFORM event in none. The runtime binds the producer and the tenant from the publishing unit of work. An event cannot claim another publisher or tenant. |
 | Contracts | Each event type has one publisher. Its payload has a versioned JSON schema, and subscribers name the schema range they accept. |
 
@@ -706,12 +706,31 @@ Choose them once. The samples show each one:
 
 | Area | Metrics |
 |---|---|
-| Outbox | `brix_outbox_messages{outbox,status}`, `brix_outbox_oldest_pending_age_seconds`, `brix_outbox_relay_waiting` |
+| Outbox | `brix_outbox_messages{outbox,status}`, `brix_outbox_oldest_pending_age_seconds`, `brix_outbox_relay_waiting`, `brix_outbox_waits_total{outbox,type,code}` |
 | Subscriptions | `brix_event_subscription_parked`, `_lag`, `_stalled_age_seconds`, `_handling_age_seconds`, `_consumer_running` |
 | Commands | `brix_command_idempotency_conflicts_total{owner,handler}`: commands that reused a key with other content, a mistake of their sender. A rejection is the owner's answer, not a fault: it is logged as `event=command.rejected` with its code and not counted |
 | Cleaning | `brix_messaging_retention_deleted_total`, `_failures_total`, `_last_pass_seconds` |
 
 Subscription readiness is part of the host's health.
+
+**Messages that wait.** A message the receiving side cannot take now spends no attempt and is not parked, so no
+parked alert fires: watch `brix_outbox_waits_total`. The messages leave by themselves once the cause is gone. When Kafka
+cannot take a message, its whole type waits: the relay tries one message of the type every few seconds and sends the
+other types. `code` says why:
+
+| Code | Cause |
+|---|---|
+| `KAFKA_ACCESS_DENIED` | An ACL refuses the host, or the brokers refuse its identity |
+| `KAFKA_BROKER_UNAVAILABLE` | The brokers cannot take writes now, such as too few in-sync replicas or no leader |
+| `KAFKA_SEND_TIMEOUT` | The brokers answered nothing within the publish timeout |
+| `KAFKA_TOPIC_UNAVAILABLE` | The host could not prepare the topic |
+| `KAFKA_TOPIC_PARTITIONS` | The topic has fewer partitions than the production profile needs |
+
+On the in-process transport only the message's key waits, with a code such as `EVENT_SUBSCRIBER_NOT_READY` or
+`EVENT_OWNER_UNAVAILABLE`.
+
+A record Kafka can never take, such as one too large or one whose topic name the brokers refuse, is parked at once. Any
+other send failure spends an attempt.
 
 **Parked messages.** The management port lists parked messages. Every action needs an `operator` and a `reason`. It is
 recorded in the platform audit before it takes effect, and it is refused if the audit cannot be written:

@@ -240,6 +240,15 @@ All notable changes to Brix Framework are documented here.
   events guide also lists the identifiers that cannot change once a plugin runs in production (`pluginId`,
   `storageId`, event and command types, handler ids, published schema versions and task ids), with what a change
   does and what to do instead.
+- **The relay knows why Kafka did not take a message.** `KafkaTemplate` wraps what the producer reports, or throws it
+  from `send()`, so the Kafka transport recognized no real failure: each one spent an attempt, and brokers that refused
+  writes had the messages parked after about three minutes. Now:
+  - a record Kafka can never take, such as one too large or one whose topic name the brokers refuse, is parked at once;
+  - brokers that cannot take writes now (too few replicas, no leader, a send that timed out, a topic that cannot be
+    prepared) or that refuse the host (an ACL, its identity) are no fault of the message: it waits without spending an
+    attempt and leaves by itself once the cause is gone;
+  - while a type waits, the relay tries one of its messages every few seconds and sends the other types;
+  - a wait parks nothing, so it is counted in `brix_outbox_waits_total{outbox,type,code}`.
 
 ---
 

@@ -43,6 +43,7 @@ class MicrometerOutboxRelayMetricsTest {
 
         metrics.recordPublished("TenantFirstOwnerAccepted");
         metrics.recordRetry("TenantFirstOwnerAccepted", "EVENT_HANDLER_FAILED");
+        metrics.recordWait("TenantFirstOwnerAccepted", "KAFKA_ACCESS_DENIED");
         metrics.recordParked("TenantFirstOwnerAccepted", "EVENT_PAYLOAD_INVALID");
         metrics.recordParked("TenantFirstOwnerAccepted", "EVENT_PAYLOAD_INVALID");
 
@@ -50,6 +51,9 @@ class MicrometerOutboxRelayMetricsTest {
             .tags("outbox", "platform_tenant_outbox", "type", "TenantFirstOwnerAccepted").counter().count());
         assertEquals(1, registry.get(MicrometerOutboxRelayMetrics.RETRIES)
             .tags("outbox", "platform_tenant_outbox", "code", "EVENT_HANDLER_FAILED").counter().count());
+        assertEquals(1, registry.get(MicrometerOutboxRelayMetrics.WAITS)
+            .tags("outbox", "platform_tenant_outbox", "type", "TenantFirstOwnerAccepted", "code", "KAFKA_ACCESS_DENIED")
+            .counter().count());
         assertEquals(2, registry.get(MicrometerOutboxRelayMetrics.PARKED)
             .tags("outbox", "platform_tenant_outbox", "code", "EVENT_PAYLOAD_INVALID").counter().count());
     }

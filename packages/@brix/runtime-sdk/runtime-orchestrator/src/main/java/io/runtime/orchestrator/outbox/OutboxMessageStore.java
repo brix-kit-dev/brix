@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Broker-neutral L2B port for claiming and finalizing canonical outbox records.
@@ -35,11 +36,14 @@ public interface OutboxMessageStore {
     void append(CanonicalOutboxMessage message);
 
     /**
-     * Atomically claims due messages, in the order the outbox recorded them.
+     * Atomically claims due messages: what has been due longest first, and what came due together in the order the
+     * outbox recorded it. A message that waited or is retried goes behind the messages already due, so it does not keep
+     * them from their turn (standard-link plan §10.28, D87).
      * <p>A message whose partition key has an earlier message that waits for its retry or is in flight is not
      * claimed: it stays behind that message, so the events of one key leave in their order (root
-     * BRX-RS-MESSAGE-027). Due messages of one key are claimed together, in order. This holds when several
-     * relays claim from the same outbox at once.</p>
+     * BRX-RS-MESSAGE-027). The same goes for a message due before an earlier one of its key: it follows once that one
+     * has left. Other due messages of one key are claimed together, in order. This holds when several relays claim from
+     * the same outbox at once.</p>
      *
      * @param relayOwner the claim token of this pass
      * @param now claim timestamp
@@ -52,6 +56,28 @@ public interface OutboxMessageStore {
             OffsetDateTime now,
             Duration leaseDuration,
             int batchSize);
+
+    /**
+     * Claims due messages as {@link #claimDue(String, OffsetDateTime, Duration, int)} does, leaving out some message
+     * types: their messages stay pending and take no place in the batch, so a type the transport cannot take now does
+     * not hold back the others (standard-link plan §10.28). A later message of a left-out message's partition key stays
+     * behind it, whatever its type. A store that cannot leave types out may claim them: the relay hands them back.
+     *
+     * @param relayOwner the claim token of this pass
+     * @param now claim timestamp
+     * @param leaseDuration lease duration
+     * @param batchSize maximum number of messages
+     * @param leftOutTypes message types not to claim
+     * @return claimed messages
+     */
+    default List<CanonicalOutboxMessage> claimDue(
+            String relayOwner,
+            OffsetDateTime now,
+            Duration leaseDuration,
+            int batchSize,
+            Set<String> leftOutTypes) {
+        return claimDue(relayOwner, now, leaseDuration, batchSize);
+    }
 
     /**
      * Marks a claimed message as published.

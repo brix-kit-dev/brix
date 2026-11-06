@@ -13,9 +13,11 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,15 +124,40 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
             OffsetDateTime now,
             Duration leaseDuration,
             int batchSize) {
+        return claimDue(relayOwner, now, leaseDuration, batchSize, Set.of());
+    }
+
+    @Override
+    public List<CanonicalOutboxMessage> claimDue(
+            String relayOwner,
+            OffsetDateTime now,
+            Duration leaseDuration,
+            int batchSize,
+            Set<String> leftOutTypes) {
         requireRelayOwner(relayOwner);
         Objects.requireNonNull(now, "now must not be null");
         Objects.requireNonNull(leaseDuration, "leaseDuration must not be null");
+        Objects.requireNonNull(leftOutTypes, "leftOutTypes must not be null");
         if (batchSize <= 0) {
             throw new IllegalArgumentException("batchSize must be positive");
         }
+        String types = String.join(", ", Collections.nCopies(leftOutTypes.size(), "?"));
+        String leftOut = leftOutTypes.isEmpty() ? "" : "AND m.message_type NOT IN (" + types + ")";
+        String behindLeftOut = leftOutTypes.isEmpty() ? "" : "OR (e.status IN (?, ?) AND e.message_type IN (" + types + "))";
+        List<Object> arguments = new ArrayList<>(List.of(STATUS_PENDING, timestamp(now), STATUS_IN_FLIGHT, timestamp(now)));
+        arguments.addAll(leftOutTypes);
+        arguments.addAll(List.of(STATUS_PENDING, timestamp(now), STATUS_IN_FLIGHT, timestamp(now), STATUS_PENDING,
+            STATUS_IN_FLIGHT));
+        if (!leftOutTypes.isEmpty()) {
+            arguments.addAll(List.of(STATUS_PENDING, STATUS_IN_FLIGHT));
+            arguments.addAll(leftOutTypes);
+        }
+        arguments.add(batchSize);
         return transactionTemplate.execute(status -> {
             // A message stays behind an earlier one of its partition key that waits for its retry or is in
-            // flight (root BRX-RS-MESSAGE-027); due messages of one key come together, in order.
+            // flight (root BRX-RS-MESSAGE-027). What has been due longest goes first, so a message that waited does not
+            // keep the others from their turn; a message due before an earlier one of its key waits for that one, or
+            // a backlog of its key would fill the batch without the earlier one that has to leave first.
             List<Candidate> candidates = jdbcTemplate.query("""
                 SELECT m.message_id, m.partition_key, m.seq
                   FROM %1$s m
@@ -139,6 +166,7 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
                         (m.status = ? AND m.available_at <= ?)
                      OR (m.status = ? AND m.claim_until < ?)
                    )
+                   %2$s
                    AND NOT EXISTS (
                         SELECT 1
                           FROM %1$s e
@@ -148,21 +176,15 @@ public final class JdbcOutboxMessageStore implements OutboxMessageStore {
                            AND (
                                 (e.status = ? AND e.available_at > ?)
                              OR (e.status = ? AND e.claim_until >= ?)
+                             OR (e.status IN (?, ?) AND e.available_at > m.available_at)
+                             %3$s
                            )
                    )
-                 ORDER BY m.seq
+                 ORDER BY m.available_at, m.seq
                  LIMIT ?
-                """.formatted(tableName),
+                """.formatted(tableName, leftOut, behindLeftOut),
                 (rs, rowNum) -> new Candidate(rs.getString(1), rs.getString(2), rs.getLong(3)),
-                STATUS_PENDING,
-                timestamp(now),
-                STATUS_IN_FLIGHT,
-                timestamp(now),
-                STATUS_PENDING,
-                timestamp(now),
-                STATUS_IN_FLIGHT,
-                timestamp(now),
-                batchSize);
+                arguments.toArray());
             List<CanonicalOutboxMessage> claimed = new ArrayList<>();
             OffsetDateTime claimUntil = now.plus(leaseDuration);
             for (Candidate candidate : candidates) {

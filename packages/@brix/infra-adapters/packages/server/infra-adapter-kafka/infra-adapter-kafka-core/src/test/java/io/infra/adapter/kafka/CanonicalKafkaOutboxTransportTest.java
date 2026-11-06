@@ -8,9 +8,11 @@ package io.infra.adapter.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,17 +21,34 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.ClusterAuthorizationException;
+import org.apache.kafka.common.errors.CorruptRecordException;
+import org.apache.kafka.common.errors.NotEnoughReplicasException;
+import org.apache.kafka.common.errors.NotLeaderOrFollowerException;
+import org.apache.kafka.common.errors.OutOfOrderSequenceException;
+import org.apache.kafka.common.errors.RecordTooLargeException;
+import org.apache.kafka.common.errors.SaslAuthenticationException;
+import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.errors.TopicAuthorizationException;
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.KafkaException;
+import org.springframework.kafka.core.KafkaProducerException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
@@ -120,36 +139,85 @@ class CanonicalKafkaOutboxTransportTest {
             });
     }
 
-    @Test
+    /**
+     * Why Kafka did not take a record, and what the relay does about it (standard-link plan §10.28): a record that can
+     * never go is parked at once (Kafka design §14 K13), brokers that cannot take it now are no fault of the message,
+     * which waits, and a fault of the brokers makes the probe ask them again (D21); anything else spends an attempt.
+     */
+    private static Stream<Arguments> refusals() {
+        return Stream.of(
+            arguments(new RecordTooLargeException("too large"), "KAFKA_RECORD_REJECTED", true, false, false),
+            arguments(new TopicAuthorizationException(Set.of("topic")), "KAFKA_ACCESS_DENIED", false, true, false),
+            arguments(new SaslAuthenticationException("refused"), "KAFKA_ACCESS_DENIED", false, true, false),
+            arguments(new NotEnoughReplicasException("1 of 2"), "KAFKA_BROKER_UNAVAILABLE", false, true, true),
+            arguments(new NotLeaderOrFollowerException("moved"), "KAFKA_BROKER_UNAVAILABLE", false, true, true),
+            arguments(new OutOfOrderSequenceException("after a lost replica"), "KAFKA_BROKER_UNAVAILABLE", false, true, true),
+            arguments(new TimeoutException("expired"), "KAFKA_SEND_TIMEOUT", false, true, true),
+            arguments(new CorruptRecordException("corrupt"), "KAFKA_SEND_FAILED", false, false, false),
+            arguments(new UnknownServerException("unknown"), "KAFKA_SEND_FAILED", false, false, false));
+    }
+
+    @ParameterizedTest
+    @MethodSource("refusals")
     @SuppressWarnings("unchecked")
-    void aRecordKafkaCanNeverTakeIsAPermanentFailure() {
-        // Kafka design §14 K13: retrying a record that is too large only holds its key back; it is parked at once.
+    void whatTheProducerReportsIsReadThroughTheTemplatesWrapper(RuntimeException refusal, String code, boolean permanent,
+            boolean waits, boolean probesAgain) {
         CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
-        future.completeExceptionally(new org.apache.kafka.common.errors.RecordTooLargeException("too large"));
+        future.completeExceptionally(new KafkaProducerException(new ProducerRecord<>("topic", "value"), "Failed to send",
+            refusal));
         when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
 
-        assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
-            .isInstanceOf(OutboxTransportException.class)
-            .satisfies(failure -> {
-                OutboxTransportException ex = (OutboxTransportException) failure;
-                assertThat(ex.errorCode()).isEqualTo("KAFKA_RECORD_REJECTED");
-                assertThat(ex.permanent()).isTrue();
-            });
-        verify(broker, never()).suspect();
+        assertRefused(code, permanent, waits, probesAgain);
+    }
+
+    @ParameterizedTest
+    @MethodSource("refusals")
+    @SuppressWarnings("unchecked")
+    void whatTheProducerFindsBeforeItQueuesTheRecordIsReadFromTheTemplatesThrow(RuntimeException refusal, String code,
+            boolean permanent, boolean waits, boolean probesAgain) {
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenThrow(new KafkaException("Send failed", refusal));
+
+        assertRefused(code, permanent, waits, probesAgain);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void aSendThatFailsOnTheConnectionMakesTheBrokerProbeAgain() {
-        // Kafka design D21: the relay's next readiness check asks the broker instead of trusting the cached answer.
-        CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
-        future.completeExceptionally(new org.apache.kafka.common.errors.TimeoutException("expired"));
-        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(future);
+    void aKafkaFailureThatCarriesAnotherIsReadByTheOneItCarries() {
+        // The producer reports an earlier failure this way once it cannot go on.
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenThrow(new KafkaException("Send failed",
+            new org.apache.kafka.common.KafkaException("Cannot perform send",
+                new ClusterAuthorizationException("no idempotent write"))));
 
+        assertRefused("KAFKA_ACCESS_DENIED", false, true, false);
+    }
+
+    private void assertRefused(String code, boolean permanent, boolean waits, boolean probesAgain) {
         assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
             .isInstanceOf(OutboxTransportException.class)
-            .satisfies(failure -> assertThat(((OutboxTransportException) failure).permanent()).isFalse());
-        verify(broker).suspect();
+            .satisfies(failure -> {
+                OutboxTransportException ex = (OutboxTransportException) failure;
+                assertThat(ex.errorCode()).isEqualTo(code);
+                assertThat(ex.permanent()).isEqualTo(permanent);
+                assertThat(ex.unavailable()).isEqualTo(waits);
+                assertThat(ex.wholeType()).isEqualTo(waits);
+            });
+        verify(broker, times(probesAgain ? 1 : 0)).suspect();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aSendWithoutAVerdictWaitsAndMakesTheBrokerProbeAgain() {
+        // The transport stopped waiting for the producer: standard-link plan D86, Kafka design D21.
+        CompletableFuture<SendResult<String, String>> noVerdict = new CompletableFuture<>() {
+            @Override
+            public SendResult<String, String> get(long timeout, TimeUnit unit)
+                    throws java.util.concurrent.TimeoutException {
+                throw new java.util.concurrent.TimeoutException();
+            }
+        };
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(noVerdict);
+
+        assertRefused("KAFKA_SEND_TIMEOUT", false, true, true);
     }
 
     @Test
@@ -180,7 +248,7 @@ class CanonicalKafkaOutboxTransportTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void aTopicThatCannotBePreparedIsATransientFailure() {
+    void aTopicThatCannotBePreparedMakesTheMessageWaitWithoutSpendingAnAttempt() {
         doThrow(new IllegalStateException("broker unavailable")).when(broker).ensureEventTopics(any());
 
         assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
@@ -189,6 +257,25 @@ class CanonicalKafkaOutboxTransportTest {
                 OutboxTransportException ex = (OutboxTransportException) failure;
                 assertThat(ex.errorCode()).isEqualTo("KAFKA_TOPIC_UNAVAILABLE");
                 assertThat(ex.permanent()).isFalse();
+                assertThat(ex.unavailable()).isTrue();
+            });
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+        verify(broker).suspect();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aTopicNameTheBrokerRefusesIsAPermanentFailure() {
+        // Such as order_placed next to order.placed, which Kafka takes for one name: no wait can help.
+        doThrow(new IllegalStateException("could not be prepared",
+            new org.apache.kafka.common.errors.InvalidTopicException("collides"))).when(broker).ensureEventTopics(any());
+
+        assertThatThrownBy(() -> transport.publish(message("{\"tenantId\":100}")))
+            .isInstanceOf(OutboxTransportException.class)
+            .satisfies(failure -> {
+                OutboxTransportException ex = (OutboxTransportException) failure;
+                assertThat(ex.errorCode()).isEqualTo("KAFKA_TOPIC_INVALID");
+                assertThat(ex.permanent()).isTrue();
             });
         verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
     }
