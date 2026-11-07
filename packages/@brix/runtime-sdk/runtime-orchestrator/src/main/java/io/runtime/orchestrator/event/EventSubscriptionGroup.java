@@ -93,6 +93,11 @@ public final class EventSubscriptionGroup implements SmartLifecycle {
             throw new IllegalStateException("brix.outbox.relay.transport=" + properties.getTransport()
                 + " sends events to a broker, but no adapter consumes them from it");
         }
+        Duration retention = broker.retention();
+        if (!retention.isZero() && policy.maxWait().compareTo(retention) >= 0) {
+            throw new IllegalStateException("brix.outbox.relay.max-wait (" + policy.maxWait() + ") must be shorter than the"
+                + " broker's retention (" + retention + "): a record that waits longer is gone before it can be parked");
+        }
         delivery = deliveries.get();
         if (delivery == null) {
             throw new IllegalStateException("Consuming events needs the plugin runtime, owner persistence and inboxes");

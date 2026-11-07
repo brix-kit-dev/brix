@@ -61,6 +61,12 @@ public class OutboxRelayProperties {
     private Duration retryBackoffMax = OutboxRelayPolicy.DEFAULT_RETRY_BACKOFF_MAX;
 
     /**
+     * How long a message waits for a receiving side that cannot take it before it is parked. Keep it below the retention
+     * of the event topics.
+     */
+    private Duration maxWait = OutboxRelayPolicy.DEFAULT_MAX_WAIT;
+
+    /**
      * Fixed delay between polling passes.
      */
     private Duration pollDelay = Duration.ofSeconds(1);
@@ -124,6 +130,14 @@ public class OutboxRelayProperties {
 
     public void setRetryBackoffMax(Duration retryBackoffMax) {
         this.retryBackoffMax = retryBackoffMax;
+    }
+
+    public Duration getMaxWait() {
+        return maxWait;
+    }
+
+    public void setMaxWait(Duration maxWait) {
+        this.maxWait = maxWait;
     }
 
     public Duration getPollDelay() {

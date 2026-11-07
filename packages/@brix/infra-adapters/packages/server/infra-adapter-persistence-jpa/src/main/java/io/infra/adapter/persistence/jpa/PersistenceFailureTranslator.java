@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -38,6 +39,7 @@ import org.springframework.dao.support.PersistenceExceptionTranslator;
 import org.springframework.orm.ObjectRetrievalFailureException;
 import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.transaction.TransactionException;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.TransactionTimedOutException;
 
 import io.runtime.sdk.capability.PersistenceCapabilityException;
@@ -60,6 +62,8 @@ final class PersistenceFailureTranslator {
     private static final String DEADLOCK_DETECTED = "40P01";
     private static final String QUERY_CANCELED = "57014";
     private static final String CONNECTION_EXCEPTION_CLASS = "08";
+    /** The server is shutting down, crashed, or is not accepting connections yet. */
+    private static final Set<String> SERVER_GOING = Set.of("57P01", "57P02", "57P03");
 
     private final PersistenceExceptionTranslator jpaTranslator;
 
@@ -90,6 +94,15 @@ final class PersistenceFailureTranslator {
      * <p>Failures of the work itself, such as business exceptions, are returned unchanged.</p>
      */
     RuntimeException translateUnitOfWorkFailure(String ownerId, RuntimeException failure) {
+        if (failure instanceof TransactionSystemException rollback
+                && rollback.getApplicationException() instanceof RuntimeException work
+                && !connectionLost(sqlState(rollback))) {
+            // Failed work whose rollback failed too, as on a connection that broke, with an error that names no SQL
+            // state: what ended the work says why.
+            RuntimeException translated = translateUnitOfWorkFailure(ownerId, work);
+            translated.addSuppressed(rollback);
+            return translated;
+        }
         PersistenceCapabilityException translated = translatedCause(failure);
         if (translated != null) {
             return translated;
@@ -162,14 +175,29 @@ final class PersistenceFailureTranslator {
                 || hasCause(failure, EntityNotFoundException.class)) {
             return Code.ENTITY_NOT_FOUND;
         }
-        if (dataAccess instanceof DataAccessResourceFailureException
-                || dataAccess instanceof TransientDataAccessResourceException
-                || dataAccess instanceof RecoverableDataAccessException
-                || failure instanceof CannotCreateTransactionException
-                || (sqlState != null && sqlState.startsWith(CONNECTION_EXCEPTION_CLASS))) {
+        if (databaseOutOfReach(failure, dataAccess, sqlState)) {
             return Code.UNAVAILABLE;
         }
         return Code.FAILURE;
+    }
+
+    /**
+     * Whether the database cannot be reached. Other stores fail with the same Spring types and can pass through a unit of
+     * work, so a resource failure counts only when it came through JDBC: a handler that lost its cache has not lost the
+     * database, and a delivery must not wait for it as if it had (standard-link plan D90).
+     */
+    private static boolean databaseOutOfReach(RuntimeException failure, DataAccessException dataAccess, String sqlState) {
+        if (failure instanceof CannotCreateTransactionException || connectionLost(sqlState)) {
+            return true;
+        }
+        return (dataAccess instanceof DataAccessResourceFailureException
+                || dataAccess instanceof TransientDataAccessResourceException
+                || dataAccess instanceof RecoverableDataAccessException)
+            && hasCause(failure, SQLException.class);
+    }
+
+    private static boolean connectionLost(String sqlState) {
+        return sqlState != null && (sqlState.startsWith(CONNECTION_EXCEPTION_CLASS) || SERVER_GOING.contains(sqlState));
     }
 
     private static String sqlState(Throwable failure) {

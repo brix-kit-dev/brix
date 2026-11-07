@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.net.ConnectException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -30,11 +31,13 @@ import org.springframework.boot.actuate.endpoint.SecurityContext;
 import io.runtime.orchestrator.command.CommandDelivery;
 import io.runtime.orchestrator.event.EventDelivery;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
+import io.runtime.orchestrator.event.SubscriptionDelivery;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.outbox.OutboxEndpoint;
 import io.runtime.orchestrator.persistence.PolicyUseRecord;
 import io.runtime.orchestrator.persistence.TenantAccessPolicy;
 import io.runtime.orchestrator.persistence.TenantScope;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 import io.runtime.sdk.command.CommandStatus;
 import io.runtime.sdk.error.ErrorCategory;
 
@@ -534,6 +537,87 @@ public abstract class EventTransportConformance {
         settle();
         assertEquals(List.of("event-1", "event-2"), world.handledIds());
         assertEquals(List.of(), harness.parked());
+    }
+
+    @Test
+    void aHandlerThatLosesItsOwnersDatabaseWaitsForItWithoutSpendingAttempts() {
+        // The database may go while the handler runs: the persistence adapter says so, whatever the handler wraps it in.
+        world.failingWith(new IllegalStateException("saving the projection", new PersistenceCapabilityException(
+            PersistenceCapabilityException.Code.UNAVAILABLE, Map.of("owner", ConformanceWorld.SUBSCRIBER))));
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        harness.start();
+
+        // Three attempts 100 ms apart would have parked it long before this.
+        pause(Duration.ofSeconds(3));
+        assertEquals(List.of(), harness.parked());
+
+        world.failingWith(null);
+        await("it is handled", () -> world.handledIds().equals(List.of("event-1")));
+        assertEquals(1, world.handled().get(0).attempt(), "waiting spent no attempt");
+    }
+
+    @Test
+    void aPolicySubscriptionWhoseScopeCannotBeReadWaitsForTheDatabaseToo() {
+        // The scope of a fan-out comes from the identity owner, before the subscriber's unit of work begins: the failure
+        // names that owner, but all owners share one database. It must not spend attempts and park (standard-link D90).
+        world.subscriberDatabaseDown(true);
+        world.publishSetupCompleted("setup-1", 77L);
+        harness.start();
+
+        // Three attempts 100 ms apart would have parked it long before this.
+        pause(Duration.ofSeconds(3));
+        assertEquals(List.of(), harness.parked());
+
+        world.subscriberDatabaseDown(false);
+        await("it is handled", () -> world.handledIds().equals(List.of("setup-1")));
+        assertEquals(1, world.handled().get(0).attempt(), "waiting spent no attempt");
+    }
+
+    @Test
+    void aRecordThatHasWaitedItsLimitIsParkedWithWhatItWaitedForAndAReplayDeliversIt() {
+        // Root BRX-RS-RESILIENCE-002, MESSAGE-028 (standard-link plan D91): a wait has a budget like the attempts.
+        world.maxWait(Duration.ofSeconds(2));
+        world.subscriberDatabaseDown(true);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        harness.start();
+
+        await("event-1 is parked", () -> !harness.parked().isEmpty());
+        assertEquals(List.of(new Parked("event-1", SubscriptionDelivery.OWNER_UNAVAILABLE)), harness.parked());
+        assertEquals(List.of(), world.handledIds());
+
+        world.subscriberDatabaseDown(false);
+        assertTrue(harness.replay("event-1"));
+        await("it is handled", () -> world.handledIds().equals(List.of("event-1")));
+    }
+
+    @Test
+    void theRecordBehindOneParkedAtItsLimitWaitsItsOwnLimit() {
+        // Standard-link plan D91: a long outage parks one record at a time, and the rest go on once it ends.
+        world.maxWait(Duration.ofSeconds(4));
+        world.subscriberDatabaseDown(true);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        world.publish("event-2", "member-1", ConformanceWorld.TENANT, 2);
+        harness.start();
+
+        await("event-1 is parked", () -> !harness.parked().isEmpty());
+        world.subscriberDatabaseDown(false);
+
+        await("event-2 is handled", () -> world.handledIds().equals(List.of("event-2")));
+        assertEquals(List.of(new Parked("event-1", SubscriptionDelivery.OWNER_UNAVAILABLE)), harness.parked());
+    }
+
+    @Test
+    void aHandlerThatCannotReachAServiceItCallsSpendsItsAttemptsAndIsParked() {
+        // Standard-link plan D90: nothing says that the service comes back, so the records behind this one do not wait
+        // for it. Any exception from a connection refused used to hold the partition back for good.
+        world.failingWith(new IllegalStateException("the payment service", new ConnectException("Connection refused")));
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+
+        harness.start();
+
+        await("event-1 is parked", () -> !harness.parked().isEmpty());
+        assertEquals(List.of(new Parked("event-1", EventDelivery.HANDLER_FAILED)), harness.parked());
+        assertEquals(world.policy().maxAttempts(), world.calls());
     }
 
     @Test

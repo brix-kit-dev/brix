@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.net.ConnectException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,12 +41,14 @@ import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.event.ConsumedSubscription;
 import io.runtime.orchestrator.event.EventDeliveryException;
+import io.runtime.orchestrator.event.SubscriptionDelivery;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 import io.runtime.sdk.capability.UnitOfWork;
 import io.runtime.sdk.command.CommandStatus;
 import io.runtime.sdk.error.BrixException;
@@ -351,6 +354,29 @@ class CommandDeliveryTest {
 
         assertEquals(CommandDelivery.PROVIDER_NOT_READY, waiting.errorCode());
         assertFalse(waiting.permanent());
+    }
+
+    @Test
+    void aProviderWhoseDatabaseCannotBeReachedIsWaitedForAndNothingIsRecorded() {
+        handler.failure = new PersistenceCapabilityException(PersistenceCapabilityException.Code.UNAVAILABLE,
+            Map.of("owner", "app-stock"));
+
+        EventDeliveryException waiting = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertEquals(SubscriptionDelivery.OWNER_UNAVAILABLE, waiting.errorCode());
+        assertFalse(waiting.permanent());
+        assertTrue(outcomes.isEmpty(), "it is no answer for the sender");
+    }
+
+    @Test
+    void aServiceTheHandlerCallsBeingDownIsAFailedHandler() {
+        handler.failure = new IllegalStateException("the warehouse", new ConnectException("Connection refused"));
+
+        EventDeliveryException failed = assertThrows(EventDeliveryException.class,
+            () -> delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0")));
+
+        assertEquals(CommandDelivery.HANDLER_FAILED, failed.errorCode());
     }
 
     @Test

@@ -25,6 +25,9 @@ import io.runtime.orchestrator.outbox.OutboxRelayPolicy;
  * and goes on. Any other failure keeps the record where it is: the transport delivers it again after the
  * delay, before any later record of its partition. The attempts, backoff and jitter are the relay's
  * (root BRX-RS-MESSAGE-015, MESSAGE-028).</p>
+ * <p>A subscriber that is not there spends no attempt: the record waits, and is parked like any other once it has
+ * waited the relay's limit (root BRX-RS-RESILIENCE-002, standard-link plan D91). The transport says how long it has
+ * waited. It keeps that in memory, as it keeps the attempts, so a host that restarts starts counting again.</p>
  */
 public final class SubscriptionDelivery {
 
@@ -32,16 +35,9 @@ public final class SubscriptionDelivery {
     public static final String ENVELOPE_INVALID = "EVENT_ENVELOPE_INVALID";
     /** The subscriber, or its database, cannot take the record now; it waits without spending an attempt. */
     public static final String OWNER_UNAVAILABLE = "EVENT_OWNER_UNAVAILABLE";
-    private static final Duration MIN_WAIT = Duration.ofSeconds(1);
-    private static final java.util.Set<String> NOT_READY = java.util.Set.of(EventDelivery.SUBSCRIBER_NOT_READY,
-        io.runtime.orchestrator.command.CommandDelivery.PROVIDER_NOT_READY);
-    private static final java.util.Set<String> UNAVAILABLE_TYPES = java.util.Set.of(
-        "org.springframework.transaction.CannotCreateTransactionException",
-        "org.springframework.dao.DataAccessResourceFailureException",
-        "org.springframework.jdbc.CannotGetJdbcConnectionException",
-        "java.sql.SQLTransientConnectionException",
-        "java.sql.SQLNonTransientConnectionException",
-        "java.net.ConnectException");
+    /** The failures that say the owner is not there. Nothing else does, whatever is in their chain (plan D90). */
+    private static final java.util.Set<String> OWNER_NOT_THERE = java.util.Set.of(OWNER_UNAVAILABLE,
+        EventDelivery.SUBSCRIBER_NOT_READY, io.runtime.orchestrator.command.CommandDelivery.PROVIDER_NOT_READY);
     /** A failure the delivery core did not classify; it is retried. */
     static final String UNEXPECTED = "EVENT_UNEXPECTED";
 
@@ -100,26 +96,32 @@ public final class SubscriptionDelivery {
     }
 
     /**
-     * Delivers one record to the subscriber.
+     * Delivers one record that has not waited for its subscriber to the subscriber.
      *
      * @param message the event
      * @param attempt this delivery's attempt, from 1
      * @return what the transport does with the record
      */
     public Outcome receive(CanonicalOutboxMessage message, int attempt) {
+        return receive(message, attempt, Waited.NOT_YET);
+    }
+
+    /**
+     * Delivers one record to the subscriber.
+     *
+     * @param message the event
+     * @param attempt this delivery's attempt, from 1
+     * @param waited how long the record has waited for the subscriber
+     * @return what the transport does with the record
+     */
+    public Outcome receive(CanonicalOutboxMessage message, int attempt, Waited waited) {
         try {
             delivery.deliverTo(subscription.pluginId(), subscription.handlerId(), attempt(message, attempt));
             metrics.recordDelivered(message.messageType());
             return Outcome.DELIVERED;
         } catch (EventDeliveryException failure) {
             if (unavailable(failure)) {
-                // The subscriber or its database is not there: wait for it without spending an attempt (Kafka design
-                // §14 K11), as the relay waits for the broker (D21), instead of parking and passing the record.
-                Duration wait = policy.backoffAfter(1).compareTo(MIN_WAIT) < 0 ? MIN_WAIT : policy.backoffAfter(1);
-                metrics.recordRetry(message.messageType(), OWNER_UNAVAILABLE);
-                log.info("event=event.subscriber_waiting subscription={} type={} event_id={} code={} attempt={}",
-                    subscription.name(), message.messageType(), message.eventId(), failure.errorCode(), attempt);
-                return Outcome.waitFor(OWNER_UNAVAILABLE, wait);
+                return waitOrPark(message, failure.errorCode(), attempt, waited);
             }
             return failed(message, failure.errorCode(), failure.permanent(), attempt);
         } catch (RuntimeException | Error failure) {
@@ -147,24 +149,26 @@ public final class SubscriptionDelivery {
 
     /** Whether the failure says the subscriber or its database is not there, rather than that the handler failed. */
     static boolean unavailable(EventDeliveryException failure) {
-        if (NOT_READY.contains(failure.errorCode())) {
-            return true;
+        return OWNER_NOT_THERE.contains(failure.errorCode());
+    }
+
+    /**
+     * The subscriber or its database is not there: the record waits for it without spending an attempt (Kafka design
+     * §14 K11), as the relay waits for the broker (D21), instead of being parked and passed. A wait has its budget too,
+     * though: parked, the record is seen, and stays when the topic's retention would have taken it.
+     */
+    private Outcome waitOrPark(CanonicalOutboxMessage message, String errorCode, int attempt, Waited waited) {
+        if (waited.sofar().compareTo(policy.maxWait()) >= 0) {
+            log.warn("event=event.wait_limit_reached subscription={} type={} event_id={} code={} waited_s={}",
+                subscription.name(), message.messageType(), message.eventId(), errorCode, waited.sofar().toSeconds());
+            return Outcome.park(errorCode);
         }
-        for (Throwable cause = failure.getCause(); cause != null; cause = cause.getCause()) {
-            if (cause instanceof io.runtime.sdk.capability.PersistenceCapabilityException persistence
-                    && persistence.errorCode() == io.runtime.sdk.capability.PersistenceCapabilityException.Code.UNAVAILABLE) {
-                return true;
-            }
-            for (Class<?> type = cause.getClass(); type != null; type = type.getSuperclass()) {
-                if (UNAVAILABLE_TYPES.contains(type.getName())) {
-                    return true;
-                }
-            }
-            if (cause.getCause() == cause) {
-                break;
-            }
-        }
-        return false;
+        int times = waited.times() + 1;
+        Duration wait = policy.waitAfter(times).plus(jitter.apply(times));
+        metrics.recordRetry(message.messageType(), OWNER_UNAVAILABLE);
+        log.info("event=event.subscriber_waiting subscription={} type={} event_id={} code={} attempt={} delay_ms={}",
+            subscription.name(), message.messageType(), message.eventId(), errorCode, attempt, wait.toMillis());
+        return Outcome.waitFor(OWNER_UNAVAILABLE, wait);
     }
 
     private Outcome failed(CanonicalOutboxMessage message, String errorCode, boolean permanent, int attempt) {
@@ -191,6 +195,18 @@ public final class SubscriptionDelivery {
             return Duration.ZERO;
         }
         return Duration.ofMillis(ThreadLocalRandom.current().nextLong(0L, upperBound));
+    }
+
+    /**
+     * How long a record has waited for its subscriber.
+     *
+     * @param times how often it has waited so far
+     * @param sofar how long since it first failed
+     */
+    public record Waited(int times, Duration sofar) {
+
+        /** A record that has not waited. */
+        public static final Waited NOT_YET = new Waited(0, Duration.ZERO);
     }
 
     /**

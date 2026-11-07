@@ -193,6 +193,43 @@ class KafkaSubscriptionConsumerTest {
     }
 
     @Test
+    void theDeliveryIsToldHowLongTheRecordHasWaitedSoItCanEndTheWait() {
+        // Root BRX-RS-RESILIENCE-002 (standard-link plan D91): the wait counts from when the record first failed.
+        subscriber.replies("evt-1", waitFor(Duration.ofSeconds(1)), waitFor(Duration.ofSeconds(2)));
+        topic.append(0, envelope("evt-1"));
+        topic.append(0, envelope("evt-2"));
+        start();
+        await("the first wait", () -> subscriber.received().size() == 1 && heldBack(0));
+
+        clock.advance(Duration.ofSeconds(1));
+        await("the second wait", () -> subscriber.received().size() == 2 && heldBack(0));
+        clock.advance(Duration.ofSeconds(2));
+        await("both are committed", () -> topic.committed(0).equals(Optional.of(2L)));
+
+        assertThat(subscriber.waited()).containsExactly(SubscriptionDelivery.Waited.NOT_YET,
+            new SubscriptionDelivery.Waited(1, Duration.ofSeconds(1)),
+            new SubscriptionDelivery.Waited(2, Duration.ofSeconds(3)),
+            SubscriptionDelivery.Waited.NOT_YET);
+    }
+
+    @Test
+    void aFailedAttemptIsNoWaitButItsTimeCounts() {
+        subscriber.replies("evt-1", retryAfter(Duration.ofSeconds(10)), waitFor(Duration.ofSeconds(1)));
+        topic.append(0, envelope("evt-1"));
+        start();
+        await("the retry", () -> subscriber.received().size() == 1 && heldBack(0));
+
+        clock.advance(Duration.ofSeconds(10));
+        await("the wait", () -> subscriber.received().size() == 2 && heldBack(0));
+        clock.advance(Duration.ofSeconds(1));
+        await("evt-1 is committed", () -> topic.committed(0).equals(Optional.of(1L)));
+
+        assertThat(subscriber.waited()).containsExactly(SubscriptionDelivery.Waited.NOT_YET,
+            new SubscriptionDelivery.Waited(0, Duration.ofSeconds(10)),
+            new SubscriptionDelivery.Waited(1, Duration.ofSeconds(11)));
+    }
+
+    @Test
     void aRecordTheSubscriptionParksIsWrittenToItsParkingTopicAndPassed() {
         subscriber.replies("evt-1", retryAfter(Duration.ofSeconds(30)), park(EventDelivery.HANDLER_FAILED));
         ConsumerRecord<String, String> failing = topic.append(0, envelope("evt-1"));
@@ -505,6 +542,7 @@ class KafkaSubscriptionConsumerTest {
 
         private final Map<String, Queue<Reply>> replies = new ConcurrentHashMap<>();
         private final List<Received> received = new CopyOnWriteArrayList<>();
+        private final List<SubscriptionDelivery.Waited> waited = new CopyOnWriteArrayList<>();
         private final List<ParkReport> parked = new CopyOnWriteArrayList<>();
         private final List<Hold> holds = new CopyOnWriteArrayList<>();
 
@@ -527,6 +565,10 @@ class KafkaSubscriptionConsumerTest {
             return List.copyOf(received);
         }
 
+        List<SubscriptionDelivery.Waited> waited() {
+            return List.copyOf(waited);
+        }
+
         List<ParkReport> parked() {
             return List.copyOf(parked);
         }
@@ -534,8 +576,10 @@ class KafkaSubscriptionConsumerTest {
         SubscriptionDelivery delivery() {
             SubscriptionDelivery delivery = mock(SubscriptionDelivery.class, withSettings().stubOnly());
             when(delivery.metrics()).thenReturn(metrics);
-            when(delivery.receive(any(), anyInt()))
-                .thenAnswer(invocation -> receive(invocation.getArgument(0), invocation.getArgument(1)));
+            when(delivery.receive(any(), anyInt(), any())).thenAnswer(invocation -> {
+                waited.add(invocation.getArgument(2));
+                return receive(invocation.getArgument(0), invocation.getArgument(1));
+            });
             doAnswer(invocation -> {
                 parked.add(new ParkReport(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2),
                     invocation.getArgument(3)));
@@ -695,8 +739,9 @@ class KafkaSubscriptionConsumerTest {
             super.commitSync(offsets, timeout);
             Map<TopicPartition, Long> committed = new HashMap<>();
             offsets.forEach((partition, offset) -> committed.put(partition, offset.offset()));
-            topic.committed.putAll(committed);
+            // In this order: a test waits for committed and then reads commits.
             topic.commits.add(Map.copyOf(committed));
+            topic.committed.putAll(committed);
         }
     }
 

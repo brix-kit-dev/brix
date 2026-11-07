@@ -152,11 +152,16 @@ public final class ConformanceWorld {
 
         @Override
         public String requireActiveIdentityEmail(Long identityId) {
+            if (databaseDown) {
+                // The identity owner's read: it runs before the subscriber's unit of work begins.
+                throw new PersistenceCapabilityException(PersistenceCapabilityException.Code.UNAVAILABLE,
+                    Map.of("owner", IDENTITY_PUBLISHER));
+            }
             return INVITEE_EMAIL;
         }
     };
     private final RecordingMessageTracing tracing = new RecordingMessageTracing();
-    private final OutboxRelayPolicy policy =
+    private volatile OutboxRelayPolicy policy =
         new OutboxRelayPolicy(10, 3, Duration.ofSeconds(10), Duration.ofMillis(100), Duration.ZERO);
     private final Set<String> inbox = ConcurrentHashMap.newKeySet();
     private final List<Handled> handled = new CopyOnWriteArrayList<>();
@@ -187,6 +192,7 @@ public final class ConformanceWorld {
     private volatile ErrorCategory commandFailure;
     private volatile Duration deadline = Duration.ofSeconds(5);
     private volatile boolean databaseDown;
+    private volatile RuntimeException handlerFailure;
     private volatile String commandAccessPolicy = CommandPolicies.ACCESS_DECLARED_CONSUMERS;
 
     private final UnitOfWork unitOfWork = new UnitOfWork() {
@@ -282,6 +288,13 @@ public final class ConformanceWorld {
     /** Three attempts, 100 ms backoff per attempt, no jitter, a 10 s lease. */
     public OutboxRelayPolicy policy() {
         return policy;
+    }
+
+    /** Sets how long a message waits for what cannot take it, before the harness starts. */
+    public void maxWait(Duration maxWait) {
+        OutboxRelayPolicy now = policy;
+        policy = new OutboxRelayPolicy(now.batchSize(), now.maxAttempts(), now.leaseDuration(), now.retryBackoffBase(),
+            now.retryJitterMax(), now.retryBackoffMax(), maxWait);
     }
 
     /**
@@ -548,6 +561,11 @@ public final class ConformanceWorld {
         this.failing = failing;
     }
 
+    /** Makes the handler fail with this failure, or stop failing when it is {@code null}. */
+    public void failingWith(RuntimeException failure) {
+        this.handlerFailure = failure;
+    }
+
     /** The events the handler committed, in commit order. */
     public List<Handled> handled() {
         return List.copyOf(handled);
@@ -772,6 +790,10 @@ public final class ConformanceWorld {
         @Override
         public CompletionStage<Void> handle(EventInvocation<MemberAccepted> invocation) {
             calls.incrementAndGet();
+            RuntimeException failure = handlerFailure;
+            if (failure != null) {
+                throw failure;
+            }
             Error error = nextError;
             if (error != null) {
                 nextError = null;

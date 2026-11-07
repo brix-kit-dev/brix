@@ -70,7 +70,8 @@ public class OutboxRelayAutoConfiguration {
             properties.getLeaseDuration(),
             properties.getRetryBackoffBase(),
             properties.getRetryJitterMax(),
-            properties.getRetryBackoffMax());
+            properties.getRetryBackoffMax(),
+            properties.getMaxWait());
     }
 
     /**

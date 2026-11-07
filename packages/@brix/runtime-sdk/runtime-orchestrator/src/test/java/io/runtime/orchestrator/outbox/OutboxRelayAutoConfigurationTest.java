@@ -51,6 +51,16 @@ import io.runtime.orchestrator.event.SubscriptionDelivery;
 class OutboxRelayAutoConfigurationTest {
 
     @Test
+    void theLimitOfAWaitComesFromThePropertiesAndHasADefault() {
+        OutboxRelayProperties properties = properties();
+        assertEquals(OutboxRelayPolicy.DEFAULT_MAX_WAIT, new OutboxRelayAutoConfiguration().outboxRelayPolicy(properties).maxWait());
+
+        properties.setMaxWait(Duration.ofMinutes(90));
+
+        assertEquals(Duration.ofMinutes(90), new OutboxRelayAutoConfiguration().outboxRelayPolicy(properties).maxWait());
+    }
+
+    @Test
     void oneRelayRunsForEachOwnerOutbox() {
         OutboxRelayProperties properties = properties();
         OutboxRelayPolicy policy = new OutboxRelayAutoConfiguration().outboxRelayPolicy(properties);

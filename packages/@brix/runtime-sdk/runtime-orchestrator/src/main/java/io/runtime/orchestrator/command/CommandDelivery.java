@@ -357,8 +357,8 @@ public final class CommandDelivery {
         } catch (RuntimeException failure) {
             log.warn("event=command.delivery_failed type={} command_id={} handler={} owner={} attempt={}",
                 message.messageType(), message.messageId(), handlerId, ownerId, invocation.deliveryAttempt(), failure);
-            throw new EventDeliveryException(HANDLER_FAILED, handlerId + " failed to handle " + message.messageId(),
-                failure, false);
+            throw EventDeliveryException.whileHandling(HANDLER_FAILED, handlerId + " failed to handle " + message.messageId(),
+                failure);
         }
     }
 

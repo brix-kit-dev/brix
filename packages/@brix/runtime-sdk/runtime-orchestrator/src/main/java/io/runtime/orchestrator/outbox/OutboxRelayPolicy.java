@@ -11,16 +11,31 @@ import java.time.Duration;
 /**
  * Runtime policy for one L2B outbox relay instance. A failed attempt waits
  * {@code retryBackoffBase * 2^(attempt - 1)}, at most {@code retryBackoffMax}, plus up to
- * {@code retryJitterMax} (root BRX-RS-RESILIENCE-002).
+ * {@code retryJitterMax} (root BRX-RS-RESILIENCE-002). A message the receiving side cannot take now spends no attempt:
+ * it is tried again after {@link #waitAfter}, plus the same jitter, and is parked once it has waited {@code maxWait}
+ * (standard-link plan D91).
  *
  * @author Runtime SDK Team
  * @since 3.0.10
  */
 public record OutboxRelayPolicy(int batchSize, int maxAttempts, Duration leaseDuration,
-        Duration retryBackoffBase, Duration retryJitterMax, Duration retryBackoffMax) {
+        Duration retryBackoffBase, Duration retryJitterMax, Duration retryBackoffMax, Duration maxWait) {
 
     /** Upper bound of the retry wait when none is configured. */
     public static final Duration DEFAULT_RETRY_BACKOFF_MAX = Duration.ofMinutes(5);
+
+    /**
+     * How long a message waits when nothing is configured. Ordinary outages pass within it, so they park nothing and
+     * keep the order of a key, the operators' alerts fire long before it ends, and it stays well within the retention
+     * of a topic, which would take a record that waited longer.
+     */
+    public static final Duration DEFAULT_MAX_WAIT = Duration.ofHours(24);
+
+    /** The shortest pause before a message that waits is tried again. */
+    private static final Duration SHORTEST_WAIT = Duration.ofSeconds(1);
+
+    /** The longest pause: a message leaves within it once the receiving side is back. */
+    private static final Duration LONGEST_WAIT = Duration.ofMinutes(1);
 
     /**
      * Creates and validates relay policy.
@@ -44,6 +59,17 @@ public record OutboxRelayPolicy(int batchSize, int maxAttempts, Duration leaseDu
         if (retryBackoffMax == null || retryBackoffMax.compareTo(retryBackoffBase) < 0) {
             throw new IllegalArgumentException("retryBackoffMax must be >= retryBackoffBase");
         }
+        if (maxWait == null || maxWait.isZero() || maxWait.isNegative()) {
+            throw new IllegalArgumentException("maxWait must be positive");
+        }
+    }
+
+    /**
+     * Creates a policy with the {@linkplain #DEFAULT_MAX_WAIT default limit} on a wait.
+     */
+    public OutboxRelayPolicy(int batchSize, int maxAttempts, Duration leaseDuration,
+            Duration retryBackoffBase, Duration retryJitterMax, Duration retryBackoffMax) {
+        this(batchSize, maxAttempts, leaseDuration, retryBackoffBase, retryJitterMax, retryBackoffMax, DEFAULT_MAX_WAIT);
     }
 
     /**
@@ -65,6 +91,20 @@ public record OutboxRelayPolicy(int batchSize, int maxAttempts, Duration leaseDu
      */
     public Duration backoffAfter(int attempt) {
         return RetryBackoff.delay(retryBackoffBase, retryBackoffMax, attempt);
+    }
+
+    /**
+     * Returns the pause before a message the receiving side could not take is tried again, without jitter. It doubles
+     * from {@code retryBackoffBase}, starts at a second at least, and grows no further than a minute or
+     * {@code retryBackoffMax}, whichever is shorter.
+     *
+     * @param times how often the message has waited, this time included, counted from 1
+     * @return the pause
+     */
+    public Duration waitAfter(int times) {
+        Duration base = retryBackoffBase.compareTo(SHORTEST_WAIT) < 0 ? SHORTEST_WAIT : retryBackoffBase;
+        Duration longest = retryBackoffMax.compareTo(LONGEST_WAIT) < 0 ? retryBackoffMax : LONGEST_WAIT;
+        return RetryBackoff.delay(base, longest.compareTo(base) < 0 ? base : longest, times);
     }
 
     /**

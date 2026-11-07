@@ -39,6 +39,7 @@ import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 import io.runtime.sdk.event.EventReliability;
 import io.runtime.sdk.plugin.EventHandler;
 import io.runtime.sdk.plugin.EventInvocation;
@@ -185,6 +186,19 @@ class InProcessEventTransportTest {
             () -> transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1)));
 
         assertEquals(InProcessEventTransport.SUBSCRIBER_NOT_READY, waiting.errorCode());
+        assertFalse(waiting.permanent());
+        assertTrue(waiting.unavailable(), "the relay waits without spending an attempt (Kafka design §14 K11)");
+    }
+
+    @Test
+    void aSubscriberWhoseDatabaseCannotBeReachedMakesTheRelayWaitForIt() {
+        failure = new PersistenceCapabilityException(PersistenceCapabilityException.Code.UNAVAILABLE,
+            java.util.Map.of("owner", SUBSCRIBER));
+
+        OutboxTransportException waiting = assertThrows(OutboxTransportException.class,
+            () -> transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1)));
+
+        assertEquals(SubscriptionDelivery.OWNER_UNAVAILABLE, waiting.errorCode());
         assertFalse(waiting.permanent());
         assertTrue(waiting.unavailable(), "the relay waits without spending an attempt (Kafka design §14 K11)");
     }

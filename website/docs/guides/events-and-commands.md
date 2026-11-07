@@ -64,8 +64,8 @@ flowchart LR
 | Delivery | CRITICAL and STANDARD events are delivered **at least once** after the publisher commits, and never if it rolls back. With a persistent inbox, each handler applies an event **once**. |
 | Order | A subscriber sees the events of **one event type with the same partition key** (the event's routing key) in publish order. While an event is retried, the later events of its key wait for it. **A parked event is the exception:** parked in the publisher's outbox or at a subscription, it holds nothing back. The later events of its key go on, and a replayed one arrives after them. There is no order across event types or keys. To order events of different types for one aggregate, or to ignore a replayed event that is older than what you have, put the aggregate's version in the payloads and compare it in the subscriber. |
 | New subscriptions | A subscription starts at the moment it is first registered. It does not receive older events; a renamed `handlerId` is a new subscription. For history, an operator republishes events that are still in the outbox (see [Operating](#operating)). |
-| Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that does not finish by its deadline counts as a failed attempt, even one that did its work and returned late: its writes and the inbox receipt roll back. A command's handler can instead reject the command, which ends it without a retry (see [Providing a command](#providing-a-command)). |
-| Outages | If the subscriber's database is down or the plugin is not started, the subscription pauses. If the brokers refuse writes (too few replicas, no leader, an ACL), the events of that type wait in the outbox and the other types go on. Attempts are not used up, and the event is delivered once the cause is gone. |
+| Failures | A handler that throws is retried with exponential backoff and jitter. After the last attempt the event is **parked** for an operator, and later events of the subscription go on. A handler that does not finish by its deadline counts as a failed attempt, even one that did its work and returned late: its writes and the inbox receipt roll back. So does a handler that cannot reach a service it calls. A command's handler can instead reject the command, which ends it without a retry (see [Providing a command](#providing-a-command)). |
+| Outages | If the subscriber's database is down or the plugin is not started, the subscription pauses. If the brokers refuse writes (too few replicas, no leader, an ACL), the events of that type wait in the outbox and the other types go on. Attempts are not used up, and the event is delivered once the cause is gone. A wait has a limit, 24 hours by default: an event that has waited that long is parked, and the later events of its key go on. While Kafka cannot be reached at all, the relay pauses: nothing is tried, so nothing is parked. |
 | Tenancy | A TENANT event is handled in its own tenant; a PLATFORM event in none. The runtime binds the producer and the tenant from the publishing unit of work. An event cannot claim another publisher or tenant. |
 | Contracts | Each event type has one publisher. Its payload has a versioned JSON schema, and subscribers name the schema range they accept. |
 
@@ -713,10 +713,11 @@ Choose them once. The samples show each one:
 
 Subscription readiness is part of the host's health.
 
-**Messages that wait.** A message the receiving side cannot take now spends no attempt and is not parked, so no
-parked alert fires: watch `brix_outbox_waits_total`. The messages leave by themselves once the cause is gone. When Kafka
-cannot take a message, its whole type waits: the relay tries one message of the type every few seconds and sends the
-other types. `code` says why:
+**Messages that wait.** A message the receiving side cannot take now spends no attempt and is not parked yet, so no
+parked alert fires: watch `brix_outbox_waits_total`. The messages leave by themselves once the cause is gone. The pauses
+between the tries of a message double from `retry-backoff-base`, with jitter, up to a minute, so it leaves within about a
+minute. When Kafka cannot take a message, its whole type waits: the relay tries one message of the type at a time and
+sends the other types. `code` says why:
 
 | Code | Cause |
 |---|---|
@@ -727,7 +728,22 @@ other types. `code` says why:
 | `KAFKA_TOPIC_PARTITIONS` | The topic has fewer partitions than the production profile needs |
 
 On the in-process transport only the message's key waits, with a code such as `EVENT_SUBSCRIBER_NOT_READY` or
-`EVENT_OWNER_UNAVAILABLE`.
+`EVENT_OWNER_UNAVAILABLE`. A subscription's consumer waits in the same way: it holds back the record's partition, and
+`brix_event_retries_total` counts the tries with `code="EVENT_OWNER_UNAVAILABLE"`.
+
+Only the owner is waited for: the plugin has not started, or the persistence layer says that the database cannot be
+reached. A service the handler calls may never come back, so that is a failed attempt.
+
+**The limit of a wait.** A message that has been refused for `brix.outbox.relay.max-wait` (24 hours by default) is parked
+with the code it waited for, and the parked alert fires. Replay it once the cause is gone. The later messages of its key
+have not been refused yet: they get a wait of their own and, once the cause is gone, go on ahead of the parked one. So a
+long outage parks one message of a key, or one record of a partition, per limit. Each host counts its waits in memory, so
+a restart or a rebalance starts them again.
+
+Keep the limit below the retention of the event topics, or the host does not start: a record that waited longer would be
+gone before it could be parked. The limit says nothing about the records behind it: a consumer held back longer than the
+retention loses those, whatever the limit. A relay that cannot reach Kafka at all tries nothing, so nothing is parked and
+that time counts against no wait: `brix_outbox_relay_waiting` shows that.
 
 A record Kafka can never take, such as one too large or one whose topic name the brokers refuse, is parked at once. Any
 other send failure spends an attempt.

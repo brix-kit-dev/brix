@@ -164,9 +164,10 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
             return park(consumer, partition, record, null, SubscriptionDelivery.ENVELOPE_INVALID, attempt, again ? previous : null);
         }
         SubscriptionDelivery.Outcome outcome;
-        handlingSince = clock.instant();
+        Instant now = clock.instant();
+        handlingSince = now;
         try {
-            outcome = delivery.receive(message, attempt);
+            outcome = delivery.receive(message, attempt, again ? previous.waited(now) : SubscriptionDelivery.Waited.NOT_YET);
         } finally {
             handlingSince = null;
         }
@@ -177,11 +178,11 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
             }
             case PARK -> park(consumer, partition, record, message, outcome.errorCode(), attempt, again ? previous : null);
             case RETRY -> {
-                holdBack(consumer, partition, record, attempt + 1, again ? previous : null, outcome.delay());
+                holdBack(consumer, partition, record, attempt + 1, 0, again ? previous : null, outcome.delay());
                 yield false;
             }
             case WAIT -> {
-                holdBack(consumer, partition, record, attempt, again ? previous : null, outcome.delay());
+                holdBack(consumer, partition, record, attempt, 1, again ? previous : null, outcome.delay());
                 yield false;
             }
         };
@@ -196,7 +197,7 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
             log.warn("event=event.park_failed subscription={} partition={} offset={} code={}", subscription.name(),
                 partition, record.offset(), errorCode, failure);
             // The record comes back at the same attempt: it is delivered once more and parked if that fails too.
-            holdBack(consumer, partition, record, attempt, previous, PARK_RETRY);
+            holdBack(consumer, partition, record, attempt, 0, previous, PARK_RETRY);
             return false;
         }
         delivery.parked(message == null ? null : message.messageType(), eventId, errorCode, attempt);
@@ -205,10 +206,11 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
     }
 
     private void holdBack(Consumer<String, String> consumer, TopicPartition partition, ConsumerRecord<String, String> record,
-            int nextAttempt, Failing previous, Duration delay) {
+            int nextAttempt, int waits, Failing previous, Duration delay) {
         Instant now = clock.instant();
         Instant since = previous == null ? now : previous.since();
-        failing.put(partition, new Failing(record.offset(), nextAttempt, since, now.plus(delay)));
+        int waited = previous == null ? waits : previous.waits() + waits;
+        failing.put(partition, new Failing(record.offset(), nextAttempt, waited, since, now.plus(delay)));
         consumer.seek(partition, record.offset());
         consumer.pause(List.of(partition));
     }
@@ -305,9 +307,14 @@ final class KafkaSubscriptionConsumer implements EventSubscriptionTransport.Cons
      *
      * @param offset the record's offset
      * @param attempt the attempt the record gets next
+     * @param waits how often the record has waited for its subscriber
      * @param since when the record first failed
      * @param retryAt when the partition resumes
      */
-    private record Failing(long offset, int attempt, Instant since, Instant retryAt) {
+    private record Failing(long offset, int attempt, int waits, Instant since, Instant retryAt) {
+
+        SubscriptionDelivery.Waited waited(Instant now) {
+            return new SubscriptionDelivery.Waited(waits, Duration.between(since, now));
+        }
     }
 }

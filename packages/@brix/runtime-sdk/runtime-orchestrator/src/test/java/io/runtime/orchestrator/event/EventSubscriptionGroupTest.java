@@ -9,6 +9,7 @@ package io.runtime.orchestrator.event;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -79,6 +80,25 @@ class EventSubscriptionGroupTest {
     }
 
     @Test
+    void aWaitThatWouldOutlastTheBrokersRetentionStopsTheHost() {
+        // Standard-link plan D91: the broker would take the record before the wait parks it.
+        broker.retention = world.policy().maxWait();
+
+        IllegalStateException refused = assertThrows(IllegalStateException.class, group::start);
+
+        assertTrue(refused.getMessage().contains("brix.outbox.relay.max-wait"), refused.getMessage());
+    }
+
+    @Test
+    void aWaitWithinTheBrokersRetentionStarts() {
+        broker.retention = world.policy().maxWait().plusSeconds(1);
+
+        group.start();
+
+        await(group::isReady);
+    }
+
+    @Test
     void aBrokerThatCannotBePreparedIsAskedAgain() {
         broker.refusals.set(1);
 
@@ -144,10 +164,16 @@ class EventSubscriptionGroupTest {
         private final AtomicInteger refusals = new AtomicInteger();
         private final AtomicInteger configurationRefusals = new AtomicInteger();
         private volatile boolean reachable = true;
+        private volatile Duration retention = Duration.ZERO;
 
         @Override
         public boolean ready() {
             return reachable;
+        }
+
+        @Override
+        public Duration retention() {
+            return retention;
         }
 
         @Override

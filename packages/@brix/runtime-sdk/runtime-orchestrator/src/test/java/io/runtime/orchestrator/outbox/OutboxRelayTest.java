@@ -389,7 +389,7 @@ class OutboxRelayTest {
     }
 
     @Test
-    void aMessageThatWaitsIsNeverParkedHoweverLongItWaitsAndLeavesWhenTheTransportTakesIt() {
+    void aMessageThatWaitsSpendsNoAttemptAndLeavesWhenTheTransportTakesIt() {
         InMemoryStore store = new InMemoryStore();
         store.append(typed("m-a", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusSeconds(1)));
         MovingClock clock = new MovingClock();
@@ -405,9 +405,9 @@ class OutboxRelayTest {
             }
         }, POLICY, clock);
 
-        for (int pass = 0; pass < POLICY.maxAttempts() + 2; pass++) {
+        for (int times = 1; times <= POLICY.maxAttempts() + 2; times++) {
             relay.processDueBatch();
-            clock.forward(Duration.ofSeconds(5));
+            clock.forward(POLICY.waitAfter(times));
         }
 
         assertEquals(POLICY.maxAttempts() + 2, tried.size());
@@ -419,6 +419,251 @@ class OutboxRelayTest {
 
         assertEquals("PUBLISHED", store.status("m-a"));
         assertEquals(1, store.attempts("m-a"), "the send that succeeded is the only attempt");
+    }
+
+    @Test
+    void thePausesOfAWaitGrowAndCarryJitter() {
+        // Root BRX-RS-RESILIENCE-002: a wait costs no attempt, so its tries need the backoff and the jitter themselves.
+        InMemoryStore store = new InMemoryStore();
+        store.append(typed("m-a", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusSeconds(1)));
+        MovingClock clock = new MovingClock();
+        OutboxRelay relay = new OutboxRelay("relay-a", store, refusing("Refused", new ArrayList<>()), POLICY, clock,
+            times -> Duration.ofMillis(times), OutboxRelayMetrics.NOOP);
+
+        for (int times = 1; times <= 7; times++) {
+            relay.processDueBatch();
+
+            Duration pause = POLICY.waitAfter(times).plusMillis(times);
+            assertEquals(OffsetDateTime.now(clock).plus(pause), store.availableAt("m-a"), "after wait " + times);
+            clock.forward(pause);
+        }
+        assertEquals(Duration.ofMinutes(1), POLICY.waitAfter(7), "the pauses reached their bound");
+    }
+
+    @Test
+    void aMessageThatHasWaitedItsLimitIsParkedWithWhatItWaitedFor() {
+        // Root BRX-RS-RESILIENCE-002, MESSAGE-028 (standard-link plan D91).
+        InMemoryStore store = new InMemoryStore();
+        store.append(typed("m-a", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusSeconds(1)));
+        MovingClock clock = new MovingClock();
+        OutboxRelay relay = relay(store, refusing("Refused", new ArrayList<>()), waitingAMinute(), clock);
+
+        relay.processDueBatch();
+        clock.forward(Duration.ofSeconds(59));
+        OutboxRelayRunResult beforeTheLimit = relay.processDueBatch();
+
+        assertEquals(0, beforeTheLimit.parked());
+        assertEquals("PENDING", store.status("m-a"));
+
+        clock.forward(Duration.ofSeconds(10));
+        OutboxRelayRunResult atTheLimit = relay.processDueBatch();
+
+        assertEquals(1, atTheLimit.parked());
+        assertEquals("PARKED", store.status("m-a"));
+        assertEquals("KAFKA_ACCESS_DENIED", store.error("m-a"));
+    }
+
+    @Test
+    void aWaitCountsFromTheFirstRefusalNotFromTheMessagesAge() {
+        // A message that sat in a backlog has not waited: it was never refused.
+        InMemoryStore store = new InMemoryStore();
+        store.append(typed("m-a", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusDays(3)));
+        OutboxRelay relay = relay(store, refusing("Refused", new ArrayList<>()), waitingAMinute(), new MovingClock());
+
+        relay.processDueBatch();
+
+        assertEquals("PENDING", store.status("m-a"));
+    }
+
+    @Test
+    void theLaterMessagesOfAKeyHaveNotWaitedSoALongOutageParksOneMessageOfAKeyPerLimit() {
+        // Standard-link plan D91: the message behind has not been refused, and leaves by itself once the outage ends.
+        // The type keeps waiting too: the refusal says the same of the next message, which gets its try after the pause.
+        InMemoryStore store = new InMemoryStore();
+        OffsetDateTime now = OffsetDateTime.now(CLOCK);
+        store.append(typed("m-a", "Refused", "key-1", now.minusSeconds(2)));
+        MovingClock clock = new MovingClock();
+        List<String> tried = new ArrayList<>();
+        OutboxRelay relay = relay(store, refusing("Refused", tried), waitingAMinute(), clock);
+
+        relay.processDueBatch();
+        // Written while the first one waits: this store hands out what has been due longest, whatever its key.
+        store.append(typed("m-b", "Refused", "key-1", now.plusSeconds(30)));
+        store.dueAgain("m-b", now.plusSeconds(30));
+        clock.forward(Duration.ofMinutes(1));
+        relay.processDueBatch();
+
+        assertEquals("PARKED", store.status("m-a"));
+        assertEquals("PENDING", store.status("m-b"));
+        assertEquals(0, store.attempts("m-b"));
+        assertEquals(List.of("m-a", "m-a"), tried, "the type still waits");
+
+        clock.forward(waitingAMinute().waitAfter(2));
+        relay.processDueBatch();
+
+        assertEquals(List.of("m-a", "m-a", "m-b"), tried);
+        assertEquals("PENDING", store.status("m-b"), "its own wait starts with its first refusal");
+    }
+
+    @Test
+    void aMessageParkedAtItsLimitHoldsNothingBack() {
+        // Root BRX-RS-MESSAGE-028: as any parked message, it is passed by the later messages of its key.
+        InMemoryStore store = new InMemoryStore();
+        OffsetDateTime now = OffsetDateTime.now(CLOCK);
+        store.append(typed("m-a", "Partly", "key-1", now.minusSeconds(2)));
+        store.append(typed("m-b", "Partly", "key-1", now.minusSeconds(1)));
+        MovingClock clock = new MovingClock();
+        OutboxRelay relay = relay(store, message -> {
+            if ("m-a".equals(message.messageId())) {
+                throw OutboxTransportException.unavailable("EVENT_OWNER_UNAVAILABLE", "database down", null);
+            }
+        }, waitingAMinute(), clock);
+
+        relay.processDueBatch();
+        assertEquals("PENDING", store.status("m-b"), "it waits behind the earlier message of its key");
+        store.dueAgain("m-b", now.plusSeconds(30));
+        clock.forward(Duration.ofMinutes(1));
+        relay.processDueBatch();
+
+        assertEquals("PARKED", store.status("m-a"));
+        assertEquals("PUBLISHED", store.status("m-b"), "in the pass that parked the earlier one");
+    }
+
+    @Test
+    void aPauseOfTheTransportCountsAgainstNoMessage() {
+        // Kafka design D21: nothing is tried while the transport is gone, however long, so nothing may be parked for it.
+        InMemoryStore store = new InMemoryStore();
+        store.append(typed("m-a", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusSeconds(1)));
+        MovingClock clock = new MovingClock();
+        AtomicBoolean ready = new AtomicBoolean(true);
+        OutboxTransport refusal = refusing("Refused", new ArrayList<>());
+        OutboxRelay relay = relay(store, new OutboxTransport() {
+            @Override
+            public void publish(CanonicalOutboxMessage message) {
+                refusal.publish(message);
+            }
+
+            @Override
+            public boolean ready() {
+                return ready.get();
+            }
+        }, waitingAMinute(), clock);
+
+        relay.processDueBatch();
+        ready.set(false);
+        relay.processDueBatch();
+        clock.forward(Duration.ofHours(30));
+        ready.set(true);
+        relay.processDueBatch();
+
+        assertEquals("PENDING", store.status("m-a"));
+    }
+
+    @Test
+    void aMomentWithoutTheTransportDoesNotStartAWaitAgain() {
+        // A probe that fails once says nothing about what keeps refusing the message: a broker that flaps must not keep
+        // the wait from its limit. Only the moment itself is left out.
+        InMemoryStore store = new InMemoryStore();
+        store.append(typed("m-a", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusSeconds(1)));
+        MovingClock clock = new MovingClock();
+        AtomicBoolean ready = new AtomicBoolean(true);
+        OutboxTransport refusal = refusing("Refused", new ArrayList<>());
+        OutboxRelay relay = relay(store, new OutboxTransport() {
+            @Override
+            public void publish(CanonicalOutboxMessage message) {
+                refusal.publish(message);
+            }
+
+            @Override
+            public boolean ready() {
+                return ready.get();
+            }
+        }, waitingAMinute(), clock);
+
+        relay.processDueBatch();
+        clock.forward(Duration.ofSeconds(50));
+        ready.set(false);
+        relay.processDueBatch();
+        clock.forward(Duration.ofSeconds(20));
+        ready.set(true);
+        relay.processDueBatch();
+        assertEquals("PENDING", store.status("m-a"), "it has waited 50 seconds: the 20 without the transport do not count");
+
+        clock.forward(Duration.ofSeconds(10));
+        relay.processDueBatch();
+
+        assertEquals("PARKED", store.status("m-a"));
+    }
+
+    @Test
+    void aTransportLostInAPassLeavesTheTimeUntilItIsBackOutOfTheWaitToo() {
+        InMemoryStore store = new InMemoryStore();
+        store.append(typed("m-a", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusSeconds(1)));
+        MovingClock clock = new MovingClock();
+        AtomicBoolean ready = new AtomicBoolean(true);
+        AtomicBoolean losing = new AtomicBoolean();
+        OutboxTransport refusal = refusing("Refused", new ArrayList<>());
+        OutboxRelay relay = relay(store, new OutboxTransport() {
+            @Override
+            public void publish(CanonicalOutboxMessage message) {
+                if (losing.get()) {
+                    ready.set(false);
+                }
+                refusal.publish(message);
+            }
+
+            @Override
+            public boolean ready() {
+                return ready.get();
+            }
+        }, waitingAMinute(), clock);
+
+        relay.processDueBatch();
+        clock.forward(Duration.ofSeconds(50));
+        losing.set(true);
+        relay.processDueBatch();
+        losing.set(false);
+        clock.forward(Duration.ofSeconds(20));
+        ready.set(true);
+        relay.processDueBatch();
+        assertEquals("PENDING", store.status("m-a"), "it has waited 50 seconds: the 20 without the transport do not count");
+
+        clock.forward(Duration.ofSeconds(20));
+        relay.processDueBatch();
+
+        assertEquals("PARKED", store.status("m-a"), "the 50 seconds it waited before still count");
+    }
+
+    @Test
+    void aMessageThatLeftOrWasParkedStartsAnyLaterWaitAgain() {
+        // A replay brings the same message back: the time it waited before must not park it at its first refusal.
+        InMemoryStore store = new InMemoryStore();
+        store.append(typed("m-parked", "Refused", "key-1", OffsetDateTime.now(CLOCK).minusSeconds(2)));
+        store.append(typed("m-sent", "Partly", "key-2", OffsetDateTime.now(CLOCK).minusSeconds(1)));
+        MovingClock clock = new MovingClock();
+        AtomicBoolean refusing = new AtomicBoolean(true);
+        OutboxRelay relay = relay(store, message -> {
+            boolean always = "Refused".equals(message.messageType());
+            if (always || refusing.get()) {
+                throw OutboxTransportException.unavailable("EVENT_OWNER_UNAVAILABLE", "database down", null);
+            }
+        }, waitingAMinute(), clock);
+
+        relay.processDueBatch();
+        clock.forward(Duration.ofMinutes(1));
+        refusing.set(false);
+        relay.processDueBatch();
+        assertEquals("PARKED", store.status("m-parked"));
+        assertEquals("PUBLISHED", store.status("m-sent"));
+
+        store.dueAgain("m-parked", OffsetDateTime.now(clock));
+        store.dueAgain("m-sent", OffsetDateTime.now(clock));
+        clock.forward(Duration.ofMinutes(1));
+        refusing.set(true);
+        relay.processDueBatch();
+
+        assertEquals("PENDING", store.status("m-parked"));
+        assertEquals("PENDING", store.status("m-sent"));
     }
 
     @Test
@@ -508,6 +753,11 @@ class OutboxRelayTest {
         return relay(store, transport, POLICY, CLOCK);
     }
 
+    private static OutboxRelayPolicy waitingAMinute() {
+        return new OutboxRelayPolicy(10, 3, Duration.ofSeconds(30), Duration.ofSeconds(5), Duration.ZERO,
+            OutboxRelayPolicy.DEFAULT_RETRY_BACKOFF_MAX, Duration.ofMinutes(1));
+    }
+
     private static OutboxRelay relay(InMemoryStore store, OutboxTransport transport, OutboxRelayPolicy policy, Clock clock) {
         return new OutboxRelay("relay-a", store, transport, policy, clock, ignored -> Duration.ZERO, OutboxRelayMetrics.NOOP);
     }
@@ -593,6 +843,13 @@ class OutboxRelayTest {
 
         String error(String id) {
             return records.get(id).lastErrorCode;
+        }
+
+        /** Brings a message back, as an operator's replay does. */
+        void dueAgain(String id, OffsetDateTime availableAt) {
+            StoredMessage record = records.get(id);
+            record.status = "PENDING";
+            record.availableAt = availableAt;
         }
 
         OffsetDateTime availableAt(String id) {

@@ -367,8 +367,8 @@ public final class EventDelivery {
             }
             log.warn("event=event.delivery_failed type={} event_id={} handler={} owner={} attempt={}",
                 message.messageType(), message.eventId(), handlerId, bound.pluginId(), invocation.deliveryAttempt(), failure);
-            throw new EventDeliveryException(HANDLER_FAILED, handlerId + " failed to handle " + message.eventId(), failure,
-                false);
+            throw EventDeliveryException.whileHandling(HANDLER_FAILED, handlerId + " failed to handle " + message.eventId(),
+                failure);
         }
     }
 

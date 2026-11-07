@@ -42,14 +42,19 @@ import io.runtime.orchestrator.tracing.MessageTracing;
  * the other types. The store hands out what has been due longest, so the message that waited goes behind the others
  * and the next try falls on another key (standard-link plan §10.28, D87).</p>
  *
+ * <p>A wait has a budget like the attempts (root BRX-RS-RESILIENCE-002): the pauses grow, with jitter, and a message that
+ * has waited {@link OutboxRelayPolicy#maxWait()} is parked with what it waited for. The later messages of its key stay
+ * behind it untried, so a long outage parks one message of a key per limit, and the others leave by themselves once it
+ * ends. The relay counts in memory, so a host that restarts starts counting again (standard-link plan D91, D92). A
+ * transport that is not ready is no try at all: nothing is claimed, so nothing parks, and that time counts against no
+ * wait (D21).</p>
+ *
  * @author Runtime SDK Team
  * @since 3.0.10
  */
 public final class OutboxRelay implements AutoCloseable {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OutboxRelay.class);
-    private static final Duration MIN_WAIT = Duration.ofSeconds(1);
-
     private static final String ERROR_INVALID_ENVELOPE = "OUTBOX_INVALID_ENVELOPE";
     private static final String ERROR_UNEXPECTED = "OUTBOX_UNEXPECTED";
     private static final int MAX_RELAY_OWNER_LENGTH = 64;
@@ -64,7 +69,9 @@ public final class OutboxRelay implements AutoCloseable {
     private final MessageTracing tracing;
     private final AtomicBoolean accepting = new AtomicBoolean(true);
     private final Map<String, OffsetDateTime> waitingTypes = new HashMap<>();
+    private final MessageWaits waits;
     private boolean waiting;
+    private OffsetDateTime waitingSince;
 
     /**
      * Creates a relay with default jitter and no-op metrics.
@@ -144,6 +151,7 @@ public final class OutboxRelay implements AutoCloseable {
         this.store = Objects.requireNonNull(store, "store must not be null");
         this.transport = Objects.requireNonNull(transport, "transport must not be null");
         this.policy = Objects.requireNonNull(policy, "policy must not be null");
+        this.waits = new MessageWaits(policy.maxWait());
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.jitter = Objects.requireNonNull(jitter, "jitter must not be null");
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
@@ -169,12 +177,16 @@ public final class OutboxRelay implements AutoCloseable {
             // would spend attempts, or park rows that only wait for their subscribers.
             if (!waiting) {
                 waiting = true;
+                waitingSince = now;
                 log.info("event=outbox.relay_waiting pending={} reason=transport_not_ready", backlog.pendingCount());
             }
             return new OutboxRelayRunResult(0, 0, 0, 0);
         }
         if (waiting) {
             waiting = false;
+            // Nothing was tried meanwhile, so that time counts against no message. The waits stay: a moment without the
+            // transport says nothing about what kept refusing them before it.
+            waits.leaveOut(Duration.between(waitingSince, now));
             log.info("event=outbox.relay_resumed pending={}", backlog.pendingCount());
         }
         waitingTypes.values().removeIf(until -> !until.isAfter(now));
@@ -226,9 +238,18 @@ public final class OutboxRelay implements AutoCloseable {
                     // The receiving side cannot take it now (a subscriber not started or its database down, brokers
                     // that refuse writes): it waits without spending an attempt, as the transport's own outages do
                     // (Kafka design §14 K11, D21); its key waits too, and its type if the transport says so.
-                    OffsetDateTime tryAgainAt = nextWaitAt();
+                    MessageWaits.Wait wait = waits.refused(message.messageId(), now());
+                    OffsetDateTime tryAgainAt = nextWaitAt(wait.times());
                     if (failure.wholeType()) {
                         waitingTypes.put(message.messageType(), tryAgainAt);
+                    }
+                    Duration waited = Duration.between(wait.since(), now());
+                    if (waited.compareTo(policy.maxWait()) >= 0) {
+                        log.warn("event=outbox.wait_limit_reached type={} message_id={} code={} waited_s={}",
+                            message.messageType(), message.messageId(), failure.errorCode(), waited.toSeconds());
+                        park(claim, message, failure);
+                        parked++;
+                        continue;
                     }
                     store.releaseWaiting(claim, message.messageId(), tryAgainAt, failure.errorCode());
                     metrics.recordWait(message.messageType(), failure.errorCode());
@@ -239,12 +260,10 @@ public final class OutboxRelay implements AutoCloseable {
                 } else if (failure == null) {
                     store.markPublished(claim, message.messageId(), now());
                     metrics.recordPublished(message.messageType());
+                    waits.forget(message.messageId());
                     published++;
                 } else if (shouldPark(message, failure)) {
-                    store.park(claim, message.messageId(), failure.errorCode(), now());
-                    metrics.recordParked(message.messageType(), failure.errorCode());
-                    log.warn("event=outbox.parked type={} message_id={} code={} attempts={}",
-                        message.messageType(), message.messageId(), failure.errorCode(), message.attemptCount(), failure);
+                    park(claim, message, failure);
                     parked++;
                 } else {
                     store.releaseForRetry(claim, message.messageId(), nextAvailableAt(message), failure.errorCode());
@@ -275,12 +294,21 @@ public final class OutboxRelay implements AutoCloseable {
         drain();
     }
 
+    private void park(String claim, CanonicalOutboxMessage message, OutboxTransportException failure) {
+        store.park(claim, message.messageId(), failure.errorCode(), now());
+        metrics.recordParked(message.messageType(), failure.errorCode());
+        waits.forget(message.messageId());
+        log.warn("event=outbox.parked type={} message_id={} code={} attempts={}",
+            message.messageType(), message.messageId(), failure.errorCode(), message.attemptCount(), failure);
+    }
+
     /** Whether the transport went away during the pass: the rest of it then goes back untried and the relay waits. */
     private boolean transportLost(int left) {
         if (transport.ready()) {
             return false;
         }
         waiting = true;
+        waitingSince = now();
         metrics.recordWaiting(true);
         log.info("event=outbox.relay_waiting pending={} reason=transport_lost_during_pass", left);
         return true;
@@ -323,10 +351,9 @@ public final class OutboxRelay implements AutoCloseable {
         return now().plus(policy.backoffAfter(message.attemptCount())).plus(jitter.apply(message.attemptCount()));
     }
 
-    /** When a message whose subscriber could not take it is tried again: the first backoff, at least a second. */
-    private OffsetDateTime nextWaitAt() {
-        Duration wait = policy.backoffAfter(1);
-        return now().plus(wait.compareTo(MIN_WAIT) < 0 ? MIN_WAIT : wait);
+    /** When a message the receiving side could not take is tried again. */
+    private OffsetDateTime nextWaitAt(int times) {
+        return now().plus(policy.waitAfter(times)).plus(jitter.apply(times));
     }
 
     private void handBack(String claim, CanonicalOutboxMessage message) {
@@ -340,6 +367,7 @@ public final class OutboxRelay implements AutoCloseable {
     private OffsetDateTime now() {
         return OffsetDateTime.now(clock);
     }
+
 
     private static Duration randomJitter(Duration max) {
         long upperBound = max.toMillis() + 1L;

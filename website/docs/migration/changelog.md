@@ -249,6 +249,17 @@ All notable changes to Brix Framework are documented here.
     command is answered from them, without reading Kafka;
   - a host that has not read the parking topics yet says so: `/actuator/events`, a replay and a discard answer `503`
     until it has, so an empty list always means that nothing is parked.
+- **Only the owner is waited for.** A failure counted as "owner unavailable" whenever a connection failure appeared
+  anywhere in its chain, so a service a handler calls could hold a partition back for good, spending no attempt. That is
+  now a failed attempt. A delivery waits only when the plugin has not started, or when the persistence layer says that the
+  database cannot be reached. Another store failing with a Spring data access exception no longer reads as the database.
+- **A wait has a limit.** A message the receiving side cannot take no longer waits for ever, at a fixed pace:
+  - the pauses between its tries double, with jitter, up to a minute;
+  - after `brix.outbox.relay.max-wait` (24 hours by default) it is parked with the code it waited for, and the later
+    messages of its key go on. This holds for the relay and for a subscription's consumer;
+  - the host does not start when the limit is not below the retention of the event topics;
+  - while Kafka cannot be reached at all, the relay still pauses without trying anything, and that time counts against
+    no wait.
 - **The relay knows why Kafka did not take a message.** `KafkaTemplate` wraps what the producer reports, or throws it
   from `send()`, so the Kafka transport recognized no real failure: each one spent an attempt, and brokers that refused
   writes had the messages parked after about three minutes. Now:

@@ -7,12 +7,16 @@
 package io.runtime.orchestrator.event;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.ConnectException;
+import java.sql.SQLTransientConnectionException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +25,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
+import io.runtime.sdk.capability.PersistenceCapabilityException;
 
 /**
  * Each record of a subscription is delivered, retried in place with the relay's backoff, or parked
@@ -85,15 +90,66 @@ class SubscriptionDeliveryTest {
     }
 
     @Test
-    void anOwnerWhoseDatabaseIsUnavailableIsWaitedFor() {
-        EventDeliveryException failure = new EventDeliveryException(EventDelivery.HANDLER_FAILED, "failed",
-            new IllegalStateException("wrapped", new io.runtime.sdk.capability.PersistenceCapabilityException(
-                io.runtime.sdk.capability.PersistenceCapabilityException.Code.UNAVAILABLE, java.util.Map.of(), null)),
-            false);
+    void theWaitForASubscriberGrowsWithEachTimeAndCarriesJitter() {
+        // Root BRX-RS-RESILIENCE-002: a wait costs no attempt, so its tries need the backoff and the jitter themselves.
+        world.pluginsStarted(false);
+        SubscriptionDelivery jittered = new SubscriptionDelivery(subscription, world.newDelivery(), world.policy(),
+            times -> Duration.ofMillis(times), EventSubscriptionMetrics.NOOP);
 
-        assertTrue(SubscriptionDelivery.unavailable(failure));
-        assertTrue(!SubscriptionDelivery.unavailable(new EventDeliveryException(EventDelivery.HANDLER_FAILED, "failed",
-            new IllegalStateException("the projection is failing"), false)), "a failing handler spends attempts");
+        assertEquals(Duration.ofMillis(1001), jittered.receive(event("1.0.0"), 1).delay());
+        assertEquals(Duration.ofMillis(2002), jittered.receive(event("1.0.0"), 1, waited(1, Duration.ofSeconds(1))).delay());
+        assertEquals(Duration.ofMillis(4003), jittered.receive(event("1.0.0"), 1, waited(2, Duration.ofSeconds(3))).delay());
+        assertEquals(Duration.ofMillis(60_100), jittered.receive(event("1.0.0"), 1, waited(99, Duration.ofHours(1))).delay(),
+            "it stays within a minute, so that the record leaves soon after the subscriber is back");
+    }
+
+    @Test
+    void aRecordThatHasWaitedItsLimitIsParkedWithWhatItWaitedFor() {
+        // Root BRX-RS-RESILIENCE-002, MESSAGE-028 (standard-link plan D91).
+        world.pluginsStarted(false);
+        Duration limit = world.policy().maxWait();
+
+        assertEquals(SubscriptionDelivery.Kind.WAIT,
+            delivery.receive(event("1.0.0"), 1, waited(3, limit.minusMillis(1))).kind());
+
+        SubscriptionDelivery.Outcome parked = delivery.receive(event("1.0.0"), 1, waited(4, limit));
+
+        assertEquals(SubscriptionDelivery.Kind.PARK, parked.kind());
+        assertEquals(EventDelivery.SUBSCRIBER_NOT_READY, parked.errorCode());
+    }
+
+    @Test
+    void aRecordThatWaitedAndThenWasDeliveredIsDone() {
+        assertEquals(SubscriptionDelivery.Outcome.DELIVERED,
+            delivery.receive(event("1.0.0"), 1, waited(4, world.policy().maxWait().plusHours(1))));
+    }
+
+    @Test
+    void theLimitOfAWaitDoesNotShortenTheAttemptsOfAFailingHandler() {
+        world.failing(true);
+
+        assertEquals(SubscriptionDelivery.Kind.RETRY,
+            delivery.receive(event("1.0.0"), 1, waited(4, world.policy().maxWait().plusHours(1))).kind());
+    }
+
+    @Test
+    void aDatabaseThatCannotBeReachedIsWaitedFor() {
+        assertTrue(waitsFor(unreachable(ConformanceWorld.SUBSCRIBER)));
+        assertTrue(waitsFor(new IllegalStateException("wrapped by the handler", unreachable(ConformanceWorld.SUBSCRIBER))));
+        assertTrue(waitsFor(unreachable("another-owner")), "all owners share one database");
+    }
+
+    @Test
+    void whatElseAHandlerCannotReachSpendsAttempts() {
+        // Standard-link plan D90: only the persistence adapter says that the database is gone. Nothing says that anything
+        // else comes back, so waiting for it could hold the partition back for good.
+        assertFalse(waitsFor(new IllegalStateException("the projection is failing")), "a failing handler");
+        assertFalse(waitsFor(new IllegalStateException("the payment service", new ConnectException("Connection refused"))),
+            "a service the handler calls");
+        assertFalse(waitsFor(new IllegalStateException("a pool of its own", new SQLTransientConnectionException("timed out"))),
+            "a connection the persistence adapter knows nothing about");
+        assertFalse(waitsFor(new PersistenceCapabilityException(PersistenceCapabilityException.Code.FAILURE,
+            Map.of("owner", ConformanceWorld.SUBSCRIBER))), "a failed statement of its own");
     }
 
     @Test
@@ -173,6 +229,19 @@ class SubscriptionDeliveryTest {
 
         assertEquals(EventDelivery.SUBSCRIPTION_UNKNOWN, refused.errorCode());
         assertTrue(refused.permanent());
+    }
+
+    private static SubscriptionDelivery.Waited waited(int times, Duration sofar) {
+        return new SubscriptionDelivery.Waited(times, sofar);
+    }
+
+    private static boolean waitsFor(RuntimeException failure) {
+        return SubscriptionDelivery.unavailable(EventDeliveryException.whileHandling(EventDelivery.HANDLER_FAILED, "failed",
+            failure));
+    }
+
+    private static PersistenceCapabilityException unreachable(String owner) {
+        return new PersistenceCapabilityException(PersistenceCapabilityException.Code.UNAVAILABLE, Map.of("owner", owner));
     }
 
     private CanonicalOutboxMessage event(String schemaVersion) {
