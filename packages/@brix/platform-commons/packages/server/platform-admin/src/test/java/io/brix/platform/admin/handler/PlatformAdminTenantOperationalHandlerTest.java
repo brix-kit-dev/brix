@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 
@@ -63,6 +64,7 @@ class PlatformAdminTenantOperationalHandlerTest {
     private static final String CREATE = "platform.tenants.create.v1";
     private static final String INVITE = "platform.tenants.first-owner-invitations.create.v1";
     private static final String RESEND = "platform.tenants.first-owner-invitations.resend.v1";
+    private static final String REVOKE = "platform.tenants.first-owner-invitations.revoke.v1";
 
     private final TenantAdministration tenantAdministration = org.mockito.Mockito.mock(TenantAdministration.class);
     private final PlatformAuditAdministration audit = org.mockito.Mockito.mock(PlatformAuditAdministration.class);
@@ -237,6 +239,49 @@ class PlatformAdminTenantOperationalHandlerTest {
             contract, getClass().getClassLoader()));
     }
 
+    @Test
+    void aRevokeIsAnsweredWithNoContent() {
+        // Standard-link plan point 10b-6, D94: the real descriptor and schema, through the dispatcher. A revoke has
+        // nothing to answer with.
+        EndpointResponse answer = (EndpointResponse) revoke("7", Map.of());
+
+        assertEquals(204, answer.status());
+        assertNull(answer.body());
+        ArgumentCaptor<RevokeFirstOwnerInvitationCommand> command =
+            ArgumentCaptor.forClass(RevokeFirstOwnerInvitationCommand.class);
+        verify(tenantAdministration).revokeFirstOwnerInvitation(command.capture());
+        assertEquals(42L, command.getValue().tenantId());
+        assertEquals(7L, command.getValue().invitationId());
+        assertEquals("platform-identity:1001", command.getValue().platformOperatorRef());
+    }
+
+    @ParameterizedTest
+    @MethodSource("revokesTheSchemaRefuses")
+    void aRevokeTheSchemaRefusesNeverReachesTheOwner(String invitationId, Map<String, List<String>> query) {
+        assertThrows(EndpointRequestInvalidException.class, () -> revoke(invitationId, query));
+
+        verify(tenantAdministration, never()).revokeFirstOwnerInvitation(any());
+    }
+
+    static Stream<Arguments> revokesTheSchemaRefuses() {
+        return Stream.of(
+            Arguments.of("seven", Map.of()),
+            Arguments.of("0", Map.of()),
+            // The path names the invitation, and nothing else comes with it.
+            Arguments.of("7", Map.of("inviteeEmail", List.of("other@example.invalid"))),
+            Arguments.of("7", Map.of("reason", List.of("cleanup"))));
+    }
+
+    @Test
+    void theRevokeIsReplayedThroughTheTenantOwner() {
+        EndpointContract contract = endpoint(REVOKE).contract();
+
+        assertEquals("brix.internal.tenant.administration", contract.replay().writeContract());
+        assertEquals(204, contract.status());
+        assertEquals(Optional.empty(), TypedEndpointRules.problem(new RevokeFirstOwnerInvitationHandler(context),
+            contract, getClass().getClassLoader()));
+    }
+
     private Object create(Map<String, Object> request) {
         return call(CREATE, new CreatePlatformTenantHandler(context), "/api/platform/tenants", request,
             "platform:tenant:create");
@@ -252,16 +297,27 @@ class PlatformAdminTenantOperationalHandlerTest {
             "/api/platform/tenants/42/first-owner-invitations/resend", request, "platform:tenant:first-owner-invite");
     }
 
+    private Object revoke(String invitationId, Map<String, List<String>> query) {
+        return call(REVOKE, new RevokeFirstOwnerInvitationHandler(context),
+            "/api/platform/tenants/42/first-owner-invitations/" + invitationId, null, query,
+            "platform:tenant:first-owner-invite");
+    }
+
     private Object call(String endpointId, EndpointHandler<?, ?> handler, String path, Map<String, Object> request,
             String permission) {
+        return call(endpointId, handler, path, request, Map.of(), permission);
+    }
+
+    private Object call(String endpointId, EndpointHandler<?, ?> handler, String path, Map<String, Object> request,
+            Map<String, List<String>> query, String permission) {
         OperationalModuleDescriptor.EndpointDeclaration endpoint = endpoint(endpointId);
         EndpointContract contract = endpoint.contract();
         DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
-        dispatcher.replaceSnapshot(List.of(new EndpointRoute("platform-admin", endpoint.endpointId(), "POST",
+        dispatcher.replaceSnapshot(List.of(new EndpointRoute("platform-admin", endpoint.endpointId(), endpoint.method(),
             endpoint.path(), endpoint.accessPolicy(), handler,
             new EndpointContract(contract.requestSchemaRef(), contract.responseSchemaRef(), contract.status(),
                 contract.timeoutPolicyRef()))));
-        return dispatcher.invoke("POST", path, request, Map.of(), Map.of(
+        return dispatcher.invoke(endpoint.method(), path, request, query, Map.of(
             "x-actor-id", List.of("1001"),
             "x-auth-token-role", List.of("platform-admin"),
             "x-auth-token-type", List.of("access"),
@@ -437,10 +493,10 @@ class PlatformAdminTenantOperationalHandlerTest {
         RevokeFirstOwnerInvitationHandler handler = new RevokeFirstOwnerInvitationHandler(context);
 
         Void response = handler.handle(invocation(
-            null,
+            new RevokeFirstOwnerInvitationRequest(42L, 7L),
             Map.of("tenantId", "42", "invitationId", "7"),
             Optional.of("1001"),
-            Optional.empty()));
+            Optional.empty())).toCompletableFuture().join();
 
         assertNull(response);
         ArgumentCaptor<RevokeFirstOwnerInvitationCommand> command =
@@ -462,7 +518,7 @@ class PlatformAdminTenantOperationalHandlerTest {
         EndpointHandlingException failure = assertThrows(
             EndpointHandlingException.class,
             () -> handler.handle(invocation(
-                null,
+                new RevokeFirstOwnerInvitationRequest(42L, 7L),
                 Map.of("tenantId", "42", "invitationId", "7"),
                 Optional.of("1001"),
                 Optional.empty())));
@@ -538,7 +594,7 @@ class PlatformAdminTenantOperationalHandlerTest {
 
         EndpointHandlingException failure = assertThrows(EndpointHandlingException.class,
             () -> new RevokeFirstOwnerInvitationHandler(context).handle(invocation(
-                null, Map.of("tenantId", "42", "invitationId", "7"), Optional.of("1001"), Optional.empty())));
+                new RevokeFirstOwnerInvitationRequest(42L, 7L), Map.of("tenantId", "42", "invitationId", "7"), Optional.of("1001"), Optional.empty())));
 
         assertEquals("FIRST_OWNER_INVITATION_NOT_REVOKABLE", failure.errorCode());
         assertEquals(unavailable, failure.getSuppressed()[0]);
@@ -550,7 +606,7 @@ class PlatformAdminTenantOperationalHandlerTest {
             new FirstOwnerInvitationView(9L, 42L, "owner@example.invalid", "PENDING", OffsetDateTime.now().plusDays(7)));
 
         new RevokeFirstOwnerInvitationHandler(context).handle(invocation(
-            null, Map.of("tenantId", "42", "invitationId", "7"), Optional.of("1001"), Optional.empty()));
+            new RevokeFirstOwnerInvitationRequest(42L, 7L), Map.of("tenantId", "42", "invitationId", "7"), Optional.of("1001"), Optional.empty()));
         new ResendFirstOwnerInvitationHandler(context).handle(invocation(
             new ResendFirstOwnerInvitationRequest("en-US"), Map.of("tenantId", "42"), Optional.of("1001"), Optional.empty()));
 

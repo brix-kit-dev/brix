@@ -38,6 +38,8 @@ export function useFirstOwnerInvitation(): UseFirstOwnerInvitationResult {
   const createKeys = useRef(createIdempotencyKeys());
   // So does a retry of a resend; once one went out, resending again means another e-mail, and takes another key.
   const resendKeys = useRef(createIdempotencyKeys());
+  // And a retry of a revoke, which then hears that it went through, not that the invitation is no longer revokable.
+  const revokeKeys = useRef(createIdempotencyKeys());
 
   const run = useCallback(
     async <T,>(operation: () => Promise<T>): Promise<T> => {
@@ -104,7 +106,12 @@ export function useFirstOwnerInvitation(): UseFirstOwnerInvitationResult {
   const revoke = useCallback(
     (tenantId: string, invitationId: string) =>
       run(async () => {
-        await tenant.revokeFirstOwnerInvitation(tenantId, invitationId);
+        await tenant.revokeFirstOwnerInvitation(
+          tenantId,
+          invitationId,
+          revokeKeys.current.keyFor({ tenantId, invitationId }),
+        );
+        revokeKeys.current.done();
         setCurrent(null);
       }),
     [run, tenant],

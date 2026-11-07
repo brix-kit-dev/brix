@@ -49,6 +49,7 @@ export interface PlatformTenantRepository {
   revokeFirstOwnerInvitation(
     tenantId: string,
     invitationId: string,
+    idempotencyKey: string,
   ): Promise<void>;
 }
 
@@ -111,13 +112,15 @@ export function createPlatformTenantRepository(
         response.data as BackendFirstOwnerInvitationDto,
       );
     },
-    async revokeFirstOwnerInvitation(tenantId, invitationId) {
-      await http.delete<void>(
-        PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATION(
+    async revokeFirstOwnerInvitation(tenantId, invitationId, idempotencyKey) {
+      await http.request<void>({
+        url: PLATFORM_ADMIN_API.TENANT_FIRST_OWNER_INVITATION(
           tenantId,
           invitationId,
         ),
-      );
+        method: 'DELETE',
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
     },
   };
 }

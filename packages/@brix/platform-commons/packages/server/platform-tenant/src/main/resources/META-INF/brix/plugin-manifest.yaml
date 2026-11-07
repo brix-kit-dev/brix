@@ -147,6 +147,7 @@ internalContracts:
         - createPendingTenant
         - createFirstOwnerInvitation
         - resendFirstOwnerInvitation
+        - revokeFirstOwnerInvitation
 data:
   storageId: platform_tenant
   schema: platform-tenant

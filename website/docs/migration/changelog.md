@@ -165,8 +165,11 @@ All notable changes to Brix Framework are documented here.
   operational endpoint also names its write contract, and its owner declares `replayableWrites`. Five platform-admin
   endpoints that declared `required` now declare `not-applicable` until each one is typed: the runtime never acted on
   the declaration, and their handlers are idempotent by their business keys. `POST /api/platform/tenants`,
-  `POST /api/platform/tenants/{tenantId}/first-owner-invitations` and its `/resend` are typed and replay their answers:
-  a caller must send an `Idempotency-Key`, and the platform console does. platform-tenant's FIRST_OWNER acceptance replays its answer, under the hash of the invitation token.
+  `POST /api/platform/tenants/{tenantId}/first-owner-invitations`, its `/resend` and
+  `DELETE /api/platform/tenants/{tenantId}/first-owner-invitations/{invitationId}` are typed and replay their answers:
+  a caller must send an `Idempotency-Key`, and the platform console does. The revoke answers 204 with no body, where it
+  answered 200 with an empty one, and takes no query parameters; a retry under its key hears 204 again, not that the
+  invitation is no longer revokable. platform-tenant's FIRST_OWNER acceptance replays its answer, under the hash of the invitation token.
 - **`ManagedTask.execute(TaskInvocation)`** (root BRX-RS-MANIFEST-027). The run receives its trigger, deadline,
   cancellation and attempt. `ManagedTask` is no longer a functional interface: implement `execute` in a class. A
   compiled task that implements `run()` still runs, and a task that implements neither method is refused at startup.

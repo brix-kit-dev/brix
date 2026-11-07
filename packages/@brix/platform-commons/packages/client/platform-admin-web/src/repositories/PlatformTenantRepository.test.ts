@@ -163,7 +163,12 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
       statusText: 'OK',
       headers: {},
     });
-    vi.mocked(http.delete).mockResolvedValueOnce(undefined);
+    vi.mocked(http.request).mockResolvedValueOnce({
+      data: undefined,
+      status: 204,
+      statusText: 'No Content',
+      headers: {},
+    });
 
     const repository = createPlatformTenantRepository(http);
     const invitation = await repository.resendFirstOwnerInvitation(
@@ -173,7 +178,7 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
       },
       'key-3',
     );
-    await repository.revokeFirstOwnerInvitation('42', invitation.invitationId);
+    await repository.revokeFirstOwnerInvitation('42', invitation.invitationId, 'key-4');
 
     expect(http.request).toHaveBeenCalledWith({
       url: '/platform/tenants/42/first-owner-invitations/resend',
@@ -188,8 +193,11 @@ describe('createPlatformTenantRepository FIRST_OWNER invitations', () => {
       status: 'PENDING',
       expiresAt: '2026-07-28T13:00:00Z',
     });
-    expect(http.delete).toHaveBeenCalledWith(
-      '/platform/tenants/42/first-owner-invitations/8843',
-    );
+    expect(http.request).toHaveBeenCalledWith({
+      url: '/platform/tenants/42/first-owner-invitations/8843',
+      method: 'DELETE',
+      headers: { 'Idempotency-Key': 'key-4' },
+    });
+    expect(http.delete).not.toHaveBeenCalled();
   });
 });

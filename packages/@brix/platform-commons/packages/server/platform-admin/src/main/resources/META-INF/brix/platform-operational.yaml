@@ -374,9 +374,11 @@ endpoints:
       method: DELETE
       path: /api/platform/tenants/{tenantId}/first-owner-invitations/{invitationId}
       request:
-        schemaRef: brix://schemas/empty/1.0.0
+        schemaRef: brix://schemas/platform-admin/revoke-first-owner-invitation-request/1.0.0
+      # A revoke has nothing to answer with (standard-link plan D94). The descriptor names a response schema all the same.
       response:
         schemaRef: brix://schemas/empty/1.0.0
+        status: 204
       handlerId: platform.tenants.first-owner-invitations.revoke
       authentication:
         mode: required
@@ -389,10 +391,12 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
-      # handler is idempotent by its business key.
+      # Super-admin §6: the caller names a key for each revoke it means, so a repeat is answered as the first call was,
+      # not with "no longer revokable". The record goes with the one write through this contract, in the tenant owner's
+      # table (root BRX-RS-MANIFEST-018, HOST-020; standard-link plan point 10b-6).
       idempotency:
-        mode: not-applicable
+        mode: required
+        writeContract: brix.internal.tenant.administration
     - endpointId: platform.audit-logs.list.v1
       transport: http
       method: GET
