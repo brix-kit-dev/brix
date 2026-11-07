@@ -18,6 +18,8 @@ import java.time.OffsetDateTime;
  * @param attempts deliveries tried
  * @param parkedAt when it was parked
  * @param source where the broker held the record
+ * @param producerPluginId who published it, or {@code null} when the record was not an event envelope
+ * @param tenantId the event's tenant, or {@code null} when it has none or the record was not an event envelope
  */
 public record ParkedEvent(
         String subscription,
@@ -26,5 +28,7 @@ public record ParkedEvent(
         String errorCode,
         int attempts,
         OffsetDateTime parkedAt,
-        String source) {
+        String source,
+        String producerPluginId,
+        Long tenantId) {
 }

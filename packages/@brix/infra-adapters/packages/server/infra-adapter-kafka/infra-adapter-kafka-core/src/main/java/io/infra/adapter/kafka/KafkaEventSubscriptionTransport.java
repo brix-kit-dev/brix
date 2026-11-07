@@ -45,6 +45,7 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
     private final KafkaParkingLot parking;
     private final Clock clock;
     private final java.util.function.Supplier<Instant> registeredAt;
+    private final java.util.concurrent.atomic.AtomicLong readers = new java.util.concurrent.atomic.AtomicLong();
 
     /**
      * Creates the transport.
@@ -151,7 +152,8 @@ public final class KafkaEventSubscriptionTransport implements EventSubscriptionT
 
     private Map<String, Object> readerConfigs() {
         Map<String, Object> configs = new HashMap<>(clientConfigs);
-        configs.put(ConsumerConfig.CLIENT_ID_CONFIG, "brix-event-parking");
+        // The reader and whoever reads a record back run at the same time, and a client id names one consumer.
+        configs.put(ConsumerConfig.CLIENT_ID_CONFIG, "brix-event-parking-" + readers.incrementAndGet());
         configs.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         configs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         configs.put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false);

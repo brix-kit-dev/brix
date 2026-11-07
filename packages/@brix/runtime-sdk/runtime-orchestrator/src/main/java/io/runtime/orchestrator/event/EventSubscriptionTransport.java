@@ -55,6 +55,7 @@ public interface EventSubscriptionTransport {
      *
      * @param limit most events listed per subscription
      * @return parked events by subscription name; a subscription with none may be left out
+     * @throws RuntimeException while the broker cannot tell what is parked, which is not the same as nothing
      */
     Map<String, List<ParkedEvent>> parked(int limit);
 
@@ -64,6 +65,7 @@ public interface EventSubscriptionTransport {
      * @param subscription the subscription
      * @param eventId the event id, as listed
      * @return the parked event, or empty when the subscription holds none with this id
+     * @throws RuntimeException while the broker cannot tell what is parked, which is not the same as nothing
      */
     Optional<ParkedEvent> parkedEvent(ConsumedSubscription subscription, String eventId);
 
@@ -73,6 +75,7 @@ public interface EventSubscriptionTransport {
      * @param subscription the subscription
      * @param eventId the event id, as listed
      * @return the event, or empty when none is parked with this id or the record is not an event envelope
+     * @throws RuntimeException when the broker does not give the record back now; the event stays parked
      */
     Optional<CanonicalOutboxMessage> parkedMessage(ConsumedSubscription subscription, String eventId);
 

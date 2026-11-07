@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -28,6 +29,7 @@ import java.util.function.Supplier;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.Header;
@@ -47,6 +49,13 @@ import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
  * writes a tombstone for the key. The parking topics are compacted, so a parked record stays until it is
  * released, however long that takes. A reader started with the subscriptions reads every parking topic from
  * the beginning and keeps what is parked now; each host instance reads the topics, so all see the same.</p>
+ * <p>The topic holds the payloads, and the hosts keep only what they list and where each record is, so a host's heap
+ * grows with how many records are parked, not with how large they are (Kafka design D20; standard-link plan D88).
+ * Delivering an event again reads its record back from the topic. A record's offset holds while it is the latest of its
+ * key, which is what compaction keeps.</p>
+ * <p>Until a host has read the topics up to where they ended when it started reading, it does not know what is parked,
+ * and it says so instead of answering that nothing is (root BRX-RS-RESILIENCE-005; standard-link plan D89). A reader that
+ * stops reads the topics again from the beginning, with the same effect.</p>
  */
 final class KafkaParkingLot implements AutoCloseable {
 
@@ -55,6 +64,9 @@ final class KafkaParkingLot implements AutoCloseable {
     static final String PARKED_AT = "parked.at";
     static final String SOURCE = "parked.source";
     static final String EVENT_TYPE = "eventType";
+
+    /** Records read back at once: each takes a consumer of its own. */
+    static final int READS_AT_ONCE = 4;
 
     private static final Logger log = LoggerFactory.getLogger(KafkaParkingLot.class);
 
@@ -66,8 +78,10 @@ final class KafkaParkingLot implements AutoCloseable {
     private final Clock clock;
     private final Map<String, Map<String, Parked>> parked = new ConcurrentHashMap<>();
     private final Map<String, ConsumedSubscription> subscriptionsByTopic = new ConcurrentHashMap<>();
+    private final Semaphore reads = new Semaphore(READS_AT_ONCE);
     private Thread reader;
     private volatile boolean stopping;
+    private volatile boolean behind = true;
 
     KafkaParkingLot(
             KafkaTemplate<String, String> producer,
@@ -90,7 +104,11 @@ final class KafkaParkingLot implements AutoCloseable {
      * @param subscriptions the subscriptions, whose parking topics exist
      */
     synchronized void watch(List<ConsumedSubscription> subscriptions) {
-        if (reader != null || subscriptions.isEmpty()) {
+        if (reader != null) {
+            return;
+        }
+        if (subscriptions.isEmpty()) {
+            behind = false;
             return;
         }
         subscriptions.forEach(subscription -> subscriptionsByTopic.put(topics.parkingTopic(subscription), subscription));
@@ -125,14 +143,17 @@ final class KafkaParkingLot implements AutoCloseable {
         // A record without a value is parked with an empty one: a null value is the parking topic's tombstone, which
         // every host would read as a release.
         String value = record.value() == null ? "" : record.value();
-        send(new ProducerRecord<>(topics.parkingTopic(subscription), null, eventId, value, headers));
-        remember(subscription, new Parked(
-            new ParkedEvent(subscription.name(), eventId, eventType, errorCode, attempts, parkedAt, source), value));
+        RecordMetadata written = send(new ProducerRecord<>(topics.parkingTopic(subscription), null, eventId, value, headers));
+        String producerPluginId = message == null ? null : message.producerPluginId();
+        Long tenantId = message == null ? null : message.tenantId();
+        remember(subscription, new Parked(new ParkedEvent(subscription.name(), eventId, eventType, errorCode, attempts,
+            parkedAt, source, producerPluginId, tenantId), written.partition(), written.offset()));
         return eventId;
     }
 
     /**
-     * Releases a parked event: writes its tombstone.
+     * Releases a parked event: writes its tombstone. This host stops listing it at once, but a reader that has not got past
+     * the event's record yet lists it again until it reads the tombstone, as any other host does.
      *
      * @param subscription the subscription
      * @param eventId the id it is parked under
@@ -146,7 +167,15 @@ final class KafkaParkingLot implements AutoCloseable {
         }
     }
 
+    /**
+     * Lists the parked events.
+     *
+     * @param limit most events listed per subscription
+     * @return the earliest parked events by subscription; a subscription with none is left out
+     * @throws IllegalStateException while this host does not know what is parked
+     */
     Map<String, List<ParkedEvent>> list(int limit) {
+        requireRead();
         Map<String, List<ParkedEvent>> listed = new TreeMap<>();
         parked.forEach((subscription, events) -> {
             List<ParkedEvent> earliest = events.values().stream()
@@ -161,18 +190,28 @@ final class KafkaParkingLot implements AutoCloseable {
         return listed;
     }
 
+    /**
+     * Finds a parked event.
+     *
+     * @param subscription the subscription
+     * @param eventId the id it is parked under
+     * @return the event, or empty when none is parked with this id
+     * @throws IllegalStateException while this host does not know what is parked
+     */
     Optional<ParkedEvent> find(ConsumedSubscription subscription, String eventId) {
         return parked(subscription, eventId).map(Parked::event);
     }
 
+    /**
+     * Reads a parked event back from its topic.
+     *
+     * @param subscription the subscription
+     * @param eventId the id it is parked under
+     * @return the event, or empty when none is parked with this id or the record is not an event envelope
+     * @throws RuntimeException when the broker does not give the record back now; the event stays parked
+     */
     Optional<CanonicalOutboxMessage> message(ConsumedSubscription subscription, String eventId) {
-        return parked(subscription, eventId).flatMap(event -> {
-            try {
-                return Optional.of(envelopes.read(event.value()));
-            } catch (IllegalArgumentException notAnEnvelope) {
-                return Optional.empty();
-            }
-        });
+        return parked(subscription, eventId).flatMap(event -> envelope(stored(subscription, eventId, event)));
     }
 
     @Override
@@ -192,8 +231,60 @@ final class KafkaParkingLot implements AutoCloseable {
     }
 
     private Optional<Parked> parked(ConsumedSubscription subscription, String eventId) {
+        requireRead();
         Map<String, Parked> events = parked.get(subscription.name());
         return events == null ? Optional.empty() : Optional.ofNullable(events.get(eventId));
+    }
+
+    private void requireRead() {
+        if (behind) {
+            throw new IllegalStateException("This host has not read the parking topics yet");
+        }
+    }
+
+    /** Reads a record back at its offset, within the admin timeout, on a consumer of its own. */
+    private String stored(ConsumedSubscription subscription, String eventId, Parked parked) {
+        long deadline = System.nanoTime() + settings.adminTimeout().toNanos();
+        try {
+            if (!reads.tryAcquire(settings.adminTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+                throw new IllegalStateException("Too many parked records are being read back");
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting to read back " + eventId, interrupted);
+        }
+        try {
+            return stored(new TopicPartition(topics.parkingTopic(subscription), parked.partition()), parked.offset(), eventId,
+                deadline);
+        } finally {
+            reads.release();
+        }
+    }
+
+    private String stored(TopicPartition partition, long offset, String eventId, long deadline) {
+        try (Consumer<String, String> consumer = readers.get()) {
+            consumer.assign(List.of(partition));
+            consumer.seek(partition, offset);
+            while (System.nanoTime() < deadline) {
+                for (ConsumerRecord<String, String> record : consumer.poll(settings.pollTimeout()).records(partition)) {
+                    if (record.offset() == offset && eventId.equals(record.key())) {
+                        return record.value();
+                    }
+                    // Another record stands there: compaction removed this one, and this host has not read yet what
+                    // replaced it. Asking again answers from the record that did.
+                    throw new IllegalStateException("The parked record of " + eventId + " has moved");
+                }
+            }
+        }
+        throw new IllegalStateException("Kafka did not give back the parked record of " + eventId);
+    }
+
+    private Optional<CanonicalOutboxMessage> envelope(String value) {
+        try {
+            return Optional.of(envelopes.read(value));
+        } catch (IllegalArgumentException notAnEnvelope) {
+            return Optional.empty();
+        }
     }
 
     private void remember(ConsumedSubscription subscription, Parked event) {
@@ -221,19 +312,30 @@ final class KafkaParkingLot implements AutoCloseable {
                 }
                 consumer.assign(partitions);
                 consumer.seekToBeginning(partitions);
+                Map<TopicPartition, Long> ends = consumer.endOffsets(partitions);
+                // What the topics hold now replaces what was read before: a tombstone may be gone by now.
+                parked.clear();
                 while (!stopping) {
                     for (ConsumerRecord<String, String> record : consumer.poll(settings.pollTimeout())) {
                         apply(record);
                     }
+                    if (behind && reached(consumer, ends)) {
+                        behind = false;
+                    }
                 }
             } catch (RuntimeException | Error failure) {
                 // The reader keeps every host's view of the parked events; whatever stops it, it reads again.
+                behind = true;
                 if (!stopping) {
                     log.warn("event=event.parking_read_failed", failure);
                     pause();
                 }
             }
         }
+    }
+
+    private static boolean reached(Consumer<String, String> consumer, Map<TopicPartition, Long> ends) {
+        return ends.entrySet().stream().allMatch(end -> consumer.position(end.getKey()) >= end.getValue());
     }
 
     private void apply(ConsumerRecord<String, String> record) {
@@ -248,14 +350,17 @@ final class KafkaParkingLot implements AutoCloseable {
             }
             return;
         }
+        // The value is read here and let go: a host keeps who sent the event, so that a status query reads no record.
+        Optional<CanonicalOutboxMessage> message = envelope(record.value());
         remember(subscription, new Parked(new ParkedEvent(subscription.name(), record.key(), header(record, EVENT_TYPE),
             header(record, CODE), attempts(header(record, ATTEMPTS)), parkedAt(header(record, PARKED_AT), record.timestamp()),
-            header(record, SOURCE)), record.value()));
+            header(record, SOURCE), message.map(CanonicalOutboxMessage::producerPluginId).orElse(null),
+            message.map(CanonicalOutboxMessage::tenantId).orElse(null)), record.partition(), record.offset()));
     }
 
-    private void send(ProducerRecord<String, String> record) {
+    private RecordMetadata send(ProducerRecord<String, String> record) {
         try {
-            producer.send(record).get(settings.sendTimeout().toMillis(), TimeUnit.MILLISECONDS);
+            return producer.send(record).get(settings.sendTimeout().toMillis(), TimeUnit.MILLISECONDS).getRecordMetadata();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while writing to " + record.topic(), interrupted);
@@ -303,6 +408,7 @@ final class KafkaParkingLot implements AutoCloseable {
         }
     }
 
-    private record Parked(ParkedEvent event, String value) {
+    /** What a host keeps of a parked record: what it lists and where the record is, never its value. */
+    private record Parked(ParkedEvent event, int partition, long offset) {
     }
 }

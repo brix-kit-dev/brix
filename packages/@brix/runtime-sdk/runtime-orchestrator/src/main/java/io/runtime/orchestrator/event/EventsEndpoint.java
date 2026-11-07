@@ -71,6 +71,8 @@ public final class EventsEndpoint {
     static final int STATUS_BAD_REQUEST = 400;
     /** The provider could not record a discarded command for its sender (standard-link plan point 7). */
     static final String DISCARD_UNRECORDED = "COMMAND_DISCARD_UNRECORDED";
+    /** The broker did not give a parked record back now: the event stays parked and the operator asks again. */
+    static final String PARKED_UNREADABLE = "EVENT_PARKED_UNREADABLE";
 
     private static final Logger log = LoggerFactory.getLogger(EventsEndpoint.class);
 
@@ -97,12 +99,17 @@ public final class EventsEndpoint {
     /**
      * Lists the parked events of each subscription, the earliest parked first.
      *
-     * @return parked events by subscription
+     * @return parked events by subscription; 503 while this host cannot tell what is parked
      */
     @ReadOperation
-    public ParkedEvents parked() {
+    public WebEndpointResponse<ParkedEvents> parked() {
         EventSubscriptionTransport broker = brokers.get();
-        return new ParkedEvents(broker == null ? Map.of() : new TreeMap<>(broker.parked(LIST_LIMIT)));
+        try {
+            return new WebEndpointResponse<>(new ParkedEvents(broker == null ? Map.of() : new TreeMap<>(broker.parked(LIST_LIMIT))));
+        } catch (RuntimeException notKnown) {
+            log.warn("event=event.parked_unreadable code={}", PARKED_UNREADABLE, notKnown);
+            return new WebEndpointResponse<>(STATUS_UNAVAILABLE);
+        }
     }
 
     /**
@@ -112,7 +119,8 @@ public final class EventsEndpoint {
      * @param operator who asks
      * @param reason why
      * @param security who the management port authenticated
-     * @return each event's outcome; 404 when the subscription does not exist, 409 when an event failed again
+     * @return each event's outcome; 404 when the subscription does not exist, 409 when an event failed again, 503 while
+     *     this host cannot tell what is parked or the broker did not give a record back
      */
     @WriteOperation
     public WebEndpointResponse<Batch> replayAll(
@@ -124,8 +132,13 @@ public final class EventsEndpoint {
         if (target.isEmpty()) {
             return new WebEndpointResponse<>(new Batch(subscription, List.of()), WebEndpointResponse.STATUS_NOT_FOUND);
         }
-        List<ParkedEvent> parked = target.get().broker().parked(LIST_LIMIT)
-            .getOrDefault(target.get().subscription().name(), List.of());
+        List<ParkedEvent> parked;
+        try {
+            parked = target.get().broker().parked(LIST_LIMIT).getOrDefault(target.get().subscription().name(), List.of());
+        } catch (RuntimeException notKnown) {
+            log.warn("event=event.parked_unreadable subscription={} code={}", subscription, PARKED_UNREADABLE, notKnown);
+            return new WebEndpointResponse<>(new Batch(subscription, List.of()), STATUS_UNAVAILABLE);
+        }
         List<Outcome> outcomes = new ArrayList<>();
         int status = WebEndpointResponse.STATUS_OK;
         for (ParkedEvent event : parked) {
@@ -148,7 +161,8 @@ public final class EventsEndpoint {
      * @param operator who asks
      * @param reason why
      * @param security who the management port authenticated
-     * @return the outcome; 404 when the subscription has not parked the event, 409 when it could not take it again
+     * @return the outcome; 404 when the subscription has not parked the event, 409 when it could not take it again,
+     *     503 when the broker did not give the record back now
      */
     @WriteOperation
     public WebEndpointResponse<Outcome> replay(
@@ -175,7 +189,8 @@ public final class EventsEndpoint {
      * @param operator who asks
      * @param reason why
      * @param security who the management port authenticated
-     * @return the outcome; 404 when the subscription has not parked the event
+     * @return the outcome; 404 when the subscription has not parked the event, 503 while this host cannot tell what is
+     *     parked or the broker did not give a command's record back
      */
     @DeleteOperation
     public WebEndpointResponse<Outcome> discard(
@@ -188,8 +203,12 @@ public final class EventsEndpoint {
             return invalid(subscription, eventId);
         }
         Optional<Target> target = target(subscription);
-        Optional<ParkedEvent> parked = target.flatMap(found ->
-            found.broker().parkedEvent(found.subscription(), eventId));
+        Optional<ParkedEvent> parked;
+        try {
+            parked = target.flatMap(found -> found.broker().parkedEvent(found.subscription(), eventId));
+        } catch (RuntimeException notKnown) {
+            return notKnown(subscription, eventId, notKnown);
+        }
         if (parked.isEmpty()) {
             return notFound(subscription, eventId);
         }
@@ -198,8 +217,16 @@ public final class EventsEndpoint {
         if (operation.isEmpty()) {
             return refused(subscription, eventId);
         }
-        if (target.get().subscription().command() && !discardedCommand(target.get(), eventId, parked.get())) {
-            return failed(operation.get(), DISCARD_UNRECORDED);
+        if (target.get().subscription().command()) {
+            Optional<CanonicalOutboxMessage> command;
+            try {
+                command = target.get().broker().parkedMessage(target.get().subscription(), eventId);
+            } catch (RuntimeException unreadable) {
+                return unreadable(operation.get(), unreadable);
+            }
+            if (command.isPresent() && !discardedCommand(target.get(), command.get(), parked.get())) {
+                return failed(operation.get(), DISCARD_UNRECORDED);
+            }
         }
         target.get().broker().release(target.get().subscription(), eventId);
         log.info("event=event.discarded subscription={} event_id={} operator={}", subscription, eventId,
@@ -211,18 +238,14 @@ public final class EventsEndpoint {
      * Records a discarded command for its sender before the broker lets it go (standard-link plan point 7); false when
      * the provider could not record it, and the command stays parked.
      */
-    private boolean discardedCommand(Target target, String commandId, ParkedEvent parked) {
-        Optional<CanonicalOutboxMessage> command = target.broker().parkedMessage(target.subscription(), commandId);
-        if (command.isEmpty()) {
-            return true;
-        }
+    private boolean discardedCommand(Target target, CanonicalOutboxMessage command, ParkedEvent parked) {
         try {
             target.delivery().discardedCommand(target.subscription().pluginId(), target.subscription().handlerId(),
-                command.get(), parked.errorCode());
+                command, parked.errorCode());
             return true;
         } catch (RuntimeException failure) {
             log.warn("event=event.discard_unrecorded subscription={} event_id={} code={}", target.subscription().name(),
-                commandId, DISCARD_UNRECORDED, failure);
+                command.eventId(), DISCARD_UNRECORDED, failure);
             return false;
         }
     }
@@ -241,15 +264,24 @@ public final class EventsEndpoint {
     private WebEndpointResponse<Outcome> replay(
             Target target, String eventId, String operator, String reason, SecurityContext security) {
         String name = target.subscription().name();
-        if (target.broker().parkedEvent(target.subscription(), eventId).isEmpty()) {
-            return notFound(name, eventId);
+        try {
+            if (target.broker().parkedEvent(target.subscription(), eventId).isEmpty()) {
+                return notFound(name, eventId);
+            }
+        } catch (RuntimeException notKnown) {
+            return notKnown(name, eventId, notKnown);
         }
         Optional<MessageOperation> operation = recorded(MessageOperationAudit.REPLAYED, name, eventId, operator,
             reason, security);
         if (operation.isEmpty()) {
             return refused(name, eventId);
         }
-        Optional<CanonicalOutboxMessage> message = target.broker().parkedMessage(target.subscription(), eventId);
+        Optional<CanonicalOutboxMessage> message;
+        try {
+            message = target.broker().parkedMessage(target.subscription(), eventId);
+        } catch (RuntimeException unreadable) {
+            return unreadable(operation.get(), unreadable);
+        }
         if (message.isEmpty()) {
             return failed(operation.get(), SubscriptionDelivery.ENVELOPE_INVALID);
         }
@@ -282,7 +314,24 @@ public final class EventsEndpoint {
         }
     }
 
+    /** This host cannot tell whether the event is parked: nothing happened, so nothing is recorded. */
+    private WebEndpointResponse<Outcome> notKnown(String subscription, String eventId, RuntimeException failure) {
+        log.warn("event=event.parked_unreadable subscription={} event_id={} code={}", subscription, eventId, PARKED_UNREADABLE,
+            failure);
+        return new WebEndpointResponse<>(new Outcome(subscription, eventId, false, PARKED_UNREADABLE), STATUS_UNAVAILABLE);
+    }
+
+    private WebEndpointResponse<Outcome> unreadable(MessageOperation operation, RuntimeException failure) {
+        log.warn("event=event.parked_unreadable subscription={} event_id={} code={}", operation.place(), operation.messageId(),
+            PARKED_UNREADABLE, failure);
+        return failed(operation, PARKED_UNREADABLE, STATUS_UNAVAILABLE);
+    }
+
     private WebEndpointResponse<Outcome> failed(MessageOperation operation, String errorCode) {
+        return failed(operation, errorCode, STATUS_CONFLICT);
+    }
+
+    private WebEndpointResponse<Outcome> failed(MessageOperation operation, String errorCode, int status) {
         MessageOperationAudit recorder = Objects.requireNonNullElse(audit.get(), MessageOperationAudit.NONE);
         try {
             recorder.record(operation.failed(errorCode));
@@ -290,8 +339,7 @@ public final class EventsEndpoint {
             log.warn("event=message.operation_failure_unaudited action={} message_id={} place={} code={}",
                 operation.action(), operation.messageId(), operation.place(), errorCode, unrecorded);
         }
-        return new WebEndpointResponse<>(new Outcome(operation.place(), operation.messageId(), false, errorCode),
-            STATUS_CONFLICT);
+        return new WebEndpointResponse<>(new Outcome(operation.place(), operation.messageId(), false, errorCode), status);
     }
 
     private Optional<Target> target(String subscription) {

@@ -136,6 +136,18 @@ class CommandStatusReaderTest {
     }
 
     @Test
+    void aHostStillReadingWhatIsParkedAnswersFromTheSendersOutbox() {
+        broker.park("c-9", SENDER, 42L, CommandDelivery.HANDLER_FAILED);
+        outbox.put("c-9", sent("c-9", "PUBLISHED", 42L));
+        broker.stillReading = true;
+
+        assertEquals(CommandStatus.State.QUEUED, read("c-9").state(), "a status query does not fail with the host's start");
+
+        broker.stillReading = false;
+        assertEquals(CommandStatus.State.PARKED, read("c-9").state());
+    }
+
+    @Test
     void untilTheProviderKnowsTheCommandItsSendersOutboxTells() {
         outbox.put("c-8", sent("c-8", "PENDING", 42L));
         outbox.put("c-9", sent("c-9", "PUBLISHED", 42L));
@@ -193,6 +205,7 @@ class CommandStatusReaderTest {
 
         private final Map<String, CanonicalOutboxMessage> parked = new HashMap<>();
         private final Map<String, String> codes = new HashMap<>();
+        private boolean stillReading;
 
         void park(String commandId, String producer, Long tenantId, String errorCode) {
             parked.put(commandId, new CanonicalOutboxMessage(commandId, commandId, "COMMAND", TYPE, "1.0.0",
@@ -205,13 +218,16 @@ class CommandStatusReaderTest {
         public Optional<ParkedEvent> parkedEvent(ConsumedSubscription subscription, String eventId) {
             assertEquals(new ConsumedSubscription("sample-orders", "cancel-order.v1", TYPE, ConsumedSubscription.COMMAND),
                 subscription);
+            if (stillReading) {
+                throw new IllegalStateException("this host has not read the parking topics yet");
+            }
             return Optional.ofNullable(parked.get(eventId)).map(message -> new ParkedEvent(subscription.name(),
-                eventId, TYPE, codes.get(eventId), 1, AT, "conformance"));
+                eventId, TYPE, codes.get(eventId), 1, AT, "conformance", message.producerPluginId(), message.tenantId()));
         }
 
         @Override
         public Optional<CanonicalOutboxMessage> parkedMessage(ConsumedSubscription subscription, String eventId) {
-            return Optional.ofNullable(parked.get(eventId));
+            throw new AssertionError("a sender asking after its command makes the broker read no record");
         }
 
         @Override

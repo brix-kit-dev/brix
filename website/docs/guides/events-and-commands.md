@@ -745,6 +745,12 @@ recorded in the platform audit before it takes effect, and it is refused if the 
 | `POST /actuator/events/{subscription}` | Replay the subscription's parked events, earliest first, stopping at the first failure |
 | `DELETE /actuator/events/{subscription}/{eventId}?operator=…&reason=…` | Discard a parked event. A discarded command is first recorded for its sender, who then reads it as `DISCARDED`; if that cannot be recorded, the command stays parked |
 
+A parked event's payload stays in Kafka. Each host lists what is parked and reads a record back only to replay or
+discard it, so any host can do either, and its memory does not grow with the size of what is parked. If Kafka does not
+give the record back, the replay answers `503` with `EVENT_PARKED_UNREADABLE`, the event stays parked, and you can ask
+again. A host that has just started reads the parking topics first, and until it has read them all, these requests
+answer `503` too: an empty list always means that nothing is parked.
+
 POST bodies are `{"operator": "...", "reason": "..."}`. Event ids never change, so subscribers that already applied
 an event skip it through their inbox. A replayed message arrives after the messages of its key that went on while it
 was parked.

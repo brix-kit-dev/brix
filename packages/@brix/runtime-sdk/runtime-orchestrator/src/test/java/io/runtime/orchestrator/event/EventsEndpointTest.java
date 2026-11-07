@@ -48,7 +48,7 @@ class EventsEndpointTest {
     void theParkedEventsAreListedBySubscription() {
         broker.park(world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1));
 
-        Map<String, List<ParkedEvent>> listed = endpoint.parked().subscriptions();
+        Map<String, List<ParkedEvent>> listed = endpoint.parked().getBody().subscriptions();
 
         assertEquals(Set.of(NAME), listed.keySet());
         assertEquals("event-1", listed.get(NAME).get(0).eventId());
@@ -92,6 +92,71 @@ class EventsEndpointTest {
         assertEquals(2, audit.recorded().size());
         assertNull(audit.recorded().get(0).errorCode());
         assertEquals(EventDelivery.HANDLER_FAILED, audit.recorded().get(1).errorCode());
+    }
+
+    @Test
+    void aRecordTheBrokerDoesNotGiveBackLeavesTheEventParkedAndIsRecordedAsFailed() {
+        broker.park(world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1));
+        broker.unreadable = true;
+
+        WebEndpointResponse<EventsEndpoint.Outcome> replay = endpoint.replay(NAME, "event-1", "ops-alice", "why",
+            SecurityContext.NONE);
+
+        assertEquals(503, replay.getStatus());
+        assertFalse(replay.getBody().done());
+        assertEquals(EventsEndpoint.PARKED_UNREADABLE, replay.getBody().errorCode());
+        assertTrue(broker.parked.containsKey("event-1"));
+        assertEquals(List.of(), world.handledIds());
+        assertEquals(EventsEndpoint.PARKED_UNREADABLE, audit.recorded().get(1).errorCode());
+
+        broker.unreadable = false;
+        assertEquals(200, endpoint.replay(NAME, "event-1", "ops-alice", "again", SecurityContext.NONE).getStatus());
+        assertEquals(List.of("event-1"), world.handledIds());
+    }
+
+    @Test
+    void aBatchReplayStopsAtARecordTheBrokerDoesNotGiveBack() {
+        broker.park(world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1));
+        broker.park(world.publish("event-2", "member-2", ConformanceWorld.TENANT, 2));
+        broker.unreadable = true;
+
+        WebEndpointResponse<EventsEndpoint.Batch> batch = endpoint.replayAll(NAME, "ops-alice", "why",
+            SecurityContext.NONE);
+
+        assertEquals(503, batch.getStatus());
+        assertEquals(1, batch.getBody().events().size());
+        assertEquals(Set.of("event-1", "event-2"), broker.parked.keySet());
+    }
+
+    @Test
+    void aCommandDiscardWhoseRecordTheBrokerDoesNotGiveBackLeavesItParked() {
+        broker.park(world.submit("command-1", "order-7", ConformanceWorld.TENANT, null));
+        broker.unreadable = true;
+
+        WebEndpointResponse<EventsEndpoint.Outcome> discard = endpoint.discard(COMMANDS.name(), "command-1",
+            "ops-alice", "the order was cancelled by hand", SecurityContext.NONE);
+
+        assertEquals(503, discard.getStatus());
+        assertEquals(EventsEndpoint.PARKED_UNREADABLE, discard.getBody().errorCode());
+        assertTrue(broker.parked.containsKey("command-1"), "its sender would never learn the command was discarded");
+    }
+
+    @Test
+    void whileTheBrokerCannotTellWhatIsParkedNothingIsAnsweredAsIfNothingWere() {
+        broker.park(world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1));
+        broker.notKnown = true;
+
+        assertEquals(503, endpoint.parked().getStatus());
+        assertNull(endpoint.parked().getBody(), "an empty list would read as nothing parked");
+        WebEndpointResponse<EventsEndpoint.Outcome> replay = endpoint.replay(NAME, "event-1", "ops-alice", "why",
+            SecurityContext.NONE);
+        assertEquals(503, replay.getStatus());
+        assertEquals(EventsEndpoint.PARKED_UNREADABLE, replay.getBody().errorCode());
+        assertEquals(503, endpoint.discard(NAME, "event-1", "ops-alice", "why", SecurityContext.NONE).getStatus());
+        assertEquals(503, endpoint.replayAll(NAME, "ops-alice", "why", SecurityContext.NONE).getStatus());
+
+        assertTrue(broker.parked.containsKey("event-1"));
+        assertEquals(List.of(), audit.recorded(), "nothing happened, so there is nothing to record");
     }
 
     @Test
@@ -236,6 +301,8 @@ class EventsEndpointTest {
     private static final class ParkingBroker implements EventSubscriptionTransport {
 
         private final Map<String, CanonicalOutboxMessage> parked = new LinkedHashMap<>();
+        private boolean unreadable;
+        private boolean notKnown;
 
         void park(CanonicalOutboxMessage message) {
             parked.put(message.eventId(), message);
@@ -257,19 +324,27 @@ class EventsEndpointTest {
 
         @Override
         public Map<String, List<ParkedEvent>> parked(int limit) {
+            if (notKnown) {
+                throw new IllegalStateException("this host has not read what is parked yet");
+            }
             return Map.of(NAME, parked.keySet().stream()
                 .limit(limit)
                 .map(eventId -> new ParkedEvent(NAME, eventId, ConformanceWorld.EVENT,
-                    EventDelivery.HANDLER_FAILED, 3, OffsetDateTime.now(), "test"))
+                    EventDelivery.HANDLER_FAILED, 3, OffsetDateTime.now(), "test", null, null))
                 .toList());
         }
 
         @Override
         public Optional<ParkedEvent> parkedEvent(ConsumedSubscription subscription, String eventId) {
-            return parked.containsKey(eventId) && subscription.equals(subscriptionOf(eventId))
-                ? Optional.of(new ParkedEvent(subscription.name(), eventId, null, "code", 1, OffsetDateTime.now(),
-                    "test"))
-                : Optional.empty();
+            if (notKnown) {
+                throw new IllegalStateException("this host has not read what is parked yet");
+            }
+            if (!parked.containsKey(eventId) || !subscription.equals(subscriptionOf(eventId))) {
+                return Optional.empty();
+            }
+            CanonicalOutboxMessage message = parked.get(eventId);
+            return Optional.of(new ParkedEvent(subscription.name(), eventId, null, "code", 1, OffsetDateTime.now(), "test",
+                message == null ? null : message.producerPluginId(), message == null ? null : message.tenantId()));
         }
 
         /** Commands park on the provider's command subscription, events and other records on the one subscription. */
@@ -283,6 +358,9 @@ class EventsEndpointTest {
 
         @Override
         public Optional<CanonicalOutboxMessage> parkedMessage(ConsumedSubscription subscription, String eventId) {
+            if (unreadable) {
+                throw new IllegalStateException("the broker did not give the record back");
+            }
             return Optional.ofNullable(parked.get(eventId));
         }
 

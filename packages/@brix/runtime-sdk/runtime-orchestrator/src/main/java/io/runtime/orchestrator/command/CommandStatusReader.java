@@ -12,10 +12,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.runtime.orchestrator.event.ConsumedSubscription;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.event.ParkedEvent;
-import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
 import io.runtime.sdk.command.CommandStatus;
 
@@ -25,7 +27,8 @@ import io.runtime.sdk.command.CommandStatus;
  * <ol>
  *   <li>the provider's idempotency key record: {@code SUCCEEDED};</li>
  *   <li>the provider's outcome record: {@code DUPLICATE}, {@code CONFLICT}, {@code REJECTED} or {@code DISCARDED};</li>
- *   <li>the commands the provider parked, on a broker transport: {@code PARKED};</li>
+ *   <li>the commands the provider parked, on a broker transport: {@code PARKED}. A host still reading what is parked
+ *   does not know them yet, and the next source answers;</li>
  *   <li>the sender's outbox: {@code QUEUED} while the command waits or travels, {@code PARKED} or
  *   {@code DISCARDED} when the relay parked it;</li>
  *   <li>otherwise {@code UNKNOWN}.</li>
@@ -40,6 +43,8 @@ import io.runtime.sdk.command.CommandStatus;
  * @since 3.3.0
  */
 public final class CommandStatusReader implements CommandStatuses {
+
+    private static final Logger log = LoggerFactory.getLogger(CommandStatusReader.class);
 
     private final CommandProviders providers;
     private final Supplier<OwnerCommandIdempotency> records;
@@ -104,13 +109,18 @@ public final class CommandStatusReader implements CommandStatuses {
         }
         ConsumedSubscription subscription = new ConsumedSubscription(ownerId, handlerId, commandType,
             ConsumedSubscription.COMMAND);
-        Optional<ParkedEvent> parked = broker.parkedEvent(subscription, commandId);
+        Optional<ParkedEvent> parked;
+        try {
+            parked = broker.parkedEvent(subscription, commandId);
+        } catch (RuntimeException notKnownYet) {
+            // A host that has not read what is parked yet: the sender's own record answers, as for a command not parked.
+            log.debug("event=command.parked_not_known command_id={}", commandId, notKnownYet);
+            return Optional.empty();
+        }
         if (parked.isEmpty()) {
             return Optional.empty();
         }
-        Optional<CanonicalOutboxMessage> message = broker.parkedMessage(subscription, commandId);
-        boolean own = message.isPresent() && senderId.equals(message.get().producerPluginId())
-            && Objects.equals(tenantId, message.get().tenantId());
+        boolean own = senderId.equals(parked.get().producerPluginId()) && Objects.equals(tenantId, parked.get().tenantId());
         return Optional.of(own
             ? new CommandStatus(commandId, CommandStatus.State.PARKED, parked.get().errorCode(), null,
                 instant(parked.get().parkedAt()))

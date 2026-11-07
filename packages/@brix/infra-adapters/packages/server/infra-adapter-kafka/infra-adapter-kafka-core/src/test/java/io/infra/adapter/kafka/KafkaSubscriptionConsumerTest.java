@@ -96,6 +96,12 @@ class KafkaSubscriptionConsumerTest {
         new KafkaEventSettings(2, (short) 1, (short) 1, Duration.ofDays(7), 10, POLL, Duration.ofSeconds(5),
             Duration.ofSeconds(1), Duration.ofMillis(100)),
         clock);
+
+    {
+        // This host reads no parking topics: it knows what its own consumer parked.
+        parking.watch(List.of());
+    }
+
     private final RecordingMetrics metrics = new RecordingMetrics();
     private final Subscriber subscriber = new Subscriber();
     private KafkaSubscriptionConsumer consumer;

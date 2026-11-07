@@ -7,6 +7,7 @@
 package io.infra.adapter.kafka;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -16,6 +17,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
@@ -39,6 +42,7 @@ import io.runtime.orchestrator.event.EventSubscriptionGroup;
 import io.runtime.orchestrator.event.EventSubscriptionMetricsFactory;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.event.EventsEndpoint;
+import io.runtime.orchestrator.event.ParkedEvent;
 import io.runtime.orchestrator.event.conformance.ConformanceWorld;
 import io.runtime.orchestrator.event.conformance.EventTransportConformance;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
@@ -47,6 +51,7 @@ import io.runtime.orchestrator.outbox.OutboxRelayManagedResource;
 import io.runtime.orchestrator.outbox.OutboxRelayMetrics;
 import io.runtime.orchestrator.outbox.OutboxRelayProperties;
 import io.runtime.orchestrator.outbox.OutboxTransport;
+import io.runtime.sdk.command.CommandStatus;
 
 /**
  * Kafka passes the transport conformance suite (Kafka design §4.6, §11.2): the relay sends each event to its
@@ -113,6 +118,79 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
                 .filter(member -> member % 5 == k).toList();
             assertEquals(order.stream().sorted().toList(), order, "the events of member-" + k + " in order");
         }
+    }
+
+    @Test
+    void anEventParkedWhileTwoHostsRunIsListedOnBothAndTheSecondDeliversIt() {
+        // Standard-link plan, Kafka item 2: each host reads the parking topic, keeps where the records are, and reads
+        // a record back from the topic. Which host's consumer parked the event makes no difference.
+        world.failing(true);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        current.start();
+        current.startAnotherHost();
+
+        await("both hosts list it", () -> current.parkedHere().equals(List.of("event-1"))
+            && current.parkedOnTheOtherHost().equals(List.of("event-1")));
+        world.failing(false);
+        assertTrue(current.replayOnTheOtherHost("event-1"));
+
+        await("neither host lists it", () -> current.parkedHere().isEmpty() && current.parkedOnTheOtherHost().isEmpty());
+        assertEquals(List.of("event-1"), world.handledIds());
+        current.stopAnotherHost();
+    }
+
+    @Test
+    void aHostStartedAfterAnEventWasParkedListsItAndDeliversIt() {
+        world.failing(true);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        current.start();
+        await("it is parked", () -> current.parkedHere().equals(List.of("event-1")));
+        world.failing(false);
+
+        current.startAnotherHost();
+
+        await("the new host read the parking topic", () -> current.parkedOnTheOtherHost().equals(List.of("event-1")));
+        assertTrue(current.replayOnTheOtherHost("event-1"));
+        await("it is delivered", () -> world.handledIds().equals(List.of("event-1")));
+        current.stopAnotherHost();
+    }
+
+    @Test
+    void twoHostsReplayingOneEventAtOnceDeliverItOnce() throws Exception {
+        world.failing(true);
+        world.publish("event-1", "member-1", ConformanceWorld.TENANT, 1);
+        current.start();
+        current.startAnotherHost();
+        await("both hosts list it", () -> current.parkedHere().equals(List.of("event-1"))
+            && current.parkedOnTheOtherHost().equals(List.of("event-1")));
+        world.failing(false);
+
+        CompletableFuture<Boolean> here = CompletableFuture.supplyAsync(() -> current.replay("event-1"));
+        boolean there = current.replayOnTheOtherHost("event-1");
+
+        assertTrue(here.get(30, TimeUnit.SECONDS) || there, "at least one of them delivered it");
+        await("neither host lists it", () -> current.parkedHere().isEmpty() && current.parkedOnTheOtherHost().isEmpty());
+        settle();
+        assertEquals(List.of("event-1"), world.handledIds(), "its inbox took it once");
+        current.stopAnotherHost();
+    }
+
+    @Test
+    void aSenderAskingOnEitherHostReadsItsParkedCommand() {
+        world.commandsOnlyOnBehalfOf("stock:reserve");
+        world.submit("command-1", "order-7", ConformanceWorld.TENANT, null);
+        current.start();
+        current.startAnotherHost();
+        await("both hosts list it", () -> current.parkedHere().equals(List.of("command-1"))
+            && current.parkedOnTheOtherHost().equals(List.of("command-1")));
+
+        assertEquals(CommandStatus.State.PARKED, world.commandStatus(ConformanceWorld.PUBLISHER, ConformanceWorld.TENANT,
+            "command-1", current.subscriptions()).state());
+        assertEquals(CommandStatus.State.PARKED, world.commandStatus(ConformanceWorld.PUBLISHER, ConformanceWorld.TENANT,
+            "command-1", current.theOtherHost()).state());
+        assertEquals(CommandStatus.State.UNKNOWN, world.commandStatus("another-plugin", ConformanceWorld.TENANT,
+            "command-1", current.theOtherHost()).state(), "another sender learns nothing");
+        current.stopAnotherHost();
     }
 
     private static final class KafkaHarness implements Harness {
@@ -206,6 +284,39 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
             anotherHostsGroup.start();
         }
 
+        List<String> parkedHere() {
+            return eventIds(subscriptions);
+        }
+
+        List<String> parkedOnTheOtherHost() {
+            return eventIds(anotherHostsSubscriptions);
+        }
+
+        EventSubscriptionTransport theOtherHost() {
+            return anotherHostsSubscriptions;
+        }
+
+        /** Asks the second host's management port to deliver the event again. */
+        boolean replayOnTheOtherHost(String eventId) {
+            return subscriptionOf(eventId)
+                .map(subscription -> new EventsEndpoint(() -> anotherHostsSubscriptions, () -> delivery, world::audit)
+                    .replay(subscription, eventId, OPERATOR, "conformance replay", SecurityContext.NONE).getStatus() == 200)
+                .orElse(false);
+        }
+
+        private static List<String> eventIds(KafkaEventSubscriptionTransport host) {
+            return listed(host).values().stream().flatMap(List::stream).map(ParkedEvent::eventId).toList();
+        }
+
+        /** What a host lists; a host still reading the parking topics says so, and the scenarios wait for it. */
+        private static Map<String, List<ParkedEvent>> listed(KafkaEventSubscriptionTransport host) {
+            try {
+                return host.parked(100);
+            } catch (IllegalStateException stillReading) {
+                return Map.of();
+            }
+        }
+
         /** Stops the second host's consumers: they leave the groups, which rebalance again. */
         void stopAnotherHost() {
             anotherHostsGroup.stop();
@@ -235,7 +346,7 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
 
         @Override
         public List<Parked> parked() {
-            return subscriptions.parked(100).values().stream()
+            return listed(subscriptions).values().stream()
                 .flatMap(List::stream)
                 .map(event -> new Parked(event.eventId(), event.errorCode()))
                 .toList();
@@ -278,7 +389,7 @@ class KafkaTransportConformanceTest extends EventTransportConformance {
 
         /** The subscription that parked the event, as the endpoint lists it. */
         private Optional<String> subscriptionOf(String eventId) {
-            return subscriptions.parked(100).entrySet().stream()
+            return listed(subscriptions).entrySet().stream()
                 .filter(parked -> parked.getValue().stream().anyMatch(event -> event.eventId().equals(eventId)))
                 .map(Map.Entry::getKey)
                 .findFirst();

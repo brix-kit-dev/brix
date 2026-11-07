@@ -240,6 +240,15 @@ All notable changes to Brix Framework are documented here.
   events guide also lists the identifiers that cannot change once a plugin runs in production (`pluginId`,
   `storageId`, event and command types, handler ids, published schema versions and task ids), with what a change
   does and what to do instead.
+- **Hosts no longer keep parked payloads in memory.** Every host read every parked record into its heap, so a burst of
+  parked events could fill the heap of all hosts at once, and again after each restart. Now:
+  - a host keeps what it lists and where each record is in Kafka, whatever the size of the payload;
+  - a replay or a discard reads the record back. When Kafka does not give it back, a replay answers `503` with
+    `EVENT_PARKED_UNREADABLE` and the event stays parked;
+  - `/actuator/events` also shows each event's `producerPluginId` and `tenantId`, and a sender asking after its parked
+    command is answered from them, without reading Kafka;
+  - a host that has not read the parking topics yet says so: `/actuator/events`, a replay and a discard answer `503`
+    until it has, so an empty list always means that nothing is parked.
 - **The relay knows why Kafka did not take a message.** `KafkaTemplate` wraps what the producer reports, or throws it
   from `send()`, so the Kafka transport recognized no real failure: each one spent an attempt, and brokers that refused
   writes had the messages parked after about three minutes. Now:
