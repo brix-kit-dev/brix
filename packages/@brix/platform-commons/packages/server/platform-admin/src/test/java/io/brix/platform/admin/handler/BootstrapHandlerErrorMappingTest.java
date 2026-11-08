@@ -101,7 +101,7 @@ class BootstrapHandlerErrorMappingTest {
                 new CreateFirstAdminRequest("Owner", "owner@example.invalid", null),
                 Map.of(),
                 Optional.empty(),
-                Optional.of("session-jti")));
+                Optional.of("session-jti"))).toCompletableFuture().join();
 
         assertEquals(100L, response.id());
         assertEquals(200L, response.identityId());

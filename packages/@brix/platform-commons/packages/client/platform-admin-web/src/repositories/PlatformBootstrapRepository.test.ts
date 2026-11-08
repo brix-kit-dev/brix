@@ -54,7 +54,7 @@ describe('createPlatformBootstrapRepository', () => {
     });
   });
 
-  it('creates the first admin with an in-memory bootstrap session token', async () => {
+  it('creates the first admin with an in-memory bootstrap session token and the key of the call', async () => {
     const http = createHttpCapabilityMock();
     vi.mocked(http.request).mockResolvedValueOnce({
       data: {
@@ -74,6 +74,7 @@ describe('createPlatformBootstrapRepository', () => {
         email: 'root-admin@example.invalid',
       },
       'bootstrap-session',
+      'key-1',
     );
 
     expect(result).toEqual({
@@ -84,7 +85,7 @@ describe('createPlatformBootstrapRepository', () => {
     expect(http.request).toHaveBeenCalledWith({
       url: '/platform/bootstrap/create-first-admin',
       method: 'POST',
-      headers: { Authorization: 'Bearer bootstrap-session' },
+      headers: { Authorization: 'Bearer bootstrap-session', 'Idempotency-Key': 'key-1' },
       data: {
         username: 'root-admin',
         email: 'root-admin@example.invalid',

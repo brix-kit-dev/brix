@@ -6,24 +6,30 @@
  */
 package io.brix.platform.admin.handler;
 
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import io.brix.platform.admin.dto.CreateFirstAdminRequest;
 import io.brix.platform.admin.dto.CreatePlatformAdminResponse;
 import io.brix.platform.identity.internal.CreateFirstPlatformAdminCommand;
 import io.brix.platform.identity.internal.PlatformBootstrapAdministration;
 import io.runtime.orchestrator.operational.OperationalContext;
-import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
+import io.runtime.sdk.plugin.TypedEndpointHandler;
 
 /**
  * Handler for creating the first formal platform super administrator.
  *
  * <p>Its caller is the BOOTSTRAP_SETUP session the runtime verified before the handler (standard-link plan point
  * 10b-7a): the handler names that session to the identity owner, which spends it, and never sees its token.</p>
+ *
+ * <p>The caller names a key, and the runtime keeps the record with the owner's write, under the session: a repeated
+ * call gets the first answer before this handler runs. A call that stopped after the owner committed runs it again,
+ * and the contract gives its result again without writing (root BRX-RS-MANIFEST-018; idempotency design §5.6;
+ * standard-link plan point 10b-7, D95).</p>
  */
 public final class CreateFirstAdminHandler
-        implements EndpointHandler<EndpointInvocation<CreateFirstAdminRequest>, CreatePlatformAdminResponse> {
+        implements TypedEndpointHandler<CreateFirstAdminRequest, CreatePlatformAdminResponse> {
 
     private final PlatformBootstrapAdministration bootstrapAdministration;
 
@@ -32,7 +38,7 @@ public final class CreateFirstAdminHandler
     }
 
     @Override
-    public CreatePlatformAdminResponse handle(EndpointInvocation<CreateFirstAdminRequest> invocation) {
+    public CompletionStage<CreatePlatformAdminResponse> handle(EndpointInvocation<CreateFirstAdminRequest> invocation) {
         invocation.tenantId().ifPresent(tenant -> {
             throw PlatformEndpointErrors.badRequest(
                     "PLATFORM_BOOTSTRAP_TENANT_CONTEXT_FORBIDDEN",
@@ -42,36 +48,19 @@ public final class CreateFirstAdminHandler
                 .orElseThrow(() -> PlatformEndpointErrors.unauthorized(
                         "PLATFORM_BOOTSTRAP_SESSION_REQUIRED",
                         "a verified bootstrap session is required"));
+        CreateFirstAdminRequest request = invocation.body();
         try {
-            CreateFirstAdminRequest request = request(invocation.body());
             var created = bootstrapAdministration.createFirstAdmin(new CreateFirstPlatformAdminCommand(
                     session,
                     request.username(),
                     request.email(),
                     request.notes()));
-            return new CreatePlatformAdminResponse(created.id(), created.identityId(), created.setupLinkSent());
+            return CompletableFuture.completedFuture(
+                    new CreatePlatformAdminResponse(created.id(), created.identityId(), created.setupLinkSent()));
         } catch (IllegalArgumentException e) {
             throw PlatformEndpointErrors.badRequest("PLATFORM_BOOTSTRAP_INVALID_REQUEST", e);
         } catch (IllegalStateException e) {
             throw PlatformEndpointErrors.conflict("PLATFORM_BOOTSTRAP_NOT_READY", e);
         }
-    }
-
-    private static CreateFirstAdminRequest request(Object body) {
-        if (body instanceof CreateFirstAdminRequest typed) {
-            return typed;
-        }
-        if (body instanceof Map<?, ?> map) {
-            return new CreateFirstAdminRequest(
-                    string(map, "username"),
-                    string(map, "email"),
-                    string(map, "notes"));
-        }
-        throw new IllegalArgumentException("create first admin request body is required");
-    }
-
-    private static String string(Map<?, ?> map, String field) {
-        Object value = map.get(field);
-        return value == null ? null : String.valueOf(value);
     }
 }

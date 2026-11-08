@@ -37,6 +37,26 @@ class PlatformIdentityInternalContractDescriptorTest {
     }
 
     @Test
+    void theFirstAdminCreationIsTheOneWriteWhoseResultTheRuntimeMayKeep() throws IOException {
+        // Idempotency design D79; standard-link plan point 10b-7: the result holds ids and a delivery marker, no
+        // secret, credential, token or link.
+        java.util.List<io.runtime.manifest.model.PluginManifest.ProvidedInternalContract> provided;
+        try (var manifest = Thread.currentThread().getContextClassLoader()
+                .getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
+            provided = new io.runtime.manifest.loader.PluginManifestLoader().load(manifest).getInternalContracts()
+                    .getProvides();
+        }
+        Map<String, java.util.List<String>> writes = new LinkedHashMap<>();
+        provided.forEach(contract -> writes.put(contract.getContractId(), contract.getReplayableWrites()));
+
+        assertEquals(java.util.List.of("createFirstAdmin"), writes.get(PlatformBootstrapAdministration.CONTRACT_ID));
+        assertEquals(java.util.List.of(), writes.get(PlatformIdentityAdministration.CONTRACT_ID));
+        assertEquals(java.util.List.of("id", "identityId", "setupLinkSent"), java.util.Arrays.stream(
+                PlatformAdminCreationView.class.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getName).toList());
+    }
+
+    @Test
     void serviceLoaderPublishesInternalContractProvider() throws IOException {
         String serviceFile = readResource("META-INF/services/io.runtime.sdk.internalcontract.InternalContractProvider");
 

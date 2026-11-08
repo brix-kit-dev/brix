@@ -16,9 +16,14 @@ import type {
 export interface PlatformBootstrapRepository {
   status(): Promise<PlatformBootstrapStatusResponse>;
   session(req: PlatformBootstrapSessionRequest): Promise<PlatformBootstrapSessionResponse>;
+  /**
+   * Creates the first platform administrator for a bootstrap session. The backend keeps the answer under the
+   * session and the key (standard-link plan point 10b-7): a retry under both gets it again and creates nothing more.
+   */
   createFirstAdmin(
     req: CreateFirstPlatformAdminRequest,
-    bootstrapAccessToken?: string,
+    bootstrapAccessToken: string,
+    idempotencyKey: string,
   ): Promise<BootstrapCreateFirstAdminResponse>;
 }
 
@@ -37,18 +42,13 @@ export function createPlatformBootstrapRepository(
         req,
       );
     },
-    async createFirstAdmin(req, bootstrapAccessToken) {
-      if (!bootstrapAccessToken) {
-        return http.post<BootstrapCreateFirstAdminResponse>(
-          PLATFORM_ADMIN_API.BOOTSTRAP_CREATE_FIRST_ADMIN,
-          req,
-        );
-      }
+    async createFirstAdmin(req, bootstrapAccessToken, idempotencyKey) {
       const response = await http.request<BootstrapCreateFirstAdminResponse>({
         url: PLATFORM_ADMIN_API.BOOTSTRAP_CREATE_FIRST_ADMIN,
         method: 'POST',
         headers: {
           Authorization: `Bearer ${bootstrapAccessToken}`,
+          'Idempotency-Key': idempotencyKey,
         },
         data: req,
       });

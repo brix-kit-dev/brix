@@ -12,6 +12,10 @@ All notable changes to this package are documented here.
   that is another e-mail. So does a revoke after a revoke went through. `PlatformTenantRepository.create`,
   `createFirstOwnerInvitation`, `resendFirstOwnerInvitation` and `revokeFirstOwnerInvitation` take the key as their last
   argument; the revoke is a `DELETE` through `http.request`.
+- Creating the first platform administrator sends an `Idempotency-Key` too. The backend keeps its answer under the
+  bootstrap session and the key, so a retry of the same form keeps both: the bootstrap page holds the session in memory
+  until the first admin is created, and opens a new one only when it has none or the one it has ends within
+  15 seconds. `PlatformBootstrapRepository.createFirstAdmin` takes the session token and the key, both required.
 
 ## [3.2.0] — 2026-05
 

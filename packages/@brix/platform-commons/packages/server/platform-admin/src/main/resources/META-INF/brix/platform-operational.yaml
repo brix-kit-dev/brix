@@ -107,10 +107,12 @@ endpoints:
         mode: forbidden
       timeout:
         policyRef: interactive-write
-      # Operational endpoints have no result replay yet (root BRX-RS-MANIFEST-018; standard-link plan point 10b): the
-      # handler is idempotent by its business key.
+      # The caller names a key and the runtime keeps the record with the identity owner's one write, under this bootstrap
+      # session (root BRX-RS-MANIFEST-018, HOST-020; standard-link plan point 10b-7). The session is spent by the write,
+      # so a repeat of the same call gets the first answer, and anything else it asks is refused (D95).
       idempotency:
-        mode: not-applicable
+        mode: required
+        writeContract: brix.internal.platform.bootstrap-administration
     - endpointId: platform.auth.setup.validate.v1
       transport: http
       method: GET

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-admin/create-first-admin-request/1.0.0",
+  "title": "Create the first platform administrator for the bootstrap session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["username", "email"],
+  "properties": {
+    "username": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "email": { "type": "string", "minLength": 3, "maxLength": 256, "pattern": "^[^\\s@]+@[^\\s@]+$" },
+    "notes": { "type": ["string", "null"], "maxLength": 1000 }
+  }
+}

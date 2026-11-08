@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/platform-admin/create-platform-admin-response/1.0.0",
+  "title": "A platform administrator was created; the setup link went out by mail, never in the answer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "identityId", "setupLinkSent"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "identityId": { "type": "string", "minLength": 1 },
+    "setupLinkSent": { "type": "boolean" }
+  }
+}

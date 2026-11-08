@@ -176,12 +176,16 @@ All notable changes to Brix Framework are documented here.
     verified session (`bootstrapSessionId`) instead of carrying its token.
 - **Endpoint idempotency `optional` stops the plugin, and `required` has rules** (root BRX-RS-MANIFEST-018). `required`
   needs a typed write endpoint of an authenticated caller, with its schemas, in a plugin with persistence. An
-  operational endpoint also names its write contract, and its owner declares `replayableWrites`. Five platform-admin
-  endpoints that declared `required` now declare `not-applicable` until each one is typed: the runtime never acted on
-  the declaration, and their handlers are idempotent by their business keys. `POST /api/platform/tenants`,
+  operational endpoint also names its write contract, and its owner declares `replayableWrites`. The runtime never
+  acted on the `required` some platform-admin endpoints declared; three of them still declare `not-applicable`:
+  `POST /api/platform/bootstrap/session`, whose answer carries the session token, and the old setup's
+  `/api/platform/auth/setup/totp/init` and `/complete`, which the hosted setup page replaces. `POST /api/platform/tenants`,
   `POST /api/platform/tenants/{tenantId}/first-owner-invitations`, its `/resend` and
   `DELETE /api/platform/tenants/{tenantId}/first-owner-invitations/{invitationId}` are typed and replay their answers:
-  a caller must send an `Idempotency-Key`, and the platform console does. The revoke answers 204 with no body, where it
+  a caller must send an `Idempotency-Key`, and the platform console does. So does
+  `POST /api/platform/bootstrap/create-first-admin`, under the bootstrap session: a retry needs the same session and
+  key, which the console keeps, and gets the first answer; a spent session writes nothing more under another key, and
+  an expired one gets 401 instead of the answer. A request its schema refuses answers 400 `endpoint.invalid_request`. The revoke answers 204 with no body, where it
   answered 200 with an empty one, and takes no query parameters; a retry under its key hears 204 again, not that the
   invitation is no longer revokable. platform-tenant's FIRST_OWNER acceptance replays its answer, under the hash of the invitation token.
 - **`ManagedTask.execute(TaskInvocation)`** (root BRX-RS-MANIFEST-027). The run receives its trigger, deadline,

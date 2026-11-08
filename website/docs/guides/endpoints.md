@@ -201,6 +201,9 @@ tenantContext:
 - `bootstrap-setup` accepts the bootstrap session only, and every other policy refuses it, including an endpoint that
   names no `policyRef`. An operational module may declare it under `/api/platform/bootstrap/` with
   `tenantContext.mode: forbidden`; a plugin that declares it does not start.
+- The session is the caller the keys belong to. `create-first-admin` replays its answer through the identity owner's
+  contract: the same session and key get the first answer. The write spends the session, so another key under it
+  writes nothing, and once the session has expired the runtime answers 401 before it would replay.
 
 ## Deadlines and limits
 
