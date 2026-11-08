@@ -425,8 +425,7 @@ class PluginRuntimeManagerTest {
             List.of(plugin),
             Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
                 .data("plugin_a", "plugin_a_outbox", "")
-                .consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand("ReserveStock", ">=1.0.0 <2.0.0", true,
-                    "event-standard", "event-standard", "persistent-inbox"))
+                .consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand("ReserveStock", ">=1.0.0 <2.0.0", true))
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"));
@@ -449,8 +448,7 @@ class PluginRuntimeManagerTest {
                     .build(),
                 consumer, PluginRuntimeDescriptor.builder("plugin-c")
                     .data("plugin_c", "plugin_c_outbox", "")
-                    .consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand("ReserveStock", ">=1.0.0 <2.0.0", false,
-                    "event-standard", "event-standard", "persistent-inbox"))
+                    .consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand("ReserveStock", ">=1.0.0 <2.0.0", false))
                     .build()),
             new DefaultCapabilityRegistry(),
             List.of());

@@ -514,15 +514,14 @@ commands:
     - commandType: sample-orders.cancel-order
       versionRange: ">=1.0.0 <2.0.0"
       required: true
-      timeoutPolicyRef: event-standard
-      retryPolicyRef: event-standard
-      idempotencyPolicyRef: persistent-inbox
 data:
   storageId: sample_shipping
   outbox: sample_shipping_outbox            # commands leave through your outbox
 ```
 
-With `required: true` your plugin starts only on a host where a plugin provides the command in the declared range.
+You name no policies: the command is delivered under the ones its provider declares (see
+[Command policies](#command-policies)). With `required: true` your plugin starts only on a host where a plugin provides
+the command in the declared range.
 With `required: false` it starts anyway, and a submission fails with `command.provider_missing` while no plugin
 provides the command.
 
@@ -622,9 +621,10 @@ duplicate.
 | `concurrencyPolicyRef` | `partition-serial` | One command at a time per partition key, in order. A parked command holds nothing back, as for events |
 | `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant: a duplicate with the same content, a conflict with other content. A rejected command takes no key |
 
-A provider names all six; a sender names `required`, `versionRange`, the timeout, the retry and the idempotency
-policy. A name the runtime does not know stops the plugin at startup. Commands share the timeout, retry and
-concurrency policies of events because they travel the same relay, consumer and inbox.
+A provider names all six. A sender names only `commandType`, `versionRange` and `required`: its commands are
+delivered under the provider's policies, so a policy written under `commands.consumes` stops the plugin at startup. A
+name the runtime does not know stops the plugin at startup too. Commands share the timeout, retry and concurrency
+policies of events because they travel the same relay, consumer and inbox.
 
 ### Command errors
 

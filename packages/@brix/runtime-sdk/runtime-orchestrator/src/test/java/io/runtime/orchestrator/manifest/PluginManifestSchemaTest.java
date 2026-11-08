@@ -18,10 +18,12 @@ package io.runtime.orchestrator.manifest;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -89,6 +91,30 @@ class PluginManifestSchemaTest {
             .replace("\"recordSchemaRef\": \"brix://schemas/platform-audit/policy-use-record/1.0.0\"", "");
         assertThrows(PluginManifestValidationException.class, () -> validator.validate("no record schema",
             objectMapper.readTree(withoutRecordSchema)));
+    }
+
+    @Test
+    void bundledSchemaTakesACommandSenderWithoutPolicies() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
+
+        // Standard-link plan D102: a sender names the command, its range and whether it requires it, and no policy.
+        assertDoesNotThrow(() -> validator.validate("sender", objectMapper.readTree(manifestWithCommandSender(""))));
+        for (String policy : List.of("timeoutPolicyRef", "retryPolicyRef", "idempotencyPolicyRef")) {
+            PluginManifestValidationException refused = assertThrows(PluginManifestValidationException.class,
+                () -> validator.validate(policy, objectMapper.readTree(
+                    manifestWithCommandSender(", \"" + policy + "\": \"event-standard\""))));
+            assertTrue(refused.getValidationErrors().stream().anyMatch(error -> error.contains(policy)),
+                refused.getValidationErrors().toString());
+        }
+    }
+
+    private String manifestWithCommandSender(String policy) {
+        String sender = """
+            "commands": {"provides": [], "consumes": [
+                {"commandType": "sample-orders.cancel-order", "versionRange": ">=1.0.0 <2.0.0", "required": true%s}
+              ]},""".formatted(policy);
+        return manifestWithReliability().replace("\"commands\": {\"provides\": [], \"consumes\": []},", sender);
     }
 
     private String manifestWithCustodialWrite(String operations, String custodian) {

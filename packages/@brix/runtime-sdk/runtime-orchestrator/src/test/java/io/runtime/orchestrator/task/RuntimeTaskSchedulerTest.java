@@ -266,7 +266,7 @@ class RuntimeTaskSchedulerTest {
         CommandType<Cancel> cancel = CommandType.of("sample-shipping.recall", "1.0.0", Cancel.class);
         CommandClient<Cancel> recalls = new PluginCommandCapability(MODULE, new Bus(sent),
             Map.of(cancel.commandType(), new PluginRuntimeDescriptor.ConsumedCommand(cancel.commandType(),
-                ">=1.0.0 <2.0.0", false, "event-standard", "event-standard", "persistent-inbox")), null).client(cancel);
+                ">=1.0.0 <2.0.0", false)), null).client(cancel);
         TaskProvider sender = new TaskProvider(MODULE, task(TaskPolicies.RETRY_NONE, TaskPolicies.IDEMPOTENCY_LOCAL, null),
             new ManagedTask() {
                 @Override

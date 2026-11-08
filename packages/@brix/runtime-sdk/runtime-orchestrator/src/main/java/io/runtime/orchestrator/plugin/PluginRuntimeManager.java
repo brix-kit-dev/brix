@@ -1092,9 +1092,6 @@ public final class PluginRuntimeManager {
         for (PluginRuntimeDescriptor.ProvidedCommand command : plugin.descriptor.providedCommands().values()) {
             validateCommandPolicies(plugin, command);
         }
-        for (PluginRuntimeDescriptor.ConsumedCommand command : plugin.descriptor.consumedCommands().values()) {
-            validateConsumedCommandPolicies(plugin, command);
-        }
     }
 
     /**
@@ -1238,17 +1235,6 @@ public final class PluginRuntimeManager {
         } catch (IllegalArgumentException unknown) {
             throw new PluginRuntimeException(where + " names unknown access policy '" + command.accessPolicyRef() + "'");
         }
-    }
-
-    /** A consumed command names the platform's timeout, retry and idempotency policies (MANIFEST-026). */
-    private static void validateConsumedCommandPolicies(ManagedPlugin plugin,
-            PluginRuntimeDescriptor.ConsumedCommand command) {
-        String where = "Plugin '" + plugin.id() + "' consumed command '" + command.commandType() + "'";
-        requirePolicy(where, "timeout", command.timeoutPolicyRef(),
-            EventPolicies.TIMEOUT.contains(command.timeoutPolicyRef()));
-        requirePolicy(where, "retry", command.retryPolicyRef(), EventPolicies.RETRY.contains(command.retryPolicyRef()));
-        requirePolicy(where, "idempotency", command.idempotencyPolicyRef(),
-            CommandPolicies.IDEMPOTENCY.contains(command.idempotencyPolicyRef()));
     }
 
     private static void requirePolicy(String where, String kind, String reference, boolean known) {

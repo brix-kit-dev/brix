@@ -138,10 +138,8 @@ commands:
     - commandType: sample-orders.cancel-order
       versionRange: ">=1.0.0 <2.0.0"
       # Refusing a shipment means nothing without the order's owner, so the plugin starts only next to sample-orders.
+      # The command is delivered under the policies sample-orders declares for it, so a sender names none.
       required: true
-      timeoutPolicyRef: event-standard
-      retryPolicyRef: event-standard
-      idempotencyPolicyRef: persistent-inbox
 events:
   publishes: []
   subscribes:

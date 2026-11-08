@@ -154,9 +154,6 @@ class PluginManifestLoaderTest {
                     - commandType: ShipOrder
                       versionRange: ">=1.0.0 <2.0.0"
                       required: true
-                      timeoutPolicyRef: event-standard
-                      retryPolicyRef: event-standard
-                      idempotencyPolicyRef: persistent-inbox
                 events:""")))
             .isInstanceOf(ManifestValidationException.class)
             .hasMessageContaining("Command consumers must declare data.outbox");
@@ -227,22 +224,30 @@ class PluginManifestLoaderTest {
 
     @Test
     void aCommandConsumerDeclaresTheCommandCapability() {
-        String consumer = commandProviderManifest().replace("  consumes: []\nevents:", """
-              consumes:
-                - commandType: ShipOrder
-                  versionRange: ">=1.0.0 <2.0.0"
-                  required: true
-                  timeoutPolicyRef: event-standard
-                  retryPolicyRef: event-standard
-                  idempotencyPolicyRef: persistent-inbox
-            events:""");
+        String consumer = commandSenderManifest().replace(
+            "    - id: io.runtime.sdk.capability.CommandCapability\n      version: \">=3.3.0 <4.0.0\"\n", "");
         assertThatThrownBy(() -> loader.loadFromString(consumer))
             .isInstanceOf(ManifestValidationException.class)
             .hasMessageContaining("Command consumers must declare io.runtime.sdk.capability.CommandCapability");
-        String declared = consumer.replace("capabilities:\n  required:\n",
-            "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.CommandCapability\n"
-                + "      version: \">=3.3.0 <4.0.0\"\n");
-        assertThatCode(() -> loader.loadFromString(declared)).doesNotThrowAnyException();
+        assertThatCode(() -> loader.loadFromString(commandSenderManifest())).doesNotThrowAnyException();
+    }
+
+    @Test
+    void aCommandSenderDeclaresNoPolicies() {
+        // Root BRX-RS-MANIFEST-025, MANIFEST-026 (standard-link plan D102): the command is delivered under its
+        // provider's policies, so a policy its sender wrote would take no effect; even an empty one is refused.
+        for (String policy : java.util.List.of("timeoutPolicyRef: event-standard", "retryPolicyRef: event-standard",
+                "idempotencyPolicyRef: persistent-inbox", "timeoutPolicyRef: \"\"")) {
+            String field = policy.substring(0, policy.indexOf(':'));
+            String kind = field.substring(0, field.length() - "PolicyRef".length());
+            String withPolicy = commandSenderManifest().replace("      required: true\n",
+                "      required: true\n      " + policy + "\n");
+            assertThatThrownBy(() -> loader.loadFromString(withPolicy))
+                .as(policy)
+                .isInstanceOf(ManifestValidationException.class)
+                .hasMessageContaining("commands.consumes[0]." + field)
+                .hasMessageContaining("A command sender declares no " + kind + " policy");
+        }
     }
 
     @Test
@@ -500,6 +505,20 @@ class PluginManifestLoaderTest {
               outbox: platform_tenant_outbox
               inbox: platform_tenant_inbox
             """);
+    }
+
+    /** The command provider's manifest, also sending ShipOrder: a sender names the type, its range and required. */
+    private String commandSenderManifest() {
+        return commandProviderManifest()
+            .replace("capabilities:\n  required:\n",
+                "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.CommandCapability\n"
+                    + "      version: \">=3.3.0 <4.0.0\"\n")
+            .replace("  consumes: []\nevents:", """
+                  consumes:
+                    - commandType: ShipOrder
+                      versionRange: ">=1.0.0 <2.0.0"
+                      required: true
+                events:""");
     }
 
     private String queryProviderManifest() {

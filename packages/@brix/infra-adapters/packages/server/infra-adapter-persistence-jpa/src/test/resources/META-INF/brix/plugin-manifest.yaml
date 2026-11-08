@@ -36,9 +36,6 @@ commands:
     - commandType: ReserveStock
       versionRange: ">=1.1.0 <2.0.0"
       required: false
-      timeoutPolicyRef: event-standard
-      retryPolicyRef: event-standard
-      idempotencyPolicyRef: persistent-inbox
 events:
   # OwnerOutboxEventBusTest: what the owner's outbox accepts.
   publishes:

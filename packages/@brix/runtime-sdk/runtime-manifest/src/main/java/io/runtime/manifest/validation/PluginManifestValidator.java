@@ -333,9 +333,11 @@ public final class PluginManifestValidator {
             if (ref.getRequired() == null) {
                 result.addError(prefix + ".required", "A consumed command says whether the plugin requires it");
             }
-            requirePresent(result, prefix + ".timeoutPolicyRef", ref.getTimeoutPolicyRef());
-            requirePresent(result, prefix + ".retryPolicyRef", ref.getRetryPolicyRef());
-            requirePresent(result, prefix + ".idempotencyPolicyRef", ref.getIdempotencyPolicyRef());
+            // Root BRX-RS-MANIFEST-025, MANIFEST-026 (standard-link plan D102): a command is delivered under its
+            // provider's policies, so a policy its sender wrote would be a placeholder that takes no effect.
+            refuseSenderPolicy(result, prefix + ".timeoutPolicyRef", "timeout", ref.getTimeoutPolicyRef());
+            refuseSenderPolicy(result, prefix + ".retryPolicyRef", "retry", ref.getRetryPolicyRef());
+            refuseSenderPolicy(result, prefix + ".idempotencyPolicyRef", "idempotency", ref.getIdempotencyPolicyRef());
         }
         if (!consumes.isEmpty() && !declares(manifest, "io.runtime.sdk.capability.CommandCapability")) {
             result.addError("capabilities", "Command consumers must declare io.runtime.sdk.capability.CommandCapability");
@@ -711,6 +713,13 @@ public final class PluginManifestValidator {
     private void requirePresent(ValidationResult result, String field, String value) {
         if (value == null || value.isBlank()) {
             result.addError(field, "Value is required");
+        }
+    }
+
+    private static void refuseSenderPolicy(ValidationResult result, String field, String kind, String value) {
+        if (value != null) {
+            result.addError(field, "A command sender declares no " + kind
+                + " policy: the command is delivered under the policies of the plugin that provides it");
         }
     }
 

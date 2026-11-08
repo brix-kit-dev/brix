@@ -241,14 +241,11 @@
     "commandConsumer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commandType", "versionRange", "required", "timeoutPolicyRef", "retryPolicyRef", "idempotencyPolicyRef"],
+      "required": ["commandType", "versionRange", "required"],
       "properties": {
         "commandType": { "type": "string", "minLength": 1 },
         "versionRange": { "$ref": "#/definitions/range" },
-        "required": { "type": "boolean" },
-        "timeoutPolicyRef": { "type": "string", "minLength": 1 },
-        "retryPolicyRef": { "type": "string", "minLength": 1 },
-        "idempotencyPolicyRef": { "type": "string", "minLength": 1 }
+        "required": { "type": "boolean" }
       }
     },
     "eventPublish": {

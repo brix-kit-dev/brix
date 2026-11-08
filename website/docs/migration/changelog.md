@@ -70,9 +70,11 @@ All notable changes to Brix Framework are documented here.
   platform-identity checks its two event schemas in its own build.
 - **Typed commands.** The owner of a command publishes its contract in its api artifact
   (`META-INF/brix/commands/<commandType>/<version>.json`); the generator writes the request record and a
-  `CommandType` constant. A sender declares the command under `commands.consumes` and submits the generated type
-  through `CommandCapability.client(...)`: the runtime takes the tenant from the current call and records the sender
-  and the version. The owner applies a command once per business key of the sender and tenant. An access policy can
+  `CommandType` constant. A sender declares the command under `commands.consumes` with its version range and whether
+  it requires it, and names no policies: the command is delivered under its provider's, and a sender's timeout, retry
+  or idempotency policy stops the plugin at startup. The sender submits the generated type through
+  `CommandCapability.client(...)`: the runtime takes the tenant from the current call and records the sender and the
+  version. The owner applies a command once per business key of the sender and tenant. An access policy can
   require a user holding a permission (`on-behalf-of:<permission>`). See
   [Commands](../guides/events-and-commands.md#commands).
 - **Command status.** A sender reads where each command it sent stands with `CommandClient.status(commandId)`:
@@ -145,9 +147,9 @@ All notable changes to Brix Framework are documented here.
   request, the caller, the tenant scope, the access decision, the trace and the deadline. A host whose plugins provide
   or call queries must set `brix.query.max-deadline`.
 - **Command declarations name their policies** (root BRX-RS-MANIFEST-025). A provided command names its scope,
-  access, timeout, concurrency, retry and idempotency policies; a consumed command names `required`, `versionRange`
-  and its timeout, retry and idempotency policies. A sender declares `CommandCapability` and `data.outbox`, a provider
-  `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
+  access, timeout, concurrency, retry and idempotency policies; a consumed command names `required` and
+  `versionRange`, and no policies, which the runtime refuses there because the provider's apply. A sender declares
+  `CommandCapability` and `data.outbox`, a provider `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
   business key.
 - **An endpoint failure the handler does not map answers `platform.unknown`** with
   `{"errorCode", "message", "traceId"}`; the cause stays in the log.

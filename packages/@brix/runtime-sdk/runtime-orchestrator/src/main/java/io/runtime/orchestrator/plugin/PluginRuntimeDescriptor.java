@@ -632,7 +632,7 @@ public final class PluginRuntimeDescriptor {
         }
 
         /**
-         * Declares a command the plugin submits, with its policies.
+         * Declares a command the plugin submits.
          *
          * @param command the declaration
          * @return this builder
@@ -1139,17 +1139,14 @@ public final class PluginRuntimeDescriptor {
     }
 
     /**
-     * A command the plugin submits.
+     * A command the plugin submits. It names no policies: the command is delivered under its provider's (root
+     * BRX-RS-MANIFEST-025, MANIFEST-026; standard-link plan D102).
      *
      * @param commandType the command type
      * @param versionRange the versions it sends
      * @param required whether the plugin cannot run without a provider
-     * @param timeoutPolicyRef timeout policy reference
-     * @param retryPolicyRef retry policy reference
-     * @param idempotencyPolicyRef idempotency policy reference
      */
-    public record ConsumedCommand(String commandType, String versionRange, boolean required, String timeoutPolicyRef,
-            String retryPolicyRef, String idempotencyPolicyRef) {
+    public record ConsumedCommand(String commandType, String versionRange, boolean required) {
 
         /**
          * Creates the declaration, blank when not declared.
@@ -1157,16 +1154,6 @@ public final class PluginRuntimeDescriptor {
         public ConsumedCommand {
             commandType = commandType == null ? "" : commandType.trim();
             versionRange = versionRange == null ? "" : versionRange.trim();
-            timeoutPolicyRef = timeoutPolicyRef == null ? "" : timeoutPolicyRef.trim();
-            retryPolicyRef = retryPolicyRef == null ? "" : retryPolicyRef.trim();
-            idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
-        }
-
-        /**
-         * Creates a declaration without policies.
-         */
-        public ConsumedCommand(String commandType, String versionRange, boolean required) {
-            this(commandType, versionRange, required, "", "", "");
         }
     }
 

@@ -249,7 +249,7 @@ class PluginCommandCapabilityTest {
     private PluginCommandCapability capability(CommandProviders known) {
         return new PluginCommandCapability("sample-shipping", bus,
             Map.of(CANCEL.commandType(), new PluginRuntimeDescriptor.ConsumedCommand(CANCEL.commandType(),
-                ">=1.0.0 <2.0.0", false, "event-standard", "event-standard", "persistent-inbox")),
+                ">=1.0.0 <2.0.0", false)),
             known);
     }
 

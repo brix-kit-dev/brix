@@ -230,9 +230,7 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                 }
                 for (PluginManifest.ContractRef consumed : manifest.getCommands().getConsumes()) {
                     builder.consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand(consumed.getCommandType(),
-                        consumed.getVersionRange(), !Boolean.FALSE.equals(consumed.getRequired()),
-                        consumed.getTimeoutPolicyRef(), consumed.getRetryPolicyRef(),
-                        consumed.getIdempotencyPolicyRef()));
+                        consumed.getVersionRange(), !Boolean.FALSE.equals(consumed.getRequired())));
                 }
             }
             if (manifest.getTasks() != null) {
