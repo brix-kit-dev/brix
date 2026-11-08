@@ -227,7 +227,8 @@ class CommandDeliveryTest {
     private PluginRuntimeManager.CommandProvider provider() {
         return new PluginRuntimeManager.CommandProvider("app-stock",
             new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", providerVersion,
-                "event-standard", "event-standard", "partition-serial", "command-envelope", accessPolicy, "persistent-inbox"),
+                "command-transient-retry", "command-standard", "partition-serial", "command-envelope", accessPolicy,
+                "command-key"),
             started ? handler : null, Reserve.class);
     }
 

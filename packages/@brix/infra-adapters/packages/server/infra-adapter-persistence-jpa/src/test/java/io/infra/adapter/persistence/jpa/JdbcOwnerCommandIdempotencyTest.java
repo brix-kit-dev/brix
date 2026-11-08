@@ -362,10 +362,10 @@ class JdbcOwnerCommandIdempotencyTest {
                   handlerId: reserve-stock.v1
                   scopePolicyRef: command-envelope
                   accessPolicyRef: declared-consumers
-                  timeoutPolicyRef: event-standard
+                  timeoutPolicyRef: command-standard
                   concurrencyPolicyRef: partition-serial
-                  retryPolicyRef: event-standard
-                  idempotencyPolicyRef: persistent-inbox
+                  retryPolicyRef: command-transient-retry
+                  idempotencyPolicyRef: command-key
               consumes: []
             events:
               publishes: []

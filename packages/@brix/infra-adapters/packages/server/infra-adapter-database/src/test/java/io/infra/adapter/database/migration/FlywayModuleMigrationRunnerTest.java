@@ -255,10 +255,10 @@ class FlywayModuleMigrationRunnerTest {
                   handlerId: reserve-stock.v1
                   scopePolicyRef: platform
                   accessPolicyRef: platform
-                  timeoutPolicyRef: event-standard
+                  timeoutPolicyRef: command-standard
                   concurrencyPolicyRef: partition-serial
-                  retryPolicyRef: event-standard
-                  idempotencyPolicyRef: persistent-inbox
+                  retryPolicyRef: command-transient-retry
+                  idempotencyPolicyRef: command-key
             """.formatted(pluginId) : "  provides: []\n";
         Files.writeString(manifest, """
             apiVersion: brix.io/v1

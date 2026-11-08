@@ -645,9 +645,10 @@ public final class ConformanceWorld {
 
             private PluginRuntimeManager.CommandProvider provider() {
                 return new PluginRuntimeManager.CommandProvider(SUBSCRIBER,
-                    new PluginRuntimeDescriptor.ProvidedCommand(COMMAND, COMMAND_HANDLER, "1.0.0", "event-standard",
-                        "event-standard", "partition-serial", CommandPolicies.SCOPE_ENVELOPE, commandAccessPolicy,
-                        "persistent-inbox"), new Stock(), Reserve.class);
+                    new PluginRuntimeDescriptor.ProvidedCommand(COMMAND, COMMAND_HANDLER, "1.0.0",
+                        CommandPolicies.RETRY_TRANSIENT, CommandPolicies.TIMEOUT_STANDARD, "partition-serial",
+                        CommandPolicies.SCOPE_ENVELOPE, commandAccessPolicy, CommandPolicies.IDEMPOTENCY_KEY),
+                    new Stock(), Reserve.class);
             }
         };
     }

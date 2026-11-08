@@ -407,7 +407,8 @@ class PluginRuntimeManagerTest {
             Map.of(plugin, PluginRuntimeDescriptor.builder("plugin-a")
                 .data("plugin_a", "", "plugin_a_inbox")
                 .providedCommand(new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", "1.0.0",
-                    "event-standard", "event-standard", "partition-serial", "command-envelope", "declared-consumers", "persistent-inbox"))
+                    "command-transient-retry", "command-standard", "partition-serial", "command-envelope",
+                    "declared-consumers", "command-key"))
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"));
@@ -415,6 +416,57 @@ class PluginRuntimeManagerTest {
         PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
         assertTrue(refused.getMessage().contains("provided command"), refused.getMessage());
         assertFalse(plugin.started);
+    }
+
+    @Test
+    void aProvidedCommandNamesTheCommandPolicies() {
+        // Standard-link plan D101: commands have policy names of their own, like queries and tasks.
+        RecordingPlugin provider = commandProvider();
+
+        managerProviding(provider, "command-transient-retry", "command-standard", "command-key").start();
+
+        assertTrue(provider.started);
+    }
+
+    @Test
+    void aProvidedCommandThatNamesAnEventPolicyIsRefusedWithWhatACommandNames() {
+        // Standard-link plan D101: the event names are no aliases for a command, and the refusal says what to name.
+        assertCommandRefused("event-standard", "command-standard", "command-key",
+            "names unknown retry policy 'event-standard'; a command names [command-transient-retry]");
+        assertCommandRefused("command-transient-retry", "event-standard", "command-key",
+            "names unknown timeout policy 'event-standard'; a command names [command-standard]");
+        assertCommandRefused("command-transient-retry", "command-standard", "persistent-inbox",
+            "names unknown idempotency policy 'persistent-inbox'; a command names [command-key]");
+        assertCommandRefused("command-transient-retry", "", "command-key",
+            "names no timeout policy; a command names [command-standard]");
+    }
+
+    private void assertCommandRefused(String retry, String timeout, String idempotency, String expected) {
+        RecordingPlugin provider = commandProvider();
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class,
+            managerProviding(provider, retry, timeout, idempotency)::start);
+        assertTrue(refused.getMessage().contains("Plugin 'plugin-a' command 'ReserveStock' " + expected),
+            refused.getMessage());
+        assertFalse(provider.started);
+    }
+
+    private static RecordingPlugin commandProvider() {
+        RecordingPlugin provider = new RecordingPlugin();
+        provider.commandHandlers.put("reserve-stock.v1", context -> new ReserveHandler());
+        return provider;
+    }
+
+    private PluginRuntimeManager managerProviding(RecordingPlugin provider, String retry, String timeout,
+            String idempotency) {
+        return manager(
+            List.of(provider),
+            Map.of(provider, PluginRuntimeDescriptor.builder("plugin-a")
+                .data("plugin_a", "", "plugin_a_inbox")
+                .providedCommand(new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", "1.0.0",
+                    retry, timeout, "partition-serial", "command-envelope", "declared-consumers", idempotency))
+                .build()),
+            new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
     }
 
     @Test
@@ -444,7 +496,8 @@ class PluginRuntimeManagerTest {
             Map.of(provider, PluginRuntimeDescriptor.builder("plugin-p")
                     .data("plugin_p", "", "plugin_p_inbox")
                     .providedCommand(new PluginRuntimeDescriptor.ProvidedCommand("ReserveStock", "reserve-stock.v1", "2.0.0",
-                    "event-standard", "event-standard", "partition-serial", "command-envelope", "declared-consumers", "persistent-inbox"))
+                    "command-transient-retry", "command-standard", "partition-serial", "command-envelope",
+                    "declared-consumers", "command-key"))
                     .build(),
                 consumer, PluginRuntimeDescriptor.builder("plugin-c")
                     .data("plugin_c", "plugin_c_outbox", "")

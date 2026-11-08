@@ -56,9 +56,9 @@ class CommandStatusReaderTest {
         public Optional<PluginRuntimeManager.CommandProvider> providerOf(String commandType) {
             return providerPresent && TYPE.equals(commandType)
                 ? Optional.of(new PluginRuntimeManager.CommandProvider("sample-orders",
-                    new PluginRuntimeDescriptor.ProvidedCommand(TYPE, "cancel-order.v1", "1.0.0", "event-standard",
-                        "event-standard", "partition-serial", "command-envelope", "declared-consumers",
-                        "persistent-inbox"), null, Object.class))
+                    new PluginRuntimeDescriptor.ProvidedCommand(TYPE, "cancel-order.v1", "1.0.0",
+                        "command-transient-retry", "command-standard", "partition-serial", "command-envelope",
+                        "declared-consumers", "command-key"), null, Object.class))
                 : Optional.empty();
         }
 

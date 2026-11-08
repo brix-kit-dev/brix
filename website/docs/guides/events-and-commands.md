@@ -445,10 +445,10 @@ commands:
       handlerId: sample-orders.cancel-order.v1
       scopePolicyRef: command-envelope
       accessPolicyRef: declared-consumers
-      timeoutPolicyRef: event-standard
+      timeoutPolicyRef: command-standard
       concurrencyPolicyRef: partition-serial
-      retryPolicyRef: event-standard
-      idempotencyPolicyRef: persistent-inbox
+      retryPolicyRef: command-transient-retry
+      idempotencyPolicyRef: command-key
 data:
   storageId: sample_orders
   inbox: sample_orders_inbox                # commands arrive through your inbox
@@ -617,14 +617,20 @@ duplicate.
 | `scopePolicyRef` | `command-envelope` | The handler runs in the command's tenant, or in none for a platform command |
 | `accessPolicyRef` | `declared-consumers` | Any plugin that declares the command under `commands.consumes` may send it |
 | | `on-behalf-of:<permission>` | A plugin may send it only while acting for a user who holds the permission. The sender's runtime checks the user at submission and the command records the user; the owner parks a command that names none |
-| `timeoutPolicyRef`, `retryPolicyRef` | `event-standard` | The host's delivery deadline, attempts and backoff, as for events |
+| `timeoutPolicyRef` | `command-standard` | The host's delivery deadline |
+| `retryPolicyRef` | `command-transient-retry` | A failed delivery is tried again, up to the host's attempts and after a backoff, and then parked |
 | `concurrencyPolicyRef` | `partition-serial` | One command at a time per partition key, in order. A parked command holds nothing back, as for events |
-| `idempotencyPolicyRef` | `persistent-inbox` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant: a duplicate with the same content, a conflict with other content. A rejected command takes no key |
+| `idempotencyPolicyRef` | `command-key` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant: a duplicate with the same content, a conflict with other content. A rejected command takes no key |
 
 A provider names all six. A sender names only `commandType`, `versionRange` and `required`: its commands are
 delivered under the provider's policies, so a policy written under `commands.consumes` stops the plugin at startup. A
-name the runtime does not know stops the plugin at startup too. Commands share the timeout, retry and concurrency
-policies of events because they travel the same relay, consumer and inbox.
+name the runtime does not know stops the plugin at startup too, and so does an event policy name such as
+`event-standard` or `persistent-inbox`: the message lists what a command names instead.
+
+A command travels the same relay, consumer and inbox as an event, so `command-standard` and
+`command-transient-retry` take the host settings that `event-standard` takes, and `partition-serial` is the same
+guarantee for both. Commands have names of their own so that they can get values of their own later without a change
+to your manifest.
 
 ### Command errors
 

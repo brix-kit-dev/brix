@@ -147,9 +147,12 @@ All notable changes to Brix Framework are documented here.
   request, the caller, the tenant scope, the access decision, the trace and the deadline. A host whose plugins provide
   or call queries must set `brix.query.max-deadline`.
 - **Command declarations name their policies** (root BRX-RS-MANIFEST-025). A provided command names its scope,
-  access, timeout, concurrency, retry and idempotency policies; a consumed command names `required` and
-  `versionRange`, and no policies, which the runtime refuses there because the provider's apply. A sender declares
-  `CommandCapability` and `data.outbox`, a provider `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
+  access, timeout, concurrency, retry and idempotency policies, by names of their own: `command-envelope`,
+  `declared-consumers` or `on-behalf-of:<permission>`, `command-standard`, `partition-serial`,
+  `command-transient-retry` and `command-key`. An event policy name on a command, such as `event-standard`, stops the
+  plugin at startup. A consumed command names `required` and `versionRange`, and no policies, which the runtime
+  refuses there because the provider's apply. A sender declares `CommandCapability` and `data.outbox`, a provider
+  `data.inbox`. Unknown names stop the plugin at startup. `CommandInvocation` carries the access decision and the
   business key.
 - **An endpoint failure the handler does not map answers `platform.unknown`** with
   `{"errorCode", "message", "traceId"}`; the cause stays in the log.

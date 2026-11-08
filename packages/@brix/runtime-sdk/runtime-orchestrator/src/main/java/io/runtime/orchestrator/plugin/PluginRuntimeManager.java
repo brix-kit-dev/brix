@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1214,22 +1215,19 @@ public final class PluginRuntimeManager {
     }
 
     /**
-     * A provided command names one policy of each kind, and each is the platform's (root BRX-RS-MANIFEST-025,
-     * MANIFEST-026; Kafka design §14 K20, K22; standard-link plan L4.3).
+     * A provided command names one policy of each kind, and each is one of the platform's command policies (root
+     * BRX-RS-MANIFEST-025, MANIFEST-026; Kafka design §14 K20, K22; standard-link plan L4.3, D101). The event names are
+     * no aliases: a command that names one is refused, and the message lists what a command names instead.
      */
     private static void validateCommandPolicies(ManagedPlugin plugin, PluginRuntimeDescriptor.ProvidedCommand command) {
         String where = "Plugin '" + plugin.id() + "' command '" + command.commandType() + "'";
         requireEventName(where + " type", command.commandType());
         requireEventName(where + " handler id", command.handlerId());
-        requirePolicy(where, "retry", command.retryPolicyRef(), EventPolicies.RETRY.contains(command.retryPolicyRef()));
-        requirePolicy(where, "timeout", command.timeoutPolicyRef(),
-            EventPolicies.TIMEOUT.contains(command.timeoutPolicyRef()));
-        requirePolicy(where, "concurrency", command.concurrencyPolicyRef(),
-            EventPolicies.CONCURRENCY.contains(command.concurrencyPolicyRef()));
-        requirePolicy(where, "scope", command.scopePolicyRef(),
-            CommandPolicies.SCOPE.contains(command.scopePolicyRef()));
-        requirePolicy(where, "idempotency", command.idempotencyPolicyRef(),
-            CommandPolicies.IDEMPOTENCY.contains(command.idempotencyPolicyRef()));
+        requirePolicy(where, "retry", command.retryPolicyRef(), CommandPolicies.RETRY);
+        requirePolicy(where, "timeout", command.timeoutPolicyRef(), CommandPolicies.TIMEOUT);
+        requirePolicy(where, "concurrency", command.concurrencyPolicyRef(), CommandPolicies.CONCURRENCY);
+        requirePolicy(where, "scope", command.scopePolicyRef(), CommandPolicies.SCOPE);
+        requirePolicy(where, "idempotency", command.idempotencyPolicyRef(), CommandPolicies.IDEMPOTENCY);
         try {
             CommandPolicies.access(command.accessPolicyRef());
         } catch (IllegalArgumentException unknown) {
@@ -1237,12 +1235,14 @@ public final class PluginRuntimeManager {
         }
     }
 
-    private static void requirePolicy(String where, String kind, String reference, boolean known) {
+    private static void requirePolicy(String where, String kind, String reference, Set<String> known) {
+        String names = new TreeSet<>(known).toString();
         if (reference.isEmpty()) {
-            throw new PluginRuntimeException(where + " names no " + kind + " policy");
+            throw new PluginRuntimeException(where + " names no " + kind + " policy; a command names " + names);
         }
-        if (!known) {
-            throw new PluginRuntimeException(where + " names unknown " + kind + " policy '" + reference + "'");
+        if (!known.contains(reference)) {
+            throw new PluginRuntimeException(where + " names unknown " + kind + " policy '" + reference
+                + "'; a command names " + names);
         }
     }
 

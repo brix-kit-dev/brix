@@ -11,24 +11,31 @@ import java.util.Set;
 
 import io.runtime.orchestrator.event.EventPolicies;
 import io.runtime.orchestrator.idempotency.IdempotencyScopes;
-import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 
 /**
  * The platform's policies for commands (root BRX-RS-MANIFEST-025, MANIFEST-026; standard-link plan L4.3).
  *
- * <p>A provided command names one of each; a consumed command names its timeout, retry and idempotency policies.
- * Unknown names stop the plugin at startup.</p>
+ * <p>A provided command names one of each; its sender names none, the command is delivered under its provider's (D102).
+ * Unknown names stop the plugin at startup. Commands have names of their own, like queries and tasks, and the event
+ * names are no aliases (D101).</p>
  * <ul>
  *   <li>scope {@value #SCOPE_ENVELOPE}: the handler runs in the scope the command carries, its tenant or the
  *   platform;</li>
  *   <li>access {@value #ACCESS_DECLARED_CONSUMERS}: any plugin declaring the command under {@code commands.consumes}
  *   may send it; {@value #ACCESS_ON_BEHALF_OF}{@code <permission>}: only while acting for a user who holds the
  *   permission, which the sender's runtime checks when the command is submitted and the command records;</li>
- *   <li>timeout, retry and concurrency: the messaging policies of {@link EventPolicies}, since a command travels
- *   the same outbox, relay and inbox as an event;</li>
- *   <li>idempotency {@value PluginRuntimeDescriptor.EventSubscription#PERSISTENT_INBOX}: the owner's inbox drops a
- *   repeated delivery, and its business key table drops a repeated key of the same sender and tenant.</li>
+ *   <li>timeout {@value #TIMEOUT_STANDARD}: the host's delivery deadline;</li>
+ *   <li>retry {@value #RETRY_TRANSIENT}: a failed delivery is tried again, up to the host's attempts and after a
+ *   backoff, and then parked;</li>
+ *   <li>concurrency {@value EventPolicies#PARTITION_SERIAL}: one delivery at a time per partition key, in order, the
+ *   name events use for the same guarantee;</li>
+ *   <li>idempotency {@value #IDEMPOTENCY_KEY}: the owner's inbox drops a repeated delivery, and its business key table
+ *   a repeated key of the same sender and tenant.</li>
  * </ul>
+ *
+ * <p>A command travels the same outbox, relay and inbox as an event, so the timeout and the retry take the host's
+ * settings that events take too; their own names let commands get values of their own without a change to any
+ * manifest.</p>
  */
 public final class CommandPolicies {
 
@@ -41,11 +48,29 @@ public final class CommandPolicies {
     /** Prefix of the policy that admits a command only on behalf of a user holding the permission after it. */
     public static final String ACCESS_ON_BEHALF_OF = "on-behalf-of:";
 
+    /** The host's delivery deadline. */
+    public static final String TIMEOUT_STANDARD = "command-standard";
+
+    /** A failed delivery is tried again, up to the host's attempts and after a backoff, and then parked. */
+    public static final String RETRY_TRANSIENT = "command-transient-retry";
+
+    /** The inbox drops a repeated delivery, and the owner's business key table a repeated key. */
+    public static final String IDEMPOTENCY_KEY = "command-key";
+
     /** The scope policies. */
     public static final Set<String> SCOPE = Set.of(SCOPE_ENVELOPE);
 
+    /** The timeout policies. */
+    public static final Set<String> TIMEOUT = Set.of(TIMEOUT_STANDARD);
+
+    /** The retry policies. */
+    public static final Set<String> RETRY = Set.of(RETRY_TRANSIENT);
+
+    /** The concurrency policies. */
+    public static final Set<String> CONCURRENCY = Set.of(EventPolicies.PARTITION_SERIAL);
+
     /** The idempotency policies. */
-    public static final Set<String> IDEMPOTENCY = Set.of(PluginRuntimeDescriptor.EventSubscription.PERSISTENT_INBOX);
+    public static final Set<String> IDEMPOTENCY = Set.of(IDEMPOTENCY_KEY);
 
     private CommandPolicies() {
     }

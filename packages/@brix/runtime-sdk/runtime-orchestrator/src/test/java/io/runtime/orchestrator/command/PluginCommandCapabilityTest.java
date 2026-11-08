@@ -70,8 +70,9 @@ class PluginCommandCapabilityTest {
                 return Optional.empty();
             }
             return Optional.of(new PluginRuntimeManager.CommandProvider("sample-orders",
-                new PluginRuntimeDescriptor.ProvidedCommand(commandType, "cancel-order.v1", "1.0.0", "event-standard",
-                    "event-standard", "partition-serial", "command-envelope", accessPolicy, "persistent-inbox"),
+                new PluginRuntimeDescriptor.ProvidedCommand(commandType, "cancel-order.v1", "1.0.0",
+                    "command-transient-retry", "command-standard", "partition-serial", "command-envelope", accessPolicy,
+                    "command-key"),
                 null, Cancel.class));
         }
 
