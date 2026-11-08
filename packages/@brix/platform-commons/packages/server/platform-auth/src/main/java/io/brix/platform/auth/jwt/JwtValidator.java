@@ -170,6 +170,10 @@ public class JwtValidator {
         String roleStr = claims.get("role", String.class);
         user.setTokenRole(TokenRole.fromValue(roleStr));
         validateAudience(claims, user.getTokenType(), user.getTokenRole());
+        boolean bootstrapSession = user.getTokenType() == TokenType.BOOTSTRAP_SETUP;
+        if (bootstrapSession) {
+            nameTheBootstrapSession(claims, user);
+        }
 
         // Actor claims (mid/mtype)
         String mid = claims.get("mid", String.class);
@@ -212,8 +216,9 @@ public class JwtValidator {
         user.setOriginalSub(originalSub);
 
         // A3: validate per-user token version against identity DB to detect revoked tokens.
-        // Only performed when IdentityAccountCapability is wired (safety net for tests).
-        if (identityAccountCapability != null) {
+        // Only performed when IdentityAccountCapability is wired (safety net for tests). A bootstrap session has no
+        // identity behind it (super-admin 4.0.1 BRX-SA-BOOT-003): its owner checks the session when it is used.
+        if (identityAccountCapability != null && !bootstrapSession) {
             String subjectId = claims.getSubject();
             Long tokenVersion = claims.get("tv", Long.class);
             if (subjectId != null && tokenVersion != null) {
@@ -243,6 +248,23 @@ public class JwtValidator {
         }
 
         return user;
+    }
+
+    /**
+     * A bootstrap setup token's principal is its session, named by its {@code jti} (standard-link plan point 10b-7a,
+     * D96): there is no bootstrap database identity (super-admin 4.0.1 BRX-SA-BOOT-003), so its {@code sub} names
+     * none. The token carries only the bootstrap role and scope, and no tenant, member or principal.
+     */
+    private static void nameTheBootstrapSession(Claims claims, AuthenticatedUser user) throws JwtValidationException {
+        String session = claims.getId();
+        if (user.getTokenRole() != TokenRole.BOOTSTRAP
+                || !"BOOTSTRAP".equals(claims.get("scope", String.class))
+                || session == null || session.isBlank()
+                || claims.get("tenant_id") != null || claims.get("mid") != null || claims.get("pid") != null) {
+            throw new JwtValidationException("Bootstrap setup token is not a bootstrap session",
+                    JwtValidationException.Reason.INVALID);
+        }
+        user.setUserId(session);
     }
 
     private void validateAudience(Claims claims, TokenType tokenType, TokenRole tokenRole)

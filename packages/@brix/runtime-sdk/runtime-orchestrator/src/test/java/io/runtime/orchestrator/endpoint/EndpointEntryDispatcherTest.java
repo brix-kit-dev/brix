@@ -175,6 +175,36 @@ class EndpointEntryDispatcherTest {
     }
 
     @Test
+    void aBootstrapHandlerGetsTheVerifiedSessionAndNotItsToken() {
+        // Standard-link plan point 10b-7a (D96, D98): the runtime verified the session; the handler names it.
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
+        Map<String, Map<String, List<String>>> seen = new ConcurrentHashMap<>();
+        List<Optional<String>> callers = new CopyOnWriteArrayList<>();
+        dispatcher.replaceSnapshot(List.of(new EndpointRoute("platform-admin", "bootstrap", "POST",
+            "/api/platform/bootstrap/create-first-admin",
+            EndpointAccessPolicy.fromDeclaration(Map.of("mode", "required", "policyRef", "bootstrap-setup"),
+                Map.of("permissions", List.of("bootstrap:create-first-admin")), Map.of("mode", "forbidden")),
+            (EndpointHandler<EndpointInvocation<Object>, Object>) invocation -> {
+                seen.put("bootstrap", invocation.headers());
+                callers.add(invocation.actorId());
+                return "ok";
+            })));
+
+        dispatcher.invoke("POST", "/api/platform/bootstrap/create-first-admin", Map.of(), Map.of(), Map.of(
+            "authorization", List.of("Bearer the-session-token"),
+            "x-actor-id", List.of("session-jti"),
+            "x-auth-token-role", List.of("bootstrap"),
+            "x-auth-token-type", List.of("BOOTSTRAP_SETUP"),
+            "x-auth-token-scope", List.of("BOOTSTRAP"),
+            "x-auth-permission", List.of("bootstrap:status", "bootstrap:session", "bootstrap:create-first-admin"),
+            "accept-language", List.of("ja")));
+
+        assertFalse(seen.get("bootstrap").containsKey("authorization"), "the handler never sees the session token");
+        assertEquals(List.of("ja"), seen.get("bootstrap").get("accept-language"));
+        assertEquals(List.of(Optional.of("session-jti")), callers);
+    }
+
+    @Test
     void eachCallStartsANewTraceThatTheCallersTraceparentIsAtMostLinkedTo() {
         RecordingTracing tracing = new RecordingTracing();
         DefaultPluginEndpointDispatcher dispatcher = dispatcher(EndpointPolicies.Limits.defaults(Duration.ofSeconds(5)),

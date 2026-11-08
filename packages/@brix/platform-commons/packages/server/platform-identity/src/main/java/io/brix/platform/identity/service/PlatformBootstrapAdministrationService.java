@@ -139,7 +139,9 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
                 ttlSeconds,
                 jti));
         state.openSetupCode(SecretHashing.sha256Base64Url(configuredCode), now.plusSeconds(setupCodeTtlSeconds));
-        state.activateSession(SecretHashing.sha256Base64Url(token), now.plusSeconds(ttlSeconds));
+        // Point 10b-7a (D99): the runtime verifies the token and names its session by the jti; a newer session
+        // replaces this one.
+        state.activateSession(jti, now.plusSeconds(ttlSeconds));
         bootstrapStateRepository.save(state);
         auditFacts.record(PlatformAuditActions.BOOTSTRAP_SESSION_OPENED, null, RESOURCE_TYPE_BOOTSTRAP, null,
                 IdentityAuditFacts.REASON_BOOTSTRAP);
@@ -152,8 +154,9 @@ public class PlatformBootstrapAdministrationService implements PlatformBootstrap
         if (state.isCompleted() || platformAdminRepository.countCompletedFormalSuperAdmins() > 0) {
             throw new IllegalStateException("bootstrap is closed");
         }
-        if (!state.isBootstrapSessionUsable(SecretHashing.sha256Base64Url(command.bootstrapSessionToken()),
-                OffsetDateTime.now())) {
+        // The runtime verified the session's token (point 10b-7a); under the singleton's lock this checks that it is
+        // the session opened last, unused and unexpired, and the same transaction spends it below.
+        if (!state.isBootstrapSessionUsable(command.bootstrapSessionId(), OffsetDateTime.now())) {
             throw new IllegalArgumentException("bootstrap session is invalid");
         }
         if (identityRepository.existsByEmail(command.email())) {

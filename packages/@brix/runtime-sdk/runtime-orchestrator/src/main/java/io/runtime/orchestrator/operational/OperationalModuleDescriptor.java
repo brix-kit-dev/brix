@@ -42,6 +42,9 @@ public record OperationalModuleDescriptor(
     /** The methods of an endpoint with results to replay (idempotency design D74). */
     private static final Set<String> REPLAYED_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
 
+    /** The entries a bootstrap session may call (super-admin 4.0.1 §6, BRX-SA-BOOT-004). */
+    private static final String BOOTSTRAP_PATH = "/api/platform/bootstrap/";
+
     /**
      * Defensively copies descriptor collections.
      */
@@ -202,11 +205,19 @@ public record OperationalModuleDescriptor(
             if (!path.startsWith("/api/platform/")) {
                 throw new IllegalArgumentException("Operational endpoint must use /api/platform/**: " + path);
             }
+            boolean bootstrapSession = accessPolicy.tokenPolicy() == EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP;
             if (accessPolicy.requiresVerifiedPrincipal()
-                    && accessPolicy.tokenPolicy() != EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN) {
+                    && accessPolicy.tokenPolicy() != EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN
+                    && !bootstrapSession) {
                 throw new IllegalArgumentException("Authenticated operational endpoint '" + endpointId
                     + "' must declare authentication.policyRef="
-                    + EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN.value());
+                    + EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN.value() + ", or "
+                    + EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP.value() + " for a bootstrap entry");
+            }
+            if (bootstrapSession && !path.startsWith(BOOTSTRAP_PATH)) {
+                // super-admin 4.0.1 BRX-SA-BOOT-004: the session is good for the bootstrap entries only.
+                throw new IllegalArgumentException("Operational endpoint '" + endpointId + "' accepts the bootstrap "
+                    + "session, so it must be under " + BOOTSTRAP_PATH + "**: " + path);
             }
             if (accessPolicy.requiresVerifiedPrincipal() && accessPolicy.permissions().isEmpty()) {
                 throw new IllegalArgumentException("Authenticated operational endpoint '" + endpointId

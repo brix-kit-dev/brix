@@ -180,6 +180,28 @@ contract must be one its module requires.
 - A handler makes one such write per call. A second one fails the call with `platform.unknown`. A handler that answers
   without reaching its write logs `event=endpoint.idempotency_key_unused`, and nothing is kept.
 
+The bootstrap entries of a fresh install are an operational module's too. Their caller is the short-lived
+BOOTSTRAP_SETUP session, not a platform administrator:
+
+```yaml
+# platform-operational.yaml, POST /api/platform/bootstrap/create-first-admin
+authentication:
+  mode: required
+  policyRef: bootstrap-setup
+authorization:
+  permissions:
+    - bootstrap:create-first-admin
+tenantContext:
+  mode: forbidden
+```
+
+- The host verifies the session's token before the handler and names the session by its `jti`: that is the handler's
+  `actorId()`. The handler hands it to the data owner that opened the session, which checks that it is the session it
+  opened last, unused and unexpired.
+- `bootstrap-setup` accepts the bootstrap session only, and every other policy refuses it, including an endpoint that
+  names no `policyRef`. An operational module may declare it under `/api/platform/bootstrap/` with
+  `tenantContext.mode: forbidden`; a plugin that declares it does not start.
+
 ## Deadlines and limits
 
 `timeout.policyRef` names the call's deadline (root BRX-RS-MANIFEST-018, RESILIENCE-001):
@@ -236,8 +258,9 @@ final class PlaceOrder implements TypedEndpointHandler<PlaceOrderRequest, Placed
 - Long work checks `request.cancellation().isCancelled()`: the runtime sets it at the deadline.
 - `request.headers()` has no `Authorization`, `Proxy-Authorization`, `traceparent`, `tracestate`, `baggage` or
   `x-trace-id`: the runtime has verified the caller and holds the trace. Read the caller from `actorId()`, the tenant
-  from `tenantId()` and the trace id from `traceId()`. The one exception is the token of a `setup-token` or
-  `bootstrap-setup` entry, which the handler hands to the token's data owner to verify and spend.
+  from `tenantId()` and the trace id from `traceId()`. The one exception is the token of a `setup-token` entry, the
+  platform's old setup that the hosted setup page replaces, which the handler hands to the token's data owner to verify
+  and spend.
 
 ### Failures
 

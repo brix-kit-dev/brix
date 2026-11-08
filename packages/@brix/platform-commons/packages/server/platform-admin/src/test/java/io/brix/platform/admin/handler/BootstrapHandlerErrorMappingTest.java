@@ -9,6 +9,9 @@ package io.brix.platform.admin.handler;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -89,28 +92,67 @@ class BootstrapHandlerErrorMappingTest {
     }
 
     @Test
-    void createFirstAdminDelegatesToBootstrapOwner() {
+    void createFirstAdminDelegatesTheVerifiedSessionToBootstrapOwner() {
+        // Standard-link plan point 10b-7a (D96, D99): the owner gets the session the runtime verified.
         when(bootstrapAdministration.createFirstAdmin(any()))
                 .thenReturn(new PlatformAdminCreationView(100L, 200L, true));
 
         var response = new CreateFirstAdminHandler(context).handle(invocation(
                 new CreateFirstAdminRequest("Owner", "owner@example.invalid", null),
-                Map.of("authorization", List.of("Bearer bootstrap-token")),
-                Optional.empty()));
+                Map.of(),
+                Optional.empty(),
+                Optional.of("session-jti")));
 
         assertEquals(100L, response.id());
         assertEquals(200L, response.identityId());
         assertEquals(true, response.setupLinkSent());
+        verify(bootstrapAdministration).createFirstAdmin(argThat(command ->
+                "session-jti".equals(command.bootstrapSessionId())
+                        && "Owner".equals(command.username())
+                        && "owner@example.invalid".equals(command.email())));
     }
 
     @Test
-    void createFirstAdminMissingBearerMapsToStableBadRequest() {
+    void createFirstAdminNamesTheSessionEvenWhenATokenReachesIt() {
+        when(bootstrapAdministration.createFirstAdmin(any()))
+                .thenReturn(new PlatformAdminCreationView(100L, 200L, true));
+
+        new CreateFirstAdminHandler(context).handle(invocation(
+                new CreateFirstAdminRequest("Owner", "owner@example.invalid", null),
+                Map.of("authorization", List.of("Bearer bootstrap-token")),
+                Optional.empty(),
+                Optional.of("session-jti")));
+
+        verify(bootstrapAdministration).createFirstAdmin(argThat(command ->
+                "session-jti".equals(command.bootstrapSessionId())));
+    }
+
+    @Test
+    void createFirstAdminWithoutAVerifiedSessionIsUnauthorized() {
+        EndpointHandlingException ex = assertThrows(
+                EndpointHandlingException.class,
+                () -> new CreateFirstAdminHandler(context).handle(invocation(
+                        new CreateFirstAdminRequest("Owner", "owner@example.invalid", null),
+                        Map.of("authorization", List.of("Bearer bootstrap-token")),
+                        Optional.empty())));
+
+        assertEquals(401, ex.status());
+        assertEquals("PLATFORM_BOOTSTRAP_SESSION_REQUIRED", ex.errorCode());
+        verify(bootstrapAdministration, never()).createFirstAdmin(any());
+    }
+
+    @Test
+    void createFirstAdminInvalidRequestMapsToStableBadRequest() {
+        when(bootstrapAdministration.createFirstAdmin(any()))
+                .thenThrow(new IllegalArgumentException("bootstrap session is invalid"));
+
         EndpointHandlingException ex = assertThrows(
                 EndpointHandlingException.class,
                 () -> new CreateFirstAdminHandler(context).handle(invocation(
                         new CreateFirstAdminRequest("Owner", "owner@example.invalid", null),
                         Map.of(),
-                        Optional.empty())));
+                        Optional.empty(),
+                        Optional.of("session-jti"))));
 
         assertEquals(400, ex.status());
         assertEquals("PLATFORM_BOOTSTRAP_INVALID_REQUEST", ex.errorCode());
@@ -135,8 +177,9 @@ class BootstrapHandlerErrorMappingTest {
                 EndpointHandlingException.class,
                 () -> new CreateFirstAdminHandler(context).handle(invocation(
                         new CreateFirstAdminRequest("Owner", "owner@example.invalid", null),
-                        Map.of("authorization", List.of("Bearer bootstrap-token")),
-                        Optional.empty())));
+                        Map.of(),
+                        Optional.empty(),
+                        Optional.of("session-jti"))));
 
         assertEquals(409, ex.status());
         assertEquals("PLATFORM_BOOTSTRAP_NOT_READY", ex.errorCode());
@@ -146,13 +189,21 @@ class BootstrapHandlerErrorMappingTest {
             T body,
             Map<String, List<String>> headers,
             Optional<String> tenantId) {
+        return invocation(body, headers, tenantId, Optional.empty());
+    }
+
+    private static <T> EndpointInvocation<T> invocation(
+            T body,
+            Map<String, List<String>> headers,
+            Optional<String> tenantId,
+            Optional<String> actorId) {
         return new EndpointInvocation<>(
                 body,
                 Map.of(),
                 Map.of(),
                 headers,
                 tenantId,
-                Optional.empty(),
+                actorId,
                 Optional.of("trace-1"),
                 Instant.now().plusSeconds(30));
     }

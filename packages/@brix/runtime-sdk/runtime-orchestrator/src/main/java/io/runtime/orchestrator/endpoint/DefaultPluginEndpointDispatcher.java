@@ -59,7 +59,8 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  * ({@link EndpointPathTemplate}); each call starts a server span in a new trace ({@link EndpointTracing}), gets the
  * deadline of its endpoint's timeout policy and waits for none of the endpoint's limited permits
  * ({@link EndpointPolicies}). A handler sees no credentials and no trace headers, except the token of a
- * {@code setup-token} or {@code bootstrap-setup} entry, which it hands to the token's data owner to verify and spend.</p>
+ * {@code setup-token} entry (the legacy platform setup of exemption EX-2026-002), which it hands to the token's data
+ * owner to verify and spend. A bootstrap entry gets the verified session as its caller (point 10b-7a).</p>
  *
  * <p>Standard-link plan point 10a: an endpoint that declares {@code idempotency.mode: required} keeps its answer with
  * its business write, and a repeated call gets it again without running the handler ({@link EndpointReplay}).</p>
@@ -385,13 +386,12 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     }
 
     /**
-     * The headers a handler sees: no credentials and no trace headers, except the token of an entry whose data owner
-     * verifies and spends it.
+     * The headers a handler sees: no credentials and no trace headers, except the token of a legacy setup-token
+     * entry, whose data owner verifies and spends it.
      */
     private static Map<String, List<String>> handlerHeaders(Map<String, List<String>> headers, EndpointRoute route) {
-        EndpointAccessPolicy.AuthenticationMode authentication = route.accessPolicy().authentication();
-        boolean ownerVerifiedToken = authentication == EndpointAccessPolicy.AuthenticationMode.SETUP_TOKEN
-            || authentication == EndpointAccessPolicy.AuthenticationMode.BOOTSTRAP_SETUP;
+        boolean ownerVerifiedToken =
+            route.accessPolicy().authentication() == EndpointAccessPolicy.AuthenticationMode.SETUP_TOKEN;
         Map<String, List<String>> visible = new LinkedHashMap<>(headers);
         visible.keySet().removeAll(HIDDEN_HEADERS);
         if (!ownerVerifiedToken) {

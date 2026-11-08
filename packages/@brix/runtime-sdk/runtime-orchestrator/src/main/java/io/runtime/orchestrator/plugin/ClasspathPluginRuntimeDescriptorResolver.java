@@ -350,8 +350,9 @@ public final class ClasspathPluginRuntimeDescriptorResolver
     }
 
     private static EndpointAccessPolicy accessPolicy(String pluginId, PluginManifest.Route route) {
+        EndpointAccessPolicy policy;
         try {
-            return EndpointAccessPolicy.fromDeclaration(
+            policy = EndpointAccessPolicy.fromDeclaration(
                 route.getAuthentication(),
                 route.getAuthorization(),
                 route.getTenantContext());
@@ -359,6 +360,13 @@ public final class ClasspathPluginRuntimeDescriptorResolver
             throw new PluginRuntimeException("Plugin '" + pluginId + "' endpoint '" + route.getEndpointId()
                 + "' declares an invalid access policy: " + e.getMessage(), e);
         }
+        if (policy.tokenPolicy() == EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP) {
+            // super-admin 4.0.1 SA-7: the bootstrap session is the platform's, for its bootstrap entries only.
+            throw new PluginRuntimeException("Plugin '" + pluginId + "' endpoint '" + route.getEndpointId()
+                + "' declares authentication.policyRef 'bootstrap-setup', which only a platform operational module "
+                + "may declare");
+        }
+        return policy;
     }
 
     private static List<TenantGrantTable.Grant> grants(PluginManifest.Permission permission) {

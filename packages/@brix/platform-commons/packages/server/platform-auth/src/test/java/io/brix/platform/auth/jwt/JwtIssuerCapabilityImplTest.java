@@ -15,10 +15,12 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +30,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.brix.platform.auth.context.AuthenticatedUser;
+import io.brix.platform.auth.enums.TokenRole;
+import io.brix.platform.auth.enums.TokenType;
+import io.runtime.sdk.capability.IdentityAccountCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 import io.runtime.sdk.capability.JwtIssuerCapability.ActorTokenRequest;
 import io.runtime.sdk.capability.JwtIssuerCapability.AuthenticationContext;
@@ -240,6 +245,100 @@ class JwtIssuerCapabilityImplTest {
                     idTokenIssuer, "21", "tenant-console", "nonce-1", authentication, Map.of("cid", "ctx-actor")));
             assertThrows(JwtValidator.JwtValidationException.class, () -> validator.validate(idToken.value()));
         }
+    }
+
+    @Test
+    void aBootstrapSetupTokenIsTheSessionItNames(@TempDir Path tempDir) throws Exception {
+        // Standard-link plan point 10b-7a (D96): the host verifies the token and names its session by the jti. No
+        // identity stands behind it (super-admin 4.0.1 BRX-SA-BOOT-003), so the token-version check does not apply,
+        // while it still applies to every other token.
+        JwtProperties properties = new JwtProperties();
+        TestKeys keys = writeKeys(tempDir);
+        properties.setPrivateKeyPath(keys.privateKeyPath().toUri().toString());
+        properties.setPublicKeyPath(keys.publicKeyPath().toUri().toString());
+        JwtIssuerCapabilityImpl issuer = new JwtIssuerCapabilityImpl(properties, objectMapper);
+        IdentityAccountCapability nobody = org.mockito.Mockito.mock(IdentityAccountCapability.class);
+        org.mockito.Mockito.when(nobody.getTokenVersion(org.mockito.ArgumentMatchers.anyLong()))
+                .thenThrow(new IllegalArgumentException("Identity not found"));
+        JwtValidator validator = new JwtValidator(properties, nobody, null);
+
+        String token = issuer.issueBootstrapSetupToken(new JwtIssuerCapability.BootstrapSetupTokenRequest(
+                0L, 0L, "bootstrap@local.invalid", "Bootstrap Setup",
+                List.of("bootstrap:status", "bootstrap:session", "bootstrap:create-first-admin"),
+                1L, 300L, "session-jti"));
+        AuthenticatedUser session = validator.validate(token);
+
+        assertEquals("session-jti", session.getUserId());
+        assertEquals(TokenType.BOOTSTRAP_SETUP, session.getTokenType());
+        assertEquals(TokenRole.BOOTSTRAP, session.getTokenRole());
+        assertEquals("BOOTSTRAP", session.getScope());
+        assertEquals(List.of("bootstrap:status", "bootstrap:session", "bootstrap:create-first-admin"),
+                session.getPermissions());
+        assertEquals(null, session.getTenantId());
+        org.mockito.Mockito.verify(nobody, org.mockito.Mockito.never()).getTokenVersion(org.mockito.ArgumentMatchers.anyLong());
+
+        String platform = issuer.issuePlatformAdminToken(new PlatformAdminTokenRequest(
+                11L, 42L, "admin@example.invalid", "platform-admin", "PLATFORM_SUPER_ADMIN",
+                List.of("platform:admin:read"), 1L));
+        assertThrows(JwtValidator.JwtValidationException.class, () -> validator.validate(platform));
+    }
+
+    @Test
+    void aTokenThatOnlyClaimsToBeABootstrapSessionIsRefused(@TempDir Path tempDir) throws Exception {
+        JwtProperties properties = new JwtProperties();
+        TestKeys keys = writeKeys(tempDir);
+        properties.setPublicKeyPath(keys.publicKeyPath().toUri().toString());
+        JwtValidator validator = new JwtValidator(properties);
+
+        assertEquals("session-jti", validator.validate(signed(keys, bootstrapClaims(properties))).getUserId());
+        for (Map.Entry<String, Object> wrong : List.of(
+                Map.entry("role", (Object) "platform-admin"),
+                Map.entry("scope", (Object) "PLATFORM"),
+                Map.entry("jti", (Object) " "),
+                Map.entry("tenant_id", (Object) "42"),
+                Map.entry("mid", (Object) "7"))) {
+            Map<String, Object> claims = bootstrapClaims(properties);
+            claims.put(wrong.getKey(), wrong.getValue());
+            assertThrows(JwtValidator.JwtValidationException.class, () -> validator.validate(signed(keys, claims)),
+                    wrong.getKey());
+        }
+        Map<String, Object> withoutJti = bootstrapClaims(properties);
+        withoutJti.remove("jti");
+        assertThrows(JwtValidator.JwtValidationException.class, () -> validator.validate(signed(keys, withoutJti)));
+    }
+
+    private static Map<String, Object> bootstrapClaims(JwtProperties properties) {
+        long now = Instant.now().getEpochSecond();
+        Map<String, Object> claims = new LinkedHashMap<>();
+        claims.put("sub", "0");
+        claims.put("iss", properties.getIssuer());
+        claims.put("aud", properties.getAudience());
+        claims.put("jti", "session-jti");
+        claims.put("tv", 1L);
+        claims.put("token_type", "BOOTSTRAP_SETUP");
+        claims.put("role", "bootstrap");
+        claims.put("scope", "BOOTSTRAP");
+        claims.put("permissions", List.of("bootstrap:create-first-admin"));
+        claims.put("iat", now);
+        claims.put("nbf", now);
+        claims.put("exp", now + 300);
+        return claims;
+    }
+
+    private String signed(TestKeys keys, Map<String, Object> claims) throws Exception {
+        String pem = Files.readString(keys.privateKeyPath(), StandardCharsets.US_ASCII)
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
+        java.security.PrivateKey key = KeyFactory.getInstance("RSA")
+                .generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(pem)));
+        Base64.Encoder url = Base64.getUrlEncoder().withoutPadding();
+        String input = url.encodeToString("{\"alg\":\"RS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8))
+                + "." + url.encodeToString(objectMapper.writeValueAsBytes(claims));
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(key);
+        signature.update(input.getBytes(StandardCharsets.US_ASCII));
+        return input + "." + url.encodeToString(signature.sign());
     }
 
     private Map<String, Object> decodePart(String token, int index) throws Exception {

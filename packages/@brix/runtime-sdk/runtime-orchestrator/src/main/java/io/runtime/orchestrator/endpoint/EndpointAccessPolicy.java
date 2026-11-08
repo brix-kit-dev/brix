@@ -112,6 +112,11 @@ public record EndpointAccessPolicy(
             throw new IllegalArgumentException("tenantContext.mode=required requires authentication.policyRef "
                 + "'tenant-actor' or 'tenant-subject'");
         }
+        if (tokenPolicy == TokenPolicy.BOOTSTRAP_SETUP && tenantContext != TenantContextMode.FORBIDDEN) {
+            // super-admin 4.0.1 BRX-SA-BOOT-004: a bootstrap session has no tenant context.
+            throw new IllegalArgumentException("authentication.policyRef 'bootstrap-setup' requires "
+                + "tenantContext.mode=forbidden");
+        }
         if (permissions.isEmpty() && authorizationPolicyRef.isEmpty()) {
             throw new IllegalArgumentException(
                 "authorization must declare permissions or a policyRef/resourcePolicyRef");
@@ -220,10 +225,18 @@ public record EndpointAccessPolicy(
         REQUIRED("required"),
         /** Approved anonymous entry; no Runtime principal is required. */
         ANONYMOUS("anonymous"),
-        /** Setup-token entry whose one-time token is verified by its Data Owner. */
-        SETUP_TOKEN("setup-token"),
-        /** Bootstrap entry whose setup session is verified by its Data Owner. */
-        BOOTSTRAP_SETUP("bootstrap-setup");
+        /**
+         * Setup-token entry whose one-time token is verified by its Data Owner: the legacy platform setup of
+         * exemption EX-2026-002, whose endpoints identity-auth M1 slice 4 deletes.
+         */
+        SETUP_TOKEN("setup-token");
+
+        /**
+         * The mode a bootstrap entry declared before standard-link plan point 10b-7a: the runtime verifies the
+         * bootstrap session now, and the entry declares {@code required} with the {@code bootstrap-setup} token
+         * policy.
+         */
+        private static final String RETIRED_BOOTSTRAP_SETUP = "bootstrap-setup";
 
         private final String value;
 
@@ -249,6 +262,10 @@ public record EndpointAccessPolicy(
                     return mode;
                 }
             }
+            if (RETIRED_BOOTSTRAP_SETUP.equals(value)) {
+                throw new IllegalArgumentException("authentication.mode 'bootstrap-setup' is gone: the runtime "
+                    + "verifies the bootstrap session, so declare mode 'required' with policyRef 'bootstrap-setup'");
+            }
             throw new IllegalArgumentException("Unsupported authentication.mode '" + value + "'");
         }
     }
@@ -258,7 +275,10 @@ public record EndpointAccessPolicy(
      * {@code authentication.policyRef}.
      */
     public enum TokenPolicy {
-        /** No {@code policyRef}: any Runtime-verified principal is accepted. */
+        /**
+         * No {@code policyRef}: any Runtime-verified principal is accepted, except a bootstrap session, which only
+         * {@link #BOOTSTRAP_SETUP} accepts.
+         */
         ANY_VERIFIED(""),
         /** Formal platform access token: role {@code platform-admin}, type {@code access}, scope {@code PLATFORM}. */
         PLATFORM_TOKEN("platform-token"),
@@ -267,7 +287,13 @@ public record EndpointAccessPolicy(
         /** Tenant management API: only actor access tokens (role and scope {@code actor}). */
         TENANT_ACTOR("tenant-actor"),
         /** Tenant end-user API: only subject access tokens (role and scope {@code subject}). */
-        TENANT_SUBJECT("tenant-subject");
+        TENANT_SUBJECT("tenant-subject"),
+        /**
+         * The bootstrap entries of a platform operational module (super-admin 4.0.1 §6, BRX-SA-BOOT-004): only the
+         * short-lived bootstrap session, role {@code bootstrap}, type {@code BOOTSTRAP_SETUP}, scope
+         * {@code BOOTSTRAP}. Its principal is the session (standard-link plan point 10b-7a, D96).
+         */
+        BOOTSTRAP_SETUP("bootstrap-setup");
 
         private static final String ACCESS_TOKEN = "access";
 
@@ -295,8 +321,15 @@ public record EndpointAccessPolicy(
          * @return {@code true} when the token class matches
          */
         public boolean accepts(String tokenRole, String tokenType, String tokenScope) {
+            boolean bootstrapSession = "bootstrap".equals(tokenRole)
+                || "BOOTSTRAP_SETUP".equals(tokenType)
+                || "BOOTSTRAP".equals(tokenScope);
             return switch (this) {
-                case ANY_VERIFIED -> true;
+                // super-admin 4.0.1 SA-7: a bootstrap session is valid only for the bootstrap entries.
+                case ANY_VERIFIED -> !bootstrapSession;
+                case BOOTSTRAP_SETUP -> "bootstrap".equals(tokenRole)
+                    && "BOOTSTRAP_SETUP".equals(tokenType)
+                    && "BOOTSTRAP".equals(tokenScope);
                 case PLATFORM_TOKEN -> "platform-admin".equals(tokenRole)
                     && ACCESS_TOKEN.equals(tokenType)
                     && "PLATFORM".equals(tokenScope);

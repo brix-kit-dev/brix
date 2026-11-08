@@ -111,6 +111,29 @@ class ClasspathPluginRuntimeDescriptorResolverTest {
         assertTrue(failure.getCause().getMessage().contains("unknown endpoint retention policy"));
     }
 
+    @Test
+    void aPluginCannotAcceptTheBootstrapSession() throws Exception {
+        // super-admin 4.0.1 SA-7; standard-link plan point 10b-7a (D97): only the platform's bootstrap entries may.
+        Method accessPolicy = ClasspathPluginRuntimeDescriptorResolver.class.getDeclaredMethod(
+            "accessPolicy", String.class, io.runtime.manifest.model.PluginManifest.Route.class);
+        accessPolicy.setAccessible(true);
+        io.runtime.manifest.model.PluginManifest.Route route = new io.runtime.manifest.model.PluginManifest.Route();
+        route.setEndpointId("plugin-x.setup.v1");
+        route.setAuthorization(java.util.Map.of("permissions", java.util.List.of("bootstrap:create-first-admin")));
+        route.setTenantContext(java.util.Map.of("mode", "forbidden"));
+
+        route.setAuthentication(java.util.Map.of("mode", "required", "policyRef", "platform-token"));
+        assertEquals(io.runtime.orchestrator.endpoint.EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN,
+            ((io.runtime.orchestrator.endpoint.EndpointAccessPolicy) accessPolicy.invoke(null, "plugin-x", route))
+                .tokenPolicy());
+        route.setAuthentication(java.util.Map.of("mode", "required", "policyRef", "bootstrap-setup"));
+        InvocationTargetException failure = org.junit.jupiter.api.Assertions.assertThrows(
+            InvocationTargetException.class, () -> accessPolicy.invoke(null, "plugin-x", route));
+        assertTrue(failure.getCause() instanceof PluginRuntimeException, String.valueOf(failure.getCause()));
+        assertTrue(failure.getCause().getMessage().contains("only a platform operational module may declare"),
+            failure.getCause().getMessage());
+    }
+
     private static URL url(String value) {
         try {
             return new URL(null, value, new URLStreamHandler() {

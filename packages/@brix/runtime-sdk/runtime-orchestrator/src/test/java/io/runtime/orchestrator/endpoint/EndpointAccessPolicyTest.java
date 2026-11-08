@@ -70,15 +70,47 @@ class EndpointAccessPolicyTest {
     }
 
     @Test
-    void ownerVerifiedCredentialModesAreKnownButNotRuntimeAuthenticated() {
-        for (String mode : List.of("setup-token", "bootstrap-setup")) {
-            EndpointAccessPolicy policy = EndpointAccessPolicy.fromDeclaration(
-                Map.of("mode", mode),
-                Map.of("policyRef", "setup:validate"),
-                FORBIDDEN_TENANT);
+    void theLegacySetupTokenModeIsKnownButNotRuntimeAuthenticated() {
+        EndpointAccessPolicy policy = EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "setup-token"),
+            Map.of("policyRef", "setup:validate"),
+            FORBIDDEN_TENANT);
 
-            assertFalse(policy.requiresVerifiedPrincipal());
-        }
+        assertFalse(policy.requiresVerifiedPrincipal());
+    }
+
+    @Test
+    void aBootstrapEntryIsAuthenticatedByTheRuntimeAndOnlyAcceptsTheBootstrapSession() {
+        // Standard-link plan point 10b-7a (D97, D98).
+        EndpointAccessPolicy policy = EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "required", "policyRef", "bootstrap-setup"),
+            Map.of("permissions", List.of("bootstrap:create-first-admin")),
+            FORBIDDEN_TENANT);
+
+        assertTrue(policy.requiresVerifiedPrincipal());
+        assertEquals(EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP, policy.tokenPolicy());
+        assertEquals(Set.of("bootstrap:create-first-admin"), policy.permissions());
+    }
+
+    @Test
+    void theRetiredBootstrapModeNamesItsReplacement() {
+        IllegalArgumentException rejected = assertThrows(IllegalArgumentException.class,
+            () -> EndpointAccessPolicy.fromDeclaration(
+                Map.of("mode", "bootstrap-setup"),
+                Map.of("policyRef", "bootstrap:create-first-admin"),
+                FORBIDDEN_TENANT));
+
+        assertTrue(rejected.getMessage().contains("policyRef 'bootstrap-setup'"), rejected.getMessage());
+    }
+
+    @Test
+    void theBootstrapSessionHasNoTenantContext() {
+        Map<String, Object> bootstrap = Map.of("mode", "required", "policyRef", "bootstrap-setup");
+        Map<String, Object> permission = Map.of("permissions", List.of("bootstrap:create-first-admin"));
+        assertRejected(bootstrap, permission, Map.of("mode", "optional"));
+        assertRejected(bootstrap, permission, Map.of("mode", "required"));
+        assertRejected(Map.of("mode", "anonymous", "policyRef", "bootstrap-setup"),
+            Map.of("policyRef", "bootstrap:create-first-admin"), FORBIDDEN_TENANT);
     }
 
     @Test
@@ -144,6 +176,33 @@ class EndpointAccessPolicyTest {
         assertFalse(user.accepts(null, "access", null));
 
         assertTrue(EndpointAccessPolicy.TokenPolicy.ANY_VERIFIED.accepts(null, null, null));
+    }
+
+    @Test
+    void theBootstrapSessionIsAcceptedOnlyWhereTheBootstrapPolicyIsDeclared() {
+        // super-admin 4.0.1 SA-7; standard-link plan point 10b-7a (D97).
+        EndpointAccessPolicy.TokenPolicy bootstrap = EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP;
+        assertTrue(bootstrap.accepts("bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP"));
+        assertFalse(bootstrap.accepts("bootstrap", "access", "BOOTSTRAP"));
+        assertFalse(bootstrap.accepts("platform-admin", "BOOTSTRAP_SETUP", "BOOTSTRAP"));
+        assertFalse(bootstrap.accepts("bootstrap", "BOOTSTRAP_SETUP", "PLATFORM"));
+        assertFalse(bootstrap.accepts("platform-admin", "access", "PLATFORM"));
+        assertFalse(bootstrap.accepts("actor", "identity", "identity"));
+        assertFalse(bootstrap.accepts(null, null, null));
+        assertTrue(bootstrap.tenantTokenRole().isEmpty());
+
+        for (EndpointAccessPolicy.TokenPolicy other : EndpointAccessPolicy.TokenPolicy.values()) {
+            if (other == bootstrap) {
+                continue;
+            }
+            assertFalse(other.accepts("bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP"), other.name());
+        }
+        EndpointAccessPolicy.TokenPolicy any = EndpointAccessPolicy.TokenPolicy.ANY_VERIFIED;
+        assertFalse(any.accepts("bootstrap", null, null));
+        assertFalse(any.accepts(null, "BOOTSTRAP_SETUP", null));
+        assertFalse(any.accepts(null, null, "BOOTSTRAP"));
+        assertTrue(any.accepts("actor", "identity", "identity"));
+        assertTrue(any.accepts("platform-admin", "access", "PLATFORM"));
     }
 
     @Test

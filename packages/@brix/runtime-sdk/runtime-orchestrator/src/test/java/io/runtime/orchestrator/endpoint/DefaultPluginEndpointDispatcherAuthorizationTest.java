@@ -43,6 +43,7 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
     private static final String ORDER_READ = "example:order:read";
     private static final String MY_ORDER_READ = "example:my-order:read";
     private static final String ORDER_APPROVE = "example:order:approve";
+    private static final String BOOTSTRAP_CREATE = "bootstrap:create-first-admin";
 
     private final RecordingHandler handler = new RecordingHandler();
     private final DefaultPluginEndpointDispatcher dispatcher =
@@ -278,6 +279,46 @@ class DefaultPluginEndpointDispatcherAuthorizationTest {
         assertEquals("handled", invoke(Map.of()));
         assertDenied(403, EndpointAccessDeniedException.TENANT_CONTEXT_FORBIDDEN,
             caller("2001", "42", "actor", "access", "actor"));
+    }
+
+    @Test
+    void aBootstrapEntryAcceptsOnlyTheBootstrapSessionHoldingItsPermission() {
+        // super-admin 4.0.1 §6, SA-7; standard-link plan point 10b-7a (D96, D97, D98).
+        publish(EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "required", "policyRef", "bootstrap-setup"),
+            Map.of("permissions", List.of(BOOTSTRAP_CREATE)),
+            Map.of("mode", "forbidden")));
+
+        assertDenied(401, EndpointAccessDeniedException.AUTHENTICATION_REQUIRED, Map.of());
+        assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED, platformToken(BOOTSTRAP_CREATE));
+        assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            caller("1001", null, "actor", "identity", "identity", BOOTSTRAP_CREATE));
+        assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            caller("1001", "42", "actor", "access", "actor", BOOTSTRAP_CREATE));
+        assertDenied(403, EndpointAccessDeniedException.PERMISSION_DENIED,
+            caller("session-jti", null, "bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP", "bootstrap:status"));
+        assertDenied(403, EndpointAccessDeniedException.TENANT_CONTEXT_FORBIDDEN,
+            caller("session-jti", "42", "bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP", BOOTSTRAP_CREATE));
+
+        assertEquals("handled", invoke(bootstrapSession()));
+        assertEquals(Optional.of("session-jti"), handler.invocations.get(0).actorId());
+    }
+
+    @Test
+    void anEntryForAnyVerifiedCallerRefusesTheBootstrapSession() {
+        // The FIRST_OWNER acceptance declares no token policy: a bootstrap session must not reach its handler.
+        publish(EndpointAccessPolicy.fromDeclaration(
+            Map.of("mode", "required"),
+            Map.of("policyRef", "tenant:first-owner:accept"),
+            Map.of("mode", "forbidden")));
+
+        assertDenied(403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED, bootstrapSession());
+        assertEquals("handled", invoke(caller("1001", null, "actor", "identity", "identity")));
+    }
+
+    private static Map<String, List<String>> bootstrapSession() {
+        return caller("session-jti", null, "bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP",
+            "bootstrap:status", "bootstrap:session", BOOTSTRAP_CREATE);
     }
 
     private void publish(EndpointAccessPolicy policy) {

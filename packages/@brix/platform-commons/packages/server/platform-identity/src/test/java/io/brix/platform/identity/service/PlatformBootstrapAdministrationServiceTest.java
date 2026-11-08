@@ -107,7 +107,11 @@ class PlatformBootstrapAdministrationServiceTest {
         BootstrapState saved = stateCaptor.getValue();
         assertEquals(BootstrapState.SINGLETON_ID, saved.getId());
         assertEquals(SecretHashing.sha256Base64Url("setup-code"), saved.getSetupCodeHash());
-        assertEquals(SecretHashing.sha256Base64Url("bootstrap-jwt"), saved.getBootstrapSessionJti());
+        // Point 10b-7a (D99): the singleton keeps the session's jti, which the runtime names after verifying the token.
+        ArgumentCaptor<JwtIssuerCapability.BootstrapSetupTokenRequest> issued =
+                ArgumentCaptor.forClass(JwtIssuerCapability.BootstrapSetupTokenRequest.class);
+        verify(issuer).issueBootstrapSetupToken(issued.capture());
+        assertEquals(issued.getValue().jti(), saved.getBootstrapSessionJti());
         assertFalse(saved.isCompleted());
         verify(identityRepository, never()).save(any(Identity.class));
         verify(platformAdminRepository, never()).save(any(PlatformAdmin.class));
@@ -125,8 +129,7 @@ class PlatformBootstrapAdministrationServiceTest {
     @Test
     void createFirstAdminFlushesIdentityAndAdminBeforeIssuingSetupToken() {
         BootstrapState state = new BootstrapState();
-        state.activateSession(SecretHashing.sha256Base64Url("bootstrap-session"),
-                OffsetDateTime.now().plusMinutes(5));
+        state.activateSession("session-jti", OffsetDateTime.now().plusMinutes(5));
 
         NotificationCapability notification = mock(NotificationCapability.class);
         IdGenerator idGenerator = new IdGenerator() {
@@ -168,10 +171,12 @@ class PlatformBootstrapAdministrationServiceTest {
                 audit.publisher());
 
         service.createFirstAdmin(new CreateFirstPlatformAdminCommand(
-                "bootstrap-session",
+                "session-jti",
                 "Owner",
                 "owner@example.invalid",
                 null));
+        assertFalse(state.isBootstrapSessionUsable("session-jti", OffsetDateTime.now()),
+                "the same transaction spends the session");
 
         InOrder order = inOrder(identityRepository, platformAdminRepository, setupTokenRepository);
         order.verify(identityRepository).save(any(Identity.class));
@@ -185,6 +190,36 @@ class PlatformBootstrapAdministrationServiceTest {
         assertEquals(List.of("PLATFORM_ADMIN", "SETUP_TOKEN"), targetTypes);
         assertEquals(true, audit.facts().stream()
                 .allMatch(fact -> IdentityAuditFacts.REASON_BOOTSTRAP.equals(fact.reasonCode())));
+    }
+
+    @Test
+    void createFirstAdminAcceptsOnlyTheUnusedUnexpiredSessionOpenedLast() {
+        // Point 10b-7a (D96, D99): the runtime verified a token; the owner still decides whether its session is usable.
+        PlatformBootstrapAdministrationService service = service(Optional.empty(), Optional.of(mock(NotificationCapability.class)));
+        when(platformAdminRepository.countCompletedFormalSuperAdmins()).thenReturn(0L);
+
+        BootstrapState replaced = new BootstrapState();
+        replaced.activateSession("older-session", OffsetDateTime.now().plusMinutes(5));
+        replaced.activateSession("newer-session", OffsetDateTime.now().plusMinutes(5));
+        BootstrapState spent = new BootstrapState();
+        spent.activateSession("spent-session", OffsetDateTime.now().plusMinutes(5));
+        spent.consumeSession();
+        BootstrapState expired = new BootstrapState();
+        expired.activateSession("expired-session", OffsetDateTime.now().minusSeconds(1));
+        when(bootstrapStateRepository.findByIdForUpdate(BootstrapState.SINGLETON_ID))
+                .thenReturn(Optional.of(replaced), Optional.of(spent), Optional.of(expired));
+
+        for (String session : List.of("older-session", "spent-session", "expired-session")) {
+            IllegalArgumentException rejected = assertThrows(IllegalArgumentException.class,
+                    () -> service.createFirstAdmin(new CreateFirstPlatformAdminCommand(
+                            session, "Owner", "owner@example.invalid", null)), session);
+            assertEquals("bootstrap session is invalid", rejected.getMessage(), session);
+        }
+        verify(identityRepository, never()).save(any(Identity.class));
+        verify(platformAdminRepository, never()).save(any(PlatformAdmin.class));
+        verify(setupTokenRepository, never()).save(any(SetupToken.class));
+        verify(bootstrapStateRepository, never()).save(any(BootstrapState.class));
+        assertEquals(List.of(), audit.facts());
     }
 
     @Test

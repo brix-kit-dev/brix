@@ -19,8 +19,11 @@ public interface PlatformBootstrapAdministration {
     /** Stable contract identifier declared in Runtime descriptors. */
     String CONTRACT_ID = "brix.internal.platform.bootstrap-administration";
 
-    /** Contract version for Runtime Shell 3.0.10 Phase 5. */
-    String CONTRACT_VERSION = "1.0.0";
+    /**
+     * Contract version. 2.0.0 (standard-link plan point 10b-7a, D99): {@link CreateFirstPlatformAdminCommand} names the
+     * runtime-verified bootstrap session instead of carrying its raw token.
+     */
+    String CONTRACT_VERSION = "2.0.0";
 
     /**
      * Returns the minimum public bootstrap status.
@@ -38,9 +41,9 @@ public interface PlatformBootstrapAdministration {
     BootstrapSessionView openSession(BootstrapSessionCommand command);
 
     /**
-     * Creates the first formal platform administrator.
+     * Creates the first formal platform administrator, and spends the bootstrap session that asked for it.
      *
-     * @param command creation command
+     * @param command creation command naming the runtime-verified bootstrap session
      * @return non-sensitive creation result
      */
     PlatformAdminCreationView createFirstAdmin(CreateFirstPlatformAdminCommand command);

@@ -158,8 +158,22 @@ All notable changes to Brix Framework are documented here.
   `/auth/**` or `/bff/**`, stops the host.
 - **Handlers no longer see `Authorization`, `Proxy-Authorization`, `traceparent`, `tracestate`, `baggage` or
   `x-trace-id`.** `EndpointInvocation.traceId()` is the runtime's trace id, never the caller's `x-trace-id`. A
-  `setup-token` or `bootstrap-setup` entry still sees `Authorization`: its handler hands the token to the token's data
-  owner, which verifies and spends it.
+  `setup-token` entry still sees `Authorization`: its handler hands the token to the token's data owner, which verifies
+  and spends it.
+- **The first platform administrator is created for a session the runtime verified** (super-admin 4.0.1 §6,
+  BRX-SA-BOOT-004). `POST /api/platform/bootstrap/create-first-admin` declares `authentication.mode: required` with
+  `policyRef: bootstrap-setup`.
+  - The host verifies the BOOTSTRAP_SETUP token before the handler: signature, issuer, audience, expiry, type, role,
+    scope and `jti`. The session is the caller, named by its `jti`; no identity stands behind it, so the token-version
+    check does not apply to it.
+  - The handler gets the session as `actorId()` and never the token. The identity owner checks that it is the session
+    it opened last, unused and unexpired, and spends it in the same transaction.
+  - A call without a session, or with an expired one, answers 401 `ENDPOINT_AUTHENTICATION_REQUIRED` before the
+    handler, where it answered 400 `PLATFORM_BOOTSTRAP_INVALID_REQUEST`.
+  - `bootstrap-setup` accepts the bootstrap session only, for an operational module's entries under
+    `/api/platform/bootstrap/`. Every other token policy refuses the session, including an endpoint that names none.
+  - The internal contract `PlatformBootstrapAdministration` is 2.0.0: `CreateFirstPlatformAdminCommand` names the
+    verified session (`bootstrapSessionId`) instead of carrying its token.
 - **Endpoint idempotency `optional` stops the plugin, and `required` has rules** (root BRX-RS-MANIFEST-018). `required`
   needs a typed write endpoint of an authenticated caller, with its schemas, in a plugin with persistence. An
   operational endpoint also names its write contract, and its owner declares `replayableWrites`. Five platform-admin
@@ -201,6 +215,8 @@ All notable changes to Brix Framework are documented here.
 
 ### 🗑️ Removed
 
+- `authentication.mode: bootstrap-setup`: declare `required` with `policyRef: bootstrap-setup`. A declaration that
+  still names the mode stops its module and names the replacement.
 - `NoStringRoleLiteralRule`: it never checked anything. `noClasses()` inverted its condition, and it looked for
   literals in a source location, which is only a file name and line. In bytecode a role literal cannot be told from
   a `RoleCode` constant anyway. `NoRoleNameAuthorizationRule` takes its place.

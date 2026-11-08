@@ -49,7 +49,8 @@ internalContracts:
   provides:
     - contractId: brix.internal.platform.bootstrap-administration
       contractType: io.brix.platform.identity.internal.PlatformBootstrapAdministration
-      contractVersion: 1.0.0
+      # 2.0.0 (standard-link plan point 10b-7a): the first admin is created for the runtime-verified bootstrap session.
+      contractVersion: 2.0.0
       providerId: platform-identity.internal.bootstrap-administration
       owner: platform-identity
     - contractId: brix.internal.platform.identity-administration

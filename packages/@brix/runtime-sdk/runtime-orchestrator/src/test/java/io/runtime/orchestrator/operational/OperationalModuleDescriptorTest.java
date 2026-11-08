@@ -79,6 +79,49 @@ class OperationalModuleDescriptorTest {
     }
 
     @Test
+    void theBootstrapSessionIsAcceptedByTheBootstrapEntriesOnly(@TempDir Path directory) throws Exception {
+        // super-admin 4.0.1 BRX-SA-BOOT-004; standard-link plan point 10b-7a (D97).
+        EndpointAccessPolicy bootstrap = EndpointAccessPolicy.fromDeclaration(
+            java.util.Map.of("mode", "required", "policyRef", "bootstrap-setup"),
+            java.util.Map.of("permissions", java.util.List.of("bootstrap:create-first-admin")),
+            java.util.Map.of("mode", "forbidden"));
+        OperationalModuleDescriptor.EndpointDeclaration entry = new OperationalModuleDescriptor.EndpointDeclaration(
+            "platform.bootstrap.create.v1", "POST", "/api/platform/bootstrap/create", "platform.bootstrap.create",
+            bootstrap);
+        assertEquals(EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP, entry.accessPolicy().tokenPolicy());
+
+        IllegalArgumentException elsewhere = assertThrows(IllegalArgumentException.class,
+            () -> new OperationalModuleDescriptor.EndpointDeclaration(
+                "platform.tenants.create.v1", "POST", "/api/platform/tenants", "platform.tenants.create", bootstrap));
+        assertTrue(elsewhere.getMessage().contains("/api/platform/bootstrap/"), elsewhere.getMessage());
+        OperationalRuntimeException loaded = assertThrows(OperationalRuntimeException.class,
+            () -> load(directory, """
+                  authentication:
+                    mode: required
+                    policyRef: bootstrap-setup
+                  authorization:
+                    permissions:
+                      - bootstrap:create-first-admin
+                """));
+        assertTrue(loaded.getMessage().contains("/api/platform/bootstrap/"), loaded.getMessage());
+    }
+
+    @Test
+    void loaderRejectsTheRetiredBootstrapModeAndNamesItsReplacement(@TempDir Path directory) throws Exception {
+        OperationalRuntimeException failure = assertThrows(
+            OperationalRuntimeException.class,
+            () -> load(directory, """
+                  authentication:
+                    mode: bootstrap-setup
+                  authorization:
+                    policyRef: bootstrap:create-first-admin
+                """));
+
+        assertEquals("operational.descriptor.invalid", failure.diagnosticCode());
+        assertTrue(failure.getMessage().contains("policyRef 'bootstrap-setup'"), failure.getMessage());
+    }
+
+    @Test
     void loaderRejectsUnknownAuthenticationMode(@TempDir Path directory) throws Exception {
         OperationalRuntimeException failure = assertThrows(
             OperationalRuntimeException.class,

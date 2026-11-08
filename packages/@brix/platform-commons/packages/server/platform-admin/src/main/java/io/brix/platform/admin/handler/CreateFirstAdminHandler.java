@@ -16,7 +16,12 @@ import io.runtime.orchestrator.operational.OperationalContext;
 import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 
-/** Handler for creating the first formal platform super administrator. */
+/**
+ * Handler for creating the first formal platform super administrator.
+ *
+ * <p>Its caller is the BOOTSTRAP_SETUP session the runtime verified before the handler (standard-link plan point
+ * 10b-7a): the handler names that session to the identity owner, which spends it, and never sees its token.</p>
+ */
 public final class CreateFirstAdminHandler
         implements EndpointHandler<EndpointInvocation<CreateFirstAdminRequest>, CreatePlatformAdminResponse> {
 
@@ -33,11 +38,14 @@ public final class CreateFirstAdminHandler
                     "PLATFORM_BOOTSTRAP_TENANT_CONTEXT_FORBIDDEN",
                     new IllegalArgumentException("bootstrap endpoints forbid tenant context"));
         });
+        String session = invocation.actorId()
+                .orElseThrow(() -> PlatformEndpointErrors.unauthorized(
+                        "PLATFORM_BOOTSTRAP_SESSION_REQUIRED",
+                        "a verified bootstrap session is required"));
         try {
-            String token = PlatformOperationalInvocationSupport.requiredBearerToken(invocation);
             CreateFirstAdminRequest request = request(invocation.body());
             var created = bootstrapAdministration.createFirstAdmin(new CreateFirstPlatformAdminCommand(
-                    token,
+                    session,
                     request.username(),
                     request.email(),
                     request.notes()));

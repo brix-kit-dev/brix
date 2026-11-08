@@ -52,6 +52,13 @@ class PlatformAdminEndpointAuthorizationTest {
     private static final List<String> SUPER_ADMIN_PERMISSIONS =
         PlatformPermissions.defaultPermissionsFor(RoleCode.PLATFORM_SUPER_ADMIN);
 
+    /** super-admin 4.0.1 §6: the one entry whose caller is the BOOTSTRAP_SETUP session (point 10b-7a). */
+    private static final String CREATE_FIRST_ADMIN = "platform.bootstrap.create-first-admin.v1";
+    private static final String BOOTSTRAP_CREATE_PERMISSION = "bootstrap:create-first-admin";
+    /** The permissions the identity owner gives every bootstrap session. */
+    private static final List<String> BOOTSTRAP_SESSION_PERMISSIONS =
+        List.of("bootstrap:status", "bootstrap:session", BOOTSTRAP_CREATE_PERMISSION);
+
     private final OperationalModuleDescriptor descriptor = descriptor();
     private final Map<String, AtomicInteger> handled = new LinkedHashMap<>();
     private final DefaultPluginEndpointDispatcher dispatcher = dispatcher();
@@ -63,7 +70,10 @@ class PlatformAdminEndpointAuthorizationTest {
             EndpointAccessPolicy policy = endpoint.accessPolicy();
             assertEquals(EndpointAccessPolicy.TenantContextMode.FORBIDDEN, policy.tenantContext(),
                 endpoint.endpointId());
-            if (policy.requiresVerifiedPrincipal()) {
+            if (policy.requiresVerifiedPrincipal() && CREATE_FIRST_ADMIN.equals(endpoint.endpointId())) {
+                assertEquals(EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP, policy.tokenPolicy());
+                assertEquals(Set.of(BOOTSTRAP_CREATE_PERMISSION), policy.permissions());
+            } else if (policy.requiresVerifiedPrincipal()) {
                 assertEquals(EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN, policy.tokenPolicy(),
                     endpoint.endpointId());
                 assertEquals(1, policy.permissions().size(), endpoint.endpointId());
@@ -125,7 +135,6 @@ class PlatformAdminEndpointAuthorizationTest {
         assertEquals(Set.of(
             "platform.bootstrap.status.v1",
             "platform.bootstrap.session.v1",
-            "platform.bootstrap.create-first-admin.v1",
             "platform.auth.setup.validate.v1",
             "platform.auth.setup.totp.init.v1",
             "platform.auth.setup.complete.v1",
@@ -134,6 +143,33 @@ class PlatformAdminEndpointAuthorizationTest {
         for (String endpointId : publicEndpoints) {
             assertEquals("handled:" + endpointId, invoke(endpointId, Map.of()));
         }
+    }
+
+    @Test
+    void theFirstAdministratorIsCreatedOnlyForTheBootstrapSession() {
+        // super-admin 4.0.1 §6, BRX-SA-BOOT-004, SA-7; standard-link plan point 10b-7a (D96, D97, D98).
+        List<String> everything = new ArrayList<>(SUPER_ADMIN_PERMISSIONS);
+        everything.addAll(BOOTSTRAP_SESSION_PERMISSIONS);
+
+        assertDenied(CREATE_FIRST_ADMIN, 401, EndpointAccessDeniedException.AUTHENTICATION_REQUIRED, Map.of());
+        assertDenied(CREATE_FIRST_ADMIN, 403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            caller(null, "platform-admin", "access", "PLATFORM", everything));
+        assertDenied(CREATE_FIRST_ADMIN, 403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            caller(null, "platform-admin", "mfa_challenge", "PLATFORM", everything));
+        assertDenied(CREATE_FIRST_ADMIN, 403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            caller(null, "actor", "identity", "identity", everything));
+        assertDenied(CREATE_FIRST_ADMIN, 403, EndpointAccessDeniedException.TOKEN_NOT_ACCEPTED,
+            caller("42", "actor", "access", "actor", everything));
+        assertDenied(CREATE_FIRST_ADMIN, 403, EndpointAccessDeniedException.TENANT_CONTEXT_FORBIDDEN,
+            caller("42", "bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP", BOOTSTRAP_SESSION_PERMISSIONS));
+        assertDenied(CREATE_FIRST_ADMIN, 403, EndpointAccessDeniedException.PERMISSION_DENIED,
+            caller(null, "bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP", List.of("bootstrap:status")));
+        assertEquals(0, handled.get(CREATE_FIRST_ADMIN).get());
+
+        assertEquals("handled:" + CREATE_FIRST_ADMIN,
+            invoke(CREATE_FIRST_ADMIN, caller(null, "bootstrap", "BOOTSTRAP_SETUP", "BOOTSTRAP",
+                BOOTSTRAP_SESSION_PERMISSIONS)));
+        assertEquals(1, handled.get(CREATE_FIRST_ADMIN).get());
     }
 
     static Stream<String> authenticatedEndpointIds() {

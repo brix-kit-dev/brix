@@ -17,7 +17,7 @@ internalContracts:
       privilegeAllowlistRef: platform-admin.tenant-administration
     - contractId: brix.internal.platform.bootstrap-administration
       contractType: io.brix.platform.identity.internal.PlatformBootstrapAdministration
-      versionRange: ">=1.0.0 <2.0.0"
+      versionRange: ">=2.0.0 <3.0.0"
       required: true
       privilegeAllowlistRef: platform-admin.bootstrap-administration
     - contractId: brix.internal.platform.identity-administration
@@ -95,10 +95,14 @@ endpoints:
       response:
         schemaRef: brix://schemas/platform-admin/create-platform-admin-response/1.0.0
       handlerId: platform.bootstrap.create-first-admin
+      # super-admin 4.0.1 §6: the caller is the BOOTSTRAP_SETUP session. The runtime verifies its token before the
+      # handler and hands the handler the session, never the token (standard-link plan point 10b-7a).
       authentication:
-        mode: bootstrap-setup
+        mode: required
+        policyRef: bootstrap-setup
       authorization:
-        policyRef: bootstrap:create-first-admin
+        permissions:
+          - bootstrap:create-first-admin
       tenantContext:
         mode: forbidden
       timeout:
