@@ -62,8 +62,11 @@ All notable changes to Brix Framework are documented here.
   Metrics `brix_task_*`. Platform operational modules' tasks use the same scheduler. Host settings `brix.tasks.*`; a
   trigger more frequent than `brix.tasks.min-interval` (default one minute) stops the plugin. See
   [Tasks](../guides/tasks.md).
-- **Published contracts are pinned.** `contracts.api` holds the SHA-256 of every published schema version of a
-  query, command or event, so a published file cannot change: a change is a new version (a patch for documentation).
+- **Published contracts are pinned.** `contracts.api` holds the SHA-256 of every schema version a module ships,
+  whatever uses it (a query, a command, an event, an endpoint's request or response, an entrusted record), so a
+  published file cannot change: a change is a new version (a patch for documentation). platform-admin,
+  platform-tenant and platform-audit-api run `ContractSourcesTest` for their own schemas, and the samples' api
+  listings pin their endpoint schemas too.
   Events get contract files, `META-INF/brix/events/<eventType>/<version>.json`, which `EventSchemaContract` requires
   next to each published schema; their payloads are checked against the contract subset and against their earlier
   minor versions. platform-tenant's `TenantFirstOwnerAccepted` schema moves to `platform-tenant-api`, and

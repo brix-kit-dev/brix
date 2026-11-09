@@ -123,6 +123,13 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Queue item 3 (D114): every schema version the module ships is pinned in src/main/brix/contracts.api. -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-contract-generator</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.mockito</groupId>

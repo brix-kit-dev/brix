@@ -21,12 +21,14 @@ import java.util.stream.Stream;
 /**
  * Keeps an api module's checked-in contract sources equal to what its schemas generate (query design D38).
  *
- * <p>An api module calls {@link #verify(Path, String)} from a test. The test fails when a generated source is missing,
+ * <p>Every module that ships schemas calls {@link #verify(Path, String)} from a test: an api module, and a plugin or
+ * operational module whose endpoints have schemas of their own. The test fails when a generated source is missing,
  * differs or is left over, or when the API listing in {@code src/main/brix/contracts.api} differs from what the
  * schemas give; it fails in every mode when a line of the listing would disappear, because a published minor version
- * may only be extended (root BRX-RS-CAP-019, A-20). The listing holds the content hash of every published schema
- * version, so editing a published file fails too (standard-link plan L5.2). Run it with
- * {@code -Dbrix.contracts.write=true} to rewrite the sources and the listing, then review and commit them.</p>
+ * may only be extended (root BRX-RS-CAP-019, A-20). The listing holds the content hash of every schema version the
+ * module ships, an endpoint's included, so editing a published file fails too (standard-link plan L5.2; queue item 3,
+ * D114). Run it with {@code -Dbrix.contracts.write=true} to rewrite the sources and the listing, then review and
+ * commit them.</p>
  *
  * @author Runtime SDK Team
  * @since 3.3.0

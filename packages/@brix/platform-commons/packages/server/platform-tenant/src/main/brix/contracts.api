@@ -1,0 +1,4 @@
+schema platform-tenant/accept-first-owner-invitation-request 1.0.0 sha256:805954e5db616559fadc4443ac785a75e1dff6bba5db2d3171dc0ad295657f59
+schema platform-tenant/first-owner-acceptance 1.0.0 sha256:97bbc1489ab52ea4cb37333da5254edc4a4a991d70e1d7e1c998b49cb81decf1
+schema platform-tenant/tenant-session 1.0.0 sha256:8035a75a8e506789a3874771d58f3b34aa1cd9d933444351a95ea8dea9c29fde
+schema platform-tenant/tenant-session-request 1.0.0 sha256:1a516721799d7f32b96b2edc6bac98c307361abcb87f121145a247fe9907673c

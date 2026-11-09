@@ -158,8 +158,10 @@ Any other keyword is refused, and so is an array without `maxItems`, because a r
 listed under `required` is a primitive or a non-null value. Any other property may be null; a type list
 `["string", "null"]` says the same and is accepted for an optional property.
 
-**Changing a contract.** A published version never changes. `contracts.api` pins each published schema version to
-the SHA-256 of its content, so editing a published file fails the test, even for a description. Publish the change
+**Changing a contract.** A published version never changes. `contracts.api` pins each schema version the module
+ships to the SHA-256 of its content, whatever uses it (a query, a command, an event, an endpoint), so editing a
+published file fails the test, even for a description. A plugin or operational module whose endpoints have schemas
+of their own keeps a `contracts.api` and a `ContractSourcesTest` too; it generates no types. Publish the change
 as a new version instead, and keep the earlier files in the module: the generator compares each version with the
 ones before it.
 - A patch version, for example 1.0.1, corrects documentation and changes no property.

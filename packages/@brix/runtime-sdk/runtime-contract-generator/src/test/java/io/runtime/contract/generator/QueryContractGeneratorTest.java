@@ -396,6 +396,62 @@ class QueryContractGeneratorTest {
         assertTrue(changed.getMessage().contains("schema test-shop/order 1.0.0 sha256:"), changed.getMessage());
     }
 
+    @Test
+    void aSchemaNoQueryCommandOrEventUsesIsPinnedTooAsAnEndpointsIs() throws IOException {
+        // Queue item 3 (D114): an endpoint's request or response schema is published as much as a query's. It may use
+        // what the generator's subset leaves out, because no type is generated from it.
+        schema("place-order-request", "1.0.0", """
+            "title": "Place an order",
+            "type": "object", "additionalProperties": false, "required": ["sku"],
+            "properties": {
+              "sku": {"type": "string", "minLength": 1},
+              "contact": {"oneOf": [{"type": "string", "format": "email"}, {"type": "null"}]}
+            }""");
+        System.setProperty(ContractSources.WRITE, "true");
+        try {
+            ContractSources.verify(module, PACKAGE);
+        } finally {
+            System.clearProperty(ContractSources.WRITE);
+        }
+        List<String> api = QueryContractGenerator.generate(resources, PACKAGE).api();
+        assertTrue(api.stream().anyMatch(line -> line.startsWith("schema test-shop/place-order-request 1.0.0 sha256:")),
+            api.toString());
+        assertFalse(QueryContractGenerator.generate(resources, PACKAGE).sources().containsKey("PlaceOrderRequest"));
+
+        Path published = resources.resolve("META-INF/brix/schemas/test-shop/place-order-request/1.0.0.json");
+        Files.writeString(published, Files.readString(published).replace("\"minLength\": 1}", "\"minLength\": 2}"));
+        AssertionError changed = assertThrows(AssertionError.class, () -> ContractSources.verify(module, PACKAGE));
+        assertTrue(changed.getMessage().contains("schema test-shop/place-order-request 1.0.0 sha256:"),
+            changed.getMessage());
+    }
+
+    @Test
+    void aModuleWithEndpointSchemasOnlyHasAListingOfLocksAndNoSources(@TempDir Path plugin) throws IOException {
+        // Queue item 3 (D114): a plugin or operational module ships the schemas of its endpoints and generates no type.
+        Path file = plugin.resolve("src/main/resources/META-INF/brix/schemas/test-shop/placed-order/1.0.0.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, "{\n\"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n"
+            + "\"$id\": \"brix://schemas/test-shop/placed-order/1.0.0\",\n\"type\": \"object\"\n}\n");
+        System.setProperty(ContractSources.WRITE, "true");
+        try {
+            ContractSources.verify(plugin, "io.test.shop.server");
+        } finally {
+            System.clearProperty(ContractSources.WRITE);
+        }
+        List<String> listing = Files.readAllLines(plugin.resolve(ContractSources.API_LISTING));
+        assertEquals(1, listing.size(), listing.toString());
+        assertTrue(listing.get(0).startsWith("schema test-shop/placed-order 1.0.0 sha256:"), listing.toString());
+        Path sources = plugin.resolve("src/main/java/io/test/shop/server");
+        try (var generatedFiles = Files.exists(sources) ? Files.list(sources) : java.util.stream.Stream.<Path>empty()) {
+            assertEquals(0, generatedFiles.count(), "no source is generated");
+        }
+        ContractSources.verify(plugin, "io.test.shop.server");
+
+        Files.delete(file);
+        AssertionError gone = assertThrows(AssertionError.class, () -> ContractSources.verify(plugin, "io.test.shop.server"));
+        assertTrue(gone.getMessage().contains("changed or disappeared"), gone.getMessage());
+    }
+
     private void event(String eventType, String name, String version) throws IOException {
         Path file = resources.resolve("META-INF/brix/events/" + eventType + "/" + version + ".json");
         Files.createDirectories(file.getParent());

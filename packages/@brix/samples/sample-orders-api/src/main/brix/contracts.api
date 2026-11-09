@@ -11,5 +11,9 @@ event SampleOrderPlaced major 1 payload sample-orders/sample-order-placed
 record CancelOrder schema sample-orders/cancel-order major 1
 schema sample-orders/cancel-order 1.0.0 sha256:690b557b25f3a4409f0999dc2e39d696ab8301582cf3b2e75b6598147eb965c8
 schema sample-orders/cancel-order 1.1.0 sha256:8edc4dfc0e1f42ad6df945b7dd94b393599e718b486ffe30a868a829a6a12fdb
+schema sample-orders/find-order-request 1.0.0 sha256:b04b1c46a4e0d9570d80c782b191b98459ae41c0ed478dd4d4ccf450b8b3f2e4
+schema sample-orders/order-detail 1.0.0 sha256:0ca312eda2d1b71be83b78872a4f0605edac850a257430ed9e2a6613acc1c625
+schema sample-orders/place-order-request 1.0.0 sha256:b5fe24447c6c7e3b5dd88c5af6d6a9c79caa12e0c8c677bf1d7137636ad6158f
+schema sample-orders/placed-order 1.0.0 sha256:08cd3df43339f14725ca07c27d225db83b27d940e3f0d450f36140fd0f5471dd
 schema sample-orders/sample-order-activity 1.0.0 sha256:704eeb3c2e2037fb54762a866752a5ef298553d01ba9fea377864d44c8cb1495
 schema sample-orders/sample-order-placed 1.0.0 sha256:f3fd9a6e6335b2a787196f76b73ef6fa041a3a7feb63eafd3808edc6a2f9665a

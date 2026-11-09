@@ -153,11 +153,12 @@ public final class QueryContractGenerator {
             sources.put(type.className(), recordSource(type, javaPackage, types));
             api.addAll(type.api(types));
         }
-        // Root BRX-RS-CAP-019, §4.4: a published schema version never changes. Its content hash is part of the API, so
-        // editing a published file loses a line; a change is a new version, a patch for documentation.
-        Stream.concat(types.values().stream(), payloads.values().stream())
-            .flatMap(type -> type.history().stream())
-            .forEach(schema -> api.add(schema.lock()));
+        // Root BRX-RS-CAP-019, §4.4: a published schema version never changes. Every schema the module ships is
+        // published, whatever uses it: a query, a command, an event, an endpoint (request or response) or an entrusted
+        // write (standard-link plan L5.2; queue item 3, D114). Its content hash is part of the API, so editing a
+        // published file loses a line; a change is a new version, a patch for documentation. Only queries and commands
+        // generate types, and only their schemas must keep to the generator's subset.
+        schemas.values().forEach(schema -> api.add(schema.lock()));
         for (EventContract event : events) {
             api.add(event.api());
         }

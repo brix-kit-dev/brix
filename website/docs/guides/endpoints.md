@@ -67,6 +67,9 @@ endpoints:
 - Put the request and response schemas in your api artifact, under `META-INF/brix/schemas/`. For a `GET` the request
   schema describes the query parameters and path variables.
 - A typed handler's schemas must be on the plugin's class path; the plugin does not start otherwise.
+- A published schema version never changes, an endpoint's no more than a query's. The module that ships the file
+  pins it in `src/main/brix/contracts.api` and runs `ContractSourcesTest`, so editing it fails the build; publish a
+  change as a new version (see [Queries](./queries.md#1-write-the-contract)).
 - `idempotency.mode` is `required` for a write the caller may repeat safely ([Repeating a call](#repeating-a-call)),
   or `not-applicable`. A write that is `not-applicable` is idempotent by its business key, or creates a new resource
   each time. `optional` stops the plugin.

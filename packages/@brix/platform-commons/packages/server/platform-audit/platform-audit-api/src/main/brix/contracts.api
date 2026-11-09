@@ -1,0 +1,2 @@
+schema platform-audit/message-operation-record 1.0.0 sha256:2c825777b7a7e30efa8e8da4eac916fdfa640fe9fda33562d1077f1968ff638c
+schema platform-audit/policy-use-record 1.0.0 sha256:134f5504ae4d5253b99e0e3300a5d44fc654f1f0d42daee3fdb505e75027aa57
