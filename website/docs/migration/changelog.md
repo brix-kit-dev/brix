@@ -297,6 +297,26 @@ All notable changes to Brix Framework are documented here.
     attempt and leaves by itself once the cause is gone;
   - while a type waits, the relay tries one of its messages every few seconds and sends the other types;
   - a wait parks nothing, so it is counted in `brix_outbox_waits_total{outbox,type,code}`.
+- **Sending a notification has a time limit** (root BRX-RS-RESILIENCE-001). JavaMail waits for ever on each step
+  unless told otherwise, and the SMTP adapter told it nothing: a mail server that took the connection and never
+  answered held the caller's request thread, its transaction and its locks, and every mail health check, for good.
+  Now:
+  - each connect, read and write has a timeout: `brix.infra.email.smtp.connect-timeout`, `read-timeout` and
+    `write-timeout`, 5, 10 and 10 seconds unless the host sets others. They are set on the mail sender, so the mail
+    health check's connections are bounded too;
+  - a whole delivery ends at the deadline of the call it runs in, or after `brix.infra.email.smtp.send-timeout`
+    (30 seconds) outside one. Then the adapter closes the connection: the server never accepts a message whose end it
+    has not acknowledged, and the delivery fails as a timeout, so the caller's write rolls back with no email sent.
+    Once the deadline has passed, it does not connect;
+  - a failure while saying goodbye after the server accepted the message no longer fails the delivery;
+  - the adapter refuses to start when `spring.mail.properties` sets any of these timeouts, a socket factory, its
+    fallback or a proxy itself, when the mail sender is not a `JavaMailSenderImpl` with a host, when its protocol is
+    neither `smtp` nor `smtps`, or when one of the four limits is not positive;
+  - a failed delivery is logged once at WARN as `event=notification.delivery_failed`, with the outcome, the template,
+    the masked recipient, the trace id and a safe detail such as the reply code; never the address, a link or the
+    server's reply text. The caller still gets `notification.delivery.failed`;
+  - meter `brix.notification.sends{template,outcome}`, outcome `sent`, `rejected`, `timeout` or `failed`. The
+    platform's four templates start at zero, so the first failure after a start shows as an increase.
 
 ---
 

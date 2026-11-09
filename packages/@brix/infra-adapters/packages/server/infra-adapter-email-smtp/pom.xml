@@ -21,6 +21,12 @@
             <artifactId>platform-notification</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The deadline of the call a delivery runs in (standard-link point 14a, D104) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>runtime-orchestrator</artifactId>
+            <version>${runtime-sdk.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
