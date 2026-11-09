@@ -36,7 +36,9 @@ The command generates the three backend modules and the plugin's entry point:
 ```text
 app-todo/
 ├── pom.xml                                       parent of the three modules
-├── app-todo-api/pom.xml                          plugin-api
+├── app-todo-api/                                 plugin-api
+│   ├── pom.xml                                   runs the contract lock at test scope
+│   └── src/test/java/io/brix/app/todo/api/ContractSourcesTest.java
 ├── app-todo-core/pom.xml                         plugin-core
 ├── app-todo-server/                              plugin-server
 │   ├── pom.xml                                   depends on io.brix:runtime-sdk-api
@@ -646,6 +648,11 @@ event must match its payload record exactly:
 }
 ```
 
+The api module's `ContractSourcesTest`, which the scaffold generates, pins every schema version the module ships.
+After adding a schema, run it once with `-Dbrix.contracts.write=true` to write `src/main/brix/contracts.api`, and
+commit that file with the schema. From then on the build fails when that version changes; publish a new version
+instead (see [Queries](../guides/queries.md#1-write-the-contract)).
+
 [Events and Commands](../guides/events-and-commands.md) shows how other plugins subscribe to `TodoCompleted`, and how
 to check the payload against its schema in your build.
 
@@ -808,8 +815,8 @@ export function TodoListPage() {
 
 ## Part 5: Architecture Tests
 
-The scaffold generates no tests. Add the Architecture Guard to the core module, with the ArchUnit JUnit engine
-that runs its rules, both at test scope:
+The scaffold generates one test, the api module's `ContractSourcesTest` (Part 3). Add the Architecture Guard to the
+core module, with the ArchUnit JUnit engine that runs its rules, both at test scope:
 
 ```xml title="backend/core/pom.xml (excerpt)"
 <dependency>

@@ -1,0 +1,21 @@
+package <%= packageName %>.api;
+
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+
+import io.runtime.contract.generator.ContractSources;
+
+/**
+ * Every schema version this module ships is pinned to its content in {@code src/main/brix/contracts.api}: a published
+ * version never changes, a change is a new version. After adding a schema or a contract, run this test once with
+ * {@code -Dbrix.contracts.write=true}, then review and commit what it writes. See the Queries guide in the Brix
+ * documentation.
+ */
+class ContractSourcesTest {
+
+    @Test
+    void everyShippedSchemaVersionIsPinned() {
+        ContractSources.verify(Path.of(""), "<%= packageName %>.api");
+    }
+}

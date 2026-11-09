@@ -56,6 +56,15 @@ try {
     const content = await readFile(file, 'utf-8');
     assert(!content.includes('<groupId>io.runtime</groupId>'), `${relative(root, file)} names the io.runtime group`);
   }
+  // A plugin's api module locks its contracts from the start (standard-link plan queue item 3, D115): its test pins
+  // every schema version the module ships, with the runtime's contract generator.
+  const lockTest = files.find((file) => file.endsWith('-api/src/test/java/io/brix/app/phase7/plugin/api/ContractSourcesTest.java'));
+  assert(lockTest, 'the plugin api module has a ContractSourcesTest');
+  assert((await readFile(lockTest, 'utf-8')).includes('ContractSources.verify(Path.of(""), "io.brix.app.phase7.plugin.api");'),
+    'the lock test verifies the api module with the package of its generated types');
+  const apiPom = await readFile(files.find((file) => file.endsWith('phase7-plugin-api/pom.xml')), 'utf-8');
+  assert(/<artifactId>runtime-contract-generator<\/artifactId>\s*<version>3\.2\.0<\/version>\s*<scope>test<\/scope>/.test(apiPom),
+    'the api module runs the lock with the contract generator of the runtime it compiles against');
   // Free text that would break or change a generated file is refused.
   const unsafe = createDefaultGovernedScaffoldConfig('plugin', 'phase7-unsafe', join(root, 'unsafe'));
   unsafe.displayName = 'Orders: "v2"';

@@ -75,7 +75,9 @@ app-<name>/
 ├── pom.xml                       # Parent of the three modules
 ├── README.md
 ├── migration/phase7-migration-plan.yaml
-├── app-<name>-api/pom.xml        # plugin-api
+├── app-<name>-api/               # plugin-api
+│   ├── pom.xml                   # Runs the contract lock at test scope
+│   └── src/test/java/io/brix/app/<name>/api/ContractSourcesTest.java
 ├── app-<name>-core/pom.xml       # plugin-core
 └── app-<name>-server/            # plugin-server
     ├── pom.xml                   # Depends on io.brix:runtime-sdk-api
@@ -90,7 +92,9 @@ The manifest lists the three modules and declares no endpoints and no capabiliti
 and reports `UP`. Add endpoints, events and handlers as the Backend Development Guide in the Brix documentation
 describes, typed queries and commands as its Queries and Events and Commands guides describe, and tasks as its
 Tasks guide describes. A query or command you provide keeps its contract, schemas and generated types in
-`app-<name>-api`. Dashes in `<name>` become dots in the Java package, `io.brix.app.<name>`.
+`app-<name>-api`. Its `ContractSourcesTest` pins every schema version the module ships in
+`src/main/brix/contracts.api`: after adding a schema or a contract, run it once with `-Dbrix.contracts.write=true`
+and commit what it writes. Dashes in `<name>` become dots in the Java package, `io.brix.app.<name>`.
 
 ### Operational
 

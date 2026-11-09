@@ -66,7 +66,9 @@ All notable changes to Brix Framework are documented here.
   whatever uses it (a query, a command, an event, an endpoint's request or response, an entrusted record), so a
   published file cannot change: a change is a new version (a patch for documentation). platform-admin,
   platform-tenant and platform-audit-api run `ContractSourcesTest` for their own schemas, and the samples' api
-  listings pin their endpoint schemas too.
+  listings pin their endpoint schemas too. A new module locks its contracts from the start: the governed plugin
+  scaffold puts `ContractSourcesTest` in its api module, and `RepositoryContractLocksTest` fails the build when a
+  module ships a schema, query, command or event contract without a listing and that test.
   Events get contract files, `META-INF/brix/events/<eventType>/<version>.json`, which `EventSchemaContract` requires
   next to each published schema; their payloads are checked against the contract subset and against their earlier
   minor versions. platform-tenant's `TenantFirstOwnerAccepted` schema moves to `platform-tenant-api`, and

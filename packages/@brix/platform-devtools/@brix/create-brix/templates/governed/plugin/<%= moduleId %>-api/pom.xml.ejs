@@ -9,4 +9,21 @@
   </parent>
   <artifactId><%= moduleId %>-api</artifactId>
   <packaging>jar</packaging>
+  <!-- The plugin's contracts live here. ContractSourcesTest pins every schema version this module ships in
+       src/main/brix/contracts.api, so a published version cannot change. See the Queries guide in the Brix
+       documentation. -->
+  <dependencies>
+    <dependency>
+      <groupId>io.brix</groupId>
+      <artifactId>runtime-contract-generator</artifactId>
+      <version><%= runtimeVersion %></version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>6.0.3</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

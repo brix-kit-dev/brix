@@ -128,6 +128,8 @@ class ContractSourcesTest {
 }
 ```
 
+A plugin made with the governed scaffold of `create-brix` has this test in its api module from the start, with its
+test dependencies; the Brix repositories also fail their build when a module ships contracts without it.
 It needs `io.brix:runtime-sdk-api` as a dependency and `io.brix:runtime-contract-generator` with test scope. The test
 fails when the checked-in sources differ from what the schemas generate. Regenerate them, then review and commit the
 result:
