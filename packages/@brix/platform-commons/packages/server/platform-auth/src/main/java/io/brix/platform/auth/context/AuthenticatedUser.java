@@ -238,34 +238,6 @@ public class AuthenticatedUser implements Serializable {
     // ========== Convenience Methods ==========
 
     /**
-     * Check if user has specified role
-     *
-     * @param role Role name
-     * @return Whether the role is owned
-     */
-    public boolean hasRole(String role) {
-        return roles != null && roles.contains(role);
-    }
-
-    /**
-     * Check if user has any of the specified roles
-     *
-     * @param requiredRoles Role list
-     * @return Whether any role is owned
-     */
-    public boolean hasAnyRole(String... requiredRoles) {
-        if (roles == null || requiredRoles == null) {
-            return false;
-        }
-        for (String role : requiredRoles) {
-            if (roles.contains(role)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Check if user has specified permission
      *
      * @param permission Permission identifier

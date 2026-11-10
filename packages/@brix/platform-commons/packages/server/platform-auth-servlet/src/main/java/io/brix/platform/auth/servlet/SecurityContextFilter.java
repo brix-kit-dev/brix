@@ -48,7 +48,7 @@ import jakarta.servlet.http.HttpServletResponse;
  *   <li>Extract Bearer token from the {@code Authorization} header.</li>
  *   <li>Validate via {@link JwtValidator} (RS256 public key verification).</li>
  *   <li>On success, populate {@link SecurityContextHolder} for downstream
- *       {@code @RequirePermission} / {@code @RequireRole} checks.</li>
+ *       {@code @RequirePermission} checks.</li>
  *   <li>On failure, log and continue — the permission aspect will reject
  *       unauthenticated calls where required.</li>
  *   <li>Clear context in {@code finally} to prevent memory leaks.</li>

@@ -36,9 +36,6 @@ class PlatformAdminPhase5ArchitectureTest {
      * 4.0.1).
      */
     @ArchTest
-    static final ArchRule noRoleAnnotations = NoRoleNameAuthorizationRule.noRoleAnnotations();
-
-    @ArchTest
     static final ArchRule noRoleNameChecks = NoRoleNameAuthorizationRule.noRoleNameChecks();
 
     @ArchTest

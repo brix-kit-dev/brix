@@ -110,14 +110,7 @@ public class CommonsProfile {
     // ==================== Authorization ====================
 
     /**
-     * Platform code authorizes on permissions: no {@code @RequireRole}.
-     */
-    @ArchTest
-    static final ArchRule noRoleAnnotations = NoRoleNameAuthorizationRule.noRoleAnnotations();
-
-    /**
-     * Platform code authorizes on permissions: no {@code hasRole}/{@code hasAnyRole} calls outside their
-     * implementations.
+     * Platform code authorizes on permissions: no {@code hasRole}/{@code hasAnyRole} call or method reference.
      */
     @ArchTest
     static final ArchRule noRoleNameChecks = NoRoleNameAuthorizationRule.noRoleNameChecks();

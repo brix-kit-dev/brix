@@ -91,7 +91,12 @@ public class SimpleAuthContextCapability implements AuthCapability {
                 .orElse(false);
     }
 
+    /**
+     * @deprecated since 3.3.0, for removal in 4.0.0, with {@link AuthCapability#hasRole(String)}: authorize on a
+     *     permission code
+     */
     @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public boolean hasRole(String role) {
         if (role == null || role.isEmpty()) {
             throw new IllegalArgumentException("role must not be null or empty");

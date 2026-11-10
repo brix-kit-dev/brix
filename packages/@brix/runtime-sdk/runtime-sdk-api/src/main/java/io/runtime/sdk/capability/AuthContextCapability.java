@@ -36,7 +36,7 @@ import io.runtime.sdk.annotation.Since;
  * <ul>
  *   <li>Get current user identity (Principal)</li>
  *   <li>Permission checking (Permission)</li>
- *   <li>Role checking (Role)</li>
+ *   <li>Role checking (Role), deprecated since 3.3.0: authorize on permissions</li>
  *   <li>Data permission scope (DataScope)</li>
  * </ul>
  * 
@@ -127,7 +127,12 @@ public interface AuthContextCapability {
      * @param role role identifier, cannot be empty
      * @return true if user has the role, false otherwise
      * @throws IllegalArgumentException if role is null or empty
+     * @since 3.0.0
+     * @deprecated since 3.3.0, for removal in 4.0.0: authorize on a permission code with
+     *     {@link #hasPermission(String)} or {@link #hasAnyPermission(String...)}, never on a role name (super-admin
+     *     BRX-SA-AUTH-006, multi-tenant T-29)
      */
+    @Deprecated(since = "3.3.0", forRemoval = true)
     boolean hasRole(String role);
 
     /**

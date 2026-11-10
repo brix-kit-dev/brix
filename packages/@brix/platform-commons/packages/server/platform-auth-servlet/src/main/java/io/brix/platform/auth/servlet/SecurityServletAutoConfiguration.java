@@ -41,8 +41,8 @@ import io.runtime.sdk.capability.TenantAccessCapability;
  * <ul>
  *   <li>{@link SecurityContextHolder} — Thread-local authenticated user store.</li>
  *   <li>{@link JwtValidator} — RS256 public-key token validator (when JWT is enabled).</li>
- *   <li>{@link PermissionAspect} — AOP aspect for {@code @RequirePermission} /
- *       {@code @RequireRole} annotation enforcement.</li>
+ *   <li>{@link PermissionAspect} — AOP aspect for {@code @RequirePermission}
+ *       annotation enforcement.</li>
  *   <li>{@link SecurityContextFilter} — Servlet filter that populates the
  *       security context from the Bearer token.</li>
  * </ul>
@@ -114,7 +114,7 @@ public class SecurityServletAutoConfiguration {
     }
 
     /**
-     * Permission enforcement aspect for {@code @RequirePermission} / {@code @RequireRole}.
+     * Permission enforcement aspect for {@code @RequirePermission}.
      *
      * @param securityContextHolder the context holder to check current user
      * @return a configured PermissionAspect

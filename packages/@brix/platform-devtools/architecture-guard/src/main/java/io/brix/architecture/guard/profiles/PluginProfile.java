@@ -28,6 +28,7 @@ import io.brix.architecture.guard.rules.NoInfraAdapterRule;
 import io.brix.architecture.guard.rules.NoLegacyEventBusRule;
 import io.brix.architecture.guard.rules.NoMiddlewareClientsRule;
 import io.brix.architecture.guard.rules.NoPlatformTenantRelationshipAccessRule;
+import io.brix.architecture.guard.rules.NoRoleNameAuthorizationRule;
 import io.brix.architecture.guard.rules.NoRestControllerInCoreRule;
 import io.brix.architecture.guard.rules.NoSpringContainerApiRule;
 import io.brix.architecture.guard.rules.OnlyRuntimeSdkApiRule;
@@ -218,6 +219,14 @@ public class PluginProfile {
     /** Plugins must not implement OAuth2 client directly */
     @ArchTest
     static final ArchRule noDirectOAuth2ClientUsage = SecurityBoundaryRule.noDirectOAuth2ClientUsage();
+
+    /**
+     * Plugins authorize on permission codes, never on role names: no {@code hasRole}/{@code hasAnyRole} call or method
+     * reference, the SDK's deprecated {@code AuthCapability.hasRole} included (super-admin BRX-SA-AUTH-006,
+     * multi-tenant T-29)
+     */
+    @ArchTest
+    static final ArchRule noRoleNameChecks = NoRoleNameAuthorizationRule.noRoleNameChecks();
 
     // ==================== Rule 14: Transactional Outbox (Red Line 13) ====================
 

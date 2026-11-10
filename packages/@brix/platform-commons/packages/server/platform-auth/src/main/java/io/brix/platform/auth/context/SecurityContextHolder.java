@@ -99,17 +99,6 @@ public class SecurityContextHolder {
     }
 
     /**
-     * Check if current user has specified role
-     *
-     * @param role Role name
-     * @return Whether has role
-     */
-    public boolean hasRole(String role) {
-        AuthenticatedUser user = CONTEXT.get();
-        return user != null && user.hasRole(role);
-    }
-
-    /**
      * Clear current context
      * <p>
      * Must be called when request ends to prevent memory leak

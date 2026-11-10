@@ -179,31 +179,35 @@ const users = await http.get<User[]>('/api/users');
 
 ---
 
-### AuthContextCapability
+### AuthCapability
 
-Current authentication and authorization context.
+The caller of the current request, and the permissions it holds. Authorization checks a permission code, never a
+role name (super-admin BRX-SA-AUTH-006, multi-tenant T-29). The runtime already checks the permissions an endpoint
+names under `authorization.permissions` before your handler runs (see [Endpoints](../guides/endpoints.md)); use the
+capability for a decision inside the handler.
 
 ```java
-public interface AuthContextCapability {
-    
-    /**
-     * Gets the current authenticated user.
-     */
-    Optional<AuthenticatedUser> getCurrentUser();
-    
-    /**
-     * Gets the current tenant ID (multi-tenant mode).
-     */
-    Optional<String> getCurrentTenantId();
-    
-    /**
-     * Checks if current user has the specified permission.
-     */
+public interface AuthCapability {
+
+    /** The caller, or null when the request is not authenticated. */
+    Principal getCurrentPrincipal();
+
     boolean hasPermission(String permission);
-    
-    /**
-     * Checks if current user has the specified role.
-     */
+
+    default boolean hasAnyPermission(String... permissions) { ... }
+
+    default boolean hasAllPermissions(String... permissions) { ... }
+
+    /** The data scopes granted to the caller, never null. */
+    Set<DataScope> getAuthorizedScopes();
+
+    default boolean isAuthenticated() { ... }
+
+    /** The caller's tenant, or null outside a tenant. */
+    default String getTenantId() { ... }
+
+    /** Deprecated since 3.3.0, removed in 4.0.0: check a permission code instead. */
+    @Deprecated(since = "3.3.0", forRemoval = true)
     boolean hasRole(String role);
 }
 ```
@@ -211,15 +215,15 @@ public interface AuthContextCapability {
 **Usage:**
 
 ```java
-AuthContextCapability auth = context.getCapability(AuthContextCapability.class);
+AuthCapability auth = context.require(AuthCapability.class);
 
-if (auth.hasPermission("order.approve")) {
-    approveOrder(orderId);
-}
-
-String tenantId = auth.getCurrentTenantId()
-    .orElseThrow(() -> new UnauthorizedException("No tenant context"));
+// Shows the order's history only to a caller who may read orders, a permission the plugin declares.
+boolean withHistory = auth.hasPermission("sample-orders:order:read");
 ```
+
+`hasRole` stays until 4.0.0 for code compiled against it, but a plugin cannot use it: the plugin profile of the
+Architecture Guard refuses a call to `hasRole` or `hasAnyRole`, and a method reference to them.
+`AuthContextCapability` is the deprecated old name of the same interface.
 
 ---
 

@@ -65,10 +65,10 @@ public final class PlatformPermissions {
     // ========== Bypass ==========
 
     /**
-     * Wildcard bypass for permission and role checks.
+     * Wildcard bypass for permission checks.
      *
-     * <p>Any token carrying this permission bypasses {@code @RequirePermission} and
-    * {@code @RequireRole} guards entirely. This is kept as a break-glass internal
+     * <p>Any token carrying this permission bypasses {@code @RequirePermission}
+    * guards entirely. This is kept as a break-glass internal
     * permission code and is not emitted into default platform-admin JWTs.
      *
      * <p><b>Security note:</b> This replaces the former role-name identity check

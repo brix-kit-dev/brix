@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 
 import io.brix.platform.auth.annotation.RequirePermission;
-import io.brix.platform.auth.annotation.RequireRole;
 import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
@@ -35,8 +34,9 @@ import io.brix.platform.auth.context.SecurityContextHolder;
 /**
  * Permission Check Aspect
  * <p>
- * Intercepts methods annotated with @RequirePermission or @RequireRole,
- * performs permission validation before execution
+ * Intercepts methods annotated with @RequirePermission,
+ * performs permission validation before execution. Authorization checks a permission, never a role name
+ * (super-admin BRX-SA-AUTH-006).
  * </p>
  *
  * @author Brix Platform Authors Platform Team
@@ -65,18 +65,6 @@ public class PermissionAspect {
      */
     @Pointcut("@within(io.brix.platform.auth.annotation.RequirePermission)")
     public void classRequirePermission() {}
-
-    /**
-     * Pointcut: method annotated with @RequireRole
-     */
-    @Pointcut("@annotation(io.brix.platform.auth.annotation.RequireRole)")
-    public void methodRequireRole() {}
-
-    /**
-     * Pointcut: class annotated with @RequireRole
-     */
-    @Pointcut("@within(io.brix.platform.auth.annotation.RequireRole)")
-    public void classRequireRole() {}
 
     /**
      * Check permission - method level or class level
@@ -122,68 +110,12 @@ public class PermissionAspect {
         }
     }
 
-    /**
-     * Check role - method level or class level
-     */
-    @Before("methodRequireRole() || classRequireRole()")
-    public void checkRole(JoinPoint joinPoint) {
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        Method method = signature.getMethod();
-        
-        // Method-level annotation takes precedence, fallback to class-level annotation
-        RequireRole requireRole = method.getAnnotation(RequireRole.class);
-        if (requireRole == null) {
-            requireRole = method.getDeclaringClass().getAnnotation(RequireRole.class);
-        }
-
-        if (requireRole == null) {
-            return;
-        }
-
-        AuthenticatedUser user = securityContextHolder.getCurrentUser()
-                .orElseThrow(() -> new PermissionDeniedException("User not authenticated"));
-
-        // Same internal break-glass bypass for role checks.
-        if (user.hasPermission(PlatformPermissions.BYPASS_PERMISSION_CHECK)) {
-            logger.warn("[AUDIT] Platform admin bypass applied: userId={}, platformRole={}, endpoint={}",
-                    user.getUserId(), user.getPlatformRole(), joinPoint.getSignature());
-            return;
-        }
-
-        String[] requiredRoles = requireRole.value();
-        RequirePermission.Logical logical = requireRole.logical();
-
-        boolean hasRole = checkRoles(user, requiredRoles, logical);
-
-        if (!hasRole) {
-            logger.warn("Role check failed for user {} on {}, required: {} ({})", 
-                    user.getUserId(), joinPoint.getSignature(), 
-                    String.join(",", requiredRoles), logical);
-            throw new PermissionDeniedException(
-                    "Role required: " + String.join(",", requiredRoles));
-        }
-    }
-
     private boolean checkPermissions(AuthenticatedUser user, String[] permissions, 
             RequirePermission.Logical logical) {
         if (logical == RequirePermission.Logical.AND) {
             return user.hasAllPermissions(permissions);
         } else {
             return user.hasAnyPermission(permissions);
-        }
-    }
-
-    private boolean checkRoles(AuthenticatedUser user, String[] roles, 
-            RequirePermission.Logical logical) {
-        if (logical == RequirePermission.Logical.AND) {
-            for (String role : roles) {
-                if (!user.hasRole(role)) {
-                    return false;
-                }
-            }
-            return true;
-        } else {
-            return user.hasAnyRole(roles);
         }
     }
 

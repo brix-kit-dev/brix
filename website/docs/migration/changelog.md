@@ -135,9 +135,10 @@ All notable changes to Brix Framework are documented here.
   platform-tenant publishes `TenantReferenceQuery` in the new `platform-tenant-api` artifact. See
   [Queries](../guides/queries.md).
 
-- **Platform code authorizes on permissions, not role names.** `NoRoleNameAuthorizationRule` refuses
-  `@RequireRole` and calls to `hasRole` or `hasAnyRole` outside the classes that implement them. The commons profile
-  and platform-admin's architecture test run it (super-admin 4.0.1 permission model).
+- **Platform code and plugins authorize on permissions, not role names.** `NoRoleNameAuthorizationRule` refuses a
+  call to `hasRole` or `hasAnyRole`, and a method reference to them, whatever declares the method; declaring one is no
+  call. The commons profile, the plugin profile and platform-admin's architecture test run it (super-admin
+  BRX-SA-AUTH-006, multi-tenant T-29).
 - **Platform role and permission IDs in `platform-auth-api`** (super-admin 4.0.1 §4). The new artifact holds
   `io.brix.platform.auth.api.RoleCode` (`PLATFORM_SUPER_ADMIN`) and `PermissionCode` (the catalog's ten `platform:*`
   IDs), with no implementation and no dependency. platform-admin names them from there: an operational module may
@@ -231,6 +232,8 @@ All notable changes to Brix Framework are documented here.
   `platform-tenant-api` whether a member or principal belongs to the caller's tenant.
 - `HttpCapability`: it takes any URL. Declare the service under `externalServices` and call it through
   `ExternalHttpCapability`.
+- `AuthCapability.hasRole` and `AuthContextCapability.hasRole`, for removal in 4.0.0: authorize on a permission code
+  with `hasPermission` or `hasAnyPermission`. The plugin profile already refuses a call.
 
 ### 🗑️ Removed
 
@@ -248,6 +251,9 @@ All notable changes to Brix Framework are documented here.
   bootstrap setup token keeps `BOOTSTRAP` as its role claim, now `PlatformPermissions.BOOTSTRAP_ROLE`.
 - The ten catalog constants of `PlatformPermissions` (`ADMIN_READ`, `TENANT_READ` and the others): use
   `PermissionCode`. Tokens carry the same codes as before.
+- platform-auth's role checks, which nothing used: the `@RequireRole` annotation and its branch of
+  `PermissionAspect`, `AuthenticatedUser.hasRole` and `hasAnyRole`, and `SecurityContextHolder.hasRole`. Authorize
+  with `@RequirePermission` and a permission code.
 
 ### 🐛 Fixed
 

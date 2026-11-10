@@ -13,24 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.brix.platform.auth.annotation;
+package io.brix.platform.fixture.roles;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.stream.Stream;
 
 /**
- * Stands in for platform-auth's role annotation in the guard's fixtures; the guard does not depend on platform-auth.
+ * Authorizes on role names through a method reference: forbidden like a call.
  */
-@Target({ElementType.METHOD, ElementType.TYPE})
-@Retention(RetentionPolicy.RUNTIME)
-public @interface RequireRole {
+public final class ReferencesRoleCheck {
 
     /**
-     * Returns the required roles.
+     * Lets a caller with either role through.
      *
-     * @return role names
+     * @param caller the caller
+     * @return whether it may proceed
      */
-    String[] value();
+    public boolean allowed(CallerIdentity caller) {
+        return Stream.of("PLATFORM_SUPER_ADMIN", "TENANT_OWNER").anyMatch(caller::hasRole);
+    }
 }

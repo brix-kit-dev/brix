@@ -115,8 +115,11 @@ public class FallbackAuthContextCapability implements AuthContextCapability {
      *
      * @param role the role to check
      * @return always {@code true} in fallback mode
+     * @deprecated since 3.3.0, for removal in 4.0.0, with {@link AuthContextCapability#hasRole(String)}: authorize on
+     *     a permission code
      */
     @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public boolean hasRole(String role) {
         // WARNING: Allows all roles - development environment only
         return true;

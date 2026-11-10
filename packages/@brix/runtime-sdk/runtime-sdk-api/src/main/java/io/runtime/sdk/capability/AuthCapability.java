@@ -54,6 +54,23 @@ import io.runtime.sdk.annotation.Since;
  */
 @Since("3.2.0")
 public interface AuthCapability extends AuthContextCapability {
-    // This interface inherits all methods from AuthContextCapability
-    // As a standardized name alias, no additional methods needed
+
+    /**
+     * Check if user has specified role.
+     *
+     * <p>Redeclared so that the standard interface states the deprecation itself: a caller's warning and this
+     * interface's documentation name {@code AuthCapability}, not the deprecated old name.</p>
+     *
+     * @param role role identifier, cannot be empty
+     * @return true if user has the role, false otherwise
+     * @throws IllegalArgumentException if role is null or empty
+     * @since 3.0.0
+     * @deprecated since 3.3.0, for removal in 4.0.0: authorize on a permission code with
+     *     {@link #hasPermission(String)} or {@link #hasAnyPermission(String...)}, never on a role name (super-admin
+     *     BRX-SA-AUTH-006, multi-tenant T-29)
+     */
+    @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
+    @SuppressWarnings("removal")
+    boolean hasRole(String role);
 }

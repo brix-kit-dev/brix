@@ -24,25 +24,33 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import io.brix.platform.fixture.roles.CallerIdentity;
 import io.brix.platform.fixture.roles.ChecksPermission;
 import io.brix.platform.fixture.roles.ChecksRoleName;
-import io.brix.platform.fixture.roles.RoleGuardedOperation;
-import io.brix.platform.fixture.roles.RoleGuardedType;
+import io.brix.platform.fixture.roles.ChecksRoleThroughHelper;
+import io.brix.platform.fixture.roles.ReferencesRoleCheck;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Proves that the role-name authorization rule refuses role checks and role annotations, and lets permission checks
- * and the classes that implement role checks through.
+ * Proves that the role-name authorization rule refuses role checks, called or referenced, also in a class that
+ * declares its own, and lets permission checks and the classes that implement role checks through.
  */
 class NoRoleNameAuthorizationRuleTest {
 
     @Test
     @DisplayName("A class that authorizes on a role name fails")
     void roleNameCheckFails() {
-        JavaClasses classes = new ClassFileImporter().importClasses(ChecksRoleName.class, CallerIdentity.class);
+        assertRejects(ChecksRoleName.class);
+    }
 
-        AssertionError error = assertThrows(AssertionError.class,
-            () -> NoRoleNameAuthorizationRule.noRoleNameChecks().check(classes));
-        assertTrue(error.getMessage().contains(ChecksRoleName.class.getName()), error.getMessage());
+    @Test
+    @DisplayName("A class that authorizes on role names through a method reference fails")
+    void roleNameCheckReferenceFails() {
+        assertRejects(ReferencesRoleCheck.class);
+    }
+
+    @Test
+    @DisplayName("A class that declares its own role check and authorizes with it fails")
+    void roleNameCheckThroughOwnHelperFails() {
+        assertRejects(ChecksRoleThroughHelper.class);
     }
 
     @Test
@@ -53,31 +61,11 @@ class NoRoleNameAuthorizationRuleTest {
         assertDoesNotThrow(() -> NoRoleNameAuthorizationRule.noRoleNameChecks().check(classes));
     }
 
-    @Test
-    @DisplayName("A method annotated with @RequireRole fails")
-    void roleAnnotatedMethodFails() {
-        JavaClasses classes = new ClassFileImporter().importClasses(RoleGuardedOperation.class);
+    private static void assertRejects(Class<?> violating) {
+        JavaClasses classes = new ClassFileImporter().importClasses(violating, CallerIdentity.class);
 
         AssertionError error = assertThrows(AssertionError.class,
-            () -> NoRoleNameAuthorizationRule.noRoleAnnotations().check(classes));
-        assertTrue(error.getMessage().contains(RoleGuardedOperation.class.getName() + ".run()"), error.getMessage());
-    }
-
-    @Test
-    @DisplayName("A class annotated with @RequireRole fails")
-    void roleAnnotatedClassFails() {
-        JavaClasses classes = new ClassFileImporter().importClasses(RoleGuardedType.class);
-
-        AssertionError error = assertThrows(AssertionError.class,
-            () -> NoRoleNameAuthorizationRule.noRoleAnnotations().check(classes));
-        assertTrue(error.getMessage().contains(RoleGuardedType.class.getName()), error.getMessage());
-    }
-
-    @Test
-    @DisplayName("Classes without role annotations pass")
-    void unannotatedClassesPass() {
-        JavaClasses classes = new ClassFileImporter().importClasses(ChecksPermission.class, CallerIdentity.class);
-
-        assertDoesNotThrow(() -> NoRoleNameAuthorizationRule.noRoleAnnotations().check(classes));
+            () -> NoRoleNameAuthorizationRule.noRoleNameChecks().check(classes));
+        assertTrue(error.getMessage().contains(violating.getName()), error.getMessage());
     }
 }

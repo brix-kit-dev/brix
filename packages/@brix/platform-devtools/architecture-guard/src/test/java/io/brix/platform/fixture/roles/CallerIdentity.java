@@ -16,7 +16,8 @@
 package io.brix.platform.fixture.roles;
 
 /**
- * Implements role and permission checks, like platform-auth's authenticated user: not a caller of them.
+ * Implements role and permission checks, like an implementation of the SDK's auth capability: declaring them is not
+ * a call.
  */
 public final class CallerIdentity {
 

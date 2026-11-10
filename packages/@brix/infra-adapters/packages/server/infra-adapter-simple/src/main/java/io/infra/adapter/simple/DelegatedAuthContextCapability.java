@@ -173,7 +173,12 @@ public class DelegatedAuthContextCapability implements AuthContextCapability {
         return has;
     }
 
+    /**
+     * @deprecated since 3.3.0, for removal in 4.0.0, with {@link AuthContextCapability#hasRole(String)}: authorize on
+     *     a permission code
+     */
     @Override
+    @Deprecated(since = "3.3.0", forRemoval = true)
     public boolean hasRole(String role) {
         Objects.requireNonNull(role, "role cannot be null");
 
