@@ -58,6 +58,8 @@ class EndpointReplayTest {
     private final List<String> outcomes = new ArrayList<>();
     private final List<EndpointInvocation<?>> handled = new ArrayList<>();
     private final AtomicReference<RuntimeException> failure = new AtomicReference<>();
+    /** How long the handler works before it answers. */
+    private final AtomicReference<Duration> delay = new AtomicReference<>(Duration.ZERO);
     private final EndpointMetrics metrics = new EndpointMetrics() {
         @Override
         public void finished(String pluginId, String endpointId, String outcome, Duration took) {
@@ -72,6 +74,7 @@ class EndpointReplayTest {
             if (failure.get() != null) {
                 throw failure.get();
             }
+            pause(delay.get());
             return CompletableFuture.completedFuture(new Thing("t-" + handled.size(), invocation.body().name()));
         }
     }
@@ -226,6 +229,25 @@ class EndpointReplayTest {
     }
 
     @Test
+    void aCallWhoseHandlerAnswersAfterTheDeadlineKeepsNothingAndCanBeTriedAgain() {
+        // Standard-link plan queue item 6 (D122): the key and the answer would have committed with the late work.
+        DefaultPluginEndpointDispatcher dispatcher = dispatcher(new EndpointContract("", "", 201, null, replay()),
+            Duration.ofMillis(200));
+        delay.set(Duration.ofMillis(300));
+        assertThrows(EndpointDeadlineExceededException.class,
+            () -> dispatcher.invoke("POST", PATH, LAMP, Map.of(), caller("k-1")));
+        assertTrue(records.committed.isEmpty());
+        assertTrue(handled.get(0).cancellation().isCancelled());
+        assertEquals(List.of("deadline_exceeded"), outcomes);
+
+        delay.set(Duration.ZERO);
+        EndpointResponse answer = (EndpointResponse) dispatcher.invoke("POST", PATH, LAMP, Map.of(), caller("k-1"));
+
+        assertEquals(201, answer.status());
+        assertEquals(2, handled.size());
+    }
+
+    @Test
     void anAnswerTooLargeToKeepFailsTheCallAndItsWork() {
         // Design D76: the limit is on the answer as JSON, which here repeats the whole name.
         DefaultPluginEndpointDispatcher dispatcher = dispatcher();
@@ -320,8 +342,12 @@ class EndpointReplayTest {
     }
 
     private DefaultPluginEndpointDispatcher dispatcher(EndpointContract contract) {
+        return dispatcher(contract, Duration.ofSeconds(5));
+    }
+
+    private DefaultPluginEndpointDispatcher dispatcher(EndpointContract contract, Duration deadline) {
         DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(
-            EndpointPolicies.Limits.defaults(Duration.ofSeconds(5)), unitOfWork, JsonMapper.builder().build(),
+            EndpointPolicies.Limits.defaults(deadline), unitOfWork, JsonMapper.builder().build(),
             EndpointTracing.NOOP, metrics, () -> records);
         dispatcher.replaceSnapshot(List.of(route(contract)));
         return dispatcher;
@@ -330,6 +356,15 @@ class EndpointReplayTest {
     private EndpointRoute route(EndpointContract contract) {
         return new EndpointRoute("test-plugin", "test.endpoint.v1", "POST", PATH,
             TestEndpointAccessPolicies.authenticated("things:create"), new CreateHandler(), contract);
+    }
+
+    private static void pause(Duration duration) {
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(interrupted);
+        }
     }
 
     /** A unit of work: what the call wrote to the records commits when it returns, and goes when it throws. */

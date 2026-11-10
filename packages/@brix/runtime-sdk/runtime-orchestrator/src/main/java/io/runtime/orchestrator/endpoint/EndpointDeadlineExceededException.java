@@ -7,8 +7,9 @@
 package io.runtime.orchestrator.endpoint;
 
 /**
- * A handler did not finish before its endpoint's deadline (root BRX-RS-MANIFEST-022; standard-link plan L7.5). The
- * runtime has set the invocation's cancellation signal, rolls the unit of work back and answers 504 {@value #CODE}.
+ * A handler did not finish before its endpoint's deadline, or answered only after it (root BRX-RS-MANIFEST-022,
+ * DATA-011; standard-link plan L7.5, queue item 6). The runtime has set the invocation's cancellation signal, rolls the
+ * unit of work back and answers 504 {@value #CODE}.
  */
 public final class EndpointDeadlineExceededException extends RuntimeException {
 

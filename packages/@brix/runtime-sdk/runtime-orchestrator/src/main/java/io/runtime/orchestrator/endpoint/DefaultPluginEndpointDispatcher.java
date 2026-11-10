@@ -369,20 +369,42 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             if (replay != null && route.contract().replay().throughContract()) {
                 // Idempotency design §5.6: the handler runs in no unit of work, and its one write takes the key.
                 return replays.throughContract(replay, invocationBoundary, invocation.deadline(),
-                    () -> invocationBoundary.invoke(route, invocation, call));
+                    () -> invocationBoundary.invoke(route, invocation, beforeCommit(route, invocation, cancelled, call)));
             }
             // Standard-link plan point 10a: the key and the answer commit with the handler's writes.
-            return invocationBoundary.invoke(route, invocation,
-                replay == null ? call : () -> replays.run(replay, call));
+            return invocationBoundary.invoke(route, invocation, beforeCommit(route, invocation, cancelled,
+                replay == null ? call : () -> replays.run(replay, call)));
         }
         try {
             EndpointHandler<EndpointInvocation<Object>, Object> handler =
                 (EndpointHandler<EndpointInvocation<Object>, Object>) route.handler();
-            return invocationBoundary.invoke(route, invocation, () -> handler.handle(invocation));
+            return invocationBoundary.invoke(route, invocation,
+                beforeCommit(route, invocation, cancelled, () -> handler.handle(invocation)));
         } catch (ClassCastException e) {
             throw new EndpointDispatchException("Endpoint handler '" + route.endpointId()
                 + "' does not accept EndpointInvocation", e);
         }
+    }
+
+    /**
+     * The last step of a call's work before its unit of work commits (root BRX-RS-DATA-011, DATA-028, RESILIENCE-001;
+     * standard-link plan queue item 6, D122). A handler that answered after the deadline, as a synchronous one that ran
+     * past it does, is told through its cancellation signal, and the call fails with 504
+     * {@value EndpointDeadlineExceededException#CODE}: the handler's writes, and the key and answer kept with them, roll
+     * back. A route whose writes the owner commits through its internal contracts, as an operational module's do, has
+     * no unit of work here, and its 504 leaves the outcome unknown: a repeat with the same idempotency key gets the
+     * kept result.
+     */
+    private static Supplier<Object> beforeCommit(EndpointRoute route, EndpointInvocation<?> invocation,
+            AtomicBoolean cancelled, Supplier<Object> work) {
+        return () -> {
+            Object answer = work.get();
+            if (!Instant.now().isBefore(invocation.deadline())) {
+                cancelled.set(true);
+                throw new EndpointDeadlineExceededException(route.endpointId());
+            }
+            return answer;
+        };
     }
 
     /**

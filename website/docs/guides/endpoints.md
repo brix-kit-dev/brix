@@ -29,7 +29,8 @@ For each request, in this order (root BRX-RS-MANIFEST-022):
    Its transaction ends at the call's deadline.
 8. On such an endpoint, takes the key. A repeated call gets the first answer here, and your handler does not run.
 9. Calls your handler and waits for its answer, no longer than the deadline.
-10. Checks the answer against the response schema, commits, and answers with the status the manifest declares.
+10. Checks the answer against the response schema and the deadline once more, commits, and answers with the status
+    the manifest declares.
 
 ## Declaring an endpoint
 
@@ -173,10 +174,10 @@ contract must be one its module requires.
   the owner refuses rolls back and leaves no key.
 - Once the handler has answered, the runtime keeps the answer in a short transaction of the owner.
 - A later call with the same key and content gets that answer before the handler, as on a plugin's endpoint.
-- A call can stop after the owner committed: the platform audit fails, the deadline passes, or the host dies. It has no
-  answer yet, so a later call runs the handler again. The contract returns the kept result, the owner writes nothing,
-  and the rest of the handler finishes. The answer carries `Idempotent-Replayed: true`, and the runtime logs
-  `event=endpoint.idempotency_resumed`.
+- A call can stop after the owner committed: the platform audit fails, the handler answers after the deadline (504), or
+  the host dies. It has no answer yet, so a later call runs the handler again. The contract returns the kept result, the
+  owner writes nothing, and the rest of the handler finishes. The answer carries `Idempotent-Replayed: true`, and the
+  runtime logs `event=endpoint.idempotency_resumed`.
 - If the answer cannot be kept, it still goes back. The runtime logs `event=endpoint.idempotency_answer_not_kept`, and
   a later call goes on as above. An answer over 64 KiB is treated the same way, with
   `event=endpoint.idempotency_answer_too_large`. A contract's result over 64 KiB fails the call and rolls it back.
@@ -220,7 +221,12 @@ tenantContext:
 
 The host's endpoint deadline also caps the other two. Another name stops the plugin at startup. At the deadline the
 runtime sets the call's cancellation signal, rolls the unit of work back and answers 504; your plugin's transaction
-ends then too, and so do its waits for a database connection.
+ends then too, and so do its waits for a database connection. A handler that does its work synchronously and returns
+after the deadline gets the same: the runtime checks the deadline once more just before the commit.
+
+An operational module's handler runs in no unit of work. Its writes go through owners' internal contracts, each in the
+owner's own transaction, which ends at the deadline too. Its 504 therefore leaves the outcome open: a repeat with the
+same `Idempotency-Key` gets the kept result.
 
 Each endpoint runs at most 64 calls at once unless the host sets another limit. One more is answered 503
 `endpoint.rejected` at once, before your handler runs; other endpoints are not affected. Quotas per tenant or per
@@ -260,7 +266,7 @@ final class PlaceOrder implements TypedEndpointHandler<PlaceOrderRequest, Placed
 - The tenant and the caller are the ones the runtime verified: `tenantId()`, `actorId()`, `access()`. Never take them
   from the request.
 - Do the work synchronously and return a completed stage, or return a stage that completes later. The runtime commits
-  your unit of work when it completes, and rolls back when it completes exceptionally.
+  your unit of work when it completes in time, and rolls back when it completes exceptionally or after the deadline.
 - Long work checks `request.cancellation().isCancelled()`: the runtime sets it at the deadline.
 - `request.headers()` has no `Authorization`, `Proxy-Authorization`, `traceparent`, `tracestate`, `baggage` or
   `x-trace-id`: the runtime has verified the caller and holds the trace. Read the caller from `actorId()`, the tenant
@@ -301,7 +307,7 @@ The runtime's own answers:
 |---|---|---|
 | `endpoint.invalid_request` | 400 | The request breaks its schema. The body lists `violations`, each a `path` and a `rule`, never a value. |
 | `endpoint.rejected` | 503 | The endpoint already runs as many calls as the host allows |
-| `endpoint.deadline_exceeded` | 504 | The handler did not answer before the deadline; its unit of work rolls back |
+| `endpoint.deadline_exceeded` | 504 | The handler did not answer before the deadline, or answered after it; its unit of work rolls back |
 | `endpoint.idempotency_key_required`, `endpoint.idempotency_in_progress`, `endpoint.idempotency_conflict` | 400, 409, 422 | See [Repeating a call](#repeating-a-call) |
 | `platform.unknown` | 500 | Anything else, such as a response that breaks its schema or an unexpected exception. The cause is only in the log. |
 
@@ -362,11 +368,11 @@ The schema's `enum` lists the sort orders your query supports, so a caller canno
 
 ## The handlers written before 3.3.0
 
-`EndpointHandler<EndpointInvocation<Object>, R>` still works. Its body is the raw JSON, it may return
-`EndpointResponse` and throw `EndpointHandlingException`, and the runtime checks neither its request nor its
-response. It runs synchronously, so the runtime cannot stop waiting for it; its transaction still ends at the
-deadline. In 4.0 `EndpointHandler` takes the shape of `TypedEndpointHandler`, which then becomes its deprecated
-alias. A handler written against `TypedEndpointHandler` does not change.
+`EndpointHandler<EndpointInvocation<Object>, R>` still works. Its body is the raw JSON, it may return `EndpointResponse`
+and throw `EndpointHandlingException`, and the runtime checks neither its request nor its response. It runs
+synchronously, so the runtime cannot stop waiting for it; its transaction still ends at the deadline, and a handler that
+returns after it is rolled back and answered 504. In 4.0 `EndpointHandler` takes the shape of `TypedEndpointHandler`,
+which then becomes its deprecated alias. A handler written against `TypedEndpointHandler` does not change.
 
 A platform operational module's endpoints follow the same rules. Its `platform-operational.yaml` declares
 `request.schemaRef`, `response.schemaRef` and `response.status` as a plugin manifest does. A `TypedEndpointHandler` is

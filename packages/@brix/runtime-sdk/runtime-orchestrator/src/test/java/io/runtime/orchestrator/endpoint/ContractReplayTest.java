@@ -171,6 +171,29 @@ class ContractReplayTest {
     }
 
     @Test
+    void aCallWhoseHandlerAnswersAfterTheDeadlineIs504AndARepeatGoesOnWithoutWritingAgain() {
+        // Standard-link plan queue item 6 (D122): the owner committed its write in time; the late answer is not given.
+        DefaultPluginEndpointDispatcher dispatcher = dispatcher(201, Duration.ofMillis(200));
+        work = request -> {
+            Object result = things.create(request);
+            pause(Duration.ofMillis(300));
+            return result;
+        };
+        assertThrows(EndpointDeadlineExceededException.class, () -> call(dispatcher, LAMP, "k-1"));
+        assertEquals(1, owner.writes);
+        assertNull(records.committed.get(KEY).status());
+        assertEquals(List.of("deadline_exceeded"), outcomes);
+
+        work = request -> things.create(request);
+        EndpointReplay.Replayed again = assertInstanceOf(EndpointReplay.Replayed.class, call(dispatcher, LAMP, "k-1"));
+
+        assertEquals(201, again.status());
+        assertEquals("t-1", ((JsonNode) again.body()).get("id").asString());
+        assertEquals(2, handled);
+        assertEquals(1, owner.writes);
+    }
+
+    @Test
     void aCallAfterThatGetsTheKeptAnswerBeforeTheHandler() {
         DefaultPluginEndpointDispatcher dispatcher = dispatcher();
         afterTheWrite = new EndpointHandlingException(503, "PLATFORM_AUDIT_WRITE_FAILED", "not recorded");
@@ -413,14 +436,27 @@ class ContractReplayTest {
     }
 
     private DefaultPluginEndpointDispatcher dispatcher(int status) {
+        return dispatcher(status, Duration.ofSeconds(5));
+    }
+
+    private DefaultPluginEndpointDispatcher dispatcher(int status, Duration deadline) {
         EndpointContract contract = new EndpointContract("", "", status, null, new EndpointContract.Replay(
             "ops.things.create", Duration.ofHours(24), "test.things", OWNER));
         DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(
-            EndpointPolicies.Limits.defaults(Duration.ofSeconds(5)), EndpointInvocationBoundary.direct(),
+            EndpointPolicies.Limits.defaults(deadline), EndpointInvocationBoundary.direct(),
             JsonMapper.builder().build(), EndpointTracing.NOOP, metrics, () -> records);
         dispatcher.replaceSnapshot(List.of(new EndpointRoute("ops-module", "ops.things.create.v1", "POST", PATH,
             TestEndpointAccessPolicies.authenticated("things:create"), new Handler(), contract)));
         return dispatcher;
+    }
+
+    private static void pause(Duration duration) {
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(interrupted);
+        }
     }
 
     /** The owner's side of the contract. */

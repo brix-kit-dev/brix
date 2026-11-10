@@ -263,6 +263,12 @@ All notable changes to Brix Framework are documented here.
 
 ### 🐛 Fixed
 
+- **An endpoint handler that answers after its deadline no longer commits.** A handler that did its work synchronously
+  and returned after the deadline was committed and answered with success. The runtime now checks the deadline once
+  more before the commit: the work rolls back, the cancellation signal is set and the call answers 504
+  `endpoint.deadline_exceeded`, for typed handlers and those of the old shape alike (root BRX-RS-DATA-011, DATA-028).
+  An operational module's endpoint answers 504 too; its owners commit their writes themselves, so a repeat with the
+  same `Idempotency-Key` gets the kept result.
 - **What `CommandCapability` promises.** Its documentation said a command is delivered exactly once per idempotency
   key, and that the provider reports the outcome through its own events. Brix promises at-least-once delivery
   (root BRX-RS-MESSAGE-020); the provider applies a command at most once per key of the sender and tenant, and the

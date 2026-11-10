@@ -6,10 +6,12 @@
  */
 package io.brix.samples.e2e;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.brix.samples.orders.internal.AdjustOrderQuantity;
 import io.brix.samples.orders.internal.AdjustedOrder;
@@ -34,6 +36,9 @@ public final class SampleOperationsModule implements PlatformOperationalModule {
 
     /** Makes the handler fail after the owner committed, as platform-admin's audit can. */
     static final AtomicBoolean FAIL_AFTER_THE_WRITE = new AtomicBoolean();
+
+    /** Makes the handler work this long after the owner committed, so that it can answer after its deadline. */
+    static final AtomicReference<Duration> PAUSE_AFTER_THE_WRITE = new AtomicReference<>(Duration.ZERO);
 
     private static final String ADJUST_QUANTITY = "sample-operations.adjust-quantity.v1";
 
@@ -91,7 +96,17 @@ public final class SampleOperationsModule implements PlatformOperationalModule {
             if (FAIL_AFTER_THE_WRITE.get()) {
                 throw new EndpointHandlingException(503, "SAMPLE_AUDIT_WRITE_FAILED", "the change could not be recorded");
             }
+            pause(PAUSE_AFTER_THE_WRITE.get());
             return CompletableFuture.completedFuture(adjusted);
+        }
+
+        private static void pause(Duration duration) {
+            try {
+                Thread.sleep(duration.toMillis());
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(interrupted);
+            }
         }
     }
 }

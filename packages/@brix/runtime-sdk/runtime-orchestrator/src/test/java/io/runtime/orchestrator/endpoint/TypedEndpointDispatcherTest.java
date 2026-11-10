@@ -26,6 +26,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.runtime.sdk.page.PageRequest;
+import io.runtime.sdk.plugin.EndpointHandler;
 import io.runtime.sdk.plugin.EndpointInvocation;
 import io.runtime.sdk.plugin.EndpointResponse;
 import io.runtime.sdk.plugin.TypedEndpointHandler;
@@ -155,6 +156,84 @@ class TypedEndpointDispatcherTest {
             () -> dispatcher.invoke("GET", "/api/test/slow", null, Map.of(), Map.of()));
         assertTrue(received.get().cancellation().isCancelled());
         assertFalse(boundary.committed);
+    }
+
+    @Test
+    void aHandlerThatAnswersAfterItsDeadlineIsCancelledAndCommitsNothing() {
+        // Standard-link plan queue item 6 (D122): it did its work synchronously and ran past the deadline.
+        TypedEndpointHandler<JsonNode, Thing> late = invocation -> {
+            received.set(invocation);
+            pause(Duration.ofMillis(300));
+            return CompletableFuture.completedFuture(new Thing("t-1", "lamp"));
+        };
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofMillis(200),
+            boundary, JsonMapper.builder().build());
+        dispatcher.replaceSnapshot(List.of(route("POST", "/api/test/late", late, EndpointContract.none())));
+
+        assertThrows(EndpointDeadlineExceededException.class,
+            () -> dispatcher.invoke("POST", "/api/test/late", Map.of(), Map.of(), Map.of()));
+        assertTrue(received.get().cancellation().isCancelled());
+        assertFalse(boundary.committed);
+    }
+
+    @Test
+    void aHandlerOfTheOldShapeThatReturnsAfterItsDeadlineCommitsNothing() {
+        EndpointHandler<EndpointInvocation<Object>, Object> late = invocation -> {
+            received.set(invocation);
+            pause(Duration.ofMillis(300));
+            return Map.of("id", "t-1");
+        };
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofMillis(200),
+            boundary, JsonMapper.builder().build());
+        dispatcher.replaceSnapshot(List.of(new EndpointRoute("test-plugin", "test.endpoint.v1", "POST",
+            "/api/test/late", TestEndpointAccessPolicies.anonymous("test-public"), late, EndpointContract.none())));
+
+        assertThrows(EndpointDeadlineExceededException.class,
+            () -> dispatcher.invoke("POST", "/api/test/late", Map.of(), Map.of(), Map.of()));
+        assertTrue(received.get().cancellation().isCancelled());
+        assertFalse(boundary.committed);
+    }
+
+    @Test
+    void aRouteWithoutAUnitOfWorkAlsoAnswersALateHandlerWith504() {
+        // An operational module's route: the owner commits its writes itself, so the outcome is unknown.
+        TypedEndpointHandler<JsonNode, Thing> late = invocation -> {
+            received.set(invocation);
+            pause(Duration.ofMillis(300));
+            return CompletableFuture.completedFuture(new Thing("t-1", "lamp"));
+        };
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofMillis(200),
+            EndpointInvocationBoundary.direct(), JsonMapper.builder().build());
+        dispatcher.replaceSnapshot(List.of(route("POST", "/api/test/late", late, EndpointContract.none())));
+
+        assertThrows(EndpointDeadlineExceededException.class,
+            () -> dispatcher.invoke("POST", "/api/test/late", Map.of(), Map.of(), Map.of()));
+        assertTrue(received.get().cancellation().isCancelled());
+    }
+
+    @Test
+    void aHandlerThatAnswersInTimeCommits() {
+        TypedEndpointHandler<JsonNode, Thing> prompt = invocation -> {
+            received.set(invocation);
+            return CompletableFuture.completedFuture(new Thing("t-1", "lamp"));
+        };
+        DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofMillis(200),
+            boundary, JsonMapper.builder().build());
+        dispatcher.replaceSnapshot(List.of(route("POST", "/api/test/prompt", prompt, EndpointContract.none())));
+
+        dispatcher.invoke("POST", "/api/test/prompt", Map.of(), Map.of(), Map.of());
+
+        assertFalse(received.get().cancellation().isCancelled());
+        assertTrue(boundary.committed);
+    }
+
+    private static void pause(Duration duration) {
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(interrupted);
+        }
     }
 
     private static final String CREATE = "brix://schemas/test-endpoints/create-thing-request/1.0.0";
