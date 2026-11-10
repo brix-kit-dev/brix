@@ -30,6 +30,11 @@
  * These rules are registered as the `@brix-architecture` ESLint plugin and applied to
  * UI artifacts by layer and source shape, not by enterprise-only identity.
  *
+ * [Authorization Rule] (v3.3.0, standard-link queue item 5, D121)
+ * - no-role-authorization: UI code authorizes on permission codes, never on a role name; the SDK's
+ *   hasRole/hasAnyRole/hasAllRoles, useRole and PermissionGate's role props are deprecated since 3.3.0
+ *   for removal in 4.0.0 (super-admin BRX-SA-AUTH-006, multi-tenant T-29, frontend BRX-FE-ROUTE-002)
+ *
  * [v3.4.0 New]
  * Added Design Token Governance rules (Phase 7 of UI Design Token Reform Plan):
  * - Custom ESLint plugin with 3 AST-based rules for enterprise-solutions plugins
@@ -86,6 +91,7 @@ const brixArchPlugin = {
     'no-direct-design-tokens-import': require('./rules/no-direct-design-tokens-import'),
     'no-mui-in-plugins': require('./rules/no-mui-in-plugins'),
     'no-role-string-literal': require('./rules/no-role-string-literal'),
+    'no-role-authorization': require('./rules/no-role-authorization'),
     'no-temp-password-in-response-type': require('./rules/no-temp-password-in-response-type'),
     'no-platform-admin-mode-flag': require('./rules/no-platform-admin-mode-flag'),
     'no-permission-or-true': require('./rules/no-permission-or-true'),
@@ -561,6 +567,25 @@ const baseRules = [
       '@brix-architecture/no-temp-password-in-response-type': 'error',
       '@brix-architecture/no-platform-admin-mode-flag': 'error',
       '@brix-architecture/no-permission-or-true': 'error',
+    },
+  },
+
+  // ============================================================================
+  // Authorization on permission codes, never on role names (standard-link queue item 5, D121)
+  // ============================================================================
+  // super-admin BRX-SA-AUTH-006, multi-tenant T-29 and frontend BRX-FE-ROUTE-002: UI code shows,
+  // hides and guards content on permission codes. The SDK's role checks, PermissionGate's role
+  // props and useRole are deprecated since 3.3.0 for removal in 4.0.0. The pattern matches every
+  // source file wherever a package runs ESLint; test files may still stub the deprecated methods.
+  {
+    name: 'brix/architecture-guard/no-role-authorization',
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    ignores: ['**/*.test.*', '**/*.spec.*', '**/__tests__/**'],
+    plugins: {
+      '@brix-architecture': brixArchPlugin,
+    },
+    rules: {
+      '@brix-architecture/no-role-authorization': 'error',
     },
   },
 

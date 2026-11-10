@@ -644,6 +644,11 @@ export interface AuthCapability {
    *
    * @param role Role identifier
    * @returns Whether has role
+   * @since 3.1.0
+   * @deprecated since 3.3.0, removed in 4.0.0: authorize on a permission code with `hasPermission`,
+   *   `hasAnyPermission` or `hasAllPermissions`, never on a role name (super-admin BRX-SA-AUTH-006,
+   *   multi-tenant T-29, frontend BRX-FE-ROUTE-002). The `@brix-architecture/no-role-authorization`
+   *   lint rule refuses a call.
    */
   hasRole(role: string): boolean;
 
@@ -653,6 +658,10 @@ export interface AuthCapability {
    * @param roles Role identifier array
    * @returns Whether has any role
    * @since 3.2.0
+   * @deprecated since 3.3.0, removed in 4.0.0: authorize on a permission code with `hasPermission`,
+   *   `hasAnyPermission` or `hasAllPermissions`, never on a role name (super-admin BRX-SA-AUTH-006,
+   *   multi-tenant T-29, frontend BRX-FE-ROUTE-002). The `@brix-architecture/no-role-authorization`
+   *   lint rule refuses a call.
    */
   hasAnyRole?(roles: string[]): boolean;
 
@@ -662,6 +671,10 @@ export interface AuthCapability {
    * @param roles Role identifier array
    * @returns Whether has all roles
    * @since 3.2.0
+   * @deprecated since 3.3.0, removed in 4.0.0: authorize on a permission code with `hasPermission`,
+   *   `hasAnyPermission` or `hasAllPermissions`, never on a role name (super-admin BRX-SA-AUTH-006,
+   *   multi-tenant T-29, frontend BRX-FE-ROUTE-002). The `@brix-architecture/no-role-authorization`
+   *   lint rule refuses a call.
    */
   hasAllRoles?(roles: string[]): boolean;
 

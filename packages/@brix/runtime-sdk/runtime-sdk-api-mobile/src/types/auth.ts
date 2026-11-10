@@ -160,6 +160,10 @@ export interface AuthCapability {
    *
    * @param role Role identifier
    * @returns Whether has role
+   * @since 3.2.0
+   * @deprecated since 3.3.0, removed in 4.0.0: authorize on a permission code with `hasPermission`,
+   *   never on a role name (super-admin BRX-SA-AUTH-006, multi-tenant T-29, frontend BRX-FE-ROUTE-002).
+   *   The `@brix-architecture/no-role-authorization` lint rule refuses a call.
    */
   hasRole(role: string): boolean;
 

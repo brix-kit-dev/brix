@@ -125,6 +125,10 @@ export function useAllPermissions(
  * @param auth - Authentication capability instance
  * @param role - Required role
  * @returns Role check result
+ * @deprecated since 3.3.0, removed in 4.0.0: use `usePermission`, `useAnyPermission` or
+ *   `useAllPermissions`; authorization checks a permission code, never a role name (super-admin
+ *   BRX-SA-AUTH-006, frontend BRX-FE-ROUTE-002). The `@brix-architecture/no-role-authorization` lint
+ *   rule refuses it.
  */
 export function useRole(
   auth: AuthCapability,

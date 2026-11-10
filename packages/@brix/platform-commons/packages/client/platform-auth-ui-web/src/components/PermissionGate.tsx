@@ -57,11 +57,19 @@ export interface PermissionGateProps {
   
   /**
    * Required role (single)
+   *
+   * @deprecated since 3.3.0, removed in 4.0.0: use `permission`, `anyPermissions` or `allPermissions`;
+   *   the gate shows content on a permission code, never on a role name (super-admin BRX-SA-AUTH-006,
+   *   frontend BRX-FE-ROUTE-002). The `@brix-architecture/no-role-authorization` lint rule refuses it.
    */
   role?: string;
   
   /**
    * Required roles (multiple, any one satisfies)
+   *
+   * @deprecated since 3.3.0, removed in 4.0.0: use `anyPermissions`; the gate shows content on a
+   *   permission code, never on a role name (super-admin BRX-SA-AUTH-006, frontend BRX-FE-ROUTE-002).
+   *   The `@brix-architecture/no-role-authorization` lint rule refuses it.
    */
   anyRoles?: string[];
   
@@ -88,11 +96,14 @@ export interface PermissionGateProps {
  *   <ManagePanel />
  * </PermissionGate>
  * 
- * // Role check
- * <PermissionGate auth={auth} role="admin" fallback={<NoPermission />}>
+ * // With a fallback
+ * <PermissionGate auth={auth} permission="booking:manage" fallback={<NoPermission />}>
  *   <AdminPanel />
  * </PermissionGate>
  * ```
+ *
+ * The role props `role` and `anyRoles` are deprecated since 3.3.0 and go in 4.0.0: show content on a
+ * permission code, never on a role name.
  */
 export function PermissionGate({
   auth,

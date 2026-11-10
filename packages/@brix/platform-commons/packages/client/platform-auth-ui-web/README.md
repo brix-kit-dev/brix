@@ -50,7 +50,7 @@ import { AuthGuard, PermissionGate, LoginForm } from '@brix-sdk/platform-auth-ui
 ### Hooks
 
 ```tsx
-import { useAuth, usePermission, useRole } from '@brix-sdk/platform-auth-ui-web';
+import { useAuth, usePermission } from '@brix-sdk/platform-auth-ui-web';
 
 function MyComponent() {
   // 获取当前认证状�?
@@ -58,9 +58,6 @@ function MyComponent() {
   
   // 检查权�?
   const canEdit = usePermission('booking:edit');
-  
-  // 检查角�?
-  const isAdmin = useRole('admin');
   
   return (
     <div>
@@ -112,7 +109,7 @@ const RegisterPage = createSimpleRegisterPage({
 | `usePermission` | 检查单个权�?|
 | `useAnyPermission` | 检查是否拥有任一权限 |
 | `useAllPermissions` | 检查是否拥有所有权�?|
-| `useRole` | 检查角�?|
+| `useRole` | 已弃用（3.3.0 起，4.0.0 删除）：授权只看权限码，改用 `usePermission` |
 
 ### 页面工厂
 

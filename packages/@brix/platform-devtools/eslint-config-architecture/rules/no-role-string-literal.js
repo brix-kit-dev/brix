@@ -43,8 +43,10 @@
 
 /**
  * Canonical platform role codes — must stay in sync with
- * `io.brix.platform.auth.RoleCode` (Java) and `PLATFORM_ROLE_CODE`
- * (TypeScript) in `@brix-sdk/platform-admin-web`.
+ * `io.brix.platform.auth.api.RoleCode` (Java, in platform-auth-api) and
+ * `PLATFORM_ROLE_CODE` (TypeScript) in `@brix-sdk/platform-admin-web`.
+ * `BOOTSTRAP` is no platform role (super-admin §3.3): it stays the role
+ * claim of the bootstrap setup token, `PlatformPermissions.BOOTSTRAP_ROLE`.
  */
 const KNOWN_ROLE_CODES = new Set([
   'PLATFORM_SUPER_ADMIN',

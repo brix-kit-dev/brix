@@ -59,9 +59,21 @@ export interface UseAuthResult {
   hasAnyPermission: (permissions: string[]) => boolean;
   /** Check if user has all specified permissions */
   hasAllPermissions: (permissions: string[]) => boolean;
-  /** Check if user has specified role */
+  /**
+   * Check if user has specified role
+   *
+   * @deprecated since 3.3.0, removed in 4.0.0: use `hasPermission`, `hasAnyPermission` or
+   *   `hasAllPermissions`; authorization checks a permission code, never a role name (super-admin
+   *   BRX-SA-AUTH-006, multi-tenant T-29, frontend BRX-FE-ROUTE-002)
+   */
   hasRole: (role: string) => boolean;
-  /** Check if user has any of specified roles */
+  /**
+   * Check if user has any of specified roles
+   *
+   * @deprecated since 3.3.0, removed in 4.0.0: use `hasAnyPermission`; authorization checks a
+   *   permission code, never a role name (super-admin BRX-SA-AUTH-006, multi-tenant T-29, frontend
+   *   BRX-FE-ROUTE-002)
+   */
   hasAnyRole: (roles: string[]) => boolean;
 }
 

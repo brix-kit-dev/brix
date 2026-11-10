@@ -133,6 +133,32 @@ import {
 } from '@brix-sdk/eslint-config-architecture';
 ```
 
+## Authorization Rule (v3.3.0)
+
+### `@brix-architecture/no-role-authorization`
+
+UI code shows, hides and guards content on permission codes, never on a role name (super-admin BRX-SA-AUTH-006,
+multi-tenant T-29, frontend BRX-FE-ROUTE-002). The rule refuses:
+
+- a call to, or a reference of, `hasRole`, `hasAnyRole` or `hasAllRoles`, and taking one out of an object
+  (`const { hasRole } = useAuth()`);
+- `useRole` imported from `@brix-sdk/platform-auth-ui-web`;
+- the `role` and `anyRoles` props of `PermissionGate`.
+
+Declaring such a method, as an implementation or a test double does, is no use, and test files are not checked. The
+SDK's role checks are deprecated since 3.3.0 and go in 4.0.0.
+
+| Instead of | Use |
+|---|---|
+| `auth.hasRole('ADMIN')` | `auth.hasPermission('booking:manage')` |
+| `const { hasRole } = useAuth()` | `const { hasPermission } = useAuth()` |
+| `useRole(auth, 'ADMIN')` | `usePermission(auth, 'booking:manage')` |
+| `<PermissionGate role="ADMIN">` | `<PermissionGate permission="booking:manage">` |
+
+The rule's block matches every source file wherever a package runs ESLint. ESLint has to parse the file first: a
+TypeScript package needs the `typescript-eslint` parser in its own config, as `platform-admin-web` has; without it
+every `.ts` file stops at a parsing error and no rule runs.
+
 ## Design Token Governance Rules (v3.4.0)
 
 Three custom AST-based rules enforce the Brix three-layer design token architecture within enterprise-solutions plugins. These rules are registered as the `@brix-architecture` ESLint plugin.

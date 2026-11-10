@@ -138,7 +138,10 @@ All notable changes to Brix Framework are documented here.
 - **Platform code and plugins authorize on permissions, not role names.** `NoRoleNameAuthorizationRule` refuses a
   call to `hasRole` or `hasAnyRole`, and a method reference to them, whatever declares the method; declaring one is no
   call. The commons profile, the plugin profile and platform-admin's architecture test run it (super-admin
-  BRX-SA-AUTH-006, multi-tenant T-29).
+  BRX-SA-AUTH-006, multi-tenant T-29). In UI code the ESLint rule `@brix-architecture/no-role-authorization` refuses a
+  call to `hasRole`, `hasAnyRole` or `hasAllRoles`, `useRole` from `@brix-sdk/platform-auth-ui-web`, and the `role`
+  and `anyRoles` props of `PermissionGate` (frontend BRX-FE-ROUTE-002), in every package whose ESLint config parses
+  its TypeScript.
 - **Platform role and permission IDs in `platform-auth-api`** (super-admin 4.0.1 §4). The new artifact holds
   `io.brix.platform.auth.api.RoleCode` (`PLATFORM_SUPER_ADMIN`) and `PermissionCode` (the catalog's ten `platform:*`
   IDs), with no implementation and no dependency. platform-admin names them from there: an operational module may
@@ -234,6 +237,9 @@ All notable changes to Brix Framework are documented here.
   `ExternalHttpCapability`.
 - `AuthCapability.hasRole` and `AuthContextCapability.hasRole`, for removal in 4.0.0: authorize on a permission code
   with `hasPermission` or `hasAnyPermission`. The plugin profile already refuses a call.
+- In TypeScript, for removal in 4.0.0: `AuthCapability.hasRole`, `hasAnyRole` and `hasAllRoles` (web; `hasRole` on
+  mobile), `useAuth()`'s `hasRole` and `hasAnyRole`, `PermissionGate`'s `role` and `anyRoles` props, and `useRole`.
+  Use `hasPermission`, `hasAnyPermission`, `hasAllPermissions`, the gate's permission props and `usePermission`.
 
 ### 🗑️ Removed
 

@@ -177,10 +177,13 @@ export class AuthCapabilityImpl implements AuthCapability {
   }
   
   /**
-   * 
- * @param role -
- * @returns ?
- */
+   * Whether the current user has the role.
+   *
+   * @param role - role identifier
+   * @returns whether the user has it
+   * @deprecated since 3.3.0, removed in 4.0.0, with `AuthCapability`'s role checks: authorize on a
+   *   permission code
+   */
   hasRole(role: string): boolean {
     const user = this.getCurrentUser();
     
@@ -192,10 +195,13 @@ export class AuthCapabilityImpl implements AuthCapability {
   }
   
   /**
-   * 
- * @param roles -
- * @returns ?
- */
+   * Whether the current user has any of the roles.
+   *
+   * @param roles - role identifiers
+   * @returns whether the user has one of them
+   * @deprecated since 3.3.0, removed in 4.0.0, with `AuthCapability`'s role checks: authorize on a
+   *   permission code
+   */
   hasAnyRole(roles: string[]): boolean {
     const user = this.getCurrentUser();
     
@@ -317,10 +323,13 @@ export class AuthCapabilityImpl implements AuthCapability {
   }
   
   /**
-   * 
- * @param roles -
- * @returns ?
- */
+   * Whether the current user has all of the roles.
+   *
+   * @param roles - role identifiers
+   * @returns whether the user has every one of them
+   * @deprecated since 3.3.0, removed in 4.0.0, with `AuthCapability`'s role checks: authorize on a
+   *   permission code
+   */
   hasAllRoles(roles: string[]): boolean {
     const user = this.getCurrentUser();
     
