@@ -108,6 +108,8 @@
         <module>packages/server/platform-tenant</module>
         <!-- 平台能力模块 -->
         <module>packages/server/platform-gateway</module>
+        <!-- 平台角色码、权限码的版本化契约（超管 §4；标准链路收尾单向门队列第 4 项，D116） -->
+        <module>packages/server/platform-auth-api</module>
         <module>packages/server/platform-auth</module>
         <module>packages/server/platform-auth-operational</module>
         <module>packages/server/platform-auth-servlet</module>
@@ -175,6 +177,12 @@
             <dependency>
                 <groupId>io.brix.platform</groupId>
                 <artifactId>platform-gateway</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- The stable platform role and permission IDs (super-admin §4); operational modules name them from here -->
+            <dependency>
+                <groupId>io.brix.platform</groupId>
+                <artifactId>platform-auth-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

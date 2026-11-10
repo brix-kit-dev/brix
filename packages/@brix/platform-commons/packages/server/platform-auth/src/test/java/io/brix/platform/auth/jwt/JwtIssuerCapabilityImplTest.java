@@ -272,6 +272,9 @@ class JwtIssuerCapabilityImplTest {
         assertEquals(TokenType.BOOTSTRAP_SETUP, session.getTokenType());
         assertEquals(TokenRole.BOOTSTRAP, session.getTokenRole());
         assertEquals("BOOTSTRAP", session.getScope());
+        // The role claims, written out: Bootstrap is no platform role, yet the token keeps carrying this value.
+        assertEquals("BOOTSTRAP", session.getPlatformRole());
+        assertEquals(List.of("BOOTSTRAP"), session.getRoles());
         assertEquals(List.of("bootstrap:status", "bootstrap:session", "bootstrap:create-first-admin"),
                 session.getPermissions());
         assertEquals(null, session.getTenantId());

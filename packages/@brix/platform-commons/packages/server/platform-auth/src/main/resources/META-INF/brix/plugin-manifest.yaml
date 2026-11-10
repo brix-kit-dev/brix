@@ -11,6 +11,12 @@ runtime:
   compiledAgainst: 3.2.0
   supportedRange: ">=3.0.10 <4.0.0"
 modules:
+  # The stable platform role and permission IDs (super-admin 4.0.1 §4). platform-admin names them from here: an
+  # operational module never depends on this plugin's implementation.
+  - groupId: io.brix.platform
+    artifactId: platform-auth-api
+    version: 3.2.0
+    moduleKind: plugin-api
   - groupId: io.brix.platform
     artifactId: platform-auth
     version: 3.2.0

@@ -13,8 +13,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import io.brix.platform.auth.PlatformPermissions;
-import io.brix.platform.auth.RoleCode;
 import io.brix.platform.auth.annotation.RequirePermission;
+import io.brix.platform.auth.api.PermissionCode;
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.auth.enums.TokenRole;
@@ -36,9 +36,9 @@ class PermissionAspectBootstrapTest {
         user.setUserId("1");
         user.setTokenType(TokenType.BOOTSTRAP_SETUP);
         user.setTokenRole(TokenRole.BOOTSTRAP);
-        user.setPlatformRole(RoleCode.BOOTSTRAP);
-        user.setScope(RoleCode.BOOTSTRAP);
-        user.setPermissions(PlatformPermissions.defaultPermissionsFor(RoleCode.BOOTSTRAP));
+        user.setPlatformRole(PlatformPermissions.BOOTSTRAP_ROLE);
+        user.setScope(PlatformPermissions.BOOTSTRAP_ROLE);
+        user.setPermissions(PlatformPermissions.defaultPermissionsFor(PlatformPermissions.BOOTSTRAP_ROLE));
         securityContextHolder.setCurrentUser(user);
 
         assertDoesNotThrow(() -> aspect.checkPermission(joinPointFor("bootstrapEndpoint")));
@@ -60,7 +60,7 @@ class PermissionAspectBootstrapTest {
         void bootstrapEndpoint() {
         }
 
-        @RequirePermission(PlatformPermissions.ADMIN_READ)
+        @RequirePermission(PermissionCode.PLATFORM_ADMIN_READ)
         void platformAdminEndpoint() {
         }
     }

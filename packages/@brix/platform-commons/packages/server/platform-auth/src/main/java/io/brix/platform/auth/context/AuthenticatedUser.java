@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import io.brix.platform.auth.RoleCode;
+import io.brix.platform.auth.api.RoleCode;
 import io.brix.platform.auth.enums.TokenRole;
 import io.brix.platform.auth.enums.TokenType;
 

@@ -21,7 +21,8 @@
  */
 
 /* ======================================================================== *
- * Permissions (must match `io.brix.platform.auth.PlatformPermissions`)
+ * Permissions (must match `io.brix.platform.auth.api.PermissionCode`;
+ * LICENSE_READ is outside that catalog, in `io.brix.platform.auth.PlatformPermissions`)
  * ======================================================================== */
 
 /**
@@ -59,7 +60,9 @@ export type PlatformAdminPermission =
   (typeof PLATFORM_ADMIN_PERMISSIONS)[keyof typeof PLATFORM_ADMIN_PERMISSIONS];
 
 /* ======================================================================== *
- * Role Codes (must match `io.brix.platform.auth.RoleCode`)
+ * Role Codes (PLATFORM_SUPER_ADMIN must match `io.brix.platform.auth.api.RoleCode`;
+ * BOOTSTRAP is the role claim of a bootstrap setup token, not a platform role:
+ * `io.brix.platform.auth.PlatformPermissions.BOOTSTRAP_ROLE`)
  * ======================================================================== */
 
 export const PLATFORM_ROLE_CODE = Object.freeze({

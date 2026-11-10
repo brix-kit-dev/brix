@@ -17,12 +17,16 @@ package io.brix.platform.auth;
 
 import java.util.List;
 
+import io.brix.platform.auth.api.PermissionCode;
+import io.brix.platform.auth.api.RoleCode;
+
 /**
  * Platform-level Permission Code Constants.
  *
  * <h3>Architectural Position</h3>
- * <p>Layer 2C ({@code platform-auth}). These codes are written into Platform Admin JWTs
- * and evaluated by {@link io.brix.platform.auth.aspect.PermissionAspect}.
+ * <p>Layer 2C ({@code platform-auth}). The permission IDs endpoints declare are the versioned catalog
+ * {@link PermissionCode} in {@code platform-auth-api} (super-admin 4.0.1 §4). This class keeps the codes
+ * outside that catalog and maps a platform admin role to the permissions its JWT carries.
  * They are intentionally separate from tenant-scoped RBAC permission codes stored in the
  * {@code auth_permission} table.
  *
@@ -47,6 +51,17 @@ import java.util.List;
  */
 public final class PlatformPermissions {
 
+    // ========== Bootstrap Role Claim ==========
+
+    /**
+     * Role claim of a bootstrap setup session token.
+     *
+     * <p>Bootstrap is the type and scope of a short-lived setup session, not a platform role
+     * (super-admin §3.3), so it is not in {@link RoleCode}. Matches
+     * {@code io.brix.platform.identity.enums.PlatformAdminRole.BOOTSTRAP.name()}.
+     */
+    public static final String BOOTSTRAP_ROLE = "BOOTSTRAP";
+
     // ========== Bypass ==========
 
     /**
@@ -67,89 +82,20 @@ public final class PlatformPermissions {
     /**
      * Create, update, suspend, or delete tenants (coarse-grained, kept for backward compat).
      *
-     * <p>Prefer fine-grained codes {@link #TENANT_READ} and {@link #TENANT_UPDATE_STATUS} for
-     * new endpoint annotations. This code is retained so that older tokens that carry it
-     * continue to satisfy {@code @RequirePermission(TENANT_MANAGE)} guards.
+     * <p>Prefer fine-grained codes {@link PermissionCode#PLATFORM_TENANT_READ} and
+     * {@link PermissionCode#PLATFORM_TENANT_UPDATE_STATUS} for new endpoint annotations. This code is
+     * retained so that older tokens that carry it continue to satisfy
+     * {@code @RequirePermission(TENANT_MANAGE)} guards.
      */
     public static final String TENANT_MANAGE = "platform:tenant:manage";
 
     /** Read tenant details (without modification) — coarse alias, kept for backward compat. */
     public static final String TENANT_VIEW = "platform:tenant:view";
 
-    /**
-     * Read platform-scoped tenant list and tenant details.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #9 ({@code GET /api/platform/tenants}).
-     */
-    public static final String TENANT_READ = "platform:tenant:read";
-
-    /**
-     * Change tenant lifecycle status (ACTIVE → SUSPENDED → ACTIVE).
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #10
-     * ({@code PATCH /api/platform/tenants/{id}/status}).
-     */
-    public static final String TENANT_UPDATE_STATUS = "platform:tenant:update-status";
-
-    /**
-     * Create a new tenant via the platform super-admin console.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint
-     * ({@code POST /api/platform/tenants}).
-     */
-    public static final String TENANT_CREATE = "platform:tenant:create";
-
-    /**
-     * Create, resend, or revoke the FIRST_OWNER invitation for a pending tenant.
-     *
-     * <p>Fine-grained code aligning with platform-admin operational endpoints for
-     * {@code /api/platform/tenants/{tenantId}/first-owner-invitations/**}.
-     */
-    public static final String TENANT_FIRST_OWNER_INVITE = "platform:tenant:first-owner-invite";
-
     // ========== Platform Admin Management ==========
 
     /** Create or manage platform administrator accounts (coarse-grained, kept for backward compat). */
     public static final String ADMIN_MANAGE = "platform:admin:manage";
-
-    /**
-     * Read platform admin list and individual admin details.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #3 ({@code GET /api/platform/admins}).
-     */
-    public static final String ADMIN_READ = "platform:admin:read";
-
-    /**
-     * Create a new platform administrator account.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #4 ({@code POST /api/platform/admins}).
-     */
-    public static final String ADMIN_CREATE = "platform:admin:create";
-
-    /**
-    * Revoke an existing platform administrator grant.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #5
-    * ({@code PATCH /api/platform/admins/{id}/revoke}).
-     */
-    public static final String ADMIN_REVOKE = "platform:admin:revoke";
-
-    /**
-     * Reset the password of another platform administrator.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #6
-     * ({@code POST /api/platform/admins/{id}/reset-password}).
-     */
-    public static final String ADMIN_RESET_PASSWORD = "platform:admin:reset-password";
-
-    /**
-     * Change the caller's own password.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #7
-     * ({@code POST /api/platform/admins/me/change-password}).
-    * Granted to formal platform super administrators.
-     */
-    public static final String ADMIN_CHANGE_OWN_PASSWORD = "platform:admin:change-own-password";
 
     // ========== Bootstrap Setup ==========
 
@@ -164,19 +110,17 @@ public final class PlatformPermissions {
     /** Read platform audit logs and compliance reports (coarse alias, kept for backward compat). */
     public static final String AUDIT_VIEW = "platform:audit:view";
 
-    /**
-     * Read platform audit logs with pagination and filtering.
-     *
-     * <p>Fine-grained code aligning with SSOT §6 endpoint #8 ({@code GET /api/platform/audit-logs}).
-     */
-    public static final String AUDIT_READ = "platform:audit:read";
-
     // ========== System ==========
 
     /** Access and modify system-level configuration. Restricted to formal super admins. */
     public static final String SYSTEM_CONFIG = "platform:system:config";
 
-    /** Read installation license and tenant quota status. */
+    /**
+     * Read installation license and tenant quota status.
+     *
+     * <p>{@code GET /api/platform/license/quota} declares it, although the super-admin 4.0.1 catalog
+     * does not list it.
+     */
     public static final String LICENSE_READ = "platform:license:read";
 
     /** Perform data recovery and maintenance operations. Restricted to formal super admins. */
@@ -201,17 +145,19 @@ public final class PlatformPermissions {
         return switch (adminRole) {
             case RoleCode.PLATFORM_SUPER_ADMIN -> List.of(
                     // tenant
-                    TENANT_MANAGE, TENANT_VIEW, TENANT_READ, TENANT_CREATE, TENANT_UPDATE_STATUS,
-                    TENANT_FIRST_OWNER_INVITE,
+                    TENANT_MANAGE, TENANT_VIEW, PermissionCode.PLATFORM_TENANT_READ,
+                    PermissionCode.PLATFORM_TENANT_CREATE, PermissionCode.PLATFORM_TENANT_UPDATE_STATUS,
+                    PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
                     // admin management
-                ADMIN_MANAGE, ADMIN_READ, ADMIN_CREATE, ADMIN_REVOKE,
-                    ADMIN_RESET_PASSWORD, ADMIN_CHANGE_OWN_PASSWORD,
+                    ADMIN_MANAGE, PermissionCode.PLATFORM_ADMIN_READ, PermissionCode.PLATFORM_ADMIN_CREATE,
+                    PermissionCode.PLATFORM_ADMIN_REVOKE, PermissionCode.PLATFORM_ADMIN_RESET_PASSWORD,
+                    PermissionCode.PLATFORM_ADMIN_CHANGE_OWN_PASSWORD,
                     // audit
-                    AUDIT_VIEW, AUDIT_READ,
-                        // system
-                        SYSTEM_CONFIG, LICENSE_READ, DATA_RECOVERY
+                    AUDIT_VIEW, PermissionCode.PLATFORM_AUDIT_READ,
+                    // system
+                    SYSTEM_CONFIG, LICENSE_READ, DATA_RECOVERY
             );
-            case RoleCode.BOOTSTRAP -> List.of(BOOTSTRAP_READ, BOOTSTRAP_CREATE_FIRST_ADMIN);
+            case BOOTSTRAP_ROLE -> List.of(BOOTSTRAP_READ, BOOTSTRAP_CREATE_FIRST_ADMIN);
             default -> List.of();
         };
     }

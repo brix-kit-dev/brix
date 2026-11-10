@@ -78,6 +78,15 @@
             <version>${project.version}</version>
         </dependency>
         <!--
+        The stable platform role and permission IDs (super-admin §4): platform-auth's contract only, never its
+        implementation (standard-link plan queue item 4, D116).
+        -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-auth-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!--
         PlatformAdminEndpointAuthorizationTest checks the admin endpoints against platform-auth's default role
         permissions. platform-admin's own code does not use platform-auth; it used to arrive here through
         platform-identity, which no longer depends on it.

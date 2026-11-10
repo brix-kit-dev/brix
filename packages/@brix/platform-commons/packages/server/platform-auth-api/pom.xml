@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    Platform auth, plugin-api artifact (root BRX-RS-MANIFEST-005/006): the stable platform role and
+    permission IDs, the versioned contract of super-admin 4.0.1 §4 (standard-link plan queue item 4,
+    D116). platform-admin depends on it to name them: an operational module may depend on a contract
+    but never on platform-auth's implementation (root layerBoundaries.platformOperational). No
+    implementation and no dependency.
+    -->
+    <parent>
+        <groupId>io.brix.platform</groupId>
+        <artifactId>platform-commons</artifactId>
+        <version>3.2.0</version>
+        <relativePath>../../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>platform-auth-api</artifactId>
+    <name>platform-auth-api</name>
+    <description>Platform auth: the stable platform role and permission IDs</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

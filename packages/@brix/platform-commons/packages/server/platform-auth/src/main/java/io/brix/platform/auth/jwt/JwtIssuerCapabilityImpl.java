@@ -40,7 +40,7 @@ import org.springframework.core.io.ResourceLoader;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import io.brix.platform.auth.RoleCode;
+import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.exception.JwtConfigurationException;
 import io.runtime.sdk.capability.JwtIssuerCapability;
 
@@ -121,7 +121,10 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
     private static final String ROLE_SUBJECT = "subject";
     private static final String ROLE_PLATFORM_ADMIN = "platform-admin";
     private static final String ROLE_BOOTSTRAP = "bootstrap";
-    /** Scope of a bootstrap setup token; its role claims carry {@link RoleCode#BOOTSTRAP}, the same value. */
+    /**
+     * Scope of a bootstrap setup token; its role claims carry {@link PlatformPermissions#BOOTSTRAP_ROLE}, the same
+     * value.
+     */
     private static final String SCOPE_BOOTSTRAP = "BOOTSTRAP";
 
     private static final List<String> IDENTITY_TOKEN_ACTIONS =
@@ -317,10 +320,10 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         claims.put(CLAIM_ROLE, ROLE_BOOTSTRAP);
         claims.put(CLAIM_SCOPE, SCOPE_BOOTSTRAP);
         claims.put("admin_id", String.valueOf(request.bootstrapAdminId()));
-        claims.put("admin_role", RoleCode.BOOTSTRAP);
-        claims.put(CLAIM_PLATFORM_ROLE, RoleCode.BOOTSTRAP);
+        claims.put("admin_role", PlatformPermissions.BOOTSTRAP_ROLE);
+        claims.put(CLAIM_PLATFORM_ROLE, PlatformPermissions.BOOTSTRAP_ROLE);
         claims.put(CLAIM_MFA, "NONE");
-        claims.put(CLAIM_ROLES, List.of(RoleCode.BOOTSTRAP));
+        claims.put(CLAIM_ROLES, List.of(PlatformPermissions.BOOTSTRAP_ROLE));
         claims.put(CLAIM_PERMISSIONS,
                 request.permissions() != null && !request.permissions().isEmpty()
                         ? request.permissions()

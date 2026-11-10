@@ -51,6 +51,12 @@
             <artifactId>runtime-sdk-api</artifactId>
         </dependency>
 
+        <!-- The stable platform role and permission IDs: this plugin's api artifact (super-admin §4) -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-auth-api</artifactId>
+        </dependency>
+
         <!-- Spring Security Crypto (for BCryptPasswordEncoder) -->
         <dependency>
             <groupId>org.springframework.security</groupId>

@@ -21,6 +21,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import io.brix.platform.auth.api.RoleCode;
+
 /**
  * Request DTO for creating a new platform administrator account.
  *
@@ -55,8 +57,8 @@ public record CreatePlatformAdminRequest(
 
         @NotNull(message = "role must not be null")
         @Pattern(
-                regexp = "PLATFORM_SUPER_ADMIN",
-                message = "role must be PLATFORM_SUPER_ADMIN"
+                regexp = RoleCode.PLATFORM_SUPER_ADMIN,
+                message = "role must be " + RoleCode.PLATFORM_SUPER_ADMIN
         )
         String role,
 

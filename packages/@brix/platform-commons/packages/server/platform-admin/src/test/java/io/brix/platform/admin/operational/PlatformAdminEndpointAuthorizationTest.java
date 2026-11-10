@@ -21,7 +21,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.brix.platform.auth.PlatformPermissions;
-import io.brix.platform.auth.RoleCode;
+import io.brix.platform.auth.api.PermissionCode;
+import io.brix.platform.auth.api.RoleCode;
 import io.runtime.orchestrator.endpoint.DefaultPluginEndpointDispatcher;
 import io.runtime.orchestrator.endpoint.EndpointAccessDeniedException;
 import io.runtime.orchestrator.endpoint.EndpointAccessPolicy;
@@ -38,16 +39,17 @@ import io.runtime.sdk.plugin.EndpointInvocation;
  */
 class PlatformAdminEndpointAuthorizationTest {
 
+    /** Each endpoint's permission. The license quota's is outside the super-admin 4.0.1 catalog (queue item 18). */
     private static final Map<String, String> CATALOG_PERMISSIONS = Map.of(
-        "platform.admins.list.v1", "platform:admin:read",
-        "platform.tenants.list.v1", "platform:tenant:read",
-        "platform.license.quota.v1", "platform:license:read",
-        "platform.tenants.create.v1", "platform:tenant:create",
-        "platform.tenants.first-owner-invitations.create.v1", "platform:tenant:first-owner-invite",
-        "platform.tenants.first-owner-invitations.current.v1", "platform:tenant:first-owner-invite",
-        "platform.tenants.first-owner-invitations.resend.v1", "platform:tenant:first-owner-invite",
-        "platform.tenants.first-owner-invitations.revoke.v1", "platform:tenant:first-owner-invite",
-        "platform.audit-logs.list.v1", "platform:audit:read");
+        "platform.admins.list.v1", PermissionCode.PLATFORM_ADMIN_READ,
+        "platform.tenants.list.v1", PermissionCode.PLATFORM_TENANT_READ,
+        "platform.license.quota.v1", PlatformPermissions.LICENSE_READ,
+        "platform.tenants.create.v1", PermissionCode.PLATFORM_TENANT_CREATE,
+        "platform.tenants.first-owner-invitations.create.v1", PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
+        "platform.tenants.first-owner-invitations.current.v1", PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
+        "platform.tenants.first-owner-invitations.resend.v1", PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
+        "platform.tenants.first-owner-invitations.revoke.v1", PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
+        "platform.audit-logs.list.v1", PermissionCode.PLATFORM_AUDIT_READ);
 
     private static final List<String> SUPER_ADMIN_PERMISSIONS =
         PlatformPermissions.defaultPermissionsFor(RoleCode.PLATFORM_SUPER_ADMIN);

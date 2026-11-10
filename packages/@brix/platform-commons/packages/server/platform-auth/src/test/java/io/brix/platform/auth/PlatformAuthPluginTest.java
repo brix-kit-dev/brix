@@ -55,6 +55,23 @@ class PlatformAuthPluginTest {
         assertTrue(manifest.contains("storageId: platform_auth"), "the plugin still owns its schema");
     }
 
+    /** The stable role and permission IDs ship in the plugin's api artifact (super-admin §4, queue item 4). */
+    @Test
+    void manifestListsTheApiArtifactBeforeTheServer() throws IOException {
+        String manifest = activeManifest();
+
+        assertTrue(manifest.contains("""
+              - groupId: io.brix.platform
+                artifactId: platform-auth-api
+                version: 3.2.0
+                moduleKind: plugin-api
+              - groupId: io.brix.platform
+                artifactId: platform-auth
+                version: 3.2.0
+                moduleKind: plugin-server
+            """), manifest);
+    }
+
     @Test
     void pluginBindsNoRuntimeEntryAndStartsWithoutCapabilities() {
         PlatformAuthPlugin plugin = new PlatformAuthPlugin();

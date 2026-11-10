@@ -138,6 +138,11 @@ All notable changes to Brix Framework are documented here.
 - **Platform code authorizes on permissions, not role names.** `NoRoleNameAuthorizationRule` refuses
   `@RequireRole` and calls to `hasRole` or `hasAnyRole` outside the classes that implement them. The commons profile
   and platform-admin's architecture test run it (super-admin 4.0.1 permission model).
+- **Platform role and permission IDs in `platform-auth-api`** (super-admin 4.0.1 §4). The new artifact holds
+  `io.brix.platform.auth.api.RoleCode` (`PLATFORM_SUPER_ADMIN`) and `PermissionCode` (the catalog's ten `platform:*`
+  IDs), with no implementation and no dependency. platform-admin names them from there: an operational module may
+  depend on a contract, never on platform-auth itself. A test pins every ID: once published, an ID never changes and
+  is never reused.
 
 ### 🔄 Changed
 
@@ -239,6 +244,10 @@ All notable changes to Brix Framework are documented here.
   `NoCyclicDependencyRule.sdkApiNotDependOnImpl()` and `SdkProfile.apiNotDependOnImpl`. The runtime's
   implementation, `io.runtime.orchestrator`, stays refused. `OnlyRuntimeSdkApiRule.rule()` is now
   `noRuntimeOrchestrator()`.
+- `io.brix.platform.auth.RoleCode`: use `io.brix.platform.auth.api.RoleCode`. Bootstrap is no platform role; the
+  bootstrap setup token keeps `BOOTSTRAP` as its role claim, now `PlatformPermissions.BOOTSTRAP_ROLE`.
+- The ten catalog constants of `PlatformPermissions` (`ADMIN_READ`, `TENANT_READ` and the others): use
+  `PermissionCode`. Tokens carry the same codes as before.
 
 ### 🐛 Fixed
 
