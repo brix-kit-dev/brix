@@ -147,6 +147,16 @@ All notable changes to Brix Framework are documented here.
   IDs), with no implementation and no dependency. platform-admin names them from there: an operational module may
   depend on a contract, never on platform-auth itself. A test pins every ID: once published, an ID never changes and
   is never reused.
+- **An internal contract publishes through its plugin's own outbox** (root BRX-RS-HOST-022, DATA-008, MESSAGE-022).
+  A contract factory that asks `requireOwnerCapability(EventBusCapability.class)` gets the event bus the plugin's
+  `PluginContext` gives its handlers, when the manifest declares `EventBusCapability`: CRITICAL and STANDARD events go
+  to the plugin's `data.outbox` in the contract call's unit of work and commit or roll back with its writes;
+  BEST_EFFORT events leave after the commit. The request used to fail with
+  `internal_contract.owner_capability_undeclared`, so a contract could announce nothing it changed. A plugin that does
+  not declare the bus is refused as before, a host without owner persistence answers
+  `internal_contract.owner_event_bus_missing`, and the host's direct bus is never handed to a contract. An operational
+  module's contracts get no bus. See
+  [Publish from an internal contract](../guides/events-and-commands.md#5-publish-from-an-internal-contract).
 
 ### 🔄 Changed
 

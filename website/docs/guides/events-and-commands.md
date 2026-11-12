@@ -270,6 +270,29 @@ The runtime refuses a publish, with an exception, in these cases:
 - a TENANT event names a tenant your unit of work does not reach;
 - the event has no `payload()`.
 
+### 5. Publish from an internal contract
+
+An internal contract that changes your data says so in the same way. Its factory asks for the bus with
+`requireOwnerCapability` and gets the one your handlers get:
+
+```java title="Your InternalContractProvider (excerpt)"
+bootstrap.bind(OrderAdministration.CONTRACT_ID, OrderAdministration.class, context -> new OrderCorrections(
+    context.requireOwnerCapability(PersistenceCapability.class),
+    context.requireOwnerCapability(EventBusCapability.class)));
+```
+
+The runtime runs each call of the contract in your unit of work, in the tenant the call names, so everything above
+holds: a CRITICAL or STANDARD event goes into your outbox and commits or rolls back with the call's writes, the relay
+delivers it after the commit, and a TENANT event names the tenant the call names. The contract opens no unit of work
+of its own.
+
+- Your manifest declares `EventBusCapability` under `capabilities`, as for your handlers. Without it the factory's
+  request fails with `internal_contract.owner_capability_undeclared`, and the host does not start.
+- A host without owner persistence gives your plugin no bus of its own, and the request fails with
+  `internal_contract.owner_event_bus_missing`. The host's direct bus is never handed to a contract: it takes no part
+  in your transaction.
+- A platform operational module's contracts get no bus: the module owns no data.
+
 ## Handling an event
 
 ### 1. Declare the subscription

@@ -58,6 +58,8 @@ final class TenantTestEnvironment implements AutoCloseable {
     static final String OWNER = TenantAccessPolicy.OWNER;
 
     final String database;
+    /** The database the owner's unit of work runs on, for the adapter's own JDBC access such as the outbox's. */
+    final DataSource dataSource;
     final EntityManagerFactory entityManagerFactory;
     final EntityManager sharedEntityManager;
     final TransactionTemplate transactions;
@@ -81,6 +83,7 @@ final class TenantTestEnvironment implements AutoCloseable {
             dataSource = h2;
             database = "h2";
         }
+        this.dataSource = dataSource;
         List<Class<?>> types = List.of(P0Folder.class, P0Doc.class, P0Note.class, P0Invite.class, P0Member.class,
             P0Tenant.class, P0Global.class, P0Projection.class);
         LocalContainerEntityManagerFactoryBean factory = new LocalContainerEntityManagerFactoryBean();

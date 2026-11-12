@@ -802,6 +802,98 @@ class PluginRuntimeManagerTest {
     }
 
     @Test
+    void aPluginThatDeclaresTheEventBusGetsItsOwnInItsContracts() {
+        // D125: a contract publishes through the bus the plugin's handlers get, not the Host's.
+        List<EventBusCapability> received = new ArrayList<>();
+        EventBusCapability ownerBus = new NoEventBus();
+        PluginRuntimeManager manager = contractProvider(true, ownerBus, received);
+
+        manager.prepare();
+        binderOf(manager).activateAndFreeze();
+
+        assertSame(ownerBus, io.runtime.orchestrator.query.QuerySideEffects.unwrap(received.get(0)));
+    }
+
+    @Test
+    void aPluginThatDoesNotDeclareTheEventBusGetsNoneInItsContracts() {
+        List<EventBusCapability> received = new ArrayList<>();
+        PluginRuntimeManager manager = contractProvider(false, new NoEventBus(), received);
+
+        manager.prepare();
+        io.runtime.orchestrator.operational.OperationalRuntimeException refused = assertThrows(
+            io.runtime.orchestrator.operational.OperationalRuntimeException.class, binderOf(manager)::activateAndFreeze);
+
+        assertEquals("internal_contract.owner_capability_undeclared",
+            ((io.runtime.orchestrator.operational.OperationalRuntimeException) refused.getCause()).diagnosticCode());
+        assertEquals(List.of(), received);
+    }
+
+    private final java.util.Map<PluginRuntimeManager, InternalContractBinder> binders = new java.util.HashMap<>();
+
+    private InternalContractBinder binderOf(PluginRuntimeManager manager) {
+        return binders.get(manager);
+    }
+
+    /** A plugin that provides one contract whose factory asks for the event bus; the Host has a bus of its own too. */
+    private PluginRuntimeManager contractProvider(boolean declaresEventBus, EventBusCapability ownerBus,
+            List<EventBusCapability> received) {
+        RecordingPlugin plugin = new RecordingPlugin();
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        registry.register(EventBusCapability.class, new NoEventBus());
+        io.runtime.orchestrator.persistence.OwnerPersistenceProvider persistence =
+            new io.runtime.orchestrator.persistence.OwnerPersistenceProvider() {
+                @Override
+                public Optional<io.runtime.sdk.capability.PersistenceCapability> forOwner(String ownerModuleId) {
+                    return Optional.empty();
+                }
+
+                @Override
+                public Optional<EventBusCapability> eventBusFor(String ownerModuleId) {
+                    return "plugin-a".equals(ownerModuleId) ? Optional.of(ownerBus) : Optional.empty();
+                }
+            };
+        InternalContractBinder binder =
+            new InternalContractBinder(registry, registry, getClass().getClassLoader(), persistence);
+        PluginRuntimeDescriptor.Builder descriptor = PluginRuntimeDescriptor.builder("plugin-a")
+            .version("3.2.0")
+            .providedInternalContract("test.contract", Runnable.class.getName(), "1.0.0", "test.provider", "plugin-a");
+        if (declaresEventBus) {
+            descriptor.requiredCapabilities(List.of(EventBusCapability.class.getName()));
+        }
+        InternalContractProvider provider = bootstrap -> bootstrap.bind("test.contract", Runnable.class, context -> {
+            received.add(context.requireOwnerCapability(EventBusCapability.class));
+            return () -> { };
+        });
+        PluginRuntimeManager manager = new PluginRuntimeManager(
+            () -> List.of(plugin),
+            candidate -> Optional.of(descriptor.build()),
+            registry,
+            List.of("plugin-a"),
+            PluginEndpointDispatcher.none(),
+            ignored -> {
+            },
+            () -> List.of(provider),
+            binder,
+            persistence);
+        binders.put(manager, binder);
+        return manager;
+    }
+
+    /** An event bus that takes nothing. */
+    private static final class NoEventBus implements EventBusCapability {
+
+        @Override
+        public void publish(io.runtime.sdk.event.DomainEvent event) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void publishIntegration(io.runtime.sdk.event.IntegrationEvent event) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    @Test
     void aTaskWithAPolicyTheRuntimeDoesNotKnowStopsThePluginBeforeItStarts() {
         // Root BRX-RS-MANIFEST-026; standard-link plan L6.2: every task policy resolves at startup.
         RecordingPlugin plugin = new RecordingPlugin();

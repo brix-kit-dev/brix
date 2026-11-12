@@ -478,6 +478,73 @@ class OperationalModuleRuntimeManagerTest {
         assertEquals(PluginLifecycleState.RESOLVED, states.get(0).lifecycleState());
     }
 
+    @Test
+    void anOperationalModulesContractGetsNoEventBus() {
+        // D125: an operational module owns no data, so its contracts have no outbox to publish to.
+        PlatformOperationalModule module = operationalModuleWithoutBindings();
+        var descriptor = new OperationalModuleDescriptor(
+            new OperationalModuleIdentity("provider-owner-capability", "3.2.0", "runtime-tests"),
+            ">=3.2.0 <4.0.0",
+            List.of(new OperationalModuleDescriptor.ProvidedInternalContract(
+                "test.contract",
+                Runnable.class.getName(),
+                "1.0.0",
+                "test.provider",
+                "runtime-tests")),
+            List.of(),
+            java.util.Set.of(),
+            java.util.Map.of(),
+            java.util.Map.of());
+        var discovered = new ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule(
+            module,
+            descriptor,
+            module.getClass().getProtectionDomain().getCodeSource().getLocation());
+        InternalContractProvider provider =
+            bootstrap -> bootstrap.bind(
+                "test.contract",
+                Runnable.class,
+                context -> {
+                    context.requireOwnerCapability(io.runtime.sdk.capability.EventBusCapability.class);
+                    return () -> { };
+                });
+        io.runtime.sdk.capability.EventBusCapability bus = new io.runtime.sdk.capability.EventBusCapability() {
+            @Override
+            public void publish(io.runtime.sdk.event.DomainEvent event) {
+            }
+
+            @Override
+            public void publishIntegration(io.runtime.sdk.event.IntegrationEvent event) {
+            }
+        };
+        DefaultCapabilityRegistry registry = new DefaultCapabilityRegistry();
+        registry.register(io.runtime.sdk.capability.EventBusCapability.class, bus);
+        io.runtime.orchestrator.persistence.OwnerPersistenceProvider persistence =
+            new io.runtime.orchestrator.persistence.OwnerPersistenceProvider() {
+                @Override
+                public java.util.Optional<io.runtime.sdk.capability.PersistenceCapability> forOwner(String owner) {
+                    return java.util.Optional.empty();
+                }
+
+                @Override
+                public java.util.Optional<io.runtime.sdk.capability.EventBusCapability> eventBusFor(String owner) {
+                    return java.util.Optional.of(bus);
+                }
+            };
+        OperationalModuleRuntimeManager manager = new OperationalModuleRuntimeManager(
+            () -> List.of(discovered),
+            () -> List.of(provider),
+            new InternalContractBinder(registry, registry, getClass().getClassLoader(), persistence),
+            new HostRuntimeOperationalView(List.of("provider-owner-capability")),
+            List.of("provider-owner-capability"),
+            "3.2.0");
+
+        OperationalRuntimeException refused = assertThrows(OperationalRuntimeException.class, manager::prepare);
+
+        assertEquals("internal_contract.factory_failed", refused.diagnosticCode());
+        assertEquals("internal_contract.owner_capability_undeclared",
+            ((OperationalRuntimeException) refused.getCause()).diagnosticCode());
+    }
+
     private OperationalModuleRuntimeManager manager(
             java.util.function.Supplier<List<ServiceLoaderOperationalModuleDiscovery.DiscoveredOperationalModule>>
                 discovery,

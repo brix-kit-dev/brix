@@ -20,6 +20,8 @@ import io.runtime.orchestrator.operational.OperationalRuntimeException;
 import io.runtime.orchestrator.persistence.OwnerBoundaryProxies;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
+import io.runtime.orchestrator.query.QuerySideEffects;
+import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.registry.CapabilityRegistry;
 import io.runtime.sdk.internalcontract.InternalContractProvider;
@@ -424,7 +426,24 @@ public final class InternalContractBinder {
                         "internal_contract.owner_persistence_missing",
                         "Owner has no persistence unit: " + ownerIdentity.moduleId())));
             }
+            if (capabilityType == EventBusCapability.class) {
+                return capabilityType.cast(ownerEventBus());
+            }
             return ownerCapabilities.getRequired(capabilityType);
+        }
+
+        /**
+         * The owner's own event bus, the one its {@code PluginContext} gives its handlers (standard-link plan D125;
+         * root BRX-RS-HOST-022, DATA-008, MESSAGE-022): CRITICAL and STANDARD events go to the owner's
+         * {@code data.outbox} in the contract call's unit of work, so they commit or roll back with its writes. Never
+         * the Host's direct bus, which takes no part in that transaction.
+         */
+        private EventBusCapability ownerEventBus() {
+            return QuerySideEffects.guard(EventBusCapability.class, ownerPersistence.eventBusFor(ownerIdentity.moduleId())
+                .orElseThrow(() -> new OperationalRuntimeException(
+                    "internal_contract.owner_event_bus_missing",
+                    "Owner has no event bus of its own (data.outbox and EventBusCapability on a host with owner "
+                        + "persistence): " + ownerIdentity.moduleId())));
         }
     }
 

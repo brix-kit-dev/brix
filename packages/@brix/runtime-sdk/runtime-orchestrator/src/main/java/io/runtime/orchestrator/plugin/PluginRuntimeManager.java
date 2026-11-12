@@ -1439,6 +1439,11 @@ public final class PluginRuntimeManager {
                 || plugin.descriptor.isOptionalCapability(PersistenceCapability.class, capabilityRegistry)) {
             types.add(PersistenceCapability.class);
         }
+        // A contract publishes what it changed through the plugin's own event bus, as its handlers do (D125).
+        if (plugin.descriptor.isRequiredCapability(EventBusCapability.class, capabilityRegistry)
+                || plugin.descriptor.isOptionalCapability(EventBusCapability.class, capabilityRegistry)) {
+            types.add(EventBusCapability.class);
+        }
         return Set.copyOf(types);
     }
 

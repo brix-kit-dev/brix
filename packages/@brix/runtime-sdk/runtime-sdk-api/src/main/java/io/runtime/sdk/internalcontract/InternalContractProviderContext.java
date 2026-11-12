@@ -30,6 +30,11 @@ public interface InternalContractProviderContext {
     /**
      * Returns an owner-declared capability.
      *
+     * <p>A plugin whose manifest declares {@code EventBusCapability} gets the same event bus its
+     * {@code PluginContext} gives its handlers: CRITICAL and STANDARD events go to the plugin's own
+     * {@code data.outbox} in the contract call's unit of work, so they commit or roll back with the call's
+     * writes, and BEST_EFFORT events leave after the commit.</p>
+     *
      * @param capabilityType capability contract type
      * @param <C> capability type
      * @return owner-scoped capability
