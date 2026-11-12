@@ -263,6 +263,16 @@ All notable changes to Brix Framework are documented here.
 
 ### 🐛 Fixed
 
+- **A typed endpoint reads the numbers the client wrote.** The runtime read a request body with the host's JSON
+  mapper, which rounds a decimal to the nearest `double`: an amount of `12345678901234567.89` reached the handler as
+  `12345678901234568`, an `integer` property took `2.0000000000000001` for 2, and two requests that differed past the
+  17th digit had one idempotency fingerprint, so the second got the first one's answer. A typed endpoint now reads the
+  body's text with every decimal digit (root BRX-RS-MANIFEST-022): its schema check, its fingerprint and its `B` see
+  the number sent, and a repeated call gets every digit of the first answer. A number whose exponent would make it
+  longer, written out, than the host's parser takes one (1000 digits by default) is refused with
+  `endpoint.invalid_request`, rule `type`, before anything works on it. A handler of the old shape still gets the body
+  as the host's mapper reads it. A host that provides its own `PluginEndpointDispatcher` receives the exact body
+  through a new `invoke` overload, whose default passes the call on as before.
 - **An endpoint handler that answers after its deadline no longer commits.** A handler that did its work synchronously
   and returned after the deadline was committed and answered with success. The runtime now checks the deadline once
   more before the commit: the work rolls back, the cancellation signal is set and the call answers 504

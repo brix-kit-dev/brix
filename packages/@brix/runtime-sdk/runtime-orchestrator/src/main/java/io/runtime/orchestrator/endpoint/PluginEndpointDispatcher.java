@@ -19,6 +19,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import tools.jackson.databind.JsonNode;
 
 import io.runtime.sdk.plugin.EndpointInvocation;
 
@@ -89,6 +92,35 @@ public interface PluginEndpointDispatcher {
             Map<String, List<String>> headers,
             Consumer<String> traceIds) {
         return invoke(method, path, body, queryParameters, headers);
+    }
+
+    /**
+     * Invokes a published endpoint whose JSON body the caller also read with every decimal digit (root
+     * BRX-RS-MANIFEST-022; standard-link plan queue item 7, D123). A typed handler's request is built from
+     * {@code exactBody}, so its schema check, its idempotency fingerprint and its {@code B} see the numbers the client
+     * wrote; a handler of the old shape gets {@code body}, as it always has. A dispatcher that types no requests ignores
+     * {@code exactBody}.
+     *
+     * @param method request method
+     * @param path request path as the client sent it
+     * @param body request body as the host's JSON mapper read it
+     * @param exactBody reads the same body into a tree that keeps every decimal digit; {@code null} when the request has
+     *     no JSON body
+     * @param queryParameters query parameters
+     * @param headers request headers
+     * @param traceIds receives the call's trace id once the route is found
+     * @return handler result
+     * @since 3.3.0
+     */
+    default Object invoke(
+            String method,
+            String path,
+            Object body,
+            Supplier<JsonNode> exactBody,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Consumer<String> traceIds) {
+        return invoke(method, path, body, queryParameters, headers, traceIds);
     }
 
     /**

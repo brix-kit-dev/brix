@@ -222,6 +222,21 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             Map<String, List<String>> queryParameters,
             Map<String, List<String>> headers,
             Consumer<String> traceIds) {
+        return invoke(method, path, body, null, queryParameters, headers, traceIds);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object invoke(
+            String method,
+            String path,
+            Object body,
+            Supplier<JsonNode> exactBody,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Consumer<String> traceIds) {
         Objects.requireNonNull(traceIds, "traceIds must not be null");
         String normalizedMethod = normalizeMethod(method);
         String requestPath = requirePath(path);
@@ -250,7 +265,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         boolean replayed = false;
         try {
             traceIds.accept(traceId);
-            Object result = dispatch(current, match, normalizedMethod, body,
+            Object result = dispatch(current, match, normalizedMethod, body, exactBody,
                 queryParameters != null ? queryParameters : Map.of(), normalizedHeaders, deadline, trace, traceId);
             status = result instanceof EndpointResponse response ? response.status() : 200;
             if (result instanceof EndpointReplay.Replayed again) {
@@ -287,15 +302,15 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
     }
 
     private Object dispatch(Snapshot current, RouteMatch match, String method, Object body,
-            Map<String, List<String>> queryParameters, Map<String, List<String>> headers, Instant deadline,
-            TraceContext trace, String traceId) {
+            Supplier<JsonNode> exactBody, Map<String, List<String>> queryParameters, Map<String, List<String>> headers,
+            Instant deadline, TraceContext trace, String traceId) {
         EndpointRoute route = match.published().route();
         // Root BRX-RS-MANIFEST-022: a typed request is normalized and checked against its schema before the
         // authentication, tenant and permission checks.
         Object request = body;
         JsonNode requestTree = null;
         if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
-            TypedEndpoints.Input input = typed.input(route, handler, method, body, queryParameters,
+            TypedEndpoints.Input input = typed.input(route, handler, method, body, exactBody, queryParameters,
                 match.pathVariables());
             request = input.value();
             requestTree = input.tree();

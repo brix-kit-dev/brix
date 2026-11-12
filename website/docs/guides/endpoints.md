@@ -113,9 +113,11 @@ Idempotency-Key: 6f1c2a3e-order-1
 
 - The first call takes the key in your unit of work, runs your handler, and keeps the status and the body with your
   writes. All of it commits together.
-- A later call with the same key and the same content gets that answer again, with the header
-  `Idempotent-Replayed: true`. Your handler does not run. The content is compared by a fingerprint of the request:
-  members in another order, or a field left out instead of sent as null, are the same content.
+- A later call with the same key and the same content gets that answer again, every number with the digits it had,
+  with the header `Idempotent-Replayed: true`. Your handler does not run. The content is compared by a fingerprint of
+  the request: members in another order, or a field left out instead of sent as null, are the same content. A number
+  counts by its value, to the last digit: `19.9` and `19.90` are the same, `12345678901234567.89` and
+  `12345678901234567.88` are not.
 - A call that fails keeps nothing, because everything rolls back. It can be tried again with the same key, and your
   handler runs again.
 - A key belongs to the endpoint, the tenant and the caller. Other callers can use the same key and never meet.
@@ -262,6 +264,11 @@ final class PlaceOrder implements TypedEndpointHandler<PlaceOrderRequest, Placed
   `ShowOrder` takes `FindOrderRequest(orderId)` for `GET /api/sample-orders/orders/{orderId}`.
 - Query parameters and path variables arrive typed as the request schema's properties say: integers, numbers,
   booleans and arrays of them. A query parameter whose schema property is an array may repeat.
+- Numbers arrive as the client wrote them. A decimal keeps every digit: `12345678901234567.89` reads into a
+  `BigDecimal` as it is, never rounded to a `double`. Take amounts as `BigDecimal`, or as whole minor units such as
+  cents. An `integer` property refuses `2.0000000000000001`, and `multipleOf` checks the digits sent. A number whose
+  exponent would make it longer, written out, than the host's parser takes one (1000 digits by default), such as
+  `1e5000`, breaks the rule `type`.
 - Name `B` in the `implements` clause. A lambda handler gets the request as a `JsonNode`.
 - The tenant and the caller are the ones the runtime verified: `tenantId()`, `actorId()`, `access()`. Never take them
   from the request.
@@ -305,7 +312,7 @@ The runtime's own answers:
 
 | Code | Status | When |
 |---|---|---|
-| `endpoint.invalid_request` | 400 | The request breaks its schema. The body lists `violations`, each a `path` and a `rule`, never a value. |
+| `endpoint.invalid_request` | 400 | The request breaks its schema, or has a number too long written out. The body lists `violations`, each a `path` and a `rule`, never a value. |
 | `endpoint.rejected` | 503 | The endpoint already runs as many calls as the host allows |
 | `endpoint.deadline_exceeded` | 504 | The handler did not answer before the deadline, or answered after it; its unit of work rolls back |
 | `endpoint.idempotency_key_required`, `endpoint.idempotency_in_progress`, `endpoint.idempotency_conflict` | 400, 409, 422 | See [Repeating a call](#repeating-a-call) |
@@ -369,7 +376,9 @@ The schema's `enum` lists the sort orders your query supports, so a caller canno
 ## The handlers written before 3.3.0
 
 `EndpointHandler<EndpointInvocation<Object>, R>` still works. Its body is the raw JSON, it may return `EndpointResponse`
-and throw `EndpointHandlingException`, and the runtime checks neither its request nor its response. It runs
+and throw `EndpointHandlingException`, and the runtime checks neither its request nor its response. Its numbers are as
+the host's JSON mapper reads them: a decimal is a `Double`, which keeps about 17 significant digits, so an endpoint
+that takes amounts is a `TypedEndpointHandler`. It runs
 synchronously, so the runtime cannot stop waiting for it; its transaction still ends at the deadline, and a handler that
 returns after it is rolled back and answered 504. In 4.0 `EndpointHandler` takes the shape of `TypedEndpointHandler`,
 which then becomes its deprecated alias. A handler written against `TypedEndpointHandler` does not change.

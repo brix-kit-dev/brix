@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectReader;
 
 import io.runtime.orchestrator.idempotency.IdempotencyScopes;
 import io.runtime.orchestrator.idempotency.RequestFingerprint;
@@ -60,10 +61,12 @@ final class EndpointReplay {
 
     private final Supplier<OwnerEndpointIdempotency> records;
     private final ObjectMapper json;
+    private final ObjectReader exact;
 
     EndpointReplay(Supplier<OwnerEndpointIdempotency> records, ObjectMapper json) {
         this.records = Objects.requireNonNull(records, "records must not be null");
         this.json = Objects.requireNonNull(json, "json must not be null");
+        this.exact = EndpointNumbers.exactReader(json);
     }
 
     /**
@@ -218,7 +221,8 @@ final class EndpointReplay {
         }
         log.info("event=endpoint.idempotency_replayed plugin={} endpoint={} trace_id={} first_trace_id={}",
             call.route().pluginId(), call.route().endpointId(), call.traceId(), held.traceId());
-        return new Replayed(held.status(), held.body() == null ? null : json.readTree(held.body()));
+        // Standard-link plan queue item 7, D123: every decimal digit of the first answer, not its nearest double.
+        return new Replayed(held.status(), held.body() == null ? null : exact.readTree(held.body()));
     }
 
     private void keep(Call call, OwnerEndpointIdempotency store, EndpointResponse answer) {

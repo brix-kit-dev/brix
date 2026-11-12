@@ -118,6 +118,22 @@ final class SampleInfrastructure {
             .header("Idempotency-Key", idempotencyKey).build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /**
+     * Sends a body as the text a client wrote, with its content type, as a platform operator with a key: numbers stay as
+     * written, which a map would turn into Java numbers first.
+     */
+    static HttpResponse<String> postTextAsOperator(int port, String path, String contentType, String text,
+            String idempotencyKey) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            .header("Content-Type", contentType)
+            .header(SampleHost.OPERATOR_HEADER, "9001")
+            .header("Idempotency-Key", idempotencyKey)
+            .timeout(Duration.ofSeconds(30))
+            .POST(HttpRequest.BodyPublishers.ofString(text))
+            .build();
+        return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
     /** Places an order under a key of its own: sample-orders' endpoint requires one (standard-link plan point 10a). */
     static HttpResponse<String> place(int port, Map<String, Object> order) throws Exception {
         return post(port, "/api/sample-orders/orders", order, UUID.randomUUID().toString());

@@ -36,6 +36,7 @@ import io.runtime.orchestrator.endpoint.EndpointMetrics;
 import io.runtime.orchestrator.endpoint.EndpointTracing;
 import io.runtime.orchestrator.endpoint.OwnerEndpointIdempotency;
 import io.runtime.orchestrator.endpoint.PluginEndpointDispatcher;
+import io.runtime.orchestrator.endpoint.EndpointJsonBodyAdvice;
 import io.runtime.orchestrator.endpoint.RuntimeShellEndpointController;
 import io.runtime.orchestrator.event.EventSubscriptionTransport;
 import io.runtime.orchestrator.external.ExternalHttpGateway;
@@ -459,6 +460,32 @@ public class RuntimeShellBootstrapAutoConfiguration {
                 PluginEndpointDispatcher dispatcher,
                 ObjectProvider<AuthCapability> authCapabilityProvider) {
             return new RuntimeShellEndpointController(dispatcher, authCapabilityProvider);
+        }
+    }
+
+    /**
+     * Keeps the JSON text of the endpoint bridge's requests, which typed endpoints read with every decimal digit
+     * (standard-link plan queue item 7, D123). Its own configuration, so that a Host without Spring MVC never loads it.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = {
+        "org.springframework.web.bind.annotation.RestController",
+        "org.springframework.web.servlet.mvc.method.annotation.RequestBodyAdvice"
+    })
+    static class RuntimeShellJsonBodyConfiguration {
+
+        /**
+         * Creates the advice that keeps a JSON request body's text for the endpoint bridge.
+         *
+         * @param json the host's mapper, which its JSON converter reads with
+         * @return the advice
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        EndpointJsonBodyAdvice runtimeShellEndpointJsonBodyAdvice(
+                ObjectProvider<tools.jackson.databind.ObjectMapper> json) {
+            return new EndpointJsonBodyAdvice(
+                json.getIfAvailable(() -> tools.jackson.databind.json.JsonMapper.builder().build()));
         }
     }
 

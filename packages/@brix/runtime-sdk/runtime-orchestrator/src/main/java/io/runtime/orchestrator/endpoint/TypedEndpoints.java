@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,9 +44,10 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  * <ul>
  *   <li>The request: the body of a {@code POST}, {@code PUT} or {@code PATCH}, or the query parameters of any other
  *   method, together with the path variables, as one JSON object. Parameters are typed by the request schema's
- *   properties: integers, numbers, booleans and arrays of them. The object is checked against the request schema,
- *   then read into the handler's {@code B}; a class names {@code B} in its {@code implements} clause, a lambda gets
- *   the JSON object.</li>
+ *   properties: integers, numbers, booleans and arrays of them. Its numbers are the ones the client wrote: a decimal
+ *   keeps every digit, and none is longer written out than the host's parser takes one (queue item 7, D123, D124).
+ *   The object is checked against the request schema, then read into the handler's {@code B}; a class names {@code B}
+ *   in its {@code implements} clause, a lambda gets the JSON object.</li>
  *   <li>The response: the handler's {@code R}, checked against the response schema, with the declared status; a
  *   {@code 204} has no body.</li>
  * </ul>
@@ -57,11 +59,13 @@ final class TypedEndpoints {
 
     private final ObjectMapper json;
     private final EndpointSchemas schemas;
+    private final int maxDigits;
     private final Map<Class<?>, Type> inputs = new ConcurrentHashMap<>();
 
     TypedEndpoints(ObjectMapper json, ClassLoader classes) {
         this.json = Objects.requireNonNull(json, "json must not be null");
         this.schemas = new EndpointSchemas(classes, json);
+        this.maxDigits = EndpointNumbers.maxDigits(json);
     }
 
     /**
@@ -80,18 +84,20 @@ final class TypedEndpoints {
      * @param handler its handler
      * @param method the request's method
      * @param body the request body, or {@code null}
+     * @param exactBody reads the body's JSON text with every decimal digit; {@code null} when the caller has no text
      * @param query the query parameters
      * @param pathVariables the path variables
      * @return the request
      * @throws EndpointRequestInvalidException when it breaks the request schema or does not read as {@code B}
      */
     Input input(EndpointRoute route, TypedEndpointHandler<?, ?> handler, String method, Object body,
-            Map<String, List<String>> query, Map<String, String> pathVariables) {
+            Supplier<JsonNode> exactBody, Map<String, List<String>> query, Map<String, String> pathVariables) {
         Optional<EndpointSchemas.Compiled> schema = schemas.schema(route.contract().requestSchemaRef());
         ObjectNode request = json.createObjectNode();
         if (BODY_METHODS.contains(method)) {
             if (body != null) {
-                JsonNode tree = json.valueToTree(body);
+                // Standard-link plan queue item 7, D123: the numbers the client wrote, not their nearest doubles.
+                JsonNode tree = exactBody != null ? exactBody.get() : json.valueToTree(body);
                 if (!tree.isObject()) {
                     throw invalid("$", "type");
                 }
@@ -101,6 +107,13 @@ final class TypedEndpoints {
             query.forEach((name, values) -> request.set(name, parameter(schema, name, values)));
         }
         pathVariables.forEach((name, value) -> request.set(name, parameter(schema, name, List.of(value))));
+        // D124: before anything works on its numbers, the schema check's multipleOf and the fingerprint among them.
+        List<String> tooLong = EndpointNumbers.tooLong(request, maxDigits);
+        if (!tooLong.isEmpty()) {
+            throw new EndpointRequestInvalidException(tooLong.stream()
+                .map(path -> Map.of("path", path, "rule", "type"))
+                .toList());
+        }
         if (schema.isPresent()) {
             List<EndpointSchemas.Violation> violations = EndpointSchemas.violations(schema.get(), request);
             if (!violations.isEmpty()) {

@@ -36,6 +36,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import tools.jackson.databind.JsonNode;
+
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
 import io.runtime.sdk.error.ErrorCategory;
@@ -104,7 +106,8 @@ public class RuntimeShellEndpointController {
     /**
      * Dispatches HTTP requests to manifest-published plugin endpoints.
      *
-     * @param body request body
+     * @param body request body as the host's JSON mapper read it; a JSON body comes with its text, which the
+     *     {@link EndpointJsonBodyAdvice} kept
      * @param request servlet request boundary object
      * @return protocol response
      */
@@ -119,11 +122,16 @@ public class RuntimeShellEndpointController {
             @RequestBody(required = false) Object body,
             HttpServletRequest request) {
         AtomicReference<String> traceId = new AtomicReference<>();
+        // Standard-link plan queue item 7, D123: a typed endpoint reads the text with every decimal digit; a handler of
+        // the old shape gets the body as before.
+        Object value = body instanceof EndpointJsonBodyAdvice.JsonBody json ? json.value() : body;
+        Supplier<JsonNode> exactBody = body instanceof EndpointJsonBodyAdvice.JsonBody json ? json.exact() : null;
         try {
             Object result = dispatcher.invoke(
                 request.getMethod(),
                 requestPath(request),
-                body,
+                value,
+                exactBody,
                 queryParameters(request),
                 trustedInvocationHeaders(headers(request)),
                 traceId::set);

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/test-endpoints/payment-request/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["amount"],
+  "properties": {
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "count": { "type": "integer" },
+    "rates": { "type": "array", "items": { "type": "number" } }
+  }
+}

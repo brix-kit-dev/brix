@@ -120,6 +120,17 @@
             <optional>true</optional>
         </dependency>
 
+        <!--
+          Spring MVC (optional dependency): the endpoint bridge's request body advice, which keeps the JSON text of a
+          request so that typed endpoints read its numbers with every decimal digit (standard-link plan queue item 7,
+          D123). A Host that serves the bridge runs Spring MVC already.
+        -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Spring transaction synchronization for durable command receipts. -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -184,6 +195,12 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- MockMvc: the endpoint bridge read by Spring MVC itself, its body advice included -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

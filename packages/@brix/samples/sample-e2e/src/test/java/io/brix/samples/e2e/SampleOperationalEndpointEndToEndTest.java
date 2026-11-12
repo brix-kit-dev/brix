@@ -146,6 +146,32 @@ class SampleOperationalEndpointEndToEndTest {
     }
 
     @Test
+    void aChangeIsReadWithTheDigitsTheOperatorWrote() throws Exception {
+        // Standard-link plan queue item 7, D123, D124.
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        String orderId = placedOrder();
+
+        // What the host cannot read as JSON is answered as it was.
+        assertEquals(400, adjustText(orderId, "application/json", "{\"delta\": ").statusCode());
+        assertEquals(415, adjustText(orderId, "text/plain", "{\"delta\": 1}").statusCode());
+        assertEquals(3, quantity(jdbc, orderId));
+        // A whole number written with a fraction of zero is the whole number, as it was.
+        HttpResponse<String> whole = adjustText(orderId, "application/json", "{\"delta\": 2.0}");
+        assertEquals(201, whole.statusCode(), whole.body());
+        assertEquals(5, quantity(jdbc, orderId));
+
+        // 2 as a double, so the change used to be made.
+        HttpResponse<String> notWhole = adjustText(orderId, "application/json", "{\"delta\": 2.0000000000000001}");
+        assertEquals(400, notWhole.statusCode(), notWhole.body());
+        assertViolation(notWhole, "/delta", "type");
+        // Eleven characters, a billion digits written out: refused before anything works on it.
+        HttpResponse<String> tooLong = adjustText(orderId, "application/json", "{\"delta\": 1e999999999}");
+        assertEquals(400, tooLong.statusCode(), tooLong.body());
+        assertViolation(tooLong, "/delta", "type");
+        assertEquals(5, quantity(jdbc, orderId));
+    }
+
+    @Test
     void aRepeatedChangeIsMadeOnce() throws Exception {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         String orderId = placedOrder();
@@ -274,6 +300,18 @@ class SampleOperationalEndpointEndToEndTest {
     private HttpResponse<String> adjust(long tenantId, String orderId, Map<String, Object> body, String key)
             throws Exception {
         return SampleInfrastructure.postAsOperator(port, path(tenantId, orderId), body, key);
+    }
+
+    private HttpResponse<String> adjustText(String orderId, String contentType, String text) throws Exception {
+        return SampleInfrastructure.postTextAsOperator(port, path(SampleHost.TENANT, orderId), contentType, text, key());
+    }
+
+    private static void assertViolation(HttpResponse<String> answer, String path, String rule) {
+        JsonNode body = JSON.readTree(answer.body());
+        assertEquals("endpoint.invalid_request", body.get("errorCode").asString(), answer.body());
+        assertEquals(1, body.get("violations").size(), answer.body());
+        assertEquals(path, body.get("violations").get(0).get("path").asString(), answer.body());
+        assertEquals(rule, body.get("violations").get(0).get("rule").asString(), answer.body());
     }
 
     private static String key() {
