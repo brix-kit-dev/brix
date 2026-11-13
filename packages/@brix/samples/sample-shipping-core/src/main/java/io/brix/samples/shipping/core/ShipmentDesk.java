@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import io.brix.samples.shipping.api.Shipment;
 import io.runtime.sdk.capability.IdGeneratorCapability;
@@ -18,9 +19,12 @@ import io.runtime.sdk.capability.PersistenceCapability;
 /**
  * Prepares and shows shipments, in the plugin's own data.
  *
- * <p>The subscription calls {@link #prepare(OrderPlaced)} inside the unit of work the runtime opened in the order's
- * tenant, so the shipment and the inbox receipt commit together, and a redelivered event never reaches it again. The
- * capabilities come from the plugin's handler factories; this class knows no transport and no infrastructure.</p>
+ * <p>The subscriptions call {@link #prepare(OrderPlaced)} and {@link #adjust(OrderQuantityAdjusted)} inside the unit
+ * of work the runtime opened in the order's tenant, so the shipment and the inbox receipt commit together, and a
+ * redelivered event never reaches them again. The two events are of different types, which are not ordered: a change
+ * can arrive before the placement. Each carries the order's state and version, so whichever arrives first prepares the
+ * shipment and a later one changes it only when it is newer. The capabilities come from the plugin's handler
+ * factories; this class knows no transport and no infrastructure.</p>
  *
  * @author Brix Platform Authors
  * @since 3.2.0
@@ -45,15 +49,43 @@ public final class ShipmentDesk {
     }
 
     /**
-     * Prepares the shipment of a placed order, joining the current unit of work.
+     * Prepares the shipment of a placed order, joining the current unit of work. When a change of the order arrived
+     * first, the shipment already shows a newer version, and the placement changes nothing.
      *
      * @param order the placed order
      * @return the shipment
      */
     public SampleShipment prepare(OrderPlaced order) {
         Objects.requireNonNull(order, "order must not be null");
-        return persistence.unitOfWork().required(() -> persistence.repository(SampleShipmentRepository.class)
-            .save(SampleShipment.prepare(Long.parseLong(ids.generate()), order, OffsetDateTime.now(clock))));
+        return follow(order.tenantId(), order.orderId(), order.quantity(), order.version(),
+            () -> SampleShipment.prepare(Long.parseLong(ids.generate()), order, OffsetDateTime.now(clock)));
+    }
+
+    /**
+     * Brings the shipment of an order to the quantity an operator set, joining the current unit of work. A change
+     * that arrives before the placement prepares the shipment; one the shipment already shows, or one a later change
+     * overtook, changes nothing.
+     *
+     * @param order the order as it is after the change
+     * @return the shipment
+     */
+    public SampleShipment adjust(OrderQuantityAdjusted order) {
+        Objects.requireNonNull(order, "order must not be null");
+        return follow(order.tenantId(), order.orderId(), order.quantity(), order.version(),
+            () -> SampleShipment.prepare(Long.parseLong(ids.generate()), order, OffsetDateTime.now(clock)));
+    }
+
+    private SampleShipment follow(long tenantId, String orderId, int quantity, long version,
+            Supplier<SampleShipment> first) {
+        return persistence.unitOfWork().required(() -> {
+            SampleShipmentRepository shipments = persistence.repository(SampleShipmentRepository.class);
+            Optional<SampleShipment> known = shipments.findByTenantIdAndOrderId(tenantId, orderId);
+            if (known.isEmpty()) {
+                return shipments.save(first.get());
+            }
+            SampleShipment shipment = known.get();
+            return shipment.follow(quantity, version) ? shipments.save(shipment) : shipment;
+        });
     }
 
     /**

@@ -21,6 +21,13 @@ public final class SampleOrderEvents {
     /** An order was placed: STANDARD, through the outbox; payload {@link SampleOrderPlacedPayload}. */
     public static final String PLACED = "SampleOrderPlaced";
 
+    /**
+     * An operator changed an order's quantity through sample-orders' internal contract: STANDARD, through the outbox,
+     * in the unit of work of the contract call (standard-link plan D125); payload
+     * {@link SampleOrderQuantityAdjustedPayload}.
+     */
+    public static final String QUANTITY_ADJUSTED = "SampleOrderQuantityAdjusted";
+
     /** Something happened to an order: BEST_EFFORT; payload {@link SampleOrderActivityPayload}. */
     public static final String ACTIVITY = "SampleOrderActivity";
 

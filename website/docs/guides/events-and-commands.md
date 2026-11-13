@@ -293,6 +293,13 @@ of its own.
   in your transaction.
 - A platform operational module's contracts get no bus: the module owns no data.
 
+The samples do this. When an operator changes an order's quantity through sample-orders' internal contract,
+`OrderCorrections` publishes `SampleOrderQuantityAdjusted`, and sample-shipping's shipment follows it. The event
+carries the order as it is after the change, with its version, not the difference. It can reach a subscriber before
+the order's `SampleOrderPlaced`, because events of different types are not ordered (see
+[What the platform guarantees](#what-the-platform-guarantees)). So sample-shipping lets either event prepare the
+shipment and keeps whichever state is newer.
+
 ## Handling an event
 
 ### 1. Declare the subscription

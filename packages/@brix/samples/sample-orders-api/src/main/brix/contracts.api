@@ -8,6 +8,7 @@ enum CancelOrder.Reason.DAMAGED
 enum CancelOrder.Reason.SHIPPING_REFUSED
 event SampleOrderActivity major 1 payload sample-orders/sample-order-activity
 event SampleOrderPlaced major 1 payload sample-orders/sample-order-placed
+event SampleOrderQuantityAdjusted major 1 payload sample-orders/sample-order-quantity-adjusted
 record CancelOrder schema sample-orders/cancel-order major 1
 schema sample-orders/cancel-order 1.0.0 sha256:690b557b25f3a4409f0999dc2e39d696ab8301582cf3b2e75b6598147eb965c8
 schema sample-orders/cancel-order 1.1.0 sha256:8edc4dfc0e1f42ad6df945b7dd94b393599e718b486ffe30a868a829a6a12fdb
@@ -17,3 +18,4 @@ schema sample-orders/place-order-request 1.0.0 sha256:b5fe24447c6c7e3b5dd88c5af6
 schema sample-orders/placed-order 1.0.0 sha256:08cd3df43339f14725ca07c27d225db83b27d940e3f0d450f36140fd0f5471dd
 schema sample-orders/sample-order-activity 1.0.0 sha256:704eeb3c2e2037fb54762a866752a5ef298553d01ba9fea377864d44c8cb1495
 schema sample-orders/sample-order-placed 1.0.0 sha256:f3fd9a6e6335b2a787196f76b73ef6fa041a3a7feb63eafd3808edc6a2f9665a
+schema sample-orders/sample-order-quantity-adjusted 1.0.0 sha256:3c275cf02563b87ddc35660fbe8cde15cac185d7dcce77eb682b61917a88a816

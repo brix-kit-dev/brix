@@ -44,7 +44,8 @@ import tools.jackson.databind.JsonNode;
  * BRX-RS-HOST-014, HOST-019, HOST-020, MANIFEST-018): the runtime holds it to its schemas and its declared status as it
  * does a plugin's endpoint, and the write happens in sample-orders' own unit of work, in the tenant the command names.
  * The key goes with that write, so a repeated call changes nothing, and a call that stopped after the owner committed
- * goes on from there.
+ * goes on from there. What the contract changes it announces through sample-orders' own outbox, with the write
+ * (standard-link plan queue item 8, D125), and sample-shipping's shipment follows it.
  */
 @SpringBootTest(classes = SampleHost.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
     "spring.jpa.open-in-view=false",
@@ -72,6 +73,7 @@ class SampleOperationalEndpointEndToEndTest {
     private static final SampleInfrastructure INFRASTRUCTURE = new SampleInfrastructure();
     private static final AtomicBoolean STARTED = new AtomicBoolean();
     private static final String ENTRY = "sample-operations/sample-operations.adjust-quantity.v1";
+    private static final String ADJUSTED = "SampleOrderQuantityAdjusted";
 
     @LocalServerPort
     private int port;
@@ -146,6 +148,42 @@ class SampleOperationalEndpointEndToEndTest {
     }
 
     @Test
+    void theShipmentFollowsTheChangeThroughTheOwnersOutbox() throws Exception {
+        // Standard-link plan queue item 8, D125.
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        String orderId = placedOrder();
+        SampleInfrastructure.await("sample-shipping prepared the shipment", () -> shipped(jdbc, orderId, 3, 1));
+
+        HttpResponse<String> adjusted = adjust(SampleHost.TENANT, orderId, Map.of("delta", 2), key());
+        assertEquals(201, adjusted.statusCode(), adjusted.body());
+
+        // The contract's event went into sample-orders' outbox with the change, in the order's tenant, and the relay
+        // published it.
+        assertEquals(1, adjustments(jdbc, orderId));
+        SampleInfrastructure.await("the relay published SampleOrderQuantityAdjusted", () -> "PUBLISHED".equals(
+            jdbc.queryForObject("SELECT status FROM sample_orders_outbox WHERE message_type = ? AND partition_key = ?",
+                String.class, ADJUSTED, "order." + orderId)));
+        Map<String, Object> outbox = jdbc.queryForMap("SELECT event_id, tenant_id, scope, reliability,"
+            + " producer_plugin_id FROM sample_orders_outbox WHERE message_type = ? AND partition_key = ?", ADJUSTED,
+            "order." + orderId);
+        assertEquals(SampleHost.TENANT, ((Number) outbox.get("tenant_id")).longValue());
+        assertEquals("TENANT", outbox.get("scope"));
+        assertEquals("STANDARD", outbox.get("reliability"));
+        assertEquals("sample-orders", outbox.get("producer_plugin_id"));
+
+        // sample-shipping's shipment followed it, and its inbox recorded the event.
+        SampleInfrastructure.await("the shipment follows the change", () -> shipped(jdbc, orderId, 5, 2));
+        assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_shipping_inbox WHERE handler_id = ? AND message_id = ?"
+            + " AND status = 'PROCESSED'", "sample-shipping.follow-quantity.v1", outbox.get("event_id")));
+
+        // A change the owner refuses rolls back with its unit of work, event and all; the shipment stays.
+        HttpResponse<String> tooMany = adjust(SampleHost.TENANT, orderId, Map.of("delta", 5000), key());
+        assertEquals(409, tooMany.statusCode(), tooMany.body());
+        assertEquals(1, adjustments(jdbc, orderId));
+        assertTrue(shipped(jdbc, orderId, 5, 2));
+    }
+
+    @Test
     void aChangeIsReadWithTheDigitsTheOperatorWrote() throws Exception {
         // Standard-link plan queue item 7, D123, D124.
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
@@ -169,6 +207,8 @@ class SampleOperationalEndpointEndToEndTest {
         assertEquals(400, tooLong.statusCode(), tooLong.body());
         assertViolation(tooLong, "/delta", "type");
         assertEquals(5, quantity(jdbc, orderId));
+        // Only the change that was made is announced.
+        assertEquals(1, adjustments(jdbc, orderId));
     }
 
     @Test
@@ -203,6 +243,8 @@ class SampleOperationalEndpointEndToEndTest {
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_endpoint_idempotency WHERE entry_id = ?"
             + " AND idempotency_key = ? AND result_status = 201 AND idempotency_scope = 'platform|9001'"
             + " AND write_result ->> 'quantity' = '5' AND result_body ->> 'orderId' = ?", ENTRY, key, orderId));
+        // The repeats announced nothing: the one event is the first call's.
+        assertEquals(1, adjustments(jdbc, orderId));
     }
 
     @Test
@@ -218,6 +260,9 @@ class SampleOperationalEndpointEndToEndTest {
         assertEquals(4, quantity(jdbc, orderId));
         assertEquals(1, count(jdbc, "SELECT COUNT(*) FROM sample_orders_endpoint_idempotency WHERE idempotency_key = ?"
             + " AND result_status IS NULL AND write_result ->> 'quantity' = '4'", key));
+        // Its event committed with it, so the shipment follows a change the operator has no answer for yet.
+        assertEquals(1, adjustments(jdbc, orderId));
+        SampleInfrastructure.await("the shipment follows the committed change", () -> shipped(jdbc, orderId, 4, 2));
 
         // Other content is still a conflict, before the handler.
         HttpResponse<String> other = adjust(SampleHost.TENANT, orderId, Map.of("delta", 2), key);
@@ -238,6 +283,8 @@ class SampleOperationalEndpointEndToEndTest {
         assertEquals("true", again.headers().firstValue("Idempotent-Replayed").orElse(null));
         assertEquals(JSON.readTree(resumed.body()), JSON.readTree(again.body()));
         assertEquals(handled + 1, SampleOperationsModule.HANDLED.get());
+        // The contract's kept result came back without the contract running again, so nothing was announced twice.
+        assertEquals(1, adjustments(jdbc, orderId));
     }
 
     @Test
@@ -249,11 +296,13 @@ class SampleOperationalEndpointEndToEndTest {
         HttpResponse<String> refused = adjust(SampleHost.TENANT, orderId, Map.of("delta", 5000), key);
         assertEquals(409, refused.statusCode(), refused.body());
         assertEquals(0, count(jdbc, "SELECT COUNT(*) FROM sample_orders_endpoint_idempotency WHERE idempotency_key = ?", key));
+        assertEquals(0, adjustments(jdbc, orderId));
 
         // Nothing holds the key, so other content under it is a new call.
         HttpResponse<String> changed = adjust(SampleHost.TENANT, orderId, Map.of("delta", 1), key);
         assertEquals(201, changed.statusCode(), changed.body());
         assertEquals(4, quantity(jdbc, orderId));
+        assertEquals(1, adjustments(jdbc, orderId));
     }
 
     @Test
@@ -328,5 +377,17 @@ class SampleOperationalEndpointEndToEndTest {
 
     private static int quantity(JdbcTemplate jdbc, String orderId) {
         return count(jdbc, "SELECT quantity FROM sample_orders_order WHERE id = ?", Long.valueOf(orderId));
+    }
+
+    /** How many {@code SampleOrderQuantityAdjusted} events sample-orders' outbox holds for the order. */
+    private static int adjustments(JdbcTemplate jdbc, String orderId) {
+        return count(jdbc, "SELECT COUNT(*) FROM sample_orders_outbox WHERE message_type = ? AND partition_key = ?",
+            ADJUSTED, "order." + orderId);
+    }
+
+    /** Whether sample-shipping's shipment of the order shows this quantity and this version of the order. */
+    private static boolean shipped(JdbcTemplate jdbc, String orderId, int quantity, long version) {
+        return count(jdbc, "SELECT COUNT(*) FROM sample_shipping_shipment WHERE order_id = ? AND quantity = ?"
+            + " AND order_version = ?", orderId, quantity, version) == 1;
     }
 }

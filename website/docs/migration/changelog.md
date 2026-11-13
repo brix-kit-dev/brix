@@ -157,6 +157,13 @@ All notable changes to Brix Framework are documented here.
   `internal_contract.owner_event_bus_missing`, and the host's direct bus is never handed to a contract. An operational
   module's contracts get no bus. See
   [Publish from an internal contract](../guides/events-and-commands.md#5-publish-from-an-internal-contract).
+- **The samples publish from an internal contract.** When an operator changes an order's quantity, sample-orders'
+  `OrderCorrections` publishes STANDARD `SampleOrderQuantityAdjusted` (schema
+  `sample-orders/sample-order-quantity-adjusted` 1.0.0, in the module's `contracts.api` listing) through the plugin's
+  outbox, with the change. sample-shipping subscribes with `sample-shipping.follow-quantity.v1`. The event carries the
+  order's state and version, so the shipment keeps whichever of it and `SampleOrderPlaced` is newer, and either event
+  prepares the shipment: events of different types are not ordered. A `SampleOrderPlaced` that arrives after a change
+  now leaves the shipment as it is, where it used to fail on the existing shipment.
 
 ### 🔄 Changed
 

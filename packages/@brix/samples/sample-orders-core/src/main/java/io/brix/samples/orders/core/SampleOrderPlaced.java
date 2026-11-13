@@ -12,8 +12,9 @@ import io.runtime.sdk.event.IntegrationEvent;
 
 /**
  * An order was placed. The manifest publishes it STANDARD: it goes into the plugin's outbox in the unit of work that
- * placed the order and reaches subscribers at least once after the order commits. Subscribers see the events of one
- * order in the order they were published, because the routing key is the order (Kafka design D31).
+ * placed the order and reaches subscribers at least once after the order commits. Subscribers see this type's events of
+ * one order in the order they were published, because the routing key is the order. Across event types there is no
+ * order, so the payload carries the order's version (Kafka design D31).
  *
  * @author Brix Platform Authors
  * @since 3.2.0

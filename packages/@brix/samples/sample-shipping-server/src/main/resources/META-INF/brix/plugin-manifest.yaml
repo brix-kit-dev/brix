@@ -1,6 +1,6 @@
-# The sample subscriber (Kafka design §14 K23): it subscribes to sample-orders' SampleOrderPlaced with a persistent
-# inbox, so each event changes its data once however often it arrives, and shows each order's shipment, over HTTP and
-# as a typed query other plugins call (query design §4.1). A shipment it refuses asks sample-orders to cancel the
+# The sample subscriber (Kafka design §14 K23): it subscribes to sample-orders' SampleOrderPlaced and
+# SampleOrderQuantityAdjusted with a persistent inbox, so each event changes its data once however often it arrives,
+# and shows each order's shipment, over HTTP and as a typed query other plugins call (query design §4.1). A shipment it refuses asks sample-orders to cancel the
 # order with sample-orders' typed command (standard-link plan L4.7).
 apiVersion: brix.io/v1
 kind: Plugin
@@ -151,6 +151,19 @@ events:
       # A TENANT event is handled in its own tenant.
       scopePolicyRef: sample-shipping-order-tenant
       # Only the plugin that declares SampleOrderPlaced may publish it.
+      publisherPolicyRef: sample-orders-owner
+      timeoutPolicyRef: event-standard
+      concurrencyPolicyRef: partition-serial
+      retryPolicyRef: event-standard
+      idempotencyPolicyRef: persistent-inbox
+    # An operator's change of an order, which sample-orders publishes from its internal contract (standard-link plan
+    # D125). Events of different types are not ordered, so it can arrive before the order's SampleOrderPlaced: the
+    # order's version decides which state is newer, and whichever event comes first prepares the shipment.
+    - subscriptionId: follow-quantity
+      eventType: SampleOrderQuantityAdjusted
+      schemaRange: ">=1.0.0 <2.0.0"
+      handlerId: sample-shipping.follow-quantity.v1
+      scopePolicyRef: sample-shipping-order-tenant
       publisherPolicyRef: sample-orders-owner
       timeoutPolicyRef: event-standard
       concurrencyPolicyRef: partition-serial

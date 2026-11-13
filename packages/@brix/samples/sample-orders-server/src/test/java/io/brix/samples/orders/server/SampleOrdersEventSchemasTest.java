@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import io.brix.samples.orders.api.SampleOrderActivityPayload;
 import io.brix.samples.orders.api.SampleOrderEvents;
 import io.brix.samples.orders.api.SampleOrderPlacedPayload;
+import io.brix.samples.orders.api.SampleOrderQuantityAdjustedPayload;
 import io.runtime.orchestrator.event.conformance.EventSchemaContract;
 
 /**
@@ -27,6 +28,7 @@ class SampleOrdersEventSchemasTest {
     void everyPublishedEventMatchesItsSchema() {
         EventSchemaContract.verify(SampleOrdersPlugin.class, Map.of(
             SampleOrderEvents.PLACED, new SampleOrderPlacedPayload(42L, "1001", "sku-1", 2, 1L),
+            SampleOrderEvents.QUANTITY_ADJUSTED, new SampleOrderQuantityAdjustedPayload(42L, "1001", "sku-1", 5, 2L),
             SampleOrderEvents.ACTIVITY, new SampleOrderActivityPayload(42L, "1001", "placed")));
     }
 
@@ -37,6 +39,8 @@ class SampleOrdersEventSchemasTest {
 
         assertThrows(AssertionError.class, () -> EventSchemaContract.verify(SampleOrdersPlugin.class, Map.of(
             SampleOrderEvents.PLACED, new Renamed(42L, "1001", "sku-1", 2, 1L),
+            // Every other event is right, so the rename alone fails it.
+            SampleOrderEvents.QUANTITY_ADJUSTED, new SampleOrderQuantityAdjustedPayload(42L, "1001", "sku-1", 5, 2L),
             SampleOrderEvents.ACTIVITY, new SampleOrderActivityPayload(42L, "1001", "placed"))));
     }
 }

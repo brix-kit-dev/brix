@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brix://schemas/sample-orders/sample-order-quantity-adjusted/1.0.0",
+  "title": "An operator changed an order's quantity",
+  "description": "Payload of SampleOrderQuantityAdjusted. sample-orders publishes it STANDARD, TENANT-scoped, through its outbox in the unit of work of the internal contract call that changed the order (standard-link plan D125). It carries the order as it is after the change, not the difference. version is the order's version: events of different types are not ordered, so a subscriber keeps whichever of this and SampleOrderPlaced is newer (Kafka design D31). A change follows the placement, so version is at least 2. x-brix-classification marks each field (root BRX-RS-SECURITY-008).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId", "orderId", "sku", "quantity", "version"],
+  "properties": {
+    "tenantId": { "type": "integer", "x-brix-classification": "internal-identifier" },
+    "orderId": { "type": "string", "maxLength": 32, "x-brix-classification": "internal-identifier" },
+    "sku": { "type": "string", "maxLength": 64, "x-brix-classification": "operational" },
+    "quantity": { "type": "integer", "minimum": 1, "maximum": 1000, "x-brix-classification": "operational" },
+    "version": { "type": "integer", "minimum": 2, "x-brix-classification": "operational" }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "eventType": "SampleOrderQuantityAdjusted",
+  "version": "1.0.0",
+  "payload": "brix://schemas/sample-orders/sample-order-quantity-adjusted/1.0.0",
+  "description": "an operator changed an order's quantity; STANDARD, in the order's tenant"
+}

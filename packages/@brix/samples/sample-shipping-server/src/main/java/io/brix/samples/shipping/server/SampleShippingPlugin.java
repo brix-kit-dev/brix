@@ -20,12 +20,13 @@ import io.runtime.sdk.plugin.PluginBootstrapContext;
 import io.runtime.sdk.plugin.PluginContext;
 
 /**
- * The sample subscriber (Kafka design §14 K23). Its manifest subscribes to {@code SampleOrderPlaced} with a persistent
- * inbox, offers a read endpoint and provides the typed query {@code sample-shipping.find-shipment} (query design §4.1);
- * its refuse endpoint sends sample-orders' typed command {@code sample-orders.cancel-order} (standard-link plan L4.7).
- * This class binds the four handlers under the manifest's handler ids. The plugin reads the event as its own
- * {@code OrderPlaced}, a view of the published schema; for the command it addresses sample-orders, it takes the
- * generated type from sample-orders' api artifact and nothing else of it.
+ * The sample subscriber (Kafka design §14 K23). Its manifest subscribes to {@code SampleOrderPlaced} and
+ * {@code SampleOrderQuantityAdjusted} with a persistent inbox, offers a read endpoint and provides the typed query
+ * {@code sample-shipping.find-shipment} (query design §4.1); its refuse endpoint sends sample-orders' typed command
+ * {@code sample-orders.cancel-order} (standard-link plan L4.7). This class binds the handlers under the manifest's
+ * handler ids. The plugin reads each event as its own type ({@code OrderPlaced}, {@code OrderQuantityAdjusted}), a view
+ * of the published schema; for the command it addresses sample-orders, it takes the generated type from sample-orders'
+ * api artifact and nothing else of it.
  *
  * @author Brix Platform Authors
  * @since 3.2.0
@@ -34,6 +35,9 @@ public final class SampleShippingPlugin implements BrixPlugin {
 
     /** The handler of the {@code SampleOrderPlaced} subscription, as the manifest names it. */
     public static final String PREPARE_SHIPMENT = "sample-shipping.prepare-shipment.v1";
+
+    /** The handler of the {@code SampleOrderQuantityAdjusted} subscription, as the manifest names it. */
+    public static final String FOLLOW_QUANTITY = "sample-shipping.follow-quantity.v1";
 
     /** The handler of {@code GET /api/sample-shipping/shipments/{orderId}}, as the manifest names it. */
     public static final String FIND_SHIPMENT = "sample-shipping.find-shipment.v1";
@@ -55,6 +59,7 @@ public final class SampleShippingPlugin implements BrixPlugin {
     @Override
     public void configure(PluginBootstrapContext bootstrap) {
         bootstrap.bindEventHandlerFactory(PREPARE_SHIPMENT, context -> new PrepareShipment(desk(context)));
+        bootstrap.bindEventHandlerFactory(FOLLOW_QUANTITY, context -> new FollowQuantity(desk(context)));
         bootstrap.bindEndpointHandlerFactory(FIND_SHIPMENT, context -> new FindShipment(desk(context)));
         bootstrap.bindQueryHandlerFactory(FIND_SHIPMENT_QUERY, context -> new FindShipmentQuery(desk(context)));
         // Refusing a shipment asks sample-orders to cancel the order with its typed command (plan L4.7).

@@ -125,6 +125,12 @@ events:
       schemaRef: brix://schemas/sample-orders/sample-order-placed/1.0.0
       version: 1.0.0
       reliability: STANDARD
+    # Through the outbox, in the unit of work of the internal contract call that changed the order (standard-link plan
+    # D125): delivered at least once after the change commits.
+    - eventType: SampleOrderQuantityAdjusted
+      schemaRef: brix://schemas/sample-orders/sample-order-quantity-adjusted/1.0.0
+      version: 1.0.0
+      reliability: STANDARD
     # Sent after the commit, not retried: for nothing that must happen.
     - eventType: SampleOrderActivity
       schemaRef: brix://schemas/sample-orders/sample-order-activity/1.0.0
