@@ -270,6 +270,28 @@ class OperationalModuleDescriptorTest {
         assertTrue(failure.getMessage().contains("not an internal contract the module requires"), failure.getMessage());
     }
 
+    @Test
+    void anOperationalDescriptorThatDeclaresQueriesDoesNotLoad(@TempDir Path directory) throws Exception {
+        // Root BRX-RS-HOST-014, HOST-024; RFC-011 §3 (multi-tenant T-3's gate): an operational module reads data only
+        // through the internal contracts it requires, so its descriptor declares no queries. The same descriptor loads
+        // without the block.
+        assertEquals("runtime-test-operational",
+            loadRequired(directory, "POST", PLATFORM_ACCESS, "").identity().moduleId());
+
+        // The extra text goes at column 0, so the block is a top-level member of the descriptor.
+        OperationalRuntimeException failure = assertThrows(OperationalRuntimeException.class,
+            () -> loadRequired(directory, "POST", PLATFORM_ACCESS, """
+                queries:
+                  consumes:
+                    - queryType: tenant.usage
+                      versionRange: ">=1.0.0 <2.0.0"
+                      required: true
+                """));
+
+        assertEquals("operational.descriptor.invalid", failure.diagnosticCode());
+        assertTrue(failure.getMessage().contains("queries"), failure.getMessage());
+    }
+
     private static final String PLATFORM_ACCESS = """
           authentication:
             mode: required
