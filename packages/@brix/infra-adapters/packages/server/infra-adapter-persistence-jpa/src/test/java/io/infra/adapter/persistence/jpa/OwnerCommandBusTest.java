@@ -170,14 +170,15 @@ class OwnerCommandBusTest {
         // Root BRX-RS-DATA-008: one transaction writes one owner's data.
         assertThrows(CommandSubmitException.class, () -> transactions.executeWithoutResult(status -> {
             OwnerTransactionScope.open("another-owner", false, status,
-                new TenantScopeState(TenantScope.none(), OwnerTenantTables.none("another-owner")));
+                new TenantScopeState(TenantScope.none(), OwnerTenantTables.none("another-owner")), () -> { });
             bus.submit(CommandRequest.of("ReserveStock", new Reserve("sku-1"), "order", "order-7"));
         }));
     }
 
     private void inUnitOfWork(TenantScope scope, java.util.function.Consumer<TransactionStatus> work) {
         transactions.executeWithoutResult(status -> {
-            OwnerTransactionScope.open(OWNER, false, status, new TenantScopeState(scope, OwnerTenantTables.none(OWNER)));
+            OwnerTransactionScope.open(OWNER, false, status, new TenantScopeState(scope, OwnerTenantTables.none(OWNER)),
+                () -> { });
             work.accept(status);
         });
     }

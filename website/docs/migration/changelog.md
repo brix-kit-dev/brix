@@ -180,6 +180,18 @@ All notable changes to Brix Framework are documented here.
   `application/yaml` now, which a host with Jackson's YAML module used to read, numbers as doubles. A host that
   provides its own `PluginEndpointDispatcher` gets the body read first, as before, through the default of the new
   `invoke(..., EndpointRequestBody, ...)` overload. `EndpointJsonBodyAdvice` is gone.
+- **A notification sent in a unit of work goes out at its commit** (root 3.4.0 BRX-RS-ERROR-017, RFC-012).
+  `NotificationCapability.send` still checks the request and renders the template at once, but inside a unit of work
+  it now hands the email to the mail server at the last moment before that unit of work commits: after all of its
+  writes, the owner's pending changes flushed to the database first, and after the answer, inbox and outbox records
+  the runtime writes for the owner. Emails go out in the order they were sent; the first the server refuses, fails or
+  times out stops the rest and rolls the unit of work back with `notification.delivery.failed`, as before. A unit of
+  work that rolls back for another reason sends nothing: before, a write after the send that failed left the email
+  sent, with a link that could only fail. Outside a unit of work an email goes out at once. Returning from `send`
+  therefore no longer means the email went out. An owner called by another owner sends its emails when its own unit
+  of work commits, before its caller's. An event or command handler's unit of work now commits inside its call, so an
+  email sent at that commit still ends at the delivery's deadline. Plugins change nothing. See
+  [Notifications](../guides/backend-development.md#notifications).
 - **Handlers are bound through factories.** Plugins bind endpoint, query, command, event and task handlers with
   `bindEndpointHandlerFactory`, `bindEventHandlerFactory` and the like. The runtime creates them after the plugin
   started, with the capabilities the manifest requires.

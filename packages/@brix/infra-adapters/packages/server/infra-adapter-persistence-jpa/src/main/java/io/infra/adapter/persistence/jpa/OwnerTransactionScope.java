@@ -26,6 +26,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * unbinds it when the transaction is suspended by another owner's unit of work and binds it again on
  * resume. Once the transaction starts completing, the scope can no longer be joined: work started from
  * a commit callback runs in a new transaction instead of a finished one.</p>
+ *
+ * <p>The scope also answers Spring's flush callback by writing the owner's pending changes to the database, so
+ * that work hooked to the moment before the commit, as the notification capability's sending is, runs after every
+ * write of the unit of work (root BRX-RS-ERROR-017 item 1, RFC-012).</p>
  */
 final class OwnerTransactionScope implements TransactionSynchronization {
 
@@ -35,26 +39,30 @@ final class OwnerTransactionScope implements TransactionSynchronization {
     private final boolean transactionReadOnly;
     private final TransactionStatus status;
     private final TenantScopeState tenancy;
+    private final Runnable flush;
     private int readOnlySections;
     private boolean completing;
 
-    private OwnerTransactionScope(
-            String ownerId, boolean transactionReadOnly, TransactionStatus status, TenantScopeState tenancy) {
+    private OwnerTransactionScope(String ownerId, boolean transactionReadOnly, TransactionStatus status,
+            TenantScopeState tenancy, Runnable flush) {
         this.ownerId = ownerId;
         this.transactionReadOnly = transactionReadOnly;
         this.status = status;
         this.tenancy = tenancy;
+        this.flush = flush;
     }
 
     /**
      * Binds a new scope to the transaction that has just been started for {@code ownerId}.
+     *
+     * @param flush writes the owner's pending changes to the database, failing as a repository does
      */
-    static OwnerTransactionScope open(
-            String ownerId, boolean readOnly, TransactionStatus status, TenantScopeState tenancy) {
+    static OwnerTransactionScope open(String ownerId, boolean readOnly, TransactionStatus status,
+            TenantScopeState tenancy, Runnable flush) {
         if (TransactionSynchronizationManager.hasResource(RESOURCE_KEY)) {
             throw new IllegalStateException("An owner unit of work is already bound to this transaction");
         }
-        OwnerTransactionScope scope = new OwnerTransactionScope(ownerId, readOnly, status, tenancy);
+        OwnerTransactionScope scope = new OwnerTransactionScope(ownerId, readOnly, status, tenancy, flush);
         TransactionSynchronizationManager.bindResource(RESOURCE_KEY, scope);
         TransactionSynchronizationManager.registerSynchronization(scope);
         return scope;
@@ -110,6 +118,12 @@ final class OwnerTransactionScope implements TransactionSynchronization {
      */
     void markRollbackOnly() {
         status.setRollbackOnly();
+    }
+
+    /** Writes the owner's pending changes to the database when a synchronization asks before the commit. */
+    @Override
+    public void flush() {
+        flush.run();
     }
 
     @Override

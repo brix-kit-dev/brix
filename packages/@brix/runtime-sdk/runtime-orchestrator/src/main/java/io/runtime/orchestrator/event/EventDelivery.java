@@ -336,20 +336,19 @@ public final class EventDelivery {
                     if (keepsInbox && !inbox.insertProcessed(bound.pluginId(), handlerId, message)) {
                         return false;
                     }
-                    // Typed queries the handler makes run as this subscriber, in the event's tenant (root
-                    // BRX-RS-MANIFEST-028).
-                    RuntimeInvocations.within(RuntimeInvocation.forEvent(bound.pluginId(), invocation), () -> {
-                        DeliveryDeadline.await(handler.handle(invocation), clock, invocation.deadline(), cancelled);
-                        return null;
-                    });
+                    DeliveryDeadline.await(handler.handle(invocation), clock, invocation.deadline(), cancelled);
                     bind.handled(TenantScopes.bound());
                     return true;
                 } finally {
                     reached.addAll(TenantScopes.bound());
                 }
             };
-            boolean handled = TenantScopes.within(scope.tenantScope(), () -> DeliveryDeadline.inUnitOfWork(owners,
-                bound.pluginId(), clock, invocation.deadline(), handle));
+            // Typed queries the handler makes run as this subscriber, in the event's tenant (root BRX-RS-MANIFEST-028).
+            // The unit of work commits inside this call too, so that a notification sent at its commit keeps the
+            // call's deadline (root BRX-RS-ERROR-017 items 1 and 2).
+            boolean handled = RuntimeInvocations.within(RuntimeInvocation.forEvent(bound.pluginId(), invocation),
+                () -> TenantScopes.within(bind.tenantScope(), () -> DeliveryDeadline.inUnitOfWork(owners,
+                    bound.pluginId(), clock, invocation.deadline(), handle)));
             log.info("event=event.delivered type={} event_id={} handler={} owner={} outcome={} attempt={}",
                 message.messageType(), message.eventId(), handlerId, bound.pluginId(), handled ? "handled" : "duplicate",
                 invocation.deliveryAttempt());

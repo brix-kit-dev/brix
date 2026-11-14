@@ -102,6 +102,14 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- The notification capability sends at the commit of a real owner unit of work (standard-link plan queue
+             item 11, root BRX-RS-ERROR-017) -->
+        <dependency>
+            <groupId>io.brix.platform</groupId>
+            <artifactId>platform-notification</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-micrometer-metrics</artifactId>

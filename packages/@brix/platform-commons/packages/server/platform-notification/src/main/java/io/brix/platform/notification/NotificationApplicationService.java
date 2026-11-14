@@ -60,12 +60,17 @@ public class NotificationApplicationService implements NotificationCapability {
     }
 
     /**
-     * Renders the template and hands the message to the delivery adapter.
+     * Renders the template, then hands the message to the delivery adapter: at the last moment before the caller's
+     * unit of work commits, after all of its writes, or at once outside one (root BRX-RS-ERROR-017 item 1, RFC-012).
+     *
+     * <p>A request or template that is not right fails here, at once. Inside a unit of work, returning does not mean
+     * the message went out: it goes out when the unit of work commits, after the messages sent before it in that unit
+     * of work, and a failure then rolls the unit of work back with {@code notification.delivery.failed}. A unit of work
+     * that rolls back for another reason sends nothing. Nothing is retried here; a retry comes only from the caller.</p>
      *
      * <p>Each delivery is counted and timed by template and outcome; one that fails is logged at WARN with the
-     * masked recipient, the template, the outcome and the trace id, never with the content, a link or the server's
-     * reply text (notification decision D107, standard-link point 14a). The caller gets the same error code as
-     * before: {@code notification.delivery.failed}.</p>
+     * masked recipient, the template, the outcome and the trace id of this call, never with the content, a link or the
+     * server's reply text (notification decision D107, standard-link point 14a).</p>
      */
     @Override
     public void send(NotificationRequest request) {
@@ -73,6 +78,11 @@ public class NotificationApplicationService implements NotificationCapability {
         NotificationTemplate template = templateRepository.load(request.templateKey(), locale);
         RenderedTemplate rendered = renderer.render(request.templateKey(), template, request.variables());
         EmailMessage message = new EmailMessage(request.recipientEmail(), rendered.subject(), rendered.body());
+        String traceId = traceId();
+        PendingDeliveries.submit(() -> deliver(request, locale, message, traceId));
+    }
+
+    private void deliver(NotificationRequest request, String locale, EmailMessage message, String traceId) {
         long started = System.nanoTime();
         String outcome = EmailDeliveryException.Reason.FAILED.tag();
         try {
@@ -82,13 +92,13 @@ public class NotificationApplicationService implements NotificationCapability {
                     request.tenantId(), request.maskedRecipientEmail(), request.templateKey(), locale);
         } catch (EmailDeliveryException ex) {
             outcome = ex.reason().tag();
-            failed(request, locale, outcome, ex.getMessage());
+            failed(request, locale, outcome, traceId, ex.getMessage());
             throw new NotificationException(NotificationException.Code.DELIVERY_FAILED, Map.of(), ex);
         } catch (NotificationException ex) {
-            failed(request, locale, outcome, ex.errorCode().wireCode());
+            failed(request, locale, outcome, traceId, ex.errorCode().wireCode());
             throw ex;
         } catch (RuntimeException ex) {
-            failed(request, locale, outcome, ex.getClass().getSimpleName());
+            failed(request, locale, outcome, traceId, ex.getClass().getSimpleName());
             throw new NotificationException(
                     NotificationException.Code.DELIVERY_FAILED,
                     Map.of("templateKey", request.templateKey()),
@@ -98,11 +108,12 @@ public class NotificationApplicationService implements NotificationCapability {
         }
     }
 
-    private static void failed(NotificationRequest request, String locale, String outcome, String detail) {
+    private static void failed(NotificationRequest request, String locale, String outcome, String traceId,
+            String detail) {
         log.warn("event=notification.delivery_failed outcome={} templateKey={} locale={} tenantId={} recipient={} "
                         + "traceId={} detail={}",
                 outcome, request.templateKey(), locale, request.tenantId(), request.maskedRecipientEmail(),
-                traceId(), detail);
+                traceId, detail);
     }
 
     /** The trace id the runtime put on the thread for the call, or {@code -} outside one. */

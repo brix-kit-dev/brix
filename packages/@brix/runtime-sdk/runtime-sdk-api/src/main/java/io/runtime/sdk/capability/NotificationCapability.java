@@ -9,6 +9,19 @@ import io.runtime.sdk.annotation.Since;
  * without exposing setup tokens in REST responses. Implementations may use
  * SMTP, an enterprise notification service, or another host-provided channel.</p>
  *
+ * <p>Delivery semantics (root BRX-RS-ERROR-017): a request or template that is
+ * not right fails when it is sent. Sent inside a unit of work, a notification
+ * goes out at the last moment before that unit of work commits, after all of its
+ * writes, and in the order the unit of work sent them; returning from a send
+ * therefore does not mean it went out. If the channel refuses one, fails or times
+ * out, the rest are not sent and the unit of work rolls back with
+ * {@code notification.delivery.failed}; a unit of work that rolls back for another
+ * reason sends none. Sent outside a unit of work, a notification goes out at once.
+ * Nothing is retried by the capability: a retry comes from the caller, and a
+ * caller that resends for the same purpose voids the tokens it sent before. A
+ * notification that went out just before a failed commit or a crash cannot be
+ * called back, and acceptance by the channel does not mean the recipient got it.</p>
+ *
  * @author Brix Platform Team
  * @since 3.2.0
  */

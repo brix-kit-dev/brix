@@ -313,13 +313,8 @@ public final class CommandDelivery {
                         decoded.fingerprint())) {
                     return taken(ownerId, handlerId, message, ownerScope, decoded);
                 }
-                // Typed queries the handler makes run as this provider, in the command's tenant (root
-                // BRX-RS-MANIFEST-028).
                 try {
-                    RuntimeInvocations.within(RuntimeInvocation.forCommand(ownerId, invocation), () -> {
-                        DeliveryDeadline.await(handler.handle(invocation), clock, invocation.deadline(), cancelled);
-                        return null;
-                    });
+                    DeliveryDeadline.await(handler.handle(invocation), clock, invocation.deadline(), cancelled);
                 } catch (BrixException failure) {
                     if (rejects(failure)) {
                         rejection.set(failure);
@@ -330,8 +325,12 @@ public final class CommandDelivery {
             };
             String outcome;
             try {
-                outcome = TenantScopes.within(scope,
-                    () -> DeliveryDeadline.inUnitOfWork(owners, ownerId, clock, invocation.deadline(), work));
+                // Typed queries the handler makes run as this provider, in the command's tenant (root
+                // BRX-RS-MANIFEST-028). The unit of work commits inside this call too, so that a notification sent at
+                // its commit keeps the call's deadline (root BRX-RS-ERROR-017 items 1 and 2).
+                outcome = RuntimeInvocations.within(RuntimeInvocation.forCommand(ownerId, invocation),
+                    () -> TenantScopes.within(scope,
+                        () -> DeliveryDeadline.inUnitOfWork(owners, ownerId, clock, invocation.deadline(), work)));
             } catch (BrixException failure) {
                 if (failure != rejection.get()) {
                     throw failure;

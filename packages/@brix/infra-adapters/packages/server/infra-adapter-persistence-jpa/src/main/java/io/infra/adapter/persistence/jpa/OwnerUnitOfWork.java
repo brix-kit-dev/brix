@@ -161,7 +161,8 @@ final class OwnerUnitOfWork implements UnitOfWork {
         boolean succeeded = false;
         try {
             T result = transactions.execute(status -> {
-                OwnerTransactionScope scope = OwnerTransactionScope.open(ownerId, readOnly, status, tenancy);
+                OwnerTransactionScope scope = OwnerTransactionScope.open(ownerId, readOnly, status, tenancy,
+                    this::flushSession);
                 tenancy.syncFilters(session());
                 if (!readOnly) {
                     return work.get();
@@ -192,12 +193,8 @@ final class OwnerUnitOfWork implements UnitOfWork {
     }
 
     private <T> T inReadOnlySection(OwnerTransactionScope current, Supplier<T> work) {
+        flushSession();
         SessionImplementor session = session();
-        try {
-            session.flush();
-        } catch (RuntimeException failure) {
-            throw failureTranslator.translateRepositoryFailure(ownerId, failure);
-        }
         FlushMode flushMode = session.getHibernateFlushMode();
         session.setHibernateFlushMode(FlushMode.MANUAL);
         current.enterReadOnlySection();
@@ -230,6 +227,15 @@ final class OwnerUnitOfWork implements UnitOfWork {
             return holder;
         }
         return null;
+    }
+
+    /** Writes this owner's pending changes to the database; a failure is translated as a repository's is. */
+    private void flushSession() {
+        try {
+            session().flush();
+        } catch (RuntimeException failure) {
+            throw failureTranslator.translateRepositoryFailure(ownerId, failure);
+        }
     }
 
     private void assertNoPendingWrites(OwnerTransactionScope scope, SessionImplementor session) {

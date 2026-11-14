@@ -24,6 +24,12 @@
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+        <!-- A notification sent in a unit of work goes out at the last moment before its commit (root
+             BRX-RS-ERROR-017 item 1): Spring's transaction synchronization holds it until then. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>

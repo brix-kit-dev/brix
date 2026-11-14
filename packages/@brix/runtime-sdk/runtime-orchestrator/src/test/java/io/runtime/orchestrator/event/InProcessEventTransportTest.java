@@ -37,6 +37,8 @@ import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
+import io.runtime.orchestrator.invocation.RuntimeInvocation;
+import io.runtime.orchestrator.invocation.RuntimeInvocations;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
@@ -69,6 +71,8 @@ class InProcessEventTransportTest {
     private Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
     private Runnable whileHandling = () -> { };
     private final List<Duration> timeouts = new ArrayList<>();
+    /** The deadline of the call each unit of work committed in: a notification sent at the commit keeps it. */
+    private final List<Optional<Instant>> deadlinesAtCommit = new ArrayList<>();
 
     /** Payload the test handler declares. */
     public record Accepted(Long tenantId, Long memberId, Role role) {
@@ -216,6 +220,16 @@ class InProcessEventTransportTest {
     }
 
     @Test
+    void theSubscribersUnitOfWorkCommitsInsideTheEventsCall() {
+        // Root BRX-RS-ERROR-017 items 1 and 2 (standard-link plan queue item 11): a notification the handler sends
+        // goes out at the commit, and still within the delivery's deadline.
+        transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1));
+
+        assertEquals(List.of(Optional.of(NOW.plusSeconds(15))), deadlinesAtCommit);
+        assertEquals(Optional.empty(), RuntimeInvocations.current());
+    }
+
+    @Test
     void theSubscribersUnitOfWorkLastsNoLongerThanTheTimeLeftBeforeItsDeadline() {
         // Standard-link plan point 3 (root BRX-RS-DATA-011): its statements stop, and its waits for a connection end,
         // at the delivery's deadline.
@@ -354,7 +368,9 @@ class InProcessEventTransportTest {
             @Override
             public <T> T readWrite(String ownerModuleId, Duration timeout, Supplier<T> work) {
                 timeouts.add(timeout);
-                return forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
+                T result = forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
+                deadlinesAtCommit.add(RuntimeInvocations.current().map(RuntimeInvocation::deadline));
+                return result;
             }
         };
         return new InProcessEventTransport(new EventDelivery(subscribers, owners, store, new ObjectMapper(), clock,

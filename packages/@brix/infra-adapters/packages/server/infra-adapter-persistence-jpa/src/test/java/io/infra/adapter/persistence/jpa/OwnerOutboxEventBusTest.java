@@ -343,7 +343,8 @@ class OwnerOutboxEventBusTest {
     private void inUnitOfWork(
             String owner, boolean readOnly, TenantScope scope, java.util.function.Consumer<TransactionStatus> work) {
         transactions.executeWithoutResult(status -> {
-            OwnerTransactionScope.open(owner, readOnly, status, new TenantScopeState(scope, OwnerTenantTables.none(owner)));
+            OwnerTransactionScope.open(owner, readOnly, status, new TenantScopeState(scope, OwnerTenantTables.none(owner)),
+                () -> { });
             work.accept(status);
         });
     }

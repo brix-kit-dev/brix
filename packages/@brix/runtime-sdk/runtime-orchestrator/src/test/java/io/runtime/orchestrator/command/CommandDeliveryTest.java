@@ -42,6 +42,8 @@ import tools.jackson.databind.ObjectMapper;
 import io.runtime.orchestrator.event.ConsumedSubscription;
 import io.runtime.orchestrator.event.EventDeliveryException;
 import io.runtime.orchestrator.event.SubscriptionDelivery;
+import io.runtime.orchestrator.invocation.RuntimeInvocation;
+import io.runtime.orchestrator.invocation.RuntimeInvocations;
 import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
@@ -125,6 +127,8 @@ class CommandDeliveryTest {
     private final List<String> conflicts = new ArrayList<>();
     private final MutableClock clock = new MutableClock(NOW);
     private final List<Duration> timeouts = new ArrayList<>();
+    /** The deadline of the call each unit of work committed in: a notification sent at the commit keeps it. */
+    private final List<Optional<Instant>> deadlinesAtCommit = new ArrayList<>();
     private final List<String> unitsOfWork = new ArrayList<>();
     private RuntimeException reserveFailure;
     private boolean started = true;
@@ -190,7 +194,9 @@ class CommandDeliveryTest {
             @Override
             public <T> T readWrite(String ownerModuleId, Duration timeout, Supplier<T> work) {
                 timeouts.add(timeout);
-                return forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
+                T result = forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
+                deadlinesAtCommit.add(RuntimeInvocations.current().map(RuntimeInvocation::deadline));
+                return result;
             }
         };
         delivery = new CommandDelivery(providers, owners,
@@ -243,6 +249,16 @@ class CommandDeliveryTest {
         assertEquals("order-7", invocation.command().idempotencyKey());
         assertEquals("app-orders", invocation.command().producerPluginId());
         assertEquals(NOW.plusSeconds(15), invocation.deadline());
+    }
+
+    @Test
+    void theProvidersUnitOfWorkCommitsInsideTheCommandsCall() {
+        // Root BRX-RS-ERROR-017 items 1 and 2 (standard-link plan queue item 11): a notification the handler sends
+        // goes out at the commit, and still within the delivery's deadline.
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+
+        assertEquals(List.of(Optional.of(NOW.plusSeconds(15))), deadlinesAtCommit);
+        assertEquals(Optional.empty(), RuntimeInvocations.current());
     }
 
     @Test

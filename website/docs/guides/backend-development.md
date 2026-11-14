@@ -586,6 +586,29 @@ Persistence failures reach your code as `PersistenceCapabilityException`, never 
 - `persistence.unique_constraint_violation`;
 - `persistence.read_only_violation`.
 
+### Notifications
+
+`NotificationCapability.send(...)` sends an email from one of the platform's templates (root BRX-RS-ERROR-017):
+
+- A request or a template that is not right fails at once, in `send`.
+- In a unit of work, the email goes out at the last moment before the unit of work commits, after all of its writes,
+  the endpoint's answer and the inbox and outbox records the runtime writes for you included. Returning from `send`
+  does not mean that it went out.
+- Emails go out in the order you sent them. If the mail server refuses one, fails or does not answer in time, the
+  rest are not sent and the unit of work rolls back with `notification.delivery.failed`. If the unit of work rolls
+  back for any other reason, none goes out.
+- Outside a unit of work, the email goes out at once, and `send` throws the same error.
+- Sending ends at the deadline of the call you are handling, an event's or a command's as well as an endpoint's.
+- Nothing is retried for you. A retry comes from your caller: an endpoint called again with the same idempotency key
+  gets its first answer back and sends nothing; an event or a command is delivered again under its retry policy. When
+  you send again for the same purpose, void the tokens you sent before.
+- An email that went out just before the commit failed, or before the process stopped, cannot be called back: its
+  link points at a token that never took effect. An owner that another owner calls commits, and sends, before its
+  caller does.
+- A mail server that accepted the email has not delivered it yet.
+- Put a one-time token in the link's fragment (`#token=...`), never in its query string. Never log the variables, the
+  rendered text, a link or a token.
+
 ## Migrations
 
 The manifest names the migration location:
