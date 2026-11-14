@@ -6,6 +6,8 @@
  */
 package io.brix.samples.e2e;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.URI;
@@ -33,6 +35,7 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
 import org.springframework.test.context.DynamicPropertyRegistry;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -103,6 +106,30 @@ final class SampleInfrastructure {
             throws Exception {
         return HTTP.send(request(port, path, body).header("Idempotency-Key", idempotencyKey).build(),
             HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Sends a request from nobody signed in, without a key. */
+    static HttpResponse<String> postAnonymously(int port, String path, Map<String, Object> body) throws Exception {
+        return HTTP.send(request(port, path, body).header(SampleHost.ANONYMOUS_HEADER, "yes").build(),
+            HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Sends a request from nobody signed in, with a key. */
+    static HttpResponse<String> postAnonymously(int port, String path, Map<String, Object> body,
+            String idempotencyKey) throws Exception {
+        return HTTP.send(request(port, path, body).header(SampleHost.ANONYMOUS_HEADER, "yes")
+            .header("Idempotency-Key", idempotencyKey).build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /**
+     * Checks a call the runtime refused before it looked at the request (root BRX-RS-MANIFEST-022, 3.4.0): its status
+     * and code, and nothing about what the request breaks.
+     */
+    static void assertRefusedBeforeTheRequest(HttpResponse<String> answer, int status, String code) {
+        assertEquals(status, answer.statusCode(), answer.body());
+        JsonNode body = JSON.readTree(answer.body());
+        assertEquals(code, body.get("errorCode").asString(), answer.body());
+        assertFalse(body.has("violations"), answer.body());
     }
 
     /** Sends a request as a platform operator, without a key. */

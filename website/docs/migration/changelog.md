@@ -167,6 +167,13 @@ All notable changes to Brix Framework are documented here.
 
 ### 🔄 Changed
 
+- **The dispatcher checks the caller before the request** (root 3.4.0 BRX-RS-MANIFEST-022, RFC-010). The
+  authentication, tenant context and permission checks now come before the request is built and checked against its
+  schema. A call without a verified caller gets 401 `ENDPOINT_AUTHENTICATION_REQUIRED` and a caller the entry refuses
+  403, whatever the request, and neither is told what the request breaks: before, a request that broke its schema got
+  400 `endpoint.invalid_request` and its violations first. A call that passes the checks, and a call to an anonymous
+  entry, is answered as before. A body the host cannot read as JSON is still answered by the host first. Plugins
+  change nothing. See [Failures](../guides/endpoints.md#failures).
 - **Handlers are bound through factories.** Plugins bind endpoint, query, command, event and task handlers with
   `bindEndpointHandlerFactory`, `bindEventHandlerFactory` and the like. The runtime creates them after the plugin
   started, with the capabilities the manifest requires.

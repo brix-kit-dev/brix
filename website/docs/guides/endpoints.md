@@ -18,10 +18,12 @@ The samples `sample-orders` and `sample-shipping` use every part of it. They run
 For each request, in this order (root BRX-RS-MANIFEST-022):
 1. Finds the route: method and path, with literal path segments before variables ([Routes](#routes)).
 2. Starts the call's server span, in a new trace ([Traces](#traces)).
-3. Builds the request: the body of a `POST`, `PUT` or `PATCH`, or the query parameters of any other method, together
+3. Checks the caller, the tenant context and the permissions the manifest names. It looks only at what the host
+   verified about the caller, never at the request. A call it refuses gets 401 or 403, whatever its request
+   ([Failures](#failures)).
+4. Builds the request: the body of a `POST`, `PUT` or `PATCH`, or the query parameters of any other method, together
    with the path variables. It checks them against the request schema. A request that breaks it never reaches your
    handler.
-4. Checks the caller, the tenant context and the permissions the manifest names.
 5. Takes one of the endpoint's permits, or answers 503 at once when all are taken ([Deadlines and
    limits](#deadlines-and-limits)).
 6. On an endpoint that [replays its results](#repeating-a-call), checks the call's key.
@@ -317,6 +319,19 @@ The runtime's own answers:
 | `endpoint.deadline_exceeded` | 504 | The handler did not answer before the deadline, or answered after it; its unit of work rolls back |
 | `endpoint.idempotency_key_required`, `endpoint.idempotency_in_progress`, `endpoint.idempotency_conflict` | 400, 409, 422 | See [Repeating a call](#repeating-a-call) |
 | `platform.unknown` | 500 | Anything else, such as a response that breaks its schema or an unexpected exception. The cause is only in the log. |
+
+A call first has to pass the access checks, then its request is checked (root BRX-RS-MANIFEST-022, 3.4.0):
+
+| Code | Status | When |
+|---|---|---|
+| `ENDPOINT_AUTHENTICATION_REQUIRED` | 401 | The entry requires a verified caller and the call has none: no token, or one the host could not verify |
+| `ENDPOINT_TOKEN_NOT_ACCEPTED`, `ENDPOINT_TENANT_CONTEXT_FORBIDDEN`, `ENDPOINT_TENANT_CONTEXT_REQUIRED`, `ENDPOINT_PERMISSION_DENIED` | 403 | The entry does not take the caller's token, its tenant context does not fit the entry, or it lacks a permission the manifest names |
+
+A refused call gets one of these whatever its request, and its body has no `violations`: a caller without a token
+learns nothing about the fields an entry takes. A client signs in first; then it is told what its request breaks. An
+anonymous entry checks no caller, only the tenant context, so a request that breaks its schema gets
+`endpoint.invalid_request` as before. The host still reads a JSON body before the dispatcher: a body it cannot read
+as JSON, or one of another content type, is answered by the host first, whoever sends it.
 
 ## Traces
 

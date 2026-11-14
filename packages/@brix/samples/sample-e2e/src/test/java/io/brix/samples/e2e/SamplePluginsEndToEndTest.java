@@ -298,8 +298,18 @@ class SamplePluginsEndToEndTest {
         assertEquals("BEST_EFFORT", envelope.get("reliability").asString(), activity.get(0));
 
         // A request the handler refuses changes nothing.
+        // Root BRX-RS-MANIFEST-022 (3.4.0): the caller is checked before the request. Nobody signed in gets 401, and a
+        // platform operator's token, which this entry does not take, 403, whatever the request; neither is told what
+        // it breaks.
+        Map<String, Object> noQuantity = Map.of("sku", "sku-2", "quantity", 0);
+        SampleInfrastructure.assertRefusedBeforeTheRequest(
+            SampleInfrastructure.postAnonymously(port, "/api/sample-orders/orders", noQuantity), 401,
+            "ENDPOINT_AUTHENTICATION_REQUIRED");
+        SampleInfrastructure.assertRefusedBeforeTheRequest(
+            SampleInfrastructure.postAsOperator(port, "/api/sample-orders/orders", noQuantity), 403,
+            "ENDPOINT_TOKEN_NOT_ACCEPTED");
         // A request that breaks its schema never reaches the handler: the runtime names the path and the rule.
-        HttpResponse<String> refused = post("/api/sample-orders/orders", Map.of("sku", "sku-2", "quantity", 0));
+        HttpResponse<String> refused = post("/api/sample-orders/orders", noQuantity);
         assertEquals(400, refused.statusCode(), refused.body());
         JsonNode invalid = JSON.readTree(refused.body());
         assertEquals("endpoint.invalid_request", invalid.get("errorCode").asString(), refused.body());

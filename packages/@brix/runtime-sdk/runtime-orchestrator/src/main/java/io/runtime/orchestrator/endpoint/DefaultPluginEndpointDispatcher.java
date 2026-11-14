@@ -51,9 +51,10 @@ import io.runtime.sdk.plugin.TypedEndpointHandler;
  *
  * <p>The dispatcher owns route matching, enforcement of the declared endpoint
  * access policy and invocation context creation. Authentication, tenant
- * context and permission checks run before the handler and fail closed. It
- * does not know plugin business types and does not expose framework objects to
- * handlers.</p>
+ * context and permission checks run before the request is normalized and
+ * checked against its schema, and before the handler; they fail closed (root
+ * BRX-RS-MANIFEST-022, 3.4.0). It does not know plugin business types and does
+ * not expose framework objects to handlers.</p>
  *
  * <p>Standard-link plan L7.4 to L7.6: a request goes to the most specific matching template
  * ({@link EndpointPathTemplate}); each call starts a server span in a new trace ({@link EndpointTracing}), gets the
@@ -305,17 +306,9 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             Supplier<JsonNode> exactBody, Map<String, List<String>> queryParameters, Map<String, List<String>> headers,
             Instant deadline, TraceContext trace, String traceId) {
         EndpointRoute route = match.published().route();
-        // Root BRX-RS-MANIFEST-022: a typed request is normalized and checked against its schema before the
-        // authentication, tenant and permission checks.
-        Object request = body;
-        JsonNode requestTree = null;
-        if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
-            TypedEndpoints.Input input = typed.input(route, handler, method, body, exactBody, queryParameters,
-                match.pathVariables());
-            request = input.value();
-            requestTree = input.tree();
-        }
-
+        // Root BRX-RS-MANIFEST-022 (3.4.0, RFC-010): the authentication, tenant context and permission checks come
+        // first, on the caller's verified attributes alone. A call they refuse gets 401 or 403, whatever its request,
+        // and never the request's schema violations.
         AccessDecision access = EndpointAccessGuard.enforce(route, new EndpointAccessGuard.Caller(
             firstHeader(headers, ACTOR_HEADER),
             firstHeader(headers, TENANT_HEADER),
@@ -325,6 +318,16 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             headerValues(headers, PERMISSION_HEADER),
             firstHeader(headers, TENANT_ROLE_TYPE_HEADER),
             firstHeader(headers, TENANT_REF_HEADER)), current.grants());
+
+        // Root BRX-RS-MANIFEST-022: only then is a typed request normalized and checked against its schema.
+        Object request = body;
+        JsonNode requestTree = null;
+        if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
+            TypedEndpoints.Input input = typed.input(route, handler, method, body, exactBody, queryParameters,
+                match.pathVariables());
+            request = input.value();
+            requestTree = input.tree();
+        }
 
         // Root BRX-RS-RESILIENCE-001; standard-link plan L7.5: an endpoint runs at most the host's limit at once, and a
         // call over it is answered at once.

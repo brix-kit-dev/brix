@@ -128,6 +128,12 @@ class SampleOperationalEndpointEndToEndTest {
         assertEquals("endpoint.invalid_request", JSON.readTree(invalid.body()).get("errorCode").asString());
         HttpResponse<String> nothing = adjust(SampleHost.TENANT, orderId, Map.of(), key());
         assertEquals(400, nothing.statusCode(), nothing.body());
+        // Root BRX-RS-MANIFEST-022 (3.4.0): the caller is checked before the request. Nobody signed in gets 401, and a
+        // member's token, which is not a platform token, 403, whatever the request; neither is told what it breaks.
+        SampleInfrastructure.assertRefusedBeforeTheRequest(SampleInfrastructure.postAnonymously(port,
+            path(SampleHost.TENANT, orderId), Map.of("delta", "two"), key()), 401, "ENDPOINT_AUTHENTICATION_REQUIRED");
+        SampleInfrastructure.assertRefusedBeforeTheRequest(SampleInfrastructure.post(port,
+            path(SampleHost.TENANT, orderId), Map.of("delta", "two"), key()), 403, "ENDPOINT_TOKEN_NOT_ACCEPTED");
 
         // The owner's refusal rolls its unit of work back, and its code reaches the operator.
         HttpResponse<String> tooMany = adjust(SampleHost.TENANT, orderId, Map.of("delta", 5000), key());

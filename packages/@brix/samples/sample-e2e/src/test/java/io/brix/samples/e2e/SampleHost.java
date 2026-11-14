@@ -21,7 +21,8 @@ import io.runtime.sdk.capability.DataScope;
 
 /**
  * A host of the sample plugins: auto-configurations and properties only. Its one bean stands for the identity
- * provider a real host selects: every request comes from member 2001 of tenant 42 with an access token.
+ * provider a real host selects: every request comes from member 2001 of tenant 42 with an access token, unless it
+ * names one of the headers below.
  */
 @SpringBootConfiguration
 @EnableAutoConfiguration
@@ -33,21 +34,35 @@ class SampleHost {
     /** A request that names this header comes from a platform operator, not from the member. */
     static final String OPERATOR_HEADER = "X-Sample-Operator";
 
+    /** A request that names this header comes from nobody signed in, as one without a valid token does. */
+    static final String ANONYMOUS_HEADER = "X-Sample-Anonymous";
+
     @Bean
     AuthCapability signedInMember() {
         return new SignedInMember();
     }
 
     private static boolean operator() {
-        return RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes
-            && attributes.getRequest().getHeader(OPERATOR_HEADER) != null;
+        return named(OPERATOR_HEADER);
     }
 
-    /** Member 2001 of tenant 42, signed in with an access token, or operator 9001 of the platform. */
+    private static boolean anonymous() {
+        return named(ANONYMOUS_HEADER);
+    }
+
+    private static boolean named(String header) {
+        return RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes
+            && attributes.getRequest().getHeader(header) != null;
+    }
+
+    /** Member 2001 of tenant 42, signed in with an access token, operator 9001 of the platform, or nobody. */
     private static final class SignedInMember implements AuthCapability {
 
         @Override
         public Principal getCurrentPrincipal() {
+            if (anonymous()) {
+                return null;
+            }
             return operator() ? new Operator() : new Member();
         }
 
@@ -68,7 +83,7 @@ class SampleHost {
 
         @Override
         public String getTenantId() {
-            return operator() ? null : String.valueOf(TENANT);
+            return operator() || anonymous() ? null : String.valueOf(TENANT);
         }
     }
 
