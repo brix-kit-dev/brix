@@ -38,13 +38,13 @@ import io.runtime.sdk.query.BrixQueryException;
 class RuntimeShellEndpointControllerTest {
 
     @Test
-    void dispatchUsesVerifiedAuthCapabilityActorInsteadOfClientActorHeader() {
+    void dispatchUsesVerifiedAuthCapabilityActorInsteadOfClientActorHeader() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
             () -> new TestAuthCapability("1001", null));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "X-Actor-Id", List.of("spoofed"),
             "X-Tenant-Id", List.of("tenant-spoof"),
             "Authorization", List.of("Bearer signed-token"))));
@@ -55,13 +55,13 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatchNeverPassesBrowserCookiesToHandlers() {
+    void dispatchNeverPassesBrowserCookiesToHandlers() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
             () -> new TestAuthCapability("1001", null));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "Cookie", List.of("__Host-brix-session=opaque-session-id"),
             "Accept", List.of("application/json"))));
 
@@ -70,7 +70,7 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void aReplayedAnswerGoesOutWithItsStatusAndTheMarker() {
+    void aReplayedAnswerGoesOutWithItsStatusAndTheMarker() throws Exception {
         // Standard-link plan point 10a.
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         dispatcher.answer = new EndpointReplay.Replayed(201, Map.of("id", "t-1"));
@@ -78,7 +78,7 @@ class RuntimeShellEndpointControllerTest {
             dispatcher,
             () -> new TestAuthCapability("1001", null));
 
-        ResponseEntity<Object> response = controller.dispatch(null, request(Map.of()));
+        ResponseEntity<Object> response = controller.dispatch(request(Map.of()));
 
         assertEquals(201, response.getStatusCode().value());
         assertEquals("true", response.getHeaders().getFirst("Idempotent-Replayed"));
@@ -86,13 +86,13 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatchRemovesClientActorHeaderWhenNoVerifiedPrincipalExists() {
+    void dispatchRemovesClientActorHeaderWhenNoVerifiedPrincipalExists() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
             () -> new TestAuthCapability(null, null));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "X-Actor-Id", List.of("spoofed"),
             "X-Tenant-Id", List.of("tenant-spoof"))));
 
@@ -101,7 +101,7 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatchInjectsOnlyVerifiedExtendedAuthContext() {
+    void dispatchInjectsOnlyVerifiedExtendedAuthContext() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
@@ -113,7 +113,7 @@ class RuntimeShellEndpointControllerTest {
                 "identity",
                 Set.of("first_owner_accept")));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "X-Auth-Identity-Email", List.of("spoof@example.test"),
             "X-Auth-Token-Role", List.of("platform-admin"),
             "X-Auth-Token-Type", List.of("access"),
@@ -126,13 +126,13 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatchForwardsOnlyVerifiedTokenScopeAndPermissions() {
+    void dispatchForwardsOnlyVerifiedTokenScopeAndPermissions() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
             () -> platformAdmin(Set.of("platform:tenant:read")));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "X-Auth-Token-Scope", List.of("spoofed"),
             "X-Auth-Permission", List.of("platform:tenant:create"))));
 
@@ -141,13 +141,13 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatchForwardsOnlyVerifiedTenantRoleTypeAndReference() {
+    void dispatchForwardsOnlyVerifiedTenantRoleTypeAndReference() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
             () -> new TenantAuthCapability("2001", "42", "actor", "MEMBER", "77"));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "X-Auth-Tenant-Role-Type", List.of("OWNER"),
             "X-Auth-Tenant-Ref-Id", List.of("1"))));
 
@@ -156,13 +156,13 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatchDropsClientTenantRoleHeadersWhenNoVerifiedPrincipalExists() {
+    void dispatchDropsClientTenantRoleHeadersWhenNoVerifiedPrincipalExists() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
             () -> new TestAuthCapability(null, null));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "X-Auth-Tenant-Role-Type", List.of("OWNER"),
             "X-Auth-Tenant-Ref-Id", List.of("1"))));
 
@@ -171,13 +171,13 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatchDropsClientPermissionHeadersWhenNoVerifiedPrincipalExists() {
+    void dispatchDropsClientPermissionHeadersWhenNoVerifiedPrincipalExists() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller = new RuntimeShellEndpointController(
             dispatcher,
             () -> new TestAuthCapability(null, null));
 
-        controller.dispatch(null, request(Map.of(
+        controller.dispatch(request(Map.of(
             "X-Auth-Token-Role", List.of("platform-admin"),
             "X-Auth-Token-Type", List.of("access"),
             "X-Auth-Token-Scope", List.of("PLATFORM"),
@@ -190,7 +190,7 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void dispatcherDenialBecomesProtocolErrorBeforeHandlerRuns() {
+    void dispatcherDenialBecomesProtocolErrorBeforeHandlerRuns() throws Exception {
         AtomicInteger handled = new AtomicInteger();
         DefaultPluginEndpointDispatcher dispatcher = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
         dispatcher.replaceSnapshot(List.of(new EndpointRoute(
@@ -206,14 +206,14 @@ class RuntimeShellEndpointControllerTest {
 
         ResponseEntity<Object> anonymous = new RuntimeShellEndpointController(
             dispatcher, () -> new TestAuthCapability(null, null))
-            .dispatch(null, request(Map.of()));
+            .dispatch(request(Map.of()));
         ResponseEntity<Object> actor = new RuntimeShellEndpointController(
             dispatcher, () -> new TestAuthCapability(
                 "2001", "42", null, "actor", "access", Set.of(), "actor", Set.of("platform:admin:read")))
-            .dispatch(null, request(Map.of("X-Auth-Permission", List.of("platform:admin:read"))));
+            .dispatch(request(Map.of("X-Auth-Permission", List.of("platform:admin:read"))));
         ResponseEntity<Object> unprivileged = new RuntimeShellEndpointController(
             dispatcher, () -> platformAdmin(Set.of("platform:tenant:read")))
-            .dispatch(null, request(Map.of()));
+            .dispatch(request(Map.of()));
 
         assertEquals(401, anonymous.getStatusCode().value());
         assertEquals(EndpointAccessDeniedException.AUTHENTICATION_REQUIRED, errorCode(anonymous));
@@ -227,14 +227,14 @@ class RuntimeShellEndpointControllerTest {
 
         ResponseEntity<Object> granted = new RuntimeShellEndpointController(
             dispatcher, () -> platformAdmin(Set.of("platform:admin:read")))
-            .dispatch(null, request(Map.of()));
+            .dispatch(request(Map.of()));
 
         assertEquals(200, granted.getStatusCode().value());
         assertEquals(1, handled.get());
     }
 
     @Test
-    void aQueryFailureTheHandlerDidNotHandleBecomesItsStableCodeAndAStatus() {
+    void aQueryFailureTheHandlerDidNotHandleBecomesItsStableCodeAndAStatus() throws Exception {
         // Query design §5.4: unavailable 503, late 504, denied 403, failing provider platform.unknown; never the cause.
         Map<BrixQueryException.Code, List<Object>> expected = Map.of(
             BrixQueryException.Code.PROVIDER_MISSING, List.of(503, "query.provider_missing"),
@@ -256,9 +256,8 @@ class RuntimeShellEndpointControllerTest {
                         new IllegalStateException("connection refused by db-7.internal"));
                 })));
 
-            ResponseEntity<Object> failed = new RuntimeShellEndpointController(
-                dispatcher, () -> platformAdmin(Set.of("platform:admin:read")))
-                .dispatch(null, request(Map.of()));
+            ResponseEntity<Object> failed = send(new RuntimeShellEndpointController(
+                dispatcher, () -> platformAdmin(Set.of("platform:admin:read"))), request(Map.of()));
 
             assertEquals(response.get(0), failed.getStatusCode().value(), code.name());
             Map<?, ?> body = (Map<?, ?>) failed.getBody();
@@ -271,7 +270,7 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void anExpectedFailureAnswersWithItsCodeAtTheStatusOfItsCategory() {
+    void anExpectedFailureAnswersWithItsCodeAtTheStatusOfItsCategory() throws Exception {
         // Root BRX-RS-MANIFEST-022; standard-link plan L7.3: the handler names the code, the runtime the status.
         Map<ErrorCategory, Integer> expected = Map.of(ErrorCategory.INVALID, 400, ErrorCategory.DENIED, 403,
             ErrorCategory.NOT_FOUND, 404, ErrorCategory.CONFLICT, 409, ErrorCategory.UNAVAILABLE, 503,
@@ -285,7 +284,7 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void anInvalidRequestAnswers400WithThePathsAndRulesItBreaks() {
+    void anInvalidRequestAnswers400WithThePathsAndRulesItBreaks() throws Exception {
         ResponseEntity<Object> failed = dispatchThrowing(new EndpointRequestInvalidException(
             List.of(Map.of("path", "$.size", "rule", "maximum"))));
 
@@ -295,7 +294,7 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void anUnexpectedFailureIsPlatformUnknownWithoutItsCause() {
+    void anUnexpectedFailureIsPlatformUnknownWithoutItsCause() throws Exception {
         ResponseEntity<Object> failed = dispatchThrowing(new IllegalStateException("connection refused by db-7.internal"));
 
         assertEquals(500, failed.getStatusCode().value());
@@ -306,7 +305,7 @@ class RuntimeShellEndpointControllerTest {
     }
 
     @Test
-    void aFullEndpointAnswers503Rejected() {
+    void aFullEndpointAnswers503Rejected() throws Exception {
         // Standard-link plan L7.5, D60.
         ResponseEntity<Object> rejected = dispatchThrowing(new EndpointRejectedException("e"));
 
@@ -331,8 +330,16 @@ class RuntimeShellEndpointControllerTest {
                 return List.of();
             }
         };
-        return new RuntimeShellEndpointController(dispatcher, () -> platformAdmin(Set.of()))
-            .dispatch(null, request(Map.of()));
+        return send(new RuntimeShellEndpointController(dispatcher, () -> platformAdmin(Set.of())), request(Map.of()));
+    }
+
+    /** Dispatches a request that has no body, whose content type the controller therefore never refuses. */
+    private static ResponseEntity<Object> send(RuntimeShellEndpointController controller, HttpServletRequest request) {
+        try {
+            return controller.dispatch(request);
+        } catch (org.springframework.web.HttpMediaTypeNotSupportedException unexpected) {
+            throw new AssertionError(unexpected);
+        }
     }
 
     private static final class SampleFailure extends BrixException {

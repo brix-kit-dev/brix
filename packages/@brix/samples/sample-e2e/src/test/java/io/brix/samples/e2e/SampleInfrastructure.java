@@ -151,14 +151,32 @@ final class SampleInfrastructure {
      */
     static HttpResponse<String> postTextAsOperator(int port, String path, String contentType, String text,
             String idempotencyKey) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        return postText(port, path, contentType, text, idempotencyKey, SampleHost.OPERATOR_HEADER, "9001");
+    }
+
+    /** Sends a body as the text a client wrote, with its content type and a key, from nobody signed in. */
+    static HttpResponse<String> postTextAnonymously(int port, String path, String contentType, String text,
+            String idempotencyKey) throws Exception {
+        return postText(port, path, contentType, text, idempotencyKey, SampleHost.ANONYMOUS_HEADER, "yes");
+    }
+
+    /** Sends a body as the text a client wrote, with its content type and a key, as the member. */
+    static HttpResponse<String> postTextAsMember(int port, String path, String contentType, String text,
+            String idempotencyKey) throws Exception {
+        return postText(port, path, contentType, text, idempotencyKey, null, null);
+    }
+
+    private static HttpResponse<String> postText(int port, String path, String contentType, String text,
+            String idempotencyKey, String who, String value) throws Exception {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
             .header("Content-Type", contentType)
-            .header(SampleHost.OPERATOR_HEADER, "9001")
             .header("Idempotency-Key", idempotencyKey)
             .timeout(Duration.ofSeconds(30))
-            .POST(HttpRequest.BodyPublishers.ofString(text))
-            .build();
-        return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            .POST(HttpRequest.BodyPublishers.ofString(text));
+        if (who != null) {
+            request.header(who, value);
+        }
+        return HTTP.send(request.build(), HttpResponse.BodyHandlers.ofString());
     }
 
     /** Places an order under a key of its own: sample-orders' endpoint requires one (standard-link plan point 10a). */

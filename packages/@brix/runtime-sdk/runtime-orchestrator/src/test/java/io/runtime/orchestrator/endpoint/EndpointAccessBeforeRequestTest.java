@@ -242,8 +242,7 @@ class EndpointAccessBeforeRequestTest {
     }
 
     private MockHttpServletResponse send(DefaultPluginEndpointDispatcher dispatcher, Auth auth) throws Exception {
-        MockMvc mvc = MockMvcBuilders.standaloneSetup(new RuntimeShellEndpointController(dispatcher, () -> auth))
-            .setControllerAdvice(new EndpointJsonBodyAdvice(JSON))
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new RuntimeShellEndpointController(dispatcher, () -> auth, JSON))
             .build();
         return mvc.perform(post(THINGS).contentType(MediaType.APPLICATION_JSON).content(INVALID_TEXT))
             .andReturn().getResponse();

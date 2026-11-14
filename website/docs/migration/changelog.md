@@ -172,8 +172,14 @@ All notable changes to Brix Framework are documented here.
   schema. A call without a verified caller gets 401 `ENDPOINT_AUTHENTICATION_REQUIRED` and a caller the entry refuses
   403, whatever the request, and neither is told what the request breaks: before, a request that broke its schema got
   400 `endpoint.invalid_request` and its violations first. A call that passes the checks, and a call to an anonymous
-  entry, is answered as before. A body the host cannot read as JSON is still answered by the host first. Plugins
-  change nothing. See [Failures](../guides/endpoints.md#failures).
+  entry, is answered as before. Plugins change nothing. See [Failures](../guides/endpoints.md#failures).
+- **An endpoint's body is read after the access checks, and only as JSON** (root 3.4.0 BRX-RS-MANIFEST-022). The
+  runtime's controller no longer has Spring read the body before the dispatcher; the dispatcher reads it once the call
+  has passed its checks, in `application/json` or `application/*+json`, as the host's JSON mapper reads it, and a
+  typed endpoint still with every decimal digit. A body of another content type is answered 415 as before; so is
+  `application/yaml` now, which a host with Jackson's YAML module used to read, numbers as doubles. A host that
+  provides its own `PluginEndpointDispatcher` gets the body read first, as before, through the default of the new
+  `invoke(..., EndpointRequestBody, ...)` overload. `EndpointJsonBodyAdvice` is gone.
 - **Handlers are bound through factories.** Plugins bind endpoint, query, command, event and task handlers with
   `bindEndpointHandlerFactory`, `bindEventHandlerFactory` and the like. The runtime creates them after the plugin
   started, with the capabilities the manifest requires.
@@ -287,6 +293,10 @@ All notable changes to Brix Framework are documented here.
 
 ### 🐛 Fixed
 
+- **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
+  dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
+  call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule
+  `json`; a call without a verified caller gets 401, one the entry refuses 403.
 - **A typed endpoint reads the numbers the client wrote.** The runtime read a request body with the host's JSON
   mapper, which rounds a decimal to the nearest `double`: an amount of `12345678901234567.89` reached the handler as
   `12345678901234568`, an `integer` property took `2.0000000000000001` for 2, and two requests that differed past the

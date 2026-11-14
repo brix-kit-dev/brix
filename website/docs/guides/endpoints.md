@@ -21,9 +21,10 @@ For each request, in this order (root BRX-RS-MANIFEST-022):
 3. Checks the caller, the tenant context and the permissions the manifest names. It looks only at what the host
    verified about the caller, never at the request. A call it refuses gets 401 or 403, whatever its request
    ([Failures](#failures)).
-4. Builds the request: the body of a `POST`, `PUT` or `PATCH`, or the query parameters of any other method, together
-   with the path variables. It checks them against the request schema. A request that breaks it never reaches your
-   handler.
+4. Builds the request. Only now does it read the body, which has to be JSON: `application/json` or
+   `application/*+json`. The request is the body of a `POST`, `PUT` or `PATCH`, or the query parameters of any other
+   method, together with the path variables. It checks them against the request schema. A request that breaks it never
+   reaches your handler.
 5. Takes one of the endpoint's permits, or answers 503 at once when all are taken ([Deadlines and
    limits](#deadlines-and-limits)).
 6. On an endpoint that [replays its results](#repeating-a-call), checks the call's key.
@@ -314,7 +315,7 @@ The runtime's own answers:
 
 | Code | Status | When |
 |---|---|---|
-| `endpoint.invalid_request` | 400 | The request breaks its schema, or has a number too long written out. The body lists `violations`, each a `path` and a `rule`, never a value. |
+| `endpoint.invalid_request` | 400 | The request breaks its schema, has a number too long written out, or its body is not JSON text. The body lists `violations`, each a `path` and a `rule`, never a value; a body that is not JSON text has one, path `$`, rule `json`. |
 | `endpoint.rejected` | 503 | The endpoint already runs as many calls as the host allows |
 | `endpoint.deadline_exceeded` | 504 | The handler did not answer before the deadline, or answered after it; its unit of work rolls back |
 | `endpoint.idempotency_key_required`, `endpoint.idempotency_in_progress`, `endpoint.idempotency_conflict` | 400, 409, 422 | See [Repeating a call](#repeating-a-call) |
@@ -330,8 +331,8 @@ A call first has to pass the access checks, then its request is checked (root BR
 A refused call gets one of these whatever its request, and its body has no `violations`: a caller without a token
 learns nothing about the fields an entry takes. A client signs in first; then it is told what its request breaks. An
 anonymous entry checks no caller, only the tenant context, so a request that breaks its schema gets
-`endpoint.invalid_request` as before. The host still reads a JSON body before the dispatcher: a body it cannot read
-as JSON, or one of another content type, is answered by the host first, whoever sends it.
+`endpoint.invalid_request` as before. A body of another content type than JSON, YAML among them, is answered 415
+Unsupported Media Type by the host, once the call has passed the access checks too.
 
 ## Traces
 
@@ -391,7 +392,8 @@ The schema's `enum` lists the sort orders your query supports, so a caller canno
 ## The handlers written before 3.3.0
 
 `EndpointHandler<EndpointInvocation<Object>, R>` still works. Its body is the raw JSON, it may return `EndpointResponse`
-and throw `EndpointHandlingException`, and the runtime checks neither its request nor its response. Its numbers are as
+and throw `EndpointHandlingException`, and the runtime checks neither its request against a schema nor its response.
+Its body has to be JSON text, as every endpoint's. Its numbers are as
 the host's JSON mapper reads them: a decimal is a `Double`, which keeps about 17 significant digits, so an endpoint
 that takes amounts is a `TypedEndpointHandler`. It runs
 synchronously, so the runtime cannot stop waiting for it; its transaction still ends at the deadline, and a handler that

@@ -238,7 +238,23 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             Map<String, List<String>> queryParameters,
             Map<String, List<String>> headers,
             Consumer<String> traceIds) {
+        return invoke(method, path, EndpointRequestBody.read(body, exactBody), queryParameters, headers, traceIds);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object invoke(
+            String method,
+            String path,
+            EndpointRequestBody body,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Consumer<String> traceIds) {
         Objects.requireNonNull(traceIds, "traceIds must not be null");
+        // A caller that passes a null body to invoke(..., traceIds) lands here: no body, as before.
+        EndpointRequestBody requestBody = body != null ? body : EndpointRequestBody.read(null, null);
         String normalizedMethod = normalizeMethod(method);
         String requestPath = requirePath(path);
         Map<String, List<String>> normalizedHeaders = normalizeHeaders(headers);
@@ -266,7 +282,7 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         boolean replayed = false;
         try {
             traceIds.accept(traceId);
-            Object result = dispatch(current, match, normalizedMethod, body, exactBody,
+            Object result = dispatch(current, match, normalizedMethod, requestBody,
                 queryParameters != null ? queryParameters : Map.of(), normalizedHeaders, deadline, trace, traceId);
             status = result instanceof EndpointResponse response ? response.status() : 200;
             if (result instanceof EndpointReplay.Replayed again) {
@@ -302,8 +318,8 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
         return snapshot.get().routes();
     }
 
-    private Object dispatch(Snapshot current, RouteMatch match, String method, Object body,
-            Supplier<JsonNode> exactBody, Map<String, List<String>> queryParameters, Map<String, List<String>> headers,
+    private Object dispatch(Snapshot current, RouteMatch match, String method, EndpointRequestBody body,
+            Map<String, List<String>> queryParameters, Map<String, List<String>> headers,
             Instant deadline, TraceContext trace, String traceId) {
         EndpointRoute route = match.published().route();
         // Root BRX-RS-MANIFEST-022 (3.4.0, RFC-010): the authentication, tenant context and permission checks come
@@ -319,12 +335,15 @@ public final class DefaultPluginEndpointDispatcher implements PluginEndpointDisp
             firstHeader(headers, TENANT_ROLE_TYPE_HEADER),
             firstHeader(headers, TENANT_REF_HEADER)), current.grants());
 
-        // Root BRX-RS-MANIFEST-022: only then is a typed request normalized and checked against its schema.
-        Object request = body;
+        // Root BRX-RS-MANIFEST-022: only then is the request normalized, its body read first (queue item 10, Q10b, D130):
+        // a body that is not JSON text is an invalid request (D131), one of another content type is not read (D132).
+        // A typed request is then checked against its schema.
+        Object value = body.value();
+        Object request = value;
         JsonNode requestTree = null;
         if (route.handler() instanceof TypedEndpointHandler<?, ?> handler) {
-            TypedEndpoints.Input input = typed.input(route, handler, method, body, exactBody, queryParameters,
-                match.pathVariables());
+            TypedEndpoints.Input input = typed.input(route, handler, method, value, value == null ? null : body::exact,
+                queryParameters, match.pathVariables());
             request = input.value();
             requestTree = input.tree();
         }

@@ -30,13 +30,14 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.runtime.sdk.capability.AuthCapability;
 import io.runtime.sdk.capability.AuthenticatedPrincipal;
@@ -50,6 +51,10 @@ import io.runtime.sdk.plugin.EndpointResponse;
  * HTTP data is converted to framework-neutral invocation data, dispatched
  * through the current immutable route snapshot, and translated back to a
  * protocol response.</p>
+ *
+ * <p>It reads no request body (root BRX-RS-MANIFEST-022, 3.4.0; standard-link
+ * plan queue item 10, Q10b, D130): the body goes to the dispatcher unread, which
+ * reads it only once the call has passed its access checks.</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -73,6 +78,7 @@ public class RuntimeShellEndpointController {
 
     private final PluginEndpointDispatcher dispatcher;
     private final Supplier<AuthCapability> authCapabilitySupplier;
+    private final ObjectMapper json;
 
     /**
      * Creates a controller.
@@ -89,27 +95,51 @@ public class RuntimeShellEndpointController {
      * @param dispatcher Runtime Shell endpoint dispatcher
      * @param authCapabilityProvider current request authentication context provider
      */
-    @Autowired
     public RuntimeShellEndpointController(
             PluginEndpointDispatcher dispatcher,
             ObjectProvider<AuthCapability> authCapabilityProvider) {
         this(dispatcher, authCapabilityProvider::getIfAvailable);
     }
 
+    /**
+     * Creates a controller with a Runtime authentication capability and the host's JSON mapper, which reads request
+     * bodies as the host's JSON converter would.
+     *
+     * @param dispatcher Runtime Shell endpoint dispatcher
+     * @param authCapabilityProvider current request authentication context provider
+     * @param json the host's mapper
+     * @since 3.4.0
+     */
+    @Autowired
+    public RuntimeShellEndpointController(
+            PluginEndpointDispatcher dispatcher,
+            ObjectProvider<AuthCapability> authCapabilityProvider,
+            ObjectMapper json) {
+        this(dispatcher, authCapabilityProvider::getIfAvailable, json);
+    }
+
     RuntimeShellEndpointController(
             PluginEndpointDispatcher dispatcher,
             Supplier<AuthCapability> authCapabilitySupplier) {
+        this(dispatcher, authCapabilitySupplier, JsonMapper.builder().build());
+    }
+
+    RuntimeShellEndpointController(
+            PluginEndpointDispatcher dispatcher,
+            Supplier<AuthCapability> authCapabilitySupplier,
+            ObjectMapper json) {
         this.dispatcher = dispatcher;
         this.authCapabilitySupplier = authCapabilitySupplier;
+        this.json = json;
     }
 
     /**
      * Dispatches HTTP requests to manifest-published plugin endpoints.
      *
-     * @param body request body as the host's JSON mapper read it; a JSON body comes with its text, which the
-     *     {@link EndpointJsonBodyAdvice} kept
-     * @param request servlet request boundary object
+     * @param request servlet request boundary object; its body goes to the dispatcher unread
      * @return protocol response
+     * @throws HttpMediaTypeNotSupportedException when a call that passed its access checks has a body that is not
+     *     JSON by its content type, which the host answers as it answers such a body (D132)
      */
     @RequestMapping(path = "/**", method = {
         RequestMethod.GET,
@@ -118,20 +148,16 @@ public class RuntimeShellEndpointController {
         RequestMethod.PATCH,
         RequestMethod.DELETE
     })
-    public ResponseEntity<Object> dispatch(
-            @RequestBody(required = false) Object body,
-            HttpServletRequest request) {
+    public ResponseEntity<Object> dispatch(HttpServletRequest request) throws HttpMediaTypeNotSupportedException {
         AtomicReference<String> traceId = new AtomicReference<>();
-        // Standard-link plan queue item 7, D123: a typed endpoint reads the text with every decimal digit; a handler of
-        // the old shape gets the body as before.
-        Object value = body instanceof EndpointJsonBodyAdvice.JsonBody json ? json.value() : body;
-        Supplier<JsonNode> exactBody = body instanceof EndpointJsonBodyAdvice.JsonBody json ? json.exact() : null;
+        // Root BRX-RS-MANIFEST-022 (3.4.0); standard-link plan queue item 10, Q10b, D130: the body is read by the
+        // dispatcher, after the access checks. A typed endpoint still reads its text with every decimal digit (D123).
+        EndpointRequestBody body = new ServletRequestBody(request, json);
         try {
             Object result = dispatcher.invoke(
                 request.getMethod(),
                 requestPath(request),
-                value,
-                exactBody,
+                body,
                 queryParameters(request),
                 trustedInvocationHeaders(headers(request)),
                 traceId::set);
@@ -145,6 +171,9 @@ public class RuntimeShellEndpointController {
             return ResponseEntity.ok(result);
         } catch (EndpointDispatchException e) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (EndpointMediaTypeUnsupportedException e) {
+            // Q10b, D132: answered as the host answers a body of a content type that it does not read.
+            throw ServletRequestBody.unsupported(e);
         } catch (RuntimeException e) {
             EndpointFailures.Failure failure = EndpointFailures.of(e);
             if (failure.unexpected()) {
@@ -277,6 +306,11 @@ public class RuntimeShellEndpointController {
     }
 
     private static Map<String, List<String>> queryParameters(HttpServletRequest request) {
+        // Root BRX-RS-MANIFEST-022: the parameters of a form come from its body, which the container would parse to
+        // read them, before the access checks. A form is no JSON: its call ends in 415 once it passed them (D132).
+        if (ServletRequestBody.carriesForm(request)) {
+            return Map.of();
+        }
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
             result.put(entry.getKey(), List.of(entry.getValue()));

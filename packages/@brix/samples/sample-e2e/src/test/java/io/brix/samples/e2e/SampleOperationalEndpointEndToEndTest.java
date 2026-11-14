@@ -195,9 +195,24 @@ class SampleOperationalEndpointEndToEndTest {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         String orderId = placedOrder();
 
-        // What the host cannot read as JSON is answered as it was.
-        assertEquals(400, adjustText(orderId, "application/json", "{\"delta\": ").statusCode());
+        // Queue item 10, Q10b (D131): a body that is not JSON text is an invalid request, in the runtime's own envelope,
+        // one violation for the whole body.
+        HttpResponse<String> notJson = adjustText(orderId, "application/json", "{\"delta\": ");
+        assertEquals(400, notJson.statusCode(), notJson.body());
+        assertViolation(notJson, "$", "json");
+        // D132: a body of another content type is answered 415 as before; YAML, which the host's YAML module used to
+        // read, too (D130).
         assertEquals(415, adjustText(orderId, "text/plain", "{\"delta\": 1}").statusCode());
+        assertEquals(415, adjustText(orderId, "application/yaml", "delta: 1\n").statusCode());
+        // Root BRX-RS-MANIFEST-022: nobody signed in gets 401 and a member's token 403, whatever the body.
+        String path = path(SampleHost.TENANT, orderId);
+        for (String[] body : new String[][] {{"application/json", "{\"delta\": "}, {"text/plain", "x"},
+                {"application/yaml", "delta: 1\n"}}) {
+            SampleInfrastructure.assertRefusedBeforeTheRequest(SampleInfrastructure.postTextAnonymously(port, path,
+                body[0], body[1], key()), 401, "ENDPOINT_AUTHENTICATION_REQUIRED");
+            SampleInfrastructure.assertRefusedBeforeTheRequest(SampleInfrastructure.postTextAsMember(port, path,
+                body[0], body[1], key()), 403, "ENDPOINT_TOKEN_NOT_ACCEPTED");
+        }
         assertEquals(3, quantity(jdbc, orderId));
         // A whole number written with a fraction of zero is the whole number, as it was.
         HttpResponse<String> whole = adjustText(orderId, "application/json", "{\"delta\": 2.0}");

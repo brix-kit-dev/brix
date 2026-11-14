@@ -31,13 +31,14 @@ import io.runtime.sdk.capability.DataScope;
 class RuntimeShellBootstrapAutoConfigurationTest {
 
     @Test
-    void webConfigurationWiresAuthCapabilityProviderIntoEndpointController() {
+    void webConfigurationWiresAuthCapabilityProviderIntoEndpointController() throws Exception {
         CapturingDispatcher dispatcher = new CapturingDispatcher();
         RuntimeShellEndpointController controller =
                 new RuntimeShellBootstrapAutoConfiguration.RuntimeShellWebConfiguration()
-                        .runtimeShellEndpointController(dispatcher, provider(new TestAuthCapability("1001")));
+                        .runtimeShellEndpointController(dispatcher, provider(new TestAuthCapability("1001")),
+                            mapper());
 
-        controller.dispatch(null, request());
+        controller.dispatch(request());
 
         assertEquals(List.of("1001"), dispatcher.headers.get("x-actor-id"));
     }
@@ -50,6 +51,14 @@ class RuntimeShellBootstrapAutoConfigurationTest {
         when(request.getParameterMap()).thenReturn(Map.of());
         when(request.getHeaderNames()).thenReturn(Collections.emptyEnumeration());
         return request;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<tools.jackson.databind.ObjectMapper> mapper() {
+        ObjectProvider<tools.jackson.databind.ObjectMapper> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(tools.jackson.databind.json.JsonMapper.builder().build());
+        return provider;
     }
 
     @SuppressWarnings("unchecked")

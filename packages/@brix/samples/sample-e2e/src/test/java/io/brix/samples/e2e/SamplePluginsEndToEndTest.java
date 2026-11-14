@@ -308,6 +308,18 @@ class SamplePluginsEndToEndTest {
         SampleInfrastructure.assertRefusedBeforeTheRequest(
             SampleInfrastructure.postAsOperator(port, "/api/sample-orders/orders", noQuantity), 403,
             "ENDPOINT_TOKEN_NOT_ACCEPTED");
+        // Queue item 10, Q10b: the body is read only after those checks. Nobody signed in still gets 401 for a body that
+        // is not JSON text; the member, who passes them, gets an invalid request (D131).
+        SampleInfrastructure.assertRefusedBeforeTheRequest(SampleInfrastructure.postTextAnonymously(port,
+            "/api/sample-orders/orders", "application/json", "{\"sku\": ", "client-key-not-json"), 401,
+            "ENDPOINT_AUTHENTICATION_REQUIRED");
+        HttpResponse<String> notJson = SampleInfrastructure.postTextAsMember(port, "/api/sample-orders/orders",
+            "application/json", "{\"sku\": ", "client-key-not-json");
+        assertEquals(400, notJson.statusCode(), notJson.body());
+        JsonNode notJsonAnswer = JSON.readTree(notJson.body());
+        assertEquals("endpoint.invalid_request", notJsonAnswer.get("errorCode").asString(), notJson.body());
+        assertEquals("$", notJsonAnswer.get("violations").get(0).get("path").asString(), notJson.body());
+        assertEquals("json", notJsonAnswer.get("violations").get(0).get("rule").asString(), notJson.body());
         // A request that breaks its schema never reaches the handler: the runtime names the path and the rule.
         HttpResponse<String> refused = post("/api/sample-orders/orders", noQuantity);
         assertEquals(400, refused.statusCode(), refused.body());

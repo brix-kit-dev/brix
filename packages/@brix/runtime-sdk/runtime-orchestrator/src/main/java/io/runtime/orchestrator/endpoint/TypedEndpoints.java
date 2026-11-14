@@ -84,7 +84,8 @@ final class TypedEndpoints {
      * @param handler its handler
      * @param method the request's method
      * @param body the request body, or {@code null}
-     * @param exactBody reads the body's JSON text with every decimal digit; {@code null} when the caller has no text
+     * @param exactBody reads the body's JSON text with every decimal digit; {@code null}, or a reading of
+     *     {@code null}, when the caller has no text
      * @param query the query parameters
      * @param pathVariables the path variables
      * @return the request
@@ -96,8 +97,10 @@ final class TypedEndpoints {
         ObjectNode request = json.createObjectNode();
         if (BODY_METHODS.contains(method)) {
             if (body != null) {
-                // Standard-link plan queue item 7, D123: the numbers the client wrote, not their nearest doubles.
-                JsonNode tree = exactBody != null ? exactBody.get() : json.valueToTree(body);
+                // Standard-link plan queue item 7, D123: the numbers the client wrote, not their nearest doubles. A body
+                // that came read already, without its text, is all there is.
+                JsonNode exact = exactBody != null ? exactBody.get() : null;
+                JsonNode tree = exact != null ? exact : json.valueToTree(body);
                 if (!tree.isObject()) {
                     throw invalid("$", "type");
                 }

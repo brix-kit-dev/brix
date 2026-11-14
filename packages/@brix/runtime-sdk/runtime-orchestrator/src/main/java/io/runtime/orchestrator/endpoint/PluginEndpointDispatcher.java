@@ -124,6 +124,35 @@ public interface PluginEndpointDispatcher {
     }
 
     /**
+     * Invokes a published endpoint with a body it reads only when it asks for it (root BRX-RS-MANIFEST-022, 3.4.0;
+     * standard-link plan queue item 10, Q10b, D130): the dispatcher reads it after the call's access checks, so a call
+     * they refuse never has its body read. A dispatcher that does not read bodies this way gets the body read first and
+     * passed on as before, which is what this default does.
+     *
+     * @param method request method
+     * @param path request path as the client sent it
+     * @param body the request's body, not read yet; {@code null} for none, so that a call that passes a {@code null}
+     *     body to the overload before it keeps its meaning
+     * @param queryParameters query parameters
+     * @param headers request headers
+     * @param traceIds receives the call's trace id once the route is found
+     * @return handler result
+     * @throws EndpointRequestInvalidException when the body is not JSON text
+     * @throws EndpointMediaTypeUnsupportedException when the body's content type is not JSON
+     * @since 3.4.0
+     */
+    default Object invoke(
+            String method,
+            String path,
+            EndpointRequestBody body,
+            Map<String, List<String>> queryParameters,
+            Map<String, List<String>> headers,
+            Consumer<String> traceIds) {
+        Object value = body == null ? null : body.value();
+        return invoke(method, path, value, value == null ? null : body::exact, queryParameters, headers, traceIds);
+    }
+
+    /**
      * Returns the current immutable route snapshot.
      *
      * @return route snapshot

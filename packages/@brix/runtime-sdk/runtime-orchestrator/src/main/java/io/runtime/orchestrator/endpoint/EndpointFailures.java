@@ -52,6 +52,10 @@ final class EndpointFailures {
             return new Failure(400, EndpointRequestInvalidException.CODE, EndpointRequestInvalidException.CODE,
                 invalid.violations(), false);
         }
+        if (failure instanceof EndpointMediaTypeUnsupportedException) {
+            // Standard-link plan queue item 10, Q10b, D132: the host writes the answer; the span and meters record it.
+            return known(EndpointMediaTypeUnsupportedException.STATUS, EndpointMediaTypeUnsupportedException.ERROR_TYPE);
+        }
         if (failure instanceof EndpointDeadlineExceededException) {
             return known(504, EndpointDeadlineExceededException.CODE);
         }

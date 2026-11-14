@@ -121,14 +121,13 @@
         </dependency>
 
         <!--
-          Spring MVC (optional dependency): the endpoint bridge's request body advice, which keeps the JSON text of a
-          request so that typed endpoints read its numbers with every decimal digit (standard-link plan queue item 7,
-          D123). A Host that serves the bridge runs Spring MVC already.
+          Spring MVC, tests only: MockMvc serves the endpoint bridge as a Host does. The bridge itself reads its
+          request bodies, after the dispatcher's access checks (standard-link plan queue item 10, Q10b, D130).
         -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
-            <optional>true</optional>
+            <scope>test</scope>
         </dependency>
 
         <!-- Spring transaction synchronization for durable command receipts. -->
@@ -197,7 +196,7 @@
             <artifactId>logback-classic</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- MockMvc: the endpoint bridge read by Spring MVC itself, its body advice included -->
+        <!-- MockMvc: the endpoint bridge served by Spring MVC itself -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
