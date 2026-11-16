@@ -192,6 +192,14 @@ All notable changes to Brix Framework are documented here.
   of work commits, before its caller's. An event or command handler's unit of work now commits inside its call, so an
   email sent at that commit still ends at the delivery's deadline. Plugins change nothing. See
   [Notifications](../guides/backend-development.md#notifications).
+- **An event or command delivery runs with its trace on the thread** (root 3.4.0 BRX-RS-ERROR-013, ERROR-017 item 7).
+  While the runtime delivers an event or a command, from the inbox record through the handler to the commit and the
+  emails sent at it, the logging context holds the delivery's `traceparent` and `traceId`, as it does during an
+  endpoint call, and the thread gets its own values back afterwards. An email refused at the commit is now logged with
+  the delivery's trace id instead of `-`, and the events, commands and external calls a handler makes continue the
+  delivery's trace instead of starting new ones. A message without a well-formed W3C `traceparent` starts a new
+  trace, as one without any did. Plugins change nothing. See
+  [Events and Commands](../guides/events-and-commands.md).
 - **Handlers are bound through factories.** Plugins bind endpoint, query, command, event and task handlers with
   `bindEndpointHandlerFactory`, `bindEventHandlerFactory` and the like. The runtime creates them after the plugin
   started, with the capabilities the manifest requires.

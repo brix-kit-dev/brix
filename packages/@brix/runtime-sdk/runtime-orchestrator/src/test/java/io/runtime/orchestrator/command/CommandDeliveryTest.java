@@ -8,6 +8,7 @@ package io.runtime.orchestrator.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +23,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,10 +34,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.slf4j.MDC;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -48,6 +52,7 @@ import io.runtime.orchestrator.outbox.CanonicalOutboxMessage;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
+import io.runtime.orchestrator.tracing.DeliveryTraces;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
@@ -69,6 +74,8 @@ class CommandDeliveryTest {
 
     private static final Instant NOW = Instant.parse("2026-10-30T00:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final String TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+    private static final String OUTER_TRACEPARENT = "00-11111111111111111111111111111111-2222222222222222-01";
 
     record Reserve(String sku, int quantity) {
     }
@@ -129,12 +136,19 @@ class CommandDeliveryTest {
     private final List<Duration> timeouts = new ArrayList<>();
     /** The deadline of the call each unit of work committed in: a notification sent at the commit keeps it. */
     private final List<Optional<Instant>> deadlinesAtCommit = new ArrayList<>();
+    /** The trace id on the thread when each unit of work committed: a notification's failure log at the commit has it. */
+    private final List<String> traceIdsAtCommit = new ArrayList<>();
     private final List<String> unitsOfWork = new ArrayList<>();
     private RuntimeException reserveFailure;
     private boolean started = true;
     private String providerVersion = "1.2.0";
     private String accessPolicy = "declared-consumers";
     private CommandDelivery delivery;
+
+    @AfterEach
+    void clearTheThread() {
+        MDC.clear();
+    }
 
     @BeforeEach
     void setUp() {
@@ -196,6 +210,7 @@ class CommandDeliveryTest {
                 timeouts.add(timeout);
                 T result = forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
                 deadlinesAtCommit.add(RuntimeInvocations.current().map(RuntimeInvocation::deadline));
+                traceIdsAtCommit.add(MDC.get(DeliveryTraces.TRACE_ID));
                 return result;
             }
         };
@@ -259,6 +274,53 @@ class CommandDeliveryTest {
 
         assertEquals(List.of(Optional.of(NOW.plusSeconds(15))), deadlinesAtCommit);
         assertEquals(Optional.empty(), RuntimeInvocations.current());
+    }
+
+    @Test
+    void theCommandsTraceIsOnTheThreadUntilItsUnitOfWorkHasCommitted() {
+        // Root BRX-RS-ERROR-013, ERROR-017 item 7 (standard-link plan D133): the handler's log lines, and the failure log
+        // of a notification sent at the commit, carry the command's trace; the consumer's thread gets its own back.
+        List<String> whileHandled = new ArrayList<>();
+        handler.whileHandling = () -> whileHandled.addAll(Arrays.asList(MDC.get("traceparent"), MDC.get("traceId")));
+        MDC.put("traceId", "the-consumer-thread");
+
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0").withTraceContext(TRACEPARENT, "vendor=1"));
+
+        assertEquals(List.of(TRACEPARENT, "4bf92f3577b34da6a3ce929d0e0e4736"), whileHandled);
+        assertEquals(List.of("4bf92f3577b34da6a3ce929d0e0e4736"), traceIdsAtCommit);
+        assertEquals("the-consumer-thread", MDC.get("traceId"));
+        assertNull(MDC.get("traceparent"));
+    }
+
+    @Test
+    void aCommandWhoseHandlerFailedLeavesTheThreadAsItWas() {
+        handler.failure = new IllegalStateException("stock service down");
+        MDC.put("traceparent", OUTER_TRACEPARENT);
+
+        assertThrows(EventDeliveryException.class, () -> delivery.deliver(
+            command("c-1", "order-7", "app-orders", "1.0.0").withTraceContext(TRACEPARENT, null)));
+
+        assertEquals(OUTER_TRACEPARENT, MDC.get("traceparent"));
+        assertNull(MDC.get("traceId"));
+    }
+
+    @Test
+    void aCommandWithoutAWellFormedTraceBeginsANewOneThatTheThreadCarries() {
+        // Root BRX-RS-ERROR-013, OTEL-002: a message without a trace context, or with one that is not well formed,
+        // starts a new trace.
+        List<String> whileHandled = new ArrayList<>();
+        handler.whileHandling = () -> whileHandled.add(MDC.get("traceparent"));
+
+        delivery.deliver(command("c-1", "order-7", "app-orders", "1.0.0"));
+        delivery.deliver(command("c-2", "order-8", "app-orders", "1.0.0").withTraceContext("not-a-traceparent", null));
+
+        assertEquals(2, handler.handled.size());
+        for (int i = 0; i < handler.handled.size(); i++) {
+            String traceparent = handler.handled.get(i).trace().traceparent();
+            assertTrue(DeliveryTraces.wellFormed(traceparent), traceparent);
+            assertEquals(traceparent, handler.handled.get(i).command().traceparent());
+            assertEquals(traceparent, whileHandled.get(i));
+        }
     }
 
     @Test

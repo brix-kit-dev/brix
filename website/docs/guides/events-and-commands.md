@@ -404,6 +404,10 @@ private static ShipmentDesk desk(PluginContext context) {
   so 15 s. Your unit of work ends with it. A statement still running is stopped, and a handler that returns later
   rolls back like one that throws.
 - `invocation.event()` also carries the event id, type, schema version, tenant, partition key and trace.
+- The handler runs in the event's trace. While it runs, its unit of work, the commit and an email sent at the commit
+  included, the logging context holds `traceparent` and `traceId`, so what is logged carries the event's trace id; the
+  events, commands and external calls it makes continue that trace. An event without a well-formed W3C `traceparent`
+  starts a new trace.
 - `invocation.deliveryAttempt()` tells you how many attempts there have been.
 
 ## Commands
@@ -518,6 +522,8 @@ final class CancelOrderHandler implements CommandHandler<CancelOrder> {
   counts as a throw.
 - `invocation.command()` carries the command id, type, schema version, sender (`producerPluginId`), tenant, business
   key and trace, and the user the sender acted for when the access policy needs one.
+- The handler runs in the command's trace, with `traceparent` and `traceId` in the logging context until its unit of
+  work has committed, as an event handler does.
 - A command has no reply. If someone needs the outcome, publish it as your own event.
 
 ### Sending a command

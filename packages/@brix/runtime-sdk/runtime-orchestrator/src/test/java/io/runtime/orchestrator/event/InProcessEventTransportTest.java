@@ -7,6 +7,8 @@ package io.runtime.orchestrator.event;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,6 +19,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -25,7 +28,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import tools.jackson.databind.ObjectMapper;
 
 import io.runtime.orchestrator.event.conformance.RecordingMessageTracing;
@@ -39,6 +48,7 @@ import io.runtime.orchestrator.plugin.PluginRuntimeDescriptor;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager.BoundEventHandler;
 import io.runtime.orchestrator.invocation.RuntimeInvocation;
 import io.runtime.orchestrator.invocation.RuntimeInvocations;
+import io.runtime.orchestrator.tracing.DeliveryTraces;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.capability.PersistenceCapabilityException;
@@ -73,6 +83,13 @@ class InProcessEventTransportTest {
     private final List<Duration> timeouts = new ArrayList<>();
     /** The deadline of the call each unit of work committed in: a notification sent at the commit keeps it. */
     private final List<Optional<Instant>> deadlinesAtCommit = new ArrayList<>();
+    /** The trace id on the thread when each unit of work committed: a notification's failure log at the commit has it. */
+    private final List<String> traceIdsAtCommit = new ArrayList<>();
+
+    @AfterEach
+    void clearTheThread() {
+        MDC.clear();
+    }
 
     /** Payload the test handler declares. */
     public record Accepted(Long tenantId, Long memberId, Role role) {
@@ -230,6 +247,71 @@ class InProcessEventTransportTest {
     }
 
     @Test
+    void theDeliverysTraceIsOnTheThreadUntilItsUnitOfWorkHasCommitted() {
+        // Root BRX-RS-ERROR-013, ERROR-017 item 7 (standard-link plan D133): the handler's log lines, and the failure log
+        // of a notification sent at the commit, carry the delivered event's trace; the relay's thread gets its own back.
+        List<String> whileHandled = new ArrayList<>();
+        whileHandling = () -> whileHandled.addAll(Arrays.asList(MDC.get("traceparent"), MDC.get("traceId")));
+        MDC.put("traceId", "the-relay-thread");
+
+        transport().publish(traced("event-1"));
+
+        assertEquals(List.of("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+            "4bf92f3577b34da6a3ce929d0e0e4736"), whileHandled);
+        assertEquals(List.of("4bf92f3577b34da6a3ce929d0e0e4736"), traceIdsAtCommit);
+        assertEquals("the-relay-thread", MDC.get("traceId"));
+        assertNull(MDC.get("traceparent"));
+    }
+
+    @Test
+    void aFailedDeliveryLogsItsFailureWithItsTraceAndTheThreadGetsItsOwnBack() {
+        failure = new IllegalStateException("projection unavailable");
+        Logger logger = (Logger) LoggerFactory.getLogger(EventDelivery.class);
+        ListAppender<ILoggingEvent> logged = new ListAppender<>() {
+            @Override
+            protected void append(ILoggingEvent event) {
+                event.prepareForDeferredProcessing();   // keeps the MDC the line was logged with
+                super.append(event);
+            }
+        };
+        logged.start();
+        logger.addAppender(logged);
+        try {
+            assertThrows(OutboxTransportException.class, () -> transport().publish(traced("event-1")));
+        } finally {
+            logger.detachAppender(logged);
+        }
+
+        ILoggingEvent failed = logged.list.stream()
+            .filter(event -> event.getFormattedMessage().startsWith("event=event.delivery_failed"))
+            .findFirst()
+            .orElseThrow();
+        assertEquals("4bf92f3577b34da6a3ce929d0e0e4736", failed.getMDCPropertyMap().get("traceId"));
+        assertNull(MDC.get("traceId"));
+        assertNull(MDC.get("traceparent"));
+    }
+
+    @Test
+    void anEventWithoutAWellFormedTraceBeginsANewOneThatTheThreadCarries() {
+        // Root BRX-RS-ERROR-013, OTEL-002: a message without a trace context, or with one that is not well formed,
+        // starts a new trace.
+        List<String> whileHandled = new ArrayList<>();
+        whileHandling = () -> whileHandled.add(MDC.get("traceparent"));
+
+        transport().publish(message("{\"tenantId\":910001,\"memberId\":7}", "1.0.0", 1));
+        transport().publish(traced("event-2", "00-4BF92F3577B34DA6A3CE929D0E0E4736-00F067AA0BA902B7-01"));
+
+        assertEquals(2, handled.size());
+        for (int i = 0; i < handled.size(); i++) {
+            String traceparent = handled.get(i).trace().traceparent();
+            assertTrue(DeliveryTraces.wellFormed(traceparent), traceparent);
+            assertEquals(traceparent, handled.get(i).event().traceparent());
+            assertEquals(traceparent, whileHandled.get(i));
+        }
+        assertNotEquals("4bf92f3577b34da6a3ce929d0e0e4736", handled.get(1).trace().traceparent().substring(3, 35));
+    }
+
+    @Test
     void theSubscribersUnitOfWorkLastsNoLongerThanTheTimeLeftBeforeItsDeadline() {
         // Standard-link plan point 3 (root BRX-RS-DATA-011): its statements stop, and its waits for a connection end,
         // at the delivery's deadline.
@@ -370,6 +452,7 @@ class InProcessEventTransportTest {
                 timeouts.add(timeout);
                 T result = forOwner(ownerModuleId).map(owner -> owner.unitOfWork().required(work)).orElseGet(work);
                 deadlinesAtCommit.add(RuntimeInvocations.current().map(RuntimeInvocation::deadline));
+                traceIdsAtCommit.add(MDC.get(DeliveryTraces.TRACE_ID));
                 return result;
             }
         };
@@ -378,9 +461,13 @@ class InProcessEventTransportTest {
     }
 
     private static CanonicalOutboxMessage traced(String eventId) {
+        return traced(eventId, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    }
+
+    private static CanonicalOutboxMessage traced(String eventId, String traceparent) {
         return new CanonicalOutboxMessage(eventId, eventId, "EVENT", EVENT, "1.0.0", "CRITICAL", PUBLISHER, "TENANT",
             910001L, "910001", OffsetDateTime.parse("2026-10-28T08:59:00Z"), "correlation-1", null,
-            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "vendor=1", "{\"tenantId\":910001,\"memberId\":7}", 1);
+            traceparent, "vendor=1", "{\"tenantId\":910001,\"memberId\":7}", 1);
     }
 
     private static CanonicalOutboxMessage message(String payload, String schemaVersion, int attempt) {

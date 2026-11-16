@@ -39,6 +39,7 @@ import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.TenantScope;
 import io.runtime.orchestrator.persistence.TenantScopes;
 import io.runtime.orchestrator.plugin.PluginRuntimeManager;
+import io.runtime.orchestrator.tracing.DeliveryTraces;
 import io.runtime.orchestrator.tracing.MessageTracing;
 import io.runtime.sdk.capability.PersistenceCapability;
 import io.runtime.sdk.command.CommandEnvelope;
@@ -275,7 +276,6 @@ public final class CommandDelivery {
     private void handle(CanonicalOutboxMessage message, PluginRuntimeManager.CommandProvider provider,
             MessageTracing.MessageSpan span) {
         String ownerId = provider.pluginId();
-        String handlerId = provider.command().handlerId();
         CommandMessages.Decoded decoded;
         try {
             decoded = CommandMessages.decode(json, message.payload(), provider.payloadType());
@@ -295,6 +295,17 @@ public final class CommandDelivery {
         }
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
         CommandInvocation<Object> invocation = invocation(message, decoded, access, span, cancelled);
+        // The delivery's trace is on the thread until the delivery ends: the provider's unit of work, its commit and
+        // the notifications sent at the commit, and the delivery's own log lines carry it (root BRX-RS-ERROR-013,
+        // ERROR-017 item 7; standard-link plan D133).
+        DeliveryTraces.within(invocation.trace(), () -> handle(message, provider, decoded, invocation, cancelled));
+    }
+
+    private void handle(CanonicalOutboxMessage message, PluginRuntimeManager.CommandProvider provider,
+            CommandMessages.Decoded decoded, CommandInvocation<Object> invocation,
+            java.util.concurrent.atomic.AtomicBoolean cancelled) {
+        String ownerId = provider.pluginId();
+        String handlerId = provider.command().handlerId();
         @SuppressWarnings("unchecked")
         CommandHandler<Object> handler = (CommandHandler<Object>) provider.handler();
         TenantScope scope = message.tenantId() == null ? TenantScope.none() : TenantScope.tenant(message.tenantId());
@@ -437,9 +448,8 @@ public final class CommandDelivery {
     private CommandInvocation<Object> invocation(CanonicalOutboxMessage message, CommandMessages.Decoded decoded,
             CommandPolicies.Access access, MessageTracing.MessageSpan span,
             java.util.concurrent.atomic.AtomicBoolean cancelled) {
-        String traceparent = span.traceparent() == null || span.traceparent().isBlank()
-            ? newTraceparent()
-            : span.traceparent();
+        // A message that carries no well-formed trace context begins a new trace (root BRX-RS-ERROR-013, OTEL-002).
+        String traceparent = DeliveryTraces.wellFormed(span.traceparent()) ? span.traceparent() : newTraceparent();
         CommandEnvelope<Object> envelope = new CommandEnvelope<>(
             message.messageId(),
             message.messageType(),

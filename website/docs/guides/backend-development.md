@@ -599,6 +599,7 @@ Persistence failures reach your code as `PersistenceCapabilityException`, never 
   back for any other reason, none goes out.
 - Outside a unit of work, the email goes out at once, and `send` throws the same error.
 - Sending ends at the deadline of the call you are handling, an event's or a command's as well as an endpoint's.
+- A failure is logged with the trace ID of that call, the masked recipient, the template and the outcome.
 - Nothing is retried for you. A retry comes from your caller: an endpoint called again with the same idempotency key
   gets its first answer back and sends nothing; an event or a command is delivered again under its retry policy. When
   you send again for the same purpose, void the tokens you sent before.
