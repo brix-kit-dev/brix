@@ -18,10 +18,7 @@ package io.brix.platform.tenant.core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.NetworkInterface;
-import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Enumeration;
 
 /**
  * Snowflake ID Generator Implementation.
@@ -58,13 +55,8 @@ import java.util.Enumeration;
  *
  * <h3>Worker ID Assignment</h3>
  * <p>Worker ID must be unique across all generator instances to guarantee
- * uniqueness. Assignment strategies:
- * <ul>
- *   <li>Manual configuration via environment variable or config</li>
- *   <li>Kubernetes stateful set ordinal</li>
- *   <li>MAC address-based (default fallback)</li>
- *   <li>Random (for testing only)</li>
- * </ul>
+ * uniqueness. The caller passes it to the constructor, from the module's
+ * configuration; the generator does not detect one itself.
  *
  * <h3>Clock Skew Handling</h3>
  * <p>If the system clock moves backwards, the generator will:
@@ -180,24 +172,6 @@ public class SnowflakeIdGenerator implements IdGenerator {
     // ========================================================================
     // Constructors
     // ========================================================================
-
-    /**
-     * Creates a Snowflake ID generator with auto-detected worker ID.
-     *
-     * <p>Worker ID is derived from:
-     * <ol>
-     *   <li>WORKER_ID environment variable (if set)</li>
-     *   <li>MAC address of first network interface</li>
-     *   <li>Random value (fallback)</li>
-     * </ol>
-     *
-     * <p><b>Warning:</b> Auto-detection may not guarantee uniqueness
-     * in all deployment scenarios. For production, consider explicit
-     * worker ID configuration.
-     */
-    public SnowflakeIdGenerator() {
-        this(resolveWorkerId());
-    }
 
     /**
      * Creates a Snowflake ID generator with specified worker ID.
@@ -351,92 +325,6 @@ public class SnowflakeIdGenerator implements IdGenerator {
             worker,
             seq
         );
-    }
-
-    // ========================================================================
-    // Worker ID Resolution
-    // ========================================================================
-
-    /**
-     * Resolves worker ID from environment or hardware.
-     *
-     * <p>Resolution order:
-     * <ol>
-     *   <li>WORKER_ID environment variable</li>
-     *   <li>HOSTNAME environment variable (hash if numeric pattern found)</li>
-     *   <li>MAC address-based derivation</li>
-     *   <li>Random fallback</li>
-     * </ol>
-     *
-     * @return worker ID between 0 and MAX_WORKER_ID
-     */
-    private static long resolveWorkerId() {
-        // 1. Check environment variable
-        String envWorkerId = System.getenv("WORKER_ID");
-        if (envWorkerId != null && !envWorkerId.isBlank()) {
-            try {
-                long id = Long.parseLong(envWorkerId.trim());
-                if (id >= 0 && id <= MAX_WORKER_ID) {
-                    log.info("Using WORKER_ID from environment: {}", id);
-                    return id;
-                }
-                log.warn("WORKER_ID {} out of range, falling back to auto-detection", id);
-            } catch (NumberFormatException e) {
-                log.warn("Invalid WORKER_ID format: {}, falling back to auto-detection", envWorkerId);
-            }
-        }
-
-        // 2. Try to extract from hostname (for Kubernetes stateful sets)
-        String hostname = System.getenv("HOSTNAME");
-        if (hostname != null) {
-            // Pattern: pod-name-0, pod-name-1, etc.
-            int lastDash = hostname.lastIndexOf('-');
-            if (lastDash >= 0) {
-                try {
-                    long ordinal = Long.parseLong(hostname.substring(lastDash + 1));
-                    if (ordinal >= 0 && ordinal <= MAX_WORKER_ID) {
-                        log.info("Using worker ID from hostname ordinal: {}", ordinal);
-                        return ordinal;
-                    }
-                } catch (NumberFormatException ignored) {
-                    // Not a numeric suffix, continue to next method
-                }
-            }
-        }
-
-        // 3. Try MAC address-based derivation
-        try {
-            long macBasedId = deriveMacBasedWorkerId();
-            log.info("Using MAC address-based worker ID: {}", macBasedId);
-            return macBasedId;
-        } catch (Exception e) {
-            log.warn("Failed to derive worker ID from MAC address: {}", e.getMessage());
-        }
-
-        // 4. Fall back to random
-        long randomId = new SecureRandom().nextInt((int) (MAX_WORKER_ID + 1));
-        log.warn("Using random worker ID: {} - NOT RECOMMENDED for production!", randomId);
-        return randomId;
-    }
-
-    /**
-     * Derives a worker ID from the MAC address of the first network interface.
-     *
-     * @return worker ID derived from MAC address
-     * @throws Exception if MAC address cannot be obtained
-     */
-    private static long deriveMacBasedWorkerId() throws Exception {
-        Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-        while (networkInterfaces.hasMoreElements()) {
-            NetworkInterface ni = networkInterfaces.nextElement();
-            byte[] mac = ni.getHardwareAddress();
-            if (mac != null && mac.length >= 2) {
-                // Use last 2 bytes of MAC address, mask to 10 bits
-                int id = ((mac[mac.length - 2] & 0xFF) << 8) | (mac[mac.length - 1] & 0xFF);
-                return id & MAX_WORKER_ID;
-            }
-        }
-        throw new RuntimeException("No network interface with MAC address found");
     }
 
     // ========================================================================

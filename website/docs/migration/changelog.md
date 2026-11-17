@@ -293,6 +293,9 @@ All notable changes to Brix Framework are documented here.
 
 ### 🗑️ Removed
 
+- The no-argument constructor of platform-identity's and platform-tenant's `SnowflakeIdGenerator`, which guessed a
+  worker id from the `WORKER_ID` or `HOSTNAME` environment variable, the MAC address or at random. Nothing called it:
+  both modules pass the worker id they are configured with (`brix.identity.worker-id`, `brix.tenant.worker-id`).
 - `authentication.mode: bootstrap-setup`: declare `required` with `policyRef: bootstrap-setup`. A declaration that
   still names the mode stops its module and names the replacement.
 - `NoStringRoleLiteralRule`: it never checked anything. `noClasses()` inverted its condition, and it looked for
