@@ -1,0 +1,6 @@
+# platform-tenant's members that read configuration with @Value: exemption EX-2026-009 (standard-link queue item 15,
+# D135). The module is assembled by Spring Boot auto-configuration, not through the plugin SPI, until it reads its
+# configuration through ConfigCapability. ConfigViaCapabilityRule.noSpringValue lets these through and nothing else;
+# the list only shrinks.
+io.brix.platform.tenant.config.TenantAutoConfiguration#workerId
+io.brix.platform.tenant.config.TenantAutoConfiguration#tenantCapability

@@ -33,6 +33,12 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
         <!-- ContractSourcesTest fails when the checked-in contract sources are not what the schemas generate -->
         <dependency>
             <groupId>io.brix</groupId>

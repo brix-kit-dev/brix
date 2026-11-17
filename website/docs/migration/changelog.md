@@ -371,6 +371,10 @@ All notable changes to Brix Framework are documented here.
   - The platform plugins run the plugin profile, by their `moduleKind`, and the commons profile: platform-audit's
     three artifacts first. The plugin rules do not count a platform plugin as a plugin, so a test keeps platform-audit
     off other platform plugins' implementations, as identity's and tenant's do.
+  - platform-identity, platform-tenant and platform-tenant-api run the plugin profile and the commons profile too.
+    Their Spring auto-configuration still reads five settings with `@Value`; those five members are listed in
+    `META-INF/brix/guard/spring-value-readers.txt` of the two modules under exemption EX-2026-009, and any other
+    `@Value` fails.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:
