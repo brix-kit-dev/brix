@@ -357,6 +357,9 @@ All notable changes to Brix Framework are documented here.
     module and fails on a module with none. It also refuses the runtime's implementation outside the operational SPI,
     and any platform class outside the module other than a Data Owner's internal contracts and published api (root
     BRX-RS-LAYER-015, LAYER-016). platform-admin and platform-auth-operational run it.
+  - The platform plugins run the plugin profile, by their `moduleKind`, and the commons profile: platform-audit's
+    three artifacts first. The plugin rules do not count a platform plugin as a plugin, so a test keeps platform-audit
+    off other platform plugins' implementations, as identity's and tenant's do.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:

@@ -357,8 +357,8 @@ class ArchitectureTest {
 - [Standard Architecture Rules](./testing.md#standard-architecture-rules) lists what the plugin profile refuses.
 - Other modules use other profiles: `adapterProfile()` for infrastructure adapters, `sdkProfile()` for the SDK,
   `commonsProfile()` for platform commons and `operationalProfile()` for platform operational modules
-  ([what it refuses](./testing.md#platform-operational-modules)). `hostProfile()` and `coreProfileV2()` are
-  deprecated since 3.2.0.
+  ([what it refuses](./testing.md#platform-operational-modules)). A platform plugin, such as platform-audit, runs
+  both `pluginProfile()` and `commonsProfile()`. `hostProfile()` and `coreProfileV2()` are deprecated since 3.2.0.
 
 ### 3. Run Tests
 

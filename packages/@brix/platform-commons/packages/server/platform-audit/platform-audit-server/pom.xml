@@ -43,6 +43,12 @@
         </dependency>
         <dependency>
             <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>3.2.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.brix</groupId>
             <artifactId>runtime-manifest</artifactId>
             <version>3.2.0</version>
             <scope>test</scope>
