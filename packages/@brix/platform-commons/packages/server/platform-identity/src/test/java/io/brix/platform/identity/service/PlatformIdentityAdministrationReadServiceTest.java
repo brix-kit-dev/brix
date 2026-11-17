@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 
 import io.brix.platform.identity.entity.Identity;
@@ -37,7 +36,6 @@ class PlatformIdentityAdministrationReadServiceTest {
     private final IdentityRepository identityRepository = mock(IdentityRepository.class);
     private final PlatformAdminRepository platformAdminRepository = mock(PlatformAdminRepository.class);
     private final BootstrapCompletionListener bootstrapCompletionListener = mock(BootstrapCompletionListener.class);
-    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final RecordedAuditFacts audit = new RecordedAuditFacts();
 
     @Test
@@ -101,7 +99,6 @@ class PlatformIdentityAdministrationReadServiceTest {
             Optional.empty(),
             Optional.empty(),
             bootstrapCompletionListener,
-            eventPublisher,
             audit.publisher());
     }
 }

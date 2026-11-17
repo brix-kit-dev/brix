@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,11 +18,12 @@ import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
 
 import io.brix.platform.identity.entity.Identity;
+import io.brix.platform.identity.entity.PlatformAdmin;
 import io.brix.platform.identity.entity.SetupToken;
 import io.brix.platform.identity.enums.IdentityStatus;
+import io.brix.platform.identity.enums.PlatformAdminRole;
 import io.brix.platform.identity.internal.CompletePlatformSetupCommand;
 import io.brix.platform.identity.repository.IdentityRepository;
 import io.brix.platform.identity.repository.PlatformAdminRepository;
@@ -42,7 +44,6 @@ class PlatformIdentityAdministrationSetupServiceTest {
         org.mockito.Mockito.mock(SecretEncryptionCapability.class);
     private final BootstrapCompletionListener bootstrapCompletionListener =
         org.mockito.Mockito.mock(BootstrapCompletionListener.class);
-    private final ApplicationEventPublisher eventPublisher = org.mockito.Mockito.mock(ApplicationEventPublisher.class);
     private final RecordedAuditFacts audit = new RecordedAuditFacts();
 
     /**
@@ -69,7 +70,35 @@ class PlatformIdentityAdministrationSetupServiceTest {
         assertNull(token.getUsedAt());
         verify(identityRepository, never()).save(any());
         verify(bootstrapCompletionListener, never()).completeIfEligible(any());
-        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    /**
+     * A platform admin's completed setup closes Bootstrap through one direct call: the Spring event that made the
+     * listener run a second time in the same unit of work is gone (standard-link queue item 15, 15d).
+     */
+    @Test
+    void completedPlatformSetupClosesBootstrapThroughOneDirectCall() {
+        String rawToken = "platform-setup-token";
+        SetupToken token = setupToken(88L, SetupTokenPurposes.INITIAL_SETUP);
+        token.setTokenHash(SecretHashing.sha256Base64Url(rawToken));
+        Identity identity = pendingIdentity(88L);
+        when(setupTokenRepository.findByTokenHash(SecretHashing.sha256Base64Url(rawToken)))
+            .thenReturn(Optional.of(token));
+        when(identityRepository.findById(88L)).thenReturn(Optional.of(identity));
+        when(platformAdminRepository.findByIdentityId(88L))
+            .thenReturn(Optional.of(new PlatformAdmin(88L, PlatformAdminRole.PLATFORM_SUPER_ADMIN)));
+        when(totpCapability.generateSecret()).thenReturn("totp-secret");
+        when(encryptionCapability.encryptSecret("totp-secret")).thenReturn("encrypted-secret");
+        when(encryptionCapability.decryptSecret("encrypted-secret")).thenReturn("totp-secret");
+        when(totpCapability.validateCode("totp-secret", "123456")).thenReturn(true);
+        when(passwordCapability.hash("Password!2026")).thenReturn("password-hash");
+
+        var service = service();
+        String challenge = service.initTotp(rawToken).challengeId();
+        service.completeSetup(new CompletePlatformSetupCommand(rawToken, challenge, "Password!2026", "123456"));
+
+        assertEquals(IdentityStatus.ACTIVE, identity.getStatus());
+        verify(bootstrapCompletionListener, times(1)).completeIfEligible(88L);
     }
 
     private PlatformIdentityAdministrationService service() {
@@ -81,7 +110,6 @@ class PlatformIdentityAdministrationSetupServiceTest {
             Optional.of(totpCapability),
             Optional.of(encryptionCapability),
             bootstrapCompletionListener,
-            eventPublisher,
             audit.publisher());
     }
 

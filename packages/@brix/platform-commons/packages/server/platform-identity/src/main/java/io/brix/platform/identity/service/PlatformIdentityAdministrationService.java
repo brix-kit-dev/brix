@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -53,7 +52,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
     private final Optional<TotpCapability> totpCapability;
     private final Optional<SecretEncryptionCapability> secretEncryptionCapability;
     private final BootstrapCompletionListener bootstrapCompletionListener;
-    private final ApplicationEventPublisher eventPublisher;
     private final IdentityAuditFacts auditFacts;
 
     /**
@@ -67,7 +65,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
             Optional<TotpCapability> totpCapability,
             Optional<SecretEncryptionCapability> secretEncryptionCapability,
             BootstrapCompletionListener bootstrapCompletionListener,
-            ApplicationEventPublisher eventPublisher,
             IdentityAuditFacts auditFacts) {
         this.setupTokenRepository = setupTokenRepository;
         this.identityRepository = identityRepository;
@@ -76,7 +73,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         this.totpCapability = totpCapability;
         this.secretEncryptionCapability = secretEncryptionCapability;
         this.bootstrapCompletionListener = bootstrapCompletionListener;
-        this.eventPublisher = eventPublisher;
         this.auditFacts = auditFacts;
     }
 
@@ -156,7 +152,6 @@ public class PlatformIdentityAdministrationService implements PlatformIdentityAd
         auditFacts.record(PlatformAuditActions.SETUP_TOKEN_USED, identity.getId(), "SETUP_TOKEN", null, reason);
         auditFacts.record(PlatformAuditActions.IDENTITY_ACTIVATED, identity.getId(), "IDENTITY", null, reason);
         bootstrapCompletionListener.completeIfEligible(identity.getId());
-        eventPublisher.publishEvent(new BootstrapCompletionListener.IdentitySetupCompletedEvent(identity.getId()));
         return new PlatformSetupCompletionView(true);
     }
 

@@ -17,7 +17,6 @@ package io.brix.platform.identity.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
 
 import io.brix.platform.audit.api.PlatformAuditActions;
 import io.brix.platform.identity.entity.BootstrapState;
@@ -32,9 +31,8 @@ import io.brix.platform.identity.repository.PlatformAdminRepository;
 /**
  * Closes bootstrap once the first formal super admin has completed setup.
  *
- * <p>The event contract is intentionally small so current and future setup
- * flows can publish it after password setup, MFA binding, or token verification
- * without coupling those flows to bootstrap internals.</p>
+ * <p>The platform setup flow calls {@link #completeIfEligible(Long)} directly, in its
+ * own unit of work, once the admin has set the password and bound TOTP.</p>
  */
 public class BootstrapCompletionListener {
 
@@ -54,11 +52,6 @@ public class BootstrapCompletionListener {
         this.identityRepository = identityRepository;
         this.platformAdminRepository = platformAdminRepository;
         this.auditFacts = auditFacts;
-    }
-
-    @EventListener
-    public void onApplicationEvent(IdentitySetupCompletedEvent event) {
-        completeIfEligible(event.identityId());
     }
 
     public boolean completeIfEligible(Long identityId) {
@@ -113,8 +106,5 @@ public class BootstrapCompletionListener {
                         IdentityAuditFacts.REASON_BOOTSTRAP_COMPLETED);
             });
         }
-    }
-
-    public record IdentitySetupCompletedEvent(Long identityId) {
     }
 }

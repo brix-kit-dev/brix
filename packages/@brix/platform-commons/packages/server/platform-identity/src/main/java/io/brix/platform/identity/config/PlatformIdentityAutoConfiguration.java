@@ -14,7 +14,6 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 
 import io.brix.platform.identity.bootstrap.SuperAdminBootstrapProperties;
@@ -164,7 +163,6 @@ public class PlatformIdentityAutoConfiguration {
             ObjectProvider<TotpCapability> totpCapabilityProvider,
             ObjectProvider<SecretEncryptionCapability> secretEncryptionCapabilityProvider,
             BootstrapCompletionListener bootstrapCompletionListener,
-            ApplicationEventPublisher eventPublisher,
             IdentityAuditFacts auditFacts) {
         return new PlatformIdentityAdministrationService(
                 persistence.repository(SetupTokenRepository.class),
@@ -174,7 +172,6 @@ public class PlatformIdentityAutoConfiguration {
                 Optional.ofNullable(totpCapabilityProvider.getIfAvailable()),
                 Optional.ofNullable(secretEncryptionCapabilityProvider.getIfAvailable()),
                 bootstrapCompletionListener,
-                eventPublisher,
                 auditFacts);
     }
 }
