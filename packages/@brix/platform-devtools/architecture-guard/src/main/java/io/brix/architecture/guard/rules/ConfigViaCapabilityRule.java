@@ -3,7 +3,10 @@
  */
 package io.brix.architecture.guard.rules;
 
+import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
@@ -11,7 +14,11 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS;
 
 /**
@@ -92,19 +99,87 @@ public final class ConfigViaCapabilityRule {
     }
 
     /**
+     * Where a module lists, as {@code <class name>#<member name>}, the members that read configuration through
+     * {@code @Value} before the rule applied to it (see {@link KnownViolations}). A constructor is {@code <init>}. The
+     * lists only shrink.
+     */
+    public static final String KNOWN_SPRING_VALUE_READERS = "META-INF/brix/guard/spring-value-readers.txt";
+
+    private static final String SPRING_VALUE = "org.springframework.beans.factory.annotation.Value";
+
+    /**
      * No Spring @Value annotation.
      *
      * <p>Spring @Value bypasses ConfigCapability's unified config management.
      * Business modules should obtain config values through ConfigCapability,
      * not Spring's property injection mechanism.</p>
      *
+     * <p>A class with no member listed in {@value #KNOWN_SPRING_VALUE_READERS} must not depend on @Value at all. In a
+     * class with listed members, every field, method or constructor that carries @Value, or has a parameter that does,
+     * must be listed by name: a new one fails, next to the listed ones. A class name alone lists nothing.</p>
+     *
      * @return ArchUnit rule instance
      */
     public static ArchRule noSpringValue() {
-        return noClasses()
-                .should().beAnnotatedWith("org.springframework.beans.factory.annotation.Value")
-                .orShould().dependOnClassesThat()
-                .haveFullyQualifiedName("org.springframework.beans.factory.annotation.Value")
-                .because("@Value annotation is forbidden. Use ConfigCapability / ConfigStoreCapability");
+        Map<String, Set<String>> listed = new TreeMap<>();
+        for (String entry : KnownViolations.read(KNOWN_SPRING_VALUE_READERS, KnownViolations.classLoader())) {
+            int member = entry.indexOf('#');
+            if (member > 0 && member < entry.length() - 1) {
+                listed.computeIfAbsent(entry.substring(0, member), type -> new TreeSet<>())
+                        .add(entry.substring(member + 1));
+            }
+        }
+        return classes()
+                .should(new NoSpringValueCondition(listed))
+                .because("@Value annotation is forbidden. Use ConfigCapability / ConfigStoreCapability; a member that "
+                        + "already reads configuration with it is listed in " + KNOWN_SPRING_VALUE_READERS
+                        + " of its module until it reads through a capability, and the lists only shrink");
+    }
+
+    /**
+     * Reports each use of @Value that the module does not list. It is used with {@code classes().should(...)}: under
+     * {@code noClasses()} ArchUnit inverts a condition's events.
+     */
+    private static final class NoSpringValueCondition extends ArchCondition<JavaClass> {
+
+        private final Map<String, Set<String>> listed;
+
+        NoSpringValueCondition(Map<String, Set<String>> listed) {
+            super("not read configuration with @Value");
+            this.listed = listed;
+        }
+
+        @Override
+        public void check(JavaClass javaClass, ConditionEvents events) {
+            Set<String> members = listed.get(javaClass.getName());
+            if (members == null) {
+                for (Dependency dependency : javaClass.getDirectDependenciesFromSelf()) {
+                    if (SPRING_VALUE.equals(dependency.getTargetClass().getName())) {
+                        events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()));
+                    }
+                }
+                return;
+            }
+            if (javaClass.isAnnotatedWith(SPRING_VALUE)) {
+                events.add(SimpleConditionEvent.violated(javaClass,
+                        javaClass.getDescription() + " is annotated with @Value"));
+            }
+            for (JavaField field : javaClass.getFields()) {
+                if (field.isAnnotatedWith(SPRING_VALUE) && !members.contains(field.getName())) {
+                    events.add(SimpleConditionEvent.violated(field, unlisted(field.getDescription())));
+                }
+            }
+            for (JavaCodeUnit unit : javaClass.getCodeUnits()) {
+                boolean reads = unit.isAnnotatedWith(SPRING_VALUE)
+                        || unit.getParameters().stream().anyMatch(parameter -> parameter.isAnnotatedWith(SPRING_VALUE));
+                if (reads && !members.contains(unit.getName())) {
+                    events.add(SimpleConditionEvent.violated(unit, unlisted(unit.getDescription())));
+                }
+            }
+        }
+
+        private static String unlisted(String member) {
+            return member + " reads configuration with @Value and is not listed in " + KNOWN_SPRING_VALUE_READERS;
+        }
     }
 }

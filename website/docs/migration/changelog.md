@@ -142,6 +142,11 @@ All notable changes to Brix Framework are documented here.
   call to `hasRole`, `hasAnyRole` or `hasAllRoles`, `useRole` from `@brix-sdk/platform-auth-ui-web`, and the `role`
   and `anyRoles` props of `PermissionGate` (frontend BRX-FE-ROUTE-002), in every package whose ESLint config parses
   its TypeScript.
+- **A module lists the `@Value` reads it already has, member by member.** `ConfigViaCapabilityRule.noSpringValue`
+  lets through the members a module names as `<class>#<member>` in `META-INF/brix/guard/spring-value-readers.txt` of
+  its test resources, and nothing else: a new `@Value` field, method or parameter fails, in a listed class too. A
+  module without a list is checked as before. It is for the platform modules that are still assembled by Spring, under
+  an exemption, until they read their configuration through `ConfigCapability`.
 - **Platform role and permission IDs in `platform-auth-api`** (super-admin 4.0.1 §4). The new artifact holds
   `io.brix.platform.auth.api.RoleCode` (`PLATFORM_SUPER_ADMIN`) and `PermissionCode` (the catalog's ten `platform:*`
   IDs), with no implementation and no dependency. platform-admin names them from there: an operational module may

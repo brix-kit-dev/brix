@@ -426,6 +426,11 @@ class ArchitectureTest {
 Capabilities live in `io.runtime.sdk.*`, the packages of `runtime-sdk-api`: use them instead. The guard has other
 profiles for other modules: `adapterProfile()`, `sdkProfile()`, `commonsProfile()` and `operationalProfile()`.
 
+A module that already read configuration with `@Value` when it started running the profile lists those members, one
+per line as `<class name>#<member name>` (a constructor is `<init>`), in `META-INF/brix/guard/spring-value-readers.txt`
+of its test resources, under an approved exemption. The rule lets exactly those members through: another `@Value`
+field, method or parameter fails, in the listed class too, and a class name alone lists nothing. The lists only shrink.
+
 Plugin packages are those under the guard's plugin roots: `io.brix.app.<plugin>`, where `create-brix phase7 plugin`
 puts a plugin, `io.brix.enterprise.app.<plugin>` and `io.brix.samples.<plugin>`. A plugin may use another plugin's
 `api` package, its published contract, and nothing else of it. A plugin in a package of its own, such as

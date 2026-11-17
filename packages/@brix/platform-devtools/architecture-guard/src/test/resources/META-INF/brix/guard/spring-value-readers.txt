@@ -1,0 +1,7 @@
+# Members of this module's test fixtures that ConfigViaCapabilityRule.noSpringValue lets through: <class>#<member>.
+io.brix.samples.fixturevalue.config.ListedValueReader#region
+io.brix.samples.fixturevalue.config.ListedValueReader#endpoint
+io.brix.samples.fixturevalue.config.ListedValueReaderWithNewMember#region
+io.brix.samples.fixturevalue.config.ListedConstructorReader#<init>
+# A class name alone lists no member.
+io.brix.samples.fixturevalue.config.ClassOnlyListedValueReader

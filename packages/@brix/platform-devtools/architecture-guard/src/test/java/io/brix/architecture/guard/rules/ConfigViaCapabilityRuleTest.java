@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,6 +31,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.brix.samples.fixturealpha.core.AlphaPrice;
 import io.brix.samples.fixturealpha.core.AlphaReadsEnvironment;
 import io.brix.samples.fixturealpha.core.AlphaReadsSystemProperty;
+import io.brix.samples.fixturevalue.config.ClassOnlyListedValueReader;
+import io.brix.samples.fixturevalue.config.ListedConstructorReader;
+import io.brix.samples.fixturevalue.config.ListedValueReader;
+import io.brix.samples.fixturevalue.config.ListedValueReaderWithNewMember;
+import io.brix.samples.fixturevalue.config.UnlistedValueReader;
 
 /**
  * ConfigViaCapabilityRule Test Cases
@@ -144,6 +150,67 @@ class ConfigViaCapabilityRuleTest {
             AssertionError error = assertThrows(AssertionError.class,
                 () -> ConfigViaCapabilityRule.noSystemEnvAccess().check(classes));
             assertTrue(error.getMessage().contains("calls System.getProperty()"), error.getMessage());
+        }
+    }
+
+    // ============================================================================
+    // @Value and the members a module lists (META-INF/brix/guard/spring-value-readers.txt of this module's tests)
+    // ============================================================================
+
+    @Nested
+    @DisplayName("@Value and the listed members")
+    class SpringValueTests {
+
+        @Test
+        @DisplayName("Listed members pass: a field, a method parameter, a constructor parameter")
+        void listedMembersPass() {
+            JavaClasses classes = new ClassFileImporter()
+                .importClasses(ListedValueReader.class, ListedConstructorReader.class);
+
+            assertDoesNotThrow(() -> ConfigViaCapabilityRule.noSpringValue().check(classes));
+        }
+
+        @Test
+        @DisplayName("A new @Value field or parameter of a listed class fails, and the listed member is not reported")
+        void unlistedMemberOfAListedClassFails() {
+            JavaClasses classes = new ClassFileImporter().importClasses(ListedValueReaderWithNewMember.class);
+
+            AssertionError error = assertThrows(AssertionError.class,
+                () -> ConfigViaCapabilityRule.noSpringValue().check(classes));
+            assertTrue(error.getMessage().contains(ListedValueReaderWithNewMember.class.getName() + ".zone"),
+                error.getMessage());
+            assertTrue(error.getMessage().contains(ListedValueReaderWithNewMember.class.getName() + ".timeout(int)"),
+                error.getMessage());
+            assertFalse(error.getMessage().contains(ListedValueReaderWithNewMember.class.getName() + ".region"),
+                error.getMessage());
+        }
+
+        @Test
+        @DisplayName("A class with no listed member fails on any @Value")
+        void unlistedClassFails() {
+            JavaClasses classes = new ClassFileImporter().importClasses(UnlistedValueReader.class);
+
+            AssertionError error = assertThrows(AssertionError.class,
+                () -> ConfigViaCapabilityRule.noSpringValue().check(classes));
+            assertTrue(error.getMessage().contains(UnlistedValueReader.class.getName()), error.getMessage());
+        }
+
+        @Test
+        @DisplayName("A class name alone lists no member")
+        void classOnlyEntryListsNothing() {
+            JavaClasses classes = new ClassFileImporter().importClasses(ClassOnlyListedValueReader.class);
+
+            AssertionError error = assertThrows(AssertionError.class,
+                () -> ConfigViaCapabilityRule.noSpringValue().check(classes));
+            assertTrue(error.getMessage().contains(ClassOnlyListedValueReader.class.getName()), error.getMessage());
+        }
+
+        @Test
+        @DisplayName("A plugin class without @Value passes")
+        void classWithoutValuePasses() {
+            JavaClasses classes = new ClassFileImporter().importClasses(AlphaPrice.class);
+
+            assertDoesNotThrow(() -> ConfigViaCapabilityRule.noSpringValue().check(classes));
         }
     }
 }
