@@ -1,0 +1,5 @@
+# platform-auth's member that reads configuration with @Value: exemption EX-2026-009 (standard-link queue item 15,
+# D135, D137). The module is assembled by Spring Boot auto-configuration, not through the plugin SPI, until it reads its
+# configuration through ConfigCapability. ConfigViaCapabilityRule.noSpringValue lets it through and nothing else; the
+# list only shrinks.
+io.brix.platform.auth.password.PasswordCapabilityAutoConfiguration#passwordCapability

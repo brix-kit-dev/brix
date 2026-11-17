@@ -22,4 +22,12 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchTests commonsRules = BrixArchitectureRules.commonsProfile();
+
+    /**
+     * platform-auth is a {@code moduleKind=plugin-server} artifact (root BRX-RS-MANIFEST-009; standard-link queue item 15,
+     * D137). The one member of its Spring auto-configuration that reads configuration with {@code @Value} is listed in
+     * {@code META-INF/brix/guard/spring-value-readers.txt} under exemption EX-2026-009; the list only shrinks.
+     */
+    @ArchTest
+    static final ArchTests pluginRules = BrixArchitectureRules.pluginProfile();
 }

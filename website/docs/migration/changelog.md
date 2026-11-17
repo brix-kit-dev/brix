@@ -375,6 +375,12 @@ All notable changes to Brix Framework are documented here.
     Their Spring auto-configuration still reads five settings with `@Value`; those five members are listed in
     `META-INF/brix/guard/spring-value-readers.txt` of the two modules under exemption EX-2026-009, and any other
     `@Value` fails.
+  - platform-auth runs the plugin profile next to the commons profile (its one `@Value` member is listed under the
+    same exemption) and a boundary test like the others'; platform-auth-api runs both profiles, and
+    platform-notification, which has no plugin manifest, the commons profile. Every platform module now runs the
+    profile of its `moduleKind`.
+  - The plugin profile's `@EventListener` rule passes a module without methods, such as an api of constants: it used
+    to fail it as "no classes checked". The rules about classes still fail a module without classes.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:

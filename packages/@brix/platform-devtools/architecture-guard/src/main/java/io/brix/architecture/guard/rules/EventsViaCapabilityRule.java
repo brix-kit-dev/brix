@@ -44,13 +44,17 @@ public final class EventsViaCapabilityRule {
      * <p>Event subscription must go through EventBusCapability.subscribe(),
      * not Spring's @EventListener annotation.</p>
      *
+     * <p>A module without methods, such as an api artifact of constants, has nothing to check: the rule passes it.
+     * The rules about classes still fail a module without classes.</p>
+     *
      * @return ArchUnit rule instance
      */
     public static ArchRule noEventListenerAnnotation() {
         return noMethods()
                 .should().beAnnotatedWith(ArchitectureLayers.EVENT_LISTENER)
                 .because("@EventListener annotation is forbidden in business modules. " +
-                        "Use EventBusCapability.subscribe() for event subscription");
+                        "Use EventBusCapability.subscribe() for event subscription")
+                .allowEmptyShould(true);
     }
 
     /**

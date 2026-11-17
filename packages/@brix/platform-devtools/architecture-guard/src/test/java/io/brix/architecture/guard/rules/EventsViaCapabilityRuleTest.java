@@ -16,6 +16,7 @@
 package io.brix.architecture.guard.rules;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,6 +51,31 @@ import com.tngtech.archunit.lang.ArchRule;
  */
 @DisplayName("Red Line 8: Events must be published through EventBusCapability")
 class EventsViaCapabilityRuleTest {
+
+    @Nested
+    @DisplayName("@EventListener")
+    class NoEventListenerTests {
+
+        @Test
+        @DisplayName("A plugin method annotated with @EventListener fails")
+        void eventListenerFails() {
+            JavaClasses classes = new ClassFileImporter()
+                .importClasses(io.brix.samples.fixtureevents.core.ListensToSpringEvents.class);
+
+            AssertionError error = assertThrows(AssertionError.class,
+                () -> EventsViaCapabilityRule.noEventListenerAnnotation().check(classes));
+            assertTrue(error.getMessage().contains("ListensToSpringEvents.on("), error.getMessage());
+        }
+
+        @Test
+        @DisplayName("A module of constants, without a method, has nothing to check and passes")
+        void moduleWithoutMethodsPasses() {
+            JavaClasses classes = new ClassFileImporter()
+                .importClasses(io.brix.samples.fixtureevents.api.OnlyConstants.class);
+
+            assertDoesNotThrow(() -> EventsViaCapabilityRule.noEventListenerAnnotation().check(classes));
+        }
+    }
 
     // ============================================================================
     // Prohibit ApplicationEventPublisher tests
