@@ -158,7 +158,10 @@ public final class BrixArchitectureRules {
     }
 
     /**
-     * Platform operational module rules for A-25/A-26.
+     * Platform operational module rule profile (root A-26, BRX-RS-LAYER-015, LAYER-016).
+     *
+     * <p>For {@code moduleKind=platform-operational} modules, such as platform-admin. Every rule checks every class
+     * the module's test imports and fails when it imports none, so the test imports the module's own classes only.</p>
      *
      * @return operational rule set
      */

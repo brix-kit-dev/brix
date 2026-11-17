@@ -432,6 +432,30 @@ puts a plugin, `io.brix.enterprise.app.<plugin>` and `io.brix.samples.<plugin>`.
 `com.example.todo`, gets every other rule in the table, but the guard cannot tell it from other plugins: the
 "Other plugins" and "Data ownership" rows do not apply to it.
 
+### Platform Operational Modules
+
+A `moduleKind=platform-operational` module, such as platform-admin, runs `BrixArchitectureRules.operationalProfile()`
+(root A-26, BRX-RS-LAYER-015, LAYER-016). It refuses, in every class of the module:
+
+| Area | Refused |
+|---|---|
+| Implementations | Plugins, `io.brix.enterprise` (Host and commercial code), infrastructure adapters |
+| Spring | The container (`org.springframework.context`, `org.springframework.beans.factory`) and Spring MVC annotations |
+| Runtime | `CapabilityRegistry`; the runtime's implementation `io.runtime.orchestrator`, except the operational SPI `io.runtime.orchestrator.operational` |
+| Platform modules | Any `io.brix.platform` class outside the module, except a Data Owner's internal contracts and published api (`io.brix.platform.<module>.internal`, `io.brix.platform.<module>.api`): never an Owner's repository, entity, service or configuration, nor a platform library |
+
+The module's own classes are the ones its test imports, so the test imports its own packages and nothing else, and a
+test that imports none fails:
+
+```java
+@AnalyzeClasses(packages = "io.brix.platform.admin", importOptions = ImportOption.DoNotIncludeTests.class)
+class ArchitectureTest {
+
+    @ArchTest
+    static final ArchTests operationalRules = BrixArchitectureRules.operationalProfile();
+}
+```
+
 ## Integration Tests
 
 For complex scenarios, use `@BrixIntegrationTest`:

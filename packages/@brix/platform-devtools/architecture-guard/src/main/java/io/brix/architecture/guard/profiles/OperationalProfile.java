@@ -15,9 +15,20 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
 import io.brix.architecture.guard.ArchitectureLayers;
+import io.brix.architecture.guard.rules.OperationalBoundaryRule;
 
 /**
- * A-25/A-26 rules for {@code moduleKind=platform-operational} artifacts.
+ * Rules for {@code moduleKind=platform-operational} modules (root A-26, BRX-RS-LAYER-015, LAYER-016).
+ *
+ * <p>Every rule checks every class the module's test imports, whatever its package, and fails when the test imports
+ * none. The test therefore imports the module's own classes and nothing else:</p>
+ * <pre>{@code
+ * @AnalyzeClasses(packages = "io.brix.platform.admin", importOptions = ImportOption.DoNotIncludeTests.class)
+ * class ArchitectureTest {
+ *     @ArchTest
+ *     static final ArchTests operationalRules = BrixArchitectureRules.operationalProfile();
+ * }
+ * }</pre>
  *
  * @author Brix Architecture Team
  * @since 3.2.0
@@ -42,20 +53,30 @@ public final class OperationalProfile {
      */
     @ArchTest
     public static final ArchRule operationalImplementationBoundary = noClasses()
-        .that().resideInAPackage("..operational..")
         .should().dependOnClassesThat()
         .resideInAnyPackage(FORBIDDEN_IMPLEMENTATION_PACKAGES)
-        .because("A-26 requires platform-operational code to use only the restricted L2B operational SPI")
-        .allowEmptyShould(true);
+        .because("A-26 requires platform-operational code to use only the restricted L2B operational SPI");
 
     /**
      * Operational code cannot obtain the general capability Registry.
      */
     @ArchTest
     public static final ArchRule operationalCannotAccessCapabilityRegistry = noClasses()
-        .that().resideInAPackage("..operational..")
         .should().dependOnClassesThat()
         .haveFullyQualifiedName("io.runtime.sdk.capability.registry.CapabilityRegistry")
-        .because("A-26 requires OperationalContext and an isolated internal namespace")
-        .allowEmptyShould(true);
+        .because("A-26 requires OperationalContext and an isolated internal namespace");
+
+    /**
+     * Operational code reaches the Runtime only through the operational SPI.
+     */
+    @ArchTest
+    public static final ArchRule operationalRuntimeOnlyThroughOperationalSpi =
+        OperationalBoundaryRule.runtimeOnlyThroughOperationalSpi();
+
+    /**
+     * Operational code reaches other platform modules only through a Data Owner's internal contracts and api.
+     */
+    @ArchTest
+    public static final ArchRule operationalOwnersOnlyThroughContracts =
+        OperationalBoundaryRule.ownersOnlyThroughContracts();
 }

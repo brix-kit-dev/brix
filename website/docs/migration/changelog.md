@@ -352,6 +352,11 @@ All notable changes to Brix Framework are documented here.
   - Six platform classes already use Redis directly. They are listed in
     `META-INF/brix/guard/platform-redis-clients.txt` of their modules under exemption EX-2026-004, and the lists
     only shrink.
+  - The operational profile looked only at packages named `operational` and passed when there were none, and no
+    module ran it: platform-admin's handlers and request types went unchecked. It now checks every class of the
+    module and fails on a module with none. It also refuses the runtime's implementation outside the operational SPI,
+    and any platform class outside the module other than a Data Owner's internal contracts and published api (root
+    BRX-RS-LAYER-015, LAYER-016). platform-admin and platform-auth-operational run it.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:
