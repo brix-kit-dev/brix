@@ -343,6 +343,10 @@ All notable changes to Brix Framework are documented here.
   - platform-admin-web's architecture test (no Page, Hook or Repository entry point; Pages reach Repositories only
     through Hooks; no network calls in Hooks and Pages) runs on every push as a job of its own. It ran only in the
     pull request coverage job, whose failures never failed the job.
+  - The scaffold job runs create-brix's governed Phase 7 smoke (`test:phase7`): the plugin, operational module and UI
+    templates generate no controller, scan, broker or JDBC client, fetch, UI vendor or placeholder, and ship their
+    manifests and contract lock test. It used to run the legacy `create-brix app` entry, disabled since Runtime Shell
+    v3.0.10 Phase 0, and failed on every run.
 - **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
   dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
   call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule

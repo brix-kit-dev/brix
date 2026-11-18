@@ -14,6 +14,7 @@
 #   - Platform console architecture test (platform-admin-web's public API and View/Hook/Repository boundaries, 16e)
 #   - Lint of the SDK packages that have an ESLint configuration (16c)
 #   - Typecheck across the SDK packages
+#   - Scaffold smoke of create-brix's governed Phase 7 templates (16f)
 #
 # A failed test (Java or ESLint rule) or redline finding is also written as an annotation: the annotations of a run can
 # be read through the API without signing in, its log cannot.
@@ -410,60 +411,22 @@ jobs:
       - name: Build create-brix
         run: pnpm --filter @brix-sdk/create-brix build
 
-      - name: Generate smoke app
+      # ----------------------------------------------------------------------
+      # The governed Phase 7 templates (plugin, operational module, UI): every
+      # generated file is free of the forbidden patterns (controllers, scans,
+      # broker and JDBC clients, fetch/axios, UI vendors, placeholders), the
+      # manifests and the contract lock test are there, unsafe names are refused
+      # and the legacy scan finds nothing (standard-link plan queue item 16,
+      # 16f). This job used to run the legacy `create-brix app` entry, which
+      # Runtime Shell v3.0.10 Phase 0 disabled, and failed on every run.
+      # ----------------------------------------------------------------------
+      - name: Governed scaffold smoke (Phase 7)
         run: |
-          set -euo pipefail
-          node packages/@brix/platform-devtools/@brix/create-brix/dist/cli.js app smoke \
-            --yes \
-            --skip-install \
-            --skip-git \
-            --no-with-ui-mobile \
-            --no-with-app \
-            --output-dir "$RUNNER_TEMP/create-brix-smoke"
+          set -o pipefail
+          pnpm --filter @brix-sdk/create-brix run test:phase7 2>&1 | tee "$RUNNER_TEMP/scaffold-smoke.log"
 
-      - name: Assert scaffold architecture
-        run: |
-          set -euo pipefail
-          APP_DIR="$RUNNER_TEMP/create-brix-smoke/app-smoke"
-
-          test -f "$APP_DIR/pom.xml"
-          test -f "$APP_DIR/smoke-api/pom.xml"
-          test -f "$APP_DIR/smoke-core/pom.xml"
-          test -f "$APP_DIR/smoke-server/pom.xml"
-          test -f "$APP_DIR/smoke-ui-web/src/bootstrap.tsx"
-          test -f "$APP_DIR/smoke-ui-web/src/repositories/SmokeRepository.ts"
-
-          if test -d "$APP_DIR/smoke-core/src/main/java/io/brix/app/smoke/core/controller"; then
-            echo "Core module must not contain a controller package."
-            exit 1
-          fi
-
-          if grep -RInE '<artifactId>(spring-boot-starter-web|spring-kafka|spring-data-redis|spring-cloud-starter-openfeign|okhttp|retrofit|minio)</artifactId>' "$APP_DIR/smoke-core/pom.xml"; then
-            echo "Core module contains forbidden infrastructure or web dependencies."
-            exit 1
-          fi
-
-          if ! test -f "$APP_DIR/smoke-server/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"; then
-            echo "Server module must register auto-configuration through Spring Boot imports."
-            exit 1
-          fi
-
-          if grep -RInE 'fetch\(|@brix-sdk/infra-adapter-ui-mui' "$APP_DIR/smoke-ui-web"; then
-            echo "UI web scaffold contains direct HTTP, infra adapter, or UI library usage."
-            exit 1
-          fi
-
-          if grep -RInE "from ['\"](react-router-dom|@mui/material|antd)" "$APP_DIR/smoke-ui-web"; then
-            echo "UI web scaffold contains direct frontend library imports."
-            exit 1
-          fi
-
-          if grep -RIn '@brix-sdk/brix' "$APP_DIR"; then
-            echo "Scaffold contains legacy SDK package references."
-            exit 1
-          fi
-
-          if grep -RInE '"@brix-sdk/[^"]+"\s*:\s*"\^1\.' "$APP_DIR"; then
-            echo "Scaffold contains legacy 1.x Brix SDK versions."
-            exit 1
-          fi
+      - name: Annotate the failure
+        if: failure()
+        run: >-
+          grep -m 5 -E '^(AssertionError|Error)' "$RUNNER_TEMP/scaffold-smoke.log"
+          | sed -e 's/%/%25/g' -e 's/^/::error title=Scaffold smoke::/' || true
