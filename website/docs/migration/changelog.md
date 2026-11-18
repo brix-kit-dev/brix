@@ -334,6 +334,10 @@ All notable changes to Brix Framework are documented here.
   - Every push to `main` runs Architecture Check and Code Coverage, whatever it changes. Both used to run only for some
     file types, so a push of resources alone, such as a guard allow-list, a contract lock, a manifest or a migration,
     ran no architecture test. A later push no longer cancels an earlier push's run: each push has a result of its own.
+  - The lint job lints the packages that have an ESLint configuration, today platform-admin-web and
+    platform-tenant-web, and lists the 20 packages that have none: their `lint` stopped at "couldn't find a
+    configuration file" before checking anything, and failed the job on every run. They get a configuration with the
+    frontend architecture lint (queue item 19).
 - **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
   dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
   call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule

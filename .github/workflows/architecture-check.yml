@@ -11,7 +11,7 @@
 #   - Platform admin redline scan
 #   - TypeScript dependency cycle check
 #   - ESLint architecture rule tests
-#   - Lint across the SDK packages
+#   - Lint of the SDK packages that have an ESLint configuration (16c)
 #   - Typecheck across the SDK packages
 #
 # A failed test (Java or ESLint rule) or redline finding is also written as an annotation: the annotations of a run can
@@ -50,6 +50,7 @@ on:
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
       - 'scripts/check-banned-tokens.mjs'
       - 'scripts/ci-test-annotations.mjs'
+      - 'scripts/lint-configured-packages.mjs'
       - 'scripts/validate_architecture_context.py'
       - 'AGENTS.md'
       - 'CLAUDE.md'
@@ -262,30 +263,22 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # ----------------------------------------------------------------------
-      # Step: Lint — every package must define a `lint` script.
-      # `--if-present` keeps packages without lint (assets-only) from failing.
+      # Step: Lint — each package with a `lint` script and an ESLint
+      # configuration it can find (standard-link plan queue item 16, 16c).
+      # A package without one is listed, not linted: its lint stops with
+      # "couldn't find a configuration file" before checking anything, and
+      # queue item 19 gives it one (D142). The packages below stay out, as before.
       # ----------------------------------------------------------------------
       - name: Lint
-        run: |
-          if find . \
-            -path './node_modules' -prune -o \
-            -path '*/node_modules/*' -prune -o \
-            -path '*/templates/*' -prune -o \
-            \( -name '.eslintrc' -o -name '.eslintrc.*' -o -name 'eslint.config.*' \) \
-            ! -name '*.ejs' \
-            -print -quit | grep -q .; then
-            pnpm -r --if-present \
-              --filter '!@brix-sdk/infra-adapters-workspace' \
-              --filter '!@brix-sdk/platform-commons' \
-              --filter '!platform-devtools' \
-              --filter '!@brix-sdk/runtime-sdk-workspace' \
-              --filter '!@brix-sdk/shared-runtime-workspace' \
-              --filter '!@brix-sdk/infra-adapter-ui-mui' \
-              --filter '!@brix-sdk/infra-adapter-ui-native' \
-              run lint
-          else
-            echo "No ESLint configuration found; skipping package lint."
-          fi
+        run: >-
+          node scripts/lint-configured-packages.mjs
+          --skip @brix-sdk/infra-adapters-workspace
+          --skip @brix-sdk/platform-commons
+          --skip platform-devtools
+          --skip @brix-sdk/runtime-sdk-workspace
+          --skip @brix-sdk/shared-runtime-workspace
+          --skip @brix-sdk/infra-adapter-ui-mui
+          --skip @brix-sdk/infra-adapter-ui-native
         env:
           CI: true
 
