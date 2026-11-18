@@ -15,6 +15,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,11 @@ class IdentityProviderFlowTest {
     private static final String ISSUER = "http://localhost:" + PORT;
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final AtomicInteger CODES = new AtomicInteger(100_000);
+    /**
+     * A JWT in compact form: a base64url JSON header ({@code eyJ}) followed by two dots. A bare {@code eyJ} is not
+     * enough, because a random authorization code or state holds it now and then.
+     */
+    private static final Pattern JWT = Pattern.compile("eyJ[\\w-]+\\.[\\w-]*\\.");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -158,9 +164,11 @@ class IdentityProviderFlowTest {
         assertThat(stateStore.dump()).doesNotContain(stored.accessToken()).doesNotContain(stored.refreshToken())
                 .doesNotContain(browser.cookies.get(BffCookies.SESSION));
         // S-20: nothing the browser received carries an access, refresh or ID token.
+        assertThat(stored.accessToken()).as("the check below knows this provider's tokens").containsPattern(JWT);
+        assertThat(stored.idToken()).as("the check below knows this provider's tokens").containsPattern(JWT);
         for (String response : browser.received) {
             assertThat(response).doesNotContain(stored.accessToken()).doesNotContain(stored.refreshToken())
-                    .doesNotContain(stored.idToken()).doesNotContain("eyJ");
+                    .doesNotContain(stored.idToken()).doesNotContainPattern(JWT);
         }
 
         assertThat(browser.post(ISSUER + "/bff/logout", "{}").status()).isEqualTo(403);
@@ -653,8 +661,20 @@ class IdentityProviderFlowTest {
 
         // S-20: the browser never receives the Identity Token; the invitation token never comes back.
         for (String response : browser.received) {
-            assertThat(response).doesNotContain("eyJ").doesNotContain(TestCapabilities.INVITATION_TOKEN);
+            assertThat(response).doesNotContainPattern(JWT).doesNotContain(TestCapabilities.INVITATION_TOKEN);
         }
+    }
+
+    /** The S-20 checks look for a token's shape: a random code that happens to hold {@code eyJ} is no token. */
+    @Test
+    void aRandomCodeThatHappensToHoldEyJIsNotAToken() {
+        // The redirect on which brix Code Coverage run 44298471141 (2026-11-18) failed a check for a bare "eyJ".
+        String redirect = "location=[" + ISSUER + "/bff/callback?code=Kpz2tKxhSCrTXn2vVj-2oHMJsy7EV8_15Va7FSAE6r9lK"
+                + "eo2M3vQMvsmEf3bPni_vbwsW-SOql0r8tD0rRmeyJ7pEVoCE8KpJcMCFefO3kqtXKUIy4qZksANqAilLsT-"
+                + "&state=2zIXi1Dv7Qdx68y6rSnXUTt6iSMGC1CSsJNvmW70fbM]";
+        assertThat(redirect).contains("eyJ").doesNotContainPattern(JWT);
+        assertThat("{\"id_token\":\"eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.\"}")
+                .as("an unsigned token has an empty last part").containsPattern(JWT);
     }
 
     @Test
