@@ -331,6 +331,9 @@ All notable changes to Brix Framework are documented here.
   `main` since 2026-08-03. Each check is now a job of its own, so a failing check no longer hides the others, and the
   dependency analysis is gone. A failed Java test, ESLint rule test or redline finding is also written as a GitHub
   annotation, which can be read through the API without signing in.
+  - Every push to `main` runs Architecture Check and Code Coverage, whatever it changes. Both used to run only for some
+    file types, so a push of resources alone, such as a guard allow-list, a contract lock, a manifest or a migration,
+    ran no architecture test. A later push no longer cancels an earlier push's run: each push has a result of its own.
 - **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
   dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
   call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule

@@ -6,6 +6,12 @@
 #
 # Trigger: Pull requests to main/develop branches. The Java job, with its PostgreSQL service, also runs on pushes to
 # main/develop, where most changes land without a pull request (standard-link plan L2.4, point 0), and by hand.
+#
+# Every push runs it, whatever the push changes, and runs to the end (standard-link plan queue item 16, 16b): the
+# module ArchUnit tests and the contract locks read resources as well as Java sources (the guard's
+# spring-value-readers.txt, contracts.api, manifests, schemas, migrations), and a push of those alone used to run
+# nothing. Only superseded pull request runs are cancelled, so each push to main has a result of its own. A failed
+# test is also written as an annotation, which the API serves without signing in.
 # ============================================================================
 
 name: Code Coverage
@@ -22,15 +28,11 @@ on:
       - '**/vitest.config.*'
   push:
     branches: [main, develop]
-    paths:
-      - '**.java'
-      - '**/pom.xml'
-      - '.github/workflows/code-coverage.yml'
   workflow_dispatch:
 
 concurrency:
-  group: coverage-${{ github.ref }}
-  cancel-in-progress: true
+  group: coverage-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # ========== Java Coverage (JaCoCo) ==========
@@ -70,6 +72,10 @@ jobs:
 
       - name: Run tests with coverage
         run: mvn verify -Pcoverage -B --fail-at-end
+
+      - name: Annotate failed tests
+        if: failure()
+        run: node scripts/ci-test-annotations.mjs
 
       - name: Upload JaCoCo reports
         if: always()

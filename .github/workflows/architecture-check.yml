@@ -17,6 +17,9 @@
 # A failed test (Java or ESLint rule) or redline finding is also written as an annotation: the annotations of a run can
 # be read through the API without signing in, its log cannot.
 #
+# Every push to main or develop runs it, whatever the push changes (16b): the redline scan reads Java, SQL, YAML and
+# JSON, the guard tests read the guard's resources, and a push outside the old path list used to run none of them.
+#
 # This workflow intentionally does NOT include @brix-sdk/enterprise-*
 # packages — those live in the brix-enterprise repository and are gated
 # by `architecture-check.yml` there.
@@ -56,30 +59,12 @@ on:
       - 'pnpm-lock.yaml'
   push:
     branches: [main, develop]
-    paths:
-      - 'packages/**/*.ts'
-      - 'packages/**/*.tsx'
-      - 'packages/**/package.json'
-      - 'packages/**/pom.xml'
-      - 'packages/@brix/platform-devtools/architecture-governance/**'
-      - 'packages/@brix/platform-devtools/architecture-guard/**'
-      - 'packages/@brix/platform-devtools/schemas/**'
-      - 'docs/runtime-shell/**'
-      - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
-      - 'scripts/check-banned-tokens.mjs'
-      - 'scripts/ci-test-annotations.mjs'
-      - 'scripts/validate_architecture_context.py'
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
-      - '.github/workflows/architecture-check.yml'
-      - 'package.json'
-      - 'pom.xml'
-      - 'pnpm-lock.yaml'
 
-# Cancel superseded runs to keep the queue short.
+# Cancel superseded pull request runs to keep the queue short. A push runs to the end, so each push to main has a
+# result of its own (standard-link plan queue item 16, 16b).
 concurrency:
-  group: architecture-check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: architecture-check-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   architecture-context-pointer:
