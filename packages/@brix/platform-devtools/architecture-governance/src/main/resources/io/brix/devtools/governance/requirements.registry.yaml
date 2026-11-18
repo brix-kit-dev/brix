@@ -1081,8 +1081,8 @@ ruleInventory:
   - id: ci-platform-devtools-architecture-guard
     kind: ci
     wired: true
-    scope: platform-devtools-local-workflow
+    scope: root-architecture-check-workflow
     targetCount: platform-devtools-only
     test: architecture-guard-self-tests
     status: partial
-    evidence: .github/workflows/architecture-guard.yml
+    evidence: .github/workflows/architecture-check.yml
