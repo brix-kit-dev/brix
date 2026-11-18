@@ -340,6 +340,9 @@ All notable changes to Brix Framework are documented here.
     frontend architecture lint (queue item 19).
   - The type check builds the declarations platform-hosted-login-web imports before it runs: platform-design-tokens,
     then infra-adapter-ui-native and platform-i18n-web. It used to stop at that package with "cannot find module".
+  - platform-admin-web's architecture test (no Page, Hook or Repository entry point; Pages reach Repositories only
+    through Hooks; no network calls in Hooks and Pages) runs on every push as a job of its own. It ran only in the
+    pull request coverage job, whose failures never failed the job.
 - **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
   dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
   call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule

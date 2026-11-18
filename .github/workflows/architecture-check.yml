@@ -11,6 +11,7 @@
 #   - Platform admin redline scan
 #   - TypeScript dependency cycle check
 #   - ESLint architecture rule tests
+#   - Platform console architecture test (platform-admin-web's public API and View/Hook/Repository boundaries, 16e)
 #   - Lint of the SDK packages that have an ESLint configuration (16c)
 #   - Typecheck across the SDK packages
 #
@@ -238,6 +239,47 @@ jobs:
       - name: Annotate failed tests
         if: failure()
         run: node scripts/ci-test-annotations.mjs "$RUNNER_TEMP/eslint-architecture-rules.xml"
+
+  console-architecture-test:
+    name: Platform console architecture test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ----------------------------------------------------------------------
+      # Root A-7, frontend FE-1/FE-2: platform-admin-web publishes no Page,
+      # Hook or Repository entry, Pages reach Repositories only through Hooks,
+      # and Hooks and Pages make no network calls (standard-link plan queue
+      # item 16, 16e). Only this file: the package's other tests are not
+      # architecture tests (D144).
+      # ----------------------------------------------------------------------
+      - name: Run the console architecture test
+        run: >-
+          pnpm --filter @brix-sdk/platform-admin-web run test src/public-api-architecture.test.ts
+          --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/console-architecture.xml"
+        env:
+          CI: true
+
+      - name: Annotate failed tests
+        if: failure()
+        run: node scripts/ci-test-annotations.mjs "$RUNNER_TEMP/console-architecture.xml"
 
   lint:
     name: Lint
