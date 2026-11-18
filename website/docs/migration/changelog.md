@@ -347,6 +347,9 @@ All notable changes to Brix Framework are documented here.
     templates generate no controller, scan, broker or JDBC client, fetch, UI vendor or placeholder, and ship their
     manifests and contract lock test. It used to run the legacy `create-brix app` entry, disabled since Runtime Shell
     v3.0.10 Phase 0, and failed on every run.
+  - The "Runtime Shell v3.0.10 Phase 0 Guard" job is gone. It could not pass on a fresh runner: it built
+    runtime-sdk-api without the modules it depends on, and one of its greps looked for a phrase the manifest schema
+    never contained. runtime-sdk-api's tests run in Code Coverage with the whole build; the v3.0.10 root is superseded.
 - **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
   dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
   call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule
