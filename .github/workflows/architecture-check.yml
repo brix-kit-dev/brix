@@ -4,10 +4,18 @@
 #
 # Phase 3 / C-6 — CI gate for the brix open-source monorepo.
 #
-# Enforces three architectural invariants on every PR / push to main:
-#   1. Lint passes across all SDK packages (no rule disabled silently).
-#   2. TypeScript type-checks across all SDK packages.
-#   3. Architecture guard unit tests pass.
+# Each check is a job of its own, so that one failing check never hides another (standard-link plan queue item 16,
+# 16a). Until 2026-11 the checks below ran as steps of one job behind a Maven dependency analysis that could only fail
+# on a fresh runner, and none of them had run on main since 2026-08-03.
+#   - Architecture governance and guard tests (Java)
+#   - Platform admin redline scan
+#   - TypeScript dependency cycle check
+#   - ESLint architecture rule tests
+#   - Lint across the SDK packages
+#   - Typecheck across the SDK packages
+#
+# A failed test (Java or ESLint rule) or redline finding is also written as an annotation: the annotations of a run can
+# be read through the API without signing in, its log cannot.
 #
 # This workflow intentionally does NOT include @brix-sdk/enterprise-*
 # packages — those live in the brix-enterprise repository and are gated
@@ -38,6 +46,7 @@ on:
       - 'packages/**/vitest.config.*'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
       - 'scripts/check-banned-tokens.mjs'
+      - 'scripts/ci-test-annotations.mjs'
       - 'scripts/validate_architecture_context.py'
       - 'AGENTS.md'
       - 'CLAUDE.md'
@@ -58,6 +67,7 @@ on:
       - 'docs/runtime-shell/**'
       - 'packages/@brix/platform-devtools/@brix/create-brix/templates/**'
       - 'scripts/check-banned-tokens.mjs'
+      - 'scripts/ci-test-annotations.mjs'
       - 'scripts/validate_architecture_context.py'
       - 'AGENTS.md'
       - 'CLAUDE.md'
@@ -113,17 +123,63 @@ jobs:
           grep -RIn 'compatibility schema only' packages/@brix/platform-devtools/schemas/plugin-manifest.schema.json
 
   # ==========================================================================
-  # Job: Lint + Typecheck + Test
-  #
-  # All three are intentionally co-located in one job so that:
-  #   * a broken lockfile fails fast (single `pnpm install`),
-  #   * the runner image / pnpm cache is shared,
-  #   * the gate is atomic — partial green is meaningless to a reviewer.
+  # One job per check (standard-link plan queue item 16, 16a, D139): a check that fails must not hide the checks after
+  # it. The Maven dependency analysis that used to run first is gone: it named one module without the modules it depends
+  # on, so a fresh runner could not resolve it, and it never compiled, so it never analysed anything either.
   # ==========================================================================
-  quality-gate:
-    name: Lint + Typecheck + Test + Dependency Governance
+  architecture-guard-tests:
+    name: Architecture governance and guard tests
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java (17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Architecture governance and guard tests
+        run: mvn -B -ntp -pl :architecture-governance,:architecture-guard test
+
+      - name: Annotate failed tests
+        if: failure()
+        run: >-
+          node scripts/ci-test-annotations.mjs
+          packages/@brix/platform-devtools/architecture-governance
+          packages/@brix/platform-devtools/architecture-guard
+
+      - name: Upload Phase 6 evidence report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase6-architecture-evidence
+          path: packages/@brix/platform-devtools/architecture-governance/target/phase6-evidence/
+
+  redline-scan:
+    name: Platform admin redline scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Platform admin redline scan
+        run: node scripts/check-banned-tokens.mjs
+
+  dependency-cycles:
+    name: TypeScript dependency cycle check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -140,17 +196,11 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
-      - name: Setup Java (17)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       # ----------------------------------------------------------------------
-      # Step: Dependency governance — Phase 2 / DEP-1.
+      # Dependency governance — Phase 2 / DEP-1.
       # Fails on TypeScript import cycles before they can harden into layer
       # coupling between SDK packages.
       # ----------------------------------------------------------------------
@@ -164,26 +214,67 @@ jobs:
             -print0 \
             | xargs -0 pnpm dlx madge@6.1.0 --circular --extensions ts,tsx
 
-      # ----------------------------------------------------------------------
-      # Step: Maven dependency analysis — Phase 2 / DEP-1.
-      # Fails when Java modules declare unused dependencies or use undeclared
-      # ones, keeping module POMs aligned with actual compile-time boundaries.
-      # ----------------------------------------------------------------------
-      - name: Maven dependency analysis
-        run: mvn -q -DskipTests -DfailOnWarning=true -pl :architecture-guard dependency:analyze-only
+  eslint-architecture-rules:
+    name: ESLint architecture rule tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
-      - name: Architecture governance and guard tests
-        run: mvn -q -pl :architecture-governance,:architecture-guard test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Upload Phase 6 evidence report
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
         with:
-          name: phase6-architecture-evidence
-          path: packages/@brix/platform-devtools/architecture-governance/target/phase6-evidence/
+          version: 8
 
-      - name: Platform admin redline scan
-        run: node scripts/check-banned-tokens.mjs
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ----------------------------------------------------------------------
+      # The governance rules that protect the architecture boundary.
+      # Package-level test suites are owned by their package workflows.
+      # ----------------------------------------------------------------------
+      - name: Run architecture unit tests
+        run: >-
+          pnpm --filter @brix-sdk/eslint-config-architecture run test
+          --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/eslint-architecture-rules.xml"
+        env:
+          CI: true
+
+      # Vitest's own GitHub reporter skips a failure thrown inside RuleTester, so the JUnit report is annotated instead.
+      - name: Annotate failed tests
+        if: failure()
+        run: node scripts/ci-test-annotations.mjs "$RUNNER_TEMP/eslint-architecture-rules.xml"
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       # ----------------------------------------------------------------------
       # Step: Lint — every package must define a `lint` script.
@@ -212,6 +303,29 @@ jobs:
           fi
         env:
           CI: true
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build TypeScript type dependencies
         run: |
@@ -242,16 +356,6 @@ jobs:
             --filter '!@brix-sdk/infra-adapter-ui-mui' \
             --filter '!@brix-sdk/infra-adapter-ui-native' \
             run typecheck
-        env:
-          CI: true
-
-      # ----------------------------------------------------------------------
-      # Step: Run architecture guard unit tests.
-      # Package-level test suites are owned by their package workflows; this job
-      # validates the governance rules that protect the architecture boundary.
-      # ----------------------------------------------------------------------
-      - name: Run architecture unit tests
-        run: pnpm --filter @brix-sdk/eslint-config-architecture run test
         env:
           CI: true
 

@@ -57,10 +57,26 @@ if (findings.length > 0) {
   for (const finding of findings) {
     console.error(`  ${finding.file}:${finding.line}: ${finding.check}: ${finding.token}`);
   }
+  // On GitHub each finding is also an annotation: a run's annotations can be read through the API without signing in,
+  // its log cannot (standard-link plan queue item 16, 16a). GitHub keeps the first 10 of a step.
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    for (const finding of findings) {
+      const where = `file=${annotationProperty(finding.file)},line=${finding.line}`;
+      console.log(`::error ${where},title=${annotationProperty(finding.check)}::${annotationData(finding.token)}`);
+    }
+  }
   process.exit(1);
 }
 
 console.log('[banned-tokens] OK');
+
+function annotationData(text) {
+  return String(text).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+}
+
+function annotationProperty(text) {
+  return annotationData(text).replace(/:/g, '%3A').replace(/,/g, '%2C');
+}
 
 function walk(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {

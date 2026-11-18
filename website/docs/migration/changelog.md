@@ -324,6 +324,13 @@ All notable changes to Brix Framework are documented here.
 
 ### 🐛 Fixed
 
+- **CI runs the architecture checks it skipped.** The Architecture Check workflow ran its checks as steps of one job,
+  behind a Maven dependency analysis that could only fail on a fresh runner: it named one module without the modules it
+  depends on, and it never compiled, so it had never analysed anything either. The governance and guard tests, the
+  platform admin redline scan, the ESLint architecture rule tests, the lint and the type check behind it had not run on
+  `main` since 2026-08-03. Each check is now a job of its own, so a failing check no longer hides the others, and the
+  dependency analysis is gone. A failed Java test, ESLint rule test or redline finding is also written as a GitHub
+  annotation, which can be read through the API without signing in.
 - **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
   dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
   call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule
