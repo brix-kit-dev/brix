@@ -338,6 +338,8 @@ All notable changes to Brix Framework are documented here.
     platform-tenant-web, and lists the 20 packages that have none: their `lint` stopped at "couldn't find a
     configuration file" before checking anything, and failed the job on every run. They get a configuration with the
     frontend architecture lint (queue item 19).
+  - The type check builds the declarations platform-hosted-login-web imports before it runs: platform-design-tokens,
+    then infra-adapter-ui-native and platform-i18n-web. It used to stop at that package with "cannot find module".
 - **A body that is not JSON text is an invalid request, not a server error.** The host used to fail on it before the
   dispatcher, for any caller: the enterprise host answered 500 `PLATFORM-S-001` and logged an error with a stack. A
   call that passes the access checks now gets 400 `endpoint.invalid_request` with one violation, path `$` and rule

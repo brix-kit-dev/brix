@@ -316,6 +316,11 @@ jobs:
           pnpm --filter @brix-sdk/platform-auth-web run build
           pnpm --filter @brix-sdk/runtime-orchestrator-web run build
           pnpm --filter @brix-sdk/runtime-manifest-web run build
+          # platform-hosted-login-web's imports (standard-link plan queue item 16, 16d); ui-native's
+          # declarations need the design tokens' first.
+          pnpm --filter @brix-sdk/platform-design-tokens run build
+          pnpm --filter @brix-sdk/infra-adapter-ui-native run build
+          pnpm --filter @brix-sdk/platform-i18n-web run build
         env:
           CI: true
 
