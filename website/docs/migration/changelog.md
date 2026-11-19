@@ -302,6 +302,10 @@ All notable changes to Brix Framework are documented here.
   it (`platform:tenant:manage`, `platform:tenant:view`, `platform:admin:manage`, `platform:audit:view`,
   `platform:system:config`, `platform:license:read`, `platform:data:recovery`) are gone. No entry and no console page
   checked them. A token issued before keeps them until it expires.
+- **The platform permission seed is the catalog** (super-admin §3.3). The forward migration platform-auth `V5` deletes
+  the ten codes outside `PermissionCode` from `auth_permission`, their grants, and the `BOOTSTRAP` role with its
+  grants and any user's link to it: Bootstrap is a setup session, never a database role. `V1` to `V4` are unchanged.
+  Nothing reads these tables, so no behaviour changes; the tenant roles `TENANT_ADMIN` and `USER` stay.
 
 ### 🗑️ Deprecated
 

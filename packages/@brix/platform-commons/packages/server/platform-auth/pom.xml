@@ -132,6 +132,22 @@
             <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
+        <!-- Migration test of the platform permission seed (super-admin §3.3); runs when BRIX_P0_POSTGRES_URL is set -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
