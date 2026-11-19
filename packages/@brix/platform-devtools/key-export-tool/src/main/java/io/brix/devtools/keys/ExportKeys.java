@@ -130,7 +130,8 @@ public final class ExportKeys {
             System.err.println("ERROR: No private key found for alias '" + KEY_ALIAS + "'");
             System.exit(1);
         }
-        String privPem = "-----BEGIN PRIVATE KEY-----\n"
+        // Only the PEM header: the key comes from the key store at run time.
+        String privPem = "-----BEGIN PRIVATE KEY-----\n" // gitleaks:allow
                 + Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(priv.getEncoded())
                 + "\n-----END PRIVATE KEY-----\n";
         try (FileOutputStream fos = new FileOutputStream(outDir + File.separator + "private.pem")) {

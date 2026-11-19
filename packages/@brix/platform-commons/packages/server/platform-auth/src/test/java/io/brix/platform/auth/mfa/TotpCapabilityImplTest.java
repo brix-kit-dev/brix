@@ -22,7 +22,8 @@ class TotpCapabilityImplTest {
         TotpCapabilityImpl totp = new TotpCapabilityImpl(
                 properties, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC), new SecureRandom());
 
-        String secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+        // A made-up TOTP secret for the test.
+        String secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // gitleaks:allow
 
         assertEquals("94287082", totp.generateCode(secret, Instant.ofEpochSecond(59), 8));
         assertEquals("07081804", totp.generateCode(secret, Instant.ofEpochSecond(1111111109), 8));
@@ -50,7 +51,8 @@ class TotpCapabilityImplTest {
         // 89s is in step 2; step 1 (30-59s) carries the RFC 6238 vector 287082.
         TotpCapabilityImpl totp = new TotpCapabilityImpl(
                 properties, Clock.fixed(Instant.ofEpochSecond(89), ZoneOffset.UTC), new SecureRandom());
-        String secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+        // A made-up TOTP secret for the test.
+        String secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // gitleaks:allow
 
         assertEquals(OptionalLong.of(1L), totp.matchTimeStep(secret, "287082"));
         assertTrue(totp.validateCode(secret, "287082"));

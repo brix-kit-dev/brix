@@ -169,6 +169,11 @@ All notable changes to Brix Framework are documented here.
   order's state and version, so the shipment keeps whichever of it and `SampleOrderPlaced` is newer, and either event
   prepares the shipment: events of different types are not ordered. A `SampleOrderPlaced` that arrives after a change
   now leaves the shipment as it is, where it used to fail on the existing shipment.
+- **Every push is scanned for secrets.** A new CI workflow, Secret Scan, runs gitleaks, a pinned release checked
+  by its sha256, over every commit of the pushed history and over the files as they are now, on every push to any
+  branch and every pull request. A finding names the rule, the file, the line and the commit, never the value, and
+  fails the run; so does a committed private key, key store or `.env` file. A test sample that has to stay carries
+  `gitleaks:allow` and its reason; findings in old commits are listed by fingerprint in `.gitleaksignore`.
 
 ### 🔄 Changed
 

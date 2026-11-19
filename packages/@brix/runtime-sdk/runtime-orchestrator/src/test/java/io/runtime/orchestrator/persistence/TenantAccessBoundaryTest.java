@@ -90,7 +90,8 @@ class TenantAccessBoundaryTest {
     @Test
     void aDiscoveryIsWrittenToThePlatformAuditBeforeItsResultIsReturned() {
         memberships = List.of(membership(910001L), membership(910002L), membership(910001L));
-        MDC.put(PolicyUseRecord.TRACE_KEY, "0af7651916cd43dd8448eb211c80319c");
+        // A trace id, not a key: the scanner reads TRACE_KEY as a key name.
+        MDC.put(PolicyUseRecord.TRACE_KEY, "0af7651916cd43dd8448eb211c80319c"); // gitleaks:allow
 
         List<TenantMembershipRecord> found = boundary.getActiveMemberships(5L,
             new DiscoveryContext("203.0.113.9", DiscoveryContext.Purpose.LOGIN, "hosted-login"));

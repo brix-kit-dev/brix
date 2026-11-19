@@ -51,8 +51,9 @@ class ApiKeyAuthFilterTest {
     private ApiKeyAuthProperties properties;
     private ApiKeyAuthFilter filter;
 
-    private static final String VALID_KEY = "test-api-key-12345";
-    private static final String VALID_SECRET = "test-api-secret-123456789012";
+    // Made-up credentials for the filter test (this line and the next).
+    private static final String VALID_KEY = "test-api-key-12345"; // gitleaks:allow
+    private static final String VALID_SECRET = "test-api-secret-123456789012"; // gitleaks:allow
     private static final String INVALID_KEY = "invalid-key";
     private static final String INVALID_SECRET = "invalid-secret";
 

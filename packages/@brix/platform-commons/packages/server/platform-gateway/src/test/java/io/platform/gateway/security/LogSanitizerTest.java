@@ -42,7 +42,8 @@ class LogSanitizerTest {
     @Test
     @DisplayName("Should sanitize Authorization header")
     void shouldSanitizeAuthorizationHeader() {
-        String headerValue = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+        // The public sample token from jwt.io, not a secret.
+        String headerValue = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"; // gitleaks:allow
         
         String sanitized = logSanitizer.sanitizeHeader("Authorization", headerValue);
         
@@ -54,7 +55,8 @@ class LogSanitizerTest {
     @Test
     @DisplayName("Should sanitize X-API-Key header")
     void shouldSanitizeApiKeyHeader() {
-        String apiKey = "sk-1234567890abcdef1234567890abcdef";
+        // A made-up key for the sanitizer, not a secret.
+        String apiKey = "sk-1234567890abcdef1234567890abcdef"; // gitleaks:allow
         
         String sanitized = logSanitizer.sanitizeHeader("X-API-Key", apiKey);
         

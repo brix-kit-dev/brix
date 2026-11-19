@@ -330,7 +330,8 @@ class JwtIssuerCapabilityImplTest {
 
     private String signed(TestKeys keys, Map<String, Object> claims) throws Exception {
         String pem = Files.readString(keys.privateKeyPath(), StandardCharsets.US_ASCII)
-                .replace("-----BEGIN PRIVATE KEY-----", "")
+                // Strips the PEM header from a key the test generated.
+                .replace("-----BEGIN PRIVATE KEY-----", "") // gitleaks:allow
                 .replace("-----END PRIVATE KEY-----", "")
                 .replaceAll("\\s", "");
         java.security.PrivateKey key = KeyFactory.getInstance("RSA")

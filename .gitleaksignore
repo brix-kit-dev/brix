@@ -1,0 +1,24 @@
+# Secret Scan allow-list (root S-4, D149). One gitleaks fingerprint per line, the reason above it. A fingerprint
+# names the commit, the file, the rule and the line, so it allows that one finding in that old commit and
+# nothing else. A sample that is still in a file carries gitleaks:allow on its line instead.
+
+# A made-up TOTP secret in older versions of the test.
+85a0df6d120e569f2c5cc1266143cad82391e44e:packages/@brix/platform-commons/packages/server/platform-auth/src/test/java/io/brix/platform/auth/mfa/TotpCapabilityImplTest.java:generic-api-key:53
+ad1c480d03e9e0f5f881c428b866cd447eb79c61:packages/@brix/platform-commons/packages/server/platform-auth/src/test/java/io/brix/platform/auth/mfa/TotpCapabilityImplTest.java:generic-api-key:24
+
+# Made-up credentials in an older version of the filter test.
+a4371300a1df3e70ab0f48e7a211bd2f756c1aa3:packages/@brix/platform-commons/packages/server/platform-gateway/src/test/java/io/platform/gateway/security/ApiKeyAuthFilterTest.java:generic-api-key:39
+a4371300a1df3e70ab0f48e7a211bd2f756c1aa3:packages/@brix/platform-commons/packages/server/platform-gateway/src/test/java/io/platform/gateway/security/ApiKeyAuthFilterTest.java:generic-api-key:40
+
+# The sanitizer test's made-up key and the public sample token from jwt.io, older version.
+a4371300a1df3e70ab0f48e7a211bd2f756c1aa3:packages/@brix/platform-commons/packages/server/platform-gateway/src/test/java/io/platform/gateway/security/LogSanitizerTest.java:generic-api-key:42
+a4371300a1df3e70ab0f48e7a211bd2f756c1aa3:packages/@brix/platform-commons/packages/server/platform-gateway/src/test/java/io/platform/gateway/security/LogSanitizerTest.java:jwt:30
+
+# A trace id, not a key: the scanner reads TRACE_KEY as a key name.
+d206dbc581e7ed78b80d7c1939fb1022a4a33722:packages/@brix/runtime-sdk/runtime-orchestrator/src/test/java/io/runtime/orchestrator/persistence/TenantAccessBoundaryTest.java:generic-api-key:93
+
+# Only the PEM header: the test generates the key when it runs.
+f7bcf681527f3e0444945ce29ac66b4b9a1f75b1:packages/@brix/platform-commons/packages/server/platform-auth-servlet/src/test/java/io/brix/platform/auth/servlet/SecurityServletAutoConfigurationTest.java:private-key:55
+
+# Only the PEM header: the key comes from the key store at run time.
+fd0f3be8c9fec7d07bfcda8bdb7f5cda8c6e0163:packages/@brix/platform-devtools/key-export-tool/src/main/java/io/brix/devtools/keys/ExportKeys.java:private-key:133

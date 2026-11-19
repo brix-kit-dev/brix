@@ -52,7 +52,8 @@ class SecurityServletAutoConfigurationTest {
         Path privateKeyPath = tempDir.resolve("jwt-private.pem");
         Files.writeString(
                 privateKeyPath,
-                "-----BEGIN PRIVATE KEY-----\n"
+                // Only the PEM header: the test generates the key when it runs.
+                "-----BEGIN PRIVATE KEY-----\n" // gitleaks:allow
                         + Base64.getMimeEncoder(64, new byte[] {'\n'})
                                 .encodeToString(keyPair.getPrivate().getEncoded())
                         + "\n-----END PRIVATE KEY-----\n",
