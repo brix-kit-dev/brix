@@ -28,9 +28,11 @@ import io.runtime.manifest.model.PluginManifest;
  * Validator for the v3.0.10 plugin manifest contract.
  *
  * <p>This validator intentionally checks invariant rules that are independent of
- * a particular Host or infrastructure implementation. JSON Schema remains the
- * structural gate used by tooling and runtime boot; this class gives Java
- * callers stable fail-fast validation without depending on the orchestrator.</p>
+ * a particular Host or infrastructure implementation. The structure is the
+ * {@link PluginManifestSchema}'s: the loader checks every manifest against it
+ * first, and this class checks the rules a schema cannot express (patterns of
+ * names, versions and ranges, uniqueness, what one declaration requires of
+ * another).</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -526,8 +528,9 @@ public final class PluginManifestValidator {
         if (!REPLAYED_METHODS.contains(method)) {
             result.addError(path, "Only POST, PUT, PATCH and DELETE endpoints have results to replay");
         }
-        boolean noBody = route.getResponse() != null && Integer.valueOf(204).equals(route.getResponse().get("status"));
-        if (!hasSchemaRef(route.getRequest()) || !noBody && !hasSchemaRef(route.getResponse())) {
+        // A 204 names its response schema too, an empty one, as the manifest schema requires of every endpoint (root
+        // BRX-RS-MANIFEST-017, 018; standard-link plan D153): the runtime replays only its status.
+        if (!hasSchemaRef(route.getRequest()) || !hasSchemaRef(route.getResponse())) {
             result.addError(path, "An endpoint whose results are replayed declares its request and response schemas");
         }
         Object authentication = route.getAuthentication() == null ? null : route.getAuthentication().get("mode");

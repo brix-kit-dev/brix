@@ -358,6 +358,17 @@ class JdbcOwnerEndpointIdempotencyTest {
                 - id: io.runtime.sdk.capability.PersistenceCapability
                   version: ">=3.2.0 <4.0.0"
               optional: []
+            queries:
+              provides: []
+              consumes: []
+            commands:
+              provides: []
+              consumes: []
+            events:
+              publishes: []
+              subscribes: []
+            tasks:
+              provides: []
             data:
               storageId: %s
             """.formatted(storageId));

@@ -346,6 +346,8 @@ class JdbcOwnerCommandIdempotencyTest {
                 artifactId: stock-owner-server
                 version: 3.3.0
                 moduleKind: plugin-server
+            endpoints:
+              provides: []
             capabilities:
               required:
                 - id: io.runtime.sdk.capability.PersistenceCapability
@@ -370,6 +372,8 @@ class JdbcOwnerCommandIdempotencyTest {
             events:
               publishes: []
               subscribes: []
+            tasks:
+              provides: []
             data:
               storageId: %1$s
               inbox: %1$s_inbox

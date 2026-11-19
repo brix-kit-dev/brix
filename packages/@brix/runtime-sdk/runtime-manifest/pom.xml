@@ -55,7 +55,16 @@
             <groupId>tools.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
-        
+
+        <!--
+          The loader checks every plugin manifest against META-INF/schemas/plugin-manifest.schema.json before it binds
+          the model (root BRX-RS-MANIFEST-001, BOOT-001 P0; standard-link plan D152).
+        -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+        </dependency>
+
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>

@@ -217,6 +217,17 @@ All notable changes to Brix Framework are documented here.
   events.
 - **The manifest is checked at startup.** Unknown retry, timeout and concurrency policies, a missing schema file, an
   event type with two publishers and an unbound handler all stop the plugin at startup.
+- **Every host checks the manifest against its JSON Schema** (root BRX-RS-MANIFEST-001, BOOT-001; standard-link
+  plan D152, D153). The runtime reads `META-INF/brix/plugin-manifest.yaml` against `plugin-manifest.schema.json`, the
+  file in `packages/@brix/platform-devtools/schemas`, before anything else uses it, and the error names each field.
+  - Until now only a web host's plugin registry checked the schema. The runtime's own loader, which the plugin
+    runtime, the JPA adapter, the outbox and the migrations use, took a field of one declaration on any other and
+    ignored it.
+  - These now stop the plugin in every host: `handlerId` or a scope policy on a sent command, `versionRange` on a
+    provided command, `retryPolicyRef` or `idempotencyPolicyRef` on a provided query, and earlier names (`routes`;
+    an endpoint's `id`, `handler` or `accessPolicy`; an event's `id` or `schema`). So do `internalContracts.requires`
+    and a missing section: every section the schema requires is there, even empty.
+  - The manifests of this repository's plugins and the create-brix template already pass.
 - **`QueryHandler.handle` takes a `QueryInvocation` and returns a `CompletionStage`** (root BRX-RS-MANIFEST-025): the
   request, the caller, the tenant scope, the access decision, the trace and the deadline. A host whose plugins provide
   or call queries must set `brix.query.max-deadline`.
@@ -303,6 +314,10 @@ All notable changes to Brix Framework are documented here.
 
 ### 🗑️ Removed
 
+- runtime-orchestrator's `io.runtime.orchestrator.manifest.PluginManifestValidator` and its copy of
+  `plugin-manifest.schema.json`, and the `UIManifestLoader(ObjectMapper, PluginManifestValidator)` constructor:
+  the schema and its check are `io.runtime.manifest.validation.PluginManifestSchema` in runtime-manifest, which the
+  runtime's loader and the plugin registry both use.
 - The no-argument constructor of platform-identity's and platform-tenant's `SnowflakeIdGenerator`, which guessed a
   worker id from the `WORKER_ID` or `HOSTNAME` environment variable, the MAC address or at random. Nothing called it:
   both modules pass the worker id they are configured with (`brix.identity.worker-id`, `brix.tenant.worker-id`).

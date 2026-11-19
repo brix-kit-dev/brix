@@ -21,12 +21,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import io.runtime.manifest.validation.ManifestValidationException;
 
 class ClasspathPluginRuntimeDescriptorResolverTest {
 
@@ -41,6 +48,38 @@ class ClasspathPluginRuntimeDescriptorResolverTest {
         assertEquals("service-loaded-test", descriptor.get().identity().pluginId());
         assertTrue(descriptor.get().requiredCapabilities().contains("TestCapability"));
         assertTrue(descriptor.get().optionalCapabilities().contains("OptionalCapability"));
+    }
+
+    @Test
+    void refusesAFieldTheManifestSchemaDoesNotAllowWithoutAnyHost(@TempDir Path dir) throws Exception {
+        // Standard-link plan D152 (queue item 17): the runtime checks a plugin's manifest against the JSON Schema when
+        // it reads it, not only a web host's plugin registry; a sent command names no handler (root MANIFEST-025).
+        String manifest;
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
+            manifest = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        String sender = manifest.replace("commands:\n  provides: []\n  consumes: []\n", """
+            commands:
+              provides: []
+              consumes:
+                - commandType: other-plugin.ship-order
+                  versionRange: ">=1.0.0 <2.0.0"
+                  required: true
+                  handlerId: service-loaded-test.ship-order.v1
+            """);
+        assertTrue(sender.contains("handlerId: service-loaded-test.ship-order.v1"), sender);
+        Path file = Files.writeString(dir.resolve("plugin-manifest.yaml"), sender);
+        Method load = ClasspathPluginRuntimeDescriptorResolver.class.getDeclaredMethod("loadActiveDescriptor", URL.class);
+        load.setAccessible(true);
+        ClasspathPluginRuntimeDescriptorResolver resolver =
+            new ClasspathPluginRuntimeDescriptorResolver(Thread.currentThread().getContextClassLoader());
+
+        InvocationTargetException failure = org.junit.jupiter.api.Assertions.assertThrows(
+            InvocationTargetException.class, () -> load.invoke(resolver, file.toUri().toURL()));
+
+        assertTrue(failure.getCause() instanceof ManifestValidationException, String.valueOf(failure.getCause()));
+        assertTrue(failure.getCause().getMessage().contains("[commands.consumes[0].handlerId]"),
+            failure.getCause().getMessage());
     }
 
     @Test

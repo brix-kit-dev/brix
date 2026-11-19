@@ -773,8 +773,14 @@ The samples list every section, with empty lists where they have nothing to decl
   wildcards.
 - `storageId` is lower case with underscores, unique across plugins, and never changes. It names the messaging
   tables, so `outbox` and `inbox` must be exactly `<storageId>_outbox` and `<storageId>_inbox`.
-- The loader is strict: an unknown field, for example in `metadata`, `data` or `events`, fails at startup instead
-  of being ignored.
+- The runtime checks every manifest against its JSON Schema when it loads it, in every host:
+  `plugin-manifest.schema.json`, the file in `packages/@brix/platform-devtools/schemas` that your editor can use. A
+  field the schema does not allow fails at startup instead of being ignored, and the error names each field:
+  - an unknown field, for example in `metadata`, `data` or `events`;
+  - a field another declaration takes, such as `handlerId` under `commands.consumes`, `versionRange` under
+    `commands.provides`, or `retryPolicyRef` under `queries.provides`;
+  - an earlier name, such as `routes` or an endpoint's `handler`.
+- Every section of the table above up to `tasks` is required, even when it declares nothing.
 
 ## Testing
 

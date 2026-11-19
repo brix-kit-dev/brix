@@ -33,19 +33,24 @@ import java.util.Properties;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import io.runtime.manifest.model.PluginManifest;
+import io.runtime.manifest.validation.ManifestValidationException;
+import io.runtime.manifest.validation.PluginManifestSchema;
 import io.runtime.manifest.validation.PluginManifestValidator;
+import io.runtime.manifest.validation.ValidationResult;
 
 /**
  * Strict v3.0.10 plugin manifest loader.
  *
  * <p>The active plugin manifest path is fixed at
  * {@value PluginManifestValidator#ACTIVE_MANIFEST_RESOURCE}. This loader accepts
- * YAML only and fails on unknown fields so plugin manifests cannot drift into a
- * second, implementation-specific contract.</p>
+ * YAML only and checks every manifest against {@link PluginManifestSchema} before it binds the model, so a field
+ * the schema does not allow, such as another entry's field, fails instead of being ignored; plugin manifests cannot
+ * drift into a second, implementation-specific contract.</p>
  *
  * @author Runtime SDK Team
  * @since 3.0.10
@@ -105,13 +110,13 @@ public final class PluginManifestLoader {
      */
     public PluginManifest load(InputStream inputStream) {
         Objects.requireNonNull(inputStream, "inputStream must not be null");
+        JsonNode document;
         try {
-            PluginManifest manifest = yamlMapper.readValue(inputStream, PluginManifest.class);
-            validator.validateOrThrow(manifest);
-            return manifest;
+            document = yamlMapper.readTree(inputStream);
         } catch (JacksonException e) {
             throw new ManifestLoadException("Failed to parse plugin manifest YAML", e);
         }
+        return bind(document);
     }
 
     /**
@@ -122,13 +127,40 @@ public final class PluginManifestLoader {
      */
     public PluginManifest loadFromString(String content) {
         Objects.requireNonNull(content, "content must not be null");
+        JsonNode document;
         try {
-            PluginManifest manifest = yamlMapper.readValue(content, PluginManifest.class);
-            validator.validateOrThrow(manifest);
-            return manifest;
+            document = yamlMapper.readTree(content);
         } catch (JacksonException e) {
             throw new ManifestLoadException("Failed to parse plugin manifest YAML", e);
         }
+        return bind(document);
+    }
+
+    /**
+     * Checks the document against the manifest's JSON Schema, binds it, and checks the rules a schema cannot express
+     * (root BRX-RS-MANIFEST-001, BOOT-001 P0; standard-link plan D152). Every host loads its plugins' manifests here,
+     * so a field the schema does not allow stops the plugin in each of them, whatever the host's configuration.
+     * Both kinds of violation are reported together.
+     */
+    private PluginManifest bind(JsonNode document) {
+        if (document == null || document.isMissingNode() || document.isNull()) {
+            throw new ManifestLoadException("Failed to parse plugin manifest YAML: the document is empty");
+        }
+        ValidationResult result = PluginManifestSchema.check(document);
+        PluginManifest manifest;
+        try {
+            manifest = yamlMapper.treeToValue(document, PluginManifest.class);
+        } catch (JacksonException e) {
+            if (!result.isValid()) {
+                throw new ManifestValidationException(result);
+            }
+            throw new ManifestLoadException("Failed to parse plugin manifest YAML", e);
+        }
+        result.merge(validator.validate(manifest));
+        if (!result.isValid()) {
+            throw new ManifestValidationException(result);
+        }
+        return manifest;
     }
 
     /**

@@ -237,6 +237,17 @@ class FlywayModuleMigrationRunnerTest {
                 - id: io.runtime.sdk.capability.PersistenceCapability
                   version: ">=3.2.0 <4.0.0"
               optional: []
+            queries:
+              provides: []
+              consumes: []
+            commands:
+              provides: []
+              consumes: []
+            events:
+              publishes: []
+              subscribes: []
+            tasks:
+              provides: []
             data:
               storageId: %2$s
             """.formatted(pluginId, storageId, idempotency));
@@ -277,6 +288,8 @@ class FlywayModuleMigrationRunnerTest {
                 artifactId: %1$s-server
                 version: 3.3.0
                 moduleKind: plugin-server
+            endpoints:
+              provides: []
             capabilities:
               required:
                 - id: io.runtime.sdk.capability.PersistenceCapability
@@ -294,8 +307,14 @@ class FlywayModuleMigrationRunnerTest {
                   eventType: MemberAccepted
                   schemaRange: ">=1.0.0 <2.0.0"
                   handlerId: member-projection.v1
+                  scopePolicyRef: member-projection-scope
+                  publisherPolicyRef: platform-tenant-owner
+                  timeoutPolicyRef: event-standard
+                  concurrencyPolicyRef: partition-serial
                   retryPolicyRef: event-standard
                   idempotencyPolicyRef: persistent-inbox
+            tasks:
+              provides: []
             data:
               storageId: %2$s
               outbox: %2$s_outbox

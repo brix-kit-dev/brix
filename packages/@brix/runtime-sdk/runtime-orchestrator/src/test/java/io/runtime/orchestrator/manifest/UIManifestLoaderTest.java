@@ -21,14 +21,65 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 import tools.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class UIManifestLoaderTest {
+
+    @Test
+    void checksEachManifestWithTheRuntimesSchemaCheck(@TempDir Path dir) throws Exception {
+        // Standard-link plan D152: a web host's plugin registry refuses what the runtime refuses, through the one
+        // schema runtime-manifest bundles; here a sent command names a handler (root BRX-RS-MANIFEST-025).
+        String manifest;
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
+            manifest = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        Path plugin = Files.createDirectories(dir.resolve("META-INF/brix")).resolve("plugin-manifest.yaml");
+
+        Files.writeString(plugin, manifest);
+        assertNotNull(loadIsolated(dir).getManifest("service-loaded-test"));
+
+        String sender = manifest.replace("commands:\n  provides: []\n  consumes: []\n", """
+            commands:
+              provides: []
+              consumes:
+                - commandType: other-plugin.ship-order
+                  versionRange: ">=1.0.0 <2.0.0"
+                  required: true
+                  handlerId: service-loaded-test.ship-order.v1
+            """);
+        assertTrue(sender.contains("handlerId: service-loaded-test.ship-order.v1"), sender);
+        Files.writeString(plugin, sender);
+        PluginManifestValidationException failure = assertThrows(PluginManifestValidationException.class,
+            () -> loadIsolated(dir));
+        assertTrue(failure.getValidationErrors().stream()
+                .anyMatch(error -> error.startsWith("commands.consumes[0].handlerId: ")),
+            failure.getValidationErrors().toString());
+    }
+
+    /** A loader that sees only the manifests under {@code root}. */
+    private static UIManifestLoader loadIsolated(Path root) throws Exception {
+        ClassLoader previous = Thread.currentThread().getContextClassLoader();
+        try (URLClassLoader isolated = new URLClassLoader(new URL[] {root.toUri().toURL()}, null)) {
+            Thread.currentThread().setContextClassLoader(isolated);
+            UIManifestLoader loader = new UIManifestLoader(new ObjectMapper());
+            loader.loadManifests();
+            return loader;
+        } finally {
+            Thread.currentThread().setContextClassLoader(previous);
+        }
+    }
 
     @Test
     void loadsActiveYamlManifestFromClasspath() {

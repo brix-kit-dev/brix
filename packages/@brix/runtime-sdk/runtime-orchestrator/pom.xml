@@ -159,19 +159,13 @@
         </dependency>
 
         <!--
-          JSON Schema Validator (for plugin-manifest.json fail-fast validation, P0-2 / R3.7)
-
-          Used by UIManifestLoader to validate every classpath plugin-manifest.json
-          against the bundled META-INF/schemas/plugin-manifest.schema.json at startup.
-          NOT optional: UIManifestLoader hard-depends on this validator to honour the
-          fail-fast contract; making it optional would silently degrade validation in
-          consumer Hosts that forget to pull it.
+          JSON Schema Validator (version in runtime-sdk-parent): OperationalModuleDescriptorLoader checks every
+          META-INF/brix/platform-operational.yaml against the bundled META-INF/schemas/platform-operational.schema.json.
+          The plugin manifest's schema and its check live in runtime-manifest (standard-link plan D152).
         -->
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <!-- 3.0.x is the first line built on Jackson 3; 3.0.6 matches the Jackson 3.1 BOM line. -->
-            <version>3.0.6</version>
         </dependency>
 
         <!-- Test -->

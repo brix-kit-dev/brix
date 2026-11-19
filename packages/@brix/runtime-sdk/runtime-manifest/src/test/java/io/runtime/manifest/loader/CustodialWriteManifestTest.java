@@ -117,6 +117,8 @@ class CustodialWriteManifestTest {
                 artifactId: platform-audit-server
                 version: 3.2.0
                 moduleKind: plugin-server
+            endpoints:
+              provides: []
             capabilities:
               required: []
               optional: []
@@ -129,6 +131,8 @@ class CustodialWriteManifestTest {
             events:
               publishes: []
               subscribes: []
+            tasks:
+              provides: []
             data:
             """ + (storageId == null ? "" : "  storageId: " + storageId + "\n") + registration;
     }

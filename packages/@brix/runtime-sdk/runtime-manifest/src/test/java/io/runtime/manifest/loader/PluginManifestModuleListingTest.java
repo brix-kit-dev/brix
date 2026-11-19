@@ -136,6 +136,8 @@ class PluginManifestModuleListingTest {
                 artifactId: %1$s-server
                 version: %3$s
                 moduleKind: plugin-server
+            endpoints:
+              provides: []
             capabilities:
               required: []
               optional: []
@@ -148,6 +150,8 @@ class PluginManifestModuleListingTest {
             events:
               publishes: []
               subscribes: []
+            tasks:
+              provides: []
             """.formatted(pluginId, coreArtifactId, version));
     }
 }

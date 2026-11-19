@@ -138,7 +138,7 @@ Your handler reads its key from `request.idempotency()`, for example to name the
 
 The plugin does not start unless the endpoint meets these rules:
 - It is a `POST`, `PUT`, `PATCH` or `DELETE` with a typed handler, and declares its request and response schemas. A `204`
-  needs no response schema.
+  names a response schema too, an empty one, as every endpoint does: the runtime replays only its status.
 - The caller is authenticated (`authentication.mode: required`). An anonymous caller has no key of its own.
 - The plugin declares `data.storageId` and requires `PersistenceCapability`. The platform creates
   `<storageId>_endpoint_idempotency` from its own migrations.

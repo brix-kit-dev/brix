@@ -21,10 +21,10 @@ import java.util.List;
 /**
  * Plugin Manifest Validation Exception.
  *
- * <p>Thrown when a {@code META-INF/plugin-manifest.json} resource discovered on the
- * classpath fails JSON Schema validation against the bundled
- * {@code META-INF/schemas/plugin-manifest.schema.json}, or when the manifest is
- * structurally unreadable (malformed JSON, missing required fields, unsupported
+ * <p>Thrown when a {@code META-INF/brix/plugin-manifest.yaml} resource discovered on the
+ * classpath fails JSON Schema validation against
+ * {@code META-INF/schemas/plugin-manifest.schema.json} (bundled in runtime-manifest), or when the manifest is
+ * structurally unreadable (malformed YAML, missing required fields, unsupported
  * field types, etc.).</p>
  *
  * <h3>Fail-Fast Contract (Architecture Red-Line P0-2)</h3>

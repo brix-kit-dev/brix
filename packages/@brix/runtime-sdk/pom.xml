@@ -114,6 +114,17 @@
                 <artifactId>runtime-contract-generator</artifactId>
                 <version>${project.version}</version>
             </dependency>
+
+            <!--
+              JSON Schema validator, not in the Spring Boot BOM: runtime-manifest checks every plugin manifest against
+              its schema, runtime-orchestrator every platform operational descriptor. 3.0.x is the first line built on
+              Jackson 3; 3.0.6 matches the Jackson 3.1 BOM line.
+            -->
+            <dependency>
+                <groupId>com.networknt</groupId>
+                <artifactId>json-schema-validator</artifactId>
+                <version>3.0.6</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

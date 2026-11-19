@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.runtime.orchestrator.manifest;
+package io.runtime.manifest.validation;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -26,9 +25,13 @@ import java.nio.file.Path;
 import java.util.List;
 
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 
+/** The plugin manifest's JSON Schema, which the loader checks every manifest against (standard-link plan D152). */
 class PluginManifestSchemaTest {
+
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     @Test
     void bundledSchemaMatchesDevtoolsAuthoringSchema() throws IOException {
@@ -42,71 +45,54 @@ class PluginManifestSchemaTest {
 
     @Test
     void bundledSchemaRequiresPublishedEventReliability() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
-
-        assertThrows(PluginManifestValidationException.class,
-            () -> validator.validate("missing reliability", objectMapper.readTree(manifestWithoutReliability())));
+        assertFalse(check(manifestWithoutReliability()).isValid());
     }
 
     @Test
     void bundledSchemaAcceptsPublishedEventReliability() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
-
-        assertDoesNotThrow(() -> validator.validate("valid reliability", objectMapper.readTree(manifestWithReliability())));
+        assertValid(manifestWithReliability());
     }
 
     @Test
     void bundledSchemaAcceptsEndpointProvides() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
-
-        assertDoesNotThrow(() -> validator.validate(
-            "valid endpoint provides",
-            objectMapper.readTree(manifestWithEndpointProvides())));
+        assertValid(manifestWithEndpointProvides());
     }
 
     @Test
     void bundledSchemaAcceptsACustodialWriteRegistration() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
-
-        assertDoesNotThrow(() -> validator.validate("custodial write",
-            objectMapper.readTree(manifestWithCustodialWrite("[\"INSERT\"]", "runtime.tenant-policy-audit"))));
+        assertValid(manifestWithCustodialWrite("[\"INSERT\"]", "runtime.tenant-policy-audit"));
     }
 
     @Test
     void bundledSchemaRefusesCustodialWritesBeyondInsertOrTheCustodianDirectory() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
-
         // Root BRX-RS-MANIFEST-031: only INSERT, and only a Runtime Custodian of appendix A.
-        assertThrows(PluginManifestValidationException.class, () -> validator.validate("update",
-            objectMapper.readTree(manifestWithCustodialWrite("[\"INSERT\", \"UPDATE\"]", "runtime.tenant-policy-audit"))));
-        assertThrows(PluginManifestValidationException.class, () -> validator.validate("unknown custodian",
-            objectMapper.readTree(manifestWithCustodialWrite("[\"INSERT\"]", "runtime.other"))));
+        assertFalse(check(manifestWithCustodialWrite("[\"INSERT\", \"UPDATE\"]", "runtime.tenant-policy-audit")).isValid());
+        assertFalse(check(manifestWithCustodialWrite("[\"INSERT\"]", "runtime.other")).isValid());
         String withoutRecordSchema = manifestWithCustodialWrite("[\"INSERT\"]", "runtime.tenant-policy-audit")
             .replace("\"actions\": [\"LOGIN_TENANT_DISCOVERY\"],", "\"actions\": [\"LOGIN_TENANT_DISCOVERY\"]")
             .replace("\"recordSchemaRef\": \"brix://schemas/platform-audit/policy-use-record/1.0.0\"", "");
-        assertThrows(PluginManifestValidationException.class, () -> validator.validate("no record schema",
-            objectMapper.readTree(withoutRecordSchema)));
+        assertFalse(check(withoutRecordSchema).isValid());
     }
 
     @Test
     void bundledSchemaTakesACommandSenderWithoutPolicies() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        PluginManifestValidator validator = new PluginManifestValidator(objectMapper);
-
         // Standard-link plan D102: a sender names the command, its range and whether it requires it, and no policy.
-        assertDoesNotThrow(() -> validator.validate("sender", objectMapper.readTree(manifestWithCommandSender(""))));
+        assertValid(manifestWithCommandSender(""));
         for (String policy : List.of("timeoutPolicyRef", "retryPolicyRef", "idempotencyPolicyRef")) {
-            PluginManifestValidationException refused = assertThrows(PluginManifestValidationException.class,
-                () -> validator.validate(policy, objectMapper.readTree(
-                    manifestWithCommandSender(", \"" + policy + "\": \"event-standard\""))));
-            assertTrue(refused.getValidationErrors().stream().anyMatch(error -> error.contains(policy)),
-                refused.getValidationErrors().toString());
+            ValidationResult refused = check(manifestWithCommandSender(", \"" + policy + "\": \"event-standard\""));
+            assertTrue(refused.getErrors().stream()
+                    .anyMatch(error -> error.getField().equals("commands.consumes[0]." + policy)),
+                refused.getErrorMessage());
         }
+    }
+
+    private ValidationResult check(String json) throws IOException {
+        return PluginManifestSchema.check(objectMapper.readTree(json));
+    }
+
+    private void assertValid(String json) throws IOException {
+        ValidationResult result = check(json);
+        assertTrue(result.isValid(), result.getErrorMessage());
     }
 
     private String manifestWithCommandSender(String policy) {

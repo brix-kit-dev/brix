@@ -659,7 +659,9 @@ duplicate.
 | `idempotencyPolicyRef` | `command-key` | The inbox drops a repeated command id, and the idempotency table a repeated business key of the same sender and tenant: a duplicate with the same content, a conflict with other content. A rejected command takes no key |
 
 A provider names all six. A sender names only `commandType`, `versionRange` and `required`: its commands are
-delivered under the provider's policies, so a policy written under `commands.consumes` stops the plugin at startup. A
+delivered under the provider's policies, so a policy written under `commands.consumes` stops the plugin at startup.
+Any other field a declaration does not take stops it too, such as a `handlerId` under `commands.consumes` or a
+`versionRange` under `commands.provides`. A
 name the runtime does not know stops the plugin at startup too, and so does an event policy name such as
 `event-standard` or `persistent-inbox`: the message lists what a command names instead.
 

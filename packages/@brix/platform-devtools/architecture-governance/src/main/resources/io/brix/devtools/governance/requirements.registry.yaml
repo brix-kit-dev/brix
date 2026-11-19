@@ -1040,11 +1040,11 @@ ruleInventory:
     evidence: eslint-config-architecture
   - id: schema-plugin-manifest
     kind: schema
-    wired: false
+    wired: true
     scope: plugin-manifest
-    targetCount: not-counted-in-phase0
-    test: future-schema-contract
-    status: missing-blocking
+    targetCount: fixture-backed
+    test: PluginManifestVectorsTest
+    status: partial
     evidence: schemas/plugin-manifest.schema.json
   - id: schema-platform-operational
     kind: schema

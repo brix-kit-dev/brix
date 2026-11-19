@@ -45,9 +45,21 @@ class PluginManifestLoaderTest {
 
     @Test
     void rejectsUnknownFields() {
+        // Standard-link plan D152: the schema names the field it does not know.
         assertThatThrownBy(() -> loader.loadFromString(validManifest() + "unexpected: value\n"))
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("[unexpected]")
+            .hasMessageContaining("plugin-manifest.schema.json");
+    }
+
+    @Test
+    void rejectsADocumentThatIsNotYaml() {
+        assertThatThrownBy(() -> loader.loadFromString("apiVersion: [brix.io/v1\n"))
             .isInstanceOf(ManifestLoadException.class)
             .hasMessageContaining("Failed to parse plugin manifest YAML");
+        assertThatThrownBy(() -> loader.loadFromString(""))
+            .isInstanceOf(ManifestLoadException.class)
+            .hasMessageContaining("the document is empty");
     }
 
     @Test
@@ -316,7 +328,7 @@ class PluginManifestLoaderTest {
     }
 
     private String taskManifest(String extra) {
-        return validManifest().replace("capabilities:\n  required:\n",
+        return validManifest().replace("tasks:\n  provides: []\n", "").replace("capabilities:\n  required:\n",
             "capabilities:\n  required:\n    - id: io.runtime.sdk.capability.PersistenceCapability\n"
                 + "      version: \">=3.2.0 <4.0.0\"\n")
             + """
@@ -385,12 +397,19 @@ class PluginManifestLoaderTest {
     }
 
     @Test
-    void anEndpointWithoutABodyToKeepNeedsNoResponseSchema() {
-        // A 204 has no answer but its status, which the runtime replays all the same.
+    void anEndpointWithoutABodyStillNamesItsResponseSchema() {
+        // A 204 has no answer but its status, which the runtime replays all the same. It names its response schema
+        // like any endpoint, an empty one (root BRX-RS-MANIFEST-017, 018; standard-link plan D153).
         assertThatCode(() -> loader.loadFromString(replayedEndpointManifest().replace(
+                "template-status-response/1.0.0\n",
+                "template-status-response/1.0.0\n        status: 204\n")))
+            .doesNotThrowAnyException();
+        assertThatThrownBy(() -> loader.loadFromString(replayedEndpointManifest().replace(
                 "      response:\n        schemaRef: brix://schemas/app-booking/template-status-response/1.0.0\n",
                 "      response:\n        status: 204\n")))
-            .doesNotThrowAnyException();
+            .isInstanceOf(ManifestValidationException.class)
+            .hasMessageContaining("[endpoints.provides[0].response.schemaRef]")
+            .hasMessageContaining("An endpoint whose results are replayed declares its request and response schemas");
     }
 
     @Test
@@ -450,6 +469,8 @@ class PluginManifestLoaderTest {
                 artifactId: sample-plugin-server
                 version: 3.0.10
                 moduleKind: plugin-server
+            endpoints:
+              provides: []
             capabilities:
               required:
                 - id: AuthCapability
@@ -464,6 +485,8 @@ class PluginManifestLoaderTest {
             events:
               publishes: []
               subscribes: []
+            tasks:
+              provides: []
             """;
     }
 
@@ -498,6 +521,10 @@ class PluginManifestLoaderTest {
                   eventType: TenantFirstOwnerAccepted
                   schemaRange: ">=1.0.0 <2.0.0"
                   handlerId: tenant-first-owner-projection.v1
+                  scopePolicyRef: tenant-first-owner-projection-scope
+                  publisherPolicyRef: platform-tenant-owner
+                  timeoutPolicyRef: event-standard
+                  concurrencyPolicyRef: partition-serial
                   retryPolicyRef: event-standard
                   idempotencyPolicyRef: persistent-inbox
             data:
@@ -557,7 +584,7 @@ class PluginManifestLoaderTest {
 
     private String templateEndpointManifest() {
         return validManifest().replace(
-            "capabilities:\n",
+            "endpoints:\n  provides: []\n",
             """
             endpoints:
               provides:
@@ -580,8 +607,6 @@ class PluginManifestLoaderTest {
                     policyRef: endpoint-default
                   idempotency:
                     mode: not-applicable
-                  accessPolicy: app-booking-template-read
-            capabilities:
             """);
     }
 }

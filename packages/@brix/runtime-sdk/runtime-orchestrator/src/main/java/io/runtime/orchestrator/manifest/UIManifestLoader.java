@@ -39,6 +39,9 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import jakarta.annotation.PostConstruct;
 
+import io.runtime.manifest.validation.PluginManifestSchema;
+import io.runtime.manifest.validation.ValidationResult;
+
 /**
  * UI Manifest declarative scanning and loading service.
  *
@@ -58,8 +61,9 @@ import jakarta.annotation.PostConstruct;
  * </ul>
  *
  * <h3>Fail-Fast Validation (since 3.2.0, Architecture Red-Line P0-2)</h3>
- * <p>Every discovered manifest is validated against the bundled JSON Schema
- * ({@link PluginManifestValidator#BUNDLED_SCHEMA_RESOURCE}) at load time. Any
+ * <p>Every discovered manifest is validated against the plugin manifest's JSON Schema
+ * ({@link PluginManifestSchema#RESOURCE} in runtime-manifest, the same check the runtime
+ * makes when it loads a plugin) at load time. Any
  * schema violation throws {@link PluginManifestValidationException} and aborts
  * Spring context startup. This prevents the situation where a plugin claims
  * required capabilities the Host never enforces, leading to runtime
@@ -126,33 +130,17 @@ public class UIManifestLoader {
     private final ObjectMapper objectMapper;
     private final ObjectMapper yamlMapper;
     private final ResourcePatternResolver resourceResolver;
-    private final PluginManifestValidator validator;
     private Map<String, Map<String, Object>> manifests = Collections.emptyMap();
 
     /**
-     * Creates a loader using a freshly-instantiated {@link PluginManifestValidator}.
+     * Creates a loader.
      *
-     * @param objectMapper Jackson mapper used for both manifest parsing and schema parsing
+     * @param objectMapper Jackson mapper the validated manifests are converted with
      */
     public UIManifestLoader(ObjectMapper objectMapper) {
-        this(objectMapper, new PluginManifestValidator(objectMapper));
-    }
-
-    /**
-     * Creates a loader with an externally-supplied validator. Primarily useful for unit tests
-     * that wish to substitute a controlled validator.
-     *
-     * @param objectMapper Jackson mapper used for manifest parsing
-     * @param validator    schema validator instance; must not be {@code null}
-     */
-    public UIManifestLoader(ObjectMapper objectMapper, PluginManifestValidator validator) {
         this.objectMapper = objectMapper;
         this.yamlMapper = YAMLMapper.builder().configureForJackson2().build();
         this.resourceResolver = new PathMatchingResourcePatternResolver();
-        if (validator == null) {
-            throw new IllegalArgumentException("PluginManifestValidator must not be null");
-        }
-        this.validator = validator;
     }
 
     @PostConstruct
@@ -225,8 +213,14 @@ public class UIManifestLoader {
                 description, "Failed to read or parse manifest YAML", e);
         }
 
-        // Schema validation — fails fast on any structural defect.
-        validator.validate(description, manifestNode);
+        // Schema validation, the same check the runtime makes when it loads the manifest (standard-link plan D152):
+        // fails fast on any structural defect.
+        ValidationResult schema = PluginManifestSchema.check(manifestNode);
+        if (!schema.isValid()) {
+            throw new PluginManifestValidationException(description, schema.getErrors().stream()
+                .map(error -> error.getField() + ": " + error.getMessage())
+                .toList());
+        }
 
         // Convert validated tree to Map<String,Object> for downstream consumers.
         Map<String, Object> manifest = objectMapper.convertValue(

@@ -274,6 +274,9 @@ A required query makes the provider a startup dependency: your plugin is ready o
 refuses a cycle of required queries. With `required: false` your plugin starts without a provider and must handle
 `query.provider_missing`.
 
+Each declaration takes only the fields shown here. A provider names no retry or idempotency policy, since a query
+only reads; a caller names no handler. Any other field stops the plugin at startup.
+
 ### 3. Call it
 
 Get the client in the handler's factory and call it in the handler:
