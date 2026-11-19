@@ -360,7 +360,8 @@ class JwtIssuerCapabilityImplTest {
         Path privateKeyPath = tempDir.resolve("jwt-private.pem");
         Files.writeString(
                 privateKeyPath,
-                "-----BEGIN PRIVATE KEY-----\n" + privateBody + "\n-----END PRIVATE KEY-----\n",
+                // Only the PEM header and footer around the key the test just generated.
+                "-----BEGIN PRIVATE KEY-----\n" + privateBody + "\n-----END PRIVATE KEY-----\n", // gitleaks:allow
                 StandardCharsets.US_ASCII);
 
         String publicBody = Base64.getMimeEncoder(64, new byte[] {'\n'})
