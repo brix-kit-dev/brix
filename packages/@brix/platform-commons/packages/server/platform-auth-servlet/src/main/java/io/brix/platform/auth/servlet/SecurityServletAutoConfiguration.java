@@ -24,7 +24,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 
-import io.brix.platform.auth.aspect.PermissionAspect;
 import io.brix.platform.auth.context.SecurityContextHolder;
 import io.brix.platform.auth.jwt.JwtProperties;
 import io.brix.platform.auth.jwt.JwtValidator;
@@ -41,8 +40,6 @@ import io.runtime.sdk.capability.TenantAccessCapability;
  * <ul>
  *   <li>{@link SecurityContextHolder} — Thread-local authenticated user store.</li>
  *   <li>{@link JwtValidator} — RS256 public-key token validator (when JWT is enabled).</li>
- *   <li>{@link PermissionAspect} — AOP aspect for {@code @RequirePermission}
- *       annotation enforcement.</li>
  *   <li>{@link SecurityContextFilter} — Servlet filter that populates the
  *       security context from the Bearer token.</li>
  * </ul>
@@ -72,7 +69,6 @@ import io.runtime.sdk.capability.TenantAccessCapability;
  * @since 3.1.0
  * @see SecurityContextFilter
  * @see JwtValidator
- * @see PermissionAspect
  */
 @AutoConfiguration
 @EnableConfigurationProperties(JwtProperties.class)
@@ -111,29 +107,6 @@ public class SecurityServletAutoConfiguration {
         return new JwtValidator(properties,
                 identityAccountProvider.getIfAvailable(),
                 tenantAccessProvider.getIfAvailable());
-    }
-
-    /**
-     * Permission enforcement aspect for {@code @RequirePermission}.
-     *
-     * @param securityContextHolder the context holder to check current user
-     * @return a configured PermissionAspect
-     */
-    @Bean
-    public PermissionAspect permissionAspect(SecurityContextHolder securityContextHolder) {
-        return new PermissionAspect(securityContextHolder);
-    }
-
-    /**
-     * Maps {@link io.brix.platform.auth.aspect.PermissionAspect.PermissionDeniedException}
-     * to HTTP 401 (unauthenticated) or HTTP 403 (forbidden), replacing the generic 500 fall-through
-     * from the catch-all handler in {@code GlobalExceptionHandler}.
-     *
-     * @return a configured AuthorizationExceptionAdvice
-     */
-    @Bean
-    public AuthorizationExceptionAdvice authorizationExceptionAdvice() {
-        return new AuthorizationExceptionAdvice();
     }
 
     /**

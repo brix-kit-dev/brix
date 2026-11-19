@@ -13,10 +13,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.util.Arrays;
 import java.util.Base64;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -41,6 +43,33 @@ class SecurityServletAutoConfigurationTest {
                     assertThat(context).hasBean("securityContextFilter");
                     assertThat(context.getBean("securityContextFilter"))
                             .isInstanceOf(FilterRegistrationBean.class);
+                });
+    }
+
+    /**
+     * The configuration finds out who the caller is and authorizes nothing: the Runtime Dispatcher authorizes each entry
+     * by the permission IDs it declares (super-admin §4.1). An aspect or exception advice added here would be a second
+     * authorization path nothing declares, as {@code PermissionAspect} was until standard-link plan queue item 18 (18d,
+     * D159), so the beans it defines are pinned.
+     */
+    @Test
+    void definesOnlyTheCallersContextAndAuthorizesNothing(@TempDir Path tempDir) throws Exception {
+        TestKeys keys = writeKeys(tempDir);
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(SecurityServletAutoConfiguration.class))
+                .withPropertyValues(
+                        "platform.security.jwt.private-key-path=" + keys.privateKeyPath().toUri(),
+                        "platform.security.jwt.public-key-path=" + keys.publicKeyPath().toUri())
+                .run(context -> {
+                    ConfigurableListableBeanFactory factory = context.getBeanFactory();
+                    String configuration = SecurityServletAutoConfiguration.class.getName();
+                    assertThat(Arrays.stream(factory.getBeanDefinitionNames())
+                            .filter(name -> configuration.equals(factory.getBeanDefinition(name).getFactoryBeanName())))
+                            .containsExactlyInAnyOrder(
+                                    "securityContextHolder",
+                                    "jwtValidator",
+                                    "simpleAuthContextCapability",
+                                    "securityContextFilter");
                 });
     }
 

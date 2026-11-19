@@ -345,8 +345,12 @@ All notable changes to Brix Framework are documented here.
 - The ten catalog constants of `PlatformPermissions` (`ADMIN_READ`, `TENANT_READ` and the others): use
   `PermissionCode`. Tokens carry the same codes as before.
 - platform-auth's role checks, which nothing used: the `@RequireRole` annotation and its branch of
-  `PermissionAspect`, `AuthenticatedUser.hasRole` and `hasAnyRole`, and `SecurityContextHolder.hasRole`. Authorize
-  with `@RequirePermission` and a permission code.
+  `PermissionAspect`, `AuthenticatedUser.hasRole` and `hasAnyRole`, and `SecurityContextHolder.hasRole`. Entries are
+  authorized by the dispatcher, from the permission IDs their descriptor declares.
+- platform-auth's annotation-based authorization, which nothing used either: `@RequirePermission`, `@Anonymous` and
+  `PermissionAspect`, with platform-auth-servlet's `AuthorizationExceptionAdvice` and the two beans that registered
+  them. The aspect was the last code that honoured `platform:bypass`, which super-admin forbids (not seeded, issued or
+  checked). platform-auth no longer depends on `spring-boot-starter-aspectj`.
 
 ### 🐛 Fixed
 

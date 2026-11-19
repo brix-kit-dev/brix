@@ -64,12 +64,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Spring Boot AOP (for permission aspects) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aspectj</artifactId>
-        </dependency>
-
         <!-- Spring Boot Configuration Processor -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

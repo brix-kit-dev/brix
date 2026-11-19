@@ -34,9 +34,8 @@ import io.brix.platform.auth.api.RoleCode;
  * <ul>
  *   <li>JWT {@code permissions} claim — populated by
  *       {@link #defaultPermissionsFor(String)} at login time.</li>
- *   <li>{@code @RequirePermission} annotations — protect platform management endpoints.</li>
- *   <li>{@link io.brix.platform.auth.aspect.PermissionAspect} — evaluates the concrete
- *       permission list carried by the token.</li>
+ *   <li>The Runtime Dispatcher authorizes each entry against that claim, by the permission IDs the
+ *       entry's descriptor declares (super-admin §4.1).</li>
  * </ul>
  *
  * <h3>Role → Permission Mapping</h3>
@@ -67,13 +66,9 @@ public final class PlatformPermissions {
     /**
      * Wildcard bypass for permission checks.
      *
-     * <p>Any token carrying this permission bypasses {@code @RequirePermission}
-    * guards entirely. This is kept as a break-glass internal
-    * permission code and is not emitted into default platform-admin JWTs.
-     *
-     * <p><b>Security note:</b> This replaces the former role-name identity check
-     * {@code isSuperAdmin()} with a capability-based bypass that flows through the JWT
-     * and is not contingent on role string matching.
+     * <p>Nothing honours it: the permission aspect that did is gone (standard-link plan queue item 18,
+     * 18d), and default platform-admin JWTs never carried it. It leaves with the token and seed
+     * clean-up of the same item (super-admin §3.3: no generic bypass).
      */
     public static final String BYPASS_PERMISSION_CHECK = "platform:bypass";
 
@@ -82,10 +77,8 @@ public final class PlatformPermissions {
     /**
      * Create, update, suspend, or delete tenants (coarse-grained, kept for backward compat).
      *
-     * <p>Prefer fine-grained codes {@link PermissionCode#PLATFORM_TENANT_READ} and
-     * {@link PermissionCode#PLATFORM_TENANT_UPDATE_STATUS} for new endpoint annotations. This code is
-     * retained so that older tokens that carry it continue to satisfy
-     * {@code @RequirePermission(TENANT_MANAGE)} guards.
+     * <p>No endpoint declares it: they use {@link PermissionCode#PLATFORM_TENANT_READ} and the other
+     * catalog codes.
      */
     public static final String TENANT_MANAGE = "platform:tenant:manage";
 

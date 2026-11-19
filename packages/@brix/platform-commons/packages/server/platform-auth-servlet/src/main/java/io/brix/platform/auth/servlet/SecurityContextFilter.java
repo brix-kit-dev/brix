@@ -47,10 +47,11 @@ import jakarta.servlet.http.HttpServletResponse;
  * <ol>
  *   <li>Extract Bearer token from the {@code Authorization} header.</li>
  *   <li>Validate via {@link JwtValidator} (RS256 public key verification).</li>
- *   <li>On success, populate {@link SecurityContextHolder} for downstream
- *       {@code @RequirePermission} checks.</li>
- *   <li>On failure, log and continue — the permission aspect will reject
- *       unauthenticated calls where required.</li>
+ *   <li>On success, populate {@link SecurityContextHolder}, which
+ *       {@link SimpleAuthContextCapability} reads.</li>
+ *   <li>On failure, log and continue: this filter authorizes nothing. The
+ *       Runtime Dispatcher authorizes each entry by what it declares
+ *       (super-admin §4.1).</li>
  *   <li>Clear context in {@code finally} to prevent memory leaks.</li>
  * </ol>
  *
@@ -112,7 +113,7 @@ public class SecurityContextFilter extends OncePerRequestFilter {
                 } catch (JwtValidationException e) {
                     logger.debug("Token validation failed: {} - {}",
                             e.getReason(), e.getMessage());
-                    // Do not throw — let @Anonymous or @RequirePermission decide
+                    // Do not throw: the Runtime Dispatcher decides by what each entry declares
                 }
             }
 
