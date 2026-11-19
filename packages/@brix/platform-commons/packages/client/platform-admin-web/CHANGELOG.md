@@ -6,6 +6,9 @@ All notable changes to this package are documented here.
 
 ### Changed
 
+- The License / quota page, its menu entry and its dashboard card check `PLATFORM_ADMIN_PERMISSIONS.TENANT_READ`, as
+  the backend's `GET /api/platform/license/quota` now does. `PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ` is removed:
+  `platform:license:read` is not in the super-admin permission catalog.
 - Creating a tenant, and creating, resending or revoking a FIRST_OWNER invitation, sends an `Idempotency-Key`. A retry
   of the same form keeps its key, so once the backend has committed it gives the first answer again and nothing is
   created or sent twice; a retried revoke hears that it went through. Resending after a resend went out takes a new key:

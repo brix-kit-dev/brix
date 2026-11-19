@@ -226,10 +226,6 @@ export const PLATFORM_ADMIN_UI_MANIFEST = Object.freeze({
       permissionId: PLATFORM_ADMIN_PERMISSIONS.AUDIT_READ,
       description: 'Read platform audit events',
     },
-    {
-      permissionId: PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ,
-      description: 'Read license and installation quota',
-    },
   ],
   routes: [
     {
@@ -358,7 +354,7 @@ export const PLATFORM_ADMIN_UI_MANIFEST = Object.freeze({
       guardPolicy: 'platform-authenticated',
       authContext: 'platform',
       tenantContext: 'forbidden',
-      permissions: [PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ],
+      permissions: [PLATFORM_ADMIN_PERMISSIONS.TENANT_READ],
       requiredHostCapabilities: PLATFORM_ADMIN_REQUIRED_HOST_CAPABILITIES,
       referrerPolicy: 'strict-origin-when-cross-origin',
     },
@@ -413,7 +409,7 @@ export const PLATFORM_ADMIN_UI_MANIFEST = Object.freeze({
           icon: 'shield',
           order: 4,
           pageId: 'platform-admin:license',
-          permission: PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ,
+          permission: PLATFORM_ADMIN_PERMISSIONS.TENANT_READ,
         },
         {
           menuId: 'change-password',

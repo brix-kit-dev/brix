@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,11 +41,11 @@ import io.runtime.sdk.plugin.EndpointInvocation;
  */
 class PlatformAdminEndpointAuthorizationTest {
 
-    /** Each endpoint's permission. The license quota's is outside the super-admin 4.0.1 catalog (queue item 18). */
+    /** Each endpoint's permission, all from the super-admin catalog (standard-link plan queue item 18, D157). */
     private static final Map<String, String> CATALOG_PERMISSIONS = Map.of(
         "platform.admins.list.v1", PermissionCode.PLATFORM_ADMIN_READ,
         "platform.tenants.list.v1", PermissionCode.PLATFORM_TENANT_READ,
-        "platform.license.quota.v1", PlatformPermissions.LICENSE_READ,
+        "platform.license.quota.v1", PermissionCode.PLATFORM_TENANT_READ,
         "platform.tenants.create.v1", PermissionCode.PLATFORM_TENANT_CREATE,
         "platform.tenants.first-owner-invitations.create.v1", PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
         "platform.tenants.first-owner-invitations.current.v1", PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
@@ -86,6 +88,36 @@ class PlatformAdminEndpointAuthorizationTest {
         }
 
         assertEquals(CATALOG_PERMISSIONS, declared);
+    }
+
+    /**
+     * Super-admin BRX-SA-AUTH-006: every permission an endpoint names is in the versioned catalog {@link PermissionCode},
+     * read here by reflection rather than copied, so an ID outside the catalog fails even when the table above names it
+     * too (standard-link plan queue item 18, D160). The bootstrap entry is the one exception: its caller is the bootstrap
+     * session, whose permissions the security profile sets (super-admin §7).
+     */
+    @Test
+    void everyEndpointNamesOnlyCatalogPermissions() throws IllegalAccessException {
+        Set<String> catalog = catalog();
+        List<String> outside = new ArrayList<>();
+        int platformTokenEndpoints = 0;
+        for (OperationalModuleDescriptor.EndpointDeclaration endpoint : descriptor.endpoints().values()) {
+            EndpointAccessPolicy policy = endpoint.accessPolicy();
+            if (policy.tokenPolicy() == EndpointAccessPolicy.TokenPolicy.BOOTSTRAP_SETUP) {
+                continue;
+            }
+            if (policy.tokenPolicy() == EndpointAccessPolicy.TokenPolicy.PLATFORM_TOKEN) {
+                platformTokenEndpoints++;
+                assertEquals(1, policy.permissions().size(), endpoint.endpointId() + " names one permission");
+            }
+            for (String permission : policy.permissions()) {
+                if (!catalog.contains(permission)) {
+                    outside.add(endpoint.endpointId() + " -> " + permission);
+                }
+            }
+        }
+        assertEquals(List.of(), outside, "endpoint permissions outside PermissionCode");
+        assertEquals(CATALOG_PERMISSIONS.size(), platformTokenEndpoints, "Platform Token endpoints checked");
     }
 
     @Test
@@ -212,6 +244,17 @@ class PlatformAdminEndpointAuthorizationTest {
         DefaultPluginEndpointDispatcher result = new DefaultPluginEndpointDispatcher(Duration.ofSeconds(5));
         result.replaceSnapshot(routes);
         return result;
+    }
+
+    /** The IDs {@link PermissionCode} declares: its static String fields (a coverage agent's synthetic field aside). */
+    private static Set<String> catalog() throws IllegalAccessException {
+        Set<String> ids = new HashSet<>();
+        for (Field field : PermissionCode.class.getDeclaredFields()) {
+            if (!field.isSynthetic() && Modifier.isStatic(field.getModifiers()) && field.getType() == String.class) {
+                ids.add((String) field.get(null));
+            }
+        }
+        return ids;
     }
 
     private static OperationalModuleDescriptor descriptor() {

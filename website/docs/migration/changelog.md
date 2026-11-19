@@ -291,6 +291,12 @@ All notable changes to Brix Framework are documented here.
 - **Connections are taken lazily.** A unit of work takes a pooled connection only for its first statement, and a
   query's provider waits for one no longer than the query's deadline. The host warns at startup when its pool is
   smaller than the work that holds connections. `brix.persistence.lazy-connections: false` turns it off.
+- **The installation quota entry checks `platform:tenant:read`** (super-admin BRX-SA-AUTH-006).
+  `GET /api/platform/license/quota` used `platform:license:read`, which is not in the super-admin permission
+  catalog; the quota is the tenant owner's data, and the tenant list already shows it on each row under
+  `platform:tenant:read`. The platform console's License / quota page, its menu entry and its dashboard card follow,
+  and `PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ` is gone from `@brix-sdk/platform-admin-web`. A super
+  administrator's token carries both codes today, so nothing changes for one.
 
 ### 🗑️ Deprecated
 

@@ -80,7 +80,8 @@ export function PlatformDashboardPage(): JSX.Element {
       route: PLATFORM_ADMIN_ROUTES.LICENSE,
       icon: 'verified_user',
       tone: 'info',
-      permission: PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ,
+      // The installation quota is the tenant owner's data: reading tenants is enough (super-admin catalog).
+      permission: PLATFORM_ADMIN_PERMISSIONS.TENANT_READ,
     },
     {
       key: 'change-pw',

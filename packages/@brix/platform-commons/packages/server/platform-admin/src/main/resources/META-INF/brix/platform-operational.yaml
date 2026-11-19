@@ -268,9 +268,11 @@ endpoints:
       authentication:
         mode: required
         policyRef: platform-token
+      # Every permission ID comes from the super-admin catalog (BRX-SA-AUTH-006). The installation quota is the tenant
+      # owner's data, which the tenant list already shows each row with (standard-link plan queue item 18, D157).
       authorization:
         permissions:
-          - platform:license:read
+          - platform:tenant:read
         decision: all
       tenantContext:
         mode: forbidden

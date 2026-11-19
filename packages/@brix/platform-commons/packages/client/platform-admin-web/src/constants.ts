@@ -21,8 +21,7 @@
  */
 
 /* ======================================================================== *
- * Permissions (must match `io.brix.platform.auth.api.PermissionCode`;
- * LICENSE_READ is outside that catalog, in `io.brix.platform.auth.PlatformPermissions`)
+ * Permissions (must match `io.brix.platform.auth.api.PermissionCode`)
  * ======================================================================== */
 
 /**
@@ -51,9 +50,6 @@ export const PLATFORM_ADMIN_PERMISSIONS = Object.freeze({
 
   /** Audit */
   AUDIT_READ: 'platform:audit:read',
-
-  /** License / quota */
-  LICENSE_READ: 'platform:license:read',
 } as const);
 
 export type PlatformAdminPermission =
