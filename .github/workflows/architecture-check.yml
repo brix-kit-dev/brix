@@ -11,7 +11,8 @@
 #   - Platform admin redline scan
 #   - TypeScript dependency cycle check
 #   - ESLint architecture rule tests
-#   - Platform console architecture test (platform-admin-web's public API and View/Hook/Repository boundaries, 16e)
+#   - Platform console architecture test (platform-admin-web's public API and View/Hook/Repository boundaries, 16e;
+#     its permission and role constants against the Java catalog, queue item 18, 18c)
 #   - Lint of the SDK packages that have an ESLint configuration (16c)
 #   - Typecheck across the SDK packages
 #   - Scaffold smoke of create-brix's governed Phase 7 templates (16f)
@@ -237,12 +238,15 @@ jobs:
       # Root A-7, frontend FE-1/FE-2: platform-admin-web publishes no Page,
       # Hook or Repository entry, Pages reach Repositories only through Hooks,
       # and Hooks and Pages make no network calls (standard-link plan queue
-      # item 16, 16e). Only this file: the package's other tests are not
+      # item 16, 16e). Super-admin BRX-SA-AUTH-006: the console's permission
+      # and role constants equal the Java catalog in platform-auth-api, and no
+      # source names a permission ID as a bare string (queue item 18, 18c,
+      # D160). Only these files: the package's other tests are not
       # architecture tests (D144).
       # ----------------------------------------------------------------------
       - name: Run the console architecture test
         run: >-
-          pnpm --filter @brix-sdk/platform-admin-web run test src/public-api-architecture.test.ts
+          pnpm --filter @brix-sdk/platform-admin-web run test src/public-api-architecture.test.ts src/permission-catalog.test.ts
           --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/console-architecture.xml"
         env:
           CI: true

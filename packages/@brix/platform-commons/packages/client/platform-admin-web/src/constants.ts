@@ -14,8 +14,11 @@
  * Architectural rule (SSOT §11 R-3):
  *   Pages/Hooks MUST reference these constants — never bare strings.
  *   This file is the single front-end source of truth for those values.
- *   Any drift between this file and the backend constants is a CI-blocker
- *   (covered by an integration test that diffs both sides).
+ *   The permission and role IDs are checked against the Java catalog:
+ *   `permission-catalog.test.ts` reads `PermissionCode` and `RoleCode`,
+ *   compares them constant for constant and finds permission IDs written
+ *   as bare strings; CI runs it in Architecture Check's console job. The
+ *   audit actions are not checked yet.
  *
  * @module @brix-sdk/platform-admin-web/constants
  */
