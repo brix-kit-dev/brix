@@ -17,12 +17,15 @@ package io.brix.platform.auth.api;
 
 import static java.util.Map.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
@@ -56,6 +59,30 @@ class PinnedIdentifiersTest {
                 entry("PLATFORM_TENANT_UPDATE_STATUS", "platform:tenant:update-status"),
                 entry("PLATFORM_TENANT_FIRST_OWNER_INVITE", "platform:tenant:first-owner-invite")),
             identifiers(PermissionCode.class));
+    }
+
+    /**
+     * IDs outside the catalog that earlier releases seeded or issued (standard-link plan queue item 18, D158). They were
+     * retired, not reused: none may become a catalog ID, whatever it would mean then (super-admin §3.3). Bootstrap is
+     * the type of a short-lived setup session, never a platform role.
+     */
+    @Test
+    void retiredIdsNeverReturn() throws IllegalAccessException {
+        Set<String> retired = Set.of(
+                "platform:bypass",
+                "platform:tenant:manage",
+                "platform:tenant:view",
+                "platform:admin:manage",
+                "platform:audit:view",
+                "platform:system:config",
+                "platform:data:recovery",
+                "platform:license:read",
+                "platform:bootstrap:read",
+                "platform:bootstrap:create-first-admin");
+        Set<String> returned = new HashSet<>(identifiers(PermissionCode.class).values());
+        returned.retainAll(retired);
+        assertEquals(Set.of(), returned);
+        assertFalse(identifiers(RoleCode.class).containsValue("BOOTSTRAP"));
     }
 
     /** The IDs a catalog declares, by constant name. A catalog declares nothing else and has no instances. */

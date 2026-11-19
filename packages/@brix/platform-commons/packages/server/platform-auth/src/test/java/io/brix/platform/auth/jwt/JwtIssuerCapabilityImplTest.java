@@ -19,6 +19,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.brix.platform.auth.PlatformPermissions;
 import io.brix.platform.auth.context.AuthenticatedUser;
 import io.brix.platform.auth.enums.TokenRole;
 import io.brix.platform.auth.enums.TokenType;
@@ -46,18 +48,16 @@ class JwtIssuerCapabilityImplTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void filtersPlatformBypassFromFrontendPermissions() {
-        List<String> permissions = JwtIssuerCapabilityImpl.filterFrontendPermissions(List.of(
-                "platform:admin:list",
-                "platform:bypass",
-                "platform:tenant:view"));
+    void thePermissionsClaimKeepsTheGivenIdsInTheirOrder() {
+        List<String> given = new ArrayList<>(List.of("platform:admin:read", "platform:audit:read"));
+        given.add(1, null);
 
-        assertEquals(List.of("platform:admin:list", "platform:tenant:view"), permissions);
-        assertFalse(permissions.contains("platform:bypass"));
+        assertEquals(List.of("platform:admin:read", "platform:audit:read"), JwtIssuerCapabilityImpl.permissionsClaim(given));
+        assertEquals(List.of(), JwtIssuerCapabilityImpl.permissionsClaim(null));
     }
 
     @Test
-    void issuedPlatformAdminTokenDoesNotExposeBypassOrTenantClaim(@TempDir Path tempDir) throws Exception {
+    void issuedPlatformAdminTokenCarriesTheCatalogAndNoTenantClaim(@TempDir Path tempDir) throws Exception {
         JwtProperties properties = new JwtProperties();
         TestKeys keys = writeKeys(tempDir);
         properties.setPrivateKeyPath(keys.privateKeyPath().toUri().toString());
@@ -69,16 +69,14 @@ class JwtIssuerCapabilityImplTest {
                 "admin@example.invalid",
                 "platform-admin",
                 "PLATFORM_SUPER_ADMIN",
-                List.of("platform:admin:read", "platform:bypass", "platform:audit:read"),
+                PlatformPermissions.defaultPermissionsFor("PLATFORM_SUPER_ADMIN"),
                 7L));
 
         Map<String, Object> claims = decodePayload(token);
-        List<?> permissions = (List<?>) claims.get("permissions");
 
         assertEquals("PLATFORM", claims.get("scope"));
         assertFalse(claims.containsKey("tenant_id"));
-        assertEquals(List.of("platform:admin:read", "platform:audit:read"), permissions);
-        assertFalse(permissions.contains("platform:bypass"));
+        assertEquals(PlatformPermissions.defaultPermissionsFor("PLATFORM_SUPER_ADMIN"), claims.get("permissions"));
     }
 
     @Test

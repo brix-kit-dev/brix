@@ -297,6 +297,11 @@ All notable changes to Brix Framework are documented here.
   `platform:tenant:read`. The platform console's License / quota page, its menu entry and its dashboard card follow,
   and `PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ` is gone from `@brix-sdk/platform-admin-web`. A super
   administrator's token carries both codes today, so nothing changes for one.
+- **A platform super administrator's token carries the permission catalog and nothing else** (super-admin
+  BRX-SA-AUTH-006). The token and the login response list the ten IDs of `PermissionCode`; the seven codes outside
+  it (`platform:tenant:manage`, `platform:tenant:view`, `platform:admin:manage`, `platform:audit:view`,
+  `platform:system:config`, `platform:license:read`, `platform:data:recovery`) are gone. No entry and no console page
+  checked them. A token issued before keeps them until it expires.
 
 ### 🗑️ Deprecated
 
@@ -351,6 +356,11 @@ All notable changes to Brix Framework are documented here.
   `PermissionAspect`, with platform-auth-servlet's `AuthorizationExceptionAdvice` and the two beans that registered
   them. The aspect was the last code that honoured `platform:bypass`, which super-admin forbids (not seeded, issued or
   checked). platform-auth no longer depends on `spring-boot-starter-aspectj`.
+- The codes of `PlatformPermissions` outside the catalog: `BYPASS_PERMISSION_CHECK`, `TENANT_MANAGE`, `TENANT_VIEW`,
+  `ADMIN_MANAGE`, `AUDIT_VIEW`, `SYSTEM_CONFIG`, `LICENSE_READ`, `DATA_RECOVERY`, `BOOTSTRAP_READ` and
+  `BOOTSTRAP_CREATE_FIRST_ADMIN`. Their IDs are retired and never reused. `PlatformPermissions` keeps
+  `BOOTSTRAP_ROLE` and `defaultPermissionsFor`, which gives a bootstrap role nothing: a bootstrap session gets its
+  permissions from the identity owner when it is opened.
 
 ### 🐛 Fixed
 

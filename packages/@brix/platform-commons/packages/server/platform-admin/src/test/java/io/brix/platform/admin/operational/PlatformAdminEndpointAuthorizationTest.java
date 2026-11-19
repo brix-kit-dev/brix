@@ -1,7 +1,6 @@
 package io.brix.platform.admin.operational;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -121,9 +120,9 @@ class PlatformAdminEndpointAuthorizationTest {
     }
 
     @Test
-    void formalSuperAdministratorIsGrantedEveryDeclaredPermission() {
+    void formalSuperAdministratorIsGrantedEveryDeclaredPermission() throws IllegalAccessException {
         assertTrue(SUPER_ADMIN_PERMISSIONS.containsAll(CATALOG_PERMISSIONS.values()));
-        assertFalse(SUPER_ADMIN_PERMISSIONS.contains(PlatformPermissions.BYPASS_PERMISSION_CHECK));
+        assertTrue(catalog().containsAll(SUPER_ADMIN_PERMISSIONS), "and only catalog permissions");
     }
 
     @ParameterizedTest(name = "{0}")

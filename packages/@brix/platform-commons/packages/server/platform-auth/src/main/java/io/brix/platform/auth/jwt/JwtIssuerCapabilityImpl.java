@@ -279,7 +279,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         claims.put(CLAIM_PLATFORM_ROLE, request.adminRole());
         claims.put(CLAIM_ROLES, List.of(request.adminRole()));
         claims.put(CLAIM_MFA, "TOTP");
-        claims.put(CLAIM_PERMISSIONS, filterFrontendPermissions(request.permissions()));
+        claims.put(CLAIM_PERMISSIONS, permissionsClaim(request.permissions()));
         return signToken(claims, properties.getAccessTokenExpirationSeconds());
     }
 
@@ -374,7 +374,7 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         claims.put("admin_role", request.adminRole());
         claims.put(CLAIM_PLATFORM_ROLE, request.adminRole());
         claims.put(CLAIM_ROLES, List.of(request.adminRole()));
-        claims.put(CLAIM_PERMISSIONS, filterFrontendPermissions(request.permissions()));
+        claims.put(CLAIM_PERMISSIONS, permissionsClaim(request.permissions()));
         // C-4 specifics — tenant context + originalSub marker.
         claims.put(CLAIM_TENANT_ID, String.valueOf(request.viewTenantId()));
         claims.put(CLAIM_ORIGINAL_SUB, request.originalSub());
@@ -384,17 +384,22 @@ public class JwtIssuerCapabilityImpl implements JwtIssuerCapability {
         return signToken(claims, properties.getAccessTokenExpirationSeconds());
     }
 
-    static List<String> filterFrontendPermissions(List<String> permissions) {
+    /**
+     * The permissions claim of a platform token: the IDs the caller gives, in their order, nulls left out. Which IDs a
+     * role gets is decided by the caller ({@code PlatformPermissions.defaultPermissionsFor}), all from the catalog;
+     * there is no generic bypass to keep out any more (super-admin §3.3; standard-link plan queue item 18, D158).
+     */
+    static List<String> permissionsClaim(List<String> permissions) {
         if (permissions == null || permissions.isEmpty()) {
             return List.of();
         }
-        List<String> filtered = new ArrayList<>(permissions.size());
+        List<String> claim = new ArrayList<>(permissions.size());
         for (String permission : permissions) {
-            if (permission != null && !"platform:bypass".equals(permission)) {
-                filtered.add(permission);
+            if (permission != null) {
+                claim.add(permission);
             }
         }
-        return List.copyOf(filtered);
+        return List.copyOf(claim);
     }
 
     // ==================== Internals ====================

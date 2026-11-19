@@ -21,18 +21,17 @@ import io.brix.platform.auth.api.PermissionCode;
 import io.brix.platform.auth.api.RoleCode;
 
 /**
- * Platform-level Permission Code Constants.
+ * The permissions a platform token carries, by platform role.
  *
  * <h3>Architectural Position</h3>
- * <p>Layer 2C ({@code platform-auth}). The permission IDs endpoints declare are the versioned catalog
- * {@link PermissionCode} in {@code platform-auth-api} (super-admin 4.0.1 §4). This class keeps the codes
- * outside that catalog and maps a platform admin role to the permissions its JWT carries.
- * They are intentionally separate from tenant-scoped RBAC permission codes stored in the
- * {@code auth_permission} table.
+ * <p>Layer 2C ({@code platform-auth}). Platform permission IDs are defined once, in the versioned catalog
+ * {@link PermissionCode} in {@code platform-auth-api} (super-admin §3.3, §4). This class only maps a role to the IDs
+ * its token carries, and declares none of its own: the codes outside the catalog it used to hold were retired and are
+ * never used again (standard-link plan queue item 18, D158).</p>
  *
  * <h3>Usage</h3>
  * <ul>
- *   <li>JWT {@code permissions} claim — populated by
+ *   <li>JWT {@code permissions} claim and the login response — populated by
  *       {@link #defaultPermissionsFor(String)} at login time.</li>
  *   <li>The Runtime Dispatcher authorizes each entry against that claim, by the permission IDs the
  *       entry's descriptor declares (super-admin §4.1).</li>
@@ -40,17 +39,16 @@ import io.brix.platform.auth.api.RoleCode;
  *
  * <h3>Role → Permission Mapping</h3>
  * <pre>
- * PLATFORM_SUPER_ADMIN → platform management permissions
- * BOOTSTRAP            → bootstrap status + first-admin creation only
+ * PLATFORM_SUPER_ADMIN → the whole catalog
+ * any other value      → nothing
  * </pre>
+ * <p>A bootstrap setup session is no platform role: the identity owner gives it its own permissions when it opens the
+ * session (super-admin §7).</p>
  *
  * @author Brix Platform Authors
  * @since 3.2.0
- * @Frozen — Permission codes are stored in JWTs; changing them requires coordinated token rotation.
  */
 public final class PlatformPermissions {
-
-    // ========== Bootstrap Role Claim ==========
 
     /**
      * Role claim of a bootstrap setup session token.
@@ -61,98 +59,29 @@ public final class PlatformPermissions {
      */
     public static final String BOOTSTRAP_ROLE = "BOOTSTRAP";
 
-    // ========== Bypass ==========
-
     /**
-     * Wildcard bypass for permission checks.
+     * Returns the permissions a platform token carries for an admin role: the whole catalog for
+     * {@link RoleCode#PLATFORM_SUPER_ADMIN}, nothing for any other value.
      *
-     * <p>Nothing honours it: the permission aspect that did is gone (standard-link plan queue item 18,
-     * 18d), and default platform-admin JWTs never carried it. It leaves with the token and seed
-     * clean-up of the same item (super-admin §3.3: no generic bypass).
-     */
-    public static final String BYPASS_PERMISSION_CHECK = "platform:bypass";
-
-    // ========== Tenant Management ==========
-
-    /**
-     * Create, update, suspend, or delete tenants (coarse-grained, kept for backward compat).
+     * <p>Called at login time to populate the JWT {@code permissions} claim and the login response.</p>
      *
-     * <p>No endpoint declares it: they use {@link PermissionCode#PLATFORM_TENANT_READ} and the other
-     * catalog codes.
-     */
-    public static final String TENANT_MANAGE = "platform:tenant:manage";
-
-    /** Read tenant details (without modification) — coarse alias, kept for backward compat. */
-    public static final String TENANT_VIEW = "platform:tenant:view";
-
-    // ========== Platform Admin Management ==========
-
-    /** Create or manage platform administrator accounts (coarse-grained, kept for backward compat). */
-    public static final String ADMIN_MANAGE = "platform:admin:manage";
-
-    // ========== Bootstrap Setup ==========
-
-    /** Read bootstrap status. */
-    public static final String BOOTSTRAP_READ = "platform:bootstrap:read";
-
-    /** Create the first formal platform super administrator during Stage A. */
-    public static final String BOOTSTRAP_CREATE_FIRST_ADMIN = "platform:bootstrap:create-first-admin";
-
-    // ========== Audit ==========
-
-    /** Read platform audit logs and compliance reports (coarse alias, kept for backward compat). */
-    public static final String AUDIT_VIEW = "platform:audit:view";
-
-    // ========== System ==========
-
-    /** Access and modify system-level configuration. Restricted to formal super admins. */
-    public static final String SYSTEM_CONFIG = "platform:system:config";
-
-    /**
-     * Read installation license and tenant quota status.
-     *
-     * <p>{@code GET /api/platform/license/quota} declares it, although the super-admin 4.0.1 catalog
-     * does not list it.
-     */
-    public static final String LICENSE_READ = "platform:license:read";
-
-    /** Perform data recovery and maintenance operations. Restricted to formal super admins. */
-    public static final String DATA_RECOVERY = "platform:data:recovery";
-
-    // ========== Factory ==========
-
-    /**
-     * Returns the default immutable permission list for a platform admin role.
-     *
-     * <p>Called at login time to populate the JWT {@code permissions} claim.
-     * The {@code adminRole} parameter must match the enum name of
-     * {@code io.brix.platform.identity.enums.PlatformAdminRole}.
-     *
-     * @param adminRole platform admin role enum name, never {@code null}
-     * @return immutable, non-null list of permission codes
+     * @param adminRole platform admin role, may be {@code null}
+     * @return immutable, non-null list of permission IDs, each from {@link PermissionCode}
      */
     public static List<String> defaultPermissionsFor(String adminRole) {
-        if (adminRole == null) {
+        if (!RoleCode.PLATFORM_SUPER_ADMIN.equals(adminRole)) {
             return List.of();
         }
-        return switch (adminRole) {
-            case RoleCode.PLATFORM_SUPER_ADMIN -> List.of(
-                    // tenant
-                    TENANT_MANAGE, TENANT_VIEW, PermissionCode.PLATFORM_TENANT_READ,
-                    PermissionCode.PLATFORM_TENANT_CREATE, PermissionCode.PLATFORM_TENANT_UPDATE_STATUS,
-                    PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
-                    // admin management
-                    ADMIN_MANAGE, PermissionCode.PLATFORM_ADMIN_READ, PermissionCode.PLATFORM_ADMIN_CREATE,
-                    PermissionCode.PLATFORM_ADMIN_REVOKE, PermissionCode.PLATFORM_ADMIN_RESET_PASSWORD,
-                    PermissionCode.PLATFORM_ADMIN_CHANGE_OWN_PASSWORD,
-                    // audit
-                    AUDIT_VIEW, PermissionCode.PLATFORM_AUDIT_READ,
-                    // system
-                    SYSTEM_CONFIG, LICENSE_READ, DATA_RECOVERY
-            );
-            case BOOTSTRAP_ROLE -> List.of(BOOTSTRAP_READ, BOOTSTRAP_CREATE_FIRST_ADMIN);
-            default -> List.of();
-        };
+        return List.of(
+                // tenant
+                PermissionCode.PLATFORM_TENANT_READ, PermissionCode.PLATFORM_TENANT_CREATE,
+                PermissionCode.PLATFORM_TENANT_UPDATE_STATUS, PermissionCode.PLATFORM_TENANT_FIRST_OWNER_INVITE,
+                // admin management
+                PermissionCode.PLATFORM_ADMIN_READ, PermissionCode.PLATFORM_ADMIN_CREATE,
+                PermissionCode.PLATFORM_ADMIN_REVOKE, PermissionCode.PLATFORM_ADMIN_RESET_PASSWORD,
+                PermissionCode.PLATFORM_ADMIN_CHANGE_OWN_PASSWORD,
+                // audit
+                PermissionCode.PLATFORM_AUDIT_READ);
     }
 
     private PlatformPermissions() {
