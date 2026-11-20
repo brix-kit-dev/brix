@@ -146,7 +146,7 @@ export function ShellProvider({
     };
 
     initializeShell();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Context value
   const contextValue = useMemo<ShellContextValue>(

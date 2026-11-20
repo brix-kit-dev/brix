@@ -20,7 +20,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
@@ -48,6 +48,7 @@
     "directory": "packages/@brix/infra-adapters/packages/web/infra-adapter-http-web"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.3.0",

@@ -177,7 +177,6 @@ export function useI18n(namespace?: string): UseI18nResult {
       return i18nCapability.t(resolvedKey, options);
     },
     // Re-create when locale changes so consuming components re-render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [i18nCapability, namespace, locale],
   );
 

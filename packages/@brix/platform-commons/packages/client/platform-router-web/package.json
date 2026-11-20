@@ -20,7 +20,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
@@ -33,6 +33,7 @@
     "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "react": "^18.2.0",

@@ -135,6 +135,7 @@ export function useRole(
   role: string
 ): UsePermissionResult {
   const hasPermission = useMemo(
+    // eslint-disable-next-line @brix-architecture/no-role-authorization -- the implementation of the deprecated role API, kept until its removal in 4.0.0 (standard-link plan D119, D164)
     () => auth.hasRole(role),
     [auth, role]
   );

@@ -134,11 +134,13 @@ export function PermissionGate({
   
   // Check single role
   if (role) {
+    // eslint-disable-next-line @brix-architecture/no-role-authorization -- the implementation of the deprecated role API, kept until its removal in 4.0.0 (standard-link plan D119, D164)
     hasAccess = hasAccess && auth.hasRole(role);
   }
   
   // Check any role
   if (anyRoles && anyRoles.length > 0) {
+    // eslint-disable-next-line @brix-architecture/no-role-authorization -- the implementation of the deprecated role API, kept until its removal in 4.0.0 (standard-link plan D119, D164)
     hasAccess = hasAccess && (auth.hasAnyRole?.(anyRoles) ?? false);
   }
   

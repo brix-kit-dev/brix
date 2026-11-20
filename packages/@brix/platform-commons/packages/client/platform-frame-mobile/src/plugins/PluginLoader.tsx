@@ -141,7 +141,7 @@ export function PluginLoader({
       setLoaded(true);
       shellContext?.setState({ pluginsLoaded: true });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!loaded) {
     return null;

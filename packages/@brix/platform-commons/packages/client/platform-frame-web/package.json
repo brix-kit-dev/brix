@@ -39,7 +39,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@brix-sdk/runtime-sdk-api-web": "workspace:*",
@@ -53,6 +54,7 @@
     "react-router-dom": ">=6.0.0"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@types/react": "^18.2.45",
     "react": "^18.2.0",
     "react-router-dom": "^6.22.0",

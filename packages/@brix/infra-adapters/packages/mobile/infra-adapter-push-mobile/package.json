@@ -21,7 +21,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "lint": "eslint src"
   },
   "keywords": [
     "brix",
@@ -40,6 +41,7 @@
     "react-native": ">=0.72.0"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@brix-sdk/runtime-sdk-api-mobile": "workspace:*",
     "rimraf": "^5.0.5",
     "tsup": "^8.0.1",

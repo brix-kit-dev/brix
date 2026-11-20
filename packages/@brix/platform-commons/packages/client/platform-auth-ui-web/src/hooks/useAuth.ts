@@ -133,6 +133,7 @@ export function useAuth(auth: AuthCapability): UseAuthResult {
   
   // ¼ì²é½Ç
   const hasRole = useCallback(
+    // eslint-disable-next-line @brix-architecture/no-role-authorization -- the implementation of the deprecated role API, kept until its removal in 4.0.0 (standard-link plan D119, D164)
     (role: string) => auth.hasRole(role),
     [auth]
   );

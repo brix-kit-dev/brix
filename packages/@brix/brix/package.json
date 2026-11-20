@@ -30,7 +30,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@brix-sdk/runtime-sdk-api-web": "workspace:*",
@@ -40,6 +41,7 @@
     "@brix-sdk/shared-runtime-web": "workspace:*"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@types/react": "^18.2.0",
     "rimraf": "^5.0.5",
     "tsup": "^8.0.1",

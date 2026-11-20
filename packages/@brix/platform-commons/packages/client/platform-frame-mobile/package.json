@@ -39,7 +39,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
   },
@@ -48,6 +49,7 @@
     "react-native": ">=0.72.0"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@types/react": "^18.2.45",
     "@types/react-native": "^0.72.8",
     "react": "^18.2.0",

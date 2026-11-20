@@ -24,12 +24,14 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "tsup": "^8.0.1",
     "typescript": "^5.3.0"
   },

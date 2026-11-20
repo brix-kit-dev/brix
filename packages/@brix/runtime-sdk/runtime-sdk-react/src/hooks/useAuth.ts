@@ -196,6 +196,7 @@ export function useAuth(): UseAuthResult {
     return permissions.every(p => authCapability.hasPermission(p));
   }, [authCapability]);
 
+  /* eslint-disable @brix-architecture/no-role-authorization -- the implementation of the deprecated role API, kept until its removal in 4.0.0 (standard-link plan D119, D164) */
   const hasRole = useCallback((role: string): boolean => {
     return authCapability.hasRole(role);
   }, [authCapability]);
@@ -207,6 +208,7 @@ export function useAuth(): UseAuthResult {
     // Fallback: check each role manually
     return roles.some(r => authCapability.hasRole(r));
   }, [authCapability]);
+  /* eslint-enable @brix-architecture/no-role-authorization */
 
   return {
     user,

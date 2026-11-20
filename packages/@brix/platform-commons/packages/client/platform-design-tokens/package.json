@@ -23,13 +23,14 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --clean --external @brix-sdk/runtime-sdk-api-web && npm run build:css",
     "build:css": "node scripts/generate-css.mjs",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external @brix-sdk/runtime-sdk-api-web",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "clean": "rimraf dist"
   },
   "peerDependencies": {
     "@brix-sdk/runtime-sdk-api-web": "workspace:*"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@brix-sdk/runtime-sdk-api-web": "workspace:*",
     "rimraf": "^5.0.5",
     "tsup": "^8.0.1",

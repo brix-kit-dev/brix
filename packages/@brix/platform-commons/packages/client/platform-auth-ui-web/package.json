@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
@@ -50,6 +50,7 @@
     "@brix-sdk/runtime-sdk-react": "workspace:*"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@brix-sdk/runtime-sdk-react": "workspace:*",
     "@types/react": "^18.2.43",
     "react": "^18.2.0",

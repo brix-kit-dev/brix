@@ -201,7 +201,6 @@ export function createErrorEventInterceptor(
         const payload = buildErrorPayload(error);
         eventBus.emit(SYSTEM_HTTP_ERROR_EVENT, payload);
       } catch (emissionError) {
-        // eslint-disable-next-line no-console
         console.error(
           '[infra-adapter-http-web] Failed to emit system.http.error event',
           emissionError,

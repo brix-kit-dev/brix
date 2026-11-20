@@ -389,6 +389,14 @@ All notable changes to Brix Framework are documented here.
     selected by the path `**/runtime-sdk-api-web/src/types/**`, and React for types only. runtime-sdk-api-web and
     runtime-sdk-api-mobile lint with it; before, they had no lint at all, and nothing stopped a value import of React,
     which type-checks and makes the published contract need React at run time.
+  - Every package with TypeScript sources lints with a preset: the platform consoles with `configs.ui`, the two
+    contracts with `configs.contract` and the other 35 with `configs.platform`, among them the two UI adapters that
+    the Lint job had skipped since 2026-05. Their lint scripts are `eslint src`; `--ext` is not an option of flat
+    config. The Lint job fails a package that has TypeScript sources under `src/` but no lint script, or a lint script
+    but no ESLint configuration; it used to list the second kind and go on. Eight eslint-disable comments named rules
+    of plugins no configuration loads and one disabled nothing: they are gone. The deprecated role API's own
+    implementation (`useAuth` in runtime-sdk-react; `PermissionGate`, `useAuth` and `useRole` in platform-auth-ui-web)
+    says why it still calls `hasRole`, until 4.0.0 removes it.
 - **CI runs the architecture checks it skipped.** The Architecture Check workflow ran its checks as steps of one job,
   behind a Maven dependency analysis that could only fail on a fresh runner: it named one module without the modules it
   depends on, and it never compiled, so it had never analysed anything either. The governance and guard tests, the

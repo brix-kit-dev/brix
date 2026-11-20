@@ -265,9 +265,7 @@ export function clearGlobals(): void {
   }
 
   // TypeScript requires explicit any cast for deletion of required properties
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   delete (window as any).React;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   delete (window as any).ReactDOM;
   delete window.__BRIX_RUNTIME_INJECTED__;
 

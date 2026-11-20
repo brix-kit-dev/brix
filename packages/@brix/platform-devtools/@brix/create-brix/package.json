@@ -28,7 +28,7 @@
     "build": "tsup",
     "test:phase7": "node scripts/phase7-smoke.mjs",
     "dev": "tsup --watch",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "clean": "rimraf dist"
   },
   "dependencies": {
@@ -40,6 +40,7 @@
     "validate-npm-package-name": "^5.0.0"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "@types/ejs": "^3.1.5",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.10.0",

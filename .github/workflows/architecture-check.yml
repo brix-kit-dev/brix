@@ -279,11 +279,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # ----------------------------------------------------------------------
-      # Step: Lint — each package with a `lint` script and an ESLint
-      # configuration it can find (standard-link plan queue item 16, 16c).
-      # A package without one is listed, not linted: its lint stops with
-      # "couldn't find a configuration file" before checking anything, and
-      # queue item 19 gives it one (D142). The packages below stay out, as before.
+      # Step: Lint — each package's `lint` script with its ESLint configuration
+      # (standard-link plan queue item 16, 16c). Every package with TypeScript
+      # sources must have both, and lints with the preset of its layer from
+      # @brix-sdk/eslint-config-architecture (queue item 19, 19d, D163): a
+      # package that has sources but no lint script, or a lint script but no
+      # configuration, fails the step. The workspace roots below only run their
+      # members' lint and stay out.
       # ----------------------------------------------------------------------
       - name: Lint
         run: >-
@@ -293,8 +295,6 @@ jobs:
           --skip platform-devtools
           --skip @brix-sdk/runtime-sdk-workspace
           --skip @brix-sdk/shared-runtime-workspace
-          --skip @brix-sdk/infra-adapter-ui-mui
-          --skip @brix-sdk/infra-adapter-ui-native
         env:
           CI: true
 

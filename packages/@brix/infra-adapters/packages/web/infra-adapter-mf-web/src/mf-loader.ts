@@ -312,7 +312,6 @@ async function loadScript(src: string): Promise<void> {
  * Ensure webpack shared scope is initialized
  */
 async function ensureSharedScopeInitialized(): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const win = window as any;
   
   // If __webpack_init_sharing__ exists and scope not initialized, initialize it
@@ -337,7 +336,6 @@ async function ensureSharedScopeInitialized(): Promise<void> {
  * Used when webpack MF runtime is not available
  */
 function createManualSharedScope(): Record<string, unknown> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const win = window as any;
   
   const createSharedModule = (moduleGetter: () => unknown, version = '0.0.0') => ({
@@ -368,7 +366,6 @@ function createManualSharedScope(): Record<string, unknown> {
  * Get default shared scope
  */
 function getDefaultShareScope(): unknown {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const webpackScopes = (window as any).__webpack_share_scopes__;
   return webpackScopes?.default || {};
 }
