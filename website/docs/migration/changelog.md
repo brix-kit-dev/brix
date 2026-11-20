@@ -375,6 +375,16 @@ All notable changes to Brix Framework are documented here.
   - The Page/Hook/Repository rule (`@brix-architecture/frontend-layer-boundary`) takes `HttpCapability` from the
     mobile contract, `@brix-sdk/runtime-sdk-api-mobile`, as it does from the web one: a mobile Repository that called
     the capability was reported as calling HTTP without one.
+  - `@brix-sdk/eslint-config-architecture` has presets that work from a package's own directory: `configs.ui` for UI
+    code of the same JavaScript permission domain (plugin packages and platform consoles) and `configs.platform` for
+    every other frontend package. Each parses TypeScript with `@typescript-eslint/parser` 8, matches files relative to
+    the package and reports an `eslint-disable` comment that disables nothing. The default export selected its BrixUI,
+    design token, role literal, test id and accessibility blocks by repository paths, which never matched when a
+    package linted its own directory, and set no parser. In `configs.ui` the BrixUI patterns are part of every
+    layer's `no-restricted-imports`, where a separate block used to replace the layer patterns. The package's peer
+    range for ESLint is now `^8.57.0 || ^9.0.0`; the presets are tested on both.
+  - platform-admin-web and platform-tenant-web use `configs.ui`. In platform-admin-web the test id rule now reaches
+    `src/` and four action buttons get a `data-testid`.
 - **CI runs the architecture checks it skipped.** The Architecture Check workflow ran its checks as steps of one job,
   behind a Maven dependency analysis that could only fail on a fresh runner: it named one module without the modules it
   depends on, and it never compiled, so it had never analysed anything either. The governance and guard tests, the

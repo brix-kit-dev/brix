@@ -155,6 +155,7 @@ export function PlatformBootstrapSentPage(): JSX.Element {
             </div>
             <div>
               <Button
+                data-testid="platform-bootstrap-sent-login"
                 type="button"
                 startIcon="login"
                 onClick={() =>

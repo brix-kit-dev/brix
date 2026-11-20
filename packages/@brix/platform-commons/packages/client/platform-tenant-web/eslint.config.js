@@ -1,20 +1,10 @@
-import architectureRules from '@brix-sdk/eslint-config-architecture';
-import tseslint from 'typescript-eslint';
+import architecture from '@brix-sdk/eslint-config-architecture';
 
 export default [
   {
     ignores: ['dist/**', 'node_modules/**'],
   },
-  {
-    files: ['src/**/*.{ts,tsx}'],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        ecmaFeatures: { jsx: true },
-      },
-    },
-  },
-  ...architectureRules,
+  // The UI preset parses TypeScript and checks every rule against this package's own files (standard-link queue item
+  // 19, D162).
+  ...architecture.configs.ui,
 ];

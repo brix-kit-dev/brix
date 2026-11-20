@@ -6,6 +6,12 @@ All notable changes to this package are documented here.
 
 ### Changed
 
+- ESLint runs the architecture rules on this package's own files through the `configs.ui` preset of
+  `@brix-sdk/eslint-config-architecture`, which parses TypeScript itself (standard-link queue item 19, 19b). The
+  BrixUI, design token, role literal and test id rules now reach `src/`: they selected files by the path
+  `**/platform-admin-web/src/**`, which never matched when the package linted its own directory. The four action
+  buttons they found get a `data-testid`: `platform-bootstrap-sent-login`, `platform-login-totp-back`,
+  `platform-setup-login` and `platform-setup-totp-secret-copy`. The package no longer depends on `typescript-eslint`.
 - The License / quota page, its menu entry and its dashboard card check `PLATFORM_ADMIN_PERMISSIONS.TENANT_READ`, as
   the backend's `GET /api/platform/license/quota` now does. `PLATFORM_ADMIN_PERMISSIONS.LICENSE_READ` is removed:
   `platform:license:read` is not in the super-admin permission catalog.

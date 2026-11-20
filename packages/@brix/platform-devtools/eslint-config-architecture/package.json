@@ -18,13 +18,17 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "@typescript-eslint/parser": "8.57.2"
+  },
   "peerDependencies": {
-    "eslint": ">=8.0.0",
+    "eslint": "^8.57.0 || ^9.0.0",
     "eslint-plugin-jsx-a11y": ">=6.8.0"
   },
   "devDependencies": {
     "vitest": "^1.2.0",
-    "eslint-plugin-jsx-a11y": "^6.8.0"
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-v9": "npm:eslint@9.39.4"
   },
   "repository": {
     "type": "git",

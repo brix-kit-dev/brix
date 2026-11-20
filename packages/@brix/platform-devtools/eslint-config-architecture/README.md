@@ -48,28 +48,38 @@ npm install @brix-sdk/eslint-config-architecture --save-dev
 
 ## Usage
 
-### ESLint Flat Config (eslint.config.js)
+### Presets (eslint.config.js)
+
+Each preset parses TypeScript itself, matches files relative to the package that runs ESLint, and reports an
+`eslint-disable` comment that disables nothing as an error (standard-link queue item 19, D162):
+
+| Preset | For | Rules |
+|---|---|---|
+| `configs.ui` | UI code of the same JavaScript permission domain: plugin packages and platform consoles | Every rule in this README: red lines, Page/Hook/Repository layers, BrixUI and design tokens, role literals and role checks, the super-admin red lines, the legacy tenant switch, accessibility warnings |
+| `configs.platform` | Every other frontend package: runtime, shared runtime, adapters, platform capabilities, tooling | The rules written for every file: the super-admin red lines and the role checks |
 
 ```javascript
-import architectureRules from '@brix-sdk/eslint-config-architecture';
+import architecture from '@brix-sdk/eslint-config-architecture';
 
 export default [
-  ...architectureRules,
-  // Your other config...
+  { ignores: ['dist/**', 'node_modules/**'] },
+  ...architecture.configs.ui,
 ];
 ```
 
-### With TypeScript
+A super-admin action surface also requires `data-testid` on its action elements, for its own files:
 
 ```javascript
-import architectureRules from '@brix-sdk/eslint-config-architecture';
-import tseslint from 'typescript-eslint';
-
-export default [
-  ...tseslint.configs.recommended,
-  ...architectureRules,
-];
+  {
+    files: ['src/**/*.{tsx,jsx}'],
+    plugins: { '@brix-architecture': architecture.brixArchPlugin },
+    rules: { '@brix-architecture/require-testid-on-action': 'error' },
+  },
 ```
+
+The default export (`...architecture`) is the earlier configuration. It sets no parser, and its BrixUI, design token,
+role literal, test id and accessibility blocks select files by repository paths (`**/enterprise-solutions/**`,
+`**/platform-admin-web/src/**`), which do not match when a package lints its own directory.
 
 ## Error Examples
 
@@ -156,9 +166,9 @@ SDK's role checks are deprecated since 3.3.0 and go in 4.0.0.
 | `useRole(auth, 'ADMIN')` | `usePermission(auth, 'booking:manage')` |
 | `<PermissionGate role="ADMIN">` | `<PermissionGate permission="booking:manage">` |
 
-The rule's block matches every source file wherever a package runs ESLint. ESLint has to parse the file first: a
-TypeScript package needs the `typescript-eslint` parser in its own config, as `platform-admin-web` has; without it
-every `.ts` file stops at a parsing error and no rule runs.
+The rule's block matches every source file wherever a package runs ESLint, and both presets carry it. ESLint has to
+parse the file first: the presets set the TypeScript parser; with the default export a TypeScript package needs a
+parser in its own config, or every `.ts` file stops at a parsing error and no rule runs.
 
 ## Design Token Governance Rules (v3.4.0)
 

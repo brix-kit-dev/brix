@@ -323,6 +323,7 @@ export function PlatformSetupPage(): JSX.Element {
               </div>
               <div style={{ justifySelf: "start" }}>
                 <Button
+                  data-testid="platform-setup-login"
                   type="button"
                   size="small"
                   startIcon="login"
@@ -610,6 +611,7 @@ export function PlatformSetupPage(): JSX.Element {
                         </p>
                         <div style={{ marginTop: t.space.md }}>
                           <Button
+                            data-testid="platform-setup-totp-secret-copy"
                             type="button"
                             variant="secondary"
                             size="small"

@@ -144,6 +144,7 @@ export function PlatformLoginTotpPage(): JSX.Element {
                 {tt(I18N_KEYS.loginTotp.submit)}
               </Button>
               <Button
+                data-testid="platform-login-totp-back"
                 type="button"
                 variant="secondary"
                 disabled={loading}

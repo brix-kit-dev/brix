@@ -284,6 +284,57 @@ function mergeRestrictedGlobals(additionalGlobals = []) {
   return ['error', ...BASE_RESTRICTED_GLOBALS, ...additionalGlobals];
 }
 
+// ============================================================================
+// Layer Guard constants: the files of each UI layer and what the layer adds to the base red lines. The default
+// export's layer blocks and the `ui` preset share them (standard-link queue item 19, 19b).
+// ============================================================================
+
+const PAGES_LAYER_FILES = ['**/pages/**/*.ts', '**/pages/**/*.tsx', '**/views/**/*.ts', '**/views/**/*.tsx'];
+
+const PAGES_LAYER_PATTERNS = [
+    // Layer-specific rule: pages prohibit direct calls to repositories
+    {
+      group: ['**/repositories/**', '**/repository/**', '../repositories/**', '../repository/**'],
+      message: '[Layer Violation] pages/ layer must not directly call repositories/. Access data through hooks/ layer. Correct: import { useXxx } from "../hooks/useXxx"'
+    },
+    {
+      group: ['**/services/**', '**/service/**'],
+      message: '[Layer Violation] pages/ layer must not directly call services/. Access services through hooks/ layer. Correct: import { useXxxService } from "../hooks/useXxxService"'
+    }
+];
+
+const REPOSITORIES_LAYER_FILES = ['**/repositories/**/*.ts', '**/repositories/**/*.tsx', '**/repository/**/*.ts', '**/repository/**/*.tsx'];
+
+const REPOSITORIES_LAYER_GLOBALS = [
+    { name: 'fetch', message: '[Layer Violation] repositories/ must access APIs through HttpCapability factory. Direct use of fetch is prohibited.' },
+    { name: 'localStorage', message: '[Red Line 6] Direct use of localStorage is prohibited. Use StateCapability for state management.' },
+    { name: 'sessionStorage', message: '[Red Line 6] Direct use of sessionStorage is prohibited. Use StateCapability for state management.' }
+];
+
+const HOOKS_LAYER_FILES = ['**/hooks/**/*.ts', '**/hooks/**/*.tsx'];
+
+const HOOKS_LAYER_GLOBALS = [
+    { name: 'fetch', message: '[Layer Violation] hooks/ must not use fetch directly. Call repositories/ layer instead.' },
+    { name: 'localStorage', message: '[Red Line 6] Direct use of localStorage is prohibited. Use StateCapability for state management.' },
+    { name: 'sessionStorage', message: '[Red Line 6] Direct use of sessionStorage is prohibited. Use StateCapability for state management.' }
+];
+
+const COMPONENTS_LAYER_FILES = ['**/components/**/*.ts', '**/components/**/*.tsx'];
+
+const COMPONENTS_LAYER_PATTERNS = [
+    // Layer-specific rule: components prohibit direct calls to repositories
+    {
+      group: ['**/repositories/**', '**/repository/**'],
+      message: '[Layer Violation] components/ is a pure presentation layer. Must not directly call repositories/. For data, pass through props or use hooks/'
+    }
+];
+
+const COMPONENTS_LAYER_GLOBALS = [
+    { name: 'fetch', message: '[Layer Violation] components/ is a pure presentation layer. Must not directly call fetch. For data, pass through props.' },
+    { name: 'localStorage', message: '[Red Line 6] Direct use of localStorage is prohibited.' },
+    { name: 'sessionStorage', message: '[Red Line 6] Direct use of sessionStorage is prohibited.' }
+];
+
 /** @type {import('eslint').Linter.FlatConfig[]} */
 const baseRules = [
   // ============================================================================
@@ -310,19 +361,9 @@ const baseRules = [
   // [v3.2.0 Fix] Use mergeRestrictedImports to ensure all base red lines are inherited
   {
     name: 'brix/architecture-guard/pages-layer',
-    files: ['**/pages/**/*.ts', '**/pages/**/*.tsx', '**/views/**/*.ts', '**/views/**/*.tsx'],
+    files: PAGES_LAYER_FILES,
     rules: {
-      'no-restricted-imports': mergeRestrictedImports([
-        // Layer-specific rule: pages prohibit direct calls to repositories
-        {
-          group: ['**/repositories/**', '**/repository/**', '../repositories/**', '../repository/**'],
-          message: '[Layer Violation] pages/ layer must not directly call repositories/. Access data through hooks/ layer. Correct: import { useXxx } from "../hooks/useXxx"'
-        },
-        {
-          group: ['**/services/**', '**/service/**'],
-          message: '[Layer Violation] pages/ layer must not directly call services/. Access services through hooks/ layer. Correct: import { useXxxService } from "../hooks/useXxxService"'
-        }
-      ]),
+      'no-restricted-imports': mergeRestrictedImports(PAGES_LAYER_PATTERNS),
       // pages layer inherits all base globals restrictions
       'no-restricted-globals': mergeRestrictedGlobals()
     }
@@ -335,16 +376,12 @@ const baseRules = [
   // [v3.2.0 Fix] Use mergeRestrictedImports to ensure all base red lines are inherited
   {
     name: 'brix/architecture-guard/repositories-layer',
-    files: ['**/repositories/**/*.ts', '**/repositories/**/*.tsx', '**/repository/**/*.ts', '**/repository/**/*.tsx'],
+    files: REPOSITORIES_LAYER_FILES,
     rules: {
       // repositories layer inherits all base imports restrictions
       'no-restricted-imports': mergeRestrictedImports(),
       // repositories layer uses stricter fetch warning message
-      'no-restricted-globals': ['error',
-        { name: 'fetch', message: '[Layer Violation] repositories/ must access APIs through HttpCapability factory. Direct use of fetch is prohibited.' },
-        { name: 'localStorage', message: '[Red Line 6] Direct use of localStorage is prohibited. Use StateCapability for state management.' },
-        { name: 'sessionStorage', message: '[Red Line 6] Direct use of sessionStorage is prohibited. Use StateCapability for state management.' }
-      ]
+      'no-restricted-globals': ['error', ...REPOSITORIES_LAYER_GLOBALS]
     }
   },
 
@@ -355,16 +392,12 @@ const baseRules = [
   // [v3.2.0 Fix] Use mergeRestrictedImports to ensure all base red lines are inherited
   {
     name: 'brix/architecture-guard/hooks-layer',
-    files: ['**/hooks/**/*.ts', '**/hooks/**/*.tsx'],
+    files: HOOKS_LAYER_FILES,
     rules: {
       // hooks layer inherits all base imports restrictions
       'no-restricted-imports': mergeRestrictedImports(),
       // hooks layer uses stricter fetch warning message
-      'no-restricted-globals': ['error',
-        { name: 'fetch', message: '[Layer Violation] hooks/ must not use fetch directly. Call repositories/ layer instead.' },
-        { name: 'localStorage', message: '[Red Line 6] Direct use of localStorage is prohibited. Use StateCapability for state management.' },
-        { name: 'sessionStorage', message: '[Red Line 6] Direct use of sessionStorage is prohibited. Use StateCapability for state management.' }
-      ]
+      'no-restricted-globals': ['error', ...HOOKS_LAYER_GLOBALS]
     }
   },
 
@@ -375,21 +408,11 @@ const baseRules = [
   // [v3.2.0 Fix] Use mergeRestrictedImports to ensure all base red lines are inherited
   {
     name: 'brix/architecture-guard/components-layer',
-    files: ['**/components/**/*.ts', '**/components/**/*.tsx'],
+    files: COMPONENTS_LAYER_FILES,
     rules: {
-      'no-restricted-imports': mergeRestrictedImports([
-        // Layer-specific rule: components prohibit direct calls to repositories
-        {
-          group: ['**/repositories/**', '**/repository/**'],
-          message: '[Layer Violation] components/ is a pure presentation layer. Must not directly call repositories/. For data, pass through props or use hooks/'
-        }
-      ]),
+      'no-restricted-imports': mergeRestrictedImports(COMPONENTS_LAYER_PATTERNS),
       // components layer uses stricter fetch warning message
-      'no-restricted-globals': ['error',
-        { name: 'fetch', message: '[Layer Violation] components/ is a pure presentation layer. Must not directly call fetch. For data, pass through props.' },
-        { name: 'localStorage', message: '[Red Line 6] Direct use of localStorage is prohibited.' },
-        { name: 'sessionStorage', message: '[Red Line 6] Direct use of sessionStorage is prohibited.' }
-      ]
+      'no-restricted-globals': ['error', ...COMPONENTS_LAYER_GLOBALS]
     }
   },
 
@@ -749,6 +772,119 @@ const ultraThinHostRules = {
   ]
 };
 
+// ============================================================================
+// Presets (standard-link queue item 19, D162)
+// ============================================================================
+// The default export selects some blocks by repository paths (`**/enterprise-solutions/**`,
+// `**/platform-admin-web/src/**`) and sets no parser, so a package that runs ESLint in its own directory gets neither
+// those blocks nor a TypeScript parse. Each preset works from a package's own directory: it parses TypeScript, its
+// file patterns are relative to the package, and an eslint-disable comment that disables nothing is an error.
+//
+//   configs.ui        UI code of the same JavaScript permission domain: plugin packages and platform consoles. The
+//                     default export's rules: red lines, Page/Hook/Repository layers, BrixUI and design tokens, role
+//                     literals and role checks, the super-admin red lines, the legacy tenant switch, accessibility
+//                     warnings.
+//   configs.platform  Every other frontend package: the blocks written for every file, the super-admin red lines
+//                     and role checks.
+//
+// A super-admin action surface adds `@brix-architecture/require-testid-on-action` for its own files (README).
+const typescriptParser = require('@typescript-eslint/parser');
+
+const PRESET_SOURCE_FILES = ['**/*.{ts,tsx,js,jsx}'];
+
+const typescriptBlock = {
+  name: 'brix/preset/typescript',
+  files: ['**/*.{ts,tsx,mts,cts}'],
+  languageOptions: {
+    parser: typescriptParser,
+    parserOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      ecmaFeatures: { jsx: true },
+    },
+  },
+};
+
+const disableDirectivesBlock = {
+  name: 'brix/preset/disable-directives',
+  linterOptions: { reportUnusedDisableDirectives: 'error' },
+};
+
+/** A block of the default export, shared as it is. */
+function blockNamed(name) {
+  const block = baseRules.find((candidate) => candidate.name === name);
+  if (!block) {
+    throw new Error(`@brix-sdk/eslint-config-architecture: no block named ${name}`);
+  }
+  return block;
+}
+
+// Every file a preset lints is UI code, so the BrixUI patterns join the base red lines in each block that sets
+// no-restricted-imports. In flat config a later block's options for a rule replace an earlier block's: a separate
+// BrixUI block, as in the default export, would drop the layer patterns of the files it shares with a layer block.
+const uiPreset = [
+  typescriptBlock,
+  disableDirectivesBlock,
+  {
+    name: 'brix/ui/base',
+    rules: {
+      'no-restricted-imports': mergeRestrictedImports(BRIX_UI_RESTRICTED_PATTERNS),
+      'no-restricted-globals': mergeRestrictedGlobals(),
+      'no-console': 'error',
+    },
+  },
+  {
+    name: 'brix/ui/pages-layer',
+    files: PAGES_LAYER_FILES,
+    rules: {
+      'no-restricted-imports': mergeRestrictedImports([...BRIX_UI_RESTRICTED_PATTERNS, ...PAGES_LAYER_PATTERNS]),
+      'no-restricted-globals': mergeRestrictedGlobals(),
+    },
+  },
+  {
+    name: 'brix/ui/repositories-layer',
+    files: REPOSITORIES_LAYER_FILES,
+    rules: {
+      'no-restricted-imports': mergeRestrictedImports(BRIX_UI_RESTRICTED_PATTERNS),
+      'no-restricted-globals': ['error', ...REPOSITORIES_LAYER_GLOBALS],
+    },
+  },
+  {
+    name: 'brix/ui/hooks-layer',
+    files: HOOKS_LAYER_FILES,
+    rules: {
+      'no-restricted-imports': mergeRestrictedImports(BRIX_UI_RESTRICTED_PATTERNS),
+      'no-restricted-globals': ['error', ...HOOKS_LAYER_GLOBALS],
+    },
+  },
+  {
+    name: 'brix/ui/components-layer',
+    files: COMPONENTS_LAYER_FILES,
+    rules: {
+      'no-restricted-imports': mergeRestrictedImports([...BRIX_UI_RESTRICTED_PATTERNS, ...COMPONENTS_LAYER_PATTERNS]),
+      'no-restricted-globals': ['error', ...COMPONENTS_LAYER_GLOBALS],
+    },
+  },
+  blockNamed('brix/architecture-guard/frontend-1.1-layer-boundary'),
+  {
+    ...blockNamed('brix/architecture-guard/enterprise-solutions-design-tokens'),
+    name: 'brix/ui/design-tokens',
+    files: PRESET_SOURCE_FILES,
+  },
+  blockNamed('brix/architecture-guard/platform-admin-v2-redlines'),
+  blockNamed('brix/architecture-guard/no-role-authorization'),
+  blockNamed('brix/architecture-guard/v313-no-legacy-tenant-switch'),
+  blockNamed('brix/architecture-guard/pact-and-dev-exemptions'),
+  // jsx-a11y: appended below with the default export's block, when the plugin resolves.
+];
+
+const platformPreset = [
+  typescriptBlock,
+  disableDirectivesBlock,
+  blockNamed('brix/architecture-guard/platform-admin-v2-redlines'),
+  blockNamed('brix/architecture-guard/no-role-authorization'),
+];
+
 // Exports
 module.exports = baseRules;
 
@@ -792,8 +928,22 @@ if (jsxA11yPlugin) {
     },
     rules: recommendedRules,
   });
+
+  uiPreset.push({
+    name: 'brix/ui/jsx-a11y',
+    files: ['**/*.{tsx,jsx}'],
+    plugins: {
+      'jsx-a11y': jsxA11yPlugin,
+    },
+    rules: recommendedRules,
+  });
 }
 
+// Presets that work from a package's own directory (standard-link queue item 19, D162)
+module.exports.configs = {
+  ui: uiPreset,
+  platform: platformPreset,
+};
 module.exports.ultraThinHostRules = ultraThinHostRules;
 // Export base red line constants for custom rule composition
 module.exports.BASE_RESTRICTED_IMPORT_PATTERNS = BASE_RESTRICTED_IMPORT_PATTERNS;
