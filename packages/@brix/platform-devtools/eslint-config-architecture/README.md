@@ -17,13 +17,14 @@ This package provides shared ESLint rules that enforce the architectural red lin
 | 3 | No HTTP clients | Prohibits direct use of `axios`, `fetch`, `got`, etc. |
 | 6 | No direct storage access | Prohibits direct use of `localStorage`/`sessionStorage` |
 | 7 | No console output | Only `console.warn`/`console.error` allowed |
-| 8 | No EventEmitter | Must use EventBusCapability instead |
+| 8 | No EventEmitter | Prohibits Node's `events` and `node:events` by module name, and `eventemitter3`, `mitt`, `tiny-emitter`; must use EventBusCapability instead. A module's own `./events` file (where shared packages keep event types) is not refused |
 | 9 | No direct UI library imports | enterprise-solutions must use `useUI()` instead of MUI/Ant Design |
 
 ### Layer Guard Rules
 
 - `pages/` directory cannot directly import from `repositories/*`
 - `repositories/` directory cannot use `fetch`/`axios` directly
+- A Repository's HTTP calls go through an injected `HttpCapability` from the web or the mobile contract (`@brix-sdk/runtime-sdk-api-web`, `@brix-sdk/runtime-sdk-api-mobile`) or a generated client
 
 ### BrixUI Governance Rules (v3.3.0)
 

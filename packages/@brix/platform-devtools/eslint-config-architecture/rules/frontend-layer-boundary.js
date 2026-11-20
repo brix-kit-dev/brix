@@ -58,9 +58,14 @@ function isGeneratedClientPath(value) {
   return /(^|\/|\.\.\/)(generated|__generated__|clients?)(\/|$)/.test(value);
 }
 
+// The Layer 2A contracts that declare HttpCapability: the web one and the mobile one (standard-link queue item 19, 19a).
+const RUNTIME_API_PACKAGES = [
+  '@brix-sdk/runtime-sdk-api-web',
+  '@brix-sdk/runtime-sdk-api-mobile',
+];
+
 function isRuntimeApiImport(value) {
-  return value === '@brix-sdk/runtime-sdk-api-web'
-    || value.startsWith('@brix-sdk/runtime-sdk-api-web/');
+  return RUNTIME_API_PACKAGES.some(name => value === name || value.startsWith(`${name}/`));
 }
 
 function importHasSpecifier(node, importedName) {

@@ -368,6 +368,13 @@ All notable changes to Brix Framework are documented here.
 
 ### 🐛 Fixed
 
+- **The frontend architecture lint reports what its rules mean** (standard-link plan queue item 19).
+  - Red Line 8 refuses Node's `events` and `node:events` by their module names only. It used a pattern as well, which
+    also refused a module's own `./events` file, where the plugin shared packages, platform-shared and
+    runtime-sdk-api-web keep their event types.
+  - The Page/Hook/Repository rule (`@brix-architecture/frontend-layer-boundary`) takes `HttpCapability` from the
+    mobile contract, `@brix-sdk/runtime-sdk-api-mobile`, as it does from the web one: a mobile Repository that called
+    the capability was reported as calling HTTP without one.
 - **CI runs the architecture checks it skipped.** The Architecture Check workflow ran its checks as steps of one job,
   behind a Maven dependency analysis that could only fail on a fresh runner: it named one module without the modules it
   depends on, and it never compiled, so it had never analysed anything either. The governance and guard tests, the

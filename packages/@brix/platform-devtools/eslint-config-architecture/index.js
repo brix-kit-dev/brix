@@ -158,10 +158,9 @@ const BASE_RESTRICTED_IMPORT_PATTERNS = [
     message: '[Red Line 2] Direct use of AMQP/RabbitMQ clients is prohibited. Use EventBusCapability for event communication.'
   },
   // ==================== Red Line 8: Prohibit direct use of EventEmitter ====================
-  {
-    group: ['events', 'node:events'],
-    message: '[Red Line 8] Direct use of EventEmitter is prohibited. Use @brix/platform-eventbus-web for event communication.'
-  },
+  // Node's `events` and `node:events` are refused by their exact module names in BASE_RESTRICTED_IMPORT_PATHS. A
+  // pattern would also refuse a module's own `./events` file, where plugin shared packages keep their event types
+  // (standard-link queue item 19, 19a).
   {
     group: ['eventemitter3', 'mitt', 'tiny-emitter'],
     message: '[Red Line 8] Direct use of third-party event libraries is prohibited. Use @brix/platform-eventbus-web for event communication.'
