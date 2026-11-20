@@ -786,6 +786,8 @@ const ultraThinHostRules = {
 //                     warnings.
 //   configs.platform  Every other frontend package: the blocks written for every file, the super-admin red lines
 //                     and role checks.
+//   configs.contract  Layer 2A contract packages: the platform preset, plus contract layer purity in src/types/**
+//                     and React for types only.
 //
 // A super-admin action surface adds `@brix-architecture/require-testid-on-action` for its own files (README).
 const typescriptParser = require('@typescript-eslint/parser');
@@ -885,6 +887,68 @@ const platformPreset = [
   blockNamed('brix/architecture-guard/no-role-authorization'),
 ];
 
+// Layer 2A contracts declare interfaces and types (standard-link queue item 19, 19c). They name React's types, never
+// its values: a value, default or namespace import, a side-effect import, a re-export, `import('react')` or
+// `require('react')` would make the contract package need React at run time. `import('react').ReactNode` in a type
+// position is a type and stays allowed.
+const REACT_TYPES_ONLY = [
+  {
+    selector: "ImportDeclaration[source.value='react'][importKind!='type'] > ImportSpecifier[importKind!='type']",
+    message: "[Contract Layer Purity] A Layer 2A contract imports React's types only: import type { ... } from 'react'.",
+  },
+  {
+    selector: "ImportDeclaration[source.value='react'][importKind!='type'] > ImportDefaultSpecifier",
+    message: "[Contract Layer Purity] A Layer 2A contract imports React's types only: import type React from 'react'.",
+  },
+  {
+    selector: "ImportDeclaration[source.value='react'][importKind!='type'] > ImportNamespaceSpecifier",
+    message: "[Contract Layer Purity] A Layer 2A contract imports React's types only: import type * as React from 'react'.",
+  },
+  {
+    selector: "ImportDeclaration[source.value='react'][specifiers.length=0]",
+    message: '[Contract Layer Purity] A Layer 2A contract does not load React for its side effects.',
+  },
+  {
+    selector: "ExportNamedDeclaration[source.value='react'][exportKind!='type'] > ExportSpecifier[exportKind!='type']",
+    message: "[Contract Layer Purity] A Layer 2A contract re-exports React's types only: export type { ... } from 'react'.",
+  },
+  {
+    selector: "ExportAllDeclaration[source.value='react'][exportKind!='type']",
+    message: '[Contract Layer Purity] A Layer 2A contract does not re-export React.',
+  },
+  {
+    selector: "ImportExpression[source.value='react']",
+    message: '[Contract Layer Purity] A Layer 2A contract does not load React at run time.',
+  },
+  {
+    selector: "CallExpression[callee.name='require'][arguments.0.value='react']",
+    message: '[Contract Layer Purity] A Layer 2A contract does not load React at run time.',
+  },
+];
+
+// The default export's purity selectors without the severity, to join React's in the type definitions.
+const CONTRACT_PURITY_SELECTORS = blockNamed('brix/architecture-guard/contract-layer-purity')
+  .rules['no-restricted-syntax'].slice(1);
+
+const contractPreset = [
+  typescriptBlock,
+  disableDirectivesBlock,
+  blockNamed('brix/architecture-guard/platform-admin-v2-redlines'),
+  blockNamed('brix/architecture-guard/no-role-authorization'),
+  {
+    name: 'brix/contract/react-types-only',
+    files: PRESET_SOURCE_FILES,
+    rules: { 'no-restricted-syntax': ['error', ...REACT_TYPES_ONLY] },
+  },
+  // One rule for both: in flat config a later block's options for a rule replace an earlier block's, so the type
+  // definitions get the purity selectors and React's together.
+  {
+    name: 'brix/contract/layer-purity',
+    files: ['src/types/**/*.{ts,tsx,js,jsx}'],
+    rules: { 'no-restricted-syntax': ['error', ...CONTRACT_PURITY_SELECTORS, ...REACT_TYPES_ONLY] },
+  },
+];
+
 // Exports
 module.exports = baseRules;
 
@@ -943,6 +1007,7 @@ if (jsxA11yPlugin) {
 module.exports.configs = {
   ui: uiPreset,
   platform: platformPreset,
+  contract: contractPreset,
 };
 module.exports.ultraThinHostRules = ultraThinHostRules;
 // Export base red line constants for custom rule composition

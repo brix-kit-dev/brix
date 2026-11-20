@@ -385,6 +385,10 @@ All notable changes to Brix Framework are documented here.
     range for ESLint is now `^8.57.0 || ^9.0.0`; the presets are tested on both.
   - platform-admin-web and platform-tenant-web use `configs.ui`. In platform-admin-web the test id rule now reaches
     `src/` and four action buttons get a `data-testid`.
+  - `configs.contract`, for the Layer 2A contracts: contract layer purity in `src/types/**`, which the default export
+    selected by the path `**/runtime-sdk-api-web/src/types/**`, and React for types only. runtime-sdk-api-web and
+    runtime-sdk-api-mobile lint with it; before, they had no lint at all, and nothing stopped a value import of React,
+    which type-checks and makes the published contract need React at run time.
 - **CI runs the architecture checks it skipped.** The Architecture Check workflow ran its checks as steps of one job,
   behind a Maven dependency analysis that could only fail on a fresh runner: it named one module without the modules it
   depends on, and it never compiled, so it had never analysed anything either. The governance and guard tests, the

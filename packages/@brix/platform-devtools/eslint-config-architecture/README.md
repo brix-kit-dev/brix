@@ -57,6 +57,7 @@ Each preset parses TypeScript itself, matches files relative to the package that
 |---|---|---|
 | `configs.ui` | UI code of the same JavaScript permission domain: plugin packages and platform consoles | Every rule in this README: red lines, Page/Hook/Repository layers, BrixUI and design tokens, role literals and role checks, the super-admin red lines, the legacy tenant switch, accessibility warnings |
 | `configs.platform` | Every other frontend package: runtime, shared runtime, adapters, platform capabilities, tooling | The rules written for every file: the super-admin red lines and the role checks |
+| `configs.contract` | Layer 2A contract packages (`runtime-sdk-api-web`, `runtime-sdk-api-mobile`) | `configs.platform`, plus contract layer purity in `src/types/**` (interfaces, types and enums; no object, array or literal constants) and React for types only: no value, default, namespace or side-effect import of `react`, no re-export, no `import('react')` or `require('react')` at run time; `import('react').ReactNode` in a type position is fine |
 
 ```javascript
 import architecture from '@brix-sdk/eslint-config-architecture';

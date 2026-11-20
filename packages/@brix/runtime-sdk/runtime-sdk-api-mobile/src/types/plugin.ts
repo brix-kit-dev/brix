@@ -40,7 +40,6 @@
  *   <li>In framework-agnostic scenarios, use unknown and handle at runtime</li>
  * </ul>
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ComponentType = unknown;
 
 // =========================================

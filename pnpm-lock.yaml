@@ -1178,6 +1178,9 @@ importers:
         specifier: '>=0.70.0'
         version: 0.84.0(@babel/core@7.29.0)(react@19.2.4)
     devDependencies:
+      '@brix-sdk/eslint-config-architecture':
+        specifier: workspace:*
+        version: link:../../platform-devtools/eslint-config-architecture
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(typescript@5.9.3)
@@ -1191,6 +1194,9 @@ importers:
         specifier: ^18.0.0
         version: 18.3.28
     devDependencies:
+      '@brix-sdk/eslint-config-architecture':
+        specifier: workspace:*
+        version: link:../../platform-devtools/eslint-config-architecture
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(typescript@5.9.3)

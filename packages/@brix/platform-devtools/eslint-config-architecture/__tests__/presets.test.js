@@ -96,6 +96,37 @@ const PLATFORM_CASES = [
     ['<unused-directive>']],
 ];
 
+// Layer 2A contracts (19c).
+const CONTRACT_CASES = [
+  ['parses TypeScript', 'src/types/model.ts', TS_ONLY, []],
+  ['React types', 'src/types/ui/button.ts',
+    `import type { ReactNode } from 'react';\nexport interface ButtonProps { readonly children?: ReactNode }`, []],
+  ['an inline React type specifier', 'src/types/ui/card.ts',
+    `import { type ReactNode } from 'react';\nexport interface CardProps { readonly title?: ReactNode }`, []],
+  ['React types in a type position', 'src/types/ui/form.ts',
+    `export type Render = () => import('react').ReactElement | null;`, []],
+  ['a React value import', 'src/types/ui/button.ts',
+    `import { createElement } from 'react';\nexport type Create = typeof createElement;`, ['no-restricted-syntax']],
+  ['a default React import', 'src/index.ts',
+    `import React from 'react';\nexport type Node = React.ReactNode;`, ['no-restricted-syntax']],
+  ['a namespace React import', 'src/index.ts',
+    `import * as React from 'react';\nexport type Node = React.ReactNode;`, ['no-restricted-syntax']],
+  ['React for its side effects', 'src/index.ts', `import 'react';`, ['no-restricted-syntax']],
+  ['a React re-export', 'src/index.ts', `export { createElement } from 'react';`, ['no-restricted-syntax']],
+  ['React loaded at runtime', 'src/index.ts', `export const load = () => import('react');`, ['no-restricted-syntax']],
+  ['an object literal in the type definitions', 'src/types/theme.ts',
+    `export const defaultTheme = { mode: 'light' };`, ['no-restricted-syntax']],
+  ['a React value import in the type definitions', 'src/types/theme.ts',
+    `import { useState } from 'react';\nexport type State = typeof useState;`, ['no-restricted-syntax']],
+  ['a capability identifier outside the type definitions', 'src/index.ts',
+    `export const capabilityIds = { auth: Symbol.for('brix.auth') };`, []],
+  ['a role check', 'src/types/auth.ts',
+    `export const check = (auth: { hasRole(r: string): boolean }) => auth.hasRole('ADMIN');`,
+    ['@brix-architecture/no-role-authorization']],
+  ['a directive that disables nothing', 'src/index.ts',
+    `// eslint-disable-next-line no-console\nexport const total = 1;`, ['<unused-directive>']],
+];
+
 for (const [major, eslint] of Object.entries(ESLINT)) {
   describe(major, () => {
     describe('ui', () => {
@@ -109,6 +140,14 @@ for (const [major, eslint] of Object.entries(ESLINT)) {
       for (const [what, file, code, expected] of PLATFORM_CASES) {
         it(what, () => {
           expect(reported(messages(eslint, architecture.configs.platform, code, file)).sort())
+            .toEqual([...expected].sort());
+        });
+      }
+    });
+    describe('contract', () => {
+      for (const [what, file, code, expected] of CONTRACT_CASES) {
+        it(what, () => {
+          expect(reported(messages(eslint, architecture.configs.contract, code, file)).sort())
             .toEqual([...expected].sort());
         });
       }

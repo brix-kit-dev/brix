@@ -19,9 +19,11 @@
   ],
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "lint": "eslint src"
   },
   "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^5.7.3"
   },
