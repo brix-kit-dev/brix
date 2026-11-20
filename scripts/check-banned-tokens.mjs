@@ -28,6 +28,10 @@ const scannedExtensions = new Set([
   '.sql',
 ]);
 
+const RETIRED_PERMISSION_IDS_TEST =
+  'packages/@brix/platform-commons/packages/server/platform-auth-api/src/test/java/io/brix/platform/auth/api/PinnedIdentifiersTest.java';
+
+// A check without allowedIn holds in every scanned file.
 const exactTokenChecks = [
   {
     id: 'platform-admin-v2-sensitive-flow-token',
@@ -40,6 +44,15 @@ const exactTokenChecks = [
       'temp_password_expires_at',
       'PasswordGeneratorService',
     ],
+  },
+  {
+    // No permission passes the Dispatcher's check: platform:bypass is a retired permission ID that never comes back
+    // (super-admin §3.3 and Δ7; standard-link plan queue item 18, D158, D160). Migrations may name it, as V1 seeded it
+    // and V5 removed it, and so may the contract test's list of retired IDs, which keeps it out of PermissionCode.
+    id: 'platform-bypass-permission',
+    tokens: ['platform:bypass'],
+    allowedIn: (relativePath) =>
+      relativePath.includes('/db/migration/') || relativePath === RETIRED_PERMISSION_IDS_TEST,
   },
 ];
 
@@ -107,10 +120,10 @@ function scanFile(filePath) {
 
 function scanExactTokens(relativePath, line, lineNumber) {
   for (const check of exactTokenChecks) {
+    if (isExactTokenAllowed(check, relativePath)) {
+      continue;
+    }
     for (const token of check.tokens) {
-      if (isExactTokenAllowed(relativePath, line, token)) {
-        continue;
-      }
       if (line.includes(token)) {
         findings.push({ file: relativePath, line: lineNumber, check: check.id, token });
       }
@@ -175,9 +188,6 @@ function existsDirectory(path) {
   }
 }
 
-function isExactTokenAllowed(relativePath, line, token) {
-  void relativePath;
-  void line;
-  void token;
-  return false;
+function isExactTokenAllowed(check, relativePath) {
+  return check.allowedIn?.(relativePath) ?? false;
 }
