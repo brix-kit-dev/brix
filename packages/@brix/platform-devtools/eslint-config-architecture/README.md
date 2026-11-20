@@ -12,7 +12,7 @@ This package provides shared ESLint rules that enforce the architectural red lin
 
 | Red Line | Rule | Description |
 |----------|------|-------------|
-| 1 | No direct adapter imports | Business modules must not directly import `@brix/infra-adapter-*` |
+| 1 | No direct adapter imports | Business modules must not directly import `@brix-sdk/infra-adapter-*` |
 | 2 | No middleware clients | Prohibits direct use of `kafkajs`, `ioredis`, `amqplib`, etc. |
 | 3 | No HTTP clients | Prohibits direct use of `axios`, `fetch`, `got`, etc. |
 | 6 | No direct storage access | Prohibits direct use of `localStorage`/`sessionStorage` |
@@ -86,7 +86,7 @@ role literal, test id and accessibility blocks select files by repository paths 
 
 ```typescript
 // ‚ù?Red Line 1 violation
-import { IFrameAdapter } from '@brix/infra-adapter-iframe-web';
+import { IFrameAdapter } from '@brix-sdk/infra-adapter-iframe-web';
 // Error: Business modules must not directly depend on infrastructure adapters
 
 // ‚ù?Red Line 3 violation

@@ -401,6 +401,9 @@ All notable changes to Brix Framework are documented here.
     package and ESLint as dev dependencies, and `test:phase7` lints the generated UI sources with the preset. The
     template's `routes.ts` held JSX, which neither ESLint nor `tsc` parses in a `.ts` file: it is `routes.tsx` now. The
     frozen legacy templates are unchanged.
+  - Red Line 1 refuses the infrastructure adapters by the scope they are published under, `@brix-sdk/infra-adapter-*`.
+    It named the old `@brix/` scope and matched no real import. `configs.ui` and the default export carry it;
+    `configs.platform`, which a runtime profile that assembles the adapters uses, does not.
 - **CI runs the architecture checks it skipped.** The Architecture Check workflow ran its checks as steps of one job,
   behind a Maven dependency analysis that could only fail on a fresh runner: it named one module without the modules it
   depends on, and it never compiled, so it had never analysed anything either. The governance and guard tests, the

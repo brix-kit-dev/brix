@@ -5,7 +5,7 @@
  * and frontend-1.1 architecture baselines.
  *
  * [Covered Red Lines]
- * - Red Line 1: Prohibit direct import of infrastructure adapters (@brix/infra-adapter-*)
+ * - Red Line 1: Prohibit direct import of infrastructure adapters (@brix-sdk/infra-adapter-*)
  * - Red Line 2: Prohibit direct use of middleware clients (kafkajs/ioredis/amqplib, etc.)
  * - Red Line 3: Prohibit direct use of HTTP clients (axios/fetch/got/undici)
  * - Red Line 6: Prohibit direct access to local storage (localStorage/sessionStorage)
@@ -135,8 +135,10 @@ try {
  */
 const BASE_RESTRICTED_IMPORT_PATTERNS = [
   // ==================== Red Line 1: Prohibit direct import of infrastructure adapters ====================
+  // The adapters are published as @brix-sdk/infra-adapter-*; the pattern named the old @brix/ scope and matched no real
+  // import until standard-link queue item 19, 19k.
   {
-    group: ['@brix/infra-adapter-*'],
+    group: ['@brix-sdk/infra-adapter-*'],
     message: '[Red Line 1] Business modules must not directly depend on infrastructure adapters. Use Capability interfaces instead.'
   },
   // ==================== Red Line 3: Prohibit direct use of HTTP clients ====================
