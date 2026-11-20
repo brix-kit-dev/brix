@@ -1158,6 +1158,9 @@ importers:
       '@types/validate-npm-package-name':
         specifier: ^4.0.2
         version: 4.0.2
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.1
       rimraf:
         specifier: ^5.0.5
         version: 5.0.10

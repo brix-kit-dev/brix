@@ -1,0 +1,10 @@
+import architecture from '@brix-sdk/eslint-config-architecture';
+
+export default [
+  {
+    ignores: ['dist/**', 'node_modules/**'],
+  },
+  // The platform's UI preset on this module's own files: BrixUI and design tokens, Page/Hook/Repository layers,
+  // red lines and role checks, with TypeScript parsed.
+  ...architecture.configs.ui,
+];

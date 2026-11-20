@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import {
   createDefaultGovernedScaffoldConfig,
@@ -19,6 +20,10 @@ const forbidden = [
   /@mui\/material|@mui\/icons-material|antd\b|element-plus|sx\s*=/,
   /\bTODO\b|\bFIXME\b|\bplaceholder\b|\bfake\b|\bmock\b/i,
 ];
+
+const require = createRequire(import.meta.url);
+const { Linter } = require('eslint');
+const architecture = require('@brix-sdk/eslint-config-architecture');
 
 const root = await mkdtemp(join(tmpdir(), 'brix-phase7-'));
 
@@ -42,6 +47,26 @@ try {
     for (const pattern of forbidden) {
       assert(!pattern.test(`${rel}\n${content}`), `${rel} matched ${pattern}`);
     }
+  }
+
+  // The UI module lints with the platform's UI preset (standard-link queue item 19, 19e, D167): it ships the
+  // configuration, a lint script and the dependencies, and its generated sources pass the preset as they are.
+  const uiDir = dirname(files.find((file) => file.endsWith('ui-manifest.yaml')));
+  const uiManifest = JSON.parse(await readFile(join(uiDir, 'package.json'), 'utf-8'));
+  assert.equal(uiManifest.scripts?.lint, 'eslint src', 'the UI module has a lint script');
+  assert(uiManifest.devDependencies?.['@brix-sdk/eslint-config-architecture'], 'the UI module depends on the rule package');
+  assert(uiManifest.devDependencies?.eslint, 'the UI module depends on ESLint');
+  assert((await readFile(join(uiDir, 'eslint.config.js'), 'utf-8')).includes('...architecture.configs.ui'),
+    'the UI module lints with the UI preset');
+  const linter = new Linter({ configType: 'flat' });
+  const uiSources = files.filter((file) => file.startsWith(join(uiDir, 'src')) && /\.(ts|tsx)$/.test(file));
+  assert(uiSources.length > 0, 'the UI module has sources');
+  for (const file of uiSources) {
+    const problems = linter
+      .verify(await readFile(file, 'utf-8'), architecture.configs.ui, { filename: relative(uiDir, file) })
+      .filter((message) => message.fatal || message.severity === 2);
+    assert.equal(problems.length, 0, `${relative(root, file)}: ${problems
+      .map((m) => `${m.line}:${m.column} ${m.ruleId ?? 'parse'} ${m.message}`).join('; ')}`);
   }
 
   // Values reach each file as they are: XML escapes them, YAML, JSON, Java, TypeScript and Markdown do not.

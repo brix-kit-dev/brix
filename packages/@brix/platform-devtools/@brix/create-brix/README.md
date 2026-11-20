@@ -115,6 +115,7 @@ platform-<name>/
 ```text
 <name>-ui-web/
 ├── package.json
+├── eslint.config.js
 ├── tsconfig.json
 ├── ui-manifest.yaml
 ├── README.md
@@ -123,8 +124,12 @@ platform-<name>/
     ├── hooks/use<Name>Status.ts
     ├── pages/<Name>StatusPage.tsx
     ├── repositories/<Name>Repository.ts
-    └── routes.ts
+    └── routes.tsx
 ```
+
+`eslint.config.js` lints the module with the `configs.ui` preset of `@brix-sdk/eslint-config-architecture`: BrixUI and
+design tokens, the Page/Hook/Repository layers, the red lines and role checks, TypeScript parsed. `pnpm lint` runs it
+(`eslint src`); the package declares the rule package and ESLint as dev dependencies.
 
 ## Scan Legacy Scaffolds
 
@@ -155,7 +160,8 @@ generating anything. Their templates are kept as migration inventory only; see `
 
 ```bash
 pnpm --filter @brix-sdk/create-brix build        # tsup, into dist/
-pnpm --filter @brix-sdk/create-brix test:phase7  # generates each kind and checks the output
+pnpm --filter @brix-sdk/create-brix test:phase7  # generates each kind and checks the output; lints the UI module's
+                                                 # sources with the configs.ui preset
 ```
 
 ## License

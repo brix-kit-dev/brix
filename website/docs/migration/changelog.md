@@ -397,6 +397,10 @@ All notable changes to Brix Framework are documented here.
     of plugins no configuration loads and one disabled nothing: they are gone. The deprecated role API's own
     implementation (`useAuth` in runtime-sdk-react; `PermissionGate`, `useAuth` and `useRole` in platform-auth-ui-web)
     says why it still calls `hasRole`, until 4.0.0 removes it.
+  - create-brix's governed UI template ships `eslint.config.js` with `configs.ui`, a `lint` script and the rule
+    package and ESLint as dev dependencies, and `test:phase7` lints the generated UI sources with the preset. The
+    template's `routes.ts` held JSX, which neither ESLint nor `tsc` parses in a `.ts` file: it is `routes.tsx` now. The
+    frozen legacy templates are unchanged.
 - **CI runs the architecture checks it skipped.** The Architecture Check workflow ran its checks as steps of one job,
   behind a Maven dependency analysis that could only fail on a fresh runner: it named one module without the modules it
   depends on, and it never compiled, so it had never analysed anything either. The governance and guard tests, the

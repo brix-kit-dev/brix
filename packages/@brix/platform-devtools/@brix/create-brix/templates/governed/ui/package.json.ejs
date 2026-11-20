@@ -10,7 +10,12 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
+  "devDependencies": {
+    "@brix-sdk/eslint-config-architecture": "<%= runtimeRange %>",
+    "eslint": "^9.0.0"
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   }
 }
