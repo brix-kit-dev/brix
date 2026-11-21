@@ -193,6 +193,10 @@ All notable changes to Brix Framework are documented here.
   check theirs. A plugin takes its clients when it starts, so a wrong type stops its start. The generated types from
   the owner's `-api` artifact pass; the runtime's descriptor of a provided command keeps its request schema
   (`ProvidedCommand.requestSchemaRef`).
+- **A command owner's handler takes the declared request type** (root A-22). When a plugin starts, the payload type
+  of each of its command handlers must carry the `@ContractSchema` of the `request.schemaRef` it declares, as a query
+  handler's types already must; a type of another schema, or of none, stops the plugin. The type generated into the
+  owner's own `-api` artifact passes.
 - **The contract generator marks the constants classes it writes** with `@GeneratedContractConstants`, which the
   plugin profile's `noHandMadeQueryOrCommandTypes` looks for. An api module with query or command contracts fails its
   `ContractSourcesTest` until it regenerates them: run the test with `-Dbrix.contracts.write=true`, review that only

@@ -27,6 +27,10 @@ import java.util.concurrent.CompletionStage;
  * the command is neither retried nor parked, and the key stays free, so a later command with it runs (standard-link
  * plan point 9). Any other failure rolls back too, and the command is retried, then parked.</p>
  *
+ * <p>{@code C} is the request type generated from the schema the manifest declares under {@code request.schemaRef}.
+ * When the plugin starts, the runtime checks that it carries that {@code @ContractSchema}: a type of another schema, or
+ * of none, stops the plugin (root A-22).</p>
+ *
  * @param <C> command request type
  * @author Runtime SDK Team
  * @since 3.0.10

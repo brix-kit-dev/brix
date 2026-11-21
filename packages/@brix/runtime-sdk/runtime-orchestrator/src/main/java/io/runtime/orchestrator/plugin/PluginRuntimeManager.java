@@ -74,6 +74,7 @@ import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.sdk.plugin.QueryHandler;
 import io.runtime.sdk.plugin.TaskInvocation;
+import io.runtime.sdk.query.ContractSchema;
 
 /**
  * L2B runtime manager for v3.0.10 backend plugins.
@@ -696,9 +697,12 @@ public final class PluginRuntimeManager {
     private record CreatedCommandHandler(CommandHandler<?> handler, Class<?> payloadType) {
     }
 
-    /** Reads the payload type each command handler declares; one that names none stops the plugin. */
+    /**
+     * Reads the payload type each command handler declares; one that names none stops the plugin, and so does one that
+     * does not carry the request schema the plugin declares for the command.
+     */
     private static Map<String, CreatedCommandHandler> typedCommandHandlers(
-            String pluginId, Map<String, CommandHandler<?>> handlers) {
+            String pluginId, PluginRuntimeDescriptor descriptor, Map<String, CommandHandler<?>> handlers) {
         Map<String, CreatedCommandHandler> typed = new LinkedHashMap<>();
         handlers.forEach((handlerId, handler) -> {
             Class<?> payloadType = ResolvableType.forClass(handler.getClass())
@@ -707,9 +711,31 @@ public final class PluginRuntimeManager {
                 throw new PluginRuntimeException("Command handler '" + handlerId + "' of plugin '" + pluginId
                     + "' must be a class that names its payload type, CommandHandler<PayloadType>");
             }
+            requireRequestSchema(pluginId, descriptor, handlerId, payloadType);
             typed.put(handlerId, new CreatedCommandHandler(handler, payloadType));
         });
         return Map.copyOf(typed);
+    }
+
+    /**
+     * A provided command's handler takes the request type generated from the schema the plugin declares (root A-22;
+     * standard-link plan queue item 20, D171), as a query handler's types must ({@code QueryRuntime}): the runtime
+     * reads every command it delivers into that type. A type of another schema, or of none, stops the plugin. A
+     * manifest always declares the schema ({@code request.schemaRef} is required); a descriptor built in code may name
+     * none, and then there is nothing to compare.
+     */
+    private static void requireRequestSchema(String pluginId, PluginRuntimeDescriptor descriptor, String handlerId,
+            Class<?> payloadType) {
+        ContractSchema carried = payloadType.getAnnotation(ContractSchema.class);
+        for (PluginRuntimeDescriptor.ProvidedCommand command : descriptor.providedCommands().values()) {
+            if (command.handlerId().equals(handlerId) && !command.requestSchemaRef().isEmpty()
+                    && (carried == null || !command.requestSchemaRef().equals(carried.value()))) {
+                throw new PluginRuntimeException("The request type " + payloadType.getName() + " of command "
+                    + command.commandType() + " in plugin '" + pluginId + "' carries schema "
+                    + (carried == null ? "none" : carried.value()) + ", but the manifest declares "
+                    + command.requestSchemaRef() + "; contract types are generated from the declared schemas");
+            }
+        }
     }
 
     /** Every provided command needs its handler bound in {@code configure} (root BRX-RS-MANIFEST-013). */
@@ -1002,7 +1028,7 @@ public final class PluginRuntimeManager {
             requireTypedEndpointSchemas(plugin);
             Map<String, CommandHandler<?>> commandHandlers = new LinkedHashMap<>(bootstrapContext.commandHandlers());
             commandHandlers.putAll(create(plugin.id(), "command", bootstrapContext.commandHandlerFactories(), context));
-            plugin.commandHandlers = typedCommandHandlers(plugin.id(), commandHandlers);
+            plugin.commandHandlers = typedCommandHandlers(plugin.id(), plugin.descriptor, commandHandlers);
             Map<String, QueryHandler<?, ?>> queryHandlers = new LinkedHashMap<>(bootstrapContext.queryHandlers());
             queryHandlers.putAll(create(plugin.id(), "query", bootstrapContext.queryHandlerFactories(), context));
             plugin.queries = queries.bind(plugin.descriptor, queryHandlers);

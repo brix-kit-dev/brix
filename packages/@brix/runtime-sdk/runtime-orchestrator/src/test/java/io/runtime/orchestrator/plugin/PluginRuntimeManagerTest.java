@@ -62,6 +62,7 @@ import io.runtime.sdk.plugin.PluginBootstrapContext;
 import io.runtime.sdk.plugin.PluginContext;
 import io.runtime.sdk.plugin.PluginLifecycleState;
 import io.runtime.sdk.plugin.TaskInvocation;
+import io.runtime.sdk.query.ContractSchema;
 
 class PluginRuntimeManagerTest {
 
@@ -467,6 +468,88 @@ class PluginRuntimeManagerTest {
                 .build()),
             new DefaultCapabilityRegistry(),
             List.of("plugin-a"));
+    }
+
+    @Test
+    void aCommandHandlerTakesTheRequestTypeOfTheSchemaThePluginDeclares() {
+        // Standard-link plan queue item 20, D171: like a query handler's types, a command handler's payload type
+        // carries the request schema the manifest declares.
+        RecordingPlugin provider = new RecordingPlugin();
+        provider.commandHandlers.put("reserve-stock.v1", context -> new ReserveStockHandler());
+        PluginRuntimeManager manager = managerDeclaring(provider, "brix://schemas/plugin-a/reserve-stock/1.0.0");
+
+        manager.start();
+
+        assertTrue(provider.started);
+        assertEquals(ReserveStockHandler.ReserveStock.class,
+            manager.commandProvider("ReserveStock").orElseThrow().payloadType());
+    }
+
+    @Test
+    void aCommandHandlerOfAnotherSchemaThanThePluginDeclaresStopsThePlugin() {
+        RecordingPlugin provider = new RecordingPlugin();
+        provider.commandHandlers.put("reserve-stock.v1", context -> new ReserveStockHandler());
+        PluginRuntimeManager manager = managerDeclaring(provider, "brix://schemas/plugin-a/reserve-stock/2.0.0");
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+
+        assertEquals("The request type " + ReserveStockHandler.ReserveStock.class.getName()
+            + " of command ReserveStock in plugin 'plugin-a' carries schema "
+            + "brix://schemas/plugin-a/reserve-stock/1.0.0, but the manifest declares "
+            + "brix://schemas/plugin-a/reserve-stock/2.0.0; contract types are generated from the declared schemas",
+            refused.getMessage());
+        assertFalse(manager.ready());
+    }
+
+    @Test
+    void aCommandHandlerWhoseRequestTypeCarriesNoSchemaStopsThePlugin() {
+        PluginRuntimeManager manager = managerDeclaring(commandProvider(),
+            "brix://schemas/plugin-a/reserve-stock/1.0.0");
+
+        PluginRuntimeException refused = assertThrows(PluginRuntimeException.class, manager::start);
+
+        assertTrue(refused.getMessage().contains(ReserveHandler.Reserve.class.getName() + " of command ReserveStock in "
+            + "plugin 'plugin-a' carries schema none, but the manifest declares"), refused.getMessage());
+        assertFalse(manager.ready());
+    }
+
+    @Test
+    void eachCommandHandlerIsCheckedAgainstTheCommandItIsBoundFor() {
+        // Two commands of one plugin, each with a request type of its own: a handler is held to its own command only.
+        RecordingPlugin provider = new RecordingPlugin();
+        provider.commandHandlers.put("reserve-stock.v1", context -> new ReserveStockHandler());
+        provider.commandHandlers.put("release-stock.v1", context -> new ReleaseStockHandler());
+        PluginRuntimeManager manager = managerDeclaring(provider,
+            declared("ReserveStock", "reserve-stock.v1", "brix://schemas/plugin-a/reserve-stock/1.0.0"),
+            declared("ReleaseStock", "release-stock.v1", "brix://schemas/plugin-a/release-stock/1.0.0"));
+
+        manager.start();
+
+        assertTrue(provider.started);
+        assertEquals(ReleaseStockHandler.ReleaseStock.class,
+            manager.commandProvider("ReleaseStock").orElseThrow().payloadType());
+    }
+
+    private PluginRuntimeManager managerDeclaring(RecordingPlugin provider, String requestSchemaRef) {
+        return managerDeclaring(provider, declared("ReserveStock", "reserve-stock.v1", requestSchemaRef));
+    }
+
+    private PluginRuntimeManager managerDeclaring(RecordingPlugin provider,
+            PluginRuntimeDescriptor.ProvidedCommand... commands) {
+        PluginRuntimeDescriptor.Builder descriptor = PluginRuntimeDescriptor.builder("plugin-a")
+            .data("plugin_a", "", "plugin_a_inbox");
+        for (PluginRuntimeDescriptor.ProvidedCommand command : commands) {
+            descriptor.providedCommand(command);
+        }
+        return manager(List.of(provider), Map.of(provider, descriptor.build()), new DefaultCapabilityRegistry(),
+            List.of("plugin-a"));
+    }
+
+    private static PluginRuntimeDescriptor.ProvidedCommand declared(String commandType, String handlerId,
+            String requestSchemaRef) {
+        return new PluginRuntimeDescriptor.ProvidedCommand(commandType, handlerId, "1.0.0", "command-transient-retry",
+            "command-standard", "partition-serial", "command-envelope", "declared-consumers", "command-key",
+            requestSchemaRef);
     }
 
     @Test
@@ -1253,6 +1336,32 @@ class PluginRuntimeManagerTest {
 
         @Override
         public CompletionStage<Void> handle(CommandInvocation<Reserve> invocation) {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** A handler of the request type a generator writes from the declared schema. */
+    static final class ReserveStockHandler implements CommandHandler<ReserveStockHandler.ReserveStock> {
+
+        @ContractSchema("brix://schemas/plugin-a/reserve-stock/1.0.0")
+        record ReserveStock(String sku) {
+        }
+
+        @Override
+        public CompletionStage<Void> handle(CommandInvocation<ReserveStock> invocation) {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** A handler of another command's generated request type. */
+    static final class ReleaseStockHandler implements CommandHandler<ReleaseStockHandler.ReleaseStock> {
+
+        @ContractSchema("brix://schemas/plugin-a/release-stock/1.0.0")
+        record ReleaseStock(String sku) {
+        }
+
+        @Override
+        public CompletionStage<Void> handle(CommandInvocation<ReleaseStock> invocation) {
             return CompletableFuture.completedFuture(null);
         }
     }

@@ -510,6 +510,9 @@ final class CancelOrderHandler implements CommandHandler<CancelOrder> {
 }
 ```
 
+- The handler takes the generated request type, `CancelOrder`. When the plugin starts, the runtime checks that it
+  carries the `@ContractSchema` of `request.schemaRef`, as it checks a query handler's types: a type of another
+  schema, or of none, stops the plugin (root A-22).
 - The runtime runs the handler in your unit of work, bound to the command's tenant (none for a platform command),
   after it has recorded the inbox receipt and the business key. Your writes commit with them.
 - To reject a command, throw a `BrixException` whose code's category is `INVALID`, `DENIED`, `NOT_FOUND` or
