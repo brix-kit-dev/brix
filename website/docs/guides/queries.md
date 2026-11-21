@@ -142,7 +142,9 @@ The generator writes:
 - an immutable record for each schema (`FindShipmentRequest`, `Shipment`), which checks its values against the
   schema when it is made, and a builder;
 - a constants class named after the plugin (`SampleShippingQueries`) with one `QueryType` per query
-  (`FIND_SHIPMENT`), typed `Optional<Shipment>` because the query is optional;
+  (`FIND_SHIPMENT`), typed `Optional<Shipment>` because the query is optional. It carries
+  `@GeneratedContractConstants`: the guard's plugin profile lets only a class with that mark call `QueryType.of` or
+  `QueryType.optional`, so callers take the constant and never make a query type themselves;
 - `src/main/brix/contracts.api`, a listing of the public API.
 
 Schemas use this subset of JSON Schema, so that every contract becomes a plain record:

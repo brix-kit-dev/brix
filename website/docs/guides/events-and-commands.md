@@ -463,7 +463,9 @@ The request schema goes under `META-INF/brix/schemas/<plugin>/<name>/<version>.j
 
 The generator that writes query types writes command types too, and the same `ContractSourcesTest` keeps them in
 step (see [Queries](./queries.md#1-write-the-contract)). For this contract it writes the record `CancelOrder` with
-its enum `Reason`, and `SampleOrdersCommands.CANCEL_ORDER`, a `CommandType<CancelOrder>`. The schema subset and the
+its enum `Reason`, and `SampleOrdersCommands.CANCEL_ORDER`, a `CommandType<CancelOrder>`, in a constants class
+marked `@GeneratedContractConstants`; the plugin profile refuses `CommandType.of` in any class without that mark, so
+senders take the constant and never make a command type themselves. The schema subset and the
 rules for a new version are the same as for queries. The sample has since published 1.1.0, which adds `DAMAGED` at
 the end of `reason`'s enum; the 1.0.0 files stay, and the types follow the newest minor version.
 

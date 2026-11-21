@@ -6,11 +6,13 @@ package io.brix.samples.shipping.api;
 
 import java.util.Optional;
 
+import io.runtime.sdk.query.GeneratedContractConstants;
 import io.runtime.sdk.query.QueryType;
 
 /**
  * The typed queries {@code sample-shipping} provides, as callers declare them under {@code queries.consumes}.
  */
+@GeneratedContractConstants
 public final class SampleShippingQueries {
 
     /**

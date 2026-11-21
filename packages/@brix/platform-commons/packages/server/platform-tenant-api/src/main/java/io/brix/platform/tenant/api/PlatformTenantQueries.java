@@ -6,11 +6,13 @@ package io.brix.platform.tenant.api;
 
 import java.util.Optional;
 
+import io.runtime.sdk.query.GeneratedContractConstants;
 import io.runtime.sdk.query.QueryType;
 
 /**
  * The typed queries {@code platform-tenant} provides, as callers declare them under {@code queries.consumes}.
  */
+@GeneratedContractConstants
 public final class PlatformTenantQueries {
 
     /**

@@ -41,7 +41,9 @@ public final class CommandType<C> {
     }
 
     /**
-     * Defines a command.
+     * Defines a command. The owner's generated constants class calls it, marked
+     * {@link io.runtime.sdk.query.GeneratedContractConstants}; the guard's plugin profile refuses it in any other
+     * plugin class (root A-22).
      *
      * @param commandType the command's name
      * @param version the contract version, {@code major.minor.patch}

@@ -23,6 +23,9 @@ import io.brix.samples.fixtureauth.core.AuthorizesOnPermission;
 import io.brix.samples.fixtureauth.core.AuthorizesOnRoleName;
 import io.brix.samples.fixturecommands.api.CancelBooking;
 import io.brix.samples.fixturecommands.api.FixtureCommands;
+import io.brix.samples.fixturecommands.api.FixtureQueries;
+import io.brix.samples.fixturecommands.api.HandWrittenCommands;
+import io.brix.samples.fixturecommands.core.ReadsContractTypes;
 import io.brix.samples.fixturecommands.core.SubmitsStringCommand;
 import io.brix.samples.fixturecommands.core.SubmitsTypedCommand;
 import org.junit.jupiter.api.DisplayName;
@@ -76,6 +79,25 @@ class PluginProfileTest {
     }
 
     @Test
+    @DisplayName("A plugin that makes a command type itself fails (root A-22)")
+    void rejectsPluginThatMakesACommandType() {
+        var classes = new ClassFileImporter().importClasses(HandWrittenCommands.class);
+
+        AssertionError error = assertThrows(AssertionError.class,
+            () -> PluginProfile.noHandMadeQueryOrCommandTypes.check(classes));
+        assertTrue(error.getMessage().contains(HandWrittenCommands.class.getName()), error.getMessage());
+    }
+
+    @Test
+    @DisplayName("A plugin that takes its types from the generated constants passes, and so do the constants")
+    void acceptsPluginThatUsesTheGeneratedConstants() {
+        var classes = new ClassFileImporter().importClasses(ReadsContractTypes.class, SubmitsTypedCommand.class,
+            FixtureCommands.class, FixtureQueries.class, CancelBooking.class);
+
+        assertDoesNotThrow(() -> PluginProfile.noHandMadeQueryOrCommandTypes.check(classes));
+    }
+
+    @Test
     @DisplayName("The profile runs every one of its rules: each is a static @ArchTest field")
     void everyRuleIsAnArchTest() {
         List<Field> rules = Arrays.stream(PluginProfile.class.getDeclaredFields())
@@ -83,8 +105,9 @@ class PluginProfileTest {
             .toList();
 
         assertFalse(rules.isEmpty());
-        assertTrue(rules.stream().anyMatch(field -> field.getName().equals("noStringCommandGateway")),
-            rules.toString());
+        for (String name : List.of("noStringCommandGateway", "noHandMadeQueryOrCommandTypes")) {
+            assertTrue(rules.stream().anyMatch(field -> field.getName().equals(name)), name + " in " + rules);
+        }
         for (Field field : rules) {
             assertTrue(field.isAnnotationPresent(ArchTest.class) && Modifier.isStatic(field.getModifiers()),
                 field.getName());

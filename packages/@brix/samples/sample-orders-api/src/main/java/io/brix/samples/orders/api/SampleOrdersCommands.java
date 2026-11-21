@@ -5,10 +5,12 @@
 package io.brix.samples.orders.api;
 
 import io.runtime.sdk.command.CommandType;
+import io.runtime.sdk.query.GeneratedContractConstants;
 
 /**
  * The typed commands {@code sample-orders} handles, as senders declare them under {@code commands.consumes}.
  */
+@GeneratedContractConstants
 public final class SampleOrdersCommands {
 
     /**

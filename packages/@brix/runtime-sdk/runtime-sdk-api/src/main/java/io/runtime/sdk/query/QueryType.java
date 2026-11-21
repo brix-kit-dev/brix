@@ -54,7 +54,9 @@ public final class QueryType<Q, R> {
     }
 
     /**
-     * Defines a query that always returns a result.
+     * Defines a query that always returns a result. The provider's generated constants class calls it, marked
+     * {@link GeneratedContractConstants}; the guard's plugin profile refuses it in any other plugin class (root
+     * A-22).
      *
      * @param queryType the query's name
      * @param version the contract version, {@code major.minor.patch}
@@ -71,7 +73,7 @@ public final class QueryType<Q, R> {
 
     /**
      * Defines a query that may find nothing: its result is {@code Optional.empty()} then (root
-     * BRX-RS-MANIFEST-027, ERROR-009).
+     * BRX-RS-MANIFEST-027, ERROR-009). Like {@link #of}, only for the generated constants class.
      *
      * @param queryType the query's name
      * @param version the contract version, {@code major.minor.patch}

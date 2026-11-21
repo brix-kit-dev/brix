@@ -16,6 +16,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -39,6 +40,11 @@ import io.runtime.sdk.query.QueryType;
 class QueryContractGeneratorTest {
 
     private static final String PACKAGE = "io.test.shop.api";
+    /**
+     * The descriptor of {@code @GeneratedContractConstants} in a class file: class retention keeps it out of reflection,
+     * and the guard's plugin profile reads it from the bytecode (root A-22; standard-link plan queue item 20, D168).
+     */
+    private static final String MARK = "Lio/runtime/sdk/query/GeneratedContractConstants;";
     private static final String NOTE = ",\n  \"note\": {\"type\": \"string\", \"maxLength\": 200, "
         + "\"x-brix-since\": \"1.1.0\", \"description\": \"A note\"}";
 
@@ -78,6 +84,10 @@ class QueryContractGeneratorTest {
         assertTrue(order.contains("Creates the record from the properties of version 1.0.0"), order);
         assertTrue(generated.sources().get("TestShopQueries").contains("QueryType.optional(\"test-shop.find-order\", "
             + "\"1.1.0\", FindOrderRequest.class, Order.class)"));
+        String constants = generated.sources().get("TestShopQueries");
+        assertTrue(constants.contains("import io.runtime.sdk.query.GeneratedContractConstants;\n"), constants);
+        assertTrue(constants.contains(" */\n@GeneratedContractConstants\npublic final class TestShopQueries {"), constants);
+        assertFalse(order.contains("GeneratedContractConstants"), "only the constants classes carry the mark");
         assertTrue(generated.api().contains("constructor Order(String, long, Status, List<String>, Instant)"),
             generated.api().toString());
         assertTrue(generated.api().contains("constructor Order(String, long, Status, List<String>, Instant, String)"));
@@ -121,6 +131,8 @@ class QueryContractGeneratorTest {
             assertEquals(order, type.resultType());
             assertEquals(request, type.requestType());
         }
+        assertTrue(classFile("TestShopQueries").contains(MARK), "the guard reads the mark from the bytecode");
+        assertFalse(classFile("Order").contains(MARK));
     }
 
     @Test
@@ -252,6 +264,10 @@ class QueryContractGeneratorTest {
         assertTrue(constants.contains("public static final CommandType<CancelOrder> CANCEL_ORDER ="), constants);
         assertTrue(constants.contains("CommandType.of(\"test-shop.cancel-order\", \"1.0.0\", CancelOrder.class)"),
             constants);
+        assertTrue(constants.contains("import io.runtime.sdk.query.GeneratedContractConstants;\n"), constants);
+        assertTrue(constants.contains(" */\n@GeneratedContractConstants\npublic final class TestShopCommands {"),
+            constants);
+        assertFalse(generated.sources().get("CancelOrder").contains("GeneratedContractConstants"));
         assertTrue(generated.api().contains(
             "command TestShopCommands.CANCEL_ORDER = test-shop.cancel-order major 1 CancelOrder"),
             generated.api().toString());
@@ -259,6 +275,8 @@ class QueryContractGeneratorTest {
             assertEquals("test-shop.cancel-order", loader.loadClass(PACKAGE + ".TestShopCommands")
                 .getField("CANCEL_ORDER").get(null).toString().replace("@1.0.0", ""));
         }
+        assertTrue(classFile("TestShopCommands").contains(MARK), "the guard reads the mark from the bytecode");
+        assertFalse(classFile("CancelOrder").contains(MARK));
     }
 
     @Test
@@ -496,6 +514,12 @@ class QueryContractGeneratorTest {
         assertEquals(0, compiler.run(null, null, null, arguments.toArray(String[]::new)), "the sources compile");
         return new URLClassLoader(new URL[] {module.resolve("classes").toUri().toURL()},
             QueryContractGeneratorTest.class.getClassLoader());
+    }
+
+    /** A class {@link #compile} wrote, as text with one character per byte. */
+    private String classFile(String simpleName) throws IOException {
+        return new String(Files.readAllBytes(module.resolve("classes/" + PACKAGE.replace('.', '/') + "/" + simpleName
+            + ".class")), StandardCharsets.ISO_8859_1);
     }
 
     private static void call(Object builder, String name, Class<?> type, Object value) throws Exception {

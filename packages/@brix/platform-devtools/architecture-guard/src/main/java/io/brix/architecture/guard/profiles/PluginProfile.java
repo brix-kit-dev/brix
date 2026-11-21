@@ -132,6 +132,14 @@ public class PluginProfile {
     @ArchTest
     static final ArchRule noStringCommandGateway = GeneratedContractClientsRule.noStringCommandGateway();
 
+    /**
+     * No hand-made query or command types: {@code CommandType.of}, {@code QueryType.of} and {@code QueryType.optional}
+     * only in the constants classes the contract generator writes, marked {@code @GeneratedContractConstants} (root
+     * A-22)
+     */
+    @ArchTest
+    static final ArchRule noHandMadeQueryOrCommandTypes = GeneratedContractClientsRule.noHandMadeQueryOrCommandTypes();
+
     // ==================== Rule 5: No Spring container API ====================
 
     @ArchTest

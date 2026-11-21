@@ -146,6 +146,12 @@ All notable changes to Brix Framework are documented here.
   `GeneratedContractClientsRule.noStringCommandGateway`, in the plugin profile, refuses a class that uses
   `CommandRequest`, or calls or references `CommandCapability.submit(CommandRequest)`: the string command gateway is
   the runtime's. No plugin of either repository used it.
+- **Plugins take query and command types from the generated constants** (root A-22). The SDK annotation
+  `io.runtime.sdk.query.GeneratedContractConstants` (class retention) marks the constants classes the contract
+  generator writes, such as `SampleShippingQueries` and `SampleOrdersCommands`.
+  `GeneratedContractClientsRule.noHandMadeQueryOrCommandTypes`, in the plugin profile, refuses a class without that
+  mark that calls or references `CommandType.of`, `QueryType.of` or `QueryType.optional`, whatever its package. Only
+  the generated constants of either repository called them.
 - **A module lists the `@Value` reads it already has, member by member.** `ConfigViaCapabilityRule.noSpringValue`
   lets through the members a module names as `<class>#<member>` in `META-INF/brix/guard/spring-value-readers.txt` of
   its test resources, and nothing else: a new `@Value` field, method or parameter fails, in a listed class too. A
@@ -181,6 +187,10 @@ All notable changes to Brix Framework are documented here.
 
 ### 🔄 Changed
 
+- **The contract generator marks the constants classes it writes** with `@GeneratedContractConstants`, which the
+  plugin profile's `noHandMadeQueryOrCommandTypes` looks for. An api module with query or command contracts fails its
+  `ContractSourcesTest` until it regenerates them: run the test with `-Dbrix.contracts.write=true`, review that only
+  the import and the annotation were added, and commit. The records and `contracts.api` do not change.
 - **The dispatcher checks the caller before the request** (root 3.4.0 BRX-RS-MANIFEST-022, RFC-010). The
   authentication, tenant context and permission checks now come before the request is built and checked against its
   schema. A call without a verified caller gets 401 `ENDPOINT_AUTHENTICATION_REQUIRED` and a caller the entry refuses

@@ -22,6 +22,12 @@ import com.tngtech.archunit.lang.ArchRule;
  * runs the rule; when it came in, no plugin of either repository used the gateway, so it lists no known callers
  * (standard-link plan queue item 20, 20a, D168).</p>
  *
+ * <p>{@link #noHandMadeQueryOrCommandTypes()} refuses a query or command type a plugin makes itself: only the
+ * constants classes the contract generator writes, which carry {@code @GeneratedContractConstants}, call
+ * {@code CommandType.of}, {@code QueryType.of} and {@code QueryType.optional}. A type made by hand would name a
+ * contract no schema generated. The plugin profile runs it too; when it came in, only the generated constants of
+ * brix's platform-tenant-api and samples called the factories, so it lists no known callers either (20a2, D168).</p>
+ *
  * @author Brix Architecture Team
  * @since 3.3.0
  */
@@ -30,6 +36,12 @@ public final class GeneratedContractClientsRule {
     private static final String COMMAND_CAPABILITY = "io.runtime.sdk.capability.CommandCapability";
 
     private static final String COMMAND_REQUEST = "io.runtime.sdk.command.CommandRequest";
+
+    private static final String COMMAND_TYPE = "io.runtime.sdk.command.CommandType";
+
+    private static final String QUERY_TYPE = "io.runtime.sdk.query.QueryType";
+
+    private static final String GENERATED_CONSTANTS = "io.runtime.sdk.query.GeneratedContractConstants";
 
     private GeneratedContractClientsRule() {
     }
@@ -52,9 +64,40 @@ public final class GeneratedContractClientsRule {
                         + "CommandCapability.submit(CommandRequest) is deprecated since 3.3.0 and removed in 4.0.0");
     }
 
+    /**
+     * Refuses hand-made query and command types: a call to, or a method reference of, {@code CommandType.of},
+     * {@code QueryType.of} or {@code QueryType.optional} in a class without {@code @GeneratedContractConstants}, the
+     * mark the contract generator puts on the constants classes it writes. A class is trusted by that mark only, not
+     * by its package: a constants class written by hand in an api package is refused too.
+     *
+     * @return the rule
+     */
+    public static ArchRule noHandMadeQueryOrCommandTypes() {
+        return noClasses()
+                .that().areNotAnnotatedWith(GENERATED_CONSTANTS)
+                .should().accessTargetWhere(DescribedPredicate.<JavaAccess<?>>describe(
+                        "the target is CommandType.of, QueryType.of or QueryType.optional, called or referenced",
+                        GeneratedContractClientsRule::isTypeFactory))
+                .because("a plugin takes a query or command type from the owner's generated constants (root A-22, "
+                        + "BRX-RS-MESSAGE-009): only the constants classes the contract generator writes, marked "
+                        + "@GeneratedContractConstants, call CommandType.of, QueryType.of and QueryType.optional");
+    }
+
     private static boolean isStringSubmit(JavaAccess<?> access) {
-        return (access instanceof JavaMethodCall || access instanceof JavaMethodReference)
+        return isCallOrReference(access)
                 && "submit".equals(access.getName())
                 && access.getTarget().getOwner().isAssignableTo(COMMAND_CAPABILITY);
+    }
+
+    private static boolean isTypeFactory(JavaAccess<?> access) {
+        String owner = access.getTargetOwner().getFullName();
+        String name = access.getName();
+        return isCallOrReference(access)
+                && (COMMAND_TYPE.equals(owner) && "of".equals(name)
+                        || QUERY_TYPE.equals(owner) && ("of".equals(name) || "optional".equals(name)));
+    }
+
+    private static boolean isCallOrReference(JavaAccess<?> access) {
+        return access instanceof JavaMethodCall || access instanceof JavaMethodReference;
     }
 }

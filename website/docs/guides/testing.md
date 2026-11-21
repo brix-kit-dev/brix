@@ -421,6 +421,7 @@ class ArchitectureTest {
 | Security | JWT (`io.jsonwebtoken`), Auth0, Spring Security crypto, the Spring OAuth2 client | `..core..` |
 | Layers | `..core..` depending on `..server..` or `..adapter..`; `@RestController` or `@Controller` in `..core..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
 | Commands | The string command gateway, deprecated for removal in 4.0.0: `CommandRequest`, and calling or referencing `CommandCapability.submit(CommandRequest)`. Send a command with `client(...)` and the owner's generated `CommandType` (root A-22) | All classes |
+| Contract types | Calling or referencing `CommandType.of`, `QueryType.of` or `QueryType.optional`. Take a query or command type from the owner's generated constants class, which the contract generator marks `@GeneratedContractConstants`; only such a class may call them (root A-22) | Classes without that mark |
 | Other plugins | Another plugin's classes outside its `api` package | Plugin packages |
 | Data ownership | Another data owner's repository; the platform tenant module's entities, repositories, mappers and validation | Plugin packages |
 
