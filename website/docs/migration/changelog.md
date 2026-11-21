@@ -336,7 +336,9 @@ All notable changes to Brix Framework are documented here.
 - `SchedulingCapability` and `RuntimeContext.getScheduling()`: a task comes only from the manifest (root
   BRX-RS-MANIFEST-026). Declare it under `tasks.provides`.
 - `CommandCapability.submit(CommandRequest)`: it takes a string command type and a tenant the caller names. Submit
-  the owner's generated `CommandType` through `CommandCapability.client(...)`. The plugin profile refuses it.
+  the owner's generated `CommandType` through `CommandCapability.client(...)`. The plugin profile refuses it. It
+  works as before until 4.0.0, and the first time a plugin uses it after it starts, the host logs one WARN
+  `event=command.deprecated_submit` naming the plugin and the command type.
 - `TenantDirectoryCapability`: no runtime implements it. Ask the typed query `platform-tenant.tenant-reference` from
   `platform-tenant-api` whether a member or principal belongs to the caller's tenant.
 - `HttpCapability`: it takes any URL. Declare the service under `externalServices` and call it through

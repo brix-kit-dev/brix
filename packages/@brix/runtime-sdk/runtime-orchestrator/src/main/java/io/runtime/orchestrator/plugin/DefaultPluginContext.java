@@ -17,6 +17,7 @@ package io.runtime.orchestrator.plugin;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.runtime.orchestrator.command.CommandProviders;
 import io.runtime.orchestrator.command.PluginCommandCapability;
@@ -60,6 +61,8 @@ public final class DefaultPluginContext implements PluginContext {
     private final QueryRuntime queries;
     private final CommandProviders commands;
     private final ExternalHttpRuntime external;
+    /** Set once this plugin has been warned that it uses the deprecated string submission (D170). */
+    private final AtomicBoolean stringSubmissionLogged = new AtomicBoolean();
 
     /**
      * Creates a plugin context without owner persistence.
@@ -220,11 +223,14 @@ public final class DefaultPluginContext implements PluginContext {
         return descriptor.identity();
     }
 
-    /** The plugin's typed command clients over its outbox bus (standard-link plan L4.2). */
+    /**
+     * The plugin's typed command clients over its outbox bus (standard-link plan L4.2). Every lookup gets a capability
+     * of its own; they share one flag, so the plugin is warned once about the deprecated string submission (D170).
+     */
     private Optional<CommandCapability> commandCapability() {
         String pluginId = descriptor.identity().pluginId();
         return ownerPersistence.commandBusFor(pluginId).map(bus -> new PluginCommandCapability(
-            pluginId, bus, descriptor.consumedCommands(), commands));
+            pluginId, bus, descriptor.consumedCommands(), commands, stringSubmissionLogged));
     }
 
     private Optional<PersistenceCapability> ownerPersistence() {

@@ -610,7 +610,13 @@ return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellati
 
 `CommandCapability.submit(CommandRequest)`, which takes the command type as a string and a tenant you name, is
 deprecated and will be removed in 4.0. The guard's plugin profile refuses it (root A-22): a class that uses
-`CommandRequest`, or calls or references that method, fails your architecture test.
+`CommandRequest`, or calls or references that method, fails your architecture test. Until 4.0 it still works. The
+first time a plugin uses it after it starts, the host logs one WARN, so a plugin that runs no architecture test learns
+it too:
+
+```
+event=command.deprecated_submit sender=<your plugin> type=<command type> removed_in=4.0.0 instead=CommandCapability.client(CommandType)
+```
 
 ### Reading a command's status
 

@@ -9,6 +9,10 @@ package io.runtime.orchestrator.command;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.runtime.orchestrator.internalcontract.BrixRange;
 import io.runtime.orchestrator.invocation.RuntimeInvocation;
@@ -41,13 +45,20 @@ import io.runtime.sdk.query.ContractSchema;
  *
  * <p>A client reads the status of the commands this plugin submitted, in the tenant of the current call (standard-link
  * plan point 7): from the owner's records, the commands the owner parked, and this plugin's own outbox.</p>
+ *
+ * <p>The deprecated string submission, {@link #submit(CommandRequest)}, works as before until 4.0.0. The first time a
+ * plugin uses it after it starts, a WARN names the plugin and the command type, so that a plugin that runs no
+ * architecture guard learns it too (standard-link plan queue item 20, D170).</p>
  */
 public final class PluginCommandCapability implements CommandCapability {
+
+    private static final Logger log = LoggerFactory.getLogger(PluginCommandCapability.class);
 
     private final String pluginId;
     private final CommandCapability bus;
     private final Map<String, PluginRuntimeDescriptor.ConsumedCommand> consumed;
     private final CommandProviders providers;
+    private final AtomicBoolean stringSubmissionLogged;
 
     /**
      * Creates the capability.
@@ -57,18 +68,29 @@ public final class PluginCommandCapability implements CommandCapability {
      * @param consumed the commands the plugin declares under {@code commands.consumes}
      * @param providers the providers on this host, or {@code null} when they are not known, as in a unit test of a
      *     plugin context: then neither the owner's access policy nor its presence is checked at submission
+     * @param stringSubmissionLogged set once the plugin has been warned that it uses the deprecated string submission:
+     *     one per plugin context, shared by every capability it hands out, so that the plugin is warned once
      */
     public PluginCommandCapability(String pluginId, CommandCapability bus,
-            Map<String, PluginRuntimeDescriptor.ConsumedCommand> consumed, CommandProviders providers) {
+            Map<String, PluginRuntimeDescriptor.ConsumedCommand> consumed, CommandProviders providers,
+            AtomicBoolean stringSubmissionLogged) {
         this.pluginId = Objects.requireNonNull(pluginId, "pluginId must not be null");
         this.bus = Objects.requireNonNull(bus, "bus must not be null");
         this.consumed = Map.copyOf(Objects.requireNonNull(consumed, "consumed must not be null"));
         this.providers = providers;
+        this.stringSubmissionLogged = Objects.requireNonNull(stringSubmissionLogged,
+            "stringSubmissionLogged must not be null");
     }
 
     @Override
     @Deprecated(since = "3.3.0", forRemoval = true)
     public <C> CommandSubmission submit(CommandRequest<C> request) {
+        // D170: the submission itself is unchanged; the warning comes first, so a refused submission is warned too.
+        if (stringSubmissionLogged.compareAndSet(false, true)) {
+            log.warn("event=command.deprecated_submit sender={} type={} removed_in=4.0.0 "
+                + "instead=CommandCapability.client(CommandType)", pluginId,
+                request == null ? null : request.commandType());
+        }
         return bus.submit(request);
     }
 

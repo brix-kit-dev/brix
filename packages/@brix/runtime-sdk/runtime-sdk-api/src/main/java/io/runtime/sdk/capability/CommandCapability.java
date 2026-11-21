@@ -56,7 +56,8 @@ public interface CommandCapability {
      * @return the command id and its durable receipt
      * @throws CommandSubmitException when the command cannot be queued, for example an undeclared command type
      * @deprecated since 3.3.0, for removal in 4.0.0: use {@link #client(CommandType)} with the owner's generated
-     *     {@link CommandType} (root A-22)
+     *     {@link CommandType} (root A-22). Until then it submits as before, and the runtime logs one WARN
+     *     ({@code event=command.deprecated_submit}) the first time a plugin uses it after it starts.
      */
     @Deprecated(since = "3.3.0", forRemoval = true)
     <C> CommandSubmission submit(CommandRequest<C> request);

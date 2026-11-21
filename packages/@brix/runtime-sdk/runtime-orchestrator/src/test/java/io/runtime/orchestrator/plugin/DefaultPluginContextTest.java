@@ -15,6 +15,7 @@
  */
 package io.runtime.orchestrator.plugin;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,14 +23,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Optional;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import io.runtime.orchestrator.query.QuerySideEffects;
 import io.runtime.orchestrator.capability.DefaultCapabilityRegistry;
+import io.runtime.orchestrator.command.PluginCommandCapability;
 import io.runtime.orchestrator.persistence.OwnerPersistenceProvider;
 import io.runtime.orchestrator.persistence.RecordingPersistence;
+import io.runtime.sdk.capability.CommandCapability;
+import io.runtime.sdk.capability.CommandSubmission;
 import io.runtime.sdk.capability.EventBusCapability;
 import io.runtime.sdk.capability.PersistenceCapability;
+import io.runtime.sdk.command.CommandRequest;
 import io.runtime.sdk.event.DomainEvent;
 import io.runtime.sdk.event.IntegrationEvent;
 
@@ -136,7 +146,70 @@ class DefaultPluginContextTest {
         assertSame(host, QuerySideEffects.unwrap(other.find(EventBusCapability.class).orElseThrow()));
     }
 
+    @Test
+    @SuppressWarnings("removal")
+    void aPluginIsWarnedOnceAboutTheStringSubmissionHoweverOftenItLooksUpItsCommands() {
+        // D170: every lookup builds a capability of its own, and they share the context's flag. The plugin's next
+        // start has a context of its own, which warns again.
+        CountingCommandBus bus = new CountingCommandBus();
+        OwnerPersistenceProvider owners = new OwnerPersistenceProvider() {
+            @Override
+            public Optional<PersistenceCapability> forOwner(String ownerModuleId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<CommandCapability> commandBusFor(String ownerModuleId) {
+                return Optional.of(bus);
+            }
+        };
+        PluginRuntimeDescriptor descriptor = PluginRuntimeDescriptor.builder("plugin-a")
+            .requiredCapabilities(List.of(CommandCapability.class.getName())).build();
+        DefaultPluginContext started = new DefaultPluginContext(descriptor, new DefaultCapabilityRegistry(), owners);
+        DefaultPluginContext restarted = new DefaultPluginContext(descriptor, new DefaultCapabilityRegistry(), owners);
+        CommandRequest<String> request = CommandRequest.of("plugin-b.reserve-stock", "sku-1", "order", "o-7");
+
+        List<String> warnings = stringSubmissionWarnings(() -> {
+            started.require(CommandCapability.class).submit(request);
+            started.require(CommandCapability.class).submit(request);
+            restarted.require(CommandCapability.class).submit(request);
+        });
+
+        assertEquals(2, warnings.size(), warnings.toString());
+        assertTrue(warnings.stream().allMatch(line -> line.startsWith(
+            "event=command.deprecated_submit sender=plugin-a type=plugin-b.reserve-stock ")), warnings.toString());
+        assertEquals(3, bus.submitted);
+    }
+
+    /** The WARN lines the plugins' command capabilities log while the work runs. */
+    private static List<String> stringSubmissionWarnings(Runnable work) {
+        Logger logger = (Logger) LoggerFactory.getLogger(PluginCommandCapability.class);
+        ListAppender<ILoggingEvent> logged = new ListAppender<>();
+        logged.start();
+        logger.addAppender(logged);
+        try {
+            work.run();
+        } finally {
+            logger.detachAppender(logged);
+        }
+        return logged.list.stream().filter(event -> event.getLevel() == Level.WARN)
+            .map(ILoggingEvent::getFormattedMessage).toList();
+    }
+
     interface TestCapability {
+    }
+
+    /** An outbox bus that counts the commands it is given. */
+    private static final class CountingCommandBus implements CommandCapability {
+
+        int submitted;
+
+        @Override
+        @SuppressWarnings("removal")
+        public <C> CommandSubmission submit(CommandRequest<C> request) {
+            submitted++;
+            return null;
+        }
     }
 
     private static final class SilentBus implements EventBusCapability {

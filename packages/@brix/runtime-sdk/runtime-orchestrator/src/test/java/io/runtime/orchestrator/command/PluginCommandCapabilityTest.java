@@ -19,8 +19,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import io.runtime.orchestrator.invocation.RuntimeInvocation;
 import io.runtime.orchestrator.invocation.RuntimeInvocations;
@@ -56,6 +62,8 @@ class PluginCommandCapabilityTest {
     private static final CommandType<Cancel> CANCEL = CommandType.of("sample-orders.cancel-order", "1.0.0", Cancel.class);
 
     private final RecordingBus bus = new RecordingBus();
+    /** The flag of the plugin's context, which every capability of the plugin shares. */
+    private final AtomicBoolean warned = new AtomicBoolean();
     private String accessPolicy = "declared-consumers";
     private String ownerSchema = "brix://schemas/sample-orders/cancel-order/1.0.0";
     private boolean providerPresent = true;
@@ -300,6 +308,48 @@ class PluginCommandCapabilityTest {
     }
 
     @Test
+    @SuppressWarnings("removal")
+    void aPluginIsWarnedOnceThatItUsesTheStringSubmission() {
+        // D170: one WARN for the plugin, whichever of its capabilities submits; every submission goes on as before.
+        List<String> warnings = warnings(() -> {
+            capability(providers).submit(CommandRequest.of(CANCEL.commandType(), new Cancel("o-7"), "order", "o-7"));
+            capability(providers).submit(CommandRequest.of(CANCEL.commandType(), new Cancel("o-8"), "order", "o-8"));
+        });
+
+        assertEquals(List.of("event=command.deprecated_submit sender=sample-shipping type=sample-orders.cancel-order "
+            + "removed_in=4.0.0 instead=CommandCapability.client(CommandType)"), warnings);
+        assertEquals(2, bus.submitted.size());
+    }
+
+    @Test
+    @SuppressWarnings("removal")
+    void aRefusedStringSubmissionIsWarnedToo() {
+        CommandCapability refusing = new CommandCapability() {
+            @Override
+            @SuppressWarnings("removal")
+            public <C> CommandSubmission submit(CommandRequest<C> request) {
+                throw new CommandSubmitException(CommandSubmitException.Code.UNDECLARED_COMMAND, Map.of(), null);
+            }
+        };
+        PluginCommandCapability capability = new PluginCommandCapability("sample-shipping", refusing, Map.of(), null,
+            warned);
+        CommandRequest<Cancel> request = CommandRequest.of(CANCEL.commandType(), new Cancel("o-7"), "order", "o-7");
+
+        List<String> warnings = warnings(
+            () -> assertThrows(CommandSubmitException.class, () -> capability.submit(request)));
+
+        assertEquals(1, warnings.size());
+    }
+
+    @Test
+    void aTypedClientIsNotWarned() {
+        List<String> warnings = warnings(() -> capability(providers).client(CANCEL).submit(new Cancel("o-7"), "o-7"));
+
+        assertEquals(List.of(), warnings);
+        assertEquals(1, bus.sent.size());
+    }
+
+    @Test
     void anOrderingKeyIsPassedOn() {
         capability(providers).client(CANCEL).submit(new Cancel("o-7"), "o-7", "customer-3");
 
@@ -311,7 +361,22 @@ class PluginCommandCapabilityTest {
         return new PluginCommandCapability("sample-shipping", bus,
             Map.of(CANCEL.commandType(), new PluginRuntimeDescriptor.ConsumedCommand(CANCEL.commandType(),
                 ">=1.0.0 <2.0.0", false)),
-            known);
+            known, warned);
+    }
+
+    /** The WARN lines the capability logs while the work runs. */
+    private static List<String> warnings(Runnable work) {
+        Logger logger = (Logger) LoggerFactory.getLogger(PluginCommandCapability.class);
+        ListAppender<ILoggingEvent> logged = new ListAppender<>();
+        logged.start();
+        logger.addAppender(logged);
+        try {
+            work.run();
+        } finally {
+            logger.detachAppender(logged);
+        }
+        return logged.list.stream().filter(event -> event.getLevel() == Level.WARN)
+            .map(ILoggingEvent::getFormattedMessage).toList();
     }
 
     private static RuntimeInvocation call(InvocationScope scope, String user, Set<String> permissions) {
