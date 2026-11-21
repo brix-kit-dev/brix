@@ -21,6 +21,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.brix.architecture.guard.rules.ConfigViaCapabilityRule;
 import io.brix.architecture.guard.rules.CrossModuleViaCapabilityRule;
 import io.brix.architecture.guard.rules.EventsViaCapabilityRule;
+import io.brix.architecture.guard.rules.GeneratedContractClientsRule;
 import io.brix.architecture.guard.rules.LoggingViaCapabilityRule;
 import io.brix.architecture.guard.rules.NoDirectHttpClientsRule;
 import io.brix.architecture.guard.rules.NoDirectPluginDependencyRule;
@@ -123,6 +124,13 @@ public class PluginProfile {
     /** No new callers of the retired RuntimeContext.getEventBus(); the listed ones only shrink */
     @ArchTest
     static final ArchRule noLegacyEventBus = NoLegacyEventBusRule.rule();
+
+    /**
+     * No string command gateway: no {@code CommandRequest}, no {@code CommandCapability.submit(CommandRequest)}; a
+     * command goes through the client of the owner's generated {@code CommandType} (root A-22)
+     */
+    @ArchTest
+    static final ArchRule noStringCommandGateway = GeneratedContractClientsRule.noStringCommandGateway();
 
     // ==================== Rule 5: No Spring container API ====================
 

@@ -142,6 +142,10 @@ All notable changes to Brix Framework are documented here.
   call to `hasRole`, `hasAnyRole` or `hasAllRoles`, `useRole` from `@brix-sdk/platform-auth-ui-web`, and the `role`
   and `anyRoles` props of `PermissionGate` (frontend BRX-FE-ROUTE-002), in every package whose ESLint config parses
   its TypeScript.
+- **Plugins send commands only through the generated client** (root A-22, BRX-RS-MESSAGE-009).
+  `GeneratedContractClientsRule.noStringCommandGateway`, in the plugin profile, refuses a class that uses
+  `CommandRequest`, or calls or references `CommandCapability.submit(CommandRequest)`: the string command gateway is
+  the runtime's. No plugin of either repository used it.
 - **A module lists the `@Value` reads it already has, member by member.** `ConfigViaCapabilityRule.noSpringValue`
   lets through the members a module names as `<class>#<member>` in `META-INF/brix/guard/spring-value-readers.txt` of
   its test resources, and nothing else: a new `@Value` field, method or parameter fails, in a listed class too. A
@@ -316,7 +320,7 @@ All notable changes to Brix Framework are documented here.
 - `SchedulingCapability` and `RuntimeContext.getScheduling()`: a task comes only from the manifest (root
   BRX-RS-MANIFEST-026). Declare it under `tasks.provides`.
 - `CommandCapability.submit(CommandRequest)`: it takes a string command type and a tenant the caller names. Submit
-  the owner's generated `CommandType` through `CommandCapability.client(...)`.
+  the owner's generated `CommandType` through `CommandCapability.client(...)`. The plugin profile refuses it.
 - `TenantDirectoryCapability`: no runtime implements it. Ask the typed query `platform-tenant.tenant-reference` from
   `platform-tenant-api` whether a member or principal belongs to the caller's tenant.
 - `HttpCapability`: it takes any URL. Declare the service under `externalServices` and call it through

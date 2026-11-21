@@ -75,7 +75,10 @@ public interface CommandCapability {
     /** The client of a command the plugin declares under commands.consumes, from the owner's generated type. */
     <C> CommandClient<C> client(CommandType<C> type);
 
-    /** Deprecated, for removal in 4.0: a string command type and a tenant the caller names. */
+    /**
+     * Deprecated, for removal in 4.0: a string command type and a tenant the caller names. The plugin profile
+     * refuses it.
+     */
     @Deprecated(since = "3.3.0", forRemoval = true)
     <C> CommandSubmission submit(CommandRequest<C> request);
 }

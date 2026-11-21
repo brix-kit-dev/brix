@@ -602,7 +602,8 @@ return CompletableFuture.completedFuture(new RefusedShipment(orderId, cancellati
 - A query is read-only. It cannot send a command.
 
 `CommandCapability.submit(CommandRequest)`, which takes the command type as a string and a tenant you name, is
-deprecated and will be removed in 4.0.
+deprecated and will be removed in 4.0. The guard's plugin profile refuses it (root A-22): a class that uses
+`CommandRequest`, or calls or references that method, fails your architecture test.
 
 ### Reading a command's status
 
@@ -851,4 +852,4 @@ is only reported, with `event=kafka.topic_partitions_below_setting`.
 - Do own your payload records and schemas. Don't depend on another plugin's classes.
 - Don't use an event as a command. If you need someone to change their data, send them a command.
 - Do send commands with the owner's generated `CommandType` and a business key of what the command is about. Don't
-  build a `CommandRequest` with a string type: it is deprecated.
+  build a `CommandRequest` with a string type: it is deprecated, and the plugin profile refuses it.
