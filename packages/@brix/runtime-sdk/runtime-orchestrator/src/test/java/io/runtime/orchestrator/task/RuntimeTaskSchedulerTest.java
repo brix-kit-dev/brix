@@ -49,6 +49,7 @@ import io.runtime.sdk.plugin.ExecutionIdentity;
 import io.runtime.sdk.plugin.InvocationScope;
 import io.runtime.sdk.plugin.ManagedTask;
 import io.runtime.sdk.plugin.TaskInvocation;
+import io.runtime.sdk.query.ContractSchema;
 
 /**
  * The runtime's task scheduler (root BRX-RS-MANIFEST-025, MANIFEST-028, DATA-028; standard-link plan L6.3 to L6.5).
@@ -284,6 +285,7 @@ class RuntimeTaskSchedulerTest {
         assertEquals("sample-shipping.recall", sent.get(0).commandType());
     }
 
+    @ContractSchema("brix://schemas/sample-shipping/recall/1.0.0")
     record Cancel(String orderId) {
     }
 

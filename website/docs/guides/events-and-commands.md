@@ -570,6 +570,11 @@ bootstrap.bindEndpointHandlerFactory("sample-shipping.refuse-shipment.v1", conte
     context.require(CommandCapability.class).client(SampleOrdersCommands.CANCEL_ORDER)));
 ```
 
+`client(...)` checks the type there, so a wrong one stops your plugin's start instead of failing a later submission:
+the command must be under your `commands.consumes` in the declared range, and its request type must carry the
+contract's `@ContractSchema`, exactly the request schema the owner declares when the owner runs on your host, otherwise
+one of the type's version. The generated types from the owner's `-api` artifact always do.
+
 ```java title="RefuseShipment.handle"
 String orderId = request.body().orderId();
 if (shipments.find(tenantId, orderId).isEmpty()) {
@@ -680,7 +685,7 @@ to your manifest.
 | Code | When |
 |---|---|
 | `command.undeclared` | The command is not under your `commands.consumes` (from `client`) |
-| `command.invalid` | The generated type's version is outside your declared range (from `client`), or the payload does not encode |
+| `command.invalid` | From `client`: the generated type's version is outside your declared range, or its request type does not carry the contract's schema (exactly the one the owner declares when the owner runs on your host, otherwise one of the type's version). From `submit`: the payload does not encode |
 | `command.provider_missing` | No plugin on this host provides the command |
 | `command.access_denied` | The owner takes the command only on behalf of a user with a permission, and the current caller is not one |
 | `command.tenant_unreached` | You sent a tenant's command outside a unit of work of your plugin that reaches that tenant |

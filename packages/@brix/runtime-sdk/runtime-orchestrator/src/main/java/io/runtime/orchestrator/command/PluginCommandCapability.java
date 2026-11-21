@@ -22,13 +22,17 @@ import io.runtime.sdk.command.CommandRequest;
 import io.runtime.sdk.command.CommandStatus;
 import io.runtime.sdk.command.CommandType;
 import io.runtime.sdk.query.BrixQueryException;
+import io.runtime.sdk.query.ContractSchema;
 
 /**
  * The {@link CommandCapability} a plugin gets from its {@code PluginContext} (root §6.3, A-22, ERROR-006;
  * standard-link plan L4.2): typed clients over the plugin's own outbox bus.
  *
- * <p>A client checks, when it is created, that the plugin declares the command under {@code commands.consumes} and
- * that the generated type's version is in the declared range. A submission takes the tenant and the user from the
+ * <p>A client checks, when it is created, that the plugin declares the command under {@code commands.consumes}, that
+ * the generated type's version is in the declared range, and that its request type carries the contract's schema:
+ * exactly the one the owner declares when the owner runs on this host, else one of the type's version
+ * ({@code command.invalid}; standard-link plan queue item 20, D169). A plugin takes its clients when it starts, so a
+ * mismatch stops its start. A submission takes the tenant and the user from the
  * current call; the plugin states neither. When the owner runs on this host, the submission is refused at once if
  * the owner accepts the command only on behalf of a user holding a permission the caller lacks
  * ({@code command.access_denied}), and the user is recorded with the command. When no plugin on this host provides
@@ -78,7 +82,33 @@ public final class PluginCommandCapability implements CommandCapability {
         if (!declared.versionRange().isEmpty() && !BrixRange.contains(type.version(), declared.versionRange())) {
             throw refused(CommandSubmitException.Code.INVALID_COMMAND, type, "version-outside-declared-range");
         }
+        requireRequestSchema(type);
         return new Client<>(type);
+    }
+
+    /**
+     * The request type must be the one generated from the contract the sender holds (root A-22, D169). With the owner on
+     * this host, whose api artifact is the only one here (LAYER-010), it carries exactly the request schema the owner
+     * declares; otherwise, or when the owner's declaration names no schema, it carries a schema of the command type's
+     * version. All plugins are known before the first starts, so the owner's declaration is there whatever the start
+     * order.
+     */
+    private void requireRequestSchema(CommandType<?> type) {
+        ContractSchema carried = type.requestType().getAnnotation(ContractSchema.class);
+        String found = carried == null ? "none" : carried.value();
+        Optional<String> declared = providers == null ? Optional.empty()
+            : providers.providerOf(type.commandType())
+                .map(provider -> provider.command().requestSchemaRef())
+                .filter(schemaRef -> !schemaRef.isEmpty());
+        boolean matches = carried != null && (declared.isPresent()
+            ? declared.get().equals(carried.value())
+            : type.version().equals(carried.value().substring(carried.value().lastIndexOf('/') + 1)));
+        if (!matches) {
+            throw new CommandSubmitException(CommandSubmitException.Code.INVALID_COMMAND, Map.of(
+                "commandType", type.commandType(), "sender", pluginId, "reason", "request-schema",
+                "requestType", type.requestType().getName(), "requestSchema", found,
+                "expected", declared.orElse("a schema of version " + type.version())), null);
+        }
     }
 
     /** A typed client of one command type: it submits through the plugin's outbox bus and reads its statuses. */

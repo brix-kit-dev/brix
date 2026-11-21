@@ -187,6 +187,12 @@ All notable changes to Brix Framework are documented here.
 
 ### 🔄 Changed
 
+- **A command client checks its request type's schema** (root A-22). `CommandCapability.client(type)` refuses with
+  `command.invalid` a request type that does not carry the contract's `@ContractSchema`: exactly the request schema the
+  owner declares when the owner runs on the host, otherwise a schema of the type's version, as query clients already
+  check theirs. A plugin takes its clients when it starts, so a wrong type stops its start. The generated types from
+  the owner's `-api` artifact pass; the runtime's descriptor of a provided command keeps its request schema
+  (`ProvidedCommand.requestSchemaRef`).
 - **The contract generator marks the constants classes it writes** with `@GeneratedContractConstants`, which the
   plugin profile's `noHandMadeQueryOrCommandTypes` looks for. An api module with query or command contracts fails its
   `ContractSourcesTest` until it regenerates them: run the test with `-Dbrix.contracts.write=true`, review that only

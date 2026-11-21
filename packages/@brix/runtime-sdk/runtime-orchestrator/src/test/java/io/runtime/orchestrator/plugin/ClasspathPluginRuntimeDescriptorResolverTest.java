@@ -83,6 +83,50 @@ class ClasspathPluginRuntimeDescriptorResolverTest {
     }
 
     @Test
+    void keepsTheRequestSchemaAProvidedCommandDeclares(@TempDir Path dir) throws Exception {
+        // Standard-link plan queue item 20, D169: a sender's client checks its generated request type against it.
+        String manifest;
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("META-INF/brix/plugin-manifest.yaml")) {
+            manifest = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        // A command provider keeps an inbox, so it needs persistence (root MANIFEST-025).
+        String owner = manifest.replace("commands:\n  provides: []\n  consumes: []\n", """
+            commands:
+              provides:
+                - commandType: service-loaded-test.reserve-stock
+                  request:
+                    schemaRef: brix://schemas/service-loaded-test/reserve-stock/1.2.0
+                  handlerId: service-loaded-test.reserve-stock.v1
+                  scopePolicyRef: command-envelope
+                  accessPolicyRef: declared-consumers
+                  timeoutPolicyRef: command-standard
+                  concurrencyPolicyRef: partition-serial
+                  retryPolicyRef: command-transient-retry
+                  idempotencyPolicyRef: command-key
+              consumes: []
+            data:
+              storageId: service_loaded_test
+              inbox: service_loaded_test_inbox
+            """).replace("    - id: TestCapability\n      version: \">=3.0.10 <4.0.0\"\n",
+            "    - id: TestCapability\n      version: \">=3.0.10 <4.0.0\"\n"
+                + "    - id: io.runtime.sdk.capability.PersistenceCapability\n      version: \">=3.2.0 <4.0.0\"\n");
+        assertTrue(owner.contains("reserve-stock/1.2.0"), owner);
+        assertTrue(owner.contains("- id: io.runtime.sdk.capability.PersistenceCapability\n"), owner);
+        Path file = Files.writeString(dir.resolve("plugin-manifest.yaml"), owner);
+        Method load = ClasspathPluginRuntimeDescriptorResolver.class.getDeclaredMethod("loadActiveDescriptor", URL.class);
+        load.setAccessible(true);
+        ClasspathPluginRuntimeDescriptorResolver resolver =
+            new ClasspathPluginRuntimeDescriptorResolver(Thread.currentThread().getContextClassLoader());
+
+        PluginRuntimeDescriptor descriptor = (PluginRuntimeDescriptor) load.invoke(resolver, file.toUri().toURL());
+
+        PluginRuntimeDescriptor.ProvidedCommand provided =
+            descriptor.providedCommands().get("service-loaded-test.reserve-stock");
+        assertEquals("brix://schemas/service-loaded-test/reserve-stock/1.2.0", provided.requestSchemaRef());
+        assertEquals("1.2.0", provided.version());
+    }
+
+    @Test
     void treatsSpringBootNestedJarManifestAsSameArtifact()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         ClasspathPluginRuntimeDescriptorResolver resolver =

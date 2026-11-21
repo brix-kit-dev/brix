@@ -38,7 +38,9 @@ public interface CommandCapability {
      * @param <C> request type
      * @return the client
      * @throws CommandSubmitException {@code command.undeclared} when the plugin does not declare the command, or
-     *     {@code command.invalid} when the type's version is outside the declared range
+     *     {@code command.invalid} when the type's version is outside the declared range or its request type does not
+     *     carry the contract's {@code @ContractSchema}: exactly the request schema the owner declares when the owner
+     *     runs on this host, otherwise one of the type's version
      * @since 3.3.0
      */
     default <C> CommandClient<C> client(CommandType<C> type) {

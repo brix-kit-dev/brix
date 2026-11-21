@@ -38,19 +38,26 @@ import io.runtime.sdk.plugin.CallerIdentity;
 import io.runtime.sdk.plugin.CancellationSignal;
 import io.runtime.sdk.plugin.InvocationScope;
 import io.runtime.sdk.query.BrixQueryException;
+import io.runtime.sdk.query.ContractSchema;
 
 /**
  * Typed command clients (root A-22, ERROR-006; standard-link plan L4.2).
  */
 class PluginCommandCapabilityTest {
 
+    @ContractSchema("brix://schemas/sample-orders/cancel-order/1.0.0")
     record Cancel(String orderId) {
+    }
+
+    /** A request type no generator wrote: it carries no schema. */
+    record Unmarked(String orderId) {
     }
 
     private static final CommandType<Cancel> CANCEL = CommandType.of("sample-orders.cancel-order", "1.0.0", Cancel.class);
 
     private final RecordingBus bus = new RecordingBus();
     private String accessPolicy = "declared-consumers";
+    private String ownerSchema = "brix://schemas/sample-orders/cancel-order/1.0.0";
     private boolean providerPresent = true;
     private final List<List<Object>> statusReads = new ArrayList<>();
     private final CommandStatuses statuses = (senderId, commandType, tenantId, commandId, sent) -> {
@@ -72,7 +79,7 @@ class PluginCommandCapabilityTest {
             return Optional.of(new PluginRuntimeManager.CommandProvider("sample-orders",
                 new PluginRuntimeDescriptor.ProvidedCommand(commandType, "cancel-order.v1", "1.0.0",
                     "command-transient-retry", "command-standard", "partition-serial", "command-envelope", accessPolicy,
-                    "command-key"),
+                    "command-key", ownerSchema),
                 null, Cancel.class));
         }
 
@@ -161,6 +168,59 @@ class PluginCommandCapabilityTest {
             () -> capability(providers).client(CommandType.of(CANCEL.commandType(), "2.0.0", Cancel.class)));
 
         assertEquals(CommandSubmitException.Code.INVALID_COMMAND, refused.errorCode());
+    }
+
+    @Test
+    void aRequestTypeWithAnotherSchemaThanTheOwnerOnThisHostDeclaresHasNoClient() {
+        // Standard-link plan queue item 20, D169: the owner's api artifact is the only one on a host (root LAYER-010),
+        // so a sender's generated request type carries exactly the schema the owner declares.
+        ownerSchema = "brix://schemas/sample-orders/cancel-order/1.1.0";
+
+        CommandSubmitException refused = assertThrows(CommandSubmitException.class,
+            () -> capability(providers).client(CANCEL));
+
+        assertEquals(CommandSubmitException.Code.INVALID_COMMAND, refused.errorCode());
+        assertEquals("request-schema", refused.safeParameters().get("reason"));
+        assertEquals(Cancel.class.getName(), refused.safeParameters().get("requestType"));
+        assertEquals("brix://schemas/sample-orders/cancel-order/1.0.0", refused.safeParameters().get("requestSchema"));
+        assertEquals("brix://schemas/sample-orders/cancel-order/1.1.0", refused.safeParameters().get("expected"));
+    }
+
+    @Test
+    void aRequestTypeWithoutASchemaHasNoClient() {
+        CommandSubmitException refused = assertThrows(CommandSubmitException.class,
+            () -> capability(providers).client(CommandType.of(CANCEL.commandType(), "1.0.0", Unmarked.class)));
+
+        assertEquals(CommandSubmitException.Code.INVALID_COMMAND, refused.errorCode());
+        assertEquals("none", refused.safeParameters().get("requestSchema"));
+    }
+
+    @Test
+    void withoutTheOwnerOnThisHostTheRequestTypeCarriesASchemaOfTheTypesVersion() {
+        providerPresent = false;
+
+        capability(providers).client(CANCEL);
+        CommandSubmitException otherVersion = assertThrows(CommandSubmitException.class,
+            () -> capability(providers).client(CommandType.of(CANCEL.commandType(), "1.1.0", Cancel.class)));
+        CommandSubmitException none = assertThrows(CommandSubmitException.class,
+            () -> capability(providers).client(CommandType.of(CANCEL.commandType(), "1.0.0", Unmarked.class)));
+
+        assertEquals("request-schema", otherVersion.safeParameters().get("reason"));
+        assertEquals("a schema of version 1.1.0", otherVersion.safeParameters().get("expected"));
+        assertEquals("request-schema", none.safeParameters().get("reason"));
+    }
+
+    @Test
+    void anOwnerDeclaringNoSchemaOrUnknownProvidersCheckTheTypesVersion() {
+        // A descriptor built in code may name no request schema; a plugin context in a unit test knows no providers.
+        ownerSchema = "";
+
+        capability(providers).client(CANCEL);
+        assertThrows(CommandSubmitException.class,
+            () -> capability(providers).client(CommandType.of(CANCEL.commandType(), "1.1.0", Cancel.class)));
+        capability(null).client(CANCEL);
+        assertThrows(CommandSubmitException.class,
+            () -> capability(null).client(CommandType.of(CANCEL.commandType(), "1.0.0", Unmarked.class)));
     }
 
     @Test

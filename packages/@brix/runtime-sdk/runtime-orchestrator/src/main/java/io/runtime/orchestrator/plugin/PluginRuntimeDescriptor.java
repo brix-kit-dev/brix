@@ -1058,10 +1058,12 @@ public final class PluginRuntimeDescriptor {
      * @param scopePolicyRef scope policy reference
      * @param accessPolicyRef access policy reference: who may send the command
      * @param idempotencyPolicyRef idempotency policy reference
+     * @param requestSchemaRef the request schema the manifest declares, {@code brix://schemas/...}; a sender's
+     *     generated request type carries exactly this schema when the owner runs on its host (root A-22, D169)
      */
     public record ProvidedCommand(String commandType, String handlerId, String version, String retryPolicyRef,
             String timeoutPolicyRef, String concurrencyPolicyRef, String scopePolicyRef, String accessPolicyRef,
-            String idempotencyPolicyRef) {
+            String idempotencyPolicyRef, String requestSchemaRef) {
 
         /**
          * Creates the declaration, blank when not declared.
@@ -1076,6 +1078,17 @@ public final class PluginRuntimeDescriptor {
             scopePolicyRef = scopePolicyRef == null ? "" : scopePolicyRef.trim();
             accessPolicyRef = accessPolicyRef == null ? "" : accessPolicyRef.trim();
             idempotencyPolicyRef = idempotencyPolicyRef == null ? "" : idempotencyPolicyRef.trim();
+            requestSchemaRef = requestSchemaRef == null ? "" : requestSchemaRef.trim();
+        }
+
+        /**
+         * Creates a declaration with every policy and no request schema, as a descriptor built in code may have.
+         */
+        public ProvidedCommand(String commandType, String handlerId, String version, String retryPolicyRef,
+                String timeoutPolicyRef, String concurrencyPolicyRef, String scopePolicyRef, String accessPolicyRef,
+                String idempotencyPolicyRef) {
+            this(commandType, handlerId, version, retryPolicyRef, timeoutPolicyRef, concurrencyPolicyRef,
+                scopePolicyRef, accessPolicyRef, idempotencyPolicyRef, "");
         }
 
         /**

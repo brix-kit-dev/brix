@@ -226,7 +226,7 @@ public final class ClasspathPluginRuntimeDescriptorResolver
                         provided.getHandlerId(), schemaVersion(provided.getRequest()), provided.getRetryPolicyRef(),
                         provided.getTimeoutPolicyRef(), provided.getConcurrencyPolicyRef(),
                         provided.getScopePolicyRef(), provided.getAccessPolicyRef(),
-                        provided.getIdempotencyPolicyRef()));
+                        provided.getIdempotencyPolicyRef(), schemaRef(provided.getRequest())));
                 }
                 for (PluginManifest.ContractRef consumed : manifest.getCommands().getConsumes()) {
                     builder.consumedCommand(new PluginRuntimeDescriptor.ConsumedCommand(consumed.getCommandType(),
