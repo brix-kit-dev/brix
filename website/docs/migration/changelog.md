@@ -524,6 +524,13 @@ All notable changes to Brix Framework are documented here.
     the module and fail on a module with none (root S-1, BRX-RS-MANIFEST-009). platform-auth's three classes that use
     these libraries are listed in `META-INF/brix/guard/jwt-library-users.txt` and `spring-crypto-users.txt` of its test
     resources under exemption EX-2026-010; a list lets a class through its own rule only, and the lists only shrink.
+  - The plugin profile's messaging rules (`KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`,
+    `JmsTemplate`, broker SDKs, the outbox implementation), the rule against the runtime's implementation and the rule
+    against another data owner's repository likewise check every class of the module now, not only packages named
+    `core` (the repository rule also `service` and `app`). `NoSpringMvcControllerRule` replaces
+    `NoRestControllerInCoreRule`: a `@RestController` or `@Controller` is refused anywhere in plugin code (root
+    BRX-RS-MANIFEST-016, MANIFEST-021). Only the rules about a plugin's own layers still look at packages by name, and
+    a test of the guard names them: any other rule that checks nothing in a module without those packages fails it.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:

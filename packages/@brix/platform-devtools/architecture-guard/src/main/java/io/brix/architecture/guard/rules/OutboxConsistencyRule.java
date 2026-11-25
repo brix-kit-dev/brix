@@ -48,6 +48,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *   <tr><td>Non-critical Events</td><td>Welcome email, Marketing push, Log reporting</td><td>Slightly degraded experience, can resend</td><td>Best-effort</td></tr>
  * </table>
  * 
+ * <p>The plugin rules check every class the module's test imports, whatever its package, and fail when the test imports
+ * none (root BRX-RS-MANIFEST-009, A-14; standard-link plan queue item 21, 21b, D173). They used to look only at packages
+ * named {@code core}.
+ *
  * <p>Source: Netflix / Uber Outbox Pattern / CAP Theorem Eventual Consistency
  * 
  * @since 1.0.0
@@ -79,11 +83,9 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noDirectKafkaTemplateUsage() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .haveFullyQualifiedName("org.springframework.kafka.core.KafkaTemplate")
-            .because("Red Line 13: Direct KafkaTemplate calls prohibited, must use EventBusCapability.publish()")
-            .allowEmptyShould(true);
+            .because("Red Line 13: Direct KafkaTemplate calls prohibited, must use EventBusCapability.publish()");
     }
 
     /**
@@ -93,11 +95,9 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noDirectRabbitTemplateUsage() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .haveFullyQualifiedName("org.springframework.amqp.rabbit.core.RabbitTemplate")
-            .because("Red Line 13: Direct RabbitTemplate calls prohibited, must use EventBusCapability.publish()")
-            .allowEmptyShould(true);
+            .because("Red Line 13: Direct RabbitTemplate calls prohibited, must use EventBusCapability.publish()");
     }
 
     /**
@@ -107,11 +107,9 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noDirectKafkaProducerUsage() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .haveFullyQualifiedName("org.apache.kafka.clients.producer.KafkaProducer")
-            .because("Red Line 13: Direct new KafkaProducer() prohibited, must use EventBusCapability.publish()")
-            .allowEmptyShould(true);
+            .because("Red Line 13: Direct new KafkaProducer() prohibited, must use EventBusCapability.publish()");
     }
 
     /**
@@ -121,11 +119,9 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noDirectRabbitConnectionUsage() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .haveFullyQualifiedName("com.rabbitmq.client.ConnectionFactory")
-            .because("Red Line 13: Direct RabbitMQ connection creation prohibited, must use EventBusCapability")
-            .allowEmptyShould(true);
+            .because("Red Line 13: Direct RabbitMQ connection creation prohibited, must use EventBusCapability");
     }
 
     /**
@@ -135,11 +131,9 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noDirectStreamBridgeUsage() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .haveFullyQualifiedName("org.springframework.cloud.stream.function.StreamBridge")
-            .because("Red Line 13: Direct StreamBridge usage prohibited, must use EventBusCapability.publish()")
-            .allowEmptyShould(true);
+            .because("Red Line 13: Direct StreamBridge usage prohibited, must use EventBusCapability.publish()");
     }
 
     /**
@@ -149,11 +143,9 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noDirectJmsTemplateUsage() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .haveFullyQualifiedName("org.springframework.jms.core.JmsTemplate")
-            .because("Red Line 13: Direct JmsTemplate usage prohibited, must use EventBusCapability.publish()")
-            .allowEmptyShould(true);
+            .because("Red Line 13: Direct JmsTemplate usage prohibited, must use EventBusCapability.publish()");
     }
 
     /**
@@ -165,14 +157,12 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noDirectOutboxImplementationDependency() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .resideInAnyPackage(
                 "io.infra.adapter.outbox..",
                 "io.runtime.orchestrator.outbox..",
                 "io.runtime.orchestrator.event..")
-            .because("A-10/M1: plugins must not depend on Outbox, Relay, dispatcher, or adapter implementation")
-            .allowEmptyShould(true);
+            .because("A-10/M1: plugins must not depend on Outbox, Relay, dispatcher, or adapter implementation");
     }
 
     /**
@@ -180,7 +170,6 @@ public class OutboxConsistencyRule {
      */
     public static ArchRule noBrokerSdkDependencies() {
         return noClasses()
-            .that().resideInAPackage("..core..")
             .should().dependOnClassesThat()
             .resideInAnyPackage(
                 "org.apache.kafka..",
@@ -190,8 +179,7 @@ public class OutboxConsistencyRule {
                 "org.springframework.cloud.stream..",
                 "jakarta.jms..",
                 "javax.jms..")
-            .because("A-10/M1: plugins must publish through EventBusCapability and never import broker SDKs")
-            .allowEmptyShould(true);
+            .because("A-10/M1: plugins must publish through EventBusCapability and never import broker SDKs");
     }
 
     /**

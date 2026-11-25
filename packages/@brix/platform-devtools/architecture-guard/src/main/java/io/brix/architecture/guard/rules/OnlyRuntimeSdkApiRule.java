@@ -7,10 +7,12 @@ import com.tngtech.archunit.lang.ArchRule;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * Core Module Only Depends on Runtime SDK API Rule.
+ * Plugin Modules Only Depend on Runtime SDK API Rule.
  *
- * <p>Enforces that plugin core modules can ONLY depend on {@code runtime-sdk-api},
- * not on the Runtime implementation, {@code runtime-orchestrator} (L2B).</p>
+ * <p>Enforces that plugin modules can ONLY depend on {@code runtime-sdk-api},
+ * not on the Runtime implementation, {@code runtime-orchestrator} (L2B; root A-21). The rule checks every class the
+ * module's test imports, whatever its package, and fails when the test imports none (root BRX-RS-MANIFEST-009, A-14;
+ * standard-link plan queue item 21, 21b, D173).</p>
  *
  * <h2>Architecture Principle</h2>
  * <blockquote>
@@ -59,16 +61,14 @@ public final class OnlyRuntimeSdkApiRule {
      */
     public static ArchRule noRuntimeOrchestrator() {
         return noClasses()
-                .that().resideInAPackage("..core..")
                 .should().dependOnClassesThat()
                 .resideInAPackage(RUNTIME_ORCHESTRATOR)
-                .because("Plugin core modules (Layer 1) must not depend on " +
-                        "runtime-orchestrator (Layer 2.5). Only depend on Layer 2 (runtime-sdk-api)")
-                .allowEmptyShould(true);
+                .because("Plugin modules (Layer 1) must not depend on " +
+                        "runtime-orchestrator (Layer 2.5). Only depend on Layer 2 (runtime-sdk-api)");
     }
 
     /**
-     * Combined rule: core modules only depend on runtime-sdk-api.
+     * Combined rule: plugin modules only depend on runtime-sdk-api.
      *
      * @return ArchUnit rule instance
      */

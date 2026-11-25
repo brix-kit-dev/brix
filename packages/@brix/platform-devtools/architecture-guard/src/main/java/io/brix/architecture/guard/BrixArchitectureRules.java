@@ -44,7 +44,7 @@ import io.brix.architecture.guard.executor.JavaStaticBoundaryExecutor;
  * <h2>Rule Profiles</h2>
  * <table>
  *   <tr><th>Profile</th><th>Target Layer</th><th>Rules</th></tr>
- *   <tr><td>{@link #pluginProfile()}</td><td>Plugin (Business Modules)</td><td>42 rules (13 red lines)</td></tr>
+ *   <tr><td>{@link #pluginProfile()}</td><td>Plugin (Business Modules)</td><td>13 red lines, every class of the module</td></tr>
  *   <tr><td>{@link #coreProfileV2()}</td><td>Plugin Core</td><td>Plugin baseline plus R1.1 core adjudication</td></tr>
  *   <tr><td>{@link #hostProfile()}</td><td>Host Layer</td><td>Ultra-thin shell rules</td></tr>
  *   <tr><td>{@link #adapterProfile()}</td><td>Infra Adapters</td><td>Adapter isolation rules</td></tr>
@@ -79,10 +79,11 @@ public final class BrixArchitectureRules {
     }
 
     /**
-     * Plugin layer rule profile (all 8 constraints).
+     * Plugin layer rule profile.
      *
-     * <p>For all plugin modules (e.g., booking, identity, products).
-     * Enforces all architecture constraints to prevent cross-layer access.</p>
+     * <p>For all plugin modules (e.g., booking, identity, products), api, core and server alike.
+     * Enforces all architecture constraints to prevent cross-layer access. The rules check every class the module's
+     * test imports, so the test imports the module's own packages.</p>
      *
      * @return ArchTests rule set
      */

@@ -17,18 +17,26 @@ package io.brix.architecture.guard.rules;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.lang.ArchRule;
+
+import io.brix.architecture.guard.testsupport.CompiledModule;
+import io.brix.samples.fixturealpha.core.AlphaPrice;
 
 class OutboxConsistencyRuleTest {
 
@@ -54,6 +62,57 @@ class OutboxConsistencyRuleTest {
 
         assertThrows(AssertionError.class,
             () -> OutboxConsistencyRule.noBrokerSdkDependencies().check(classes));
+    }
+
+    /** Each plugin rule and real class names of what it refuses. */
+    private static Map<ArchRule, List<String>> pluginRules() {
+        return Map.of(
+            OutboxConsistencyRule.noDirectKafkaTemplateUsage(), List.of("org.springframework.kafka.core.KafkaTemplate"),
+            OutboxConsistencyRule.noDirectRabbitTemplateUsage(),
+            List.of("org.springframework.amqp.rabbit.core.RabbitTemplate"),
+            OutboxConsistencyRule.noDirectKafkaProducerUsage(),
+            List.of("org.apache.kafka.clients.producer.KafkaProducer"),
+            OutboxConsistencyRule.noDirectRabbitConnectionUsage(), List.of("com.rabbitmq.client.ConnectionFactory"),
+            OutboxConsistencyRule.noDirectStreamBridgeUsage(),
+            List.of("org.springframework.cloud.stream.function.StreamBridge"),
+            OutboxConsistencyRule.noDirectJmsTemplateUsage(), List.of("org.springframework.jms.core.JmsTemplate"),
+            OutboxConsistencyRule.noDirectOutboxImplementationDependency(),
+            List.of("io.infra.adapter.outbox.relay.OutboxRelayGroup", "io.runtime.orchestrator.outbox.OutboxDispatcher",
+                "io.runtime.orchestrator.event.EventDelivery"),
+            OutboxConsistencyRule.noBrokerSdkDependencies(),
+            List.of("org.apache.kafka.clients.consumer.KafkaConsumer",
+                "org.springframework.kafka.listener.MessageListener", "com.rabbitmq.client.Channel",
+                "org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer",
+                "org.springframework.cloud.stream.messaging.Source", "jakarta.jms.Session", "javax.jms.Session"));
+    }
+
+    @Test
+    @DisplayName("Each messaging rule refuses its types in every package of a plugin module")
+    void everyPackageOfAModuleIsChecked(@TempDir Path directory) throws IOException {
+        for (Map.Entry<ArchRule, List<String>> refused : pluginRules().entrySet()) {
+            for (String library : refused.getValue()) {
+                for (String violating : List.of("io.brix.platform.fixtureowner.service.Publishes",
+                        "io.brix.samples.fixtureplugin.server.Publishes",
+                        "io.brix.samples.fixtureplugin.core.Publishes")) {
+                    var module = CompiledModule.using(Files.createTempDirectory(directory, "module"), violating, library);
+
+                    AssertionError error = assertThrows(AssertionError.class, () -> refused.getKey().check(module),
+                        library + " in " + violating);
+                    assertTrue(error.getMessage().contains(violating), error.getMessage());
+                }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("A class that uses only the JDK passes each messaging rule, and a module without classes fails it")
+    void jdkOnlyPassesAndNoClassFails(@TempDir Path empty) {
+        for (ArchRule rule : pluginRules().keySet()) {
+            assertDoesNotThrow(() -> rule.check(new ClassFileImporter().importClasses(AlphaPrice.class)),
+                rule.getDescription());
+            assertThrows(AssertionError.class, () -> rule.check(new ClassFileImporter().importPath(empty)),
+                rule.getDescription());
+        }
     }
 
     @Test

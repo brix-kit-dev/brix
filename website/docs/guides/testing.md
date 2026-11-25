@@ -407,7 +407,10 @@ class ArchitectureTest {
 
 ### Standard Architecture Rules
 
-`BrixArchitectureRules.pluginProfile()` refuses:
+`BrixArchitectureRules.pluginProfile()` refuses what the table lists. Every row but "Layers", "Other plugins" and the
+platform tenant half of "Data ownership" checks every class your test imports, whatever its package, and fails when the
+test imports none: a class is plugin code by the module it is in, not by the name of its package. So the test imports
+the module's own packages.
 
 | Area | Refused | In |
 |---|---|---|
@@ -416,14 +419,16 @@ class ArchitectureTest {
 | Spring container | `ApplicationContext`, `BeanFactory`, `@Value`, `ApplicationEventPublisher`, `@EventListener`, subclasses of `ApplicationEvent` | All classes |
 | Configuration and output | `System.out`, `System.err`, `printStackTrace()`, `System.getenv()`, `System.getProperty()` | All classes |
 | Exceptions | Throwing a generic `Throwable`, `Exception` or `RuntimeException` | All classes |
-| Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs, the outbox and relay implementation | `..core..` |
-| Runtime | The runtime's implementation, `io.runtime.orchestrator` | `..core..` |
+| Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs, the outbox and relay implementation | All classes |
+| Runtime | The runtime's implementation, `io.runtime.orchestrator` | All classes |
+| Spring MVC | `@RestController` and `@Controller`: the runtime's dispatcher publishes every plugin endpoint (root BRX-RS-MANIFEST-016, MANIFEST-021) | All classes |
 | Security | JWT (`io.jsonwebtoken`), Auth0, Spring Security crypto, the Spring OAuth2 client | All classes, except those a module lists (see below) |
-| Layers | `..core..` depending on `..server..` or `..adapter..`; `@RestController` or `@Controller` in `..core..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
+| Layers | `..core..` depending on `..server..` or `..adapter..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
 | Commands | The string command gateway, deprecated for removal in 4.0.0: `CommandRequest`, and calling or referencing `CommandCapability.submit(CommandRequest)`. Send a command with `client(...)` and the owner's generated `CommandType` (root A-22) | All classes |
 | Contract types | Calling or referencing `CommandType.of`, `QueryType.of` or `QueryType.optional`. Take a query or command type from the owner's generated constants class, which the contract generator marks `@GeneratedContractConstants`; only such a class may call them (root A-22) | Classes without that mark |
 | Other plugins | Another plugin's classes outside its `api` package | Plugin packages |
-| Data ownership | Another data owner's repository; the platform tenant module's entities, repositories, mappers and validation | Plugin packages |
+| Data ownership | Another data owner's repository | All classes |
+| Data ownership | The platform tenant module's entities, repositories, mappers and validation | Plugin packages |
 
 Capabilities live in `io.runtime.sdk.*`, the packages of `runtime-sdk-api`: use them instead. The guard has other
 profiles for other modules: `adapterProfile()`, `sdkProfile()`, `commonsProfile()` and `operationalProfile()`.

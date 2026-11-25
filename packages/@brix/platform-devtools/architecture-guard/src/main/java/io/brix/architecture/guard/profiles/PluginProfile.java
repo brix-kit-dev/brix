@@ -30,8 +30,8 @@ import io.brix.architecture.guard.rules.NoLegacyEventBusRule;
 import io.brix.architecture.guard.rules.NoMiddlewareClientsRule;
 import io.brix.architecture.guard.rules.NoPlatformTenantRelationshipAccessRule;
 import io.brix.architecture.guard.rules.NoRoleNameAuthorizationRule;
-import io.brix.architecture.guard.rules.NoRestControllerInCoreRule;
 import io.brix.architecture.guard.rules.NoSpringContainerApiRule;
+import io.brix.architecture.guard.rules.NoSpringMvcControllerRule;
 import io.brix.architecture.guard.rules.OnlyRuntimeSdkApiRule;
 import io.brix.architecture.guard.rules.DataOwnershipRule;
 import io.brix.architecture.guard.rules.NoCyclicDependencyRule;
@@ -44,6 +44,12 @@ import io.brix.architecture.guard.rules.SecurityBoundaryRule;
  * <p>Enforces all 12 architecture red lines. Every plugin module
  * must pass these constraints to ensure business code only accesses
  * infrastructure through Capability interfaces.</p>
+ *
+ * <p>The rules check every class the module's test imports, whatever its package: a module is plugin code by its
+ * artifact, not by the names of its packages (root BRX-RS-MANIFEST-009, A-14). Only the rules about a plugin's own
+ * layers look at packages by name ({@code ..core..}, {@code ..domain..}, {@code ..entity..}), and the rules about other
+ * plugins look at packages under the plugin roots. {@code PluginProfileTest} names them: any other rule that checks
+ * nothing in a module without those packages fails it.</p>
  *
  * <h2>Red Lines Covered</h2>
  * <ul>
@@ -182,13 +188,13 @@ public class PluginProfile {
     @ArchTest
     static final ArchRule noApplicationEventSubclass = EventsViaCapabilityRule.noApplicationEventSubclass();
 
-    // ==================== Rule 9: No REST controllers in core modules ====================
+    // ==================== Rule 9: No Spring MVC controllers ====================
 
-    /** REST controllers must be in -server modules, not -core */
+    /** The runtime's dispatcher publishes every plugin endpoint: no @RestController, no @Controller */
     @ArchTest
-    static final ArchRule noRestControllerInCore = NoRestControllerInCoreRule.rule();
+    static final ArchRule noSpringMvcController = NoSpringMvcControllerRule.rule();
 
-    // ==================== Rule 10: Core modules only depend on runtime-sdk-api ====================
+    // ==================== Rule 10: Plugin modules only depend on runtime-sdk-api ====================
 
     /** No dependency on runtime-orchestrator, the Runtime implementation (L2B) */
     @ArchTest

@@ -64,20 +64,17 @@ public final class DataOwnershipRule {
     /**
      * No repository access across owner boundaries.
      *
-     * <p>The previous placeholder rule deliberately matched an impossible
-     * package and therefore could not block violations. Phase 4 makes the
-     * default rule executable: plugin or platform core classes may not import
-     * another owner's Repository type. Same-owner repositories remain allowed
-     * for owner application services.</p>
+     * <p>A plugin or platform class may not use another owner's Repository type. Same-owner repositories remain
+     * allowed. The rule checks every class the module's test imports, whatever its package, and fails when the test
+     * imports none; it used to look only at packages named {@code core}, {@code service} or {@code app} (standard-link
+     * plan queue item 21, 21b, D173).</p>
      *
      * @return ArchUnit rule instance
      */
     public static ArchRule noCrossPluginRepositoryAccess() {
         return classes()
-                .that().resideInAnyPackage("io.brix..core..", "io.brix..service..", "io.brix..app..")
                 .should(notDependOnForeignRepository())
-                .because("A-8/Phase 4: cross-Owner Repository access is forbidden; use typed contracts or events")
-                .allowEmptyShould(true);
+                .because("A-8/Phase 4: cross-Owner Repository access is forbidden; use typed contracts or events");
     }
 
     /**
