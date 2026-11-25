@@ -26,7 +26,14 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.brix.architecture.guard.testsupport.CompiledModule;
 import io.brix.samples.fixturealpha.core.AlphaPrice;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.Socket;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLConnection;
 import java.net.http.HttpClient;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -56,6 +63,26 @@ class PluginProfileLibrariesTest {
         LIBRARIES.put(PluginProfile.noSpringDataRedis, List.of("org.springframework.data.redis.core.StringRedisTemplate"));
         LIBRARIES.put(PluginProfile.noJedis, List.of("redis.clients.jedis.Jedis"));
         LIBRARIES.put(PluginProfile.noLettuce, List.of("io.lettuce.core.RedisClient"));
+        LIBRARIES.put(PluginProfile.noRedisson, List.of("org.redisson.api.RedissonClient"));
+        LIBRARIES.put(PluginProfile.noObjectStorageOrCloudSdk, List.of("io.minio.MinioClient",
+            "software.amazon.awssdk.services.s3.S3Client", "com.amazonaws.services.s3.AmazonS3",
+            "com.azure.storage.blob.BlobClient", "com.microsoft.azure.storage.CloudStorageAccount",
+            "com.google.cloud.storage.Storage", "com.aliyun.oss.OSSClient", "com.aliyuncs.IAcsClient",
+            "com.qcloud.cos.COSClient", "com.tencentcloudapi.common.AbstractClient", "com.obs.services.ObsClient",
+            "com.huaweicloud.sdk.core.HcClient", "com.qiniu.storage.UploadManager"));
+        LIBRARIES.put(PluginProfile.noJdbcDriverOrPool, List.of("org.postgresql.ds.PGSimpleDataSource",
+            "com.mysql.cj.jdbc.MysqlDataSource", "org.mariadb.jdbc.MariaDbDataSource", "oracle.jdbc.OracleDriver",
+            "com.microsoft.sqlserver.jdbc.SQLServerDataSource", "org.h2.jdbcx.JdbcDataSource",
+            "dm.jdbc.driver.DmDriver", "com.kingbase8.ds.KBSimpleDataSource", "com.oceanbase.jdbc.Driver",
+            "org.opengauss.Driver", "com.zaxxer.hikari.HikariDataSource", "com.alibaba.druid.pool.DruidDataSource",
+            "org.apache.commons.dbcp2.BasicDataSource", "org.apache.tomcat.jdbc.pool.DataSource",
+            "com.mchange.v2.c3p0.ComboPooledDataSource"));
+        LIBRARIES.put(PluginProfile.noOtherHttpClients, List.of("org.apache.http.client.HttpClient",
+            "org.apache.hc.client5.http.classic.HttpClient", "feign.Feign", "retrofit2.Retrofit",
+            "io.netty.bootstrap.Bootstrap", "reactor.netty.http.client.HttpClient",
+            "org.asynchttpclient.AsyncHttpClient", "org.eclipse.jetty.client.HttpClient", "cn.hutool.http.HttpUtil",
+            "org.springframework.http.client.ClientHttpRequestFactory",
+            "org.springframework.web.service.invoker.HttpServiceProxyFactory"));
         LIBRARIES.put(PluginProfile.noSpringAmqp, List.of("org.springframework.amqp.core.AmqpTemplate",
             "org.springframework.amqp.rabbit.annotation.RabbitListener"));
         LIBRARIES.put(PluginProfile.noRestTemplate, List.of("org.springframework.web.client.RestTemplate",
@@ -113,12 +140,92 @@ class PluginProfileLibrariesTest {
     }
 
     @Test
+    @DisplayName("The JDK's URL connections, opened URLs, sockets and channels are refused, building a URI or URL is not")
+    void jdkConnectionsAreRefused() {
+        for (Class<?> opens : List.of(ReadsUrlConnection.class, OpensUrlConnection.class, OpensUrlStream.class,
+                GetsUrlContent.class, OpensSocket.class, OpensSocketChannel.class, OpensDatagramChannel.class)) {
+            JavaClasses module = new ClassFileImporter().importClasses(opens);
+
+            AssertionError error = assertThrows(AssertionError.class,
+                () -> PluginProfile.noOtherHttpClients.check(module), opens.getName());
+            assertTrue(error.getMessage().contains(opens.getName()), error.getMessage());
+        }
+        JavaClasses addresses = new ClassFileImporter().importClasses(BuildsAddress.class);
+        assertDoesNotThrow(() -> PluginProfile.noOtherHttpClients.check(addresses));
+    }
+
+    @Test
     @DisplayName("A module that uses only the JDK passes every library rule")
     void jdkOnlyPasses() {
         JavaClasses module = new ClassFileImporter().importClasses(AlphaPrice.class);
 
-        assertEquals(20, LIBRARIES.size());
+        assertEquals(24, LIBRARIES.size());
         LIBRARIES.keySet().forEach(rule -> assertDoesNotThrow(() -> rule.check(module), rule.getDescription()));
+    }
+
+    /** A plugin class that reads from a URL connection it is handed: forbidden. */
+    private static final class ReadsUrlConnection {
+
+        InputStream read(URLConnection connection) throws IOException {
+            return connection.getInputStream();
+        }
+    }
+
+    /** A plugin class that opens a URL connection without naming its type: forbidden. */
+    private static final class OpensUrlConnection {
+
+        Object open(URL url) throws IOException {
+            return url.openConnection();
+        }
+    }
+
+    /** A plugin class that opens a URL's stream: forbidden. */
+    private static final class OpensUrlStream {
+
+        InputStream open(URL url) throws IOException {
+            return url.openStream();
+        }
+    }
+
+    /** A plugin class that fetches what a URL names: forbidden. */
+    private static final class GetsUrlContent {
+
+        Object content(URL url) throws IOException {
+            return url.getContent();
+        }
+    }
+
+    /** A plugin class that opens a socket: forbidden (root A-24). */
+    private static final class OpensSocket {
+
+        Object open(String host) throws IOException {
+            return new Socket(host, 80);
+        }
+    }
+
+    /** A plugin class that opens a socket channel: forbidden (root A-24). */
+    private static final class OpensSocketChannel {
+
+        Object open() throws IOException {
+            return SocketChannel.open();
+        }
+    }
+
+    /** A plugin class that opens a datagram channel: forbidden (root A-24). */
+    private static final class OpensDatagramChannel {
+
+        Object open() throws IOException {
+            return DatagramChannel.open();
+        }
+    }
+
+    /** A plugin class that only builds an address: allowed. */
+    private static final class BuildsAddress {
+
+        URL address(String path) throws IOException {
+            URL url = URI.create("https://example.test").resolve(path).toURL();
+            return url.getHost().isEmpty() ? null : url;
+        }
     }
 
     /** A plugin class that opens the JDK's HTTP client: forbidden. */

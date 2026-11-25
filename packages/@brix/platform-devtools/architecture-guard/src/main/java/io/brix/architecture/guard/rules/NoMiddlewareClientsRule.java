@@ -55,6 +55,13 @@ public final class NoMiddlewareClientsRule {
                 .because("Direct Lettuce client usage is forbidden. Use StateStoreCapability/CacheCapability");
     }
 
+    public static ArchRule noRedisson() {
+        return noClasses()
+                .should().dependOnClassesThat()
+                .resideInAPackage(ArchitectureLayers.REDISSON)
+                .because("Direct Redisson client usage is forbidden. Use StateStoreCapability/CacheCapability/LockCapability");
+    }
+
     public static ArchRule noSpringAmqp() {
         return noClasses()
                 .should().dependOnClassesThat()

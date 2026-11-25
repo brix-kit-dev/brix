@@ -414,8 +414,9 @@ the module's own packages.
 
 | Area | Refused | In |
 |---|---|---|
-| Middleware clients | Kafka (`org.apache.kafka`, Spring Kafka), Redis (Spring Data Redis, Jedis, Lettuce), Spring AMQP | All classes |
-| HTTP clients | `RestTemplate`, `WebClient`, OpenFeign, OkHttp, `java.net.http` | All classes |
+| Middleware clients | Kafka (`org.apache.kafka`, Spring Kafka), Redis (Spring Data Redis, Jedis, Lettuce, Redisson), Spring AMQP | All classes |
+| HTTP clients | `RestTemplate`, `WebClient`, OpenFeign, OkHttp, `java.net.http`; Apache HttpClient, Feign, Retrofit, Netty, AsyncHttpClient, Jetty's client, Hutool HTTP, Spring's request factories and HTTP interfaces; the JDK's URL connections, opened URLs, sockets and channels | All classes |
+| Infrastructure SDKs | Object stores and cloud vendors' SDKs (MinIO, AWS, Azure, Google Cloud, Alibaba Cloud, Tencent Cloud, Huawei Cloud, Qiniu); JDBC drivers and connection pools (root P-3) | All classes |
 | Spring container | `ApplicationContext`, `BeanFactory`, `@Value`, `ApplicationEventPublisher`, `@EventListener`, subclasses of `ApplicationEvent` | All classes |
 | Configuration and output | `System.out`, `System.err`, `printStackTrace()`, `System.getenv()`, `System.getProperty()` | All classes |
 | Exceptions | Throwing a generic `Throwable`, `Exception` or `RuntimeException` | All classes |

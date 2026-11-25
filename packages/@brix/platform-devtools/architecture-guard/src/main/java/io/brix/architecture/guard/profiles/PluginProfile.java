@@ -26,6 +26,7 @@ import io.brix.architecture.guard.rules.LoggingViaCapabilityRule;
 import io.brix.architecture.guard.rules.NoDirectHttpClientsRule;
 import io.brix.architecture.guard.rules.NoDirectPluginDependencyRule;
 import io.brix.architecture.guard.rules.NoInfraAdapterRule;
+import io.brix.architecture.guard.rules.NoInfrastructureSdkRule;
 import io.brix.architecture.guard.rules.NoLegacyEventBusRule;
 import io.brix.architecture.guard.rules.NoMiddlewareClientsRule;
 import io.brix.architecture.guard.rules.NoPlatformTenantRelationshipAccessRule;
@@ -99,7 +100,18 @@ public class PluginProfile {
     static final ArchRule noLettuce = NoMiddlewareClientsRule.noLettuce();
 
     @ArchTest
+    static final ArchRule noRedisson = NoMiddlewareClientsRule.noRedisson();
+
+    @ArchTest
     static final ArchRule noSpringAmqp = NoMiddlewareClientsRule.noSpringAmqp();
+
+    /** No object store client, no cloud vendor SDK (root P-3) */
+    @ArchTest
+    static final ArchRule noObjectStorageOrCloudSdk = NoInfrastructureSdkRule.noObjectStorageOrCloudSdk();
+
+    /** No JDBC driver, no connection pool (root P-3, A-13) */
+    @ArchTest
+    static final ArchRule noJdbcDriverOrPool = NoInfrastructureSdkRule.noJdbcDriverOrPool();
 
     // ==================== Rule 3: No HTTP clients ====================
 
@@ -117,6 +129,10 @@ public class PluginProfile {
 
     @ArchTest
     static final ArchRule noJdkHttpClient = NoDirectHttpClientsRule.noJdkHttpClient();
+
+    /** No other HTTP client, no JDK connection or socket (root P-3, A-24) */
+    @ArchTest
+    static final ArchRule noOtherHttpClients = NoDirectHttpClientsRule.noOtherHttpClients();
 
     // ==================== Rule 4: Cross-module via Capability ====================
 

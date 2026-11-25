@@ -535,6 +535,10 @@ All notable changes to Brix Framework are documented here.
     it names the package, `okhttp3`. The JWT rule also refuses Nimbus, jose4j and Spring Security's JWT and
     resource-server support, and the broker rule Spring JMS, its listeners included. A test uses every library rule's
     library by its real class names, so a rule that names a package the library does not have fails it.
+  - The plugin profile refuses the infrastructure SDKs it did not name (root P-3, A-1): object stores and cloud vendors'
+    SDKs, JDBC drivers and connection pools, Redisson, and the other HTTP clients, with the JDK's URL connections,
+    opened URLs, sockets and channels (`NoInfrastructureSdkRule`, `NoDirectHttpClientsRule.noOtherHttpClients`). No plugin
+    module of either repository used them.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:

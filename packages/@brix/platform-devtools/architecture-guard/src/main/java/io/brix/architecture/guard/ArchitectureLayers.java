@@ -139,6 +139,9 @@ public final class ArchitectureLayers {
     /** Lettuce */
     public static final String LETTUCE = "io.lettuce.core..";
 
+    /** Redisson */
+    public static final String REDISSON = "org.redisson..";
+
     /** Spring AMQP / RabbitMQ */
     public static final String SPRING_AMQP = "org.springframework.amqp..";
 
