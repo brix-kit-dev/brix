@@ -177,6 +177,7 @@ public class OutboxConsistencyRule {
                 "com.rabbitmq.client..",
                 "org.springframework.amqp.rabbit..",
                 "org.springframework.cloud.stream..",
+                "org.springframework.jms..",
                 "jakarta.jms..",
                 "javax.jms..")
             .because("A-10/M1: plugins must publish through EventBusCapability and never import broker SDKs");

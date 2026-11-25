@@ -419,10 +419,10 @@ the module's own packages.
 | Spring container | `ApplicationContext`, `BeanFactory`, `@Value`, `ApplicationEventPublisher`, `@EventListener`, subclasses of `ApplicationEvent` | All classes |
 | Configuration and output | `System.out`, `System.err`, `printStackTrace()`, `System.getenv()`, `System.getProperty()` | All classes |
 | Exceptions | Throwing a generic `Throwable`, `Exception` or `RuntimeException` | All classes |
-| Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs, the outbox and relay implementation | All classes |
+| Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs and listeners (Kafka, RabbitMQ, JMS), the outbox and relay implementation | All classes |
 | Runtime | The runtime's implementation, `io.runtime.orchestrator` | All classes |
 | Spring MVC | `@RestController` and `@Controller`: the runtime's dispatcher publishes every plugin endpoint (root BRX-RS-MANIFEST-016, MANIFEST-021) | All classes |
-| Security | JWT (`io.jsonwebtoken`), Auth0, Spring Security crypto, the Spring OAuth2 client | All classes, except those a module lists (see below) |
+| Security | JWT and JOSE (JJWT, Nimbus, jose4j, Spring Security's JWT and resource-server support), Auth0, Spring Security crypto, the Spring OAuth2 client | All classes, except those a module lists (see below) |
 | Layers | `..core..` depending on `..server..` or `..adapter..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
 | Commands | The string command gateway, deprecated for removal in 4.0.0: `CommandRequest`, and calling or referencing `CommandCapability.submit(CommandRequest)`. Send a command with `client(...)` and the owner's generated `CommandType` (root A-22) | All classes |
 | Contract types | Calling or referencing `CommandType.of`, `QueryType.of` or `QueryType.optional`. Take a query or command type from the owner's generated constants class, which the contract generator marks `@GeneratedContractConstants`; only such a class may call them (root A-22) | Classes without that mark |

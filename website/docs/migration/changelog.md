@@ -531,6 +531,10 @@ All notable changes to Brix Framework are documented here.
     `NoRestControllerInCoreRule`: a `@RestController` or `@Controller` is refused anywhere in plugin code (root
     BRX-RS-MANIFEST-016, MANIFEST-021). Only the rules about a plugin's own layers still look at packages by name, and
     a test of the guard names them: any other rule that checks nothing in a module without those packages fails it.
+  - The OkHttp rule of the plugin and host profiles named OkHttp's Maven group, `com.squareup.okhttp3`, and never fired;
+    it names the package, `okhttp3`. The JWT rule also refuses Nimbus, jose4j and Spring Security's JWT and
+    resource-server support, and the broker rule Spring JMS, its listeners included. A test uses every library rule's
+    library by its real class names, so a rule that names a package the library does not have fails it.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:

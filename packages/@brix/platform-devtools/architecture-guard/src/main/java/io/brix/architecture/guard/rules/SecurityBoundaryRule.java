@@ -45,9 +45,19 @@ public final class SecurityBoundaryRule {
 
     // ==================== Forbidden Auth Libraries ====================
 
-    /** JWT libraries that should not be used directly by plugins */
-    private static final String JWT_IMPL = "io.jsonwebtoken..";
-    
+    /**
+     * JWT and JOSE libraries that should not be used directly by plugins: JJWT, Nimbus, jose4j and Spring Security's JWT
+     * and resource-server support, which the host brings with its identity provider.
+     */
+    private static final String[] JWT_LIBRARIES = {
+        "io.jsonwebtoken..",
+        "com.nimbusds..",
+        "org.jose4j..",
+        "org.springframework.security.oauth2.jwt..",
+        "org.springframework.security.oauth2.jose..",
+        "org.springframework.security.oauth2.server.resource.."
+    };
+
     /** Auth0 libraries */
     private static final String AUTH0_IMPL = "com.auth0..";
     
@@ -79,7 +89,7 @@ public final class SecurityBoundaryRule {
         return noClasses()
                 .that(KnownViolations.notListedIn(KNOWN_JWT_LIBRARY_USERS))
                 .should().dependOnClassesThat()
-                .resideInAPackage(JWT_IMPL)
+                .resideInAnyPackage(JWT_LIBRARIES)
                 .because("Red Line 12: Plugins must not use JWT libraries directly. " +
                         "Use AuthCapability for token operations. A class that already does is listed in " +
                         KNOWN_JWT_LIBRARY_USERS + " of its module, and the lists only shrink.");

@@ -153,8 +153,8 @@ public final class ArchitectureLayers {
     /** OpenFeign */
     public static final String OPEN_FEIGN = "org.springframework.cloud.openfeign..";
 
-    /** OkHttp */
-    public static final String OKHTTP = "com.squareup.okhttp3..";
+    /** OkHttp's Java package; {@code com.squareup.okhttp3} is its Maven group */
+    public static final String OKHTTP = "okhttp3..";
 
     /** JDK HttpClient (java.net.http package) */
     public static final String JDK_HTTP_CLIENT = "java.net.http..";

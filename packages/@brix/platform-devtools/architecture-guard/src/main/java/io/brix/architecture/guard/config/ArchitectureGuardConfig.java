@@ -110,7 +110,7 @@ public final class ArchitectureGuardConfig {
         forbidden.add("org.springframework.web.client..");
         forbidden.add("org.springframework.web.reactive.function.client..");
         forbidden.add("org.springframework.cloud.openfeign..");
-        forbidden.add("com.squareup.okhttp3..");
+        forbidden.add("okhttp3..");
         forbidden.add("java.net.http..");
         forbidden.add("org.apache.http..");
 
