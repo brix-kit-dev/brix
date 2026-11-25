@@ -1,0 +1,2 @@
+# Classes of this module's test fixtures that SecurityBoundaryRule.noDirectJwtUsage lets through.
+io.brix.platform.fixturesecurity.jwt.ListedTokenValidator

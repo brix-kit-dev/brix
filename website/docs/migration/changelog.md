@@ -518,6 +518,12 @@ All notable changes to Brix Framework are documented here.
     profile of its `moduleKind`.
   - The plugin profile's `@EventListener` rule passes a module without methods, such as an api of constants: it used
     to fail it as "no classes checked". The rules about classes still fail a module without classes.
+  - The plugin profile's security rules (JWT libraries, Auth0, Spring Security crypto, the Spring OAuth2 client) looked
+    only at packages named `core` and passed when there were none: in a plugin of one artifact, such as
+    platform-identity, and in most enterprise plugin cores they checked next to nothing. They now check every class of
+    the module and fail on a module with none (root S-1, BRX-RS-MANIFEST-009). platform-auth's three classes that use
+    these libraries are listed in `META-INF/brix/guard/jwt-library-users.txt` and `spring-crypto-users.txt` of its test
+    resources under exemption EX-2026-010; a list lets a class through its own rule only, and the lists only shrink.
 - **Event and command handlers no longer commit after their deadline** (root BRX-RS-DATA-011, DATA-028). The
   deadline applied only to a handler that returned an unfinished stage. A handler that did its work before it
   returned, as handlers do, ran past the deadline and still committed. Now:

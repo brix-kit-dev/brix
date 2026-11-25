@@ -15,10 +15,13 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import com.auth0.jwt.JWT;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.brix.platform.fixturesecurity.service.AuthenticatesItself;
 import io.brix.samples.fixtureauth.core.AuthorizesOnPermission;
 import io.brix.samples.fixtureauth.core.AuthorizesOnRoleName;
 import io.brix.samples.fixturecommands.api.CancelBooking;
@@ -28,8 +31,11 @@ import io.brix.samples.fixturecommands.api.HandWrittenCommands;
 import io.brix.samples.fixturecommands.core.ReadsContractTypes;
 import io.brix.samples.fixturecommands.core.SubmitsStringCommand;
 import io.brix.samples.fixturecommands.core.SubmitsTypedCommand;
+import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 
 class PluginProfileTest {
 
@@ -95,6 +101,23 @@ class PluginProfileTest {
             FixtureCommands.class, FixtureQueries.class, CancelBooking.class);
 
         assertDoesNotThrow(() -> PluginProfile.noHandMadeQueryOrCommandTypes.check(classes));
+    }
+
+    @Test
+    @DisplayName("A plugin of one artifact that authenticates itself fails the four security rules, whatever its package")
+    void rejectsAuthenticationOutsideCorePackages() {
+        var classes = new ClassFileImporter().importClasses(AuthenticatesItself.class);
+
+        Map<ArchRule, Class<?>> rules = Map.of(
+            PluginProfile.noDirectJwtUsage, Jwts.class,
+            PluginProfile.noDirectAuth0Usage, JWT.class,
+            PluginProfile.noDirectCryptoUsage, BCryptPasswordEncoder.class,
+            PluginProfile.noDirectOAuth2ClientUsage, OAuth2AuthorizedClient.class);
+        rules.forEach((rule, library) -> {
+            AssertionError error = assertThrows(AssertionError.class, () -> rule.check(classes), rule.getDescription());
+            assertTrue(error.getMessage().contains(AuthenticatesItself.class.getName()), error.getMessage());
+            assertTrue(error.getMessage().contains(library.getName()), error.getMessage());
+        });
     }
 
     @Test

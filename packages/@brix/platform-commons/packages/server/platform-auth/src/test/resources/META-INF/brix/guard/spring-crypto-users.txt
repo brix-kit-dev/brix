@@ -1,0 +1,5 @@
+# platform-auth's classes that use Spring Security crypto: exemption EX-2026-010 (standard-link queue item 21, D175).
+# They are PasswordCapability's implementation and its auto-configuration, until it moves to an L2C adapter.
+# SecurityBoundaryRule.noDirectCryptoUsage lets them through and nothing else; the list only shrinks.
+io.brix.platform.auth.password.BCryptPasswordCapability
+io.brix.platform.auth.password.PasswordCapabilityAutoConfiguration

@@ -1,0 +1,2 @@
+# Classes of this module's test fixtures that SecurityBoundaryRule.noDirectCryptoUsage lets through.
+io.brix.platform.fixturesecurity.password.ListedPasswordHasher

@@ -1,0 +1,4 @@
+# platform-auth's class that uses a JWT library: exemption EX-2026-010 (standard-link queue item 21, D175). It verifies
+# the platform's own tokens for the runtime's entries until token verification moves behind an L2C adapter.
+# SecurityBoundaryRule.noDirectJwtUsage lets it through and nothing else; the list only shrinks.
+io.brix.platform.auth.jwt.JwtValidator

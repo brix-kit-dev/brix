@@ -418,7 +418,7 @@ class ArchitectureTest {
 | Exceptions | Throwing a generic `Throwable`, `Exception` or `RuntimeException` | All classes |
 | Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs, the outbox and relay implementation | `..core..` |
 | Runtime | The runtime's implementation, `io.runtime.orchestrator` | `..core..` |
-| Security | JWT (`io.jsonwebtoken`), Auth0, Spring Security crypto, the Spring OAuth2 client | `..core..` |
+| Security | JWT (`io.jsonwebtoken`), Auth0, Spring Security crypto, the Spring OAuth2 client | All classes, except those a module lists (see below) |
 | Layers | `..core..` depending on `..server..` or `..adapter..`; `@RestController` or `@Controller` in `..core..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
 | Commands | The string command gateway, deprecated for removal in 4.0.0: `CommandRequest`, and calling or referencing `CommandCapability.submit(CommandRequest)`. Send a command with `client(...)` and the owner's generated `CommandType` (root A-22) | All classes |
 | Contract types | Calling or referencing `CommandType.of`, `QueryType.of` or `QueryType.optional`. Take a query or command type from the owner's generated constants class, which the contract generator marks `@GeneratedContractConstants`; only such a class may call them (root A-22) | Classes without that mark |
@@ -432,6 +432,11 @@ A module that already read configuration with `@Value` when it started running t
 per line as `<class name>#<member name>` (a constructor is `<init>`), in `META-INF/brix/guard/spring-value-readers.txt`
 of its test resources, under an approved exemption. The rule lets exactly those members through: another `@Value`
 field, method or parameter fails, in the listed class too, and a class name alone lists nothing. The lists only shrink.
+
+A module whose classes already used a JWT library or Spring Security crypto when the rule reached them lists those
+classes, one per line, in `META-INF/brix/guard/jwt-library-users.txt` or `META-INF/brix/guard/spring-crypto-users.txt`
+of its test resources, under an approved exemption. A listed class and its nested classes pass that rule only: a class
+on the JWT list may not use Spring Security crypto. Any other class of the module fails. The lists only shrink.
 
 Plugin packages are those under the guard's plugin roots: `io.brix.app.<plugin>`, where `create-brix phase7 plugin`
 puts a plugin, `io.brix.enterprise.app.<plugin>` and `io.brix.samples.<plugin>`. A plugin may use another plugin's
