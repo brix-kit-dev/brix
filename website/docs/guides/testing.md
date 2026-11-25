@@ -422,7 +422,7 @@ the module's own packages.
 | Exceptions | Throwing a generic `Throwable`, `Exception` or `RuntimeException` | All classes |
 | Messaging | `KafkaTemplate`, `RabbitTemplate`, `KafkaProducer`, `StreamBridge`, `JmsTemplate`, broker SDKs and listeners (Kafka, RabbitMQ, JMS), the outbox and relay implementation | All classes |
 | Runtime | The runtime's implementation, `io.runtime.orchestrator` | All classes |
-| Spring MVC | `@RestController` and `@Controller`: the runtime's dispatcher publishes every plugin endpoint (root BRX-RS-MANIFEST-016, MANIFEST-021) | All classes |
+| Spring MVC | `@RestController` and `@Controller`: the runtime's dispatcher publishes every plugin endpoint (root BRX-RS-MANIFEST-016, MANIFEST-021) | All classes, except those a module lists (see below) |
 | Security | JWT and JOSE (JJWT, Nimbus, jose4j, Spring Security's JWT and resource-server support), Auth0, Spring Security crypto, the Spring OAuth2 client | All classes, except those a module lists (see below) |
 | Layers | `..core..` depending on `..server..` or `..adapter..`; `..domain..` depending on `..service..`, `..server..`, `..adapter..`, `..repository..`, Spring Web or Spring Data; `LoggerFactory` in `..domain..` or `..entity..` | Those packages |
 | Commands | The string command gateway, deprecated for removal in 4.0.0: `CommandRequest`, and calling or referencing `CommandCapability.submit(CommandRequest)`. Send a command with `client(...)` and the owner's generated `CommandType` (root A-22) | All classes |
@@ -443,6 +443,15 @@ A module whose classes already used a JWT library or Spring Security crypto when
 classes, one per line, in `META-INF/brix/guard/jwt-library-users.txt` or `META-INF/brix/guard/spring-crypto-users.txt`
 of its test resources, under an approved exemption. A listed class and its nested classes pass that rule only: a class
 on the JWT list may not use Spring Security crypto. Any other class of the module fails. The lists only shrink.
+
+A module that already had Spring MVC controllers when the rule reached it lists those classes, one per line, in
+`META-INF/brix/guard/spring-mvc-controllers.txt` of its test resources, under an approved exemption, and removes each
+when its endpoints move to the runtime. Any other controller of the module fails. The list only shrinks.
+
+When a plugin's artifacts share package names, as a server's `controller` package next to a core's `service` package,
+let the test read its own module's classes instead of naming packages: `@AnalyzeClasses(locations =
+ModuleClasses.class)` reads `target/classes` next to the test's `target/test-classes`, so it neither checks another
+artifact's classes twice nor misses a package added later.
 
 Plugin packages are those under the guard's plugin roots: `io.brix.app.<plugin>`, where `create-brix phase7 plugin`
 puts a plugin, `io.brix.enterprise.app.<plugin>` and `io.brix.samples.<plugin>`. A plugin may use another plugin's

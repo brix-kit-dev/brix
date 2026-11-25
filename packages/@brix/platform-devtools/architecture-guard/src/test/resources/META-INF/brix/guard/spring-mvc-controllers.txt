@@ -1,0 +1,2 @@
+# Controllers of this module's test fixtures that NoSpringMvcControllerRule lets through.
+io.brix.samples.fixtureplugin.server.ListedController

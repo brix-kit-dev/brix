@@ -56,6 +56,22 @@ class NoSpringMvcControllerRuleTest {
     }
 
     @Test
+    @DisplayName("A listed controller passes, alone in its module too, and an unlisted one of the module fails")
+    void listedControllerPasses() throws IOException {
+        for (String annotation : List.of("org.springframework.web.bind.annotation.RestController",
+                "org.springframework.stereotype.Controller")) {
+            var module = CompiledModule.annotatedWith(Files.createTempDirectory(directory, "module"),
+                "io.brix.samples.fixtureplugin.server.ListedController", annotation);
+
+            assertDoesNotThrow(() -> NoSpringMvcControllerRule.rule().check(module), annotation);
+        }
+        var other = CompiledModule.annotatedWith(Files.createTempDirectory(directory, "module"),
+            "io.brix.samples.fixtureplugin.server.ListedControllerTwo", "org.springframework.stereotype.Controller");
+        AssertionError error = assertThrows(AssertionError.class, () -> NoSpringMvcControllerRule.rule().check(other));
+        assertTrue(error.getMessage().contains("ListedControllerTwo"), error.getMessage());
+    }
+
+    @Test
     @DisplayName("A class with another annotation of the same packages passes")
     void otherAnnotationsPass() throws IOException {
         for (String annotation : List.of("org.springframework.web.bind.annotation.ResponseStatus",

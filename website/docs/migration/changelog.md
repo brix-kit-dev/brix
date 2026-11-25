@@ -152,6 +152,10 @@ All notable changes to Brix Framework are documented here.
   `GeneratedContractClientsRule.noHandMadeQueryOrCommandTypes`, in the plugin profile, refuses a class without that
   mark that calls or references `CommandType.of`, `QueryType.of` or `QueryType.optional`, whatever its package. Only
   the generated constants of either repository called them.
+- **An architecture test can read its own module's classes.** `ModuleClasses`, for `@AnalyzeClasses(locations = ...)`,
+  gives the module's `target/classes`, whatever the packages, where a plugin's artifacts share package names. A module
+  lists the Spring MVC controllers it already has in `META-INF/brix/guard/spring-mvc-controllers.txt` of its test
+  resources, under an exemption; another controller fails, and the lists only shrink.
 - **A module lists the `@Value` reads it already has, member by member.** `ConfigViaCapabilityRule.noSpringValue`
   lets through the members a module names as `<class>#<member>` in `META-INF/brix/guard/spring-value-readers.txt` of
   its test resources, and nothing else: a new `@Value` field, method or parameter fails, in a listed class too. A
