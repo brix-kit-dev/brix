@@ -31,10 +31,12 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.opentest4j.TestAbortedException;
 
 /**
  * Proves that the module locator gives the main classes of the module the test is in, whatever their packages: none of
- * its test classes, and none of the other artifacts on the class path.
+ * its test classes, and none of the other artifacts on the class path. A module without classes is skipped; one with
+ * sources but no classes, or another layout, fails.
  */
 class ModuleClassesTest {
 
@@ -54,24 +56,62 @@ class ModuleClassesTest {
 
     @Test
     @DisplayName("target/classes is found next to target/test-classes")
-    void findsTheClassesNextToTheTestClasses(@TempDir Path target) throws IOException {
-        Path testClasses = Files.createDirectories(target.resolve("test-classes"));
-        Path classes = Files.createDirectories(target.resolve("classes"));
+    void findsTheClassesNextToTheTestClasses(@TempDir Path module) throws IOException {
+        Path testClasses = Files.createDirectories(module.resolve("target/test-classes"));
+        Path classes = Files.createDirectories(module.resolve("target/classes/io/brix/app/example"));
+        Files.createFile(classes.resolve("Example.class"));
 
-        assertEquals(classes, ModuleClasses.classesNextTo(testClasses));
+        assertEquals(module.resolve("target/classes"), ModuleClasses.classesNextTo(testClasses));
     }
 
     @Test
-    @DisplayName("A module without main classes, or test classes elsewhere, fails with the place it looked at")
-    void anotherLayoutFails(@TempDir Path target) throws IOException {
-        Path withoutMainClasses = Files.createDirectories(target.resolve("a/test-classes"));
-        Path elsewhere = Files.createDirectories(target.resolve("b/test"));
-        Files.createDirectories(target.resolve("b/classes"));
+    @DisplayName("A module without classes and without Java sources is skipped, with its name and the reason")
+    void aModuleWithoutClassesIsSkipped(@TempDir Path root) throws IOException {
+        Path noOutput = root.resolve("app-example-api");
+        Files.createDirectories(noOutput.resolve("target/test-classes"));
+        Path resourcesOnly = root.resolve("app-example-core");
+        Files.createDirectories(resourcesOnly.resolve("target/test-classes"));
+        Files.createDirectories(resourcesOnly.resolve("target/classes/META-INF/brix"));
+        Files.createFile(resourcesOnly.resolve("target/classes/META-INF/brix/schema.json"));
+        Files.createDirectories(resourcesOnly.resolve("src/main/java/io/brix/app/example/core"));
 
-        for (Path place : List.of(withoutMainClasses, elsewhere)) {
-            IllegalStateException failure = assertThrows(IllegalStateException.class,
-                () -> ModuleClasses.classesNextTo(place));
-            assertTrue(failure.getMessage().contains(place.toString()), failure.getMessage());
+        for (Path module : List.of(noOutput, resourcesOnly)) {
+            TestAbortedException skipped = assertThrows(TestAbortedException.class,
+                () -> ModuleClasses.classesNextTo(module.resolve("target/test-classes")));
+            assertTrue(skipped.getMessage().startsWith(module.getFileName() + " has no classes yet"),
+                skipped.getMessage());
         }
+    }
+
+    @Test
+    @DisplayName("A module with Java sources but no classes fails with the places it looked at")
+    void sourcesWithoutClassesFail(@TempDir Path module) throws IOException {
+        Path sources = Files.createDirectories(module.resolve("src/main/java/io/brix/app/example"));
+        Files.createFile(sources.resolve("Example.java"));
+        Path testClasses = Files.createDirectories(module.resolve("target/test-classes"));
+
+        IllegalStateException withoutOutput = assertThrows(IllegalStateException.class,
+            () -> ModuleClasses.classesNextTo(testClasses));
+        Files.createDirectories(module.resolve("target/classes/META-INF"));
+        Files.createFile(module.resolve("target/classes/META-INF/notes.txt"));
+        IllegalStateException resourcesOnly = assertThrows(IllegalStateException.class,
+            () -> ModuleClasses.classesNextTo(testClasses));
+
+        for (IllegalStateException failure : List.of(withoutOutput, resourcesOnly)) {
+            assertTrue(failure.getMessage().contains(module.resolve("src/main/java").toString())
+                && failure.getMessage().contains(module.resolve("target/classes").toString()), failure.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("Test classes elsewhere than target/test-classes fail with the place it looked at")
+    void anotherLayoutFails(@TempDir Path module) throws IOException {
+        Path elsewhere = Files.createDirectories(module.resolve("target/test"));
+        Files.createDirectories(module.resolve("target/classes"));
+        Files.createFile(module.resolve("target/classes/Example.class"));
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+            () -> ModuleClasses.classesNextTo(elsewhere));
+        assertTrue(failure.getMessage().contains(elsewhere.toString()), failure.getMessage());
     }
 }

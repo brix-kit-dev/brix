@@ -154,8 +154,10 @@ All notable changes to Brix Framework are documented here.
   the generated constants of either repository called them.
 - **An architecture test can read its own module's classes.** `ModuleClasses`, for `@AnalyzeClasses(locations = ...)`,
   gives the module's `target/classes`, whatever the packages, where a plugin's artifacts share package names. A module
-  lists the Spring MVC controllers it already has in `META-INF/brix/guard/spring-mvc-controllers.txt` of its test
-  resources, under an exemption; another controller fails, and the lists only shrink.
+  that has no classes yet, such as a new plugin's api or core module, has its rules reported as skipped, with the
+  reason, until it has classes; one with Java sources but no classes fails. A module lists the Spring MVC controllers
+  it already has in `META-INF/brix/guard/spring-mvc-controllers.txt` of its test resources, under an exemption;
+  another controller fails, and the lists only shrink.
 - **A module lists the `@Value` reads it already has, member by member.** `ConfigViaCapabilityRule.noSpringValue`
   lets through the members a module names as `<class>#<member>` in `META-INF/brix/guard/spring-value-readers.txt` of
   its test resources, and nothing else: a new `@Value` field, method or parameter fails, in a listed class too. A

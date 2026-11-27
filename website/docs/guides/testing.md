@@ -451,7 +451,10 @@ when its endpoints move to the runtime. Any other controller of the module fails
 When a plugin's artifacts share package names, as a server's `controller` package next to a core's `service` package,
 let the test read its own module's classes instead of naming packages: `@AnalyzeClasses(locations =
 ModuleClasses.class)` reads `target/classes` next to the test's `target/test-classes`, so it neither checks another
-artifact's classes twice nor misses a package added later.
+artifact's classes twice nor misses a package added later. A module that has no classes yet, such as a plugin's core
+module before its first class, has nothing to check: `ModuleClasses` aborts the test, and its rules are reported as
+skipped, with the reason, until the module has classes. A module with Java sources in `src/main/java` but no classes
+fails.
 
 Plugin packages are those under the guard's plugin roots: `io.brix.app.<plugin>`, where `create-brix phase7 plugin`
 puts a plugin, `io.brix.enterprise.app.<plugin>` and `io.brix.samples.<plugin>`. A plugin may use another plugin's

@@ -17,10 +17,14 @@ package io.brix.architecture.guard;
 
 import com.tngtech.archunit.core.importer.Location;
 import com.tngtech.archunit.junit.LocationProvider;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.stream.Stream;
+import org.opentest4j.TestAbortedException;
 
 /**
  * Selects the classes of the module a test is in, whatever their packages: the module's own artifact, not what else is
@@ -37,6 +41,12 @@ import java.util.Set;
  *     static final ArchTests rules = BrixArchitectureRules.pluginProfile();
  * }
  * }</pre>
+ *
+ * <p>A module that has no classes yet, as the api and core modules of a plugin the scaffold has just generated, has
+ * nothing to check. When {@code target/classes} holds no class file and {@code src/main/java} no Java source, the test
+ * is aborted like a JUnit assumption that does not hold: its rules are reported as skipped, with the reason, and run
+ * once the module has classes. A module with Java sources but no classes, or whose test classes are not in
+ * {@code target/test-classes}, fails with the place it looked at.</p>
  *
  * @author Brix Architecture Team
  * @since 3.3.0
@@ -57,10 +67,31 @@ public final class ModuleClasses implements LocationProvider {
     }
 
     static Path classesNextTo(Path testClasses) {
-        Path classes = testClasses.resolveSibling("classes");
-        if (!testClasses.endsWith("test-classes") || !Files.isDirectory(classes)) {
+        Path target = testClasses.getParent();
+        Path module = target == null ? null : target.getParent();
+        if (!testClasses.endsWith("test-classes") || module == null) {
             throw new IllegalStateException("expected target/test-classes next to target/classes, found " + testClasses);
         }
-        return classes;
+        Path classes = target.resolve("classes");
+        if (holdsFile(classes, ".class")) {
+            return classes;
+        }
+        Path sources = module.resolve("src").resolve("main").resolve("java");
+        if (holdsFile(sources, ".java")) {
+            throw new IllegalStateException("expected the classes of " + sources + " in " + classes + ", found none");
+        }
+        throw new TestAbortedException(module.getFileName() + " has no classes yet, so its architecture rules have"
+            + " nothing to check: they run once the module has classes");
+    }
+
+    private static boolean holdsFile(Path directory, String suffix) {
+        if (!Files.isDirectory(directory)) {
+            return false;
+        }
+        try (Stream<Path> files = Files.walk(directory)) {
+            return files.anyMatch(file -> Files.isRegularFile(file) && file.getFileName().toString().endsWith(suffix));
+        } catch (IOException failure) {
+            throw new UncheckedIOException("cannot read " + directory, failure);
+        }
     }
 }
