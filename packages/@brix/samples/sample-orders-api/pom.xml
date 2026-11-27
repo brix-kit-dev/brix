@@ -39,5 +39,12 @@
             <version>${brix.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- ArchitectureTest runs the guard's plugin profile on this module's classes (plan queue item 22, 22f) -->
+        <dependency>
+            <groupId>io.brix</groupId>
+            <artifactId>architecture-guard</artifactId>
+            <version>${brix.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

@@ -365,7 +365,8 @@ describe('OrderTable', () => {
 ## Architecture Tests
 
 The Architecture Guard (`io.brix:architecture-guard`) ships its rules as ArchUnit rule sets, and the `archunit-junit6`
-engine above runs them with your other tests. Add one test class to each backend module:
+engine above runs them with your other tests. Add one test class to each backend module, the api module too: api, core
+and server all run the plugin profile, by their `moduleKind` (root BRX-RS-MANIFEST-009):
 
 ```java
 // ArchitectureTest.java

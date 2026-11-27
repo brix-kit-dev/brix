@@ -159,6 +159,9 @@ All notable changes to Brix Framework are documented here.
   are reported as skipped. A generated plugin used to run no guard rule at all. A platform operational module from
   `create-brix phase7 operational` has an `ArchitectureTest` that applies `operationalProfile()` to its classes the
   same way.
+- **A plugin's api module runs the plugin profile too**, by its `moduleKind` (root BRX-RS-MANIFEST-009), as its core
+  and server modules do. The samples' sample-orders-api, its `internal` contract package included, and
+  sample-shipping-api now do, reading their own classes with `ModuleClasses`; the platform's api modules already did.
 - **An architecture test can read its own module's classes.** `ModuleClasses`, for `@AnalyzeClasses(locations = ...)`,
   gives the module's `target/classes`, whatever the packages, where a plugin's artifacts share package names. A module
   that has no classes yet, such as a new plugin's api or core module, has its rules reported as skipped, with the
