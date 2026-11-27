@@ -27,6 +27,7 @@
   "scripts": {
     "build": "tsup",
     "test:phase7": "node scripts/phase7-smoke.mjs",
+    "test:phase7:maven": "node scripts/phase7-maven.mjs",
     "dev": "tsup --watch",
     "lint": "eslint src",
     "clean": "rimraf dist"

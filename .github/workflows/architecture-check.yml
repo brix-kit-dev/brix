@@ -362,11 +362,20 @@ jobs:
   scaffold-smoke:
     name: create-brix Scaffold Smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Java for the Maven build of the generated projects below. It comes before `pnpm install`: the Maven cache key
+      # hashes every pom.xml of the workspace, and with node_modules in place that walk took over a minute.
+      - name: Setup Java (17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: maven
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
@@ -404,3 +413,33 @@ jobs:
         run: >-
           grep -m 5 -E '^(AssertionError|Error)' "$RUNNER_TEMP/scaffold-smoke.log"
           | sed -e 's/%/%25/g' -e 's/^/::error title=Scaffold smoke::/' || true
+
+      # ----------------------------------------------------------------------
+      # The generated plugin and operational module are built with Maven
+      # against this commit's brix modules and run their own tests: the guard
+      # in every module and the plugin's contract lock (standard-link plan queue
+      # item 22, 22e, D184). The smoke above only reads the generated files; a
+      # template that does not compile, or one that breaks a guard rule, fails
+      # here. The brix modules are installed into the runner's own repository
+      # and removed before the Maven cache is saved.
+      # ----------------------------------------------------------------------
+      - name: Install the brix modules a generated project uses
+        run: >-
+          mvn -B -ntp -DskipTests install
+          -pl :runtime-sdk-api,:runtime-contract-generator,:runtime-orchestrator,:architecture-guard -am
+
+      - name: Build the generated plugin and operational module
+        run: |
+          set -o pipefail
+          pnpm --filter @brix-sdk/create-brix run test:phase7:maven 2>&1 | tee "$RUNNER_TEMP/scaffold-maven.log"
+
+      - name: Annotate the build failure
+        if: failure()
+        run: >-
+          grep -m 5 -E '^(AssertionError|Error)|^\[ERROR\] (Failed to execute goal|Could not|Non-resolvable|COMPILATION ERROR)'
+          "$RUNNER_TEMP/scaffold-maven.log"
+          | sed -e 's/%/%25/g' -e 's/^/::error title=Scaffold build::/' || true
+
+      - name: Keep brix's own modules out of the Maven cache
+        if: always()
+        run: rm -rf ~/.m2/repository/io/brix

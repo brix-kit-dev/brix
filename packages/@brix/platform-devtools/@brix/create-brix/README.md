@@ -176,7 +176,14 @@ generating anything. Their templates are kept as migration inventory only; see `
 pnpm --filter @brix-sdk/create-brix build        # tsup, into dist/
 pnpm --filter @brix-sdk/create-brix test:phase7  # generates each kind and checks the output; lints the UI module's
                                                  # sources with the configs.ui preset
+pnpm --filter @brix-sdk/create-brix test:phase7:maven
+                                                 # builds a generated plugin and operational module with mvn verify
+                                                 # and checks the guard ran in every module (install the brix modules
+                                                 # they use first; PHASE7_MAVEN_ARGS passes arguments to Maven)
 ```
+
+CI runs both in the "create-brix Scaffold Smoke" job, after installing `runtime-sdk-api`, `runtime-contract-generator`,
+`runtime-orchestrator` and `architecture-guard`, with the modules they need, into the runner's local Maven repository.
 
 ## License
 
