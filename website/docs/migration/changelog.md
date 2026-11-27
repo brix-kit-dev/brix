@@ -156,7 +156,9 @@ All notable changes to Brix Framework are documented here.
   each have an `ArchitectureTest` that applies `BrixArchitectureRules.pluginProfile()` to the module's own classes
   (`ModuleClasses`), with `io.brix:architecture-guard` at test scope in the runtime's version; the parent pom takes
   JUnit from the platform's BOM (6.0.3), so every module resolves the same JUnit. Until a module has classes, its rules
-  are reported as skipped. A generated plugin used to run no guard rule at all.
+  are reported as skipped. A generated plugin used to run no guard rule at all. A platform operational module from
+  `create-brix phase7 operational` has an `ArchitectureTest` that applies `operationalProfile()` to its classes the
+  same way.
 - **An architecture test can read its own module's classes.** `ModuleClasses`, for `@AnalyzeClasses(locations = ...)`,
   gives the module's `target/classes`, whatever the packages, where a plugin's artifacts share package names. A module
   that has no classes yet, such as a new plugin's api or core module, has its rules reported as skipped, with the

@@ -110,15 +110,19 @@ and commit what it writes. Dashes in `<name>` become dots in the Java package, `
 
 ```text
 platform-<name>/
-├── pom.xml
+├── pom.xml                       # Runs the guard at test scope; JUnit from the platform's BOM
 ├── README.md
 ├── migration/phase7-migration-plan.yaml
-└── src/main/
-    ├── java/io/brix/platform/<name>/operational/<Name>OperationalModule.java
-    └── resources/META-INF/
-        ├── brix/platform-operational.yaml
-        └── services/io.runtime.orchestrator.operational.PlatformOperationalModule
+├── src/main/
+│   ├── java/io/brix/platform/<name>/operational/<Name>OperationalModule.java
+│   └── resources/META-INF/
+│       ├── brix/platform-operational.yaml
+│       └── services/io.runtime.orchestrator.operational.PlatformOperationalModule
+└── src/test/java/io/brix/platform/<name>/operational/ArchitectureTest.java
 ```
+
+`ArchitectureTest` applies `BrixArchitectureRules.operationalProfile()`, the Architecture Guard's rules for platform
+operational modules, to the module's own classes: `mvn verify` fails on a class that breaks one, with the rule's reason.
 
 ### UI
 

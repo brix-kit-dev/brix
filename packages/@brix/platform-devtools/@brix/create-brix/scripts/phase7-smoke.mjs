@@ -109,6 +109,21 @@ try {
   const parentPom = await readFile(files.find((file) => file.endsWith('app-phase7-plugin/pom.xml')), 'utf-8');
   assert(/<artifactId>junit-bom<\/artifactId>\s*<version>6\.0\.3<\/version>\s*<type>pom<\/type>\s*<scope>import<\/scope>/
     .test(parentPom), 'the plugin parent takes JUnit from the BOM of the version the platform builds with');
+  // The operational module runs the guard's rules for operational modules on its own classes (standard-link queue item
+  // 22, 22c, D183), with the guard at test scope in the runtime's version and JUnit from the platform's BOM.
+  const operationalTest = files.find((file) => file.endsWith(
+    'platform-phase7-operational/src/test/java/io/brix/platform/phase7/operational/operational/ArchitectureTest.java'));
+  assert(operationalTest, 'the operational module has an ArchitectureTest');
+  const operationalSource = await readFile(operationalTest, 'utf-8');
+  assert(operationalSource.includes('@AnalyzeClasses(locations = ModuleClasses.class)'),
+    "the operational ArchitectureTest reads the module's own classes");
+  assert(operationalSource.includes('BrixArchitectureRules.operationalProfile()'),
+    'the operational ArchitectureTest runs the operational profile');
+  const operationalPom = await readFile(files.find((file) => file.endsWith('platform-phase7-operational/pom.xml')), 'utf-8');
+  assert(/<artifactId>architecture-guard<\/artifactId>\s*<version>3\.2\.0<\/version>\s*<scope>test<\/scope>/.test(operationalPom),
+    'the operational module has the guard of the runtime it compiles against, at test scope');
+  assert(/<artifactId>junit-bom<\/artifactId>\s*<version>6\.0\.3<\/version>\s*<type>pom<\/type>\s*<scope>import<\/scope>/
+    .test(operationalPom), 'the operational module takes JUnit from the BOM of the version the platform builds with');
   // Free text that would break or change a generated file is refused.
   const unsafe = createDefaultGovernedScaffoldConfig('plugin', 'phase7-unsafe', join(root, 'unsafe'));
   unsafe.displayName = 'Orders: "v2"';
