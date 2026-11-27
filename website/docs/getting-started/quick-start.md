@@ -107,9 +107,10 @@ the tutorial sets up a host the way the repository's `sample-e2e` does.
 
 ## Step 4: Run Architecture Tests
 
-The scaffold generates no tests. Add the Architecture Guard test from
-[Architecture Tests](./create-first-plugin.md#part-5-architecture-tests) to each backend module that has code, then
-run:
+The scaffold generates an Architecture Guard test in each backend module, as
+[Architecture Tests](./create-first-plugin.md#part-5-architecture-tests) in the tutorial shows: the guard's rules for
+plugin code, on the module's own classes. Until a module has classes, its rules are reported as skipped. Run them with
+the modules' other tests:
 
 ```bash
 mvn test

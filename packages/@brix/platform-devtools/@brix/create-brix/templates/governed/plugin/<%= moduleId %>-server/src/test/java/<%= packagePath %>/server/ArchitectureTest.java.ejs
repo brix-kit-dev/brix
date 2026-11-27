@@ -1,0 +1,20 @@
+package <%= packageName %>.server;
+
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.junit.ArchTests;
+
+import io.brix.architecture.guard.BrixArchitectureRules;
+import io.brix.architecture.guard.ModuleClasses;
+
+/**
+ * The Architecture Guard's rules for plugin code, on this module's own classes: {@code mvn verify} fails on a class that
+ * breaks one, with the rule's reason. Until the module has classes, its rules are reported as skipped. See the Testing
+ * guide in the Brix documentation.
+ */
+@AnalyzeClasses(locations = ModuleClasses.class)
+class ArchitectureTest {
+
+    @ArchTest
+    static final ArchTests pluginRules = BrixArchitectureRules.pluginProfile();
+}

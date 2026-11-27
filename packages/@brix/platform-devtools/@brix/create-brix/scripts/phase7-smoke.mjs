@@ -90,6 +90,25 @@ try {
   const apiPom = await readFile(files.find((file) => file.endsWith('phase7-plugin-api/pom.xml')), 'utf-8');
   assert(/<artifactId>runtime-contract-generator<\/artifactId>\s*<version>3\.2\.0<\/version>\s*<scope>test<\/scope>/.test(apiPom),
     'the api module runs the lock with the contract generator of the runtime it compiles against');
+  // Each backend module of a plugin runs the guard's plugin rules on its own classes (standard-link queue item 22, 22b,
+  // D182): its ArchitectureTest reads the module's target/classes, the guard comes at test scope in the version of the
+  // runtime the plugin compiles against, and the parent takes JUnit from the BOM of the version the platform builds with.
+  for (const kind of ['api', 'core', 'server']) {
+    const guardTest = files.find((file) =>
+      file.endsWith(`-${kind}/src/test/java/io/brix/app/phase7/plugin/${kind}/ArchitectureTest.java`));
+    assert(guardTest, `the plugin ${kind} module has an ArchitectureTest`);
+    const source = await readFile(guardTest, 'utf-8');
+    assert(source.includes(`package io.brix.app.phase7.plugin.${kind};`), `the ${kind} ArchitectureTest is in the module's package`);
+    assert(source.includes('@AnalyzeClasses(locations = ModuleClasses.class)'),
+      `the ${kind} ArchitectureTest reads the module's own classes`);
+    assert(source.includes('BrixArchitectureRules.pluginProfile()'), `the ${kind} ArchitectureTest runs the plugin profile`);
+    const modulePom = await readFile(files.find((file) => file.endsWith(`phase7-plugin-${kind}/pom.xml`)), 'utf-8');
+    assert(/<artifactId>architecture-guard<\/artifactId>\s*<version>3\.2\.0<\/version>\s*<scope>test<\/scope>/.test(modulePom),
+      `the ${kind} module has the guard of the runtime it compiles against, at test scope`);
+  }
+  const parentPom = await readFile(files.find((file) => file.endsWith('app-phase7-plugin/pom.xml')), 'utf-8');
+  assert(/<artifactId>junit-bom<\/artifactId>\s*<version>6\.0\.3<\/version>\s*<type>pom<\/type>\s*<scope>import<\/scope>/
+    .test(parentPom), 'the plugin parent takes JUnit from the BOM of the version the platform builds with');
   // Free text that would break or change a generated file is refused.
   const unsafe = createDefaultGovernedScaffoldConfig('plugin', 'phase7-unsafe', join(root, 'unsafe'));
   unsafe.displayName = 'Orders: "v2"';

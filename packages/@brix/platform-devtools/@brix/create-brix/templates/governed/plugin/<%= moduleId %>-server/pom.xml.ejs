@@ -9,6 +9,7 @@
   </parent>
   <artifactId><%= moduleId %>-server</artifactId>
   <packaging>jar</packaging>
+  <!-- ArchitectureTest runs the Architecture Guard's plugin rules on this module's classes. -->
   <dependencies>
     <dependency>
       <groupId>io.brix</groupId>
@@ -24,6 +25,12 @@
       <groupId>io.brix.app</groupId>
       <artifactId><%= moduleId %>-core</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.brix</groupId>
+      <artifactId>architecture-guard</artifactId>
+      <version><%= runtimeVersion %></version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

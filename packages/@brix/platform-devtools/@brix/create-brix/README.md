@@ -72,21 +72,31 @@ prints the CLI's own. The generated Maven modules build with Java 17.
 
 ```text
 app-<name>/
-├── pom.xml                       # Parent of the three modules
+├── pom.xml                       # Parent of the three modules; JUnit from the platform's BOM
 ├── README.md
 ├── migration/phase7-migration-plan.yaml
 ├── app-<name>-api/               # plugin-api
-│   ├── pom.xml                   # Runs the contract lock at test scope
-│   └── src/test/java/io/brix/app/<name>/api/ContractSourcesTest.java
-├── app-<name>-core/pom.xml       # plugin-core
+│   ├── pom.xml                   # Runs the contract lock and the guard at test scope
+│   └── src/test/java/io/brix/app/<name>/api/
+│       ├── ArchitectureTest.java
+│       └── ContractSourcesTest.java
+├── app-<name>-core/              # plugin-core
+│   ├── pom.xml                   # Runs the guard at test scope
+│   └── src/test/java/io/brix/app/<name>/core/ArchitectureTest.java
 └── app-<name>-server/            # plugin-server
-    ├── pom.xml                   # Depends on io.brix:runtime-sdk-api
-    └── src/main/
-        ├── java/io/brix/app/<name>/server/<Name>Plugin.java
-        └── resources/META-INF/
-            ├── brix/plugin-manifest.yaml
-            └── services/io.runtime.sdk.plugin.BrixPlugin
+    ├── pom.xml                   # Depends on io.brix:runtime-sdk-api; runs the guard at test scope
+    ├── src/main/
+    │   ├── java/io/brix/app/<name>/server/<Name>Plugin.java
+    │   └── resources/META-INF/
+    │       ├── brix/plugin-manifest.yaml
+    │       └── services/io.runtime.sdk.plugin.BrixPlugin
+    └── src/test/java/io/brix/app/<name>/server/ArchitectureTest.java
 ```
+
+Each module's `ArchitectureTest` applies the Architecture Guard's plugin rules, `BrixArchitectureRules.pluginProfile()`,
+to the module's own classes (`ModuleClasses`): `mvn verify` fails on a class that breaks one, with the rule's reason.
+Until a module has classes, as the api and core modules right after generation, its rules are reported as skipped. The
+guard (`io.brix:architecture-guard`) comes at test scope in the version of the runtime the plugin compiles against.
 
 The manifest lists the three modules and declares no endpoints and no capabilities. The plugin class binds nothing
 and reports `UP`. Add endpoints, events and handlers as the Backend Development Guide in the Brix documentation

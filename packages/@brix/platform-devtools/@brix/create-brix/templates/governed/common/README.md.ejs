@@ -18,6 +18,12 @@ their versions.
 
 ## Verification
 
+<% if (kind === 'plugin') { -%>
+`mvn verify` in this directory runs each module's tests. `ArchitectureTest` applies the Architecture Guard's plugin rules
+to the module's own classes and fails on a class that breaks one, with the rule's reason; until a module has classes,
+its rules are reported as skipped. The api module's `ContractSourcesTest` pins every schema version the module ships.
+
+<% } -%>
 Run the repository Phase 7 smoke test before moving this generated module out of migration inventory:
 
 ```bash

@@ -9,7 +9,8 @@
   </parent>
   <artifactId><%= moduleId %>-core</artifactId>
   <packaging>jar</packaging>
-  <!-- Domain logic sees its own contract and the Runtime SDK's capabilities, nothing of the server. -->
+  <!-- Domain logic sees its own contract and the Runtime SDK's capabilities, nothing of the server. ArchitectureTest runs
+       the Architecture Guard's plugin rules on this module's classes. -->
   <dependencies>
     <dependency>
       <groupId>io.brix.app</groupId>
@@ -20,6 +21,12 @@
       <groupId>io.brix</groupId>
       <artifactId>runtime-sdk-api</artifactId>
       <version><%= runtimeVersion %></version>
+    </dependency>
+    <dependency>
+      <groupId>io.brix</groupId>
+      <artifactId>architecture-guard</artifactId>
+      <version><%= runtimeVersion %></version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

@@ -37,16 +37,21 @@ The command generates the three backend modules and the plugin's entry point:
 app-todo/
 ├── pom.xml                                       parent of the three modules
 ├── app-todo-api/                                 plugin-api
-│   ├── pom.xml                                   runs the contract lock at test scope
-│   └── src/test/java/io/brix/app/todo/api/ContractSourcesTest.java
-├── app-todo-core/pom.xml                         plugin-core
+│   ├── pom.xml                                   runs the contract lock and the guard at test scope
+│   └── src/test/java/io/brix/app/todo/api/
+│       ├── ArchitectureTest.java
+│       └── ContractSourcesTest.java
+├── app-todo-core/                                plugin-core
+│   ├── pom.xml                                   runs the guard at test scope
+│   └── src/test/java/io/brix/app/todo/core/ArchitectureTest.java
 ├── app-todo-server/                              plugin-server
 │   ├── pom.xml                                   depends on io.brix:runtime-sdk-api
-│   └── src/main/
-│       ├── java/io/brix/app/todo/server/TodoPlugin.java
-│       └── resources/META-INF/
-│           ├── brix/plugin-manifest.yaml
-│           └── services/io.runtime.sdk.plugin.BrixPlugin
+│   ├── src/main/
+│   │   ├── java/io/brix/app/todo/server/TodoPlugin.java
+│   │   └── resources/META-INF/
+│   │       ├── brix/plugin-manifest.yaml
+│   │       └── services/io.runtime.sdk.plugin.BrixPlugin
+│   └── src/test/java/io/brix/app/todo/server/ArchitectureTest.java
 ├── migration/phase7-migration-plan.yaml
 └── README.md
 ```
@@ -815,8 +820,31 @@ export function TodoListPage() {
 
 ## Part 5: Architecture Tests
 
-The scaffold generates one test, the api module's `ContractSourcesTest` (Part 3). Add the Architecture Guard to the
-core module, with the ArchUnit JUnit engine that runs its rules, both at test scope:
+Besides the api module's `ContractSourcesTest` (Part 3), the scaffold generates an `ArchitectureTest` in each backend
+module. It applies the Architecture Guard's rule set for plugin code to the module's own classes:
+
+```java title="backend/core/test/ArchitectureTest.java"
+package com.example.todo.core;
+
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.junit.ArchTests;
+
+import io.brix.architecture.guard.BrixArchitectureRules;
+import io.brix.architecture.guard.ModuleClasses;
+
+@AnalyzeClasses(locations = ModuleClasses.class)
+class ArchitectureTest {
+
+    @ArchTest
+    static final ArchTests pluginRules = BrixArchitectureRules.pluginProfile();
+}
+```
+
+`ModuleClasses` reads the module's `target/classes`, so each module checks its own classes only: `backend/api` and
+`backend/server` have the same test. Until a module has classes, its rules are reported as skipped. Each module's pom
+has the guard at test scope, in the runtime's version; it brings ArchUnit and the JUnit engine that runs the rules. If
+you set up a module yourself, add the dependency and the test class:
 
 ```xml title="backend/core/pom.xml (excerpt)"
 <dependency>
@@ -825,35 +853,6 @@ core module, with the ArchUnit JUnit engine that runs its rules, both at test sc
     <version>3.2.0</version>
     <scope>test</scope>
 </dependency>
-<dependency>
-    <groupId>com.tngtech.archunit</groupId>
-    <artifactId>archunit-junit6</artifactId>
-    <version>1.5.1</version>
-    <scope>test</scope>
-</dependency>
-```
-
-Then add one test class. It applies the guard's rule set for plugin code to the module's classes and to those of
-`backend/api`, which the module depends on. Add the same class to `backend/server` to check the handlers and the
-plugin class too.
-
-```java title="backend/core/test/ArchitectureTest.java"
-package com.example.todo.core;
-
-import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.junit.AnalyzeClasses;
-import com.tngtech.archunit.junit.ArchTest;
-import com.tngtech.archunit.junit.ArchTests;
-
-import io.brix.architecture.guard.BrixArchitectureRules;
-
-/** The Architecture Guard's plugin rules, run by mvn test. */
-@AnalyzeClasses(packages = "com.example.todo", importOptions = ImportOption.DoNotIncludeTests.class)
-class ArchitectureTest {
-
-    @ArchTest
-    static final ArchTests brixRules = BrixArchitectureRules.pluginProfile();
-}
 ```
 
 The guard's rule classes, such as `AdapterIsolationRule`, are final: use `BrixArchitectureRules`, do not extend them.
