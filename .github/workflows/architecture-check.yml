@@ -94,14 +94,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Maven's downloads come from the Actions cache, as in Code Coverage: without it every run downloaded them from
+      # Maven Central, and twice a run failed before any test (standard-link queue item 22, 22d).
       - name: Setup Java (17)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: maven
 
       - name: Architecture governance and guard tests
-        run: mvn -B -ntp -pl :architecture-governance,:architecture-guard test
+        run: |
+          set -o pipefail
+          mvn -B -ntp -pl :architecture-governance,:architecture-guard test 2>&1 | tee "$RUNNER_TEMP/guard-tests.log"
 
       - name: Annotate failed tests
         if: failure()
@@ -109,6 +114,14 @@ jobs:
           node scripts/ci-test-annotations.mjs
           packages/@brix/platform-devtools/architecture-governance
           packages/@brix/platform-devtools/architecture-guard
+
+      # A run that fails before any test, as when a dependency cannot be resolved, leaves no test report, and its log
+      # needs a signed-in reader: the lines in which Maven says why become annotations, which anyone can read.
+      - name: Annotate the Maven failure
+        if: failure()
+        run: >-
+          grep -m 3 -E '^\[ERROR\] (Failed to execute goal|Could not|Non-resolvable)' "$RUNNER_TEMP/guard-tests.log"
+          | sed -e 's/%/%25/g' -e 's/^/::error title=Maven::/' || true
 
       - name: Upload Phase 6 evidence report
         uses: actions/upload-artifact@v4
